@@ -26,6 +26,20 @@ structure Request where
   amount : String := ""
   deriving Repr, DecidableEq, Inhabited
 
+/--
+Signed posting entry for the explicit multi-posting Web path.
+
+The fixed six-row presentation window matches the current TUI's practical editing
+bound without imposing that bound on the shared Record semantics.
+-/
+structure PostingRequest where
+  date : String
+  description : String := ""
+  measure : String := "jpy"
+  rows : Array Loam.Presentation.Record.Row :=
+    #[{}, {}, {}, {}, {}, {}]
+  deriving Repr, DecidableEq, Inhabited
+
 inductive ReviewState where
   | editing
   | rejected (message : String)
@@ -38,9 +52,25 @@ structure Model where
   measurePresentation : List Loam.MeasurePresentation.Metadata
   review : ReviewState := .editing
 
+structure PostingModel where
+  operation : String
+  request : PostingRequest
+  catalog : Loam.LocusCatalog.Catalog
+  measurePresentation : List Loam.MeasurePresentation.Metadata
+  review : ReviewState := .editing
+
 def initial (operation date : String)
     (catalog : Loam.LocusCatalog.Catalog)
     (measurePresentation : List Loam.MeasurePresentation.Metadata) : Model := {
+  operation := operation
+  request := { date := date }
+  catalog := catalog
+  measurePresentation := measurePresentation
+}
+
+def postingsInitial (operation date : String)
+    (catalog : Loam.LocusCatalog.Catalog)
+    (measurePresentation : List Loam.MeasurePresentation.Metadata) : PostingModel := {
   operation := operation
   request := { date := date }
   catalog := catalog
@@ -76,6 +106,19 @@ def Request.toInput? (request : Request) :
     ]
   }
 
+/--
+Drop only completely unused presentation rows. A partially completed row remains
+visible to the shared parser and is refused there rather than guessed or repaired.
+-/
+def PostingRequest.toInput (request : PostingRequest) :
+    Loam.Presentation.Record.Input := {
+  date := request.date
+  description := request.description
+  measure := request.measure
+  rows := request.rows.filter fun row =>
+    !(row.locus.isEmpty && row.amount.isEmpty)
+}
+
 /-- Check one Web request through the same read-only admission preview as the TUI. -/
 def review
     (world : Loam.MovementAdmission.World)
@@ -87,6 +130,14 @@ def review
           world model.measurePresentation input with
       | .error message => { model with review := .rejected message }
       | .ok preview => { model with review := .ready preview }
+
+def reviewPostings
+    (world : Loam.MovementAdmission.World)
+    (model : PostingModel) : PostingModel :=
+  match Loam.Presentation.Record.preview?
+      world model.measurePresentation model.request.toInput with
+  | .error message => { model with review := .rejected message }
+  | .ok preview => { model with review := .ready preview }
 
 private def esc (text : String) : String :=
   Loam.Web.Snapshot.escapeHtml text
@@ -146,7 +197,33 @@ private def renderForm (model : Model) : String :=
   "<tr><th>Amount</th><td>" ++ inputText "amount" request.amount 14 ++ "</td></tr>\n" ++
   "</table>\n" ++
   "<p><input type=\"submit\" value=\"Review\"> " ++
+    "<a href=\"/record/postings\">Multiple postings</a> | " ++
     "<a href=\"/\">Back to Home</a></p>\n" ++
+  "</form>"
+
+private def postingFieldRows (model : PostingModel) : String :=
+  String.intercalate "\n" <| (List.range model.request.rows.size).map fun index =>
+    let row := model.request.rows[index]!
+    let number := toString (index + 1)
+    "<tr><th>Posting " ++ number ++ "</th><td>" ++
+      locusSelect ("posting_" ++ number ++ "_locus") row.locus model.catalog ++
+      " " ++ inputText ("posting_" ++ number ++ "_amount") row.amount 14 ++
+      "</td></tr>"
+
+private def renderPostingsForm (model : PostingModel) : String :=
+  let request := model.request
+  "<h2>Record / Multiple postings</h2>\n" ++
+  "<p class=\"note\">Enter two to six signed postings. Negative moves value from a Locus; positive moves value to a Locus. Leave unused rows empty.</p>\n" ++
+  "<form id=\"record-postings-form\" action=\"/record/postings/preview\" method=\"post\" accept-charset=\"UTF-8\">\n" ++
+  hiddenInput "operation" model.operation ++ "\n" ++
+  "<table class=\"facts\" summary=\"Record one household Movement with multiple signed postings\">\n" ++
+  "<tr><th>Date</th><td>" ++ inputText "date" request.date 12 ++ "</td></tr>\n" ++
+  "<tr><th>Description</th><td>" ++ inputText "description" request.description 40 ++ "</td></tr>\n" ++
+  "<tr><th>Measure</th><td>" ++ inputText "measure" request.measure 10 ++
+    " " ++ scaleNote model.measurePresentation request.measure ++ "</td></tr>\n" ++
+  postingFieldRows model ++ "\n</table>\n" ++
+  "<p><input type=\"submit\" value=\"Review\"> " ++
+    "<a href=\"/record\">Ordinary Record</a> | <a href=\"/\">Back to Home</a></p>\n" ++
   "</form>"
 
 private def renderRejected (message : String) : String :=
@@ -199,6 +276,57 @@ private def renderReady (model : Model)
   "<p class=\"note\">The operation identity makes a repeated Confirm safe to retry.</p>\n" ++
   "</div>"
 
+private def postingHiddenRows (request : PostingRequest) : String :=
+  String.intercalate "\n" <| (List.range request.rows.size).flatMap fun index =>
+    let row := request.rows[index]!
+    let number := toString (index + 1)
+    [ hiddenInput ("posting_" ++ number ++ "_locus") row.locus
+    , hiddenInput ("posting_" ++ number ++ "_amount") row.amount
+    ]
+
+private def renderPostingsReady (model : PostingModel)
+    (preview : Loam.Presentation.Record.Preview) : String :=
+  let draft := preview.draft
+  let request := model.request
+  let metadata := model.measurePresentation
+  let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
+  let rows :=
+    draft.effects.map fun effect =>
+      "<tr><td>" ++ esc effect.locus.token ++ "</td><td>" ++
+        esc (Loam.MeasurePresentation.formatQuanta
+          metadata effect.measure effect.quantity.quanta) ++
+        " " ++ esc effect.measure.token ++ "</td></tr>"
+  "<div class=\"review ready\">\n" ++
+  "<h2>Review</h2>\n" ++
+  "<table class=\"facts\" summary=\"Reviewed Movement\">\n" ++
+  "<tr><th>Date</th><td>" ++ esc draft.validOn ++ "</td></tr>\n" ++
+  "<tr><th>Description</th><td>" ++ esc (draft.description.getD "(none)") ++ "</td></tr>\n" ++
+  "<tr><th>Measure</th><td>" ++ esc measure.token ++ "</td></tr>\n" ++
+  "<tr><th>Exact balance</th><td>yes</td></tr>\n" ++
+  "<tr><th>Total</th><td>" ++
+    esc (Loam.MeasurePresentation.formatQuanta metadata measure draft.total) ++
+    " " ++ esc measure.token ++ "</td></tr>\n</table>\n" ++
+  "<table summary=\"Reviewed signed postings\">\n" ++
+  "<tr><th>Locus</th><th>Signed amount</th></tr>\n" ++
+  String.intercalate "\n" rows ++ "\n</table>\n" ++
+  "<p class=\"note\">Admissible against the household world read for this review. Confirm rebuilds all signed postings and the household writer re-reads authority before publication.</p>\n" ++
+  "<form action=\"/record/postings/confirm\" method=\"post\" accept-charset=\"UTF-8\">\n" ++
+  hiddenInput "operation" model.operation ++ "\n" ++
+  hiddenInput "date" request.date ++ "\n" ++
+  hiddenInput "description" request.description ++ "\n" ++
+  hiddenInput "measure" request.measure ++ "\n" ++
+  postingHiddenRows request ++ "\n" ++
+  "<p><input type=\"submit\" value=\"Record\"> <a href=\"#record-postings-form\">Back to edit</a></p>\n" ++
+  "</form>\n" ++
+  "<p class=\"note\">The operation identity makes a repeated Confirm safe to retry.</p>\n" ++
+  "</div>"
+
+private def renderPostingsReview (model : PostingModel) : String :=
+  match model.review with
+  | .editing => ""
+  | .rejected message => renderRejected message
+  | .ready preview => renderPostingsReady model preview
+
 private def renderReview (model : Model) : String :=
   match model.review with
   | .editing => ""
@@ -232,6 +360,22 @@ def render (model : Model) : String :=
     , "<div id=\"header\"><h1>LOAM</h1><div class=\"subtitle\">Record preview</div></div>"
     , renderForm model
     , renderReview model
+    , "</div></body></html>"
+    ]
+
+def renderPostings (model : PostingModel) : String :=
+  String.intercalate "\n"
+    [ "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">"
+    , "<html lang=\"en\">"
+    , "<head>"
+    , "  <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">"
+    , "  <title>LOAM Record / Multiple postings</title>"
+    , "  <style type=\"text/css\">" ++ style ++ "</style>"
+    , "</head>"
+    , "<body><div id=\"page\">"
+    , "<div id=\"header\"><h1>LOAM</h1><div class=\"subtitle\">Record multiple postings</div></div>"
+    , renderPostingsForm model
+    , renderPostingsReview model
     , "</div></body></html>"
     ]
 
