@@ -68,9 +68,8 @@ def render_record_confirm(
             fields["description"],
             fields["measure"],
             fields["from_locus"],
-            fields["from_amount"],
             fields["to_locus"],
-            fields["to_amount"],
+            fields["amount"],
         ],
     )
 
