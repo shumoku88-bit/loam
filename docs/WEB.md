@@ -1,6 +1,6 @@
 # LOAM Web
 
-Status: **read-only household frontend with Record preview**
+Status: **local household frontend with explicit Record confirmation**
 
 LOAM Web tests one architectural claim:
 
@@ -47,8 +47,8 @@ The command:
 4. re-reads the shared Review boundaries and renders a fresh semantic HTML document.
 
 The server does not retain household answers between requests. It also exposes a
-small Record form at `/record`; submitting that form performs a read-only Lean
-admission preview and does not publish household data.
+small Record form at `/record`. Review performs a read-only Lean admission
+preview. Only the separate explicit Confirm action can publish household data.
 
 Open the same URL in Dillo or Safari:
 
@@ -117,7 +117,15 @@ HTML form
 ```
 
 The preview reserves no Event identity and performs no canonical publication.
-There is intentionally no Confirm/Record button yet.
+A separate `Record` confirmation resubmits the original human input plus an
+opaque logical operation identity. Lean rebuilds the shared draft rather than
+trusting preview output, then delegates to `HouseholdCommand.recordIdempotent`.
+
+The publisher owns writer exclusion, authoritative Actual and Locus-policy
+re-read, Movement admission, identity allocation, and atomic publication. A
+repeated browser Confirm with the same logical operation identity returns the
+already-published Event instead of appending a duplicate. After success, the
+Web command re-reads the household snapshot before rendering the result.
 
 Current Budget consumes the same `CycleBudgetReview` boundary as the production TUI.
 The Web layer does not recompute budget arithmetic. It presents the shared answers,
@@ -137,18 +145,11 @@ Raw Capacity remains separately visible because it answers a different question:
 all-retained Capacity entitlement. It is explicitly labelled so it cannot be mistaken
 for current-cycle Budget.
 
-The Web frontend currently consumes:
-
-```text
-ActualReview
-ScheduledReview
-CycleBudgetReview
-AttentionReview
-CapacityReview
-PurposeCatalog presentation metadata
-```
-
-and performs presentation only.
+The read surfaces consume shared Review boundaries such as ActualReview,
+ScheduledReview, CycleBudgetReview, AttentionReview, CapacityReview, and
+PurposeCatalog presentation metadata. The Record write surface does not create
+a Web-specific writer; it delegates the confirmed shared draft to
+`HouseholdCommand.recordIdempotent`.
 
 ## Reports
 
@@ -178,25 +179,23 @@ canonical household state.
 
 ## Authority boundary
 
-The Web frontend has no publisher, writer, canonical storage, recurrence model,
-account model, or independent household state.
+The Web frontend owns no publisher, canonical storage, recurrence model, account
+model, or independent household state. Reads and writes enter existing shared
+boundaries:
 
 ```text
 canonical household evidence
         |
-        v
-shared Review boundaries
+        +--> shared Review boundaries --> Loam.Web.Snapshot --> semantic HTML
         |
-        v
-Loam.Web.Snapshot
-        |
-        v
-semantic HTML
-        |
-        +--> Dillo
-        |
-        +--> Safari / modern browser
+        +<-- HouseholdCommand.recordIdempotent
+                 ^
+                 |
+          explicit Confirm
 ```
+
+The localhost Python process owns transport and an opaque per-form operation
+token only. It does not decide accounting semantics or write household files.
 
 Missing or refused evidence remains visibly unavailable. The Web layer must not
 turn missing authority into zero, empty, false, or NotDue.
@@ -240,7 +239,7 @@ shared Record input boundary
 Web Record form + read-only Review
         |
         v
-explicit Confirm + existing HouseholdCommand.record
+explicit Confirm + existing HouseholdCommand.recordIdempotent
         |
         v
 optional Safari progressive enhancement
@@ -251,7 +250,7 @@ optional Safari progressive enhancement
 This slice does not establish that:
 
 - every TUI capability is presentation-neutral;
-- Web publication is safe or qualified;
+- every future Web write path is safe or qualified;
 - the browser receives pushed updates without a request;
 - the page is a general remote HTTP API;
 - browser presentation is a new household authority;
@@ -266,5 +265,6 @@ The experiment succeeds when lightweight and modern browsers can request the sam
 fresh household answers while all semantics still come from existing shared Review
 boundaries and no Web-specific retained meaning is introduced.
 
-Only after that boundary remains stable should later experiments add report lenses,
-one small existing write path, and richer Safari presentation.
+The first existing write path is now Record. Further write surfaces should be
+added only when they preserve the same explicit confirmation, shared-command,
+authoritative re-read, and visible-result rules.
