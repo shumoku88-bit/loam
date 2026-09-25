@@ -116,24 +116,21 @@ private def snapshot : Loam.TransactionsFlowReview.Snapshot :=
 private structure Cell where
   coordinate : EffectCoordinate
   quanta : Int
-deriving Repr, DecidableEq
+
 
 private structure SparseColumn where
   source : Loam.TransactionsFlowReview.Column
   cells : List Cell
-deriving Repr, DecidableEq
 
 private structure RowSummary where
   coordinate : EffectCoordinate
   positive : Int
   negative : Int
   activeEvents : Nat
-deriving Repr, DecidableEq
 
 private structure SparseImage where
   columns : List SparseColumn
   rows : List RowSummary
-deriving Repr, DecidableEq
 
 private def addQuantityToCells
     (coordinate : EffectCoordinate) (q : Int) : List Cell → List Cell
@@ -285,40 +282,42 @@ theorem represented_coordinates_correspond :
 theorem all_selected_cells_correspond :
     snapshot.columns.all (fun column =>
       snapshot.rows.all (fun coordinate =>
-        sparseCellAt sparse coordinate column.event.id =
-          Loam.TransactionsFlowReview.cellAt
-            snapshot coordinate column.event.id)) = true := by
+        decide (
+          sparseCellAt sparse coordinate column.event.id =
+            Loam.TransactionsFlowReview.cellAt
+              snapshot coordinate column.event.id))) = true := by
   native_decide
 
 theorem row_activity_corresponds_on_all_represented_rows :
     snapshot.rows.all (fun coordinate =>
-      sparseActivity sparse coordinate =
-        Loam.TransactionsFlowReview.rowActivity snapshot coordinate) = true := by
+      decide (
+        sparseActivity sparse coordinate =
+          Loam.TransactionsFlowReview.rowActivity snapshot coordinate)) = true := by
   native_decide
 
 theorem row_total_is_sparse_activity_net_on_all_represented_rows :
     snapshot.rows.all (fun coordinate =>
-      Loam.TransactionsFlowReview.rowTotal snapshot coordinate =
-        (sparseActivity sparse coordinate).net) = true := by
+      decide (
+        Loam.TransactionsFlowReview.rowTotal snapshot coordinate =
+          (sparseActivity sparse coordinate).net)) = true := by
   native_decide
 
 theorem focused_contributors_correspond_on_all_represented_rows :
     snapshot.rows.all (fun coordinate =>
-      sparseContributorIds sparse coordinate =
-        directContributorIds snapshot coordinate) = true := by
+      decide (
+        sparseContributorIds sparse coordinate =
+          directContributorIds snapshot coordinate)) = true := by
   native_decide
 
 theorem measure_residuals_correspond_for_mixed_event :
-    let some sparseMixed :=
-      sparse.columns.find? fun candidate =>
-        decide (candidate.source.event.id = mixedEvent.id)
-      | false
-    sparseMeasureResidual sparseMixed jpy =
-        Loam.TransactionsFlowReview.measureResidual
-          sparseMixed.source jpy &&
-    sparseMeasureResidual sparseMixed point =
-        Loam.TransactionsFlowReview.measureResidual
-          sparseMixed.source point := by
+    match sparse.columns.find? fun candidate =>
+        decide (candidate.source.event.id = mixedEvent.id) with
+    | none => False
+    | some sparseMixed =>
+        sparseMeasureResidual sparseMixed jpy =
+            Loam.TransactionsFlowReview.measureResidual sparseMixed.source jpy ∧
+        sparseMeasureResidual sparseMixed point =
+            Loam.TransactionsFlowReview.measureResidual sparseMixed.source point := by
   native_decide
 
 /-! ## Counterexample pressure -/
