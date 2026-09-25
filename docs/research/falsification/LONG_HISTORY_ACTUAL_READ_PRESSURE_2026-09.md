@@ -1,6 +1,6 @@
 # Long-history Actual read pressure — 2026-09-20
 
-Status: **measured production-path checkpoint**
+Status: **measured production-path checkpoint / million-event probe complete**
 
 ## Question
 
@@ -165,85 +165,70 @@ Likely contributors include:
 Correction-heavy history has different semantic obligations from description
 lookup and deserves a separate measured change.
 
-## Correction-heavy follow-up: no production optimization earned yet
+## Correction-heavy follow-up: resolved
 
-Issue #1134 followed this pressure with a staged experiment.
+Issue #1134 subsequently qualified and promoted the correction-heavy optimization.
 
-Several narrow candidates were tried independently:
+PR #1148 linearized the measured repeated-work layers while preserving the
+existing fail-closed semantics:
 
-1. hash-backed duplicate admission for raw Correction edges while retaining the
-   same `List.Nodup` proof;
-2. a transient target-to-replacement index for canonical Actual Review;
-3. a transient Event-identity index for Correction reference closure;
-4. proof-carrying reuse of already-established source/successor uniqueness at
-   the replacement-frontier boundary.
+- raw Correction duplicate admission uses proof-producing hash-backed admission;
+- Correction frontier admission/reference/cycle checks use a transient indexed
+  representation;
+- Actual Review replacement lookup uses transient indexing;
+- general equivalence theorems preserve correspondence with the legacy
+  specification.
 
-Individual GitHub-hosted-runner measurements appeared to improve substantially.
-One sequence reported the 10k correction-heavy case moving from 4.436 s through
-3.200 s, 3.089 s and 2.733 s to 1.109 s.
+A later current-main remeasurement on the production `loam review` path reported:
 
-A follow-up repetition showed that this apparent progression was not sufficiently
-stable to qualify the production changes.
+| Events | Run 1 median | Run 2 median |
+| ---: | ---: | ---: |
+| 1,000 | 0.0110 s | 0.0136 s |
+| 5,000 | 0.0340 s | 0.0426 s |
+| 10,000 | 0.0659 s | 0.0748 s |
+| 50,000 | 0.4249 s | 0.4075 s |
 
-A later baseline rerun measured:
+The old 10k correction-heavy result was 4.436 s. The measured quadratic bend
+was therefore removed without turning the transient index into household
+authority. Issue #1134 was closed after this qualification.
 
-| Events | Baseline rerun |
-| ---: | ---: |
-| 1,000 | 0.052 s |
-| 5,000 | 0.514 s |
-| 10,000 | 2.164 s |
+## Million-event long-horizon probe — 2026-09-25
 
-The best-candidate code was then rerun twice. The 10k medians were about:
+PR #1317 ran a measurement-only probe on one `ubuntu-24.04` GitHub-hosted
+runner at commit `4acdba90b0be5242d5974ce2c9d2dd63c27b1b45`.
 
-```text
-2.296 s
-2.328 s
-```
+The benchmark reused `tools/benchmark-actual-read.py` and the production
+`loam review` entrance. Build time and fixture generation were outside the
+timed region. Each size was measured three times and the median retained.
 
-Those runs do not establish a reliable improvement over the rerun baseline.
-The earlier 1.109 s result is therefore treated as runner variation rather than
-proof of a production speedup.
+All three history shapes completed through one million Events:
 
-A separate target-indexed frontier-filter candidate also failed to earn
-promotion: its selected 10k run was 1.514 s versus 1.109 s in the immediately
-preceding run, and the broader rerun evidence made absolute cross-run comparison
-too noisy to justify keeping either change on that basis.
+| Events | Plain median | Description-heavy median | Correction-heavy median |
+| ---: | ---: | ---: | ---: |
+| 50,000 | 0.401 s | 0.543 s | 0.622 s |
+| 100,000 | 0.935 s | 1.231 s | 1.507 s |
+| 250,000 | 2.655 s | 3.360 s | 3.974 s |
+| 500,000 | 5.678 s | 7.207 s | 8.457 s |
+| 1,000,000 | 11.938 s | 15.073 s | 16.951 s |
 
-All experimental production changes and the temporary CI workflow were
-withdrawn.
+The high end remains close to linear in this measured range:
 
-### Methodological finding
+- Plain, 500k -> 1M: 2.10x wall time for 2x Events.
+- Description-heavy, 500k -> 1M: 2.09x.
+- Correction-heavy, 500k -> 1M: 2.00x.
+- From 250k -> 1M, 4x Events cost 4.50x / 4.49x / 4.27x respectively.
 
-For performance work at this scale, independent GitHub-hosted workflow runs are
-not a strong enough comparison instrument when the expected improvement is of
-the same order as runner variance.
+This is an empirical scaling result, not an asymptotic-complexity proof. Across
+the full 50k -> 1M range, wall time grows somewhat faster than the 20x Event
+increase, so the result should not be described as perfectly linear.
 
-A future Correction optimization should therefore qualify itself with a
-**paired baseline/candidate benchmark on the same runner**, ideally in one job,
-before changing production code.
+The important observation is narrower: no renewed quadratic bend appears
+through one million Events, including the correction-heavy shape, and the
+production read/review path remains practical at a history size far beyond
+ordinary household use.
 
-The semantic constraints remain unchanged:
-
-```text
-Correction evidence
-    -> fail-closed partial-injective frontier
-    -> current Event projection
-
-transient indexes may accelerate that proof/admission path
-    but may not become household authority
-```
-
-Static inspection still identifies the list-based replacement traversal
-(`next?`, done membership, and related frontier work) as a plausible remaining
-source of superlinear growth. Observation 273/274 already proves important
-correspondence for the current global-done algorithm, so replacing that traversal
-with an indexed successor representation would require a correspondingly strong
-proof that the transient index denotes exactly the admitted replacement
-relation.
-
-Until such a same-runner measurement and proof boundary are available, issue
-#1134 remains a measured open performance question rather than an earned
-production rewrite.
+The measurement does not earn a new production optimization. PR #1317 therefore
+remains measurement-only evidence rather than a change to household semantics.
 
 ## Architectural finding
 
