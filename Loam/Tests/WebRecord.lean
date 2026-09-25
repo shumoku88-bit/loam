@@ -12,7 +12,7 @@ private def world : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? []
     | throw (IO.userError "empty events")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci?
-      [⟨"paypay"⟩, ⟨"books"⟩]
+      [⟨"paypay"⟩, ⟨"books"⟩, ⟨"food"⟩, ⟨"shipping"⟩]
     | throw (IO.userError "vocabulary")
   return {
     events := events
@@ -83,6 +83,60 @@ def main (_args : List String) : IO Unit := do
   expect (!contains html "to_amount")
     "Web Record still exposed a redundant To amount field"
 
+  let postingRequest : Loam.Web.Record.PostingRequest := {
+    date := "2026-09-25"
+    description := "split purchase"
+    measure := "jpy"
+    rows := #[
+      { locus := "paypay", amount := "-3000" },
+      { locus := "books", amount := "2000" },
+      { locus := "food", amount := "700" },
+      { locus := "shipping", amount := "300" },
+      {},
+      {}
+    ]
+  }
+  let postingInput := postingRequest.toInput
+  expect (postingInput.rows.size == 4)
+    "Web multiple-posting input did not drop only unused rows"
+  expect (postingInput.rows[0]!.amount == "-3000" &&
+      postingInput.rows[3]!.amount == "300")
+    "Web multiple-posting input changed signed amounts"
+  let postingModel : Loam.Web.Record.PostingModel := {
+    operation := "web-postings-operation"
+    request := postingRequest
+    catalog := catalog
+    measurePresentation := []
+  }
+  let postingReviewed := Loam.Web.Record.reviewPostings w postingModel
+  let postingHtml := Loam.Web.Record.renderPostings postingReviewed
+  expect (contains postingHtml "action=\"/record/postings/preview\"")
+    "Web multiple-posting form does not post to its preview route"
+  expect (contains postingHtml "action=\"/record/postings/confirm\"")
+    "Web multiple-posting review did not expose explicit confirmation"
+  expect (contains postingHtml "-3000 jpy" &&
+      contains postingHtml "2000 jpy" &&
+      contains postingHtml "700 jpy" &&
+      contains postingHtml "300 jpy")
+    "Web multiple-posting review did not preserve all signed postings"
+  expect (contains postingHtml "Leave unused rows empty")
+    "Web multiple-posting form did not explain its bounded optional rows"
+
+  let partialPosting : Loam.Web.Record.PostingRequest := {
+    postingRequest with
+    rows := #[
+      { locus := "paypay", amount := "-3000" },
+      { locus := "books", amount := "" },
+      {}, {}, {}, {}
+    ]
+  }
+  expect (partialPosting.toInput.rows.size == 2)
+    "Web multiple-posting input silently dropped a partially completed row"
+  let partialHtml := Loam.Web.Record.renderPostings
+    (Loam.Web.Record.reviewPostings w { postingModel with request := partialPosting })
+  expect (contains partialHtml "Not ready:")
+    "Web multiple-posting path did not visibly refuse a partial row"
+
   let signedRequest := { request with amount := "-2470" }
   expect (signedRequest.toInput?.isOk == false)
     "Web Amount accepted a second direction sign"
@@ -96,4 +150,4 @@ def main (_args : List String) : IO Unit := do
   expect (contains missingAmountHtml "Nothing was written.")
     "Web Record refusal did not state the no-write result"
 
-  IO.println "Web Record: From/To transport, shared admission preview, explicit confirmation, escaping, and refusal passed."
+  IO.println "Web Record: ordinary and multiple-posting transport, shared admission preview, explicit confirmation, escaping, and refusal passed."
