@@ -33,9 +33,8 @@ private def request : Loam.Web.Record.Request := {
   description := "web publication"
   measure := "jpy"
   fromLocus := "paypay"
-  fromAmount := "2470"
   toLocus := "books"
-  toAmount := "2470"
+  amount := "2470"
 }
 
 private def draft : IO Loam.MovementAdmission.Draft := do
