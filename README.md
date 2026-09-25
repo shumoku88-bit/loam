@@ -2,43 +2,6 @@
 
 LOAM is a household system for day-to-day recording and review, with formal-modeling experiments used to test parts of its design.
 
-The research began with a deliberately narrow question:
-
-> If finite resources are distributed through time and purpose without assuming accounts, transactions, budgets, or envelopes, what structures appear on their own?
-
-## Method
-
-Use the smallest set of tools that can answer the current question.
-
-For AI-assisted or cross-cutting repository work, [`docs/AI_WORKBENCH.md`](docs/AI_WORKBENCH.md) is the discovery index for LOAM's semantic maps, obligation DAGs, DRAKON/D2 views, repository audits, falsification catalogs, and formal/executable instruments. It is a menu rather than a required pipeline.
-
-The default core is:
-
-- **Alloy** explores possible structures and counterexamples.
-- **Lean 4** proves observed laws generally when they become worth keeping and hosts the practical core.
-
-Additional live tools are introduced only when they add a distinct kind of answer:
-
-- **TLA+ / TLC** for temporal behavior, operation order, and state-transition questions.
-- **Apalache** for symbolic checking of selected TLA+ transition systems and inductive invariants.
-- **SPIN / Promela** for explicit interleaving and protocol-order questions where concurrent process scheduling is the pressure point.
-
-Before adding an optional tool to a new observation, state what the current toolset cannot answer and what distinct result the extra tool is expected to produce.
-
-Past observations that used an optional tool remain part of the evidence. They show cases where that tool had a distinct role; they do not create a permanent dependency.
-
-J, miniKanren/Racket, and Dafny have all been used as bounded research instruments and are now historical-only: their results remain in the observation/experiment records and Git history, but no live source or CI toolchain is retained for them. Reintroduce one only when a new question earns a distinct answer that the current live toolset cannot provide clearly enough.
-
-Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
-
-For non-trivial semantic changes and audits, LOAM first decomposes the question into deterministic, previously-earned, and genuinely residual obligations before adding proofs or asking AI to reason over the whole subsystem. See [`docs/OBLIGATION_SCAFFOLD_METHOD.md`](docs/OBLIGATION_SCAFFOLD_METHOD.md).
-
-For long-horizon AI-assisted development, [`docs/SEMANTIC_BLUEPRINT.md`](docs/SEMANTIC_BLUEPRINT.md) is a deliberately small shared map of the meaning that should remain stable across many work sessions and pull requests. Use it as an outer drift review around the local obligation scaffold; it is not a new persistence or proof authority.
-
-Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
-
-For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
-
 ## Practical entrance
 
 LOAM is published as one standalone `loam` executable for macOS and Linux. A normal user does not need Lean, Lake, or a repository checkout.
@@ -63,6 +26,14 @@ Household recording has one explicit line-CLI entrance:
 
 If the argument is omitted, the line CLI uses the `LOAM_DATA_DIR` environment variable and then `../loam-data`. Movement preflight and publication read the same normalized Actual authority used by the production TUI.
 
+### Household Actual authority
+
+The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. The selected directory is the Actual authority root, and `actual.loam` is the normalized production Actual file.
+
+Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume this authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
+
+Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Lower-level commands that accept an Actual path or data root fail closed on missing or malformed evidence rather than manufacturing an alternate authority. The historical shell-menu manifest cutover is retained as provenance in [`docs/movement_manifest_menu_cutover.md`](docs/movement_manifest_menu_cutover.md); it is not current entrance guidance.
+
 ### Development checkout
 
 For repository development, LOAM's practical Lean boundary is selected by `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then use the repository wrapper:
@@ -85,19 +56,25 @@ lake build Loam.Observations     # broader live research-regression witnesses
 
 The default product library does not import the broad Observation umbrella merely to obtain repository-wide regression coverage. Durable proofs and selected research witnesses remain independently checked by CI, while executable targets continue to use their own practical roots.
 
+### Reviewer map
+
+The first repository path is intentionally split by role rather than by project history:
+
+- **Product/runtime:** [`Loam.lean`](Loam.lean) is the ordinary product library surface; the standalone `loam` executable is the user entrance.
+- **Durable production proofs:** [`Loam.DurableProofs`](Loam/DurableProofs.lean) is the small long-lived proof surface that current product boundaries rely on.
+- **Live research witnesses:** [`Loam.Observations`](Loam/Observations.lean) is checked independently from the product surface; broader historical experiments and checkpoints live under [`docs/research/`](docs/research/README.md), `experiments/`, and `observations/`.
+- **Current TUI contract:** [`docs/TUI.md`](docs/TUI.md) describes the production terminal surface without redefining household semantics.
+- **Semantic/authority map:** [`docs/SEMANTIC_BLUEPRINT.md`](docs/SEMANTIC_BLUEPRINT.md) is the compact map of meanings and trust boundaries intended to remain stable.
+- **CI trust map:** [`docs/CI_OBLIGATION_MAP.md`](docs/CI_OBLIGATION_MAP.md) maps product, durable-proof, research, publication, UI, and distribution obligations to their checks.
+- **AI-assisted repository work:** [`docs/AI_WORKBENCH.md`](docs/AI_WORKBENCH.md) is a menu of repository instruments, not a prerequisite for using or reviewing the product.
+
+### Recording movements
+
 Select one Measure for the movement (default `jpy`; scripted callers may set `LOAM_MEASURE`), enter one or more FROM loci and positive amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly in that same Measure before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
 
 Purchases, transfers, income, split payments, and other same-Measure value flows use this entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. A cross-Measure exchange such as JPY -> USD is deliberately not inferred by this entrance; it requires separately qualified exchange / valuation semantics. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
 
 For adding another ordinary currency Measure, choosing its decimal scale, and understanding the boundary between currency setup and exchange semantics, see [`docs/ADDING_CURRENCY.md`](docs/ADDING_CURRENCY.md).
-
-### Household Actual authority
-
-The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. The selected directory is the Actual authority root, and `actual.loam` is the normalized production Actual file.
-
-Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume this authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
-
-Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Lower-level commands that accept an Actual path or data root fail closed on missing or malformed evidence rather than manufacturing an alternate authority. The historical shell-menu manifest cutover is retained as provenance in [`docs/movement_manifest_menu_cutover.md`](docs/movement_manifest_menu_cutover.md); it is not current entrance guidance.
 
 ### Focused record review
 
@@ -160,6 +137,45 @@ Historical research documents and experiments may still describe an earlier HRA-
 The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain migration provenance for that historical cutover in `loam-data`; shadow and comparison adapters, where retained, are research instruments rather than current operational bridges or authority.
 
 There is no requirement to keep adding features when ordinary use does not expose a need. New work should come from concrete household use, a demonstrated simplification, or a clearly scoped research question.
+
+## Method
+
+Use the smallest set of tools that can answer the current question.
+
+For AI-assisted or cross-cutting repository work, [`docs/AI_WORKBENCH.md`](docs/AI_WORKBENCH.md) is the discovery index for LOAM's semantic maps, obligation DAGs, DRAKON/D2 views, repository audits, falsification catalogs, and formal/executable instruments. It is a menu rather than a required pipeline.
+
+The default core is:
+
+- **Alloy** explores possible structures and counterexamples.
+- **Lean 4** proves observed laws generally when they become worth keeping and hosts the practical core.
+
+Additional live tools are introduced only when they add a distinct kind of answer:
+
+- **TLA+ / TLC** for temporal behavior, operation order, and state-transition questions.
+- **Apalache** for symbolic checking of selected TLA+ transition systems and inductive invariants.
+- **SPIN / Promela** for explicit interleaving and protocol-order questions where concurrent process scheduling is the pressure point.
+
+Before adding an optional tool to a new observation, state what the current toolset cannot answer and what distinct result the extra tool is expected to produce.
+
+Past observations that used an optional tool remain part of the evidence. They show cases where that tool had a distinct role; they do not create a permanent dependency.
+
+J, miniKanren/Racket, and Dafny have all been used as bounded research instruments and are now historical-only: their results remain in the observation/experiment records and Git history, but no live source or CI toolchain is retained for them. Reintroduce one only when a new question earns a distinct answer that the current live toolset cannot provide clearly enough.
+
+Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
+
+For non-trivial semantic changes and audits, LOAM first decomposes the question into deterministic, previously-earned, and genuinely residual obligations before adding proofs or asking AI to reason over the whole subsystem. See [`docs/OBLIGATION_SCAFFOLD_METHOD.md`](docs/OBLIGATION_SCAFFOLD_METHOD.md).
+
+For long-horizon AI-assisted development, [`docs/SEMANTIC_BLUEPRINT.md`](docs/SEMANTIC_BLUEPRINT.md) is a deliberately small shared map of the meaning that should remain stable across many work sessions and pull requests. Use it as an outer drift review around the local obligation scaffold; it is not a new persistence or proof authority.
+
+Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
+
+For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
+
+## Research origin
+
+The research began with a deliberately narrow question:
+
+> If finite resources are distributed through time and purpose without assuming accounts, transactions, budgets, or envelopes, what structures appear on their own?
 
 ## Current map
 
