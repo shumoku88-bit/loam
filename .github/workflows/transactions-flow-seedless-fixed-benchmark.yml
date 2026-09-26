@@ -1,0 +1,52 @@
+name: Transactions-Flow seedless fixed-row benchmark
+
+on:
+  push:
+    branches:
+      - 'research/mathematical-structure-map-draft'
+    paths:
+      - 'Loam/Tests/TransactionsFlowSeedlessFixedRowsBenchmark.lean'
+      - '.github/workflows/transactions-flow-seedless-fixed-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    name: Paired fixed-row current vs seedless
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean and build seedless observation
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Observations.Observation331
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Run fixed-row paired benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/TransactionsFlowSeedlessFixedRowsBenchmark.lean \
+            | tee /tmp/transactions-flow-seedless-fixed.txt
+
+          {
+            echo '## Transactions-Flow fixed-row paired benchmark'
+            echo
+            echo "Commit: \`${GITHUB_SHA}\`"
+            echo
+            echo '~~~text'
+            cat /tmp/transactions-flow-seedless-fixed.txt
+            echo '~~~'
+          } >> "$GITHUB_STEP_SUMMARY"
