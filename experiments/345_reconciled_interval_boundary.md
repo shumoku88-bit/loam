@@ -1,6 +1,16 @@
 # Observation 345 - Reconciled interval and adjustment boundary
 
-Status: **CANDIDATE - bounded Alloy qualification pending**
+Status: **QUALIFIED - bounded Alloy model**
+
+Qualified CI:
+
+```text
+workflow: Alloy Research Witnesses
+run:      36252425430
+job:      108432856378
+result:   SUCCESS
+Alloy:    6.2.0 / Sat4j
+```
 
 Tracks: #1372
 
@@ -125,9 +135,46 @@ at and after a qualified adjustment boundary
   balance continuity may be re-established
 ```
 
+## Executed result
+
+The expected matrix was observed exactly:
+
+```text
+qualifiedIntervalWithUnknownEarlierHistory                 SAT
+matchingEndpointWithOffsettingOmissions                    SAT
+mismatchWithoutAdjustment                                  SAT
+adjustmentEstablishesObservedBoundary                      SAT
+adjustmentLeavesEarlierGapVisible                          SAT
+sameVisibleEndpointDifferentIntermediateReality            SAT
+
+QualifiedIntervalMatchesReality                            UNSAT counterexample
+EndpointMatchImpliesCompleteHistory                        SAT counterexample
+SameVisibleEndpointDeterminesIntermediateReality           SAT counterexample
+RepairEquationEstablishesObservedBoundary                  UNSAT counterexample
+AdjustmentReconciliationImpliesPriorCompleteness           SAT counterexample
+QualifiedIntervalNeverSupportsBeforeStart                  UNSAT counterexample
+```
+
+The bounded result therefore supports this separation:
+
+```text
+accepted bounded completeness
++ opening quantity
++ retained deltas
++ matching later observation
+    -> justified quantities throughout that bounded interval
+
+matching endpoint alone
+    -/-> complete intermediate history
+
+explicit adjustment
+    -> can establish the later observed quantity boundary
+    -/-> prior detailed completeness
+```
+
 ## Production gate
 
-No production type is earned by this candidate yet.
+No production type is earned by this observation alone.
 
 If the bounded model succeeds, the next question is whether the current
 production vocabulary can express the result with a minimal relation over
