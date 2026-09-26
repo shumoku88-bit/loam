@@ -383,7 +383,7 @@ private theorem optionFold_none_eq_direct_if_represented
       · have hFalse :
             representedInColumn coordinate column = false := by
           cases hValue : representedInColumn coordinate column with
-          | false => exact hValue
+          | false => rfl
           | true => exact False.elim (hRepresented hValue)
         have hOption :
             optionStep coordinate none column = none := by
