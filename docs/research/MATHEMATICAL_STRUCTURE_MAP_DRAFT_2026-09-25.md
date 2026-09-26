@@ -831,3 +831,43 @@ experiment. Production adopted the one-scan Record fusion but not a retained or
 mandatory selected-coordinate HashMap. Observation 333 remains the terminal
 Stock-Flow proof witness and now carries its simple List-membership quantity
 helper directly.
+
+
+## MATH-5 follow-up — Daily Pace finite-vector history
+
+**Status: MEASURED — PRODUCTION PROMOTION EARNED**
+
+`CycleSpendingPaceReview.projectHistory` currently reconstructs the Actual-backed
+eligible pool by validating selected current Actual records once and then
+rescanning all Actual records once per requested history date.
+
+A temporary paired benchmark compared that shape with one finite-vector fold:
+each current selected Event is quantified once, validated once, and its signed
+quantity is distributed to every requested date at or after the Event date.
+
+The benchmark required exact result equality before accepting timings. Batched
+forced evaluation on the same runner produced:
+
+| history days | Actual records | repeated scans | finite-vector fold | speedup |
+| ---: | ---: | ---: | ---: | ---: |
+| 7 | 1,000 | 10.4 ms | 5.4 ms | 1.91x |
+| 7 | 5,000 | 52.8 ms | 26.7 ms | 1.97x |
+| 7 | 10,000 | 103.6 ms | 53.2 ms | 1.94x |
+| 30 | 1,000 | 31.6 ms | 10.6 ms | 2.98x |
+| 30 | 5,000 | 158.6 ms | 53.0 ms | 2.99x |
+| 30 | 10,000 | 315.6 ms | 106.5 ms | 2.96x |
+| 90 | 1,000 | 86.7 ms | 24.2 ms | 3.57x |
+| 90 | 5,000 | 434.4 ms | 120.2 ms | 3.61x |
+| 90 | 10,000 | 864.8 ms | 239.5 ms | 3.61x |
+
+The current Home surface asks for seven days, so the production-relevant result
+is already about a twofold improvement at large Actual frontiers. Longer
+hypothetical horizons show increasing benefit.
+
+This earns a narrow production change to the Actual-backed history calculation.
+It does **not** authorize a retained index, persistent prefix table, or a generic
+window-query framework. Scheduled historical deductions remain outside this
+promotion because their terminal/completion semantics are distinct.
+
+The temporary benchmark source and workflow were retired after this result was
+harvested; Git history retains the executable measurement apparatus.
