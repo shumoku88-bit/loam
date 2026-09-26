@@ -26,7 +26,6 @@ structure Draft where
   movement : Loam.MovementAdmission.Draft
   originalMeasure : MeasureId
   originalQuantity : Quantity
-deriving Repr
 
 private def validateOriginal? (draft : Draft) : Except String Unit := do
   if !Loam.Persistence.validToken draft.originalMeasure.token then
