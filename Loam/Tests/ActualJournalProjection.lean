@@ -68,3 +68,6 @@ def main : IO Unit := do
   IO.println "Actual journal merge-sort ordering regression passed."
 
 end Loam.Tests.ActualJournalProjection
+
+def main : IO Unit :=
+  Loam.Tests.ActualJournalProjection.main
