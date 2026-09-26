@@ -1,9 +1,11 @@
 import Loam.Application.CorrectionFrontier
 import Loam.BalanceReview
 import Loam.CurrentQuantityAnchor
+import Loam.CurrentQuantityPresence
 import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
+import Loam.Persistence.CurrentQuantityPresencePersistence
 import Loam.Persistence.OpeningSupportPersistence
 
 namespace Loam.RoleBalanceReview
@@ -25,7 +27,8 @@ The coordinate universe is the union of:
 - coordinates on the current correction frontier;
 - coordinates with explicit zero-origin coverage;
 - coordinates with explicit opening-Event support;
-- coordinates with an explicit current quantity anchor assertion.
+- coordinates with an explicit current quantity anchor assertion;
+- coordinates with explicit current nonzero-presence evidence whose exact amount is unknown.
 
 Zero-origin coordinates continue to delegate to `BalanceReview.project`, which
 remains the semantic owner of zero-origin balance projection. Opening-supported
@@ -62,6 +65,12 @@ structure UnresolvedRole where
   quantity : Quantity
   deriving Repr, DecidableEq
 
+/-- One coordinate known to be nonzero now while its exact Quantity is unknown. -/
+structure KnownPresentBalance where
+  coordinate : EffectCoordinate
+  role : Option AccountingRole
+  deriving Repr, DecidableEq
+
 /-- One coordinate whose current quantity support is absent. -/
 structure UnsupportedBalance where
   coordinate : EffectCoordinate
@@ -80,6 +89,7 @@ record into both quantity and role blocker views without duplicating the answer.
 structure Snapshot where
   rows : List Row
   unresolvedRoles : List UnresolvedRole
+  knownPresentBalances : List KnownPresentBalance := []
   unsupportedBalances : List UnsupportedBalance
   deriving Repr, DecidableEq
 
@@ -90,9 +100,10 @@ private def candidateCoordinates
     (frontier : EventMemory)
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) : List EffectCoordinate :=
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (currentPresence : Loam.CurrentQuantityPresence.Evidence) : List EffectCoordinate :=
   (eventCoordinates frontier ++ coverage.coordinates ++ openingSupport.coordinates ++
-      currentAnchor.coordinates).eraseDups
+      currentAnchor.coordinates ++ currentPresence.coordinates).eraseDups
 
 private def eventContainsCoordinate
     (event : Event) (coordinate : EffectCoordinate) : Bool :=
@@ -262,7 +273,8 @@ private def routeCandidates
 private def validateSupportSeparation
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) : Except String Unit := do
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (currentPresence : Loam.CurrentQuantityPresence.Evidence) : Except String Unit := do
   for support in openingSupport.supports do
     if coverage.covers support.coordinate then
       throw
@@ -273,6 +285,13 @@ private def validateSupportSeparation
       throw
         ("loam: role balances unavailable: current anchor overlaps existing support for " ++
           assertion.coordinate.locus.token ++ " / " ++ assertion.coordinate.measure.token)
+  for coordinate in currentPresence.coordinates do
+    if coverage.covers coordinate ||
+        hasOpeningSupport openingSupport coordinate ||
+        hasCurrentAnchor currentAnchor coordinate then
+      throw
+        ("loam: role balances unavailable: current presence overlaps exact current support for " ++
+          coordinate.locus.token ++ " / " ++ coordinate.measure.token)
 
 /--
 Opening support lives in the same ordinary correction frontier already admitted
@@ -321,6 +340,12 @@ private def unresolvedSupported
     | some _ => none
     | none => some { coordinate := row.coordinate, quantity := row.quantity }
 
+private def knownPresentRows
+    (coordinates : List EffectCoordinate)
+    (roles : AccountingRoleMap) : List KnownPresentBalance :=
+  coordinates.map fun coordinate =>
+    { coordinate := coordinate, role := roles.roleOf? coordinate.locus }
+
 private def unsupportedRows
     (coordinates : List EffectCoordinate)
     (roles : AccountingRoleMap) : List UnsupportedBalance :=
@@ -343,11 +368,12 @@ private def projectWithOrdinaryFrontier
     (coverage : ZeroOriginCoverage)
     (openingSupport : OpeningSupportMap)
     (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (currentPresence : Loam.CurrentQuantityPresence.Evidence)
     (roles : AccountingRoleMap) : Except String Snapshot := do
   validateOpeningSupports frontier openingSupport
-  validateSupportSeparation coverage openingSupport currentAnchor
+  validateSupportSeparation coverage openingSupport currentAnchor currentPresence
 
-  let candidates := candidateCoordinates frontier coverage openingSupport currentAnchor
+  let candidates := candidateCoordinates frontier coverage openingSupport currentAnchor currentPresence
   let buckets := routeCandidates coverage openingSupport currentAnchor candidates
 
   let zeroBalances ← zeroProject buckets.zeroOrigin
@@ -357,10 +383,20 @@ private def projectWithOrdinaryFrontier
   let balances : Loam.BalanceReview.Snapshot :=
     { rows := zeroBalances.rows ++ openingRows ++ anchorRows }
 
+  let presenceStates ←
+    Loam.CurrentQuantityPresence.inspectCurrentPresences
+      anchorEvents anchorCorrections currentPresence buckets.unsupported
+  let presencePairs := buckets.unsupported.zip presenceStates
+  let knownPresentCoordinates :=
+    presencePairs.filterMap fun pair => if pair.2 then some pair.1 else none
+  let unsupportedCoordinates :=
+    presencePairs.filterMap fun pair => if pair.2 then none else some pair.1
+
   return {
     rows := classifiedRows balances roles
     unresolvedRoles := unresolvedSupported balances roles
-    unsupportedBalances := unsupportedRows buckets.unsupported roles
+    knownPresentBalances := knownPresentRows knownPresentCoordinates roles
+    unsupportedBalances := unsupportedRows unsupportedCoordinates roles
   }
 
 /--
@@ -390,6 +426,7 @@ def project
     evidence.coverage
     openingSupport
     currentAnchor
+    Loam.CurrentQuantityPresence.Evidence.empty
     roles
 
 /--
@@ -414,6 +451,26 @@ def projectImage
     coverage
     openingSupport
     currentAnchor
+    Loam.CurrentQuantityPresence.Evidence.empty
+    roles
+
+/-- Compose Role Balance with explicit present-but-exact-amount-unknown evidence. -/
+def projectImageWithPresence
+    (image : Loam.ActualAuthority.Image)
+    (coverage : ZeroOriginCoverage)
+    (openingSupport : OpeningSupportMap)
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (currentPresence : Loam.CurrentQuantityPresence.Evidence)
+    (roles : AccountingRoleMap) : Except String Snapshot :=
+  projectWithOrdinaryFrontier
+    image.currentEvents
+    (fun coordinates => Loam.BalanceReview.projectImage image coverage coordinates)
+    image.evidence.events
+    image.evidence.corrections
+    coverage
+    openingSupport
+    currentAnchor
+    currentPresence
     roles
 
 private def loadOpeningSupport
@@ -433,6 +490,15 @@ private def loadCurrentAnchor
     | none => return .error "loam: malformed or unsupported current quantity anchor evidence"
   else
     return .ok Loam.CurrentQuantityAnchor.Evidence.empty
+
+private def loadCurrentPresence
+    (path : System.FilePath) : IO (Except String Loam.CurrentQuantityPresence.Evidence) := do
+  if ← path.pathExists then
+    match ← loadCurrentQuantityPresence? path with
+    | some presence => return .ok presence
+    | none => return .error "loam: malformed or unsupported current quantity presence evidence"
+  else
+    return .ok Loam.CurrentQuantityPresence.Evidence.empty
 
 /--
 Load current Role Balance from a caller-supplied admitted Actual image plus the
@@ -460,12 +526,16 @@ def loadSnapshotFromActualImage
     match ← loadCurrentAnchor (Loam.HouseholdPaths.currentQuantityAnchor dataDir) with
     | .error message => return .error message
     | .ok anchor => pure anchor
+  let currentPresence ←
+    match ← loadCurrentPresence (Loam.HouseholdPaths.currentQuantityPresence dataDir) with
+    | .error message => return .error message
+    | .ok presence => pure presence
   let roles ←
     match ← loadAccountingRoleMap? rolesPath with
     | some roles => pure roles
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
-  return projectImage image coverage openingSupport currentAnchor roles
+  return projectImageWithPresence image coverage openingSupport currentAnchor currentPresence roles
 
 /--
 Load one admitted production Actual image, independent zero-origin coverage,
