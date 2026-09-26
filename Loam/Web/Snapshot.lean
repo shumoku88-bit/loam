@@ -292,6 +292,12 @@ private def measuredQuantityText
     (measure : MeasureId) (quantity : Quantity) : String :=
   escapeHtml (toString quantity.quanta ++ " " ++ measure.token)
 
+private def optionalMeasuredQuantityText
+    (measure : Option MeasureId) (quantity : Quantity) : String :=
+  match measure with
+  | none => escapeHtml (toString quantity.quanta)
+  | some selected => measuredQuantityText selected quantity
+
 private def renderStockFlowReport
     (reports : Loam.Presentation.Reports.Model) : String :=
   "<h3>Current Cycle Stock-Flow</h3>\n" ++
@@ -302,11 +308,11 @@ private def renderStockFlowReport
       "<tr><th>Window</th>" ++
         tableCell (escapeHtml (report.start ++ " to " ++ report.endExclusive ++ " (end exclusive)")) ++
         "</tr>\n" ++
-      "<tr><th>Opening tracked</th>" ++ tableCell (quantityText report.opening) ++ "</tr>\n" ++
-      "<tr><th>Increases</th>" ++ tableCell (quantityText report.increases) ++ "</tr>\n" ++
-      "<tr><th>Decreases</th>" ++ tableCell (quantityText report.decreases) ++ "</tr>\n" ++
-      "<tr><th>Closing reconstructed</th>" ++ tableCell (quantityText report.closing) ++ "</tr>\n" ++
-      "<tr><th>Current tracked</th>" ++ tableCell (quantityText report.currentTracked) ++ "</tr>\n" ++
+      "<tr><th>Opening tracked</th>" ++ tableCell (optionalMeasuredQuantityText report.measure report.opening) ++ "</tr>\n" ++
+      "<tr><th>Increases</th>" ++ tableCell (optionalMeasuredQuantityText report.measure report.increases) ++ "</tr>\n" ++
+      "<tr><th>Decreases</th>" ++ tableCell (optionalMeasuredQuantityText report.measure report.decreases) ++ "</tr>\n" ++
+      "<tr><th>Closing reconstructed</th>" ++ tableCell (optionalMeasuredQuantityText report.measure report.closing) ++ "</tr>\n" ++
+      "<tr><th>Current tracked</th>" ++ tableCell (optionalMeasuredQuantityText report.measure report.currentTracked) ++ "</tr>\n" ++
       "</table>")
     "Stock-Flow was not requested."
     "Stock-Flow evidence is unavailable."
