@@ -1,8 +1,11 @@
 import Loam.BoundedHistorySupportPublisher
 import Loam.BoundedHistorySupportReview
 import Loam.CurrentQuantityAnchorPublisher
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.Persistence.OpeningSupportPersistence
+import Loam.Persistence.ZeroOriginCoveragePersistence
 
 open Loam.Core
 
@@ -131,6 +134,63 @@ def main : IO Unit := do
       image.evidence.events image.evidence.corrections anchor admitted
       [{ coordinate := cash, quantity := Quantity.ofQuanta (-99) }]).isOk)
     "different current quantity silently preserved bounded historical completeness"
+
+  -- Exercise the real authority files and shared writer ownership.
+  let root ← IO.FS.createTempDir
+  let .ok () ← Loam.ActualAuthority.publishActual? root Loam.ActualEvidence.empty
+    | throw (IO.userError "publish empty Actual authority")
+  let .ok () ← Loam.LocusAdmissionAuthority.publishCurrent? root admission
+    | throw (IO.userError "publish Locus admission authority")
+  expect
+    (← Loam.Persistence.saveCurrentQuantityAnchor?
+      (Loam.HouseholdPaths.currentQuantityAnchor root) anchor)
+    "publish exact current anchor authority"
+  expect
+    (← Loam.Persistence.saveZeroOriginCoverage?
+      (Loam.HouseholdPaths.zeroOriginCoverage root) ZeroOriginCoverage.empty)
+    "publish empty zero-origin authority"
+  expect
+    (← Loam.Persistence.saveOpeningSupportMap?
+      (Loam.HouseholdPaths.openingSupport root) OpeningSupportMap.empty)
+    "publish empty opening-support authority"
+
+  let .ok () ← Loam.BoundedHistorySupportPublisher.publish root draft
+    | throw (IO.userError "publish bounded history support authority")
+  let some publishedSupport ←
+      Loam.Persistence.loadBoundedHistorySupport?
+        (Loam.HouseholdPaths.boundedHistorySupport root)
+    | throw (IO.userError "reload bounded history support authority")
+  expect ((publishedSupport.supportFor? cash).map (·.startDay) == some "2026-09-01")
+    "published bounded history support was not retained"
+
+  let sameObservation : Loam.CurrentQuantityAnchor.Assertion := {
+    coordinate := cash
+    quantity := Quantity.ofQuanta (-100)
+  }
+  let .ok () ←
+      Loam.CurrentQuantityAnchorPublisher.publish root.toString [sameObservation]
+    | throw (IO.userError "same exact current quantity re-observation was refused")
+
+  expect
+    (!(← Loam.CurrentQuantityAnchorPublisher.publish root.toString
+      [{ coordinate := cash, quantity := Quantity.ofQuanta (-99) }]).isOk)
+    "different current quantity was published while bounded history support remained active"
+
+  let .ok () ← Loam.BoundedHistorySupportPublisher.publish root
+      { coordinate := cash, startDay := none }
+    | throw (IO.userError "remove bounded history support authority")
+
+  let .ok () ←
+      Loam.CurrentQuantityAnchorPublisher.publish root.toString
+        [{ coordinate := cash, quantity := Quantity.ofQuanta (-99) }]
+    | throw (IO.userError "current quantity remained blocked after explicit history-support removal")
+
+  let some finalSupport ←
+      Loam.Persistence.loadBoundedHistorySupport?
+        (Loam.HouseholdPaths.boundedHistorySupport root)
+    | throw (IO.userError "reload cleared bounded history support authority")
+  expect ((finalSupport.supportFor? cash).isNone)
+    "bounded history support removal was not retained"
 
   IO.println
     "Bounded history support: explicit start, replacement/removal, anchor gate, persistence, review and reconciliation guard passed."
