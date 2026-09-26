@@ -18,6 +18,7 @@ on:
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/MeasureScaleAdministration.lean'
       - 'docs/ADDING_CURRENCY.md'
       - 'docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md'
@@ -42,6 +43,7 @@ on:
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/MeasureScaleAdministration.lean'
       - 'docs/ADDING_CURRENCY.md'
       - 'docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md'
@@ -70,7 +72,7 @@ jobs:
       - name: Build production Measure scale boundary
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.MeasurePresentation Loam.MeasurePresentationAuthority Loam.HouseholdCommand Loam.Cli.MeasureScaleCli Loam.Cli
+          build-args: Loam.MeasurePresentation Loam.MeasurePresentationAuthority Loam.HouseholdCommand Loam.Cli.MeasureScaleCli Loam.Cli Loam.Tests.ActualWorldFixture
 
       - name: Qualify retained-family scale stability
         run: |
