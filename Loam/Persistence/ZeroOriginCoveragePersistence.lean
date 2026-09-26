@@ -29,16 +29,9 @@ private def encodeCoordinateRow? (coordinate : EffectCoordinate) : Option String
   else
     none
 
-private def encodeCoordinateRows? : List EffectCoordinate → Option (List String)
-  | [] => some []
-  | coordinate :: rest => do
-      let row ← encodeCoordinateRow? coordinate
-      let rows ← encodeCoordinateRows? rest
-      some (row :: rows)
-
 /-- Encode one explicit finite zero-origin evidence set. -/
 def encodeZeroOriginCoverage? (coverage : ZeroOriginCoverage) : Option String := do
-  let rows ← encodeCoordinateRows? coverage.coordinates
+  let rows ← coverage.coordinates.mapM encodeCoordinateRow?
   some (encodeVersionedRows zeroOriginCoverageHeader rows)
 
 private def decodeCoordinateRow? (row : String) : Option EffectCoordinate :=
@@ -50,20 +43,13 @@ private def decodeCoordinateRow? (row : String) : Option EffectCoordinate :=
         none
   | _ => none
 
-private def decodeCoordinateRows? : List String → Option (List EffectCoordinate)
-  | [] => some []
-  | row :: rest => do
-      let coordinate ← decodeCoordinateRow? row
-      let coordinates ← decodeCoordinateRows? rest
-      some (coordinate :: coordinates)
-
 /--
 Decode exactly one version-1 zero-origin coverage file. Duplicate coordinates
 fail closed rather than being normalized silently.
 -/
 def decodeZeroOriginCoverage? (input : String) : Option ZeroOriginCoverage := do
   let rows ← decodeVersionedRows? zeroOriginCoverageHeader input
-  let coordinates ← decodeCoordinateRows? rows
+  let coordinates ← rows.mapM decodeCoordinateRow?
   ZeroOriginCoverage.ofCoordinates? coordinates
 
 /-- Atomically replace one explicitly reconstructed zero-origin evidence set. -/
