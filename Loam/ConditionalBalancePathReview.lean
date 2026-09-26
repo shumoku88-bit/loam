@@ -1,6 +1,9 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.BalanceReview
+import Loam.BalanceViewConfig
+import Loam.CurrentBalanceReview
+import Loam.HouseholdPaths
 import Loam.ScheduledReview
 
 namespace Loam.ConditionalBalancePathReview
@@ -15,8 +18,8 @@ set_option autoImplicit false
 This read-only review implements only the arithmetic and provenance boundary
 qualified by Observations 229 and 231.
 
-It starts from the same replaceable balance-view selection already admitted by
-`BalanceReview`, reads the current-open Scheduled frontier, and applies one
+It starts from the replaceable balance-view selection projected through neutral
+`CurrentBalanceReview` support, reads the current-open Scheduled frontier, and applies one
 caller-supplied completeness assumption through an inclusive calendar horizon.
 
 The assumption is not retained evidence. The result is therefore conditional,
@@ -186,8 +189,16 @@ def project
 private def loadWithinActualObservation
     (dataDir actualRoot : System.FilePath)
     (today assumedCompleteThrough : String) : IO (Except String Snapshot) := do
+  let current ←
+    match ← Loam.CurrentBalanceReview.loadSnapshot dataDir actualRoot with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
+  let selected ←
+    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
+    | none => return .error "loam: malformed or unsupported balance-view config"
+    | some coordinates => pure coordinates
   let balances ←
-    match ← Loam.BalanceReview.loadSnapshot dataDir actualRoot with
+    match Loam.CurrentBalanceReview.selectExact current selected with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let scheduled ←
@@ -200,8 +211,8 @@ private def loadWithinActualObservation
 Compose existing production readers without adding a new canonical authority.
 `today` is read from the same host-local date adapter already used by the TUI.
 
-Balance Review and Scheduled Review both depend on normalized `actual.loam`:
-current balances use its correction-aware Event world while Scheduled lifecycle
+Current Balance Review and Scheduled Review both depend on normalized `actual.loam`:
+current balances compose qualified present support while Scheduled lifecycle
 admission uses its Event identities to validate terminal evidence. Their two
 reads therefore run inside one short Actual ownership interval so one conditional
 path answer cannot mix those obligations across different Actual generations.
