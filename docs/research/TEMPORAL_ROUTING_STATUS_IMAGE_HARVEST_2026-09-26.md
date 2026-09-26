@@ -1,6 +1,6 @@
 # Temporal Routing Fixed-Time Status Image Harvest — 2026-09-26
 
-Status: **research-qualified / production deferred**
+Status: **research-qualified / current production measured / production deferred**
 
 This note records the temporal change-point result from the repository-wide
 mathematical compression survey.
@@ -218,3 +218,87 @@ one subject
 ```
 
 This distinction should be retained for a future pressure-driven optimization.
+
+
+## Current production-shape checkpoint — 2026-09-26
+
+The deferred production question was revisited against the current household
+shape rather than a large synthetic workload.
+
+At this checkpoint, the Actual-routing administration path has approximately:
+
+```text
+28 admitted Loci
+29 retained Actual routing assertions
+one shared observedAt per administration snapshot
+```
+
+That path is therefore structurally a same-time bulk query, but structure alone
+was not treated as sufficient pressure.
+
+A temporary benchmark reused the Observation 334 factorization and was calibrated
+against retained benchmark shapes. An initial harness that discarded the timed
+result Lists produced implausibly tiny constant timings and was rejected. The
+accepted harness retained each timed status List, forced its digest inside the
+timing region, alternated baseline/image execution order, and reproduced the
+earlier scaling trend.
+
+Accepted GitHub Actions measurements included:
+
+| Subjects | History entries | direct `statusAt` | fixed-time image | direct / image |
+| ---: | ---: | ---: | ---: | ---: |
+| 4 | 4 | 16 µs | 26 µs | 0.61x |
+| 8 | 16 | 66 µs | 56 µs | 1.17x |
+| 16 | 29 | 225 µs | 124 µs | 1.81x |
+| **28** | **29** | **379 µs** | **201 µs** | **1.88x** |
+| 16 | 64 | 466 µs | 180 µs | 2.58x |
+| 64 | 4,096 | 110.0 ms | 7.0 ms | 15.71x |
+
+The current production-shaped case therefore crosses the relative performance
+crossover: the transient image removes repeated history scans and is about
+1.9 times faster for routing-status selection.
+
+A production trial then placed the fixed-time image and its correspondence proof
+inside `HistoricalRouting`, and used it only in `ActualRoutingReview`.
+Focused `statusAt` callers and variable-time consumption queries remained
+unchanged. The trial was semantically straightforward, but its source cost was
+large for the current absolute workload:
+
+```text
+HistoricalRouting proof / image machinery   +219 lines
+ActualRoutingReview                           +15 / -2
+ActualRoutingReview regression test           +11
+---------------------------------------------------
+production + proof + regression net          +243 lines
+```
+
+The measured current-shape saving is roughly 178 µs per Actual routing
+administration snapshot. That is a real algorithmic improvement but not a
+material household latency at the present scale, and it does not compensate for
+the additional proof and representation surface.
+
+### Production decision
+
+**Do not promote at the current scale.**
+
+Keep:
+
+- `RoutingHistory.statusAt` as the production implementation and focused
+  semantic specification;
+- Observation 334 and this benchmark result as the qualified future optimization;
+- the rule that only same-time bulk readers are candidates for the image.
+
+Do not keep:
+
+- the temporary benchmark workflow;
+- the benchmark source;
+- the production fixed-time HashMap image;
+- its additional correspondence proof surface;
+- a cardinality threshold or retained cache.
+
+The production trial and measurement scaffolding were removed after harvesting
+this result. Git history retains the executable experiment.
+
+This strengthens the earlier decision rather than reversing it: **the crossover
+is real, but current absolute production pressure is still too small to justify
+the extra machinery.**
