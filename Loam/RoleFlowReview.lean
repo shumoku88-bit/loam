@@ -85,6 +85,30 @@ def project
   }
 
 /--
+Overlay AccountingRole authority on one already-computed Transactions-Flow result.
+
+Role authority is checked before consuming the flow result, preserving the
+existing fail-closed priority while allowing composed readers to share one
+Transactions-Flow incidence image.
+-/
+def loadSnapshotFromTransactionsFlowResult
+    (dataDir : System.FilePath)
+    (flowResult : Except String Loam.TransactionsFlowReview.Snapshot) :
+    IO (Except String Snapshot) := do
+  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
+  if !(← rolesPath.pathExists) then
+    return .error "loam: required AccountingRole evidence is missing"
+  let roles ←
+    match ← loadAccountingRoleMap? rolesPath with
+    | some roles => pure roles
+    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+  let flow ←
+    match flowResult with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
+  return .ok (project flow roles)
+
+/--
 Load one role-aware flow answer from a caller-supplied admitted Actual image.
 
 The explicit AccountingRole authority remains independently loaded. The selected
@@ -93,22 +117,10 @@ window is projected from the same Actual generation already owned by the caller.
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image)
-    (start endExclusive : String) : IO (Except String Snapshot) := do
-  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolesPath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
-
-  let flow ←
-    match Loam.TransactionsFlowReview.project
-        (Loam.ActualReview.recordsFromActualImage image) start endExclusive with
-    | .error message => return .error message
-    | .ok snapshot => pure snapshot
-  let roles ←
-    match ← loadAccountingRoleMap? rolesPath with
-    | some roles => pure roles
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
-
-  return .ok (project flow roles)
+    (start endExclusive : String) : IO (Except String Snapshot) :=
+  loadSnapshotFromTransactionsFlowResult dataDir <|
+    Loam.TransactionsFlowReview.project
+      (Loam.ActualReview.recordsFromActualImage image) start endExclusive
 
 /--
 Load existing production flow evidence and the explicit AccountingRole authority,
