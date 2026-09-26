@@ -19,9 +19,10 @@ production surfaces. It does not infer accounting roles or retain opening/closin
 report state.
 
 Because selected balances are admitted only through `BalanceReview`, every
-selected coordinate already carries explicit zero-origin evidence. The current
-presentation contract is JPY-only, so any non-JPY selected coordinate is refused
-rather than being arithmetically mixed into one untyped Quantity. Historical
+selected coordinate already carries explicit zero-origin evidence. One
+Stock-Flow answer is single-Measure: any Measure is supported, but unlike
+Measures are never arithmetically mixed into one Quantity. The selected Measure
+is carried with the answer instead of being inferred by a renderer. Historical
 window boundaries can therefore be reconstructed by summing the current Event
 frontier before each boundary. A current selected Event without a usable date
 refuses the report because it cannot safely be placed on either side of a
@@ -31,6 +32,7 @@ boundary.
 structure Snapshot where
   start : String
   endExclusive : String
+  measure : Option MeasureId
   reconstructedStart : Quantity
   increasesAcrossEvents : Quantity
   decreasesAcrossEvents : Quantity
@@ -56,9 +58,15 @@ private def selectedCoordinates
     (balances : Loam.BalanceReview.Snapshot) : List EffectCoordinate :=
   balances.rows.map (fun row => row.coordinate)
 
-private def selectedMeasuresAreJpy
-    (balances : Loam.BalanceReview.Snapshot) : Bool :=
-  balances.rows.all (fun row => row.coordinate.measure.token == "jpy")
+private def selectedMeasure?
+    (balances : Loam.BalanceReview.Snapshot) : Except String (Option MeasureId) :=
+  match balances.rows with
+  | [] => .ok none
+  | first :: rest =>
+      if rest.all (fun row => row.coordinate.measure == first.coordinate.measure) then
+        .ok (some first.coordinate.measure)
+      else
+        .error "loam: stock-flow selected balances span multiple measures"
 
 private def eventTrackedQuanta
     (coordinates : List EffectCoordinate) (event : Event) : Int :=
@@ -164,9 +172,7 @@ def project
     throw "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
   if !(decide (start < endExclusive)) then
     throw "loam: stock-flow start must be earlier than end"
-  if !selectedMeasuresAreJpy balances then
-    throw "loam: stock-flow currently requires an explicit JPY balance selection"
-
+  let measure ← selectedMeasure? balances
   let coordinates := selectedCoordinates balances
   let scan ← scanRecords coordinates start endExclusive records zeroScan
   let net := scan.positiveWindow + scan.negativeWindow
@@ -177,6 +183,7 @@ def project
   return {
     start := start
     endExclusive := endExclusive
+    measure := measure
     reconstructedStart := Quantity.ofQuanta scan.startBoundary
     increasesAcrossEvents := Quantity.ofQuanta scan.positiveWindow
     decreasesAcrossEvents := Quantity.ofQuanta scan.negativeWindow
