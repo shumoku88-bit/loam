@@ -86,7 +86,7 @@ private def referenceEligiblePoolAtEndOfDay
         | none => total)
     0
 
-private def referenceSeries?
+@[noinline] private def referenceSeries?
     (coordinates : List EffectCoordinate)
     (records : List Loam.ActualReview.Record)
     (dates : List String) : Except String (List Int) := do
@@ -102,7 +102,7 @@ private def addContribution
       next :: addContribution validOn quantity laterDates laterTotals
   | _, totals => totals
 
-private def fusedSeries?
+@[noinline] private def fusedSeries?
     (coordinates : List EffectCoordinate)
     (records : List Loam.ActualReview.Record)
     (dates : List String) : Except String (List Int) :=
@@ -187,6 +187,9 @@ def runAll : IO Unit := do
         match buildRecords? n days with
         | some records => pure records
         | none => throw <| IO.userError s!"could not build {n}-record fixture"
+
+      unless records.length == n do
+        throw <| IO.userError s!"fixture length mismatch: expected {n}, got {records.length}"
 
       let expected := referenceSeries? selection records dates
       let actual := fusedSeries? selection records dates
