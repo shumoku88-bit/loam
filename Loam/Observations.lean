@@ -108,6 +108,7 @@ import Loam.Observations.Observation359
 import Loam.Observations.Observation360
 import Loam.Observations.Observation361
 import Loam.Observations.Observation362
+import Loam.Observations.Observation363
 
 /-!
 Research compaction note (2026-09-26): Observations 320, 322–324, 326–330
