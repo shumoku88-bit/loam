@@ -1,6 +1,10 @@
 import Loam.CycleSpendingPaceReview
 import Loam.DailyPaceConfig
+import Loam.Persistence.BoundedHistorySupportPersistence
+import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Persistence.ZeroOriginCoveragePersistence
 
 open Loam.Core
 
@@ -217,6 +221,43 @@ def main : IO Unit := do
       "2026-09-08" "2026-09-10" "2026-09-18"
       selection historyBalances historyScheduled 7)
     "Daily Pace history silently treated current anchor as historical completeness"
+
+  -- Exercise the canonical household loader used by Home. The pool deliberately
+  -- mixes bounded wallet history with zero-origin cash history.
+  let root ← IO.FS.createTempDir
+  IO.FS.createDirAll (root / "config")
+  IO.FS.writeFile
+    (root / "config" / "boundary-presets.tsv")
+    "cycle\t2026-09-08\t2026-09-18\n"
+  IO.FS.writeFile
+    (root / "config" / "daily-pace.tsv")
+    "wallet\tjpy\ncash\tjpy\n"
+  expect
+    (← Loam.Persistence.saveZeroOriginCoverage?
+      (Loam.HouseholdPaths.zeroOriginCoverage root) zeroOrigin)
+    "save Daily Pace history zero-origin coverage"
+  expect
+    (← Loam.Persistence.saveCurrentQuantityAnchor?
+      (Loam.HouseholdPaths.currentQuantityAnchor root) anchor)
+    "save Daily Pace history current anchor"
+  expect
+    (← Loam.Persistence.saveBoundedHistorySupport?
+      (Loam.HouseholdPaths.boundedHistorySupport root) bounded)
+    "save Daily Pace history bounded support"
+  expect
+    (← Loam.Persistence.saveScheduledLifecycleImage?
+      (Loam.HouseholdPaths.scheduled root)
+      { scheduled := historyScheduledMemory, terminals := historyTerminals })
+    "save Daily Pace history Scheduled lifecycle"
+
+  let loadedHistory ←
+    match ← Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt
+        root image "2026-09-10" 7 with
+    | .error message =>
+        throw (IO.userError ("load canonical bounded Daily Pace history: " ++ message))
+    | .ok points => pure points
+  expect (loadedHistory == history)
+    "canonical Daily Pace history loader diverged from the shared historical projection"
 
   let retirementTerminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals?
