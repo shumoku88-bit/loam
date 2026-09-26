@@ -37,11 +37,11 @@ private def orderedInsert (a : α) : List α → List α
       if r a b then
         a :: b :: rest
       else
-        b :: orderedInsert r a rest
+        b :: orderedInsert (r := r) a rest
 
 /-- Exact mechanics shape used by the current journal sorter. -/
 def insertionSorted (xs : List α) : List α :=
-  xs.foldl (fun acc a => orderedInsert r a acc) []
+  xs.foldl (fun acc a => orderedInsert (r := r) a acc) []
 
 /-- Merge-sort candidate using exactly the same decidable relation. -/
 def mergeSorted (xs : List α) : List α :=
@@ -49,42 +49,53 @@ def mergeSorted (xs : List α) : List α :=
 
 private theorem orderedInsert_perm
     (a : α) (xs : List α) :
-    orderedInsert r a xs ~ a :: xs := by
+    List.Perm (orderedInsert (r := r) a xs) (a :: xs) := by
   induction xs with
   | nil =>
       simp [orderedInsert]
   | cons b rest ih =>
       simp only [orderedInsert]
       split
-      · exact .refl _
+      · exact List.Perm.refl _
       · exact (List.Perm.cons b ih).trans (List.Perm.swap b a rest)
 
 private theorem foldlInsert_perm
     (acc xs : List α) :
-    xs.foldl (fun state a => orderedInsert r a state) acc ~ acc ++ xs := by
+    List.Perm
+      (xs.foldl (fun state a => orderedInsert (r := r) a state) acc)
+      (acc ++ xs) := by
   induction xs generalizing acc with
   | nil =>
       simp
   | cons a rest ih =>
       simp only [List.foldl_cons]
       calc
-        rest.foldl (fun state a => orderedInsert r a state) (orderedInsert r a acc)
-            ~ orderedInsert r a acc ++ rest := ih _
-        _ ~ (a :: acc) ++ rest :=
-          (orderedInsert_perm r a acc).append_right rest
-        _ = a :: (acc ++ rest) := by simp
-        _ ~ acc ++ a :: rest := List.perm_middle.symm
+        rest.foldl
+              (fun state a => orderedInsert (r := r) a state)
+              (orderedInsert (r := r) a acc)
+            = rest.foldl
+              (fun state a => orderedInsert (r := r) a state)
+              (orderedInsert (r := r) a acc) := rfl
+        _ = _ := by
+          apply List.Perm.eq_of_eq
+          rfl
+      exact
+        (ih (orderedInsert (r := r) a acc)).trans <|
+          ((orderedInsert_perm r a acc).append_right rest).trans <|
+            (by
+              simpa using
+                (List.perm_middle (l₁ := acc) (l₂ := rest) (a := a)).symm)
 
 theorem insertionSorted_perm (xs : List α) :
-    insertionSorted r xs ~ xs := by
+    List.Perm (insertionSorted r xs) xs := by
   simpa [insertionSorted] using foldlInsert_perm r [] xs
 
 private theorem orderedInsert_pairwise
-    (htrans : Transitive r)
+    (htrans : ∀ a b c, r a b → r b c → r a c)
     (htotal : ∀ a b, r a b ∨ r b a)
     (a : α) (xs : List α)
     (hSorted : xs.Pairwise r) :
-    (orderedInsert r a xs).Pairwise r := by
+    (orderedInsert (r := r) a xs).Pairwise r := by
   induction xs with
   | nil =>
       simp [orderedInsert]
@@ -98,7 +109,7 @@ private theorem orderedInsert_pairwise
           simp only [List.mem_cons] at hc
           rcases hc with rfl | hc
           · exact hab
-          · exact htrans hab (hParts.1 c hc)
+          · exact htrans a b c hab (hParts.1 c hc)
         · exact hSorted
       · apply List.pairwise_cons.mpr
         constructor
@@ -113,31 +124,35 @@ private theorem orderedInsert_pairwise
         · exact ih hParts.2
 
 private theorem foldlInsert_pairwise
-    (htrans : Transitive r)
+    (htrans : ∀ a b c, r a b → r b c → r a c)
     (htotal : ∀ a b, r a b ∨ r b a)
     (xs acc : List α)
     (hAcc : acc.Pairwise r) :
-    (xs.foldl (fun state a => orderedInsert r a state) acc).Pairwise r := by
+    (xs.foldl
+      (fun state a => orderedInsert (r := r) a state)
+      acc).Pairwise r := by
   induction xs generalizing acc with
   | nil =>
       simpa
   | cons a rest ih =>
       simp only [List.foldl_cons]
-      exact ih _ (orderedInsert_pairwise r htrans htotal a acc hAcc)
+      exact
+        ih _
+          (orderedInsert_pairwise r htrans htotal a acc hAcc)
 
 theorem insertionSorted_pairwise
-    (htrans : Transitive r)
+    (htrans : ∀ a b c, r a b → r b c → r a c)
     (htotal : ∀ a b, r a b ∨ r b a)
     (xs : List α) :
     (insertionSorted r xs).Pairwise r := by
   exact foldlInsert_pairwise r htrans htotal xs [] (by simp)
 
 theorem mergeSorted_perm (xs : List α) :
-    mergeSorted r xs ~ xs := by
+    List.Perm (mergeSorted r xs) xs := by
   exact List.mergeSort_perm xs (fun a b => decide (r a b))
 
 theorem mergeSorted_pairwise
-    (htrans : Transitive r)
+    (htrans : ∀ a b c, r a b → r b c → r a c)
     (htotal : ∀ a b, r a b ∨ r b a)
     (xs : List α) :
     (mergeSorted r xs).Pairwise r := by
@@ -145,13 +160,14 @@ theorem mergeSorted_pairwise
     List.pairwise_mergeSort
       (le := fun a b => decide (r a b))
       (fun a b c hab hbc => by
-        simp only [Bool.decide_eq_true] at hab hbc ⊢
-        exact htrans hab hbc)
+        exact decide_eq_true
+          (htrans a b c (of_decide_eq_true hab) (of_decide_eq_true hbc)))
       (fun a b => by
-        simp only [Bool.or_eq_true, Bool.decide_eq_true]
-        exact htotal a b)
+        rcases htotal a b with hab | hba
+        · exact Or.inl (decide_eq_true hab)
+        · exact Or.inr (decide_eq_true hba))
       xs
-  simpa [mergeSorted] using hBool
+  simpa only [mergeSorted, decide_eq_true_eq] using hBool
 
 /--
 The current insertion-sort mechanics and merge sort are extensionally identical
@@ -159,7 +175,7 @@ for every input on which the comparison relation is transitive, total, and has
 no distinct two-way-comparing elements inside that input.
 -/
 theorem insertionSorted_eq_mergeSorted
-    (htrans : Transitive r)
+    (htrans : ∀ a b c, r a b → r b c → r a c)
     (htotal : ∀ a b, r a b ∨ r b a)
     (xs : List α)
     (hTie :
