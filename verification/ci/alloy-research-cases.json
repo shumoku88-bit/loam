@@ -167,6 +167,31 @@
       }
     },
     {
+      "id": "backward-anchor-reconstruction",
+      "observation": "Observation 346",
+      "jobName": "Qualify backward anchor reconstruction",
+      "pushBranches": [
+        "main",
+        "experiment/345-reconciled-interval-boundary"
+      ],
+      "model": "experiments/346_backward_anchor_reconstruction.als",
+      "paths": [
+        "experiments/346_backward_anchor_reconstruction.als",
+        "experiments/346_backward_anchor_reconstruction.md"
+      ],
+      "expected": {
+        "backwardReconstructionWithoutStoredOpening": true,
+        "sameAnchorAndDeltasForceSameOpening": true,
+        "adjustmentBlocksBackwardTraversal": true,
+        "samePostAdjustmentEvidenceDifferentEarlierReality": true,
+        "CleanCompleteAnchorDeterminesEveryBoundary": false,
+        "CleanCompleteAnchorDeterminesOpening": false,
+        "SameCleanAnchorAndDeltasDetermineOpening": false,
+        "ExactLaterAnchorAloneDeterminesEarlierReality": true,
+        "AdjustmentCanBeTraversedBackwardAsOrdinaryDelta": true
+      }
+    },
+    {
       "id": "cash-flow-classification",
       "observation": "Observation 249",
       "jobName": "Falsify cash-flow classification derivability",
