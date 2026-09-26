@@ -68,7 +68,8 @@ private def coordinateLe (left right : EffectCoordinate) : Bool :=
       , state.2 + row.2.positive.quanta + row.2.negative.quanta ))
     (0, 0)
 
-private def timeOne (action : Unit → List Row) : IO (Nat × (Nat × Int)) := do
+@[noinline] private def timeOne
+    (action : Unit → List Row) : IO (Nat × List Row × (Nat × Int)) := do
   let t0 ← IO.monoNanosNow
   let rows := action ()
   let forced := forceRows rows
@@ -77,7 +78,7 @@ private def timeOne (action : Unit → List Row) : IO (Nat × (Nat × Int)) := d
   else
     pure ()
   let t1 ← IO.monoNanosNow
-  pure ((t1 - t0) / 1000, forced)
+  pure ((t1 - t0) / 1000, rows, forced)
 
 private def median (samples : List Nat) : Nat :=
   let sorted := samples.toArray.qsort (· < ·)
@@ -86,29 +87,41 @@ private def median (samples : List Nat) : Nat :=
 private def pairedMedianUs
     (iterations : Nat)
     (baseline candidate : Unit → List Row) :
-    IO (Nat × Nat × (Nat × Int) × (Nat × Int)) := do
+    IO (Nat × Nat × List Row × List Row × (Nat × Int) × (Nat × Int)) := do
   let mut baseTimes : List Nat := []
   let mut candTimes : List Nat := []
+  let mut baseRows : List Row := []
+  let mut candRows : List Row := []
   let mut baseForced : Nat × Int := (0, 0)
   let mut candForced : Nat × Int := (0, 0)
 
   for i in List.range iterations do
     if i % 2 = 0 then
-      let (baseUs, baseValue) ← timeOne baseline
-      let (candUs, candValue) ← timeOne candidate
+      let (baseUs, baseResult, baseValue) ← timeOne baseline
+      let (candUs, candResult, candValue) ← timeOne candidate
       baseTimes := baseUs :: baseTimes
       candTimes := candUs :: candTimes
+      baseRows := baseResult
+      candRows := candResult
       baseForced := baseValue
       candForced := candValue
     else
-      let (candUs, candValue) ← timeOne candidate
-      let (baseUs, baseValue) ← timeOne baseline
+      let (candUs, candResult, candValue) ← timeOne candidate
+      let (baseUs, baseResult, baseValue) ← timeOne baseline
       baseTimes := baseUs :: baseTimes
       candTimes := candUs :: candTimes
+      baseRows := baseResult
+      candRows := candResult
       baseForced := baseValue
       candForced := candValue
 
-  pure (median baseTimes, median candTimes, baseForced, candForced)
+  pure
+    ( median baseTimes
+    , median candTimes
+    , baseRows
+    , candRows
+    , baseForced
+    , candForced )
 
 private def fmtUs (us : Nat) : String :=
   if us >= 1000000 then
@@ -143,15 +156,13 @@ def runAll : IO Unit := do
   for n in sizes do
     let snapshot := mkSnapshot n
 
-    let baselineCheck := baselineRows snapshot
-    let candidateCheck := candidateRows snapshot
-    unless decide (baselineCheck = candidateCheck) do
-      throw <| IO.userError s!"semantic mismatch at N={n}"
-
-    let (baseUs, candUs, baseForced, candForced) ←
+    let (baseUs, candUs, baseResult, candResult, baseForced, candForced) ←
       pairedMedianUs reps
         (fun _ => baselineRows snapshot)
         (fun _ => candidateRows snapshot)
+
+    unless decide (baseResult = candResult) do
+      throw <| IO.userError s!"semantic mismatch at N={n}"
 
     unless baseForced == candForced do
       throw <| IO.userError s!"forced-result mismatch at N={n}"
@@ -163,7 +174,7 @@ def runAll : IO Unit := do
       if prevCand > 0 then fmtRatio candUs prevCand else "-"
 
     IO.println
-      s!"{n}\t{baselineCheck.length}\t{fmtUs baseUs}\t{fmtUs candUs}\t{speedup}\t{baseGrowth}\t{candGrowth}"
+      s!"{n}\t{baseResult.length}\t{fmtUs baseUs}\t{fmtUs candUs}\t{speedup}\t{baseGrowth}\t{candGrowth}"
 
     prevBase := baseUs
     prevCand := candUs
