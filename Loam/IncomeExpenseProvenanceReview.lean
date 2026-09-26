@@ -43,7 +43,6 @@ inductive ExpenseProvenance where
 structure Snapshot where
   roleFlow : Loam.RoleFlowReview.Snapshot
   expenseProvenance : ExpenseProvenance
-  deriving Repr
 
 /--
 One immutable source image for one or more Income / Expense windows.
