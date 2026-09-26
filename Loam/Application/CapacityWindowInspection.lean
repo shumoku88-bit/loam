@@ -52,23 +52,17 @@ def capacityEffectiveEvidenceComplete
     (effective : CapacityEffectiveMemory Time) : Bool :=
   Loam.capacityReferencesComplete capacity effective
 
-/--
-Shared additive fold over already-admitted Capacity evidence.
-
-Every retained movement still requires its effective coordinate before selection
-is decided. The caller supplies only the temporal predicate and quantity
-projection; Measure isolation remains common to both window shapes.
--/
-private def foldAdmittedCapacityWhere?
+/-- Shared fail-closed additive fold over admitted Capacity evidence. -/
+private def capacityAtAdmittedWhere?
     (evidence : Loam.CapacityEvidence Time)
     (selected : Time → Bool)
-    (measure : MeasureId)
-    (project : CapacityMovement → Quantity) : Option Quantity := do
+    (coordinate : CapacityCoordinate)
+    (measure : MeasureId) : Option Quantity := do
   let quanta ← evidence.movements.movements.foldlM
     (fun total movement => do
       let effectiveOn ← evidence.effective.findByMovementId? movement.id
       if selected effectiveOn && movement.measure = measure then
-        return total + (project movement).quanta
+        return total + (movement.quantityAt coordinate).quanta
       else
         return total)
     0
@@ -87,8 +81,7 @@ def capacityAtAdmittedEffectiveWindow?
   if !validCapacityWindow start end_ then
     none
   else
-    foldAdmittedCapacityWhere? evidence (inHalfOpen start end_) measure
-      (fun movement => movement.quantityAt coordinate)
+    capacityAtAdmittedWhere? evidence (inHalfOpen start end_) coordinate measure
 
 /--
 Project Capacity at one coordinate inside `[start, end)` from raw memories.
@@ -115,8 +108,7 @@ def entitlementAtAdmittedEffectiveThrough?
   if !validCurrentWindow start observedAt then
     none
   else
-    foldAdmittedCapacityWhere? evidence (inClosed start observedAt) measure
-      (fun movement => movement.quantityAt (.purpose purpose))
+    capacityAtAdmittedWhere? evidence (inClosed start observedAt) (.purpose purpose) measure
 
 /-- Current elapsed Entitlement from raw memories; incomplete evidence fails closed. -/
 def entitlementAtEffectiveThrough?
