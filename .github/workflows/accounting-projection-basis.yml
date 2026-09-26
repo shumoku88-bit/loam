@@ -10,6 +10,8 @@ on:
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/MultimeasureSpendReview.lean'
       - 'Loam/BalanceReview.lean'
+      - 'Loam/HistoricalBalanceReview.lean'
+      - 'Loam/BoundedHistorySupport.lean'
       - 'Loam/CurrentQuantityAnchor.lean'
       - 'Loam/CurrentQuantityPresence.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
@@ -18,6 +20,7 @@ on:
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/Persistence/OpeningSupportPersistence.lean'
       - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
+      - 'Loam/Persistence/BoundedHistorySupportPersistence.lean'
       - 'Loam/Persistence/CurrentQuantityPresencePersistence.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
       - 'Loam/Core/AccountingRole.lean'
@@ -29,6 +32,7 @@ on:
       - 'Loam/Tests/MultimeasureSpendReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
       - 'Loam/Tests/CurrentBalanceReview.lean'
+      - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
       - 'Loam/Tests/CurrentQuantityPresence.lean'
       - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
@@ -47,6 +51,8 @@ on:
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/MultimeasureSpendReview.lean'
       - 'Loam/BalanceReview.lean'
+      - 'Loam/HistoricalBalanceReview.lean'
+      - 'Loam/BoundedHistorySupport.lean'
       - 'Loam/CurrentQuantityAnchor.lean'
       - 'Loam/CurrentQuantityPresence.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
@@ -55,6 +61,7 @@ on:
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/Persistence/OpeningSupportPersistence.lean'
       - 'Loam/Persistence/CurrentQuantityAnchorPersistence.lean'
+      - 'Loam/Persistence/BoundedHistorySupportPersistence.lean'
       - 'Loam/Persistence/CurrentQuantityPresencePersistence.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
       - 'Loam/Core/AccountingRole.lean'
@@ -66,6 +73,7 @@ on:
       - 'Loam/Tests/MultimeasureSpendReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
       - 'Loam/Tests/CurrentBalanceReview.lean'
+      - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
       - 'Loam/Tests/CurrentQuantityPresence.lean'
       - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
@@ -94,7 +102,7 @@ jobs:
       - name: Build accounting projection basis
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.RoleFlowReview Loam.CurrentBalanceReview Loam.RoleBalanceReview Loam.MultimeasureSpendReview Loam.CurrentQuantityAnchorPublisher Loam.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
+          build-args: Loam.RoleFlowReview Loam.CurrentBalanceReview Loam.HistoricalBalanceReview Loam.RoleBalanceReview Loam.MultimeasureSpendReview Loam.CurrentQuantityAnchorPublisher Loam.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Qualify role-aware flow composition
@@ -103,6 +111,8 @@ jobs:
         run: lake env lean --run Loam/Tests/CurrentBalanceReview.lean
       - name: Qualify role-aware balance composition
         run: lake env lean --run Loam/Tests/RoleBalanceReview.lean
+      - name: Qualify bounded historical balance reconstruction
+        run: lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
       - name: Qualify Measure-neutral spending window
         run: lake env lean --run Loam/Tests/MultimeasureSpendReview.lean
       - name: Qualify current quantity anchor composition
