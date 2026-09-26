@@ -1312,6 +1312,77 @@ to:
 
 No production optimization is authorized by Observation 328.
 
+# 13. Transactions-Flow CellIndex support compression — Observation 329
+
+Observation 329 narrows the remaining local algorithm question further.
+
+Observation 328 used both:
+
+```text
+Event.effects
+  -> CellIndex
+  -> exact per-coordinate quantity
+
+Event.effects
+  -> eventCoordinates
+  -> one deduplicated visit per represented coordinate
+```
+
+The second path is now shown to carry no independent Event-local information.
+
+For arbitrary Events and coordinates, Observation 329 proves:
+
+- `CellIndex.keys` is duplicate-free;
+- a coordinate key is present exactly when that coordinate occurred in raw
+  Event evidence;
+- the CellIndex value remains exactly `Event.quantityAt`;
+- exact same-Event cancellation keeps the represented key even when the summed
+  value is zero.
+
+Therefore the qualified local image is already:
+
+```text
+CoordinateKey -> Int
+```
+
+with key presence encoding representation and the value encoding the exact
+aggregated cell.
+
+The explicit list-membership dedup stage in Observation 328 is therefore
+informationally redundant. A later optimized builder can iterate CellIndex keys
+directly.
+
+This does not claim a formal runtime bound. It removes one concrete
+list-membership dedup mechanism that can become quadratic in the number of
+distinct coordinates within one Event.
+
+## 13.1 Newly exposed next question
+
+The next compression question is stronger:
+
+```text
+current:
+    Snapshot.rows
+      -> seed global zero RowIndex
+      -> scan Columns
+
+candidate:
+    empty global RowIndex
+      -> scan Columns
+      -> first observed CellIndex key inserts zero row then applies Event cell
+```
+
+If the candidate can be proved to end with exactly the same represented key set
+and RowActivity values, then the separate `Snapshot.rows` pre-pass is also
+derivable rather than operationally necessary for summary construction.
+
+That would leave sorting only at presentation time where ordered rows are
+actually requested.
+
+No production optimization is authorized by Observation 329.
+
+---
+
 # Current verdict
 
 The study does not support one shared Flow engine.
