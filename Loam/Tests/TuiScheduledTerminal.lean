@@ -116,6 +116,14 @@ def main (args : List String) : IO Unit := do
       editor.editor.form.rows[1]!.amount == "1000")
     "Scheduled expectation did not seed the shared signed-posting editor"
 
+  let originalSuppressed := Loam.Tui.ScheduledCompletion.update
+    initialWorld ["paypay", "rent", "food"] editor (.ctrl 'o')
+  expect originalSuppressed.publish.isNone
+    "Scheduled completion leaked an original-amount publication intent"
+  match originalSuppressed.state.editor.mode with
+  | .editing => pure ()
+  | _ => throw (IO.userError "Scheduled completion entered the new-Actual original amount editor")
+
   let amountForm := { editor.editor.form with focus := ⟨4, by omega⟩ }
   let amountState := { editor with editor := { editor.editor with form := amountForm } }
   let edited := Loam.Tui.ScheduledCompletion.update

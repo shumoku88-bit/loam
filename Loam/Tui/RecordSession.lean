@@ -58,8 +58,18 @@ partial def run
         run bounds root enabled.world enabled.known next nextFrame
   else
     match step.publish with
-    | some draft =>
-        match ← Loam.HouseholdCommand.record root draft with
+    | some intent =>
+        let result ←
+          match intent with
+          | .movement draft =>
+              Loam.HouseholdCommand.record root draft
+          | .movementWithOriginalAmount draft original =>
+              Loam.HouseholdCommand.recordWithOriginalAmount root {
+                movement := draft
+                originalMeasure := original.measure
+                originalQuantity := original.quantity
+              }
+        match result with
         | .ok eventId => return "Recorded " ++ eventId.token ++ "."
         | .error message =>
             let next := { step.state with mode := Loam.Tui.Record.Mode.editing, notice := message }

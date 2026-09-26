@@ -96,17 +96,28 @@ replacement admission and fresh canonical re-checks.
 def update
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  let editor := skipDateFocus state.editor false
-  let step := Loam.Tui.Record.update world known editor key
-  let back := key = .shiftTab
-  let nextEditor := skipDateFocus step.state back
-  let next := { state with editor := nextEditor }
-  if step.cancel then
-    { state := next, cancel := true }
-  else
-    { state := next
-      enableUnresolved := step.enableUnresolved
-      publish := step.publish.map (publisherDraft state.target) }
+  match key with
+  | .ctrl 'o' =>
+      { state := { state with editor := {
+          state.editor with
+          mode := .editing
+          notice := "Original amount is not changed by the current Correction editor."
+        } } }
+  | _ =>
+      let editor := skipDateFocus state.editor false
+      let step := Loam.Tui.Record.update world known editor key
+      let back := key = .shiftTab
+      let nextEditor := skipDateFocus step.state back
+      let next := { state with editor := nextEditor }
+      if step.cancel then
+        { state := next, cancel := true }
+      else
+        { state := next
+          enableUnresolved := step.enableUnresolved
+          publish := step.publish.bind fun intent =>
+            match intent with
+            | .movement draft => some (publisherDraft state.target draft)
+            | .movementWithOriginalAmount _ _ => none }
 
 /-- Return a failed publication attempt to editable replacement evidence. -/
 def withPublishError (state : State) (message : String) : State :=
@@ -148,6 +159,8 @@ def view (_known : List String) (state : State) : Widget :=
         , Loam.Tui.Record.line state.editor.notice
         ]
   | .enableUnresolved =>
+      Loam.Tui.Record.view _known state.editor
+  | .originalAmount _ =>
       Loam.Tui.Record.view _known state.editor
   | .preview draft choice =>
       let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩

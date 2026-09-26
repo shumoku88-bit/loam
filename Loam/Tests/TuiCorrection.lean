@@ -102,6 +102,13 @@ def main (args : List String) : IO Unit := do
   expect (shifted.state.editor.form.focus.val != 0)
     "Correction focus reached the fixed Date field"
 
+  let originalSuppressed := Loam.Tui.Correction.update world known editor (.ctrl 'o')
+  expect originalSuppressed.publish.isNone
+    "Correction leaked an original-amount publication intent"
+  match originalSuppressed.state.editor.mode with
+  | .editing => pure ()
+  | _ => throw (IO.userError "Correction entered the new-Actual original amount editor")
+
   let unresolvedPromptForm : Loam.Tui.Record.Form :=
     Loam.Tui.Record.replaceRows editor.editor.form #[
       { locus := "paypay", amount := "-640" },

@@ -33,9 +33,25 @@ def input (form : Form) : Loam.Presentation.Record.Input := {
   rows := form.rows
 }
 
+structure OriginalAmountValue where
+  measure : Loam.Core.MeasureId
+  quantity : Loam.Core.Quantity
+
+structure OriginalAmountEditor where
+  measure : String := ""
+  amount : String := ""
+  focus : Fin 2 := ⟨0, by omega⟩
+
+inductive PublishIntent where
+  | movement (draft : Loam.MovementAdmission.Draft)
+  | movementWithOriginalAmount
+      (draft : Loam.MovementAdmission.Draft)
+      (original : OriginalAmountValue)
+
 inductive Mode where
   | editing
   | enableUnresolved
+  | originalAmount (editor : OriginalAmountEditor)
   | preview (draft : Loam.MovementAdmission.Draft) (choice : Fin 3)
 
 structure State where
@@ -48,12 +64,17 @@ structure State where
   candidateIndex : Nat := 0
   /-- Optional exact fixed-point rendering/parsing convention per Measure. -/
   measurePresentation : List Loam.MeasurePresentation.Metadata := []
+  /--
+  Optional merchant/card-presented amount retained separately from the ordinary
+  Movement Measure. It is presentation state until explicit publication.
+  -/
+  originalAmount : Option OriginalAmountValue := none
 
 structure Step where
   state : State
   cancel : Bool := false
   enableUnresolved : Bool := false
-  publish : Option Loam.MovementAdmission.Draft := none
+  publish : Option PublishIntent := none
 
 def initial (date : String) : State := { form := { date := date } }
 
@@ -65,6 +86,60 @@ def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
 def withMeasurePresentation
     (state : State) (metadata : List Loam.MeasurePresentation.Metadata) : State :=
   { state with measurePresentation := metadata }
+
+private def originalEditor (state : State) : OriginalAmountEditor :=
+  match state.originalAmount with
+  | none => {}
+  | some original => {
+      measure := original.measure.token
+      amount := Loam.MeasurePresentation.formatQuanta
+        state.measurePresentation original.measure original.quantity.quanta
+    }
+
+private def editOriginalActive
+    (editor : OriginalAmountEditor) (edit : String → String) :
+    OriginalAmountEditor :=
+  if editor.focus.val = 0 then
+    { editor with measure := edit editor.measure }
+  else
+    { editor with amount := edit editor.amount }
+
+private def moveOriginalFocus
+    (editor : OriginalAmountEditor) : OriginalAmountEditor :=
+  if editor.focus.val = 0 then
+    { editor with focus := ⟨1, by decide⟩ }
+  else
+    { editor with focus := ⟨0, by decide⟩ }
+
+def attachOriginalAmount?
+    (state : State) (editor : OriginalAmountEditor) : Except String State := do
+  if !Loam.Persistence.validToken editor.measure then
+    throw "Enter a nonempty single-line original Measure token."
+  let measure : Loam.Core.MeasureId := ⟨editor.measure⟩
+  let scale := Loam.MeasurePresentation.scaleFor state.measurePresentation measure
+  let some quanta :=
+      Loam.MeasurePresentation.parseQuanta?
+        state.measurePresentation measure editor.amount
+    | throw
+        ("Enter a positive original amount with at most " ++
+          toString scale ++ " decimal places.")
+  if quanta <= 0 then
+    throw "Original amount must be positive."
+  pure {
+    state with
+    originalAmount := some {
+      measure := measure
+      quantity := Loam.Core.Quantity.ofQuanta quanta
+    }
+    mode := .editing
+    notice := ""
+  }
+
+private def publicationIntent
+    (state : State) (draft : Loam.MovementAdmission.Draft) : PublishIntent :=
+  match state.originalAmount with
+  | none => .movement draft
+  | some original => .movementWithOriginalAmount draft original
 
 def moveFocus (form : Form) (back : Bool) : Form :=
   let count := 3 + form.rows.size * 2 + 4
@@ -295,6 +370,37 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .input 'e' | .input 'E' | .backspace =>
             { state := { state with mode := .editing, notice := "" } }
         | _ => { state }
+    | .originalAmount editor =>
+        match key with
+        | .ctrl 'o' =>
+            { state := { state with mode := .editing, notice := "" } }
+        | .ctrl 'd' =>
+            { state := { state with
+                originalAmount := none
+                mode := .editing
+                notice := "Original amount cleared." } }
+        | .tab | .shiftTab =>
+            { state := { state with mode := .originalAmount (moveOriginalFocus editor), notice := "" } }
+        | .backspace =>
+            { state := { state with
+                mode := .originalAmount
+                  (editOriginalActive editor (fun text => String.ofList (text.toList.dropLast)))
+                notice := "" } }
+        | .input char =>
+            { state := { state with
+                mode := .originalAmount
+                  (editOriginalActive editor (fun text => text.push char))
+                notice := "" } }
+        | .enter =>
+            if editor.focus.val = 0 then
+              { state := { state with
+                  mode := .originalAmount (moveOriginalFocus editor)
+                  notice := "" } }
+            else
+              match attachOriginalAmount? state editor with
+              | .ok next => { state := next }
+              | .error message => { state := { state with notice := message } }
+        | _ => { state }
     | .preview draft choice =>
         match key with
         | .tab | .right =>
@@ -302,12 +408,16 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .shiftTab | .left =>
             { state := { state with mode := (.preview draft ⟨(choice.val + 2) % 3, Nat.mod_lt _ (by omega)⟩) } }
         | .enter =>
-            if choice.val = 0 then { state, publish := some draft }
+            if choice.val = 0 then { state, publish := some (publicationIntent state draft) }
             else if choice.val = 1 then { state := { state with mode := .editing } }
             else { state, cancel := true }
         | _ => { state }
     | .editing =>
         match key with
+        | .ctrl 'o' =>
+            { state := { state with
+                mode := .originalAmount (originalEditor state)
+                notice := "" } }
         | .ctrl 'u' =>
             if world.locusAdmission.allows unresolvedLocus then
               match fillUnresolvedRemainder? world state with
@@ -372,6 +482,20 @@ def field (form : Form) (index : Nat) (label text : String) : Widget :=
   .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
     (if form.focus.val = index then .selected else .normal)]
 
+private def originalField
+    (editor : OriginalAmountEditor) (index : Nat) (label text : String) : Widget :=
+  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
+    (if editor.focus.val = index then .selected else .normal)]
+
+private def originalSummary (state : State) : String :=
+  match state.originalAmount with
+  | none => "Original amount: (none)   Ctrl-O add"
+  | some original =>
+      "Original amount: " ++
+        Loam.MeasurePresentation.formatQuanta
+          state.measurePresentation original.measure original.quantity.quanta ++
+        " " ++ original.measure.token ++ "   Ctrl-O edit"
+
 /-- Render the bounded signed-posting field window shared by Record-shaped editors. -/
 def postingFieldLines (form : Form) : List Widget :=
   let activeRow := (form.focus.val - 3) / 2
@@ -407,10 +531,11 @@ def view (_known : List String) (state : State) : Widget :=
           span ("[" ++ label ++ "] ")
             (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal)),
          line "Locus catalog:"] ++ candidateLines ++ helpLine ++
-        [line ("Posting " ++ form.measure ++ " is signed; decimal input follows the Measure presentation scale."),
+        [line (originalSummary state),
+         line ("Posting " ++ form.measure ++ " is signed; decimal input follows the Measure presentation scale."),
          line "Tab / Shift-Tab focus   Enter accept candidate / next / preview",
          line "Up / Down choose candidate   Ctrl-U fill unresolved remainder",
-         line "Ctrl-N add row   Ctrl-D drop row",
+         line "Ctrl-N add row   Ctrl-D drop row   Ctrl-O original amount",
          line "Esc cancel   Backspace delete   Drop keeps at least two postings",
          line state.notice]
   | .enableUnresolved =>
@@ -426,11 +551,33 @@ def view (_known : List String) (state : State) : Widget :=
         , line "Enter enable   e/E or Backspace return   Esc cancel Record"
         , line state.notice
         ]
+  | .originalAmount editor =>
+      .column
+        [ line "Record / Original amount"
+        , line ""
+        , originalField editor 0 "Measure" editor.measure
+        , originalField editor 1 "Amount" editor.amount
+        , line ""
+        , line "This is the merchant/card-presented amount, not another posting."
+        , line "It does not infer an FX rate or change the Movement Measure."
+        , line ""
+        , line "Enter next / attach   Tab switch field"
+        , line "Ctrl-D clear   Ctrl-O return   Esc cancel Record"
+        , line state.notice
+        ]
   | .preview draft choice =>
       let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
+      let originalLines :=
+        match state.originalAmount with
+        | none => []
+        | some original =>
+            [line ("Original amount: " ++
+              Loam.MeasurePresentation.formatQuanta
+                state.measurePresentation original.measure original.quantity.quanta ++
+              " " ++ original.measure.token)]
       .column <| [line "Record / Preview", line draft.validOn,
         line ("Measure: " ++ measure.token),
-        line (draft.description.getD "(no description)")] ++
+        line (draft.description.getD "(no description)")] ++ originalLines ++
         (draft.effects.take 12).map (fun effect =>
           line (Loam.Tui.Layout.padRight 20 effect.locus.token ++
             Loam.Tui.Layout.padLeft 10
