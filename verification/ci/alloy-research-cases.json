@@ -139,7 +139,6 @@
         "GroupedSessionsEqualDuplicatedCuts": false,
         "ExistingGroupedAnswerPreserved": false,
         "CoordinateCutsDetermineGroupedCurrent": false,
-        "OneSharedCutAlwaysRepresentsGroupedSessions": true,
         "CoveredRootChangesDoNotChangeCurrent": false,
         "SharedCutEqualsDuplicatedEqualCuts": false,
         "MissingAssertionRemainsUnsupported": false,
