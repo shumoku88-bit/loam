@@ -247,7 +247,7 @@ partial def balancesLoop (bounds : Bounds)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       balancesLoop bounds next nextFrame
 
-/-- Current quantity observations stay presentation-local until one complete image is published. -/
+/-- Current quantity observations stay presentation-local until one new reconciliation group is published. -/
 partial def currentQuantityAnchorLoop
     (bounds : Bounds) (root : System.FilePath)
     (state : Loam.Tui.CurrentQuantityAnchor.State) (frame : CompiledWidget) : IO String := do

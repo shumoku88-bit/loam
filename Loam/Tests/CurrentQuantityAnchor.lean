@@ -100,8 +100,9 @@ def main : IO Unit := do
       events corrections locusAdmission ZeroOriginCoverage.empty
       OpeningSupportMap.empty [nowAssertion])
     "publisher proposal"
-  expect (published.reflectedRoots.contains old.id) "publisher omitted corrected root"
-  expect (published.reflectedRoots.contains later.id) "publisher omitted untouched root"
+  let publishedGroup ← requireSome published.singleGroup? "publisher single group"
+  expect (publishedGroup.reflectedRoots.contains old.id) "publisher omitted corrected root"
+  expect (publishedGroup.reflectedRoots.contains later.id) "publisher omitted untouched root"
   let some publishedQuantity ← requireOk
     (Loam.CurrentQuantityAnchor.inspectQuantity events corrections published debt)
     "published anchored quantity"
@@ -132,6 +133,73 @@ def main : IO Unit := do
     (Loam.Persistence.decodeCurrentQuantityAnchor? encoded)
     "anchor decoding"
   expect (decide (decoded = anchor)) "anchor persistence roundtrip changed"
+
+  -- Version-1 one-cut images remain readable as one semantic group.
+  let legacyText :=
+    Loam.Persistence.encodeVersionedRows
+      "LOAM-CURRENT-QUANTITY-ANCHOR\t1"
+      ["ROOT\told-root", "ASSERT\tdebt\tjpy\t-70"]
+  let legacy ← requireSome
+    (Loam.Persistence.decodeCurrentQuantityAnchor? legacyText)
+    "version-1 anchor compatibility"
+  expect (decide (legacy = anchor))
+    "version-1 anchor did not lift into one reconciliation group"
+
+  -- A later independently observed coordinate gets a new group while the older
+  -- coordinate keeps its prior cut and therefore its prior current answer.
+  let incremental ← requireOk
+    (Loam.CurrentQuantityAnchorPublisher.proposeUpdate?
+      events corrections locusAdmission ZeroOriginCoverage.empty
+      OpeningSupportMap.empty anchor [cashAssertion])
+    "incremental anchor proposal"
+  expect (incremental.groups.length == 2)
+    "later independent observation did not preserve the older group"
+  let some incrementalDebt ← requireOk
+    (Loam.CurrentQuantityAnchor.inspectQuantity events corrections incremental debt)
+    "incremental debt quantity"
+    | throw (IO.userError "incremental update lost prior debt support")
+  let some incrementalCash ← requireOk
+    (Loam.CurrentQuantityAnchor.inspectQuantity events corrections incremental cash)
+    "incremental cash quantity"
+    | throw (IO.userError "incremental update lost new cash support")
+  expect (incrementalDebt.quanta == anchored.quanta)
+    "adding a later coordinate changed the prior anchored answer"
+  expect (incrementalCash.quanta == cashAssertion.quantity.quanta)
+    "new reconciliation group changed its observed quantity"
+
+  -- Re-observing one coordinate moves only that coordinate to the newest cut.
+  let revisedDebt : Loam.CurrentQuantityAnchor.Assertion :=
+    { coordinate := debt, quantity := Quantity.ofQuanta (-55) }
+  let reobserved ← requireOk
+    (Loam.CurrentQuantityAnchorPublisher.proposeUpdate?
+      events corrections locusAdmission ZeroOriginCoverage.empty
+      OpeningSupportMap.empty incremental [revisedDebt])
+    "re-observed anchor proposal"
+  expect (reobserved.groups.length == 2)
+    "re-observation did not drop the emptied old group"
+  let some reobservedDebt ← requireOk
+    (Loam.CurrentQuantityAnchor.inspectQuantity events corrections reobserved debt)
+    "re-observed debt quantity"
+    | throw (IO.userError "re-observation lost debt support")
+  let some retainedCash ← requireOk
+    (Loam.CurrentQuantityAnchor.inspectQuantity events corrections reobserved cash)
+    "retained cash quantity"
+    | throw (IO.userError "re-observation lost unrelated cash support")
+  expect (reobservedDebt.quanta == -55)
+    "re-observed coordinate did not move to the new cut"
+  expect (retainedCash.quanta == cashAssertion.quantity.quanta)
+    "re-observing debt changed unrelated cash support"
+
+  let duplicateGroupA ← requireSome
+    (Loam.CurrentQuantityAnchor.Group.ofLists? [old.id] [assertion])
+    "duplicate-group A"
+  let duplicateGroupB ← requireSome
+    (Loam.CurrentQuantityAnchor.Group.ofLists? [old.id, later.id] [assertion])
+    "duplicate-group B"
+  expect
+    (Loam.CurrentQuantityAnchor.Evidence.ofGroups?
+      [duplicateGroupA, duplicateGroupB]).isNone
+    "one coordinate was admitted into two live reconciliation groups"
 
   expect
     (Loam.CurrentQuantityAnchor.Evidence.ofLists?
@@ -206,4 +274,4 @@ def main : IO Unit := do
     "RoleBalance selected a winner for overlapping support families"
 
   IO.println
-    "Current Quantity Anchor: shared root cut, current Locus admission, correction stability, persistence and RoleBalance composition qualified."
+    "Current Quantity Anchor: grouped cuts, incremental observation, v1 compatibility, current Locus admission, correction stability, persistence and RoleBalance composition qualified."

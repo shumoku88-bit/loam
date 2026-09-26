@@ -84,7 +84,9 @@ private def numericDisagreementIsVisible : IO Unit := do
   let observed ← anchoredQuantity events corrections fresh
   expect (observed == -55) "V5a fresh observation"
   expect (observed - derived == 5) "V5a disagreement residual"
-  expect (old.reflectedRoots != fresh.reflectedRoots)
+  let oldGroup ← requireSome old.singleGroup? "V5a old single group"
+  let freshGroup ← requireSome fresh.singleGroup? "V5a fresh single group"
+  expect (oldGroup.reflectedRoots != freshGroup.reflectedRoots)
     "V5a fresh observation did not establish a new cut"
 
 /-- V5b: the same machinery also admits exact agreement without a special status. -/

@@ -13,10 +13,12 @@ set_option autoImplicit false
 /-!
 # Current quantity observation editor
 
-This is presentation-only state for one complete current reconciliation image.
-It collects one or more `Locus × Measure × observed Quantity` rows and emits the
-whole image at once. It does not derive the Event root cut, merge with a prior
-anchor image, decide support-family precedence, or write persistence directly.
+This is presentation-only state for one reconciliation group observed now.
+It collects one or more `Locus × Measure × observed Quantity` rows and emits
+only that group. It does not derive the Event root cut, load prior anchor groups,
+decide support-family precedence, or write persistence directly. The shared
+publisher preserves unmentioned prior groups and moves re-observed coordinates
+to the newly published group.
 -/
 
 structure Form where
@@ -175,7 +177,7 @@ def view (state : State) : Widget :=
   | .editing =>
       .column <|
         [ line "Current Quantity / Observe"
-        , muted "Build one complete set of quantities observed together now."
+        , muted "Add the quantities you observed together now."
         , line ""
         ] ++
         (if state.assertions.isEmpty then [muted "  (no observations added yet)"]
@@ -192,13 +194,13 @@ def view (state : State) : Widget :=
   | .preview choice =>
       .column <|
         [ line "Current Quantity / Preview"
-        , muted "Complete replacement image:"
+        , muted "New reconciliation group:"
         , line ""
         ] ++
         assertionLines state.assertions ++
         [ line ""
         , muted "All rows must describe quantities observed together at this reconciliation boundary."
-        , muted "Publish replaces the current anchor image; it does not merge with an older image."
+        , muted "Unmentioned prior observations are preserved; re-observed coordinates move here."
         , muted "The shared publisher derives the Event root cut and enforces support separation."
         , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")

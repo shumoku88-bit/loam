@@ -6,12 +6,13 @@ Primary instruments: **DRAKONview + obligation DAG + production-writer reachabil
 
 ## Question
 
-`CurrentQuantityAnchorPublisher.publish` builds one complete observed-present image from:
+`CurrentQuantityAnchorPublisher.publish` updates one replaceable observed-present support image from:
 
 - current normalized Actual evidence;
 - ZeroOriginCoverage;
 - OpeningSupport;
-- a fresh set of observed coordinate quantities.
+- the retained CurrentQuantityAnchor image, when present;
+- one fresh set of coordinate quantities observed together now.
 
 Generation 2 asks whether the writer should widen its ownership interval to every input authority, or retain the smaller current boundary:
 
@@ -19,7 +20,7 @@ Generation 2 asks whether the writer should widen its ownership interval to ever
 Actual -> CurrentQuantityAnchor
 ```
 
-It also asks whether replacing the current anchor should acquire a retained revision graph.
+Observation 246's 2026-09-27 follow-up and PR #1386 later qualified several anonymous reconciliation groups inside that replaceable image. The writer therefore also asks how a fresh group composes with retained groups without inventing anchor identity or history.
 
 ## Current production shape
 
@@ -38,6 +39,8 @@ load current Actual
         |
         +------ load OpeningSupport snapshot
         |
+        +------ load retained anchor image under anchor ownership
+        |
         v
 reject support-family overlap
         |
@@ -45,7 +48,11 @@ reject support-family overlap
 derive all stable correction roots from locked Actual
         |
         v
-construct one complete anchor image
+construct one fresh anonymous reconciliation group
+        |
+        v
+preserve unmentioned prior coordinates
+move re-observed coordinates to the fresh group
         |
         v
 atomically replace current-quantity-anchor.loam
@@ -121,32 +128,47 @@ valid empty image            -> explicit absence of support
 
 No optional fallback is earned by this audit.
 
-## O4 — Fresh observation replaces the current image; it is not a retained anchor revision
+## O4 — Fresh observation updates the replaceable current image; groups are not retained revisions
 
-The anchor writer atomically replaces one complete current reconciliation image.
+PR #1386 qualified the production pressure that the original one-cut image could not satisfy: a household may observe another coordinate later without re-observing every prior coordinate.
 
-This does not silently discard a qualified history model. Existing Four-Voice V4 evidence already establishes:
+The smallest surviving current-support shape is:
 
 ```text
-fresh observation
-    -> new complete reflected-root cut
-    -> new complete asserted-current image
+replaceable current-support image
+  reconciliation group A
+    reflected-root cut A
+    assertions observed together at A
+
+  reconciliation group B
+    reflected-root cut B
+    assertions observed together at B
 ```
 
-The old anchor is not mutated into a historical revision.
+A fresh publication therefore:
 
-A retained revision graph would introduce new identity, chronology, correction, and selection semantics without a current product question requiring them.
+1. derives one new cut from the locked current Actual world;
+2. preserves prior groups for coordinates not observed now;
+3. removes any re-observed coordinate from its prior group;
+4. appends the fresh coordinate assertions under the new cut;
+5. drops a prior group if no assertions remain in it;
+6. atomically replaces the complete current-support file.
+
+The group is anonymous representation factoring. It is not a stable AnchorId, timestamp, historical observation record, or revision node.
 
 Therefore:
 
 ```text
-complete-image replacement                 KEEP
-anchor identity family                     DO NOT ADD
-anchor revision graph                      DO NOT ADD
-implicit old/new reconciliation policy     DO NOT ADD
+replaceable grouped current-support image          KEEP
+unmentioned prior coordinate support               KEEP
+re-observed coordinate moves to fresh group        KEEP
+global one-coordinate/one-live-group uniqueness    KEEP
+anchor/group identity family                       DO NOT ADD
+anchor revision graph                              DO NOT ADD
+historical observation provenance                  DO NOT INFER
 ```
 
-A caller may derive a residual between an earlier image and a fresh observation when both are available in an explicit comparison context. That does not make the residual or old image canonical history.
+The old file image is still not canonical history. Current support retains only the minimum coordinate-local quantity and reflected-root cut needed for today's answer.
 
 ## O5 — Why this differs from G2-015
 
@@ -171,18 +193,22 @@ Similar semantic importance does not imply identical ownership obligations.
           +-------------------+-------------------+
           |                   |                   |
           v                   v                   v
-     root-cut truth      support separation    image replacement
+     root-cut truth      support separation    grouped replacement
           |                   |                   |
           v                   v                   v
    locked Actual       Coverage snapshot      lock anchor image
           |            Opening snapshot             |
-          |                   |                     |
+          |                   |              load retained groups
           |          reject overlap                 |
           |                   |                     |
           +-------------------+---------------------+
                               |
                               v
-                    one complete anchor image
+                    fresh anonymous group
+                              |
+                              v
+               preserve unmentioned coordinates
+                 move re-observed coordinates
                               |
                               v
                        atomic replacement
@@ -205,6 +231,6 @@ The smallest justified boundary remains the current one.
 
 ## Verdict
 
-**G2-017: KEEP QUALIFIED — retain `Actual -> CurrentQuantityAnchor` ownership, read configured support families as fail-closed snapshots, and do not add speculative support locks or anchor revision history.**
+**G2-017: KEEP QUALIFIED, UPDATED BY #1386/#1389 — retain `Actual -> CurrentQuantityAnchor` ownership, preserve a replaceable image of anonymous reconciliation groups, read configured support families as fail-closed snapshots, and do not add speculative support locks or anchor/group revision history.**
 
 Reopen this result only if a production writer is introduced for ZeroOriginCoverage or OpeningSupport, or if a product question independently requires historical anchor identity/revisions.

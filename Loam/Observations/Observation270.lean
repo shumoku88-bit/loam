@@ -103,32 +103,41 @@ private def openingB : OpeningSupportMap := {
 }
 
 private def anchorA : Loam.CurrentQuantityAnchor.Evidence := {
-  reflectedRoots := []
-  assertions := [{
-    coordinate := coordinateA
-    quantity := Quantity.ofQuanta 10
+  groups := [{
+    reflectedRoots := []
+    assertions := [{
+      coordinate := coordinateA
+      quantity := Quantity.ofQuanta 10
+    }]
+    rootNodup := by simp
+    coordinateNodup := by simp
   }]
-  rootNodup := by simp
   coordinateNodup := by simp
 }
 
 private def anchorB : Loam.CurrentQuantityAnchor.Evidence := {
-  reflectedRoots := []
-  assertions := [{
-    coordinate := coordinateB
-    quantity := Quantity.ofQuanta 20
+  groups := [{
+    reflectedRoots := []
+    assertions := [{
+      coordinate := coordinateB
+      quantity := Quantity.ofQuanta 20
+    }]
+    rootNodup := by simp
+    coordinateNodup := by simp
   }]
-  rootNodup := by simp
   coordinateNodup := by simp
 }
 
 private def anchorC : Loam.CurrentQuantityAnchor.Evidence := {
-  reflectedRoots := []
-  assertions := [{
-    coordinate := coordinateC
-    quantity := Quantity.ofQuanta 30
+  groups := [{
+    reflectedRoots := []
+    assertions := [{
+      coordinate := coordinateC
+      quantity := Quantity.ofQuanta 30
+    }]
+    rootNodup := by simp
+    coordinateNodup := by simp
   }]
-  rootNodup := by simp
   coordinateNodup := by simp
 }
 
