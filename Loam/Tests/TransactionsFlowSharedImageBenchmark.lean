@@ -45,43 +45,63 @@ private def mkSnapshot (n : Nat) : Loam.TransactionsFlowReview.Snapshot :=
         row.2.activeEvents)
     0
 
+@[noinline] private def buildRowsLeft
+    (snapshot : Loam.TransactionsFlowReview.Snapshot) :=
+  snapshot.rowActivities
+
+@[noinline] private def buildRowsRight
+    (snapshot : Loam.TransactionsFlowReview.Snapshot) :=
+  snapshot.rowActivities
+
 /-- Production-shaped baseline: two independent consumers rebuild the same row image. -/
 @[noinline] private def duplicateDigest
     (snapshot : Loam.TransactionsFlowReview.Snapshot) : Nat :=
-  let left := snapshot.rowActivities
-  let right := snapshot.rowActivities
+  let left := buildRowsLeft snapshot
+  let right := buildRowsRight snapshot
   digestRows left + digestRows right
 
 /-- Candidate shape: build one transient row image and share it across two consumers. -/
 @[noinline] private def sharedDigest
     (snapshot : Loam.TransactionsFlowReview.Snapshot) : Nat :=
-  let rows := snapshot.rowActivities
+  let rows := buildRowsLeft snapshot
   digestRows rows + digestRows rows
 
-private def timeUsForced
-    (action : Unit → Nat) : IO (Nat × Nat) := do
-  let t0 ← IO.monoNanosNow
-  let value := action ()
-  if value == 999999999 then IO.println "unreachable" else pure ()
-  let t1 ← IO.monoNanosNow
-  pure ((t1 - t0) / 1000, value)
+@[noinline] private def batchDigest
+    (iterations : Nat) (action : Nat → Nat) : Nat :=
+  (List.range iterations).foldl
+    (fun total iteration => total + action iteration)
+    0
 
-private def timeMedianUs
-    (iterations : Nat)
-    (action : Unit → Nat) : IO (Nat × Nat) := do
+private def timeNanosForced
+    (batchSize : Nat)
+    (action : Nat → Nat) : IO (Nat × Nat) := do
+  let t0 ← IO.monoNanosNow
+  let value := batchDigest batchSize action
+  if value == 0 then throw <| IO.userError "benchmark digest was unexpectedly zero"
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0).toNat, value)
+
+private def timeMedianNanos
+    (samples batchSize : Nat)
+    (action : Nat → Nat) : IO (Nat × Nat) := do
   let mut times : List Nat := []
   let mut value : Nat := 0
-  for _ in List.range iterations do
-    let (us, observed) ← timeUsForced action
-    times := us :: times
+  for _ in List.range samples do
+    let (ns, observed) ← timeNanosForced batchSize action
+    times := ns :: times
     value := observed
   let sorted := times.toArray.qsort (· < ·)
-  pure (sorted[sorted.size / 2]!, value)
+  pure (sorted[sorted.size / 2]! / batchSize, value)
 
-private def fmtUs (us : Nat) : String :=
-  if us >= 1000000 then s!"{us / 1000000}.{(us % 1000000) / 100000} s"
-  else if us >= 1000 then s!"{us / 1000}.{(us % 1000) / 100} ms"
-  else s!"{us} µs"
+private def fmtNanos (ns : Nat) : String :=
+  if ns >= 1000000000 then
+    s!"{ns / 1000000000}.{(ns % 1000000000) / 100000000} s"
+  else if ns >= 1000000 then
+    s!"{ns / 1000000}.{(ns % 1000000) / 100000} ms"
+  else if ns >= 1000 then
+    s!"{ns / 1000}.{(ns % 1000) / 100} µs"
+  else
+    s!"{ns} ns"
 
 private def fmtRatio (numerator denominator : Nat) : String :=
   if denominator > 0 then
@@ -92,7 +112,8 @@ private def fmtRatio (numerator denominator : Nat) : String :=
 
 def main : IO Unit := do
   let sizes := [1000, 5000, 10000, 25000]
-  let reps := 5
+  let samples := 5
+  let batchSize := 20
 
   IO.println "=== MATH-6 shared Transactions-Flow row image pressure ==="
   IO.println "events | duplicate row image | shared row image | speedup"
@@ -104,16 +125,18 @@ def main : IO Unit := do
     unless expected == candidate do
       throw <| IO.userError s!"semantic digest mismatch at N={n}: {expected} != {candidate}"
 
-    let (duplicateUs, duplicateValue) ←
-      timeMedianUs reps fun _ => duplicateDigest snapshot
-    let (sharedUs, sharedValue) ←
-      timeMedianUs reps fun _ => sharedDigest snapshot
+    let (duplicateNs, duplicateValue) ←
+      timeMedianNanos samples batchSize fun iteration =>
+        duplicateDigest snapshot + (iteration % 2)
+    let (sharedNs, sharedValue) ←
+      timeMedianNanos samples batchSize fun iteration =>
+        sharedDigest snapshot + (iteration % 2)
 
     unless duplicateValue == sharedValue do
       throw <| IO.userError s!"timed semantic digest mismatch at N={n}"
 
     IO.println
-      s!"{n} | {fmtUs duplicateUs} | {fmtUs sharedUs} | {fmtRatio duplicateUs sharedUs}"
+      s!"{n} | {fmtNanos duplicateNs} | {fmtNanos sharedNs} | {fmtRatio duplicateNs sharedNs}"
 
   IO.println ""
   IO.println "This benchmark isolates only repeated stage-2 row-image construction."
