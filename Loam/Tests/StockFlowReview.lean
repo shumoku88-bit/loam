@@ -127,7 +127,7 @@ private def boundedIntegration : IO Unit := do
 
   let beforeStart ←
     Loam.StockFlowReview.loadSnapshot root root "2026-05-31" "2026-06-09"
-  match ← beforeStart with
+  match beforeStart with
   | .error message =>
       expect ((message.splitOn "precedes bounded history start").length > 1)
         "bounded Stock-Flow pre-start refusal lost its explanation"
