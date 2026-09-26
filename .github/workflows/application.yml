@@ -10,6 +10,11 @@ on:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/MovementPublisher.lean'
+      - 'Loam/ExchangeAdmission.lean'
+      - 'Loam/ExchangePublisher.lean'
+      - 'Loam/OriginalAmountMovementPublisher.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Tests/MultimeasureRecordingPublishers.lean'
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam.lean'
@@ -25,6 +30,11 @@ on:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/MovementPublisher.lean'
+      - 'Loam/ExchangeAdmission.lean'
+      - 'Loam/ExchangePublisher.lean'
+      - 'Loam/OriginalAmountMovementPublisher.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Tests/MultimeasureRecordingPublishers.lean'
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam.lean'
@@ -50,7 +60,7 @@ jobs:
       - name: Build application, umbrella, observer, and Movement publisher
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Application Loam Loam.MovementPublisher loamHouseholdObservation Loam.Tests.ActualWorldFixture
+          build-args: Loam.Application Loam Loam.MovementPublisher Loam.ExchangeAdmission Loam.ExchangePublisher Loam.OriginalAmountMovementPublisher Loam.HouseholdCommand loamHouseholdObservation Loam.Tests.ActualWorldFixture
 
       - name: Qualify household path composition
         run: lake env lean --run Loam/Tests/HouseholdPaths.lean
@@ -61,3 +71,10 @@ jobs:
           set -euo pipefail
           fixture="$(mktemp -d)/sparse-movement"
           lake env lean --run Loam/Tests/SparseMovementPublication.lean "$fixture"
+
+      - name: Qualify atomic multimeasure recording publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/multimeasure-recording"
+          lake env lean --run Loam/Tests/MultimeasureRecordingPublishers.lean "$fixture"
