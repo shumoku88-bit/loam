@@ -3,6 +3,7 @@ import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
+import Loam.MultimeasureSpendReview
 import Loam.PeriodComparisonReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
@@ -40,6 +41,7 @@ inductive Mode where
   | transactionsFlow
   | incomeExpense
   | incomeExpenseCompare
+  | multimeasureSpend
   | balances
   | liquidity
   | budgetWindow
@@ -59,6 +61,7 @@ inductive Query where
   | incomeExpenseFlow (start endExclusive : String)
   | incomeExpenseCompare
       (leftStart leftEndExclusive rightStart rightEndExclusive : String)
+  | multimeasureSpend (start endExclusive : String)
   | roleBalances
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
@@ -68,7 +71,7 @@ inductive Query where
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 8 := ⟨0, by decide⟩
+  menuIndex : Fin 9 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
   comparison : Loam.Tui.ReportComparison.State := {}
   liquidityForm : LiquidityForm := {}
@@ -79,6 +82,7 @@ structure State where
   incomeExpenseSnapshot : Option Loam.IncomeExpenseProvenanceReview.Snapshot := none
   incomeExpenseComparison :
     Option (Loam.PeriodComparisonReview.Pair Loam.IncomeExpenseProvenanceReview.Snapshot) := none
+  multimeasureSpendSnapshot : Option Loam.MultimeasureSpendReview.Snapshot := none
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
@@ -154,6 +158,11 @@ def withIncomeExpenseComparison
   { state with incomeExpenseComparison := some comparison, notice := "", scroll := 0 }
 
 
+def withMultimeasureSpendSnapshot
+    (state : State) (snapshot : Loam.MultimeasureSpendReview.Snapshot) : State :=
+  { state with multimeasureSpendSnapshot := some snapshot, notice := "", scroll := 0 }
+
+
 def withRoleBalanceSnapshot
     (state : State) (snapshot : Loam.RoleBalanceReview.Snapshot) : State :=
   { state with roleBalanceSnapshot := some snapshot, notice := "", scroll := 0 }
@@ -181,6 +190,7 @@ def withError (state : State) (message : String) : State :=
       transactions := Loam.Tui.TransactionsFlowPane.initial
       incomeExpenseSnapshot := none
       incomeExpenseComparison := none
+      multimeasureSpendSnapshot := none
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
@@ -195,6 +205,7 @@ private def clearResults (state : State) : State :=
       transactions := Loam.Tui.TransactionsFlowPane.initial
       incomeExpenseSnapshot := none
       incomeExpenseComparison := none
+      multimeasureSpendSnapshot := none
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
@@ -254,7 +265,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 7) % 8 else (state.menuIndex.val + 1) % 8
+  let next := if back then (state.menuIndex.val + 8) % 9 else (state.menuIndex.val + 1) % 9
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -317,11 +328,12 @@ private def selectMenuMode (state : State) : State :=
     | 3 => Mode.balances
     | 4 => Mode.liquidity
     | 5 => Mode.budgetWindow
-    | _ => Mode.scheduledCoverage
+    | 6 => Mode.scheduledCoverage
+    | _ => Mode.multimeasureSpend
   { state with mode := mode, notice := "", scroll := 0 }
 
 private def selectMenuStep (state : State) : Step :=
-  if state.menuIndex.val == 7 then
+  if state.menuIndex.val == 8 then
     { state, query := some .favaProjection }
   else
     let next := selectMenuMode state
@@ -353,6 +365,8 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .input 'c' | .input 'C' =>
       let next := { state with mode := .scheduledCoverage, notice := "", scroll := 0 }
       { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
+  | .input 'x' | .input 'X' =>
+      { state := { state with mode := .multimeasureSpend, notice := "", scroll := 0 } }
   | .input 'f' | .input 'F' =>
       { state, query := some .favaProjection }
   | _ => { state }
@@ -362,6 +376,7 @@ private def queryForMode (state : State) : Option Query :=
   | .stockFlow => some (.stockFlow state.window.form.start state.window.form.endExclusive)
   | .transactionsFlow => some (.transactionsFlow state.window.form.start state.window.form.endExclusive)
   | .incomeExpense => some (.incomeExpenseFlow state.window.form.start state.window.form.endExclusive)
+  | .multimeasureSpend => some (.multimeasureSpend state.window.form.start state.window.form.endExclusive)
   | .budgetWindow => some (.budgetWindow state.window.form.start state.window.form.endExclusive)
   | _ => none
 
@@ -585,6 +600,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           { state := beginComparison state .incomeExpenseCompare }
       | _ => updateWindowReport state key
   | .incomeExpenseCompare => updateComparison state key
+  | .multimeasureSpend => updateWindowReport state key
   | .balances => updateBalances state key
   | .liquidity => updateLiquidity state key
   | .scheduledCoverage => updateScheduledCoverage state key
