@@ -1,0 +1,27 @@
+name: MATH-4 Actual Routing Pressure
+
+on:
+  pull_request:
+    paths:
+      - "Loam/Tests/ActualRoutingFixedTimeBenchmark.lean"
+      - "Loam/Observations/Observation334.lean"
+      - "Loam/Core/HistoricalRouting.lean"
+      - ".github/workflows/math4-actual-routing-pressure.yml"
+
+jobs:
+  measure:
+    name: Measure production-shaped fixed-time routing
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: leanprover/lean-action@v1
+        with:
+          build-args: Loam.Observations.Observation334
+      - name: Run production-shaped benchmark
+        run: |
+          echo "=== MATH-4 fixed-time Actual routing pressure ==="
+          echo "subjects | history entries | direct statusAt | fixed-time image | direct/image"
+          lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 4 4
+          lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 8 16
+          lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 16 29
+          lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 28 29
