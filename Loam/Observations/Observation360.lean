@@ -162,9 +162,9 @@ theorem current_open_relation_rejects_cross_measure_settlement_magnitudes :
     (do
       let memory ← events?
       pure (
-        admitRelationUnit? memory cardAsCurrentRelation4700,
-        admitRelationUnit? memory stockAsCurrentRelation1000)) =
-      some (none, none) := by
+        (admitRelationUnit? memory cardAsCurrentRelation4700).isNone,
+        (admitRelationUnit? memory stockAsCurrentRelation1000).isNone)) =
+      some (true, true) := by
   native_decide
 
 /--
