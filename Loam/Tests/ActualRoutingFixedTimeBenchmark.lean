@@ -27,16 +27,18 @@ private def buildHistory
 
 @[noinline] private def directStatuses
     (history : RoutingHistory LocusId Nat)
-    (subjects observedAt : Nat) : List RoutingStatus :=
-  (List.range subjects).map fun i =>
-    history.statusAt (locus i) observedAt
+    (subjects : List LocusId)
+    (observedAt : Nat) : List RoutingStatus :=
+  subjects.map fun subject =>
+    history.statusAt subject observedAt
 
 @[noinline] private def imageStatuses
     (history : RoutingHistory LocusId Nat)
-    (subjects observedAt : Nat) : List RoutingStatus :=
+    (subjects : List LocusId)
+    (observedAt : Nat) : List RoutingStatus :=
   let index := Loam.Observation334.buildLatestIndex history observedAt
-  (List.range subjects).map fun i =>
-    Loam.Observation334.statusFromIndex index (locus i)
+  subjects.map fun subject =>
+    Loam.Observation334.statusFromIndex index subject
 
 @[noinline] private def statusDigest (statuses : List RoutingStatus) : Nat :=
   statuses.foldl
@@ -48,26 +50,66 @@ private def buildHistory
         | .unrouted => 23)
     0
 
-private def timeUsForced
-    (action : Unit → List RoutingStatus) : IO (Nat × Nat) := do
+@[noinline] private def timeOne
+    (action : Unit → List RoutingStatus) :
+    IO (Nat × List RoutingStatus × Nat) := do
   let t0 ← IO.monoNanosNow
   let result := action ()
   let digest := statusDigest result
   if digest == 99999999 then IO.println "unreachable" else pure ()
   let t1 ← IO.monoNanosNow
-  pure ((t1 - t0) / 1000, digest)
+  pure ((t1 - t0) / 1000, result, digest)
 
-private def timeMedianUs
+private def median (samples : List Nat) : Nat :=
+  let sorted := samples.toArray.qsort (· < ·)
+  sorted[sorted.size / 2]!
+
+private structure Timed where
+  directUs : Nat
+  imageUs : Nat
+  directResult : List RoutingStatus
+  imageResult : List RoutingStatus
+  directDigest : Nat
+  imageDigest : Nat
+
+private def pairedMedian
     (iterations : Nat)
-    (action : Unit → List RoutingStatus) : IO (Nat × Nat) := do
-  let mut times : List Nat := []
-  let mut digest : Nat := 0
-  for _ in List.range iterations do
-    let (us, current) ← timeUsForced action
-    times := us :: times
-    digest := current
-  let sorted := times.toArray.qsort (· < ·)
-  pure (sorted[sorted.size / 2]!, digest)
+    (directAction imageAction : Unit → List RoutingStatus) : IO Timed := do
+  let mut directTimes : List Nat := []
+  let mut imageTimes : List Nat := []
+  let mut directResult : List RoutingStatus := []
+  let mut imageResult : List RoutingStatus := []
+  let mut directDigest : Nat := 0
+  let mut imageDigest : Nat := 0
+
+  for i in List.range iterations do
+    if i % 2 = 0 then
+      let (a, ar, ad) ← timeOne directAction
+      let (b, br, bd) ← timeOne imageAction
+      directTimes := a :: directTimes
+      imageTimes := b :: imageTimes
+      directResult := ar
+      imageResult := br
+      directDigest := ad
+      imageDigest := bd
+    else
+      let (b, br, bd) ← timeOne imageAction
+      let (a, ar, ad) ← timeOne directAction
+      directTimes := a :: directTimes
+      imageTimes := b :: imageTimes
+      directResult := ar
+      imageResult := br
+      directDigest := ad
+      imageDigest := bd
+
+  pure {
+    directUs := median directTimes
+    imageUs := median imageTimes
+    directResult := directResult
+    imageResult := imageResult
+    directDigest := directDigest
+    imageDigest := imageDigest
+  }
 
 private def fmtRatio (numerator denominator : Nat) : String :=
   if denominator > 0 then
@@ -82,23 +124,19 @@ def runShape (subjects entries : Nat) : IO Unit := do
   let some history := buildHistory subjects entries
     | throw <| IO.userError s!"could not admit fixture {subjects}/{entries}"
   let observedAt := entries / subjects + 1
+  let subjectList := (List.range subjects).map locus
 
-  let direct := directStatuses history subjects observedAt
-  let indexed := imageStatuses history subjects observedAt
-  unless direct == indexed do
+  let timed ← pairedMedian 7
+    (fun _ => directStatuses history subjectList observedAt)
+    (fun _ => imageStatuses history subjectList observedAt)
+
+  unless timed.directResult == timed.imageResult do
     throw <| IO.userError s!"semantic status mismatch at {subjects}/{entries}"
-
-  let reps := 31
-  let (directUs, directDigest) ←
-    timeMedianUs reps fun _ => directStatuses history subjects observedAt
-  let (imageUs, imageDigest) ←
-    timeMedianUs reps fun _ => imageStatuses history subjects observedAt
-
-  unless directDigest == imageDigest do
+  unless timed.directDigest == timed.imageDigest do
     throw <| IO.userError s!"timed digest mismatch at {subjects}/{entries}"
 
   IO.println
-    s!"{subjects} | {entries} | {directUs} µs | {imageUs} µs | {fmtRatio directUs imageUs}"
+    s!"{subjects} | {entries} | {timed.directUs} µs | {timed.imageUs} µs | {fmtRatio timed.directUs timed.imageUs}"
 
 end Loam.Tests.ActualRoutingFixedTimeBenchmark
 
