@@ -139,10 +139,12 @@ private def sameSeriesResult
 private def timeUsForced
     (batch : Nat)
     (action : Unit → Except String (List Int)) : IO (Nat × Nat) := do
+  let sink ← IO.mkRef 0
   let t0 ← IO.monoNanosNow
-  let mut checksum : Nat := 0
   for _ in List.range batch do
-    checksum := checksum + forceSeries (action ())
+    let forced := forceSeries (action ())
+    sink.modify (fun checksum => checksum + forced)
+  let checksum ← sink.get
   if checksum == 999999999 then IO.println "unreachable" else pure ()
   let t1 ← IO.monoNanosNow
   pure (((t1 - t0) / 1000) / batch, checksum)
