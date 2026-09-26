@@ -1,4 +1,4 @@
-import Loam.RoleBalanceReview
+import Loam.CurrentBalanceReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 
@@ -42,22 +42,19 @@ inductive Step where
   | back
 
 private def exactQuantity?
-    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (snapshot : Loam.CurrentBalanceReview.Snapshot)
     (coordinate : EffectCoordinate) : Option Quantity :=
   match snapshot.rows.find? fun row => decide (row.coordinate = coordinate) with
   | some row => some row.quantity
-  | none =>
-      match snapshot.unresolvedRoles.find? fun row => decide (row.coordinate = coordinate) with
-      | some row => some row.quantity
-      | none => none
+  | none => none
 
 private def rowFor
-    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (snapshot : Loam.CurrentBalanceReview.Snapshot)
     (coordinate : EffectCoordinate) : Row :=
   match exactQuantity? snapshot coordinate with
   | some quantity => .exact coordinate quantity
   | none =>
-      if snapshot.knownPresentBalances.any fun row => decide (row.coordinate = coordinate) then
+      if snapshot.knownPresent.contains coordinate then
         .knownPresent coordinate
       else
         .unsupported coordinate
@@ -68,7 +65,7 @@ balance answer. Selection order remains presentation order and duplicates are
 normalized.
 -/
 def initial
-    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (snapshot : Loam.CurrentBalanceReview.Snapshot)
     (coordinates : List EffectCoordinate) : State :=
   { rows := coordinates.eraseDups.map (rowFor snapshot) }
 
