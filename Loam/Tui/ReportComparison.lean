@@ -119,13 +119,17 @@ def fromWindow (window : Loam.Tui.ReportWindow.State) : State :=
   }
   match window.source with
   | .calendarMonth =>
-      match calendarPairForDate? window.calendarAnchor with
-      | some pair => withPair base .calendarMonth pair
+      match Loam.Tui.Calendar.shiftCalendarMonthWindow?
+          window.form.start window.form.endExclusive false with
+      | some (previousStart, previousEnd) =>
+          withPair base .calendarMonth
+            (previousStart, previousEnd, window.form.start, window.form.endExclusive)
       | none => { base with source := .custom }
   | .preset index =>
       match presetAt? window.presets index with
       | some preset =>
-          match presetPairForDate? preset window.calendarAnchor with
+          match pairAroundWindow?
+              preset.boundaries window.form.start window.form.endExclusive with
           | some pair => withPair base (.preset index) pair
           | none => { base with source := .custom }
       | none => { base with source := .custom }
