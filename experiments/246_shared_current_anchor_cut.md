@@ -233,3 +233,75 @@ shared cut used across different observation sessions NO
 For quantities observed together at one reconciliation boundary, one explicit shared set of already-reflected Event correction roots plus per-coordinate asserted quantities is sufficient for the selected current-balance calculation. The cut is independently necessary, covered-root corrections remain absorbed, uncovered roots remain deltas, and current support does not imply zero-origin historical support.
 
 This result does not yet earn persistence, publisher, CLI, TUI, or canonical household-data changes. The next question is the smallest production reuse seam over current correction-root mechanics.
+
+
+## 2026-09-27 follow-up — incremental reconciliation groups
+
+Household setup auditing exposed the production consequence already latent in Finding 5.
+
+The current production image has exactly one shared cut. Home `o` starts from an empty editor and publication replaces that complete image. That is safe for one reconciliation session, but awkward when a household later adds an independently observed bank account.
+
+The new bounded pressure therefore compares:
+
+```text
+one global cut
+vs
+coordinate-local duplicated cuts
+vs
+several anonymous reconciliation groups
+```
+
+where each group contains:
+
+```text
+shared reflected-root cut
++ one or more asserted coordinates
+```
+
+and every currently supported coordinate belongs to at most one live group.
+
+The extension asks only four new questions:
+
+1. can several groups with different cuts coexist in one current-support image?
+2. can a fresh coordinate be added under a later group without changing old answers?
+3. does a current-only reader need stable group identity?
+4. why must one coordinate not belong to two live groups simultaneously?
+
+The intended compression boundary is:
+
+```text
+semantic minimum:
+  coordinate -> (asserted quantity, reflected-root cut)
+
+representation compression:
+  coordinates with equal/shared observation cut
+      -> one anonymous group carrying that cut once
+```
+
+A group is therefore not proposed as a new household entity. It is only a factoring of equal cut evidence.
+
+The new Alloy cases are expected to distinguish the following:
+
+```text
+multipleSessionsSupportDifferentCuts          SAT
+incrementalSessionPreservesExisting           SAT
+differentSessionIdentitySameAnswer            SAT
+duplicateSessionMembershipCanDisagree         SAT
+
+GroupedSessionsEqualDuplicatedCuts             UNSAT counterexample
+ExistingGroupedAnswerPreserved                 UNSAT counterexample
+CoordinateCutsDetermineGroupedCurrent          UNSAT counterexample
+OneSharedCutAlwaysRepresentsGroupedSessions    SAT counterexample
+```
+
+If qualified, the smallest production direction is not an append-only anchor history and not a stable AnchorId graph. It is a replaceable **current support image containing several anonymous reconciliation groups**, with global uniqueness of supported coordinates.
+
+Re-observing a coordinate would move its current assertion to the newly observed group in the next replaceable image; the old group identity itself need not survive. Historical observation provenance remains a separate question and is not earned by this current-balance requirement.
+
+This follow-up deliberately does not change the earlier stop rules:
+
+- no chronology inferred from date or EventId;
+- no per-coordinate duplicated cuts when one shared cut suffices;
+- no stable group/session identity merely for current answers;
+- no second correction engine;
+- no claim of zero-origin or bounded historical completeness.
