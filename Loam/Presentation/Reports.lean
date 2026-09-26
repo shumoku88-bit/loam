@@ -65,6 +65,7 @@ structure BalanceRow where
 structure Balances where
   rows : List BalanceRow
   unresolvedRoleCount : Nat
+  knownPresentBalanceCount : Nat := 0
   unsupportedBalanceCount : Nat
   deriving Repr, DecidableEq
 
@@ -187,6 +188,7 @@ private def presentBalances
         quantity := row.quantity
       }
     unresolvedRoleCount := snapshot.unresolvedRoles.length
+    knownPresentBalanceCount := snapshot.knownPresentBalances.length
     unsupportedBalanceCount := snapshot.unsupportedBalances.length
   }
 

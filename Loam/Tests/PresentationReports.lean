@@ -184,6 +184,8 @@ def main : IO Unit := do
         "Reports changed supported Role Balance row"
       expect (report.unresolvedRoleCount == 1)
         "Reports changed unresolved Role count"
+      expect (report.knownPresentBalanceCount == 0)
+        "Reports changed known-present Balance count"
       expect (report.unsupportedBalanceCount == 1)
         "Reports changed unsupported Balance count"
 
