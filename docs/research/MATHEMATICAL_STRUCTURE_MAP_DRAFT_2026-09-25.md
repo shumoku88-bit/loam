@@ -421,40 +421,55 @@ machinery merely because the mathematics exists.
 
 ## MATH-8 — information order / lattice / fixed-point readings
 
-**Status: RESEARCH CANDIDATE — NOT YET EARNED**
+**Status: GLOBAL RAW-EVIDENCE ORDER REJECTED BY COUNTEREXAMPLE**
 
-Possible pressure comes from states such as:
-
-- unknown vs admitted;
-- unavailable vs available;
-- unresolved vs resolved;
-- progressively accumulated evidence;
-- fail-closed answers.
-
-A partial-information order or lattice may eventually clarify monotonicity:
+Observation 337 tests the simplest candidate reading:
 
 ```text
-less evidence <= more evidence
+less retained raw evidence <= more retained raw evidence
 ```
 
-and whether a projection becomes more defined as evidence grows.
+using append-only Actual-validity provenance.
 
-However, current LOAM statuses are not automatically one information lattice.
-For example, adding contradictory evidence can legitimately turn an answer into
-a fail-closed refusal rather than a "more informative" successful value.
+The base history contains one admitted correction path:
 
-### Research question
+```text
+root -> revision-1
+```
 
-For each candidate domain, test monotonicity with counterexamples before naming
-a `PartialOrder`, lattice, or fixed-point structure.
+The extended history appends one fresh revision fact and one fresh exact
+correction edge:
+
+```text
+root -> revision-1
+     \
+      -> revision-2
+```
+
+Both raw histories satisfy their storage-level uniqueness invariants. The base
+semantic validity frontier is defined, while the extended semantic frontier
+fails closed because sibling successors do not justify one current date.
+
+Therefore:
+
+```text
+more retained raw provenance
+    !=
+more semantically admitted information
+```
+
+A repository-wide information lattice must not be inferred from raw evidence
+inclusion or append-extension.
 
 ### Boundary
 
-Do not force all fail-closed result types into one knowledge lattice.
+This does not rule out narrower domain-specific partial orders. A future order
+would have to encode its own admissible-refinement relation rather than equating
+evidence quantity with semantic information.
 
-**Potential payoff:** uncertain but conceptually interesting  
-**Risk of theory-first design:** very high  
-**Priority:** low until a concrete practical question requires it.
+**Potential payoff:** domain-specific only  
+**Risk of theory-first design:** confirmed high  
+**Priority:** no global lattice/fixed-point abstraction.
 
 ---
 
@@ -708,11 +723,20 @@ No production replacement is authorized by this result.
 
 ## R6 — information-order counterexample search
 
-Before introducing any lattice/fixed-point language, use Alloy/Lean examples to
-test whether "adding evidence" is actually monotone for the selected domain.
+**Status: QUALIFIED COUNTEREXAMPLE via Observation 337**
 
-A single valid counterexample is enough to keep that domain out of the lattice
-bucket.
+ActualValidityHistory supplies the required counterexample.
+
+A raw append-extension can add only fresh, storage-admissible validity evidence
+and still move the semantic validity projection from defined to fail-closed by
+creating an ambiguous sibling correction frontier.
+
+Thus ordinary raw evidence extension is not a monotone semantic-information
+order.
+
+R6 is complete for the repository-wide question. No global `PartialOrder`,
+lattice, or fixed-point abstraction is earned. Narrow domain-specific orders
+remain possible only when their relation already encodes admissible refinement.
 
 ---
 
