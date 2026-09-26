@@ -309,7 +309,9 @@ private theorem updateColumn_get?
     rfl
   · have hNotRepresented :
         representedInColumn coordinate column = false := by
-      cases hValue : representedInColumn coordinate column <;> simp_all
+      cases hValue : representedInColumn coordinate column with
+      | false => rfl
+      | true => exact False.elim (hRepresented hValue)
     have hNotMem :
         Loam.Observation325.coordinateKey coordinate ∉ cells.keys := by
       intro hMem
