@@ -9,6 +9,9 @@ import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Record
 import Loam.Tui.RecordSession
+import Loam.Tui.Exchange
+import Loam.Tui.ExchangeSession
+import Loam.LocusAdmissionAuthority
 import Loam.Tui.AttentionAdministration
 import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
@@ -424,6 +427,35 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
+  else if (key = .input 'x' || key = .input 'X') then
+    let evidence ←
+      match ← Loam.ActualAuthority.loadActual? root with
+      | .error message => throw (IO.userError message)
+      | .ok value => pure value
+    let locusAdmission ←
+      match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+      | .error message => throw (IO.userError message)
+      | .ok value => pure value
+    let world : Loam.ExchangeAdmission.World := {
+      events := evidence.events
+      validity := evidence.validity
+      descriptions := evidence.descriptions
+      exchanges := evidence.exchanges
+      corrections := evidence.corrections
+      locusAdmission := locusAdmission
+    }
+    let measurePresentation ← currentMeasurePresentation dataDir
+    let editor := Loam.Tui.Exchange.withMeasurePresentation
+      (Loam.Tui.Exchange.initial state.selectedDate)
+      measurePresentation
+    let editorFrame := compileWidget (Loam.Tui.Exchange.view editor)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+    let notice ← Loam.Tui.ExchangeSession.run bounds root world editor editorFrame
+    let fresh ← requireReload notice (loadSnapshot dataDir)
+    let destination := { state with notice := notice }
+    let nextFrame := compiledFrameFor bounds fresh destination
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+    loop bounds dataDir root fresh destination nextFrame
   else if (key = .input 'r' || key = .input 'R') then
     let world ←
       match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
