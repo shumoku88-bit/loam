@@ -75,7 +75,7 @@ deriving Repr, DecidableEq
 private def coordinateLabel (coordinate : EffectCoordinate) : String :=
   coordinate.locus.token ++ " / " ++ coordinate.measure.token
 
-private def supportConflict
+private def supportConflict {α : Type}
     (coordinate : EffectCoordinate) : Except String α :=
   .error
     ("loam: historical balance unavailable: competing support families for " ++
