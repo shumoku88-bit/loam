@@ -45,9 +45,6 @@ jobs:
           axiom-audit: false
           use-github-cache: false
 
-      - name: Build Observation 078 module
-        run: lake build Loam.Observations.Observation078
-
       - name: Audit Observation 078 axioms
         shell: bash
         run: |
