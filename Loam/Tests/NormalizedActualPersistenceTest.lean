@@ -652,8 +652,8 @@ def main : IO Unit := do
     "ENDTX\n" ++
     "TX\texchange-replacement\t2026-09-10\tNODESC\n" ++
     "REPLACES\texchange-root\n" ++
-    "KEYED-EFFECT\tnew-jpy\tcash-jpy\tjpy\t-14900\n" ++
-    "KEYED-EFFECT\tnew-usd\tcash-usd\tusd\t100\n" ++
+    "EFFECT\tcash-jpy\tjpy\t-14900\n" ++
+    "EFFECT\tbank-jpy\tjpy\t14900\n" ++
     "ENDTX\n"
   requireNone (decodeNormalizedActual? correctedExchange)
     "exchange correction crossed canonical admission before replacement semantics were qualified"
