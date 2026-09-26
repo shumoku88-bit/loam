@@ -291,7 +291,9 @@ duplicateSessionMembershipCanDisagree         SAT
 GroupedSessionsEqualDuplicatedCuts             UNSAT counterexample
 ExistingGroupedAnswerPreserved                 UNSAT counterexample
 CoordinateCutsDetermineGroupedCurrent          UNSAT counterexample
-OneSharedCutAlwaysRepresentsGroupedSessions    SAT counterexample
+
+Existing differentBoundariesNeedDistinctCuts    SAT
+  -> one household-global cut can lose meaning
 ```
 
 If qualified, the smallest production direction is not an append-only anchor history and not a stable AnchorId graph. It is a replaceable **current support image containing several anonymous reconciliation groups**, with global uniqueness of supported coordinates.
