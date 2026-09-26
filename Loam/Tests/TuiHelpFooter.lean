@@ -228,7 +228,7 @@ def main : IO Unit := do
   expect (contains "[c/Enter] complete" schedText80)
     "ScheduledWorkspace at 80 cols must retain complete action in wrapped footer"
 
-  -- 5. Current Quantity TUI remains a thin complete-image observation adapter.
+  -- 5. Current Quantity TUI remains a thin reconciliation-group observation adapter.
   let enteredLocus := typeAnchorText Loam.Tui.CurrentQuantityAnchor.initial "mother-wifi-debt"
   let quantityFocus := pressAnchor (pressAnchor enteredLocus .tab) .tab
   let enteredQuantity := typeAnchorText quantityFocus "-12345"
@@ -272,8 +272,8 @@ def main : IO Unit := do
     "noninteger quantity did not produce local representation feedback"
 
   let previewText := widgetText (Loam.Tui.CurrentQuantityAnchor.view previewState)
-  expect (contains "replaces the current anchor image" previewText)
-    "preview no longer explains complete-image replacement semantics"
+  expect (contains "Unmentioned prior observations are preserved" previewText)
+    "preview no longer explains incremental observation semantics"
   expect (contains "shared publisher derives the Event root cut" previewText)
     "preview no longer exposes the publisher-owned cut boundary"
 
