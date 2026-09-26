@@ -181,7 +181,14 @@ def runAll : IO Unit := do
   IO.println ""
   IO.println "subjects\tchanges/subject\thistory entries\tbaseline\tstatus-image\tspeedup"
 
-  for case in [(1, 64), (4, 16), (16, 16), (64, 16), (64, 64), (256, 16), (256, 64)] do
+  for case in
+      [ (1, 4), (1, 64)
+      , (4, 1), (4, 4), (4, 16)
+      , (8, 2), (8, 4)
+      , (16, 4), (16, 16)
+      , (64, 16), (64, 64)
+      , (256, 16), (256, 64)
+      ] do
     runCase case.1 case.2
 
   IO.println ""
