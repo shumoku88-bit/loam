@@ -59,6 +59,14 @@ private structure RolePartitions where
   otherRows : List Row
   unresolvedRoleLoci : List LocusId
 
+
+private theorem locusTokenInjective :
+    Function.Injective (fun locus : LocusId => locus.token) := by
+  intro left right h
+  cases left
+  cases right
+  simp_all
+
 /--
 Classify each currently admitted Locus exactly once by retained AccountingRole.
 The partition preserves admission order while keeping Expense obligations,
@@ -69,6 +77,11 @@ private def partitionApproved
     (roles : AccountingRoleMap)
     (history : ActualRoutingHistory)
     (effective : RoutingEffective String) : RolePartitions :=
+  let subjectKey := fun locus : LocusId => locus.token
+  let index :=
+    RoutingHistory.buildFixedTimeLatestIndexBy subjectKey history effective
+  let status := fun locus =>
+    RoutingHistory.statusFromFixedTimeLatestIndexBy subjectKey index locus
   approved.foldr
     (fun locus partitions =>
       match roles.roleOf? locus with
@@ -77,13 +90,13 @@ private def partitionApproved
             rows :=
               { locus := locus
                 role := .expense
-                status := history.statusAt locus effective } :: partitions.rows }
+                status := status locus } :: partitions.rows }
       | some role =>
           { partitions with
             otherRows :=
               { locus := locus
                 role := role
-                status := history.statusAt locus effective } :: partitions.otherRows }
+                status := status locus } :: partitions.otherRows }
       | none =>
           { partitions with
             unresolvedRoleLoci := locus :: partitions.unresolvedRoleLoci })
