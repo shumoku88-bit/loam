@@ -213,27 +213,34 @@ private def loadCurrentSnapshot
           Loam.StockFlowReview.loadSnapshotFromActualImage
             dataDir image window.start window.endExclusive
         pure (Loam.Presentation.ReadState.fromExcept result)
-  let transactionsFlowResult : Except String Loam.TransactionsFlowReview.Snapshot :=
+  let sharedTransactionsFlowResult :
+      Option (Except String Loam.TransactionsFlowReview.Snapshot) :=
     match actualImage, budget.window with
-    | .error error, _ => .error error.message
-    | _, .error message =>
-        .error ("loam: Transactions Flow current window unavailable: " ++ message)
     | .ok image, .ok window =>
-        Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive
+        some (Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive)
+    | _, _ => none
   let transactionsFlow : Loam.Presentation.ReadState Loam.TransactionsFlowReview.Snapshot :=
-    Loam.Presentation.ReadState.fromExcept transactionsFlowResult
+    match actualImage, budget.window, sharedTransactionsFlowResult with
+    | .error error, _, _ => actualFailureState error
+    | _, .error message, _ =>
+        .failed ("loam: Transactions Flow current window unavailable: " ++ message)
+    | .ok _, .ok _, some result =>
+        Loam.Presentation.ReadState.fromExcept result
+    | .ok _, .ok _, none =>
+        .failed "loam: Transactions Flow shared current-window projection is unavailable"
   let roleFlow ←
-    match actualImage, budget.window with
-    | .error error, _ =>
+    match actualImage, budget.window, sharedTransactionsFlowResult with
+    | .error error, _, _ =>
         pure (actualFailureState error :
           Loam.Presentation.ReadState Loam.RoleFlowReview.Snapshot)
-    | _, .error message =>
+    | _, .error message, _ =>
         pure (.failed ("loam: Income & Expense current window unavailable: " ++ message))
-    | .ok _, .ok _ => do
-        let result ←
-          Loam.RoleFlowReview.loadSnapshotFromTransactionsFlowResult
-            dataDir transactionsFlowResult
-        pure (Loam.Presentation.ReadState.fromExcept result)
+    | .ok _, .ok _, some result => do
+        let roleResult ←
+          Loam.RoleFlowReview.loadSnapshotFromTransactionsFlowResult dataDir result
+        pure (Loam.Presentation.ReadState.fromExcept roleResult)
+    | .ok _, .ok _, none =>
+        pure (.failed "loam: Income & Expense shared Transactions-Flow projection is unavailable")
   let roleBalances ←
     match actualImage with
     | .error error =>
