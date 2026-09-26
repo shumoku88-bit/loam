@@ -6,6 +6,7 @@ import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.EventMerchantEvidence
+import Loam.Core.ExchangeEvidence
 import Loam.Core.OriginalAmountEvidence
 import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
@@ -16,6 +17,7 @@ import Loam.Application.CorrectionFrontier
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
+import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Application.OriginalAmountFrontier
 import Std.Data.HashMap
 import Std.Data.HashSet
@@ -111,10 +113,17 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
   -- Nonzero physical evidence remains a direct persistence obligation for every Event.
   if !evidence.events.events.all normalizedEventEffectsNonzero then
     none
+  -- Exchange evidence is re-admitted before balance so it may qualify exactly the
+  -- selected cross-Measure Events that are intentionally nonzero per Measure.
+  let admittedExchanges ←
+    admittedExchangeEvidence? evidence.events evidence.corrections evidence.exchanges
   -- Ordinary Events retain direct per-Measure balance admission. Reversal endpoints
-  -- are deferred to the relation loop below so one target admission can prove both sides.
+  -- are deferred to the reversal loop below. A qualified Exchange Event uses its
+  -- explicit cross-Measure admission instead of ordinary same-Measure closure.
   if !evidence.events.events.all (fun event =>
       if evidence.reversals.mentionsEvent event.id then
+        true
+      else if (admittedExchanges.findByEvent? event.id).isSome then
         true
       else
         normalizedEventEffectsBalanced event) then
@@ -172,27 +181,32 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
             if hExact :
                 ActualReversal.exactPhysicalInverse?
                     targetEvent.effects reversalEvent.effects = true then
-              for measure in representedMeasures targetEvent.effects do
-                let targetChanges :=
-                  ActualReversalBalance.movementChangesForMeasure
-                    measure targetEvent.effects
-                if hTarget : movementTotalQuanta targetChanges = 0 then
-                  let _derivedReversal : BalancedMovement LocusId := {
-                    measure := measure
-                    changes :=
-                      ActualReversalBalance.movementChangesForMeasure
-                        measure reversalEvent.effects
-                    balanced :=
-                      ActualReversalBalance.reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
-                        targetEvent.effects
-                        reversalEvent.effects
-                        measure
-                        hTarget
-                        hExact
-                  }
-                  pure ()
-                else
-                  none
+              if (admittedExchanges.findByEvent? targetEvent.id).isSome then
+                -- The target's cross-Measure shape is already qualified by explicit
+                -- ExchangeEvidence; exact inversion is sufficient for the reversal.
+                pure ()
+              else
+                for measure in representedMeasures targetEvent.effects do
+                  let targetChanges :=
+                    ActualReversalBalance.movementChangesForMeasure
+                      measure targetEvent.effects
+                  if hTarget : movementTotalQuanta targetChanges = 0 then
+                    let _derivedReversal : BalancedMovement LocusId := {
+                      measure := measure
+                      changes :=
+                        ActualReversalBalance.movementChangesForMeasure
+                          measure reversalEvent.effects
+                      balanced :=
+                        ActualReversalBalance.reversalMeasureZero_of_targetMeasureZero_exactPhysicalInverse
+                          targetEvent.effects
+                          reversalEvent.effects
+                          measure
+                          hTarget
+                          hExact
+                    }
+                    pure ()
+                  else
+                    none
             else
               none
 
