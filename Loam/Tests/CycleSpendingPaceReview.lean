@@ -1,5 +1,6 @@
 import Loam.CycleSpendingPaceReview
 import Loam.DailyPaceConfig
+import Loam.Persistence.NormalizedActualPersistence
 
 open Loam.Core
 
@@ -127,6 +128,22 @@ def main : IO Unit := do
   let historyEvents ← requireSome
     (EventMemory.ofEvents? [opening, spend, completion])
     "Daily Pace history Event memory fixture"
+  let historyValidity ← requireSome
+    (ActualValidityHistory.ofParts?
+      [ .base opening.id "2026-09-08"
+      , .base spend.id "2026-09-09"
+      , .base completion.id "2026-09-10"
+      ]
+      [])
+    "Daily Pace history Actual validity fixture"
+  let actualEvidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := historyEvents
+      validity := historyValidity
+  }
+  let image ← requireSome
+    (Loam.Persistence.admitActualImage? actualEvidence)
+    "Daily Pace history admitted Actual image"
 
   let bill ← requireSome
     (scheduled? "bill" "2026-09-12" [change cash (-300), change expense 300])
@@ -152,16 +169,35 @@ def main : IO Unit := do
       { coordinate := coordinate cash, quantity := Quantity.ofQuanta (-300) }
     ]
   }
-  let records : List Loam.ActualReview.Record := [
-    { event := opening, date := some "2026-09-08", description := "", replacement := none },
-    { event := spend, date := some "2026-09-09", description := "", replacement := none },
-    { event := completion, date := some "2026-09-10", description := "", replacement := none }
-  ]
+
+  let roots ← requireSome
+    (Loam.Application.correctionRootIds?
+      actualEvidence.events actualEvidence.corrections)
+    "Daily Pace history correction roots"
+  let anchor ← requireSome
+    (Loam.CurrentQuantityAnchor.Evidence.ofLists?
+      roots
+      [{ coordinate := coordinate wallet, quantity := Quantity.ofQuanta 1500 }])
+    "Daily Pace history wallet anchor"
+  let bounded ← requireSome
+    (Loam.BoundedHistorySupport.Evidence.ofSupports?
+      [{ coordinate := coordinate wallet, startDay := "2026-09-08" }])
+    "Daily Pace history bounded support"
+  let zeroOrigin ← requireSome
+    (ZeroOriginCoverage.ofCoordinates? [coordinate cash])
+    "Daily Pace history cash zero-origin coverage"
+  let historicalEvidence : Loam.HistoricalBalanceReview.Evidence := {
+    zeroOrigin := zeroOrigin
+    opening := OpeningSupportMap.empty
+    bounded := bounded
+    anchor := anchor
+  }
 
   let history ←
     match Loam.CycleSpendingPaceReview.projectHistory
+        image historicalEvidence
         "2026-09-08" "2026-09-10" "2026-09-18"
-        selection historyBalances records historyScheduled 7 with
+        selection historyBalances historyScheduled 7 with
     | .error message => throw (IO.userError message)
     | .ok points => pure points
 
@@ -174,44 +210,13 @@ def main : IO Unit := do
       [some 120, some 77, some 87])
     "Daily Pace history did not reconstruct completion-aware pace"
 
-  let undatedSelectedRecords : List Loam.ActualReview.Record := [
-    { event := opening, date := none, description := "", replacement := none },
-    { event := spend, date := some "2026-09-09", description := "", replacement := none },
-    { event := completion, date := some "2026-09-10", description := "", replacement := none }
-  ]
   expectError
     (Loam.CycleSpendingPaceReview.projectHistory
+      image
+      { historicalEvidence with bounded := Loam.BoundedHistorySupport.Evidence.empty }
       "2026-09-08" "2026-09-10" "2026-09-18"
-      selection historyBalances undatedSelectedRecords historyScheduled 7)
-    "Daily Pace history accepted a selected current Actual without a date"
-
-  let invalidSelectedRecords : List Loam.ActualReview.Record := [
-    { event := opening, date := some "not-a-date", description := "", replacement := none },
-    { event := spend, date := some "2026-09-09", description := "", replacement := none },
-    { event := completion, date := some "2026-09-10", description := "", replacement := none }
-  ]
-  expectError
-    (Loam.CycleSpendingPaceReview.projectHistory
-      "2026-09-08" "2026-09-10" "2026-09-18"
-      selection historyBalances invalidSelectedRecords historyScheduled 7)
-    "Daily Pace history accepted an invalid selected current Actual date"
-
-  let unrelated ← requireSome
-    (Event.ofEffects? ⟨"unrelated"⟩
-      [ Effect.ofQuantity ⟨"unrelated-expense"⟩ expense yen (Quantity.ofQuanta 25)
-      , Effect.ofQuantity ⟨"unrelated-income"⟩ income yen (Quantity.ofQuanta (-25))
-      ])
-    "Daily Pace history unrelated Event fixture"
-  let historyWithUndatedUnselected ←
-    match Loam.CycleSpendingPaceReview.projectHistory
-        "2026-09-08" "2026-09-10" "2026-09-18"
-        selection historyBalances
-        ({ event := unrelated, date := none, description := "", replacement := none } :: records)
-        historyScheduled 7 with
-    | .error message => throw (IO.userError message)
-    | .ok points => pure points
-  expect (historyWithUndatedUnselected == history)
-    "Daily Pace history let an unselected undated Actual change the reconstructed series"
+      selection historyBalances historyScheduled 7)
+    "Daily Pace history silently treated current anchor as historical completeness"
 
   let retirementTerminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals?
@@ -224,8 +229,9 @@ def main : IO Unit := do
   }
   expectError
     (Loam.CycleSpendingPaceReview.projectHistory
+      image historicalEvidence
       "2026-09-08" "2026-09-10" "2026-09-18"
-      selection historyBalances records retiredScheduled 7)
+      selection historyBalances retiredScheduled 7)
     "Daily Pace history invented a retirement date"
 
   IO.println
