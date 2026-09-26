@@ -24,6 +24,8 @@ def currentQuantityAnchorFileName : String := "current-quantity-anchor.loam"
 
 def currentQuantityPresenceFileName : String := "current-quantity-presence.loam"
 
+def boundedHistorySupportFileName : String := "bounded-history-support.loam"
+
 def locusAdmissionFileName : String := "locus-admission.loam"
 
 def measurePresentationFileName : String := "measure-presentation.tsv"
@@ -63,6 +65,9 @@ def currentQuantityAnchor (root : System.FilePath) : System.FilePath :=
 
 def currentQuantityPresence (root : System.FilePath) : System.FilePath :=
   root / currentQuantityPresenceFileName
+
+def boundedHistorySupport (root : System.FilePath) : System.FilePath :=
+  root / boundedHistorySupportFileName
 
 def boundaryPresets (root : System.FilePath) : System.FilePath :=
   configDir root / "boundary-presets.tsv"
