@@ -155,8 +155,8 @@ theorem mergeSorted_pairwise
           (htrans a b c (of_decide_eq_true hab) (of_decide_eq_true hbc)))
       (fun a b => by
         rcases htotal a b with hab | hba
-        · exact Bool.or_eq_true.mpr (Or.inl (decide_eq_true hab))
-        · exact Bool.or_eq_true.mpr (Or.inr (decide_eq_true hba)))
+        · simp [hab]
+        · simp [hba])
       xs
   simpa only [mergeSorted, decide_eq_true_eq] using hBool
 
