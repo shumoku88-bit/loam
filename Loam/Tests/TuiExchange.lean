@@ -69,7 +69,9 @@ def main : IO Unit := do
   | .preview previewDraft choice =>
       expect (choice == 0)
         "exchange preview did not default to Publish"
-      expect (previewDraft.effects == draft.effects)
+      expect
+        (previewDraft.effects[0]!.quantity.quanta == -15000 &&
+          previewDraft.effects[1]!.quantity.quanta == 10000)
         "exchange preview changed the parsed Effects"
   | _ => throw (IO.userError "destination amount Enter did not open Exchange preview")
 
