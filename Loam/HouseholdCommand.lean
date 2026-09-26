@@ -17,6 +17,7 @@ import Loam.ScheduledRoutingPublisher
 import Loam.LocusAdmissionPublisher
 import Loam.AccountingRolePublisher
 import Loam.CurrentQuantityAnchorPublisher
+import Loam.BoundedHistorySupportPublisher
 import Loam.MeasurePresentationAuthority
 
 namespace Loam.HouseholdCommand
@@ -210,6 +211,13 @@ def observeCurrentQuantities
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) :
     IO (Except String Unit) :=
   Loam.CurrentQuantityAnchorPublisher.publish root.toString assertions
+
+/-- Set, move, or remove one explicit bounded historical quantity-support start. -/
+def updateBoundedHistorySupport
+    (root : System.FilePath)
+    (draft : Loam.BoundedHistorySupportPublisher.Draft) :
+    IO (Except String Unit) :=
+  Loam.BoundedHistorySupportPublisher.publish root draft
 
 
 /--

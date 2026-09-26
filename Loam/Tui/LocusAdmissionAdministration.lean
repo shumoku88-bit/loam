@@ -23,7 +23,8 @@ it does not grant write authority. Publication is delegated to the shared
 `LocusAdmissionPublisher`.
 
 The terminal session may open separate initial AccountingRole administration
-with Tab. This view itself still owns no role semantics or role write authority.
+with Tab and bounded historical-support administration with Shift-Tab. This view
+itself still owns none of those semantics or write authorities.
 -/
 
 inductive Phase where
@@ -142,7 +143,8 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ blank
         , line ("New stable token: " ++ state.entered ++ "_")
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter preview   Backspace edit   ↑/↓ inspect existing   Tab initial roles   Esc cancel"
+        , muted "Enter preview   Backspace edit   ↑/↓ inspect existing"
+        , muted "Tab initial roles   Shift-Tab history support   Esc cancel"
         , muted "Admission itself does not create a label, AccountingRole, Purpose route, rename, or alias."
         ]
   | .preview =>

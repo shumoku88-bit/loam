@@ -43,7 +43,7 @@ This is an interaction requirement, not a reason to add an Account primitive or 
 | Route an Expense or other admitted Locus to a Purpose | ActualRouting | shared publisher / household entrance | Home `p` | **Covered** |
 | Include a coordinate in ordinary balance presentation | `config/balance-view.tsv` | no normal household editor | read-only Balances only | **Gap** |
 | Observe exact current quantities | CurrentQuantityAnchor | HouseholdCommand.observeCurrentQuantities | Home `o` | **Covered incrementally by anonymous reconciliation groups (#1386/#1389)** |
-| State bounded historical completeness after a start boundary | research under #1372 | not yet promoted | none | **Must not be promoted without an ordinary TUI path** |
+| State bounded historical completeness after a start boundary | BoundedHistorySupport | HouseholdCommand.updateBoundedHistorySupport | Home `m` -> Shift-Tab | **Promotion includes writer + TUI; report consumption follows separately** |
 | Establish zero-origin historical support | ZeroOriginCoverage | reconstruction/cutover-only | none | **Acceptable as exceptional evidence** |
 | Establish OpeningSupport | OpeningSupport | no ordinary production caller | none | **Keep special until an ordinary workflow earns it** |
 | Add/change a Measure decimal scale | MeasurePresentationAuthority | HouseholdCommand.setMeasureScale | CLI only | **Gap for ordinary multi-currency setup** |
@@ -151,11 +151,15 @@ Observation 246's follow-up / PR #1386 qualified anonymous reconciliation groups
 
 The remaining onboarding gaps no longer require re-observing every previously anchored account merely to add one later account.
 
-### P0 — #1372 promotion must include a writer + TUI path
+### In promotion — bounded historical support writer + TUI
 
-Do not land a new normal-use historical-support file and defer its human publication path.
+The first production slice follows completed #1372 and Observations 345/346 with one narrow replaceable authority:
 
-Research can remain file-free. Production normal-use evidence must be operable from a standard frontend.
+```text
+coordinate + complete-since start day
+```
+
+It includes the shared HouseholdCommand writer and Home `m` -> Shift-Tab administration surface in the same change. Report readers are deliberately left for the next slice so write semantics can be qualified independently.
 
 ### P1 — balance-view administration
 
@@ -195,16 +199,17 @@ This checkpoint does not authorize:
 - merging old CurrentQuantityAnchor rows across different observation cuts;
 - weakening ZeroOriginCoverage;
 - a new TLA+ model;
-- production persistence for #1372 yet.
+- automatic report widening merely because the new support file exists.
 
 ## Next implementation order
 
-1. Keep #1372 historical-support semantics separate from current-support UI convenience.
-2. Promote bounded historical support only together with its household writer and TUI administration path.
-3. Add the small replaceable balance-view editor.
-4. Add friendly Locus-label administration.
-5. Expose existing Measure-scale administration in the TUI.
-6. Treat first-run household bootstrap as its own later slice.
+1. Qualify bounded historical-support persistence, writer, TUI administration, and CurrentQuantityAnchor interaction.
+2. Connect bounded support to historical Balance / Stock-Flow / recent Daily Pace readers without weakening ZeroOriginCoverage.
+3. Run one TUI recovery pass over Balances, Daily Pace, Recent Pace, Reports, Stock-Flow, Transactions-Flow, and period comparison.
+4. Add the small replaceable balance-view editor.
+5. Add friendly Locus-label administration.
+6. Expose existing Measure-scale administration in the TUI.
+7. Treat first-run household bootstrap as its own later slice.
 
 The desired end state is simple:
 

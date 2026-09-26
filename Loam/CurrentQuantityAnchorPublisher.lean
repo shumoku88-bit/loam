@@ -1,7 +1,9 @@
 import Loam.ActualAuthority
+import Loam.BoundedHistorySupport
 import Loam.CurrentQuantityAnchor
 import Loam.LocusAdmissionAuthority
 import Loam.HouseholdPaths
+import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
@@ -134,8 +136,49 @@ private def loadExistingAnchor
     | return .error "loam: current quantity anchor authority is malformed or unsupported"
   return .ok existing
 
+
+private def loadBoundedHistorySupport
+    (path : System.FilePath) : IO (Except String Loam.BoundedHistorySupport.Evidence) := do
+  if !(← path.pathExists) then
+    return .ok Loam.BoundedHistorySupport.Evidence.empty
+  let some evidence ← Loam.Persistence.loadBoundedHistorySupport? path
+    | return .error "loam: bounded historical support authority is malformed or unsupported"
+  return .ok evidence
+
+/--
+A bounded historical completeness claim may survive a fresh observation only
+when the new observation agrees with the already-derived current quantity.
+
+A different observed quantity is evidence that the old completeness claim may no
+longer be true. The current-anchor writer therefore refuses instead of silently
+turning reconciliation into historical support.
+-/
+def validateBoundedHistoryReobservation
+    (events : EventMemory)
+    (corrections : EventCorrectionMemory)
+    (existing : Loam.CurrentQuantityAnchor.Evidence)
+    (bounded : Loam.BoundedHistorySupport.Evidence)
+    (assertions : List Loam.CurrentQuantityAnchor.Assertion) : Except String Unit := do
+  for support in bounded.supports do
+    if (existing.assertionFor? support.coordinate).isNone then
+      throw
+        ("loam: bounded historical support for " ++ support.coordinate.locus.token ++
+          " / " ++ support.coordinate.measure.token ++
+          " has no retained exact current anchor; clear or repair the support claim first")
+  for assertion in assertions do
+    if (bounded.supportFor? assertion.coordinate).isSome then
+      let some current ←
+        Loam.CurrentQuantityAnchor.inspectQuantity
+          events corrections existing assertion.coordinate
+        | throw "loam: bounded historical support lost its exact current anchor"
+      if current != assertion.quantity then
+        throw
+          ("loam: observed quantity differs while bounded historical support is active for " ++
+            assertion.coordinate.locus.token ++ " / " ++ assertion.coordinate.measure.token ++
+            "; correct recorded Actual or move/remove the historical start before reconciling")
+
 private def publishUnderOwnership
-    (root anchorPath : System.FilePath)
+    (root anchorPath historyPath : System.FilePath)
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) : IO (Except String Unit) := do
   let actual ←
     match ← Loam.ActualAuthority.loadActual? root with
@@ -157,6 +200,14 @@ private def publishUnderOwnership
     match ← loadExistingAnchor anchorPath with
     | .ok evidence => pure evidence
     | .error message => return .error message
+  let bounded ←
+    match ← loadBoundedHistorySupport historyPath with
+    | .ok evidence => pure evidence
+    | .error message => return .error message
+  match validateBoundedHistoryReobservation
+      actual.events actual.corrections existing bounded assertions with
+  | .ok () => pure ()
+  | .error message => return .error message
   let anchor ←
     match proposeUpdate?
         actual.events actual.corrections locusAdmission coverage opening existing assertions with
@@ -188,8 +239,10 @@ def publish
     return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
   let anchorPath := path root
+  let historyPath := Loam.HouseholdPaths.boundedHistorySupport root
   Loam.ActualAuthority.withActualOwnership root <|
-    Loam.WriterOwnership.withOwnership anchorPath
-      (publishUnderOwnership root anchorPath assertions)
+    Loam.WriterOwnership.withOwnership anchorPath <|
+      Loam.WriterOwnership.withOwnership historyPath
+        (publishUnderOwnership root anchorPath historyPath assertions)
 
 end Loam.CurrentQuantityAnchorPublisher
