@@ -1383,6 +1383,184 @@ No production optimization is authorized by Observation 329.
 
 ---
 
+# 14. Transactions-Flow support/order separation — Observation 330
+
+Observation 330 isolates the remaining meaning carried by `Snapshot.rows`.
+
+For every Snapshot and EffectCoordinate it proves that row membership is exactly
+selected raw Effect coordinate occurrence.
+
+Therefore:
+
+```text
+raw selected Effect coordinates
+    -> represented-row support
+
+eraseDups
+    -> duplicate-free representation
+
+mergeSort
+    -> presentation order
+```
+
+The latter two operations do not add row-support meaning.
+
+This separates two concerns that Observation 328 still combined:
+
+```text
+semantic support
+    !=
+ordered row presentation
+```
+
+A global summary may therefore discover row support while scanning evidence and
+sort only when an ordered row view is requested.
+
+No production change is authorized by Observation 330.
+
+# 15. Seedless one-pass RowIndex — Observation 331
+
+Observation 331 removes the final research pre-seeding dependency.
+
+Qualified proof head:
+
+    c99ab4c8b28dcc0ce4551b5042e7feec0adbf82c
+
+Lean Proof Surfaces:
+
+    36209767624 — SUCCESS
+
+The candidate starts from an empty HashMap.
+
+For each selected Column:
+
+```text
+raw Effects
+    -> Event-local CellIndex
+    -> iterate CellIndex keys exactly once
+    -> first key occurrence inserts zero ActivityState and applies the cell
+    -> later occurrences update the existing state
+```
+
+For every Snapshot and EffectCoordinate, Observation 331 proves:
+
+```text
+seedlessRowActivity? snapshot coordinate
+    =
+Observation327.buildSnapshotRowIndex(snapshot).get?(coordinateKey coordinate)
+```
+
+This is a general pointwise refinement theorem, not a fixture check.
+
+The theorem preserves the subtle zero-cancellation boundary:
+
+- coordinate support follows raw occurrence;
+- Event-local aggregation happens before sign classification;
+- visiting a CellIndex key inserts the global key even when its summed quantity
+  is exactly zero;
+- later Event cells update that retained zero state normally.
+
+So Transactions-Flow summary construction no longer mathematically requires:
+
+1. a separate Event-coordinate list dedup;
+2. a precomputed sorted `Snapshot.rows` list;
+3. a zero-seeding pass over that list.
+
+Retained selected Columns remain evidence authority. The RowIndex remains
+transient derived acceleration state.
+
+## 15.1 Paired high-cardinality measurement
+
+After the general proof succeeded, a measurement-only paired benchmark compared:
+
+```text
+baseline:
+    Snapshot.rows
+      -> rowActivity for every represented row
+
+candidate:
+    Observation331 seedless RowIndex
+      -> convert transient keys to coordinates
+      -> one final coordinate sort
+```
+
+Synthetic pressure shape:
+
+- each Event has exactly two Effects;
+- one shared `cash/jpy` coordinate;
+- one distinct `expense-N/jpy` coordinate;
+- N Events therefore produce N+1 represented rows.
+
+This is intentionally a high-row-cardinality sparse pressure case, not a claim
+about ordinary household row counts.
+
+Qualified benchmark commit:
+
+    e60e3d9daf2ce74d040b399a577ba5a8b949f341
+
+GitHub Actions run:
+
+    36210361690 — SUCCESS
+
+Runner:
+
+    ubuntu-24.04
+
+Three paired repetitions were taken per size. Baseline and candidate order was
+alternated across repetitions. The complete timed row results were retained and
+compared for exact equality after measurement.
+
+| Events | Rows | Current median | Seedless median | Speedup | Current growth | Seedless growth |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 250 | 251 | 143.7 ms | 8.3 ms | 17.24x | - | - |
+| 500 | 501 | 572.7 ms | 16.6 ms | 34.45x | 3.98x | 1.99x |
+| 1,000 | 1,001 | 2.2 s | 33.7 ms | 67.22x | 3.95x | 2.02x |
+| 2,000 | 2,001 | 8.9 s | 66.9 ms | 133.71x | 3.95x | 1.98x |
+| 4,000 | 4,001 | 36.4 s | 136.9 ms | 266.06x | 4.06x | 2.04x |
+
+Within this measured shape, doubling Events and represented rows costs about 4x
+for the current materialization and about 2x for the seedless candidate.
+
+This is empirical evidence of the repeated-row-scan pressure predicted by the
+factorization study. It is not a general asymptotic proof and the fixture is
+deliberately harsher than an ordinary household ledger.
+
+### Measurement correction
+
+An earlier version of the benchmark computed semantic-equality reference values
+before entering the timed region. Those results showed both paths nearly equal
+and nearly linear, but the setup allowed pure computed values to be shared or
+hoisted and therefore did not provide trustworthy evidence about reconstruction
+cost.
+
+That result was discarded.
+
+The qualified run above instead retains the actual timed results and compares
+those exact results after timing. The large change in observed scaling is why
+the corrected instrumentation is the recorded result.
+
+## 15.2 Remaining empirical question
+
+The high-cardinality case earns a stronger measurement, not automatic production
+promotion.
+
+The remaining practical question is:
+
+```text
+with a household-sized fixed row universe
+    and a long Event history,
+
+does seedless construction still remove enough repeated work
+to justify its transient HashMap machinery?
+```
+
+That case should be measured separately before any production optimization is
+proposed.
+
+No production optimization is authorized by Observation 331 or this benchmark.
+
+---
+
 # Current verdict
 
 The study does not support one shared Flow engine.
