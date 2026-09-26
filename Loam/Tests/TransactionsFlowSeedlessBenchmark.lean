@@ -46,12 +46,12 @@ private def coordinateLe (left right : EffectCoordinate) : Bool :=
   else
     left.locus.token <= right.locus.token
 
-private def baselineRows
+@[noinline] private def baselineRows
     (snapshot : Loam.TransactionsFlowReview.Snapshot) : List Row :=
   snapshot.rows.map fun coordinate =>
     (coordinate, Loam.TransactionsFlowReview.rowActivity snapshot coordinate)
 
-private def candidateRows
+@[noinline] private def candidateRows
     (snapshot : Loam.TransactionsFlowReview.Snapshot) : List Row :=
   ((Loam.Observation331.buildSeedlessRowIndex snapshot).toList.map fun entry =>
       let key := entry.1
@@ -163,7 +163,7 @@ def runAll : IO Unit := do
       if prevCand > 0 then fmtRatio candUs prevCand else "-"
 
     IO.println
-      s!"{n}\t{n + 1}\t{fmtUs baseUs}\t{fmtUs candUs}\t{speedup}\t{baseGrowth}\t{candGrowth}"
+      s!"{n}\t{baselineCheck.length}\t{fmtUs baseUs}\t{fmtUs candUs}\t{speedup}\t{baseGrowth}\t{candGrowth}"
 
     prevBase := baseUs
     prevCand := candUs
