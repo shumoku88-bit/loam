@@ -124,6 +124,12 @@ def empty : Evidence := {
   coordinateNodup := by simp
 }
 
+/-- Return the sole group only when the image has exactly one reconciliation group. -/
+def singleGroup? (evidence : Evidence) : Option Group :=
+  match evidence.groups with
+  | [group] => some group
+  | _ => none
+
 /-- Flatten all current assertions without exposing group representation to callers. -/
 def assertions (evidence : Evidence) : List Assertion :=
   allAssertions evidence.groups
