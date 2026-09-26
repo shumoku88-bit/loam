@@ -22,49 +22,21 @@ private def requireOk {α : Type} (value : Except String α) (message : String) 
 private def cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
 private def expense : EffectCoordinate := ⟨⟨"expense"⟩, ⟨"jpy"⟩⟩
 
-private def eventFixture : IO Event := do
+private def admittedEmptyImage : IO Loam.ActualAuthority.Image :=
   requireSome
-    (Event.ofEffects? ⟨"history-event"⟩ [
-      Effect.ofQuantity ⟨"cash-effect"⟩ cash.locus cash.measure (Quantity.ofQuanta (-100)),
-      Effect.ofQuantity ⟨"expense-effect"⟩ expense.locus expense.measure (Quantity.ofQuanta 100)
-    ])
-    "history Event fixture"
+    (Loam.Persistence.admitActualImage? Loam.ActualEvidence.empty)
+    "empty Actual image admission"
 
-private def imageWithDate? (date : Option String) : IO Loam.ActualAuthority.Image := do
-  let event ← eventFixture
-  let events ← requireSome (EventMemory.ofEvents? [event]) "history Event memory"
-  let validity ←
-    match date with
-    | some day =>
-        requireSome
-          (ActualValidityHistory.ofParts? [.base event.id day] [])
-          "history validity"
-    | none =>
-        requireSome
-          (ActualValidityHistory.ofParts? [] [])
-          "empty history validity"
-  let evidence : Loam.ActualEvidence := {
-    Loam.ActualEvidence.empty with
-    events := events
-    validity := validity
-  }
-  requireSome
-    (Loam.Persistence.admitActualImage? evidence)
-    "history Actual image admission"
-
-private def anchorFor
-    (event : Event)
-    (quantity : Int) : IO Loam.CurrentQuantityAnchor.Evidence := do
+private def exactAnchor (quantity : Int) : IO Loam.CurrentQuantityAnchor.Evidence :=
   requireSome
     (Loam.CurrentQuantityAnchor.Evidence.ofLists?
-      [event.id]
+      []
       [{ coordinate := cash, quantity := Quantity.ofQuanta quantity }])
-    "history anchor fixture"
+    "exact current anchor fixture"
 
 def main : IO Unit := do
-  let event ← eventFixture
-  let image ← imageWithDate? (some "2026-09-01")
-  let anchor ← anchorFor event (-100)
+  let image ← admittedEmptyImage
+  let anchor ← exactAnchor (-100)
   let admission ← requireSome
     (LocusAdmissionVocabulary.ofLoci? [cash.locus, expense.locus])
     "history Locus admission"
@@ -76,7 +48,7 @@ def main : IO Unit := do
   let admitted ← requireOk
     (Loam.BoundedHistorySupportPublisher.propose?
       image admission anchor Loam.BoundedHistorySupport.Evidence.empty draft)
-    "dated anchored history support"
+    "anchored history support"
   let some support := admitted.supportFor? cash
     | throw (IO.userError "history support proposal disappeared")
   expect (support.startDay == "2026-09-01")
@@ -110,11 +82,15 @@ def main : IO Unit := do
       { coordinate := cash, startDay := some "2026-02-29" }).isOk)
     "history support accepted an invalid calendar day"
 
-  let undatedImage ← imageWithDate? none
+  let staleAnchor ← requireSome
+    (Loam.CurrentQuantityAnchor.Evidence.ofLists?
+      [⟨"missing-root"⟩]
+      [{ coordinate := cash, quantity := Quantity.ofQuanta (-100) }])
+    "stale current anchor fixture"
   expect
     (!(Loam.BoundedHistorySupportPublisher.propose?
-      undatedImage admission anchor Loam.BoundedHistorySupport.Evidence.empty draft).isOk)
-    "history support accepted a current quantity Event with no occurrence date"
+      image admission staleAnchor Loam.BoundedHistorySupport.Evidence.empty draft).isOk)
+    "history support accepted an anchor that does not resolve in current Actual"
 
   let encoded ← requireSome
     (Loam.Persistence.encodeBoundedHistorySupport? admitted)
@@ -157,4 +133,4 @@ def main : IO Unit := do
     "different current quantity silently preserved bounded historical completeness"
 
   IO.println
-    "Bounded history support: explicit start, replacement/removal, anchor/date gates, persistence, review and reconciliation guard passed."
+    "Bounded history support: explicit start, replacement/removal, anchor gate, persistence, review and reconciliation guard passed."
