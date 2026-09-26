@@ -120,3 +120,6 @@ def main : IO Unit := do
   IO.println "It does not measure whole Web rendering or authorize retained caches."
 
 end Loam.Tests.TransactionsFlowSharedImageBenchmark
+
+def main : IO Unit :=
+  Loam.Tests.TransactionsFlowSharedImageBenchmark.main
