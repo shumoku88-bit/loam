@@ -65,37 +65,6 @@ def calendarSpans
 private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
   (List.range 6).map fun row => .row (calendarSpans today pastOpenDates state row)
 
-private def cellsWidth (cells : List Cell) : Nat :=
-  cells.foldl (fun width cell => width + Loam.Tui.Layout.charWidth cell.glyph) 0
-
-private def cellsToSpans (cells : List Cell) : List Span :=
-  cells.map fun cell => span (String.ofList [cell.glyph]) cell.style
-
-/--
-Presentation-only horizontal composition for the wide Home experiment.
-It remains private until a second production surface earns a general layout primitive.
--/
-private def sideBySide
-    (height leftWidth rightWidth : Nat) (left right : Widget) : List Widget :=
-  let leftLines := left.lines
-  let rightLines := right.lines
-  (List.range height).map fun row =>
-    let leftCells :=
-      match listGet? leftLines row with
-      | some cells => cells
-      | none => []
-    let rightCells :=
-      match listGet? rightLines row with
-      | some cells => cells
-      | none => []
-    let clippedLeft := Loam.Tui.Layout.clipCells leftWidth leftCells
-    let clippedRight := Loam.Tui.Layout.clipCells rightWidth rightCells
-    let leftPadding := leftWidth - cellsWidth clippedLeft
-    .row
-      (cellsToSpans clippedLeft ++
-       [span (repeatChar leftPadding ' '), span " │ " .muted] ++
-       cellsToSpans clippedRight)
-
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
   else Loam.ActualReview.displayText record.description
@@ -472,7 +441,7 @@ private def wideHomeBody
       ]
   , ruleLine bounds '='
   ] ++
-  sideBySide panelRows leftWidth rightWidth left right ++
+  Loam.Tui.Layout.sideBySide panelRows leftWidth rightWidth left right ++
   [ruleLine bounds '=']
 
 private def homeBody
