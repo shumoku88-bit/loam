@@ -98,12 +98,14 @@ private theorem buildCellIndex_getD_eq_fold
       rw [Std.HashMap.get?_insert]
       by_cases hCoordinate : effect.coordinate = coordinate
       · subst coordinate
-        simp [ih]
+        simp
+        exact ih
       · have hKey :
             coordinateKey effect.coordinate ≠ coordinateKey coordinate := by
           intro h
           exact hCoordinate (coordinateKey_injective h)
-        simp [hKey, hCoordinate, ih]
+        simp [hKey, hCoordinate]
+        exact ih
 
 /--
 A coordinate key is present exactly when that coordinate appeared in at least
@@ -214,7 +216,8 @@ theorem buildColumnIndex_get?_eq_direct
       · have hToken : column.event.id.token ≠ eventId.token := by
           intro h
           exact hId (eventIdToken_injective h)
-        simp [hToken, hId, ih]
+        simp [hToken, hId]
+        exact ih
 
 private def sparseCellAt
     (snapshot : Loam.TransactionsFlowReview.Snapshot)
@@ -243,7 +246,9 @@ theorem sparseCellAt_eq_cellAt
   | none =>
       simp [hColumn]
   | some column =>
-      simp [hColumn, buildCellIndex_getD_eq_quantityAt]
+      simp [hColumn]
+      rw [buildCellIndex_getD_eq_quantityAt]
+      exact Quantity.ofQuanta_quanta _
 
 /-!
 ## Finding
