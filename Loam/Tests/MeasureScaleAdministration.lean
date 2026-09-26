@@ -78,9 +78,24 @@ private def initBase (root : System.FilePath) : IO Unit := do
   IO.FS.createDirAll root
   IO.println "measure-scale checkpoint: init world"
   let world ← emptyWorld
-  IO.println "measure-scale checkpoint: init actual"
-  requireOk (← Loam.Tests.ActualWorldFixture.publishWorld? root world)
+  IO.println "measure-scale checkpoint: init actual-build"
+  let evidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+    events := world.events
+    validity := world.validity
+    descriptions := world.descriptions
+    relations := world.relations
+    discharges := world.discharges
+  }
+  IO.println "measure-scale checkpoint: init actual-publish"
+  requireOk
+    (← Loam.ActualAuthority.publishActualFile?
+      (Loam.ActualAuthority.actualPath root) evidence)
     "initialize admitted Actual fixture"
+  IO.println "measure-scale checkpoint: init locus-publish"
+  requireOk
+    (← Loam.LocusAdmissionAuthority.publishCurrent? root world.locusAdmission)
+    "initialize Locus admission fixture"
   IO.println "measure-scale checkpoint: init scheduled-memory"
   let scheduled ← emptyScheduledImage
   IO.println "measure-scale checkpoint: init scheduled-save"
