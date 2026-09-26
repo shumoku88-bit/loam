@@ -1,6 +1,6 @@
 # LOAM mathematical structure map — draft 2026-09-25
 
-Status: **RESEARCH DRAFT — observation only / no production change authorized**
+Status: **QUALIFIED RESEARCH MAP — R1–R6 survey complete / no broad abstraction authorized**
 
 Baseline:
 
@@ -797,3 +797,37 @@ and also demonstrates that no currently observable semantic distinction is
 collapsed.
 
 Until then, this file is a map of possible terrain, not a construction order.
+
+
+## Survey completion and compaction — 2026-09-26
+
+The R1–R6 survey is complete.
+
+The exploratory census and factorization drafts served as working notebooks
+while the repository moved from candidate structure to qualified proofs,
+measurements, production refinements, and explicit no-go boundaries.
+
+Their durable outcomes now live in:
+
+- this mathematical structure map;
+- retained terminal Lean observations;
+- production code and regression tests;
+- the focused Stock-Flow, temporal-routing, and journal-sort harvest records;
+- Git history for retired intermediate proofs and working notes.
+
+Accordingly, the following working drafts are retired from the live tree:
+
+```text
+ADDITIVE_FOLD_CENSUS_DRAFT_2026-09-25.md
+REPORT_FACTORIZATION_DRAFT_2026-09-25.md
+```
+
+This is repository compaction, not evidence erasure. The working documents remain
+recoverable from Git history, while the live repository keeps the conclusions
+that still guide implementation or future research.
+
+Observation 332 is likewise retired as an intermediate Stock-Flow support-index
+experiment. Production adopted the one-scan Record fusion but not a retained or
+mandatory selected-coordinate HashMap. Observation 333 remains the terminal
+Stock-Flow proof witness and now carries its simple List-membership quantity
+helper directly.
