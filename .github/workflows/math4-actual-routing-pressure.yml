@@ -25,3 +25,6 @@ jobs:
           lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 8 16
           lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 16 29
           lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 28 29
+          # Calibration against shapes retained in Observation 334; not promotion criteria.
+          lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 16 64
+          lake env lean --run Loam/Tests/ActualRoutingFixedTimeBenchmark.lean 64 4096
