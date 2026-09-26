@@ -285,7 +285,7 @@ But the observation argues *against* persisting a generic semantic
 `CrossMeasureTransaction` / `TransformKind` as the only authority:
 
     same mechanics
-        -/->
+        does not determine
     same meaning
 
 The smaller architecture is:
