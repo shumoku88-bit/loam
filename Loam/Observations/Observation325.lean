@@ -251,8 +251,8 @@ theorem sparseCellAt_eq_cellAt
         buildCellIndex_getD_eq_quantityAt column.event coordinate
       calc
         Quantity.ofQuanta
-            ((buildCellIndex column.event.effects).get?
-              (coordinateKey coordinate)).getD 0 =
+            (((buildCellIndex column.event.effects).get?
+              (coordinateKey coordinate)).getD 0) =
           Quantity.ofQuanta
             (Event.quantityAt
               column.event coordinate.locus coordinate.measure).quanta :=
