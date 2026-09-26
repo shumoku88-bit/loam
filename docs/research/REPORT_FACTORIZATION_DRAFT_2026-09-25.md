@@ -1062,6 +1062,150 @@ It is one very specific record-scan kernel plus a small outer shell.
 
 No production refactor is authorized by Observation 324.
 
+# 11. Transactions-Flow sparse incidence representation — Observations 325–327
+
+Observations 325–327 move the Transactions-Flow sparse-map idea from finite
+fixtures to a concrete general representation specification.
+
+Qualified research head:
+
+    97f2a39319ac30fbfe1596854762e566ed84cbca
+
+Lean Proof Surfaces:
+
+    36207277155 — SUCCESS
+
+Compression Audit:
+
+    36207277099 — SUCCESS
+
+All three Lean surfaces passed:
+
+- product Lean surface;
+- selected live research witnesses;
+- durable Lean proof surface / axiom audit.
+
+## 11.1 Event-local sparse cell map
+
+Observation 325 chooses a concrete transient cell representation:
+
+    EventId token
+      -> HashMap (Locus token, Measure token) Int
+
+The coordinate hash key is the exact token pair, not display text or an
+ad-hoc concatenated string.
+
+For arbitrary Events and coordinates it proves:
+
+    cellIndex.getD coordinate 0
+      =
+    Event.quantityAt event coordinate
+
+It also proves key-presence correspondence:
+
+    cellIndex.contains coordinate
+      =
+    raw Effects contain that EffectCoordinate
+
+Therefore same-Event cancellation does not erase coordinate representation.
+
+A coordinate whose exact summed cell quantity is zero still has a retained
+transient key when raw Effects represented it.
+
+## 11.2 Snapshot cell lookup
+
+Observation 325 also builds an EventId-keyed map of Event-local cell maps and
+proves, for arbitrary Snapshots, coordinates, and EventIds:
+
+    sparseCellAt
+      =
+    TransactionsFlowReview.cellAt
+
+The tail-first EventId index preserves current first-match semantics even for an
+arbitrary research Snapshot containing duplicate EventIds.
+
+This is a representation theorem, not an assumption of production uniqueness.
+
+## 11.3 Higher observations factor through the sparse cell map
+
+Observation 326 replaces each direct Event.quantityAt row projection with the
+concrete sparse-cell lookup and proves for arbitrary Snapshots:
+
+    indexedRowActivity
+      =
+    TransactionsFlowReview.rowActivity
+
+and therefore:
+
+    indexedRowActivity.net
+      =
+    rowTotal
+
+It also proves focused contributor EventId lists are unchanged.
+
+So the per-Event sparse incidence map preserves:
+
+- cell values;
+- row positive/negative partitions;
+- active Event count;
+- row net;
+- focused contributor identity.
+
+The represented-row list remains separate because raw coordinate occurrence is
+itself observable.
+
+## 11.4 Global RowActivity map specification
+
+Observation 327 defines a global research specification:
+
+    CoordinateKey -> RowActivity
+
+over exactly Snapshot.rows.
+
+For arbitrary Snapshots it proves:
+
+- every represented coordinate maps to exactly production rowActivity;
+- unrepresented coordinates are not invented;
+- represented zero-activity coordinates remain present as keys.
+
+This makes the global row-map meaning precise without yet choosing the fastest
+construction algorithm.
+
+The specification deliberately computes values through the already-proved
+sparse-cell route. It is therefore a semantic target, not a performance claim.
+
+## 11.5 Remaining Transactions-Flow question
+
+The representation question is now mostly closed.
+
+The remaining performance-specific problem is narrower:
+
+    current semantic specification
+      Snapshot.rows
+        x
+      sparse-cell-derived rowActivity
+        -> RowIndex
+
+versus a candidate faster builder:
+
+    selected Columns
+      -> one incremental sparse RowIndex construction
+
+The later builder would need to prove lookup/key correspondence to Observation
+327's RowIndex.
+
+In particular it must preserve:
+
+- Event-local same-coordinate aggregation before sign classification;
+- represented zero rows;
+- positive/negative partitions;
+- active Event count;
+- focused contributor identity where that identity view is requested separately;
+- no replacement of retained Columns as evidence authority.
+
+This is now an algorithm-refinement question rather than an unresolved semantic
+question.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
