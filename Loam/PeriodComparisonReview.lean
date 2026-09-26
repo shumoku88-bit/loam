@@ -32,36 +32,40 @@ structure Pair (α : Type) where
   right : α
   deriving Repr, DecidableEq
 
-/-- Run Stock–Flow twice over one already-admitted balance/Actual evidence image. -/
+/-- Run Stock–Flow twice over one prepared coherent read context. -/
 def stockFlow
-    (balances : Loam.BalanceReview.Snapshot)
-    (records : List Loam.ActualReview.Record)
+    (prepared : Loam.StockFlowReview.Prepared)
     (leftStart leftEndExclusive rightStart rightEndExclusive : String) :
     Except String (Pair Loam.StockFlowReview.Snapshot) := do
-  let left ← Loam.StockFlowReview.project balances records leftStart leftEndExclusive
-  let right ← Loam.StockFlowReview.project balances records rightStart rightEndExclusive
+  let left ←
+    Loam.StockFlowReview.projectPrepared
+      prepared leftStart leftEndExclusive
+  let right ←
+    Loam.StockFlowReview.projectPrepared
+      prepared rightStart rightEndExclusive
   return { left, right }
 
 private def loadStockFlowWithinActualObservation
-    (dataDir actualRoot : System.FilePath)
+    (dataDir actualPath : System.FilePath)
     (leftStart leftEndExclusive rightStart rightEndExclusive : String) :
     IO (Except String (Pair Loam.StockFlowReview.Snapshot)) := do
-  let balances ←
-    match ← Loam.BalanceReview.loadSnapshot dataDir actualRoot with
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message
-    | .ok snapshot => pure snapshot
-  let records ←
-    match ← Loam.ActualReview.loadRecordsFromActual actualRoot with
+    | .ok image => pure image
+  let prepared ←
+    match ← Loam.StockFlowReview.prepareFromActualImage dataDir image with
     | .error message => return .error message
-    | .ok records => pure records
-  return stockFlow balances records
+    | .ok prepared => pure prepared
+  return stockFlow prepared
     leftStart leftEndExclusive rightStart rightEndExclusive
 
 /--
 Load both Stock–Flow periods inside one Actual ownership interval.
 
-Both answers therefore observe the same correction-aware Actual generation.
-Independent zero-origin and balance-view evidence retain their existing authority.
+Both answers therefore observe the same correction-aware Actual generation,
+current balance selection, and historical support image. Zero-origin and bounded
+historical support remain independent coordinate-level justifications.
 -/
 def loadStockFlow
     (dataDir actualRoot : System.FilePath)
@@ -69,7 +73,7 @@ def loadStockFlow
     IO (Except String (Pair Loam.StockFlowReview.Snapshot)) := do
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   Loam.ActualAuthority.withActualFileOwnership actualPath <|
-    loadStockFlowWithinActualObservation dataDir actualRoot
+    loadStockFlowWithinActualObservation dataDir actualPath
       leftStart leftEndExclusive rightStart rightEndExclusive
 
 /-- Run the provenance-aware Income / Expense projection twice over one source image. -/
