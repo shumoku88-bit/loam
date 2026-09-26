@@ -174,6 +174,45 @@ def main : IO Unit := do
       [some 120, some 77, some 87])
     "Daily Pace history did not reconstruct completion-aware pace"
 
+  let undatedSelectedRecords : List Loam.ActualReview.Record := [
+    { event := opening, date := none, description := "", replacement := none },
+    { event := spend, date := some "2026-09-09", description := "", replacement := none },
+    { event := completion, date := some "2026-09-10", description := "", replacement := none }
+  ]
+  expectError
+    (Loam.CycleSpendingPaceReview.projectHistory
+      "2026-09-08" "2026-09-10" "2026-09-18"
+      selection historyBalances undatedSelectedRecords historyScheduled 7)
+    "Daily Pace history accepted a selected current Actual without a date"
+
+  let invalidSelectedRecords : List Loam.ActualReview.Record := [
+    { event := opening, date := some "not-a-date", description := "", replacement := none },
+    { event := spend, date := some "2026-09-09", description := "", replacement := none },
+    { event := completion, date := some "2026-09-10", description := "", replacement := none }
+  ]
+  expectError
+    (Loam.CycleSpendingPaceReview.projectHistory
+      "2026-09-08" "2026-09-10" "2026-09-18"
+      selection historyBalances invalidSelectedRecords historyScheduled 7)
+    "Daily Pace history accepted an invalid selected current Actual date"
+
+  let unrelated ← requireSome
+    (Event.ofEffects? ⟨"unrelated"⟩
+      [ Effect.ofQuantity ⟨"unrelated-expense"⟩ expense yen (Quantity.ofQuanta 25)
+      , Effect.ofQuantity ⟨"unrelated-income"⟩ income yen (Quantity.ofQuanta (-25))
+      ])
+    "Daily Pace history unrelated Event fixture"
+  let historyWithUndatedUnselected ←
+    match Loam.CycleSpendingPaceReview.projectHistory
+        "2026-09-08" "2026-09-10" "2026-09-18"
+        selection historyBalances
+        ({ event := unrelated, date := none, description := "", replacement := none } :: records)
+        historyScheduled 7 with
+    | .error message => throw (IO.userError message)
+    | .ok points => pure points
+  expect (historyWithUndatedUnselected == history)
+    "Daily Pace history let an unselected undated Actual change the reconstructed series"
+
   let retirementTerminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals?
       [{ source := laterBill.id, target := none }])
