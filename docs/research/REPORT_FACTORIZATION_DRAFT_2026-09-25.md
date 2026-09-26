@@ -1668,3 +1668,72 @@ boundary beside its retained Columns.
 
 Stock-Flow has a promising fail-closed product summary for construction while
 its public result is already appropriately compressed.
+
+
+# R5 result — Merchant Expense observational sufficiency
+
+Observation 336 applies Observation 191's factorization criterion to one real
+production-shaped review surface.
+
+The selected rich input is:
+
+```text
+MerchantExpenseReview.Snapshot
+  contributions
+  unresolved Merchant Event witnesses
+  unresolved AccountingRole Effect witnesses
+  window / Merchant / Measure context
+```
+
+For the single scalar observation `Snapshot.exactTotal?`, the research image
+
+```text
+ExactImage
+  knownTotal
+  complete
+```
+
+is sufficient.
+
+Observation 336 proves universally that:
+
+```text
+snapshot.exactTotal?
+  =
+exactTotalFromImage (exactImage snapshot)
+```
+
+and, in Observation 191's language, any two Snapshots identified by
+`exactImage` are indistinguishable by `exactTotal?`.
+
+The negative half is equally important. Two Snapshots can have the same
+`ExactImage` while incompleteness comes from different evidence boundaries:
+
+```text
+unresolved Merchant classification
+vs
+unresolved AccountingRole classification
+```
+
+The compact image identifies those states because both have the same known
+numeric total and `complete = false`. The inspectable diagnostic surface still
+distinguishes them.
+
+Therefore:
+
+```text
+small image sufficient for one scalar answer
+    !=
+small image sufficient for the whole review surface
+```
+
+This is the first production-shaped R5 qualification. It does not justify
+replacing `MerchantExpenseReview.Snapshot`, deleting unresolved witnesses, or
+retaining a new summary in authority. It does justify using observational
+factorization as a test for future derived-answer compression.
+
+Qualified observation:
+
+```text
+Loam/Observations/Observation336.lean
+```
