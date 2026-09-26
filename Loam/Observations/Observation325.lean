@@ -31,7 +31,7 @@ private abbrev ColumnIndex := Std.HashMap String CellIndex
 def coordinateKey (coordinate : EffectCoordinate) : CoordinateKey :=
   (coordinate.locus.token, coordinate.measure.token)
 
-private theorem coordinateKey_injective :
+theorem coordinateKey_injective :
     Function.Injective coordinateKey := by
   intro left right h
   cases left with
