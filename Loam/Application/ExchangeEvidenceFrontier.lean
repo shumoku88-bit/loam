@@ -64,19 +64,19 @@ def exchangeEvidenceAdmitted?
         | some source, some destination =>
             if source.measure = destination.measure then
               false
-            else if !(source.quantity.quanta < 0) then
+            else if source.quantity.quanta >= 0 then
               false
-            else if !(destination.quantity.quanta > 0) then
+            else if destination.quantity.quanta <= 0 then
               false
             else if !event.effects.all (fun effect =>
-                effect.measure = source.measure ||
-                  effect.measure = destination.measure) then
+                decide (effect.measure = source.measure) ||
+                  decide (effect.measure = destination.measure)) then
               false
             else
               match measureTotal? event source.measure,
                     measureTotal? event destination.measure with
               | some sourceTotal, some destinationTotal =>
-                  sourceTotal < 0 && destinationTotal > 0
+                  decide (sourceTotal < 0) && decide (destinationTotal > 0)
               | _, _ => false
         | _, _ => false
 
