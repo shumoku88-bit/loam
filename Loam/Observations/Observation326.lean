@@ -1,3 +1,4 @@
+import Loam.Observations.Observation321
 import Loam.Observations.Observation325
 
 namespace Loam.Observation326
@@ -183,15 +184,31 @@ def directContributorIds
 Focused contributor identity is also preserved by the sparse-cell
 representation for arbitrary Snapshots.
 -/
+private theorem filterMap_indexed_eq_direct
+    (columns : List Loam.TransactionsFlowReview.Column)
+    (coordinate : EffectCoordinate) :
+    columns.filterMap (indexedContribution? coordinate) =
+      columns.filterMap (directContribution? coordinate) := by
+  induction columns with
+  | nil =>
+      rfl
+  | cons column rest ih =>
+      simp only [List.filterMap_cons]
+      rw [indexedContribution?_eq_direct]
+      exact congrArg
+        (fun tail =>
+          match directContribution? coordinate column with
+          | some eventId => eventId :: tail
+          | none => tail)
+        ih
+
 theorem indexedContributorIds_eq_direct
     (snapshot : Loam.TransactionsFlowReview.Snapshot)
     (coordinate : EffectCoordinate) :
     indexedContributorIds snapshot coordinate =
       directContributorIds snapshot coordinate := by
   unfold indexedContributorIds directContributorIds
-  apply List.filterMap_congr
-  intro column hColumn
-  exact indexedContribution?_eq_direct coordinate column
+  exact filterMap_indexed_eq_direct snapshot.columns coordinate
 
 /-!
 ## Finding
