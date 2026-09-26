@@ -299,7 +299,7 @@ theorem historical_input_snapshot_plus_immutable_policy_reconstructs :
       allocation world2 ∧
     allocation (worldOfSnapshot (snapshot world3)) =
       allocation world3 := by
-  rfl
+  native_decide
 
 /--
 The same snapshot also directly retains the historical weights which the full
