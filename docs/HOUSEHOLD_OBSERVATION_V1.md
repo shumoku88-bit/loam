@@ -50,9 +50,14 @@ HOBS1  balance  LOCUS  MEASURE  AMOUNT  ORIGIN_STATUS  POSTING_COUNT_OR_DASH
 ```
 
 `ORIGIN_STATUS` is one of `known-zero-origin`, `unknown-origin`, or `conflict`.
-A producer that cannot expose posting count writes `-`; it must not invent zero.
-Scopes may differ between implementations, so absence of a row is not a parity
-failure unless the declared scopes make the same row set observable.
+For LOAM, `known-zero-origin` means the coordinate has explicit
+`ZeroOriginCoverage`. A current quantity justified by another qualified support
+family, such as `OpeningSupport` or `CurrentQuantityAnchor`, is emitted as
+`unknown-origin`: the current amount is supported without claiming complete
+history from zero. A producer that cannot expose posting count writes `-`; it
+must not invent zero. Scopes may differ between implementations, so absence of a
+row is not a parity failure unless the declared scopes make the same row set
+observable.
 
 Budget / envelope row:
 

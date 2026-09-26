@@ -1,6 +1,9 @@
 import Loam.BalanceReview
+import Loam.BalanceViewConfig
 import Loam.BudgetWindowReview
 import Loam.CapacityReview
+import Loam.HouseholdPaths
+import Loam.RoleBalanceReview
 
 namespace Loam.HouseholdObservationCli
 
@@ -24,14 +27,74 @@ private def emitMeta (name value : String) : IO Unit :=
 private def emitScalar (scope name unit value : String) : IO Unit :=
   emitRecord ["scalar", scope, name, unit, value]
 
-private def printBalance (snapshot : Loam.BalanceReview.Snapshot) : IO Unit := do
-  for row in snapshot.rows do
+private structure BalanceObservationRow where
+  coordinate : EffectCoordinate
+  quantity : Quantity
+  originStatus : String
+
+private def supportedQuantity?
+    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (coordinate : EffectCoordinate) : Option Quantity :=
+  match snapshot.rows.find? fun row => decide (row.coordinate = coordinate) with
+  | some row => some row.quantity
+  | none =>
+      match snapshot.unresolvedRoles.find? fun row => decide (row.coordinate = coordinate) with
+      | some row => some row.quantity
+      | none => none
+
+/--
+Load the configured current-balance question through the support-complete
+RoleBalance boundary, then project only the replaceable balance-view selection.
+
+This deliberately separates two facts that HOBS1 already has vocabulary for:
+
+- `known-zero-origin`: the selected coordinate has explicit ZeroOriginCoverage;
+- `unknown-origin`: its current quantity is supported by another qualified
+  current support family, such as OpeningSupport or CurrentQuantityAnchor.
+
+A selected coordinate with no current quantity support still refuses the whole
+observation document rather than becoming an invented zero.
+-/
+private def loadBalanceRows
+    (root : System.FilePath) : IO (Except String (List BalanceObservationRow)) := do
+  let snapshot ←
+    match ← Loam.RoleBalanceReview.loadSnapshot root root with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
+
+  let coverage ←
+    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage root) with
+    | .error message => return .error message
+    | .ok coverage => pure coverage
+
+  let coordinates ←
+    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView root) with
+    | none => return .error "loam: malformed or unsupported balance-view config"
+    | some selected => pure selected.eraseDups
+
+  let mut rows : List BalanceObservationRow := []
+  for coordinate in coordinates do
+    let some quantity := supportedQuantity? snapshot coordinate
+      | return .error
+          ("loam: household observation balance unavailable: current quantity support missing for " ++
+            coordinate.locus.token ++ " / " ++ coordinate.measure.token)
+    let originStatus :=
+      if coverage.covers coordinate then "known-zero-origin" else "unknown-origin"
+    rows := rows ++ [{
+      coordinate := coordinate
+      quantity := quantity
+      originStatus := originStatus
+    }]
+  return .ok rows
+
+private def printBalance (rows : List BalanceObservationRow) : IO Unit := do
+  for row in rows do
     emitRecord [
       "balance",
       row.coordinate.locus.token,
       row.coordinate.measure.token,
       toString row.quantity.quanta,
-      "known-zero-origin",
+      row.originStatus,
       "-"
     ]
 
@@ -77,11 +140,11 @@ def report (rootPath start end_ : String) : IO UInt32 := do
   let root := System.FilePath.mk rootPath
 
   let balances ←
-    match ← Loam.BalanceReview.loadSnapshot root root with
+    match ← loadBalanceRows root with
     | .error message =>
         IO.eprintln message
         return 2
-    | .ok snapshot => pure snapshot
+    | .ok rows => pure rows
 
   let budget ←
     match ← Loam.BudgetWindowReview.loadSnapshot root root start end_ with
