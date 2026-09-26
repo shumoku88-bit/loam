@@ -68,6 +68,11 @@ private theorem exists_selected_effect_iff_row_mem
             column.event.effects.map fun effect => effect.coordinate))
         _
   simp [flattenedEffects]
+  constructor
+  · rintro ⟨effect, ⟨column, hColumn, hEffect⟩, hCoordinate⟩
+    exact ⟨column, hColumn, effect, hEffect, hCoordinate⟩
+  · rintro ⟨column, hColumn, effect, hEffect, hCoordinate⟩
+    exact ⟨effect, ⟨column, hColumn, hEffect⟩, hCoordinate⟩
 
 /--
 The transient support index contains exactly the same represented coordinate
