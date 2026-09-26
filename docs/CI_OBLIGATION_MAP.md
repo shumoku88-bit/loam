@@ -157,10 +157,11 @@ At the completion point for item 2, the measured topology is:
 
 ```text
 workflow files:      48
-workflow YAML bytes: 216030
+workflow YAML bytes: 225221
 ```
 
 The original issue baseline was 97 workflows / 315035 workflow YAML bytes.
 The first instrumented measurement after adding the topology audit was
-97 / 315151. The later 48 / 216030 figure includes the two graduated Lean
-witness retirements described above.
+97 / 315151. Subsequent feature/qualification work brought the pre-graduation
+live topology to 50 / 227627. Retiring the two graduated Lean witnesses brings
+the current live topology to 48 / 225221.
