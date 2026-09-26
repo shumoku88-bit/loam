@@ -176,47 +176,43 @@ private def selectedEventQuanta
       if effect.coordinate ∈ selection then total + effect.quantity.quanta else total)
     0
 
-private def validateHistoricalActualDates
-    (selection : List EffectCoordinate) :
-    List Loam.ActualReview.Record → Except String Unit
-  | [] => .ok ()
-  | record :: rest =>
-      if !record.isCurrent then
-        validateHistoricalActualDates selection rest
-      else
-        let quantity := selectedEventQuanta selection record.event
-        if quantity = 0 then
-          validateHistoricalActualDates selection rest
-        else
-          match record.date with
-          | none =>
-              .error
-                ("loam: Daily Pace history unavailable: current selected Actual " ++
-                  record.event.id.token ++ " has no occurrence date")
-          | some date =>
-              if Loam.ActualDate.validIsoDate date then
-                validateHistoricalActualDates selection rest
-              else
-                .error
-                  ("loam: Daily Pace history unavailable: current selected Actual " ++
-                    record.event.id.token ++ " has an invalid occurrence date")
+private def addEligibleContribution
+    (validOn : String)
+    (quantity : Int) :
+    List String → List Int → List Int
+  | date :: laterDates, total :: laterTotals =>
+      let next := if decide (validOn ≤ date) then total + quantity else total
+      next :: addEligibleContribution validOn quantity laterDates laterTotals
+  | _, totals => totals
 
-private def eligiblePoolAtEndOfDay
+/--
+Validate selected current Actual dates and reconstruct all requested end-of-day
+eligible-pool quantities in one Record scan.
+
+Each selected Event is quantified once. Its signed quantity is then distributed
+across the finite date vector at every date on or after the Event date.
+-/
+private def eligiblePoolsAtEndOfDays
     (selection : List EffectCoordinate)
     (records : List Loam.ActualReview.Record)
-    (date : String) : Int :=
-  records.foldl
-    (fun total record =>
-      if !record.isCurrent then total
-      else
-        match record.date with
-        | some validOn =>
-            if decide (validOn ≤ date) then
-              total + selectedEventQuanta selection record.event
-            else
-              total
-        | none => total)
-    0
+    (dates : List String) : Except String (List Int) :=
+  records.foldlM
+    (fun totals record => do
+      if !record.isCurrent then
+        return totals
+      let quantity := selectedEventQuanta selection record.event
+      if quantity = 0 then
+        return totals
+      let some validOn := record.date
+        | throw
+            ("loam: Daily Pace history unavailable: current selected Actual " ++
+              record.event.id.token ++ " has no occurrence date")
+      if !Loam.ActualDate.validIsoDate validOn then
+        throw
+          ("loam: Daily Pace history unavailable: current selected Actual " ++
+            record.event.id.token ++ " has an invalid occurrence date")
+      return addEligibleContribution validOn quantity dates totals)
+    (List.replicate dates.length 0)
 
 private def terminalFor?
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
@@ -285,12 +281,12 @@ private def reconstructedSnapshot
     (selection : List EffectCoordinate)
     (records : List Loam.ActualReview.Record)
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (eligible : Int)
     (date : String) : Except String Snapshot := do
   let some distance := Loam.ActualDate.daysBetween? date endExclusive
     | throw "loam: Daily Pace history could not determine a remaining calendar horizon"
   if distance <= 0 then
     throw "loam: Daily Pace history point must precede cycle end"
-  let eligible := eligiblePoolAtEndOfDay selection records date
   let deductions ←
     historicalDeductionsForDate
       selection records scheduled endExclusive date scheduled.scheduled.occurrences
@@ -332,12 +328,12 @@ def projectHistory
     throw "loam: Daily Pace history observation precedes the current cycle"
   let current ← project observedAt endExclusive selection balances scheduled
   let _ ← Loam.ScheduledReview.currentOpenRecords scheduled
-  validateHistoricalActualDates selection records
+  let dates := recentDates windowStart observedAt days
+  let eligiblePools ← eligiblePoolsAtEndOfDays selection records dates
   if days = 0 then
     return []
-  let dates := recentDates windowStart observedAt days
-  let points ← dates.mapM fun date =>
-    reconstructedSnapshot endExclusive selection records scheduled date
+  let points ← (dates.zip eligiblePools).mapM fun (date, eligible) =>
+    reconstructedSnapshot endExclusive selection records scheduled eligible date
   match points.reverse with
   | [] => return []
   | latest :: _ =>
