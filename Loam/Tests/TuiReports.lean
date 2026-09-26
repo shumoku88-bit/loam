@@ -241,6 +241,54 @@ def main : IO Unit := do
   expect (contains "not income/spending" stockReportText)
     "Stock–Flow lost its sign/classification non-claim"
 
+  let stockCompare := (Loam.Tui.Reports.update stock (.input 'c')).state
+  expect (match stockCompare.mode with | .stockFlowCompare => true | _ => false)
+    "Stock–Flow c did not enter two-period comparison"
+  expect (stockCompare.comparison.leftStart == "2026-09-01" &&
+      stockCompare.comparison.leftEndExclusive == "2026-10-01")
+    "Stock–Flow comparison did not seed Left from the current explicit window"
+  expect (stockCompare.comparison.rightStart == "2026-10-01" &&
+      stockCompare.comparison.rightEndExclusive == "2026-11-01")
+    "Stock–Flow comparison did not seed Right from the following calendar month"
+  match (Loam.Tui.Reports.update stockCompare .enter).query with
+  | some (.stockFlowCompare leftStart leftEnd rightStart rightEnd) =>
+      expect (leftStart == "2026-09-01" && leftEnd == "2026-10-01")
+        "Stock–Flow comparison changed Left coordinates"
+      expect (rightStart == "2026-10-01" && rightEnd == "2026-11-01")
+        "Stock–Flow comparison changed Right coordinates"
+  | _ => throw (IO.userError "Stock–Flow comparison did not emit both explicit windows")
+
+  let stockComparisonReport := Loam.Tui.Reports.withStockFlowComparison stockCompare {
+    left := {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      measure := some (⟨"jpy"⟩ : MeasureId)
+      reconstructedStart := Quantity.ofQuanta 1000
+      increasesAcrossEvents := Quantity.ofQuanta 300
+      decreasesAcrossEvents := Quantity.ofQuanta (-100)
+      currentTracked := Quantity.ofQuanta 1500
+    }
+    right := {
+      start := "2026-10-01"
+      endExclusive := "2026-11-01"
+      measure := some (⟨"jpy"⟩ : MeasureId)
+      reconstructedStart := Quantity.ofQuanta 1200
+      increasesAcrossEvents := Quantity.ofQuanta 400
+      decreasesAcrossEvents := Quantity.ofQuanta (-200)
+      currentTracked := Quantity.ofQuanta 1500
+    }
+  }
+  let stockComparisonText := widgetText
+    (Loam.Tui.Reports.viewForBounds { width := 140, height := 80 } stockComparisonReport)
+  expect (contains "Left period" stockComparisonText && contains "Right period" stockComparisonText)
+    "wide Stock–Flow comparison did not expose both panes"
+  expect (contains "Window [2026-09-01, 2026-10-01)" stockComparisonText &&
+      contains "Window [2026-10-01, 2026-11-01)" stockComparisonText)
+    "Stock–Flow comparison did not render both explicit windows"
+  expect (match (Loam.Tui.Reports.update stockComparisonReport .escape).state.mode with
+      | .stockFlow => true | _ => false)
+    "Stock–Flow comparison escape did not return to the single-period report"
+
   let editing : Loam.Tui.Reports.State := {
     stockReport with
       window := { stockReport.window with
@@ -309,6 +357,56 @@ def main : IO Unit := do
     "Income & Expense view hid unresolved role evidence"
   expect (contains "not accrual recognition or period closing" incomeExpenseReportText)
     "Income & Expense view overstated occurrence-time flow as a closed P/L"
+
+  let incomeCompareBase := (Loam.Tui.Reports.update incomeExpense (.input 'c')).state
+  let incomeCompare : Loam.Tui.Reports.State := {
+    incomeCompareBase with
+      comparison := {
+        leftStart := "2026-01-15"
+        leftEndExclusive := "2026-03-03"
+        rightStart := "2026-07-01"
+        rightEndExclusive := "2026-07-20"
+        focus := ⟨4, by decide⟩
+      }
+  }
+  match (Loam.Tui.Reports.update incomeCompare .enter).query with
+  | some (.incomeExpenseCompare leftStart leftEnd rightStart rightEnd) =>
+      expect (leftStart == "2026-01-15" && leftEnd == "2026-03-03")
+        "Income & Expense comparison constrained Left to a calendar month"
+      expect (rightStart == "2026-07-01" && rightEnd == "2026-07-20")
+        "Income & Expense comparison constrained Right to a calendar month"
+  | _ => throw (IO.userError "Income & Expense comparison did not emit arbitrary windows")
+
+  let incomeComparisonReport := Loam.Tui.Reports.withIncomeExpenseComparison incomeCompare {
+    left := {
+      start := "2026-01-15"
+      endExclusive := "2026-03-03"
+      rows :=
+        [ { coordinate := pensionCoordinate, role := .income, quantity := Quantity.ofQuanta (-100) }
+        , { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 30 }
+        ]
+      unresolvedEffects := []
+    }
+    right := {
+      start := "2026-07-01"
+      endExclusive := "2026-07-20"
+      rows :=
+        [ { coordinate := pensionCoordinate, role := .income, quantity := Quantity.ofQuanta (-120) }
+        , { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 40 }
+        ]
+      unresolvedEffects := []
+    }
+  }
+  let incomeComparisonText := widgetText
+    (Loam.Tui.Reports.viewForBounds { width := 140, height := 100 } incomeComparisonReport)
+  expect (contains "Left period" incomeComparisonText && contains "Right period" incomeComparisonText)
+    "wide Income & Expense comparison did not expose both panes"
+  expect (contains "Window [2026-01-15, 2026-03-03)" incomeComparisonText &&
+      contains "Window [2026-07-01, 2026-07-20)" incomeComparisonText)
+    "Income & Expense comparison did not render arbitrary independent windows"
+  expect (contains "No delta, percentage, equal-duration, or baseline meaning is inferred."
+      incomeComparisonText)
+    "Income & Expense comparison accidentally claimed comparison semantics"
 
   let incomeExpenseEditing : Loam.Tui.Reports.State := {
     incomeExpenseReport with
@@ -476,4 +574,4 @@ def main : IO Unit := do
         ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
 
   IO.println
-    "TUI Reports: menu, Stock–Flow, Income & Expense, conditional Liquidity, Budget Window and navigation passed."
+    "TUI Reports: menu, two-period Stock–Flow and Income & Expense comparison, conditional Liquidity, Budget Window and navigation passed."
