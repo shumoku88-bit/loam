@@ -308,14 +308,16 @@ The focused public `statusAt` remains the simple semantic specification.
 
 The paired benchmark that motivated this proof showed the expected crossover:
 
-- one subject / 64 history entries: focused statusAt 40 µs, image 95 µs;
-- 16 subjects / 256 entries: 1.7 ms vs 442 µs (~3.96x);
-- 64 subjects / 4096 entries: 108.7 ms vs 6.1 ms (~17.65x);
-- 256 subjects / 16384 entries: 1.7 s vs 24.4 ms (~70.84x).
+- one subject / 64 history entries: focused statusAt 24 µs, image 55 µs;
+- 4 subjects / 16 entries: 21 µs vs 21 µs;
+- 16 subjects / 64 entries: 272 µs vs 97 µs (~2.80x);
+- 64 subjects / 4096 entries: 64.1 ms vs 3.5 ms (~17.87x);
+- 256 subjects / 16384 entries: 1.0 s vs 14.3 ms (~70.53x).
 
-The result therefore supports a narrow future bulk-read optimization, not
-replacement of focused `statusAt`, not persisted indexes, and not yet a generic
-Actual/Scheduled routing abstraction.
+The result therefore qualifies a narrow future bulk-read optimization under
+measured pressure. Small focused workloads should remain on direct `statusAt`.
+No production promotion, persisted index, cardinality threshold, or generic
+Actual/Scheduled routing abstraction is justified yet.
 -/
 
 end Loam.Observation334
