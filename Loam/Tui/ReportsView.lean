@@ -249,22 +249,70 @@ private def incomeExpenseDisplayQuanta
     (role : Loam.Core.AccountingRole) (quantity : Loam.Core.Quantity) : Int :=
   if role = .income then -quantity.quanta else quantity.quanta
 
-private def incomeExpenseBreakdownLines
-    (snapshot : Loam.RoleFlowReview.Snapshot)
-    (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole)
+private def incomeExpenseRowLines
+    (rows : List Loam.RoleFlowReview.Row)
+    (measure : Loam.Core.MeasureId)
+    (role : Loam.Core.AccountingRole)
     (heading : String) : List Widget :=
-  let rows := incomeExpenseBreakdownRows snapshot measure role
-  if rows.isEmpty then
+  let selected :=
+    (rows.filter fun row =>
+      decide (row.coordinate.measure = measure) && row.quantity.quanta != 0)
+      |>.mergeSort fun a b => a.coordinate.locus.token <= b.coordinate.locus.token
+  if selected.isEmpty then
     [muted (heading ++ ": (none)")]
   else
-    [muted heading] ++ rows.map fun row =>
+    [muted heading] ++ selected.map fun row =>
       line
         ("  " ++ Loam.Tui.Layout.padRight 24 row.coordinate.locus.token ++
           padNum 12 (toString (incomeExpenseDisplayQuanta role row.quantity)) ++
           " " ++ measure.token)
 
-private def incomeExpenseMeasureLines
+private def incomeExpenseBreakdownLines
     (snapshot : Loam.RoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole)
+    (heading : String) : List Widget :=
+  incomeExpenseRowLines
+    (incomeExpenseBreakdownRows snapshot measure role) measure role heading
+
+private def expensePartitionTotal
+    (rows : List Loam.RoleFlowReview.Row)
+    (measure : Loam.Core.MeasureId) : Int :=
+  rows.foldl
+    (fun total row =>
+      if row.coordinate.measure = measure then total + row.quantity.quanta else total)
+    0
+
+private def expenseProvenanceLines
+    (snapshot : Loam.IncomeExpenseProvenanceReview.Snapshot)
+    (measure : Loam.Core.MeasureId) : List Widget :=
+  match snapshot.expenseProvenance with
+  | .unknown reason =>
+      [ muted "Expense provenance: UNKNOWN"
+      , muted ("  " ++ reason)
+      ] ++
+      incomeExpenseBreakdownLines
+        snapshot.roleFlow measure .expense "Expense breakdown"
+  | .available partition =>
+      let linkedTotal := expensePartitionTotal partition.scheduledLinked measure
+      let unlinkedTotal := expensePartitionTotal partition.noScheduledLink measure
+      [ line
+          ("Scheduled-linked expense:" ++
+            padNum 12 (toString linkedTotal) ++ " " ++ measure.token)
+      ] ++
+      incomeExpenseRowLines
+        partition.scheduledLinked measure .expense "  Breakdown" ++
+      [blank,
+       line
+          ("No Scheduled link:" ++
+            padNum 12 (toString unlinkedTotal) ++ " " ++ measure.token)
+      ] ++
+      incomeExpenseRowLines
+        partition.noScheduledLink measure .expense "  Breakdown" ++
+      [ muted
+          "Scheduled-linked means retained completion provenance, not a fixed/recurring-cost classification." ]
+
+private def incomeExpenseMeasureLines
+    (snapshot : Loam.IncomeExpenseProvenanceReview.Snapshot)
     (summary : Loam.Presentation.Reports.IncomeExpenseMeasure) : List Widget :=
   let measure := summary.measure
   let label := Loam.Tui.Layout.padRight 16
@@ -274,9 +322,9 @@ private def incomeExpenseMeasureLines
   , line (label "Result:" ++ padNum 12 (toString summary.result.quanta) ++ " " ++ measure.token)
   , blank
   ] ++
-  incomeExpenseBreakdownLines snapshot measure .income "Income breakdown" ++
+  incomeExpenseBreakdownLines snapshot.roleFlow measure .income "Income breakdown" ++
   [blank] ++
-  incomeExpenseBreakdownLines snapshot measure .expense "Expense breakdown"
+  expenseProvenanceLines snapshot measure
 
 private def unresolvedIncomeExpenseLine
     (entry : Loam.RoleFlowReview.UnresolvedEffect) : Widget :=
@@ -289,8 +337,9 @@ private def incomeExpenseResultLines (state : State) : List Widget :=
   match state.incomeExpenseSnapshot with
   | none => [muted "No explicit Income & Expense window has been run yet."]
   | some snapshot =>
-      let summary := Loam.Presentation.Reports.incomeExpenseFromRoleFlow snapshot
-      let unresolved := snapshot.unresolvedEffects
+      let roleFlow := snapshot.roleFlow
+      let summary := Loam.Presentation.Reports.incomeExpenseFromRoleFlow roleFlow
+      let unresolved := roleFlow.unresolvedEffects
       [ line ("Window [" ++ summary.start ++ ", " ++ summary.endExclusive ++ ")")
       , muted "Income display = -raw signed Income; Expense display = raw signed Expense."
       , muted "Distinct Measures remain separate and are never valued or summed together."

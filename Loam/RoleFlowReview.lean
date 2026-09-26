@@ -84,6 +84,16 @@ def project
     unresolvedEffects := unresolvedEffects flow roles
   }
 
+/-- Load the explicit current AccountingRole relation used by role-aware reviews. -/
+def loadRoleMap
+    (dataDir : System.FilePath) : IO (Except String AccountingRoleMap) := do
+  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
+  if !(← rolesPath.pathExists) then
+    return .error "loam: required AccountingRole evidence is missing"
+  match ← loadAccountingRoleMap? rolesPath with
+  | some roles => return .ok roles
+  | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+
 /--
 Overlay AccountingRole authority on one already-computed Transactions-Flow result.
 
@@ -95,13 +105,10 @@ def loadSnapshotFromTransactionsFlowResult
     (dataDir : System.FilePath)
     (flowResult : Except String Loam.TransactionsFlowReview.Snapshot) :
     IO (Except String Snapshot) := do
-  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolesPath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
   let roles ←
-    match ← loadAccountingRoleMap? rolesPath with
-    | some roles => pure roles
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+    match ← loadRoleMap dataDir with
+    | .ok roles => pure roles
+    | .error message => return .error message
   let flow ←
     match flowResult with
     | .error message => return .error message
