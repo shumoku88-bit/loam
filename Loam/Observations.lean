@@ -85,14 +85,12 @@ import Loam.Observations.Observation334
 import Loam.Observations.Observation335
 import Loam.Observations.Observation336
 import Loam.Observations.Observation337
-import Loam.Observations.Observation338
-import Loam.Observations.Observation339
 
 /-!
 Research compaction note (2026-09-26): Observations 320, 322–324, 326–330
-(except 325), and 332 were retired from the live witness umbrella after their
-conclusions were absorbed by later terminal proofs, production promotion, and
-retained research prose. Observation 331 carries the terminal RowIndex
+(except 325), 332, 338, and 339 were retired from the live witness umbrella after
+their conclusions were absorbed by later terminal proofs, production promotion,
+proof-carrying production types, and retained research prose. Observation 331 carries the terminal RowIndex
 refinement; Observation 333 now carries the Stock-Flow quantity helper it needs
 directly. Retired source remains available in Git history.
 -/
