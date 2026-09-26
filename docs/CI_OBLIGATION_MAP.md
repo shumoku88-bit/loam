@@ -9,7 +9,7 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the current topology has 48.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47.
 
 The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
@@ -40,8 +40,10 @@ A later graduation pass retired two additional standalone Lean workflows:
 - `opening-support-reuse-seam.yml`: Observation 245's seam has been promoted
   into production OpeningSupport / RoleBalance behavior and production tests.
 
-Thus the cumulative workflow reduction is now `97 -> 48`, or 49 retired
-workflow files.
+The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
+frontend retirement brings the live workflow count to `47`, or 50 retired
+workflow files in total. Presentation-neutral Home / Reports / ReadState checks
+remain qualified by `tui.yml`.
 
 ## Shared Lean build mechanics
 
@@ -121,7 +123,6 @@ operational roles differ:
 
 - `tui.yml`
 - `tui-foundation.yml`
-- `web.yml`
 - `beancount-export.yml`
 - `standalone-distribution.yml`
 - `compression-audit.yml`
@@ -153,7 +154,7 @@ Run:
 python3 tools/audit-ci-topology
 ```
 
-At the completion point for item 2, the measured topology is:
+At the completion point for item 2, the measured topology was:
 
 ```text
 workflow files:      48
@@ -163,5 +164,7 @@ workflow YAML bytes: 225221
 The original issue baseline was 97 workflows / 315035 workflow YAML bytes.
 The first instrumented measurement after adding the topology audit was
 97 / 315151. Subsequent feature/qualification work brought the pre-graduation
-live topology to 50 / 227627. Retiring the two graduated Lean witnesses brings
-the current live topology to 48 / 225221.
+live topology to 50 / 227627. Retiring the two graduated Lean witnesses produced
+the item-2 completion measurement above. The later native Web retirement reduces
+the live workflow-file count to 47; use `python3 tools/audit-ci-topology` for
+the current YAML byte measurement after subsequent feature changes.
