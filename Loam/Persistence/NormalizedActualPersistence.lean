@@ -4,6 +4,7 @@ import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.EventMerchantEvidence
+import Loam.Core.OriginalAmountEvidence
 import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
@@ -52,6 +53,7 @@ inductive NormalizedActualParseErrorReason where
   | invalidToken (token : String)
   | invalidInteger (value : String)
   | duplicateMerchant
+  | duplicateOriginalAmount
   | duplicateOperation
   | duplicateReplaces
   | duplicateReversalOf
@@ -76,6 +78,7 @@ def NormalizedActualParseError.message (err : NormalizedActualParseError) : Stri
     | .invalidToken token => s!"invalid token: '{token}'"
     | .invalidInteger value => s!"invalid integer quantity: '{value}'"
     | .duplicateMerchant => "duplicate MERCHANT or NONMERCHANT row in transaction"
+    | .duplicateOriginalAmount => "duplicate ORIGINAL-AMOUNT row in transaction"
     | .duplicateOperation => "duplicate OPERATION row in transaction"
     | .duplicateReplaces => "duplicate REPLACES row in transaction"
     | .duplicateReversalOf => "duplicate REVERSAL-OF row in transaction"
@@ -91,6 +94,7 @@ inductive NormalizedActualConstructionError where
   | validityHistory
   | descriptionMemory
   | merchantMemory
+  | originalAmountMemory
   | movementOperationMemory
   | correctionMemory
   | reversalMemory
@@ -103,6 +107,7 @@ def NormalizedActualConstructionError.message : NormalizedActualConstructionErro
   | .validityHistory => "failed to construct ActualValidityHistory: duplicate revision or invalid validity parts"
   | .descriptionMemory => "failed to construct EventDescriptionMemory: duplicate description for event"
   | .merchantMemory => "failed to construct EventMerchantEvidenceMemory: duplicate merchant disposition for event"
+  | .originalAmountMemory => "failed to construct OriginalAmountEvidenceMemory: duplicate event or nonpositive quantity"
   | .movementOperationMemory => "failed to construct MovementOperationEvidenceMemory: duplicate operation or event mapping"
   | .correctionMemory => "failed to construct EventCorrectionMemory: duplicate replacement event"
   | .reversalMemory => "failed to construct ActualReversalMemory: reversal endpoint identity reused"
@@ -137,6 +142,7 @@ private structure ParsedTx where
   baseValidOn : String
   description : Option String
   merchant : Option MerchantDisposition
+  originalAmount : Option OriginalAmountEvidence
   movementOperation : Option MovementOperationId
   replaces : Option EventId
   reversalOf : Option EventId
@@ -152,6 +158,7 @@ private structure TxDraft where
   baseValidOn : String
   description : Option String
   merchant : Option MerchantDisposition := none
+  originalAmount : Option OriginalAmountEvidence := none
   movementOperation : Option MovementOperationId := none
   replaces : Option EventId := none
   reversalOf : Option EventId := none
@@ -220,6 +227,7 @@ private def stepTxParser
             baseValidOn := draft.baseValidOn
             description := draft.description
             merchant := draft.merchant
+            originalAmount := draft.originalAmount
             movementOperation := draft.movementOperation
             replaces := draft.replaces
             reversalOf := draft.reversalOf
@@ -256,6 +264,26 @@ private def stepTxParser
                   merchant := some .nonmerchant
                 }
               }
+        | ["ORIGINAL-AMOUNT", measureToken, quantityStr] => do
+            if draft.originalAmount.isSome then
+              Except.error { line := lineNo, reason := .duplicateOriginalAmount }
+            else if !validToken measureToken then
+              Except.error { line := lineNo, reason := .invalidToken measureToken }
+            else
+              match quantityStr.toInt? with
+              | none =>
+                  Except.error { line := lineNo, reason := .invalidInteger quantityStr }
+              | some quanta =>
+                  Except.ok { state with
+                    current := some { draft with
+                      lastLine := lineNo
+                      originalAmount := some {
+                        event := draft.event
+                        measure := ⟨measureToken⟩
+                        quantity := Quantity.ofQuanta quanta
+                      }
+                    }
+                  }
         | ["OPERATION", operationToken] =>
             if draft.movementOperation.isSome then
               Except.error { line := lineNo, reason := .duplicateOperation }
@@ -407,6 +435,8 @@ private def stepTxParser
               Except.error { line := lineNo, reason := .malformedRow "MERCHANT" s!"expected 2 fields, got {fields.length}" }
             else if head == some "NONMERCHANT" then
               Except.error { line := lineNo, reason := .malformedRow "NONMERCHANT" s!"expected 1 field, got {fields.length}" }
+            else if head == some "ORIGINAL-AMOUNT" then
+              Except.error { line := lineNo, reason := .malformedRow "ORIGINAL-AMOUNT" s!"expected 3 fields, got {fields.length}" }
             else if head == some "OPERATION" then
               Except.error { line := lineNo, reason := .malformedRow "OPERATION" s!"expected 2 fields, got {fields.length}" }
             else if head == some "REPLACES" then
@@ -465,6 +495,7 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
         let mut valCorrections : List ActualValidityCorrection := []
         let mut descriptions : List EventDescription := []
         let mut merchants : List EventMerchantEvidence := []
+        let mut originalAmounts : List OriginalAmountEvidence := []
         let mut movementOperations : List MovementOperationEvidence := []
         let mut corrections : List EventCorrection := []
         let mut reversals : List ActualReversal := []
@@ -485,6 +516,9 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
 
           if let some disposition := tx.merchant then
             merchants := { event := tx.event, disposition := disposition } :: merchants
+
+          if let some originalAmount := tx.originalAmount then
+            originalAmounts := originalAmount :: originalAmounts
 
           if let some operation := tx.movementOperation then
             movementOperations :=
@@ -508,6 +542,7 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
         let orderedValCorrections := valCorrections.reverse
         let orderedDescriptions := descriptions.reverse
         let orderedMerchants := merchants.reverse
+        let orderedOriginalAmounts := originalAmounts.reverse
         let orderedMovementOperations := movementOperations.reverse
         let orderedCorrections := corrections.reverse
         let orderedReversals := reversals.reverse
@@ -526,6 +561,9 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
         let merchantMemory ← match EventMerchantEvidenceMemory.ofEntries? orderedMerchants with
           | some m => pure m
           | none => throw (NormalizedActualDecodeError.construction .merchantMemory)
+        let originalAmountMemory ← match OriginalAmountEvidenceMemory.ofEntries? orderedOriginalAmounts with
+          | some m => pure m
+          | none => throw (NormalizedActualDecodeError.construction .originalAmountMemory)
         let movementOperationMemory ←
           match MovementOperationEvidenceMemory.ofEntries? orderedMovementOperations with
           | some m => pure m
@@ -542,6 +580,7 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
           validity := validityHistory
           descriptions := descMemory
           merchants := merchantMemory
+          originalAmounts := originalAmountMemory
           movementOperations := movementOperationMemory
           corrections := corrMemory
           reversals := revMemory
@@ -610,6 +649,14 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
     | some (.merchant party) =>
         if !validToken party.token then none
         rows := rows ++ [s!"MERCHANT\t{party.token}"]
+
+    match evidence.originalAmounts.findByEvent? event.id with
+    | none => pure ()
+    | some original =>
+        if !validToken original.measure.token then none
+        rows := rows ++ [
+          s!"ORIGINAL-AMOUNT\t{original.measure.token}\t{original.quantity.quanta}"
+        ]
 
     match evidence.movementOperations.findOperation? event.id with
     | none => pure ()
