@@ -28,6 +28,13 @@ on:
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/Tests/AccountingRolePublisher.lean'
       - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
+      - 'Loam/BoundedHistorySupport.lean'
+      - 'Loam/BoundedHistorySupportReview.lean'
+      - 'Loam/BoundedHistorySupportPublisher.lean'
+      - 'Loam/Persistence/BoundedHistorySupportPersistence.lean'
+      - 'Loam/CurrentQuantityAnchorPublisher.lean'
+      - 'Loam/Tests/BoundedHistorySupport.lean'
+      - 'Loam/Tests/TuiBoundedHistorySupportAdministration.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -155,6 +162,13 @@ on:
       - 'Loam/Persistence/AccountingRolePersistence.lean'
       - 'Loam/Tests/AccountingRolePublisher.lean'
       - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
+      - 'Loam/BoundedHistorySupport.lean'
+      - 'Loam/BoundedHistorySupportReview.lean'
+      - 'Loam/BoundedHistorySupportPublisher.lean'
+      - 'Loam/Persistence/BoundedHistorySupportPersistence.lean'
+      - 'Loam/CurrentQuantityAnchorPublisher.lean'
+      - 'Loam/Tests/BoundedHistorySupport.lean'
+      - 'Loam/Tests/TuiBoundedHistorySupportAdministration.lean'
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
@@ -376,6 +390,15 @@ jobs:
 
       - name: Verify AccountingRole administration interaction
         run: lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
+
+      - name: Build bounded historical support administration boundary
+        run: lake build Loam.BoundedHistorySupportPublisher Loam.BoundedHistorySupportReview Loam.Tui.BoundedHistorySupportAdministration
+
+      - name: Verify bounded historical support publication and anchor guard
+        run: lake env lean --run Loam/Tests/BoundedHistorySupport.lean
+
+      - name: Verify bounded historical support administration interaction
+        run: lake env lean --run Loam/Tests/TuiBoundedHistorySupportAdministration.lean
 
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean
