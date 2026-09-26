@@ -2,11 +2,13 @@ import Loam.ActualDate
 import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
+import Loam.PeriodComparisonReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.RoleFlowReview
 import Loam.RoleBalanceReview
 import Loam.ScheduledCoverageReview
+import Loam.Tui.ReportComparison
 import Loam.Tui.ReportWindow
 import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Calendar
@@ -33,8 +35,10 @@ Observations 229 and 231.
 inductive Mode where
   | menu
   | stockFlow
+  | stockFlowCompare
   | transactionsFlow
   | incomeExpense
+  | incomeExpenseCompare
   | balances
   | liquidity
   | budgetWindow
@@ -48,8 +52,12 @@ structure LiquidityForm where
 
 inductive Query where
   | stockFlow (start endExclusive : String)
+  | stockFlowCompare
+      (leftStart leftEndExclusive rightStart rightEndExclusive : String)
   | transactionsFlow (start endExclusive : String)
   | incomeExpenseFlow (start endExclusive : String)
+  | incomeExpenseCompare
+      (leftStart leftEndExclusive rightStart rightEndExclusive : String)
   | roleBalances
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
@@ -61,10 +69,15 @@ structure State where
   mode : Mode := .menu
   menuIndex : Fin 8 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
+  comparison : Loam.Tui.ReportComparison.State := {}
   liquidityForm : LiquidityForm := {}
   stockFlowSnapshot : Option Loam.StockFlowReview.Snapshot := none
+  stockFlowComparison :
+    Option (Loam.PeriodComparisonReview.Pair Loam.StockFlowReview.Snapshot) := none
   transactions : Loam.Tui.TransactionsFlowPane.State := {}
   incomeExpenseSnapshot : Option Loam.RoleFlowReview.Snapshot := none
+  incomeExpenseComparison :
+    Option (Loam.PeriodComparisonReview.Pair Loam.RoleFlowReview.Snapshot) := none
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
@@ -114,6 +127,12 @@ def withStockFlowSnapshot
   { state with stockFlowSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
+def withStockFlowComparison
+    (state : State)
+    (comparison : Loam.PeriodComparisonReview.Pair Loam.StockFlowReview.Snapshot) : State :=
+  { state with stockFlowComparison := some comparison, notice := "", scroll := 0 }
+
+
 def withTransactionsFlowSnapshot
     (state : State) (snapshot : Loam.TransactionsFlowReview.Snapshot) : State :=
   { state with
@@ -125,6 +144,12 @@ def withTransactionsFlowSnapshot
 def withIncomeExpenseSnapshot
     (state : State) (snapshot : Loam.RoleFlowReview.Snapshot) : State :=
   { state with incomeExpenseSnapshot := some snapshot, notice := "", scroll := 0 }
+
+
+def withIncomeExpenseComparison
+    (state : State)
+    (comparison : Loam.PeriodComparisonReview.Pair Loam.RoleFlowReview.Snapshot) : State :=
+  { state with incomeExpenseComparison := some comparison, notice := "", scroll := 0 }
 
 
 def withRoleBalanceSnapshot
@@ -150,8 +175,10 @@ def withScheduledCoverageSnapshot
 def withError (state : State) (message : String) : State :=
   { state with
       stockFlowSnapshot := none
+      stockFlowComparison := none
       transactions := Loam.Tui.TransactionsFlowPane.initial
       incomeExpenseSnapshot := none
+      incomeExpenseComparison := none
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
@@ -162,14 +189,37 @@ def withError (state : State) (message : String) : State :=
 private def clearResults (state : State) : State :=
   { state with
       stockFlowSnapshot := none
+      stockFlowComparison := none
       transactions := Loam.Tui.TransactionsFlowPane.initial
       incomeExpenseSnapshot := none
+      incomeExpenseComparison := none
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
       scheduledCoverageSnapshot := none
       scroll := 0 }
 
+
+private def clearComparisonResults (state : State) : State :=
+  { state with
+      stockFlowComparison := none
+      incomeExpenseComparison := none
+      scroll := 0 }
+
+private def beginComparison (state : State) (mode : Mode) : State :=
+  { (clearComparisonResults state) with
+      mode := mode
+      comparison := Loam.Tui.ReportComparison.fromWindow state.window
+      notice := ""
+      scroll := 0 }
+
+private def editComparisonState
+    (state : State) (edit : String → String) : State :=
+  clearComparisonResults {
+    state with
+      comparison := Loam.Tui.ReportComparison.editActive state.comparison edit
+      notice := ""
+  }
 
 private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
   let next := (form.focus.val + 1) % 2
@@ -284,6 +334,59 @@ private def queryForMode (state : State) : Option Query :=
   | .incomeExpense => some (.incomeExpenseFlow state.window.form.start state.window.form.endExclusive)
   | .budgetWindow => some (.budgetWindow state.window.form.start state.window.form.endExclusive)
   | _ => none
+
+private def comparisonQueryForMode (state : State) : Option Query :=
+  let form := state.comparison
+  match state.mode with
+  | .stockFlowCompare =>
+      some (.stockFlowCompare
+        form.leftStart form.leftEndExclusive form.rightStart form.rightEndExclusive)
+  | .incomeExpenseCompare =>
+      some (.incomeExpenseCompare
+        form.leftStart form.leftEndExclusive form.rightStart form.rightEndExclusive)
+  | _ => none
+
+private def updateComparison
+    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  match key with
+  | .escape | .input 'q' | .input 'Q' =>
+      let mode :=
+        match state.mode with
+        | .stockFlowCompare => Mode.stockFlow
+        | .incomeExpenseCompare => Mode.incomeExpense
+        | other => other
+      { state := { state with mode := mode, notice := "", scroll := 0 } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
+  | .tab =>
+      { state := { state with
+          comparison := Loam.Tui.ReportComparison.moveFocus state.comparison false
+          notice := "" } }
+  | .shiftTab =>
+      { state := { state with
+          comparison := Loam.Tui.ReportComparison.moveFocus state.comparison true
+          notice := "" } }
+  | .backspace =>
+      if state.comparison.focus.val < 4 then
+        { state := editComparisonState state
+            (fun text => String.ofList text.toList.dropLast) }
+      else
+        { state }
+  | .input char =>
+      if state.comparison.focus.val < 4 then
+        { state := editComparisonState state (fun text => text.push char) }
+      else
+        { state }
+  | .enter =>
+      if state.comparison.focus.val < 4 then
+        { state := { state with
+            comparison := Loam.Tui.ReportComparison.moveFocus state.comparison false
+            notice := "" } }
+      else
+        { state, query := comparisonQueryForMode state }
+  | _ => { state }
 
 private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
@@ -432,10 +535,20 @@ private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step
 def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match state.mode with
   | .menu => updateMenu state key
-  | .stockFlow => updateWindowReport state key
+  | .stockFlow =>
+      match key with
+      | .input 'c' | .input 'C' =>
+          { state := beginComparison state .stockFlowCompare }
+      | _ => updateWindowReport state key
+  | .stockFlowCompare => updateComparison state key
   | .transactionsFlow => updateTransactionsFlow state key
   | .budgetWindow => updateWindowReport state key
-  | .incomeExpense => updateWindowReport state key
+  | .incomeExpense =>
+      match key with
+      | .input 'c' | .input 'C' =>
+          { state := beginComparison state .incomeExpenseCompare }
+      | _ => updateWindowReport state key
+  | .incomeExpenseCompare => updateComparison state key
   | .balances => updateBalances state key
   | .liquidity => updateLiquidity state key
   | .scheduledCoverage => updateScheduledCoverage state key
