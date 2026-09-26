@@ -29,7 +29,8 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.AttentionReview
-import Loam.BalanceReview
+import Loam.BalanceViewConfig
+import Loam.RoleBalanceReview
 import Loam.CapacityReview
 import Loam.ActualRoutingReview
 import Loam.Tui.Main
@@ -331,21 +332,31 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'b' || key = .input 'B') then
-    match ← Loam.BalanceReview.loadSnapshot dataDir root with
-    | .error message =>
-        let home := { state with notice := unavailableNotice "Balances" message }
+    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
+    | none =>
+        let home := {
+          state with
+          notice := unavailableNotice "Balances" "loam: malformed or unsupported balance-view config"
+        }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         loop bounds dataDir root snapshot home nextFrame
-    | .ok balanceSnapshot =>
-        let balances := Loam.Tui.Balances.initial balanceSnapshot
-        let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
-        balancesLoop bounds balances balancesFrame
-        let home := { state with notice := "" }
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-        loop bounds dataDir root snapshot home nextFrame
+    | some selected =>
+        match ← Loam.RoleBalanceReview.loadSnapshot dataDir root with
+        | .error message =>
+            let home := { state with notice := unavailableNotice "Balances" message }
+            let nextFrame := compiledFrameFor bounds snapshot home
+            Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+            loop bounds dataDir root snapshot home nextFrame
+        | .ok balanceSnapshot =>
+            let balances := Loam.Tui.Balances.initial balanceSnapshot selected
+            let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
+            Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
+            balancesLoop bounds balances balancesFrame
+            let home := { state with notice := "" }
+            let nextFrame := compiledFrameFor bounds snapshot home
+            Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+            loop bounds dataDir root snapshot home nextFrame
   else if Loam.Tui.CycleBudget.isHomeEntrance key then
     let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
     let purposeMetadata ← currentPurposeMetadata dataDir
