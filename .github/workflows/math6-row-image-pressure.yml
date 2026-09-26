@@ -28,4 +28,11 @@ jobs:
         with:
           build-args: Loam.TransactionsFlowReview
       - name: Run paired MATH-6 benchmark
-        run: lake env lean --run Loam/Tests/TransactionsFlowSharedImageBenchmark.lean
+        run: |
+          echo "=== MATH-6 shared Transactions-Flow row image pressure ==="
+          echo "events | duplicate row image | shared row image | speedup"
+          for n in 1000 5000 10000 25000; do
+            lake env lean --run Loam/Tests/TransactionsFlowSharedImageBenchmark.lean "$n"
+          done
+          echo
+          echo "Runtime-sized fixtures; benchmark isolates repeated stage-2 row-image construction."
