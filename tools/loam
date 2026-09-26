@@ -20,21 +20,6 @@ run_target() {
   fi
 }
 
-run_web() {
-  local data_dir="${1:-${LOAM_DATA_DIR:-../loam-data}}"
-  local build_log
-
-  build_log="$(mktemp -t loam-web-build.XXXXXX)"
-  if ! lake build loamWeb >"$build_log" 2>&1; then
-    cat "$build_log" >&2
-    rm -f "$build_log"
-    return 1
-  fi
-  rm -f "$build_log"
-
-  exec python3 "$root/tools/loam_web_server.py"     "$root/.lake/build/bin/loamWeb" "$data_dir"
-}
-
 print_help() {
   cat <<'EOF'
 LOAM practical dogfood
@@ -42,11 +27,6 @@ LOAM practical dogfood
 Open the production TUI (also the default with no arguments):
   ./tools/loam
   ./tools/loam tui [LOAM_DATA_DIR]
-
-Open the local Web frontend:
-  ./tools/loam web [LOAM_DATA_DIR]
-  Re-reads shared Review answers on every request at http://127.0.0.1:8765.
-  Record uses explicit Review -> Confirm and the existing household command boundary.
 
 Diagnose whether the New-only production startup read boundary is coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
@@ -110,11 +90,6 @@ EOF
 
 if [[ $# -eq 0 ]]; then
   run_target loam
-fi
-
-if [[ "${1:-}" == "web" ]]; then
-  shift
-  run_web "$@"
 fi
 
 if [[ "${1:-}" == "shadow-audit" ]]; then
