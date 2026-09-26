@@ -31,9 +31,10 @@ def admittedOriginalAmounts?
     (corrections : EventCorrectionMemory)
     (memory : OriginalAmountEvidenceMemory) :
     Option OriginalAmountEvidenceMemory := do
+  let readmitted ← OriginalAmountEvidenceMemory.ofEntries? memory.entries
   let roots ← correctionRootIds? events corrections
-  if memory.entries.all (fun entry => roots.contains entry.event) then
-    some memory
+  if readmitted.entries.all (fun entry => roots.contains entry.event) then
+    some readmitted
   else
     none
 
