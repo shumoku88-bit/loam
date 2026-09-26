@@ -2,6 +2,8 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.BalanceReview
+import Loam.CurrentBalanceReview
+import Loam.HistoricalBalanceReview
 import Loam.HouseholdPaths
 
 namespace Loam.StockFlowReview
@@ -13,20 +15,20 @@ set_option autoImplicit false
 /-!
 # Shared Stock–Flow review
 
-This report boundary derives one explicit half-open window over the same
-correction-aware Actual records and selected current balances already used by
-production surfaces. It does not infer accounting roles or retain opening/closing
-report state.
+Stock–Flow now consumes the shared historical-balance boundary rather than
+assuming every selected coordinate has zero-origin history.
 
-Because selected balances are admitted only through `BalanceReview`, every
-selected coordinate already carries explicit zero-origin evidence. One
-Stock-Flow answer is single-Measure: any Measure is supported, but unlike
-Measures are never arithmetically mixed into one Quantity. The selected Measure
-is carried with the answer instead of being inferred by a renderer. Historical
-window boundaries can therefore be reconstructed by summing the current Event
-frontier before each boundary. A current selected Event without a usable date
-refuses the report because it cannot safely be placed on either side of a
-boundary.
+For each selected coordinate, historical start quantity may be justified by:
+
+- exact `ZeroOriginCoverage` forward reconstruction; or
+- `BoundedHistorySupport + CurrentQuantityAnchor` backward reconstruction.
+
+Current tracked quantity is independently supplied by `CurrentBalanceReview`.
+The window flow itself remains ordinary dated, correction-aware Actual. No
+opening quantity, closing quantity, or report snapshot becomes canonical state.
+
+One Stock–Flow answer remains single-Measure. Unlike Measures are never summed
+into one Quantity.
 -/
 
 structure Snapshot where
@@ -43,11 +45,10 @@ structure Snapshot where
 def Snapshot.netChange (snapshot : Snapshot) : Quantity :=
   snapshot.increasesAcrossEvents + snapshot.decreasesAcrossEvents
 
-/-- Exact reconstructed end boundary derived after the project parity check. -/
+/-- Exact reconstructed end boundary derived from the supported start plus flow. -/
 def Snapshot.reconstructedEnd (snapshot : Snapshot) : Quantity :=
   snapshot.reconstructedStart + snapshot.netChange
 
-/-- The exposed reconstructed end is exactly start plus the two signed partitions. -/
 @[simp] theorem Snapshot.reconstructedEnd_eq_components (snapshot : Snapshot) :
     snapshot.reconstructedEnd =
       snapshot.reconstructedStart +
@@ -75,72 +76,41 @@ private def eventTrackedQuanta
       if effect.coordinate ∈ coordinates then total + effect.quantity.quanta else total)
     0
 
-private structure Scan where
-  startBoundary : Int
-  endBoundary : Int
-  positiveWindow : Int
-  negativeWindow : Int
+private structure WindowScan where
+  positive : Int
+  negative : Int
 
-private def zeroScan : Scan :=
-  {
-    startBoundary := 0
-    endBoundary := 0
-    positiveWindow := 0
-    negativeWindow := 0
-  }
+private def zeroWindowScan : WindowScan :=
+  { positive := 0, negative := 0 }
 
-private def updateFromQuantity
-    (start endExclusive : String)
-    (state : Scan)
-    (date : String)
-    (quantity : Int) : Scan :=
-  let nextStart :=
-    if decide (date < start) then
-      state.startBoundary + quantity
-    else
-      state.startBoundary
-  let nextEnd :=
-    if decide (date < endExclusive) then
-      state.endBoundary + quantity
-    else
-      state.endBoundary
-  let changes :=
-    if decide (start ≤ date ∧ date < endExclusive) then
-      if quantity > 0 then
-        (state.positiveWindow + quantity, state.negativeWindow)
-      else if quantity < 0 then
-        (state.positiveWindow, state.negativeWindow + quantity)
-      else
-        (state.positiveWindow, state.negativeWindow)
-    else
-      (state.positiveWindow, state.negativeWindow)
-  {
-    startBoundary := nextStart
-    endBoundary := nextEnd
-    positiveWindow := changes.1
-    negativeWindow := changes.2
-  }
+private def updateWindow
+    (state : WindowScan)
+    (quantity : Int) : WindowScan :=
+  if quantity > 0 then
+    { state with positive := state.positive + quantity }
+  else if quantity < 0 then
+    { state with negative := state.negative + quantity }
+  else
+    state
 
 /--
-Scan selected current Records exactly once.
+Scan the selected half-open window exactly once.
 
-For each current Record the selected Event quantity is computed once, then that
-same value drives date admission and all Stock-Flow arithmetic coordinates.
-Superseded Records remain inert, and zero selected quantity still does not
-require an occurrence date.
+Superseded Records remain inert. A current selected nonzero Event must have a
+usable occurrence date before it can be placed inside or outside the window.
 -/
-private def scanRecords
+private def scanWindow
     (coordinates : List EffectCoordinate)
     (start endExclusive : String) :
-    List Loam.ActualReview.Record → Scan → Except String Scan
+    List Loam.ActualReview.Record → WindowScan → Except String WindowScan
   | [], state => .ok state
   | record :: rest, state =>
       if !record.isCurrent then
-        scanRecords coordinates start endExclusive rest state
+        scanWindow coordinates start endExclusive rest state
       else
         let quantity := eventTrackedQuanta coordinates record.event
         if quantity = 0 then
-          scanRecords coordinates start endExclusive rest state
+          scanWindow coordinates start endExclusive rest state
         else
           match record.date with
           | none =>
@@ -148,101 +118,156 @@ private def scanRecords
                 ("loam: stock-flow unavailable: current selected Event " ++
                   record.event.id.token ++ " has no occurrence date")
           | some date =>
-              if Loam.ActualDate.validIsoDate date then
-                scanRecords coordinates start endExclusive rest
-                  (updateFromQuantity start endExclusive state date quantity)
-              else
+              if !Loam.ActualDate.validIsoDate date then
                 .error
                   ("loam: stock-flow unavailable: current selected Event " ++
                     record.event.id.token ++ " has an invalid occurrence date")
+              else if decide (start ≤ date ∧ date < endExclusive) then
+                scanWindow coordinates start endExclusive rest
+                  (updateWindow state quantity)
+              else
+                scanWindow coordinates start endExclusive rest state
 
 private def currentTrackedQuanta (balances : Loam.BalanceReview.Snapshot) : Int :=
   balances.rows.foldl (fun total row => total + row.quantity.quanta) 0
 
+private def historicalStartQuanta
+    (balances : Loam.HistoricalBalanceReview.Snapshot) : Int :=
+  balances.rows.foldl (fun total row => total + row.quantity.quanta) 0
+
+private def historicalCoordinates
+    (balances : Loam.HistoricalBalanceReview.Snapshot) : List EffectCoordinate :=
+  balances.rows.map (fun row => row.coordinate)
+
 /--
-Derive one Stock–Flow answer from already admitted shared review answers.
-The boundary reconstruction uses the current correction frontier represented by
-`ActualReview.Record.isCurrent`; superseded Events never contribute twice.
+Derive one Stock–Flow answer from an exact current balance selection, one
+independently justified historical start boundary, and current-truth Actual
+records.
+
+The historical boundary must answer exactly the same coordinate question as the
+current balance selection. End quantity remains derived as start + window flow.
 -/
 def project
-    (balances : Loam.BalanceReview.Snapshot)
+    (currentBalances : Loam.BalanceReview.Snapshot)
+    (historicalStart : Loam.HistoricalBalanceReview.Snapshot)
     (records : List Loam.ActualReview.Record)
     (start endExclusive : String) : Except String Snapshot := do
   if !Loam.ActualDate.validIsoDate start || !Loam.ActualDate.validIsoDate endExclusive then
     throw "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
   if !(decide (start < endExclusive)) then
     throw "loam: stock-flow start must be earlier than end"
-  let measure ← selectedMeasure? balances
-  let coordinates := selectedCoordinates balances
-  let scan ← scanRecords coordinates start endExclusive records zeroScan
-  let net := scan.positiveWindow + scan.negativeWindow
-
-  if scan.startBoundary + net != scan.endBoundary then
-    throw "loam: stock-flow internal parity failure"
-
+  if historicalStart.startOfDay != start then
+    throw "loam: stock-flow historical balance boundary does not match the requested start"
+  let coordinates := selectedCoordinates currentBalances
+  if historicalCoordinates historicalStart != coordinates then
+    throw "loam: stock-flow historical and current balance selections differ"
+  let measure ← selectedMeasure? currentBalances
+  let scan ← scanWindow coordinates start endExclusive records zeroWindowScan
   return {
     start := start
     endExclusive := endExclusive
     measure := measure
-    reconstructedStart := Quantity.ofQuanta scan.startBoundary
-    increasesAcrossEvents := Quantity.ofQuanta scan.positiveWindow
-    decreasesAcrossEvents := Quantity.ofQuanta scan.negativeWindow
-    currentTracked := Quantity.ofQuanta (currentTrackedQuanta balances)
+    reconstructedStart := Quantity.ofQuanta (historicalStartQuanta historicalStart)
+    increasesAcrossEvents := Quantity.ofQuanta scan.positive
+    decreasesAcrossEvents := Quantity.ofQuanta scan.negative
+    currentTracked := Quantity.ofQuanta (currentTrackedQuanta currentBalances)
   }
 
-private def loadWithinActualObservation
-    (dataDir actualRoot : System.FilePath)
-    (start endExclusive : String) : IO (Except String Snapshot) := do
-  let balances ←
-    match ← Loam.BalanceReview.loadSnapshot dataDir actualRoot with
+/--
+One prepared Stock–Flow read context over a single admitted Actual generation
+and one coherent selection/support read.
+
+It is transient projection material, not retained household state.
+-/
+structure Prepared where
+  image : Loam.ActualAuthority.Image
+  currentBalances : Loam.BalanceReview.Snapshot
+  historicalEvidence : Loam.HistoricalBalanceReview.Evidence
+  records : List Loam.ActualReview.Record
+
+/--
+Prepare the current exact balance selection, historical support families, and
+Actual records from one caller-owned admitted Actual image.
+-/
+def prepareFromActualImage
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image) : IO (Except String Prepared) := do
+  let coordinates ←
+    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
+    | none => return .error "loam: malformed or unsupported balance-view config"
+    | some selected => pure selected.eraseDups
+  let current ←
+    match ← Loam.CurrentBalanceReview.loadSnapshotFromActualImage dataDir image with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
-  let records ←
-    match ← Loam.ActualReview.loadRecordsFromActual actualRoot with
+  let currentBalances ←
+    match Loam.CurrentBalanceReview.selectExact current coordinates with
     | .error message => return .error message
-    | .ok records => pure records
-  return project balances records start endExclusive
+    | .ok snapshot => pure snapshot
+  let historicalEvidence ←
+    match ← Loam.HistoricalBalanceReview.loadEvidence dataDir with
+    | .error message => return .error message
+    | .ok evidence => pure evidence
+  let records := Loam.ActualReview.recordsFromActualImage image
+  return .ok {
+    image := image
+    currentBalances := currentBalances
+    historicalEvidence := historicalEvidence
+    records := records
+  }
+
+/-- Project one explicit window from a prepared coherent read context. -/
+def projectPrepared
+    (prepared : Prepared)
+    (start endExclusive : String) : Except String Snapshot := do
+  if !Loam.ActualDate.validIsoDate start || !Loam.ActualDate.validIsoDate endExclusive then
+    throw "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
+  if !(decide (start < endExclusive)) then
+    throw "loam: stock-flow start must be earlier than end"
+  let coordinates := selectedCoordinates prepared.currentBalances
+  let historicalStart ←
+    Loam.HistoricalBalanceReview.projectStartOfDay
+      prepared.image prepared.historicalEvidence start coordinates
+  project prepared.currentBalances historicalStart prepared.records start endExclusive
 
 /--
 Load one Stock–Flow answer from a caller-supplied admitted Actual image.
 
-This entrance is for composed presentation surfaces that already own one Actual
-generation. Balance selection and zero-origin evidence remain independent
-configuration/evidence gates; only the Actual generation is shared.
+The Actual generation is not reopened. Current balance support and historical
+support remain independent evidence families and fail closed at their shared
+review boundaries.
 -/
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image)
     (start endExclusive : String) : IO (Except String Snapshot) := do
-  let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+  let prepared ←
+    match ← prepareFromActualImage dataDir image with
     | .error message => return .error message
-    | .ok evidence => pure evidence
-  let coordinates ←
-    match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
-    | none => return .error "loam: malformed or unsupported balance-view config"
-    | some selected => pure selected
-  let balances ←
-    match Loam.BalanceReview.projectImage image coverage coordinates with
+    | .ok prepared => pure prepared
+  return projectPrepared prepared start endExclusive
+
+private def loadWithinActualObservation
+    (dataDir : System.FilePath)
+    (actualPath : System.FilePath)
+    (start endExclusive : String) : IO (Except String Snapshot) := do
+  let image ←
+    match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message
-    | .ok snapshot => pure snapshot
-  let records := Loam.ActualReview.recordsFromActualImage image
-  return project balances records start endExclusive
+    | .ok image => pure image
+  loadSnapshotFromActualImage dataDir image start endExclusive
 
 /--
-Load the two existing production read answers and compose them.
+Load one Stock–Flow answer while holding the selected Actual authority stable.
 
-Balance Review and Actual Review both observe normalized `actual.loam`. Their two
-reads therefore run inside one short Actual ownership interval so one Stock–Flow
-answer cannot mix balances from one Actual generation with records from another.
-Canonical interpretation remains owned by the existing readers; this boundary
-adds no second Event decoder or report authority.
+CurrentQuantityAnchor and BoundedHistorySupport writers also acquire Actual
+ownership, so their coupled publication cannot cross this observation window.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   Loam.ActualAuthority.withActualFileOwnership actualPath
-    (loadWithinActualObservation dataDir actualRoot start endExclusive)
+    (loadWithinActualObservation dataDir actualPath start endExclusive)
 
 end Loam.StockFlowReview
