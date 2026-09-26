@@ -330,43 +330,59 @@ private def supersededRecords : List Loam.ActualReview.Record :=
   , record "dated-three" 3 (some "2026-09-10")
   ]
 
+private def samePublicResult
+    (left right : Except String Loam.StockFlowReview.Snapshot) : Bool :=
+  match left, right with
+  | .error leftMessage, .error rightMessage =>
+      leftMessage == rightMessage
+  | .ok leftSnapshot, .ok rightSnapshot =>
+      decide (leftSnapshot = rightSnapshot)
+  | _, _ =>
+      false
+
 example :
-    factorProject balances successRecords "2026-09-01" "2026-10-01" =
-      Loam.StockFlowReview.project
-        balances successRecords "2026-09-01" "2026-10-01" := by
+    samePublicResult
+      (factorProject balances successRecords "2026-09-01" "2026-10-01")
+      (Loam.StockFlowReview.project
+        balances successRecords "2026-09-01" "2026-10-01") = true := by
   native_decide
 
 example :
-    factorProject balances missingRecords "2026-09-01" "2026-10-01" =
-      Loam.StockFlowReview.project
-        balances missingRecords "2026-09-01" "2026-10-01" := by
+    samePublicResult
+      (factorProject balances missingRecords "2026-09-01" "2026-10-01")
+      (Loam.StockFlowReview.project
+        balances missingRecords "2026-09-01" "2026-10-01") = true := by
   native_decide
 
 example :
-    factorProject balances invalidRecords "2026-09-01" "2026-10-01" =
-      Loam.StockFlowReview.project
-        balances invalidRecords "2026-09-01" "2026-10-01" := by
+    samePublicResult
+      (factorProject balances invalidRecords "2026-09-01" "2026-10-01")
+      (Loam.StockFlowReview.project
+        balances invalidRecords "2026-09-01" "2026-10-01") = true := by
   native_decide
 
 example :
-    factorProject balances zeroUndatedRecords "2026-09-01" "2026-10-01" =
-      Loam.StockFlowReview.project
-        balances zeroUndatedRecords "2026-09-01" "2026-10-01" := by
+    samePublicResult
+      (factorProject balances zeroUndatedRecords "2026-09-01" "2026-10-01")
+      (Loam.StockFlowReview.project
+        balances zeroUndatedRecords "2026-09-01" "2026-10-01") = true := by
   native_decide
 
 example :
-    factorProject balances supersededRecords "2026-09-01" "2026-10-01" =
-      Loam.StockFlowReview.project
-        balances supersededRecords "2026-09-01" "2026-10-01" := by
+    samePublicResult
+      (factorProject balances supersededRecords "2026-09-01" "2026-10-01")
+      (Loam.StockFlowReview.project
+        balances supersededRecords "2026-09-01" "2026-10-01") = true := by
   native_decide
 
 /--
 Endpoint refusal has priority even when the record stream itself would fail.
 -/
 example :
-    factorProject balances missingRecords "not-a-date" "2026-10-01" =
-      Loam.StockFlowReview.project
-        balances missingRecords "not-a-date" "2026-10-01" := by
+    samePublicResult
+      (factorProject balances missingRecords "not-a-date" "2026-10-01")
+      (Loam.StockFlowReview.project
+        balances missingRecords "not-a-date" "2026-10-01") = true := by
   native_decide
 
 /--
@@ -374,9 +390,10 @@ Window-order refusal has priority over record-scan refusal after both endpoint
 spellings are valid.
 -/
 example :
-    factorProject balances missingRecords "2026-10-01" "2026-09-01" =
-      Loam.StockFlowReview.project
-        balances missingRecords "2026-10-01" "2026-09-01" := by
+    samePublicResult
+      (factorProject balances missingRecords "2026-10-01" "2026-09-01")
+      (Loam.StockFlowReview.project
+        balances missingRecords "2026-10-01" "2026-09-01") = true := by
   native_decide
 
 /-!
