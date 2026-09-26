@@ -69,22 +69,13 @@ private theorem foldlInsert_perm
       simp
   | cons a rest ih =>
       simp only [List.foldl_cons]
-      calc
-        rest.foldl
-              (fun state a => orderedInsert (r := r) a state)
-              (orderedInsert (r := r) a acc)
-            = rest.foldl
-              (fun state a => orderedInsert (r := r) a state)
-              (orderedInsert (r := r) a acc) := rfl
-        _ = _ := by
-          apply List.Perm.eq_of_eq
-          rfl
+      have hMove :
+          List.Perm ((a :: acc) ++ rest) (acc ++ a :: rest) := by
+        simpa using
+          (List.perm_middle (l₁ := acc) (l₂ := rest) (a := a)).symm
       exact
         (ih (orderedInsert (r := r) a acc)).trans <|
-          ((orderedInsert_perm r a acc).append_right rest).trans <|
-            (by
-              simpa using
-                (List.perm_middle (l₁ := acc) (l₂ := rest) (a := a)).symm)
+          ((orderedInsert_perm r a acc).append_right rest).trans hMove
 
 theorem insertionSorted_perm (xs : List α) :
     List.Perm (insertionSorted r xs) xs := by
