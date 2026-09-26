@@ -77,15 +77,10 @@ import Loam.Observations.Observation316
 import Loam.Observations.Observation317
 import Loam.Observations.Observation318
 import Loam.Observations.Observation319
-import Loam.Observations.Observation320
 import Loam.Observations.Observation321
-import Loam.Observations.Observation322
-import Loam.Observations.Observation323
-import Loam.Observations.Observation324
 import Loam.Observations.Observation325
 import Loam.Observations.Observation326
 import Loam.Observations.Observation327
-import Loam.Observations.Observation328
 import Loam.Observations.Observation329
 import Loam.Observations.Observation330
 import Loam.Observations.Observation331
@@ -95,6 +90,13 @@ import Loam.Observations.Observation334
 import Loam.Observations.Observation335
 import Loam.Observations.Observation336
 import Loam.Observations.Observation337
+
+/-!
+Research compaction note (2026-09-26): Observations 320, 322–324, and 328
+were retired from the live witness umbrella after their conclusions were
+superseded by later general proofs, production promotion, and retained research
+prose. Their source remains available in Git history.
+-/
 
 /-!
 # Selected live Lean research witnesses
