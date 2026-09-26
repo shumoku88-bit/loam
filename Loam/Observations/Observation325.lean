@@ -247,8 +247,20 @@ theorem sparseCellAt_eq_cellAt
       simp [hColumn]
   | some column =>
       simp [hColumn]
-      rw [buildCellIndex_getD_eq_quantityAt]
-      exact Quantity.ofQuanta_quanta _
+      have hCell :=
+        buildCellIndex_getD_eq_quantityAt column.event coordinate
+      calc
+        Quantity.ofQuanta
+            ((buildCellIndex column.event.effects).get?
+              (coordinateKey coordinate)).getD 0 =
+          Quantity.ofQuanta
+            (Event.quantityAt
+              column.event coordinate.locus coordinate.measure).quanta :=
+            congrArg Quantity.ofQuanta hCell
+        _ =
+          Event.quantityAt
+            column.event coordinate.locus coordinate.measure :=
+            Quantity.ofQuanta_quanta _
 
 /-!
 ## Finding
