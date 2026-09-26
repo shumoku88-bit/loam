@@ -1,7 +1,6 @@
 import Loam.ActualEvidence
 import Loam.ActualDate
 import Loam.Core.Event
-import Loam.Core.BalancedMovement
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
@@ -9,7 +8,6 @@ import Loam.Core.EventMerchantEvidence
 import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
-import Loam.Core.ActualReversalBalance
 import Loam.Core.OpenRelation
 import Loam.Application.CorrectionFrontier
 import Loam.Application.ActualValidityFrontier
@@ -58,20 +56,6 @@ private def currentValidityIndex
     (fun index entry => index.insert entry.event.token entry.validOn)
     {}
 
-/--
-Construct the proof-carrying movement projection for one represented Measure.
--/
-private def normalizedMovementForMeasure?
-    (effects : List Effect) (measure : MeasureId) :
-    Option (BalancedMovement LocusId) :=
-  BalancedMovement.ofChanges? measure <|
-    ActualReversalBalance.movementChangesForMeasure measure effects
-
-/-- Check the exact signed total for one Measure without mixing dimensional units. -/
-private def normalizedMeasureBalanced
-    (effects : List Effect) (measure : MeasureId) : Bool :=
-  (normalizedMovementForMeasure? effects measure).isSome
-
 /-- Every retained quantity-bearing Effect must remain nonzero. -/
 private def normalizedEventEffectsNonzero (event : Event) : Bool :=
   event.effects.all fun effect =>
@@ -96,8 +80,8 @@ is admitted once there and the reversal side is then derived from the exact
 inverse proof rather than admitted a second time.
 -/
 private def normalizedEventEffectsBalanced (event : Event) : Bool :=
-  (representedMeasures event.effects).all fun measure =>
-    normalizedMeasureBalanced event.effects measure
+  (Effect.measureTotals event.effects).all fun total =>
+    total.2 == 0
 
 /--
 Occurrence-date strings become production calendar evidence at this boundary,
