@@ -198,8 +198,16 @@ def runAll : IO Unit := do
 
       let expected := referenceSeries? selection records dates
       let actual := fusedSeries? selection records dates
-      unless sameSeriesResult expected actual do
-        throw <| IO.userError s!"semantic mismatch: days={days}, records={n}"
+      match expected, actual with
+      | .error message, _ =>
+          throw <| IO.userError s!"reference fixture failed: days={days}, records={n}: {message}"
+      | _, .error message =>
+          throw <| IO.userError s!"fused fixture failed: days={days}, records={n}: {message}"
+      | .ok expectedValues, .ok actualValues =>
+          unless expectedValues == actualValues do
+            throw <| IO.userError s!"semantic mismatch: days={days}, records={n}"
+          unless expectedValues.length == days do
+            throw <| IO.userError s!"series length mismatch: days={days}, got={expectedValues.length}"
 
       let (referenceUs, forcedRef) ←
         timeMedianUs reps batch fun _ => referenceSeries? selection records dates
