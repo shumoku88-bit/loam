@@ -72,7 +72,10 @@ theorem buildSupport_contains_eq_mem
                 eq_of_beq h
               exact False.elim (hKey hEq)
         rw [hBeq]
-        simp [hCoordinate, ih]
+        have hCoordinateRev : coordinate ≠ head := by
+          intro h
+          exact hCoordinate h.symm
+        simp [hCoordinate, hCoordinateRev, ih]
 
 private def trackedQuantaList
     (coordinates : List EffectCoordinate)
@@ -172,13 +175,11 @@ theorem trackedQuantaList_eraseDups
         simp
       by_cases h : effect.coordinate ∈ coordinates
       · have hDup : effect.coordinate ∈ coordinates.eraseDups := hMem.mpr h
-        simp [h, hDup]
-        exact ih coordinates
+        simp [h, hDup, ih]
       · have hDup : effect.coordinate ∉ coordinates.eraseDups := by
           intro hIn
           exact h (hMem.mp hIn)
-        simp [h, hDup]
-        exact ih coordinates
+        simp [h, hDup, ih]
 
 /-!
 ## Finding
