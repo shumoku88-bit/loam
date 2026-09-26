@@ -95,8 +95,9 @@ quantity changes, not inferred income, expense, debit, credit, or transfer edges
 private def presentTransactionsFlow
     (snapshot : Loam.TransactionsFlowReview.Snapshot) : TransactionsFlow :=
   let rows :=
-    (snapshot.rows.map fun coordinate =>
-      let activity := Loam.TransactionsFlowReview.rowActivity snapshot coordinate
+    (snapshot.rowActivities.map fun entry =>
+      let coordinate := entry.1
+      let activity := entry.2
       {
         coordinate := coordinate
         net := activity.net

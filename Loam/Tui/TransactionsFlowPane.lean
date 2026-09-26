@@ -52,8 +52,7 @@ private def rowLe
 def rows
     (snapshot : Loam.TransactionsFlowReview.Snapshot) :
     List (Loam.Core.EffectCoordinate × Loam.TransactionsFlowReview.RowActivity) :=
-  (snapshot.rows.map fun coordinate =>
-      (coordinate, Loam.TransactionsFlowReview.rowActivity snapshot coordinate))
+  snapshot.rowActivities
     |>.filter (fun row => row.2.activeEvents > 0)
     |>.mergeSort rowLe
 

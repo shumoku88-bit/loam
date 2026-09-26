@@ -1,6 +1,7 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
+import Std.Data.HashMap
 
 namespace Loam.TransactionsFlowReview
 
@@ -110,6 +111,65 @@ private def coordinateLe (left right : EffectCoordinate) : Bool :=
   else
     left.locus.token <= right.locus.token
 
+private abbrev CoordinateKey := String × String
+private abbrev CellIndex := Std.HashMap CoordinateKey Int
+private abbrev ActivityState := Int × Int × Nat
+private abbrev RowIndex := Std.HashMap CoordinateKey ActivityState
+
+private def coordinateKey (coordinate : EffectCoordinate) : CoordinateKey :=
+  (coordinate.locus.token, coordinate.measure.token)
+
+private def coordinateOfKey (key : CoordinateKey) : EffectCoordinate :=
+  { locus := ⟨key.1⟩, measure := ⟨key.2⟩ }
+
+private def buildCellIndex : List Effect → CellIndex
+  | [] => {}
+  | effect :: rest =>
+      let index := buildCellIndex rest
+      let key := coordinateKey effect.coordinate
+      let prior := (index.get? key).getD 0
+      index.insert key (effect.quantity.quanta + prior)
+
+private def advanceActivity
+    (state : ActivityState) (quantity : Int) : ActivityState :=
+  if quantity > 0 then
+    (state.1 + quantity, state.2.1, state.2.2 + 1)
+  else if quantity < 0 then
+    (state.1, state.2.1 + quantity, state.2.2 + 1)
+  else
+    state
+
+private def updateRow
+    (cells : CellIndex)
+    (index : RowIndex)
+    (key : CoordinateKey) : RowIndex :=
+  index.insert key <|
+    advanceActivity
+      ((index.get? key).getD (0, 0, 0))
+      ((cells.get? key).getD 0)
+
+private def updateRows
+    (cells : CellIndex) :
+    List CoordinateKey → RowIndex → RowIndex
+  | [], index => index
+  | key :: rest, index =>
+      updateRows cells rest (updateRow cells index key)
+
+private def updateColumnRows
+    (index : RowIndex) (column : Column) : RowIndex :=
+  let cells := buildCellIndex column.event.effects
+  updateRows cells cells.keys index
+
+private def activityFromState (state : ActivityState) : RowActivity :=
+  {
+    positive := Quantity.ofQuanta state.1
+    negative := Quantity.ofQuanta state.2.1
+    activeEvents := state.2.2
+  }
+
+private def buildRowIndex (columns : List Column) : RowIndex :=
+  columns.foldl updateColumnRows {}
+
 private def rowsFromColumns (columns : List Column) : List EffectCoordinate :=
   (columns.flatMap fun column =>
     column.event.effects.map fun effect => effect.coordinate)
@@ -119,6 +179,20 @@ private def rowsFromColumns (columns : List Column) : List EffectCoordinate :=
 /-- Exact represented row coordinates, derived from the selected Event columns. -/
 def Snapshot.rows (snapshot : Snapshot) : List EffectCoordinate :=
   rowsFromColumns snapshot.columns
+
+/--
+Bulk coordinate activity derived in one sparse pass over the selected Event
+columns.
+
+This is transient read acceleration only. Selected Columns remain the evidence
+authority, and `rowActivity` remains the direct single-coordinate specification.
+Coordinates are returned in the same lexical order as `Snapshot.rows`.
+-/
+def Snapshot.rowActivities
+    (snapshot : Snapshot) : List (EffectCoordinate × RowActivity) :=
+  ((buildRowIndex snapshot.columns).toList.map fun entry =>
+      (coordinateOfKey entry.1, activityFromState entry.2))
+    |>.mergeSort fun left right => coordinateLe left.1 right.1
 
 private def columnOfRecord? (record : Loam.ActualReview.Record) : Option Column := do
   let date ← record.date
