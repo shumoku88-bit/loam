@@ -78,6 +78,10 @@ private structure RoleGap where
 private def roleGaps (snapshot : Loam.RoleBalanceReview.Snapshot) : List RoleGap :=
   snapshot.unresolvedRoles.map (fun row =>
     { coordinate := row.coordinate, quantity := some row.quantity }) ++
+  snapshot.knownPresentBalances.filterMap (fun row =>
+    match row.role with
+    | some _ => none
+    | none => some { coordinate := row.coordinate, quantity := none }) ++
   snapshot.unsupportedBalances.filterMap fun row =>
     match row.role with
     | some _ => none
@@ -91,7 +95,7 @@ private def balanceMeasures (snapshot : Loam.RoleBalanceReview.Snapshot) : List 
       else
         measures)
     []
-  let unsupported := snapshot.unsupportedBalances.foldl
+  let presentUnknown := snapshot.knownPresentBalances.foldl
     (fun measures row =>
       match row.role with
       | some role =>
@@ -101,6 +105,16 @@ private def balanceMeasures (snapshot : Loam.RoleBalanceReview.Snapshot) : List 
             measures
       | none => measures)
     supported
+  let unsupported := snapshot.unsupportedBalances.foldl
+    (fun measures row =>
+      match row.role with
+      | some role =>
+          if isBalanceSheetRole role then
+            addMeasureIfAbsent measures row.coordinate.measure
+          else
+            measures
+      | none => measures)
+    presentUnknown
   (roleGaps snapshot).foldl
     (fun measures row => addMeasureIfAbsent measures row.coordinate.measure)
     unsupported
@@ -153,6 +167,28 @@ private def stockUnsupportedFor
     else
       false
 
+private def stockKnownPresentFor
+    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (measure : MeasureId) : List Loam.RoleBalanceReview.KnownPresentBalance :=
+  snapshot.knownPresentBalances.filter fun row =>
+    if decide (row.coordinate.measure = measure) then
+      match row.role with
+      | some role => isBalanceSheetRole role
+      | none => false
+    else
+      false
+
+private def netWorthKnownPresentFor
+    (snapshot : Loam.RoleBalanceReview.Snapshot)
+    (measure : MeasureId) : List Loam.RoleBalanceReview.KnownPresentBalance :=
+  snapshot.knownPresentBalances.filter fun row =>
+    if decide (row.coordinate.measure = measure) then
+      match row.role with
+      | some role => isNetWorthRole role
+      | none => false
+    else
+      false
+
 private def netWorthUnsupportedFor
     (snapshot : Loam.RoleBalanceReview.Snapshot)
     (measure : MeasureId) : List Loam.RoleBalanceReview.UnsupportedBalance :=
@@ -189,6 +225,15 @@ private def unsupportedLine
     ("  ? " ++ Loam.Tui.Layout.padRight 28 row.coordinate.locus.token ++
       " balance unsupported  " ++ row.coordinate.measure.token ++ "  " ++ role)
 
+private def knownPresentLine
+    (row : Loam.RoleBalanceReview.KnownPresentBalance) : Widget :=
+  let role := match row.role with
+    | some value => roleLabel value
+    | none => "Unresolved role"
+  line
+    ("  ? " ++ Loam.Tui.Layout.padRight 28 row.coordinate.locus.token ++
+      " amount unknown, known present  " ++ row.coordinate.measure.token ++ "  " ++ role)
+
 private def unresolvedLine (row : RoleGap) : Widget :=
   let quantity := match row.quantity with
     | some value => signedQuanta value
@@ -204,15 +249,37 @@ private def quantitySupportedCount
 
 private def totalCoordinateCount
     (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  quantitySupportedCount snapshot + snapshot.unsupportedBalances.length
+  quantitySupportedCount snapshot +
+    snapshot.knownPresentBalances.length +
+    snapshot.unsupportedBalances.length
 
 private def classifiedUnsupportedCount
     (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
   (snapshot.unsupportedBalances.filter fun row => row.role.isSome).length
 
+private def classifiedKnownPresentCount
+    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
+  (snapshot.knownPresentBalances.filter fun row => row.role.isSome).length
+
 private def roleClassifiedCount
     (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  snapshot.rows.length + classifiedUnsupportedCount snapshot
+  snapshot.rows.length + classifiedKnownPresentCount snapshot + classifiedUnsupportedCount snapshot
+
+private def balanceSheetKnownPresent
+    (snapshot : Loam.RoleBalanceReview.Snapshot) :
+    List Loam.RoleBalanceReview.KnownPresentBalance :=
+  snapshot.knownPresentBalances.filter fun row =>
+    match row.role with
+    | some role => isBalanceSheetRole role
+    | none => false
+
+private def netWorthKnownPresent
+    (snapshot : Loam.RoleBalanceReview.Snapshot) :
+    List Loam.RoleBalanceReview.KnownPresentBalance :=
+  snapshot.knownPresentBalances.filter fun row =>
+    match row.role with
+    | some role => isNetWorthRole role
+    | none => false
 
 private def balanceSheetUnsupported
     (snapshot : Loam.RoleBalanceReview.Snapshot) :
@@ -251,6 +318,16 @@ private def answerabilitySupportGapLine
     ("  [quantity] " ++ row.coordinate.locus.token ++ " / " ++
       row.coordinate.measure.token ++ "  " ++ role)
 
+private def answerabilityKnownPresentLine
+    (row : Loam.RoleBalanceReview.KnownPresentBalance) : Widget :=
+  let role := match row.role with
+    | some value => roleLabel value
+    | none => "Unresolved role"
+  line
+    ("  [amount] " ++ row.coordinate.locus.token ++ " / " ++
+      row.coordinate.measure.token ++ "  " ++ role ++
+      "  known present, exact amount unknown")
+
 private def answerabilityRoleGapLine (row : RoleGap) : Widget :=
   let quantityState := if row.quantity.isSome then "quantity known" else "quantity also unsupported"
   line
@@ -262,6 +339,8 @@ private def answerabilityMapLines
   let total := totalCoordinateCount snapshot
   let quantitySupported := quantitySupportedCount snapshot
   let roleClassified := roleClassifiedCount snapshot
+  let stockKnownPresent := balanceSheetKnownPresent snapshot
+  let netWorthKnownPresentRows := netWorthKnownPresent snapshot
   let stockBlockers := balanceSheetUnsupported snapshot
   let netWorthBlockers := netWorthUnsupported snapshot
   let unresolved := roleGaps snapshot
@@ -277,13 +356,15 @@ private def answerabilityMapLines
         toString total ++ " coordinates")
   , line
       ("  Balance Sheet            " ++
-        answerabilityStatus stockBlockers.length roleBlockers ++
-        "  (" ++ toString stockBlockers.length ++ " quantity, " ++
+        answerabilityStatus (stockKnownPresent.length + stockBlockers.length) roleBlockers ++
+        "  (" ++ toString stockKnownPresent.length ++ " amount-unknown, " ++
+        toString stockBlockers.length ++ " unsupported, " ++
         toString roleBlockers ++ " role blockers)")
   , line
       ("  Net Worth                " ++
-        answerabilityStatus netWorthBlockers.length roleBlockers ++
-        "  (" ++ toString netWorthBlockers.length ++ " quantity, " ++
+        answerabilityStatus (netWorthKnownPresentRows.length + netWorthBlockers.length) roleBlockers ++
+        "  (" ++ toString netWorthKnownPresentRows.length ++ " amount-unknown, " ++
+        toString netWorthBlockers.length ++ " unsupported, " ++
         toString roleBlockers ++ " role blockers)")
   , line
       ("  Trial Balance frontier   " ++ toString quantitySupported ++ " / " ++
@@ -294,7 +375,9 @@ private def answerabilityMapLines
   , blank
   , muted "Next evidence targets for Balance Sheet / Net Worth:"
   ] ++
-  (if stockBlockers.isEmpty then
+  (if stockKnownPresent.isEmpty then [] else
+    stockKnownPresent.map answerabilityKnownPresentLine) ++
+  (if stockBlockers.isEmpty && stockKnownPresent.isEmpty then
     [muted "  No classified stock-role quantity blockers."]
    else
     stockBlockers.map answerabilitySupportGapLine) ++
@@ -302,18 +385,23 @@ private def answerabilityMapLines
     [muted "  No unresolved AccountingRole blockers."]
    else
     unresolved.map answerabilityRoleGapLine) ++
-  [ muted "For a quantity blocker, explicit support can be zero-origin or an opening witness."
+  [ muted "Known-present evidence proves existence, not an arithmetic amount."
+  , muted "For an unsupported quantity blocker, explicit support can be zero-origin, opening, or an exact current anchor."
   , muted "Add zero-origin only when retained history really begins at zero; never add it just to erase '?'."
   , muted "Flow-role gaps remain visible in the Trial Balance frontier but are lower priority for stock reports."
   ]
 
 private def measureBalanceLines
     (snapshot : Loam.RoleBalanceReview.Snapshot) (measure : MeasureId) : List Widget :=
+  let stockKnownPresent := stockKnownPresentFor snapshot measure
+  let netWorthKnownPresent := netWorthKnownPresentFor snapshot measure
   let stockUnsupported := stockUnsupportedFor snapshot measure
   let netWorthUnsupported := netWorthUnsupportedFor snapshot measure
   let unresolved := unresolvedFor snapshot measure
-  let balanceSheetComplete := stockUnsupported.isEmpty && unresolved.isEmpty
-  let netWorthComplete := netWorthUnsupported.isEmpty && unresolved.isEmpty
+  let balanceSheetComplete :=
+    stockKnownPresent.isEmpty && stockUnsupported.isEmpty && unresolved.isEmpty
+  let netWorthComplete :=
+    netWorthKnownPresent.isEmpty && netWorthUnsupported.isEmpty && unresolved.isEmpty
   let netWorth := knownNetWorth snapshot measure
   [ line ("Measure: " ++ measure.token)
   , muted "Balance Sheet-shaped supported rows"
@@ -328,6 +416,9 @@ private def measureBalanceLines
        else
         "Balance Sheet support: INCOMPLETE")
   ] ++
+  (if stockKnownPresent.isEmpty then [] else
+    [muted "Known stock-role balances whose exact amount is unknown:"] ++
+      stockKnownPresent.map knownPresentLine) ++
   (if stockUnsupported.isEmpty then [] else
     [muted "Known stock-role coordinates without current balance support:"] ++
       stockUnsupported.map unsupportedLine) ++
@@ -352,6 +443,11 @@ private def trialSupportedLine (row : Loam.RoleBalanceReview.Row) : Widget :=
       Loam.Tui.Layout.padRight 10 row.coordinate.measure.token ++
       roleLabel row.role)
 
+private def classifiedKnownPresent
+    (snapshot : Loam.RoleBalanceReview.Snapshot) :
+    List Loam.RoleBalanceReview.KnownPresentBalance :=
+  snapshot.knownPresentBalances.filter fun row => row.role.isSome
+
 private def classifiedUnsupported
     (snapshot : Loam.RoleBalanceReview.Snapshot) :
     List Loam.RoleBalanceReview.UnsupportedBalance :=
@@ -360,14 +456,15 @@ private def classifiedUnsupported
 private def trialBalanceLines (snapshot : Loam.RoleBalanceReview.Snapshot) : List Widget :=
   let supported := snapshot.rows.mergeSort rowLe
   let unresolved := roleGaps snapshot
+  let knownPresent := classifiedKnownPresent snapshot
   let unsupported := classifiedUnsupported snapshot
   [ line "Trial Balance-shaped frontier"
   , muted "Every current coordinate belongs to this support question; role totals are not substituted for rows."
   , line
-      (if snapshot.unsupportedBalances.isEmpty then
-        "Quantity support: COMPLETE"
+      (if snapshot.knownPresentBalances.isEmpty && snapshot.unsupportedBalances.isEmpty then
+        "Exact quantity support: COMPLETE"
        else
-        "Quantity support: INCOMPLETE")
+        "Exact quantity support: INCOMPLETE")
   , line
       (if unresolved.isEmpty then
         "Role classification: COMPLETE"
@@ -381,6 +478,9 @@ private def trialBalanceLines (snapshot : Loam.RoleBalanceReview.Snapshot) : Lis
     supported.map trialSupportedLine) ++
   (if unresolved.isEmpty then [] else
     [blank, muted "Unresolved role frontier:"] ++ unresolved.map unresolvedLine) ++
+  (if knownPresent.isEmpty then [] else
+    [blank, muted "Known-present balances with unknown exact amount:"] ++
+      knownPresent.map knownPresentLine) ++
   (if unsupported.isEmpty then [] else
     [blank, muted "Classified coordinates without current balance support:"] ++
       unsupported.map unsupportedLine)
