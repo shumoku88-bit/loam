@@ -48,6 +48,7 @@ def validFixtureWire : String :=
   "DISCHARGE\trel-loan\t400\n" ++
   "ENDTX\n" ++
   "TX\tev-corr-target\t2026-09-06\tNODESC\n" ++
+  "ORIGINAL-AMOUNT\tusd\t3000\n" ++
   "EFFECT\twallet\tjpy\t-100\n" ++
   "EFFECT\tbank\tjpy\t100\n" ++
   "ENDTX\n" ++
@@ -100,6 +101,27 @@ def main : IO Unit := do
   expect (evidence1.movementOperations.findOperation? ⟨"ev-root"⟩ ==
       some ⟨"proposal-root"⟩)
     "ev-root did not resolve back to its Movement operation identity"
+
+  -- 1ab. Original amount is retained at the stable correction root and projects
+  -- to the current terminal Event without rewriting the stored subject.
+  let originalAtRoot ← requireSome
+    (evidence1.originalAmounts.findByEvent? ⟨"ev-corr-target"⟩)
+    "original amount missing from stable correction root"
+  expect (originalAtRoot.measure.token == "usd" &&
+      originalAtRoot.quantity.quanta == 3000)
+    "original amount decoded incorrectly"
+  let currentOriginals ← requireSome
+    (currentOriginalAmounts?
+      evidence1.events evidence1.corrections evidence1.originalAmounts)
+    "current original amount projection failed"
+  match currentOriginals with
+  | [entry] =>
+      expect (entry.event == ⟨"ev-corr-r2"⟩ &&
+          entry.measure.token == "usd" &&
+          entry.quantity.quanta == 3000)
+        "original amount did not follow correction root to terminal Event"
+  | _ =>
+      throw <| IO.userError "unexpected current original amount projection shape"
 
   -- 1b. Aggregate validity facts must not name Events outside the generation.
   let orphanValidity ← requireSome
@@ -198,6 +220,8 @@ def main : IO Unit := do
     "encoded wire lost explicit nonmerchant evidence"
   expect ((encodedWire.splitOn "OPERATION\tproposal-root").length == 2)
     "encoded wire lost Movement operation evidence"
+  expect ((encodedWire.splitOn "ORIGINAL-AMOUNT\tusd\t3000").length == 2)
+    "encoded wire lost OriginalAmount evidence"
 
   -- 5. Decode again and verify semantic round-trip
   let evidence2 ← requireSome (decodeNormalizedActual? encodedWire)
@@ -209,6 +233,9 @@ def main : IO Unit := do
   expect (evidence1.movementOperations.entries.length ==
       evidence2.movementOperations.entries.length)
     "round trip changed Movement operation evidence count"
+  expect (evidence1.originalAmounts.entries.length ==
+      evidence2.originalAmounts.entries.length)
+    "round trip changed OriginalAmount evidence count"
   expect (evidence1.relations.length == evidence2.relations.length)
     "round trip changed relation count"
   expect (evidence1.discharges.length == evidence2.discharges.length)
@@ -605,6 +632,72 @@ def main : IO Unit := do
     "ENDTX\n"
   let _ ← requireSome (decodeNormalizedActual? balancedUsd)
     "normalized Actual incorrectly imposed the practical JPY operation contract"
+
+  -- 7a. Original amount is Measure-neutral: EUR accounting may retain JPY
+  -- merchant-presented amount without creating a JPY Effect.
+  let eurDebitJpyOriginal :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\teur-debit-japan\t2026-09-10\tNODESC\n" ++
+    "ORIGINAL-AMOUNT\tjpy\t5000\n" ++
+    "EFFECT\tbank-eur\teur\t-3120\n" ++
+    "EFFECT\ttransport\teur\t3120\n" ++
+    "ENDTX\n"
+  let eurEvidence ← requireSome (decodeNormalizedActual? eurDebitJpyOriginal)
+    "EUR accounting with JPY original amount was rejected"
+  let eurOriginal ← requireSome
+    (eurEvidence.originalAmounts.findByEvent? ⟨"eur-debit-japan"⟩)
+    "JPY original amount missing from EUR accounting Event"
+  expect (eurOriginal.measure.token == "jpy" &&
+      eurOriginal.quantity.quanta == 5000)
+    "Measure-neutral original amount decoded incorrectly"
+
+  -- 7b. OriginalAmountEvidence must be anchored to a stable correction root,
+  -- not directly to a replacement Event.
+  let originalOnReplacement :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\toriginal-root\t2026-09-10\tNODESC\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "EFFECT\tfood\tjpy\t100\n" ++
+    "ENDTX\n" ++
+    "TX\toriginal-replacement\t2026-09-10\tNODESC\n" ++
+    "REPLACES\toriginal-root\n" ++
+    "ORIGINAL-AMOUNT\tusd\t1000\n" ++
+    "EFFECT\tbank\tjpy\t-110\n" ++
+    "EFFECT\tfood\tjpy\t110\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? originalOnReplacement)
+    "admitted OriginalAmountEvidence anchored directly to a correction replacement"
+
+  -- 7c. One Event root may retain at most one original amount.
+  let duplicateOriginalAmount :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\toriginal-duplicate\t2026-09-10\tNODESC\n" ++
+    "ORIGINAL-AMOUNT\tusd\t1000\n" ++
+    "ORIGINAL-AMOUNT\teur\t900\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "EFFECT\tfood\tjpy\t100\n" ++
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed duplicateOriginalAmount with
+  | .error (.parse { reason := .duplicateOriginalAmount, .. }) => pure ()
+  | .error err =>
+      throw <| IO.userError s!"expected duplicateOriginalAmount parse failure, got: {err}"
+  | .ok _ =>
+      throw <| IO.userError "expected duplicate original amount to fail"
+
+  -- 7d. Zero and negative original amounts are outside the retained evidence meaning.
+  let zeroOriginalAmount :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\toriginal-zero\t2026-09-10\tNODESC\n" ++
+    "ORIGINAL-AMOUNT\tusd\t0\n" ++
+    "EFFECT\tbank\tjpy\t-100\n" ++
+    "EFFECT\tfood\tjpy\t100\n" ++
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed zeroOriginalAmount with
+  | .error (.construction .originalAmountMemory) => pure ()
+  | .error err =>
+      throw <| IO.userError s!"expected originalAmountMemory construction failure, got: {err}"
+  | .ok _ =>
+      throw <| IO.userError "expected zero original amount to fail"
 
   -- 8. Structured diagnostic parsing tests (detailed decoders)
 

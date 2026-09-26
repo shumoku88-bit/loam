@@ -6,6 +6,7 @@ import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
 import Loam.Core.EventMerchantEvidence
+import Loam.Core.OriginalAmountEvidence
 import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
@@ -15,6 +16,7 @@ import Loam.Application.CorrectionFrontier
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
+import Loam.Application.OriginalAmountFrontier
 import Std.Data.HashMap
 import Std.Data.HashSet
 
@@ -123,11 +125,13 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
   match hFrontierIndexed :
       correctionFrontierMemoryIndexed? evidence.events evidence.corrections corrIndex with
   | none => none
-  | some currentEvents =>
+  | some currentEvents => do
       have hFrontier :
           correctionFrontierMemory? evidence.events evidence.corrections = some currentEvents := by
         rw [← correctionFrontierMemoryIndexed?_eq_correctionFrontierMemory?]
         exact hFrontierIndexed
+      let _ ← admittedOriginalAmounts?
+        evidence.events evidence.corrections evidence.originalAmounts
       match hValidity : admittedActualValidityMemory? evidence.validity with
       | none => none
       | some admittedDates => do
