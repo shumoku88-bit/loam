@@ -2,6 +2,7 @@ import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.BalanceReview
 import Loam.HouseholdPaths
+import Loam.IncomeExpenseProvenanceReview
 import Loam.Persistence.AccountingRolePersistence
 import Loam.RoleFlowReview
 import Loam.StockFlowReview
@@ -71,47 +72,35 @@ def loadStockFlow
     loadStockFlowWithinActualObservation dataDir actualRoot
       leftStart leftEndExclusive rightStart rightEndExclusive
 
-/-- Run role-aware flow twice over one Actual record image and one role relation. -/
+/-- Run the provenance-aware Income / Expense projection twice over one source image. -/
 def incomeExpense
-    (records : List Loam.ActualReview.Record)
-    (roles : AccountingRoleMap)
+    (evidence : Loam.IncomeExpenseProvenanceReview.Evidence)
     (leftStart leftEndExclusive rightStart rightEndExclusive : String) :
-    Except String (Pair Loam.RoleFlowReview.Snapshot) := do
-  let leftFlow ←
-    Loam.TransactionsFlowReview.project records leftStart leftEndExclusive
-  let rightFlow ←
-    Loam.TransactionsFlowReview.project records rightStart rightEndExclusive
-  return {
-    left := Loam.RoleFlowReview.project leftFlow roles
-    right := Loam.RoleFlowReview.project rightFlow roles
-  }
+    Except String (Pair Loam.IncomeExpenseProvenanceReview.Snapshot) := do
+  let left ←
+    Loam.IncomeExpenseProvenanceReview.project
+      evidence leftStart leftEndExclusive
+  let right ←
+    Loam.IncomeExpenseProvenanceReview.project
+      evidence rightStart rightEndExclusive
+  return { left, right }
 
 /--
-Load both Income & Expense source answers from one admitted Actual image and one
-explicit AccountingRole image.
+Load both Income & Expense answers from one coherent Actual/Scheduled source cut.
 
-This adds no P/L or comparison semantics. It only prevents the two visible
-periods from accidentally observing different source generations during one
-comparison request.
+Both visible periods therefore share one correction-aware Actual image, one
+AccountingRole image, and one Scheduled lifecycle observation. Scheduled
+provenance remains an overlay; no comparison arithmetic is introduced here.
 -/
 def loadIncomeExpense
     (dataDir actualRoot : System.FilePath)
     (leftStart leftEndExclusive rightStart rightEndExclusive : String) :
-    IO (Except String (Pair Loam.RoleFlowReview.Snapshot)) := do
-  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
-  let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualPath with
+    IO (Except String (Pair Loam.IncomeExpenseProvenanceReview.Snapshot)) := do
+  let evidence ←
+    match ← Loam.IncomeExpenseProvenanceReview.loadEvidence dataDir actualRoot with
+    | .ok evidence => pure evidence
     | .error message => return .error message
-    | .ok image => pure image
-  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolesPath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
-  let roles ←
-    match ← loadAccountingRoleMap? rolesPath with
-    | some roles => pure roles
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
-  let records := Loam.ActualReview.recordsFromActualImage image
-  return incomeExpense records roles
+  return incomeExpense evidence
     leftStart leftEndExclusive rightStart rightEndExclusive
 
 end Loam.PeriodComparisonReview
