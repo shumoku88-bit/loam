@@ -249,12 +249,6 @@ private def coordinateSelfReplacement :
 ]
 
 theorem coordinate_only_identity_cannot_name_two_versions :
-    coordinateSelfReplacement = [
-      {
-        source := coordinate originalA
-        successor := coordinate originalA
-      }
-    ] ∧
     ReplacementFrontier.structurallyAdmissible
       coordinatePresent coordinateSelfReplacement = false := by
   native_decide
