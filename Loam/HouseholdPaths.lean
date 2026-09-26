@@ -22,6 +22,8 @@ def actualFileName : String := "actual.loam"
 /-- Filename-level identity retained for the existing CurrentQuantityAnchor publisher API. -/
 def currentQuantityAnchorFileName : String := "current-quantity-anchor.loam"
 
+def currentQuantityPresenceFileName : String := "current-quantity-presence.loam"
+
 def locusAdmissionFileName : String := "locus-admission.loam"
 
 def measurePresentationFileName : String := "measure-presentation.tsv"
@@ -58,6 +60,9 @@ def openingSupport (root : System.FilePath) : System.FilePath :=
 
 def currentQuantityAnchor (root : System.FilePath) : System.FilePath :=
   root / currentQuantityAnchorFileName
+
+def currentQuantityPresence (root : System.FilePath) : System.FilePath :=
+  root / currentQuantityPresenceFileName
 
 def boundaryPresets (root : System.FilePath) : System.FilePath :=
   configDir root / "boundary-presets.tsv"
