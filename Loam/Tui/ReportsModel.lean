@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
+import Loam.IncomeExpenseProvenanceReview
 import Loam.PeriodComparisonReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
@@ -75,9 +76,9 @@ structure State where
   stockFlowComparison :
     Option (Loam.PeriodComparisonReview.Pair Loam.StockFlowReview.Snapshot) := none
   transactions : Loam.Tui.TransactionsFlowPane.State := {}
-  incomeExpenseSnapshot : Option Loam.RoleFlowReview.Snapshot := none
+  incomeExpenseSnapshot : Option Loam.IncomeExpenseProvenanceReview.Snapshot := none
   incomeExpenseComparison :
-    Option (Loam.PeriodComparisonReview.Pair Loam.RoleFlowReview.Snapshot) := none
+    Option (Loam.PeriodComparisonReview.Pair Loam.IncomeExpenseProvenanceReview.Snapshot) := none
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
@@ -142,13 +143,14 @@ def withTransactionsFlowSnapshot
 
 
 def withIncomeExpenseSnapshot
-    (state : State) (snapshot : Loam.RoleFlowReview.Snapshot) : State :=
+    (state : State) (snapshot : Loam.IncomeExpenseProvenanceReview.Snapshot) : State :=
   { state with incomeExpenseSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
 def withIncomeExpenseComparison
     (state : State)
-    (comparison : Loam.PeriodComparisonReview.Pair Loam.RoleFlowReview.Snapshot) : State :=
+    (comparison :
+      Loam.PeriodComparisonReview.Pair Loam.IncomeExpenseProvenanceReview.Snapshot) : State :=
   { state with incomeExpenseComparison := some comparison, notice := "", scroll := 0 }
 
 
