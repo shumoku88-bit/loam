@@ -1,6 +1,7 @@
 import Loam.ActualEvidence
 import Loam.ActualDate
 import Loam.Core.Event
+import Loam.Core.BalancedMovement
 import Loam.Core.EventMemory
 import Loam.Core.ActualValidityHistory
 import Loam.Core.EventDescription
@@ -8,6 +9,7 @@ import Loam.Core.EventMerchantEvidence
 import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
+import Loam.Core.ActualReversalBalance
 import Loam.Core.OpenRelation
 import Loam.Application.CorrectionFrontier
 import Loam.Application.ActualValidityFrontier
