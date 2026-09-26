@@ -81,6 +81,8 @@ on:
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/PeriodComparisonReview.lean'
+      - 'Loam/IncomeExpenseProvenanceReview.lean'
+      - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/ConditionalBalancePathReview.lean'
@@ -200,6 +202,8 @@ on:
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/PeriodComparisonReview.lean'
+      - 'Loam/IncomeExpenseProvenanceReview.lean'
+      - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/ConditionalBalancePathReview.lean'
@@ -610,6 +614,12 @@ jobs:
 
       - name: Verify sparse Transactions-Flow Reports interaction
         run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
+
+      - name: Build Income Expense Scheduled provenance review boundary
+        run: lake build Loam.IncomeExpenseProvenanceReview
+
+      - name: Verify Income Expense Scheduled provenance projection
+        run: lake env lean --run Loam/Tests/IncomeExpenseProvenanceReview.lean
 
       - name: Build Scheduled future coverage review boundary
         run: lake build Loam.ScheduledCoverageReview
