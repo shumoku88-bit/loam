@@ -213,6 +213,7 @@ def main : IO Unit := do
   let stockReport := Loam.Tui.Reports.withStockFlowSnapshot explicit {
     start := "2026-08-17"
     endExclusive := "2026-10-15"
+    measure := some (⟨"usd"⟩ : MeasureId)
     reconstructedStart := Quantity.ofQuanta 100
     increasesAcrossEvents := Quantity.ofQuanta 50
     decreasesAcrossEvents := Quantity.ofQuanta (-20)
@@ -223,6 +224,8 @@ def main : IO Unit := do
     "refused non-calendar shift discarded the existing Stock-Flow snapshot"
 
   let stockReportText := widgetText (Loam.Tui.Reports.view stockReport)
+  expect (contains " usd" stockReportText)
+    "Stock–Flow TUI did not render the selected Measure"
   expect (contains "Reconstructed at start:" stockReportText && contains "100 jpy" stockReportText)
     "Stock–Flow start reconstruction was not rendered"
   expect (contains "Reconstructed at end:" stockReportText && contains "130 jpy" stockReportText)
