@@ -79,10 +79,6 @@ import Loam.Observations.Observation318
 import Loam.Observations.Observation319
 import Loam.Observations.Observation321
 import Loam.Observations.Observation325
-import Loam.Observations.Observation326
-import Loam.Observations.Observation327
-import Loam.Observations.Observation329
-import Loam.Observations.Observation330
 import Loam.Observations.Observation331
 import Loam.Observations.Observation332
 import Loam.Observations.Observation333
@@ -92,10 +88,12 @@ import Loam.Observations.Observation336
 import Loam.Observations.Observation337
 
 /-!
-Research compaction note (2026-09-26): Observations 320, 322–324, and 328
-were retired from the live witness umbrella after their conclusions were
-superseded by later general proofs, production promotion, and retained research
-prose. Their source remains available in Git history.
+Research compaction note (2026-09-26): Observations 320, 322–324, 326–330
+(except 325), were retired from the live witness umbrella after their conclusions
+were absorbed by later terminal proofs, production promotion, and retained
+research prose. Observation 331 now carries the terminal RowIndex refinement
+without those intermediate proof modules. Retired source remains available in
+Git history.
 -/
 
 /-!
