@@ -1,11 +1,18 @@
 # LOAM mathematical structure map — draft 2026-09-25
 
-Status: **QUALIFIED RESEARCH MAP — R1–R6 survey complete / no broad abstraction authorized**
+Status: **QUALIFIED RESEARCH MAP — R1–R6 survey and second production-pressure pass complete / no broad abstraction authorized**
 
-Baseline:
+Survey baseline:
 
 ```text
 main 8b26bfe8cb953d2543879cbe93570d020d2c7f92
+```
+
+Second-pass harvest checkpoint:
+
+```text
+main b32058d0d22b1b6d77a05a76a620ce1b8254583f
+through PR #1346
 ```
 
 ## Question
@@ -74,7 +81,7 @@ boundaries unless new evidence overturns them.
 
 ## MATH-1 — finite additive image
 
-**Status: EARNED STRUCTURE**
+**Status: EARNED / ACTIVE PRODUCTION IMAGE**
 
 Representative modules:
 
@@ -91,6 +98,17 @@ Existing research:
 - Observation 159 — free-Abelian projection boundary
 - Observation 233 — Transactions-Flow incidence matrix
 - Observation 250 — Ledger denotation boundary
+
+Second-pass production harvest:
+
+- PR #1333 factored the repeated admitted Capacity window additive scan;
+- PR #1337 promoted the measured Daily Pace finite-vector history fold;
+- PR #1346 promoted one transient `Effect.measureTotals` image shared by
+  normalized Actual ordinary-Event balance admission, Beancount export, and
+  plain-text accounting export;
+- #1346 removed 22 net production/refactor lines while keeping independent
+  Measures separate and leaving exact-reversal proof-carrying balance on its
+  existing path.
 
 For a fixed coordinate space and Measure, many LOAM projections have the shape:
 
@@ -274,7 +292,7 @@ from the first dated coordinate.
 
 ## MATH-5 — windowed additive queries
 
-**Status: STRONG CANDIDATE**
+**Status: EARNED / NARROW PRODUCTION PROMOTIONS HARVESTED**
 
 Representative modules:
 
@@ -328,15 +346,28 @@ Correction selection, routing, date validity, role completeness, and merchant
 coverage are not additive facts. They remain upstream admission/selection
 semantics.
 
-**Potential payoff:** highest current candidate for combined code compression
-and performance improvement  
-**Risk:** medium if selection and reduction stay separate; high if merged.
+Second-pass production results:
+
+- PR #1333 unified duplicated Capacity window folds behind one admitted selector
+  boundary;
+- PR #1337 replaced repeated Daily Pace Actual-history rescans with one
+  finite-vector fold after measurement showed about 1.9–2.0x at seven days,
+  about 3x at 30 days, and about 3.6x at 90 days;
+- the final additive census found no further production site with the same
+  selector and reducer pressure strong enough to justify a wider window-query
+  framework.
+
+**Current payoff:** harvested where concrete duplication or measured repeated
+work existed  
+**Risk:** medium if selection and reduction stay separate; high if merged  
+**Reopen when:** a new consumer repeats the same selected additive image or a
+measured window path shows material repeated work.
 
 ---
 
 ## MATH-6 — incidence / linear representation of flows
 
-**Status: EARNED RESEARCH STRUCTURE / STRONG DERIVED CANDIDATE**
+**Status: EARNED / PRODUCTION DERIVATION PROMOTED / FURTHER CACHE DEFERRED**
 
 Representative modules:
 
@@ -366,10 +397,25 @@ This is an incidence-style matrix without inventing source/destination edges.
 No invented transfer edges, no cross-Measure addition, no automatic accounting
 role from sign, and no loss of retained Effect identity in canonical evidence.
 
-**Potential payoff:** high for report unification  
-**Risk:** medium-high  
-**Next research pressure:** identify exactly which current reports factor through
-the Transactions-Flow incidence representation.
+Second-pass production results:
+
+- PR #1321 promoted the seedless bulk `Snapshot.rowActivities` projection;
+- PR #1338 reused one selected Transactions-Flow Snapshot across Web
+  Transactions Flow and Role Flow;
+- PR #1340 shared the Income & Expense Measure summary, removing 19 net
+  production lines;
+- PR #1339 measured an additional shared-row-image cache and found essentially
+  no gain across 1,000–25,000 selected Events, so no retained cache or broader
+  report-image abstraction was added.
+
+Merchant Expense remains separate because it observes Event identity, Merchant
+coverage, AccountingRole resolution, and unresolved witnesses that the sparse
+row image forgets.
+
+**Current payoff:** narrow report factorization already harvested  
+**Risk:** medium-high if the image is allowed to replace richer witnesses  
+**Reopen when:** another consumer can prove factorization through the existing
+transient image and removes measurable work or net source/proof.
 
 ---
 
@@ -474,7 +520,7 @@ evidence quantity with semantic information.
 
 ## MATH-9 — lifecycle state machines
 
-**Status: STRONG DESCRIPTIVE CANDIDATE, UNCLEAR COMPRESSION PAYOFF**
+**Status: DESCRIPTIVE / NO SHARED CODE COMPRESSION EARNED AT CURRENT PRESSURE**
 
 Representative domains:
 
@@ -505,44 +551,35 @@ correction, and writer publication are one lifecycle.
 
 ## MATH-10 — sorting and order-preserving algorithm refinement
 
-**Status: CONCRETE ALGORITHMIC CANDIDATE**
+**Status: MEASURED / PRODUCTION PROMOTED**
 
-`Loam/ActualJournalProjection.lean` currently implements deterministic journal
-ordering through repeated insertion:
+Observation 335 qualified the exact refinement boundary between the former
+fold-of-insertion sorter and `List.mergeSort`: both retain the same input
+multiset and produce the same ordered result on the reachable Actual domain,
+where EventId uniqueness discharges the otherwise-dangerous equal-key case.
 
-```text
-sortEntries entries
-  = entries.foldl (insertEntry ...) []
-```
+The paired benchmark then measured:
 
-This is insertion-sort-shaped and therefore has quadratic worst-case comparison
-behavior.
+| current entries | insertion sort | mergeSort | speedup |
+| ---: | ---: | ---: | ---: |
+| 250 | 6.7 ms | 581 µs | 11.58x |
+| 1,000 | 105.2 ms | 3.0 ms | 34.62x |
+| 4,000 | 1.6 s | 16.8 ms | 96.18x |
+| 8,000 | 6.5 s | 36.6 ms | 178.90x |
 
-Elsewhere, for example Transactions-Flow, LOAM already uses `mergeSort`.
+PR #1326 promoted the narrow substitution. Production
+`ActualJournalProjection.sortEntries` now uses `mergeSort` with the same
+date-then-EventId ordering. No retained sorted state or generic sorting
+framework was introduced.
 
-### What may eventually be possible
+Observation 335 remains live because it is the theorem witness for the promoted
+algorithmic refinement.
 
-Replace the implementation with an asymptotically better sort while proving or
-testing that:
-
-```text
-same input entries
--> same ordering relation
--> same deterministic journal result
-```
-
-This is not household-domain algebra, but it is a clean example of using
-equational/refinement reasoning to improve performance without changing
-semantics.
-
-### Boundary
-
-Do not optimize until this path is measured under a realistic long-history
-journal workload.
-
-**Potential payoff:** potentially very high on this one path  
-**Risk:** low  
-**Priority:** benchmark first.
+**Current payoff:** large asymptotic improvement on one measured path  
+**Risk:** low while the ordering relation and reachable no-distinct-ties
+invariant remain unchanged  
+**Reopen when:** another production sorter exhibits independently measured
+pressure.
 
 ---
 
@@ -715,120 +752,41 @@ That suggests a useful future research rule:
 
 ---
 
-# Candidate research queue
+# Second-pass outcome ledger
 
-This is deliberately an **observation queue**, not an implementation roadmap.
+The original R1–R6 queue has been executed. It is retained here as a compact
+outcome ledger rather than an open implementation roadmap.
 
-## R1 — additive fold census
+| Pass | Outcome |
+| --- | --- |
+| R1 additive fold census | **Complete.** Capacity fold sharing (#1333), Daily Pace finite-vector promotion (#1337), and shared Effect Measure totals (#1346) were harvested. No further same-selector/same-reducer production duplication currently earns abstraction. |
+| R2 report factorization | **Complete at current pressure.** Stock-Flow scan fusion (#1323), Transactions-Flow bulk row activity (#1321), Web snapshot reuse (#1338), and Income & Expense summary sharing (#1340) were promoted. Additional row-image caching measured neutral (#1339). |
+| R3 temporal change points | **Measured / deferred.** Current Actual routing shape measured about 1.88x faster through a transient fixed-time image, but only about 178 µs absolute saving for about 243 added production/proof/test lines (#1341). |
+| R4 journal sorting | **Promoted.** Observation 335 + benchmark qualified merge sort; PR #1326 replaced quadratic-shaped insertion mechanics. |
+| R5 observational sufficiency | **Qualified research tool.** Observation 336 proves one smaller Merchant scalar image is sufficient for `exactTotal?`, but insufficient for the full diagnostic surface. |
+| R6 information order | **Counterexample complete.** Observation 337 rejects raw-evidence append/inclusion as a repository-wide semantic information order. |
 
-For every production `foldl`, `foldr`, and `foldlM` that produces Quantity
-or Int:
+The queue reopens only from new production pressure. A mathematical resemblance
+alone is not a reason to add architecture.
 
-1. identify the selector;
-2. identify the accumulator algebra;
-3. determine whether the result is invariant under permutation;
-4. test whether concatenation admits an associative combine law;
-5. record whether another production path repeats the same reduction.
+# Current second-pass disposition
 
-Goal: discover genuine homomorphisms rather than invent a generic fold library.
+This replaces the earlier research-leverage ranking with the current disposition.
 
-## R2 — report factorization map
-
-For:
-
-- Balance;
-- Stock-Flow;
-- Transactions-Flow;
-- Role Flow;
-- Merchant Expense;
-- Consumption;
-- Capacity / Remaining / Headroom;
-- Daily Pace;
-
-record the smallest already-derived image each report needs.
-
-Goal: identify reports that can share one transient summary without sharing
-semantic authority.
-
-## R3 — temporal change-point experiment
-
-For `RoutingHistory.statusAt`:
-
-- characterize observational equivalence of histories;
-- identify redundant change points, if any;
-- compare list fold against an ordered transient index;
-- prove or test exact answer correspondence.
-
-No persistence change.
-
-## R4 — long-journal sorting pressure
-
-Benchmark `ActualJournalProjection` at large current-frontier sizes before any
-algorithm change.
-
-If quadratic behavior is visible, qualify a merge-sort implementation against
-the current ordering result.
-
-## R5 — observational sufficiency test
-
-**Status: QUALIFIED ON MERCHANT EXPENSE via Observation 336**
-
-Merchant Expense supplies the first production-shaped witness.
-
-For the scalar `exactTotal?` observation, a research image containing only
-`knownTotal` and one `complete` bit is sufficient. Observation 336 proves the
-answer factors through that image in the Observation 191 sense.
-
-The same image is deliberately insufficient for the inspectable diagnostic
-surface: it cannot distinguish unresolved Merchant classification from
-unresolved AccountingRole classification, while the production Snapshot can.
-
-Result:
-
-```text
-one observation may admit a much smaller sufficient image
-without that image being sufficient for the whole report surface
-```
-
-No production replacement is authorized by this result.
-
-## R6 — information-order counterexample search
-
-**Status: QUALIFIED COUNTEREXAMPLE via Observation 337**
-
-ActualValidityHistory supplies the required counterexample.
-
-A raw append-extension can add only fresh, storage-admissible validity evidence
-and still move the semantic validity projection from defined to fail-closed by
-creating an ambiguous sibling correction frontier.
-
-Thus ordinary raw evidence extension is not a monotone semantic-information
-order.
-
-R6 is complete for the repository-wide question. No global `PartialOrder`,
-lattice, or fixed-point abstraction is earned. Narrow domain-specific orders
-remain possible only when their relation already encodes admissible refinement.
-
----
-
-# Current provisional ranking
-
-This ranking is about **research leverage**, not implementation priority.
-
-| Area | Evidence strength | Possible code compression | Possible performance gain | Semantic risk |
-| --- | --- | --- | --- | --- |
-| Windowed/additive folds | strong | high | high | medium |
-| Incidence/additive image | strong | medium-high | high | medium-high |
-| Temporal change points | strong | medium | medium-high | medium |
-| Replacement/frontier | very strong | mostly realized | already demonstrated | low if narrow |
-| Finite keyed memory | very strong | mostly realized | medium | low if narrow |
-| Observational factorization | strong research | indirect | indirect | low as research |
-| Sorting refinement | concrete | low | potentially high | low |
-| Lifecycle state machines | moderate | uncertain | low-medium | medium |
-| Normalization laws | moderate | medium | medium | medium |
-| Lattice/fixed point | weak/currently speculative | unknown | unknown | high |
-
----
+| Area | Current disposition | Next trigger |
+| --- | --- | --- |
+| MATH-1 additive image | production image shared narrowly | duplicated same-selector additive fold or measurable repeated work |
+| MATH-2 finite keyed sets | mature | new keyed memory with repeated mechanics |
+| MATH-3 frontier / replacement | mature | measured repeated traversal |
+| MATH-4 change points | measured, deferred | materially larger routing history/query batch |
+| MATH-5 windowed additive queries | narrow promotions harvested | new same-selection window pressure |
+| MATH-6 incidence image | production derivation promoted; wider cache rejected | new factorizing consumer with measurable benefit |
+| MATH-7 observational equivalence | keep as research decision tool | proposed lossy summary/compression |
+| MATH-8 lattice/information order | global raw-evidence order rejected | domain-specific admissible-refinement relation |
+| MATH-9 lifecycle machines | descriptive only | concrete protocol/reachability question |
+| MATH-10 sorting refinement | production promoted | another measured sorter |
+| MATH-11 normalization | narrow laws and code subtraction harvested | repeated admission/codec mechanics |
+| MATH-12 UI/runtime refinement | mature separate refinement pattern | measured UI/runtime representation pressure |
 
 # External correspondence notes
 
@@ -869,6 +827,51 @@ collapsed.
 
 Until then, this file is a map of possible terrain, not a construction order.
 
+## Second-pass closure — 2026-09-26
+
+The second repository-wide mathematical pass is complete at current production
+pressure.
+
+Concrete harvested changes include:
+
+- PR #1321: bulk Transactions-Flow sparse row activity;
+- PR #1323: fused selected Stock-Flow record scan;
+- PR #1326: qualified journal merge-sort promotion;
+- PR #1333: shared admitted Capacity window fold;
+- PR #1337: Daily Pace finite-vector history computation;
+- PR #1338: shared Web Transactions-Flow snapshot;
+- PR #1340: shared Income & Expense summary, 19 production lines net removed;
+- PR #1344: persistence row traversal collapse, 28 production lines net removed;
+- PR #1346: shared Effect Measure additive image, 22 production/refactor lines
+  net removed.
+
+Those last three source-subtraction PRs alone remove at least 69 net
+production/refactor lines while reducing duplicated mathematical work.
+
+Research compaction also remained part of the pass. PR #1345 harvested MATH-11
+and removed 193 net lines of completed research scaffolding while preserving the
+conclusions in this map and the executable history in Git.
+
+Equally important are the explicit non-promotions:
+
+- no fixed-time routing index at the present scale;
+- no retained Transactions-Flow row cache;
+- no global raw-evidence lattice;
+- no universal normalization framework;
+- no merging of semantically distinct report, routing, or lifecycle authorities.
+
+The current repository-wide pattern is therefore stable:
+
+```text
+semantic admission / selection
+        ->
+small transient mathematical image
+        ->
+observation / presentation
+```
+
+Further mathematical work should now be pressure-driven rather than map-driven.
+
 
 ## Survey completion and compaction — 2026-09-26
 
@@ -904,99 +907,36 @@ Stock-Flow proof witness and now carries its simple List-membership quantity
 helper directly.
 
 
-## MATH-5 follow-up — Daily Pace finite-vector history
+## Second-pass measurement appendix
 
-**Status: MEASURED — PRODUCTION PROMOTION EARNED**
+Two benchmark conclusions are worth retaining in the live map.
 
-`CycleSpendingPaceReview.projectHistory` currently reconstructs the Actual-backed
-eligible pool by validating selected current Actual records once and then
-rescanning all Actual records once per requested history date.
+### Daily Pace finite-vector history
 
-A temporary paired benchmark compared that shape with one finite-vector fold:
-each current selected Event is quantified once, validated once, and its signed
-quantity is distributed to every requested date at or after the Event date.
+PR #1337 was promoted after exact-result paired measurements showed the
+single-scan finite-vector history fold improving over repeated Actual rescans by
+about:
 
-The benchmark required exact result equality before accepting timings. Batched
-forced evaluation on the same runner produced:
+- **1.9–2.0x** for the current seven-day Home horizon;
+- **~3.0x** at 30 days;
+- **~3.6x** at 90 days.
 
-| history days | Actual records | repeated scans | finite-vector fold | speedup |
-| ---: | ---: | ---: | ---: | ---: |
-| 7 | 1,000 | 10.4 ms | 5.4 ms | 1.91x |
-| 7 | 5,000 | 52.8 ms | 26.7 ms | 1.97x |
-| 7 | 10,000 | 103.6 ms | 53.2 ms | 1.94x |
-| 30 | 1,000 | 31.6 ms | 10.6 ms | 2.98x |
-| 30 | 5,000 | 158.6 ms | 53.0 ms | 2.99x |
-| 30 | 10,000 | 315.6 ms | 106.5 ms | 2.96x |
-| 90 | 1,000 | 86.7 ms | 24.2 ms | 3.57x |
-| 90 | 5,000 | 434.4 ms | 120.2 ms | 3.61x |
-| 90 | 10,000 | 864.8 ms | 239.5 ms | 3.61x |
+At 10,000 Actual records, representative timings were 103.6 ms → 53.2 ms
+(seven days), 315.6 ms → 106.5 ms (30 days), and 864.8 ms → 239.5 ms
+(90 days).
 
-The current Home surface asks for seven days, so the production-relevant result
-is already about a twofold improvement at large Actual frontiers. Longer
-hypothetical horizons show increasing benefit.
+The promotion remains narrow: no retained prefix table, persistent index, or
+generic window-query framework.
 
-This earns a narrow production change to the Actual-backed history calculation.
-It does **not** authorize a retained index, persistent prefix table, or a generic
-window-query framework. Scheduled historical deductions remain outside this
-promotion because their terminal/completion semantics are distinct.
+### Shared Transactions-Flow row image
 
-The temporary benchmark source and workflow were retired after this result was
-harvested; Git history retains the executable measurement apparatus.
+PR #1339 measured constructing `rowActivities` twice versus constructing it
+once and sharing the result. Across 1,000–25,000 selected Events the observed
+ratio stayed roughly **0.97x–1.02x**, i.e. effectively neutral.
 
+Therefore the sparse row image remains transient and derived. Selected Columns
+remain authority, and no retained report cache or wider shared-image abstraction
+was added.
 
-## MATH-6 second-pass follow-up — shared sparse row image pressure
-
-**Status: MEASURED — NO FURTHER PRODUCTION PROMOTION EARNED**
-
-After the Web current snapshot began sharing one selected
-`TransactionsFlowReview.Snapshot` between Transactions Flow and Role Flow, the
-second MATH-6 pass found one remaining structural duplication:
-
-```text
-TransactionsFlowReview.Snapshot.columns
-    -> Snapshot.rowActivities
-    -> Transactions Flow presentation
-
-TransactionsFlowReview.Snapshot.columns
-    -> Snapshot.rowActivities
-    -> RoleFlow classification
-```
-
-The same derived `rowActivities` image also appears repeatedly inside the TUI
-Transactions Flow presentation path. This is a genuine stage-2 factorization
-opportunity: selected Columns remain authority, while the sparse
-`EffectCoordinate -> RowActivity` image is transient derived mechanics.
-
-A temporary paired benchmark therefore compared two independent
-`rowActivities` constructions with one construction shared by two consumers.
-Fixture size was supplied at runtime so the benchmark input was not a closed
-compile-time constant. Every fixture retained two Effects per Event and the
-benchmark required equal forced row digests before accepting timings.
-
-On the same GitHub Actions runner:
-
-| selected Events | duplicate construction | shared construction | observed ratio |
-| ---: | ---: | ---: | ---: |
-| 1,000 | 86 µs | 85 µs | ~1.01x |
-| 5,000 | 88 µs | 86 µs | ~1.02x |
-| 10,000 | 84 µs | 87 µs | ~0.97x |
-| 25,000 | 87 µs | 86 µs | ~1.01x |
-
-No meaningful scaling or speed difference was observed over this range. The
-structural duplication is real, but current production pressure does not justify
-adding retained derived state, a generic report cache, or a wider shared-image
-abstraction merely to remove it.
-
-The MATH-6 boundary remains:
-
-- keep selected Transactions-Flow Columns as the evidence authority;
-- keep `rowActivities` transient and derived;
-- allow narrow orchestration sharing when it is already natural, as in the Web
-  Transactions-Flow Snapshot reuse;
-- do not add new caching/state without measured pressure or net source/proof
-  reduction;
-- keep Merchant Expense separate because it observes Event identity, Merchant
-  evidence, and unresolved role witnesses that the row image forgets.
-
-The temporary benchmark source and workflow are retired after harvesting this
-negative result. Git history retains the executable measurement apparatus.
+The temporary benchmark programs and workflows for both experiments were
+retired after harvesting. Full executable detail remains in Git history.
