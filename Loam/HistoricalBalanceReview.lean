@@ -65,7 +65,6 @@ structure Evidence where
   opening : OpeningSupportMap
   bounded : Loam.BoundedHistorySupport.Evidence
   anchor : Loam.CurrentQuantityAnchor.Evidence
-deriving Repr, DecidableEq
 
 private def coordinateLabel (coordinate : EffectCoordinate) : String :=
   coordinate.locus.token ++ " / " ++ coordinate.measure.token
@@ -206,7 +205,7 @@ def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
     match ← loadAnchor (Loam.HouseholdPaths.currentQuantityAnchor dataDir) with
     | .error message => return .error message
     | .ok evidence => pure evidence
-  return { zeroOrigin, opening, bounded, anchor }
+  return .ok { zeroOrigin, opening, bounded, anchor }
 
 /-- Reconstruct one boundary from a caller-owned admitted Actual generation. -/
 def loadBoundedStartOfDayFromActualImage
