@@ -168,7 +168,7 @@ private def fmtRatio (numerator denominator : Nat) : String :=
     let hundredths := numerator * 100 / denominator
     s!"{hundredths / 100}.{hundredths % 100}x"
 
-def main : IO Unit := do
+def runAll : IO Unit := do
   let recordSizes := [1000, 5000, 10000]
   let daySizes := [7, 30, 90]
   let reps := 3
@@ -206,3 +206,6 @@ def main : IO Unit := do
   IO.println "Daily Pace Actual history benchmark complete."
 
 end Loam.Tests.DailyPaceHistoryBenchmark
+
+def main : IO Unit :=
+  Loam.Tests.DailyPaceHistoryBenchmark.runAll
