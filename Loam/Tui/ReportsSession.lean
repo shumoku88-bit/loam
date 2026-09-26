@@ -1,5 +1,6 @@
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
+import Loam.IncomeExpenseProvenanceReview
 import Loam.PeriodComparisonReview
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
@@ -56,7 +57,8 @@ partial def run (bounds : Bounds)
         | .ok snapshot => pure (Loam.Tui.Reports.withTransactionsFlowSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some (.incomeExpenseFlow start endExclusive) =>
-        match ← Loam.RoleFlowReview.loadSnapshot dataDir root start endExclusive with
+        match ← Loam.IncomeExpenseProvenanceReview.loadSnapshot
+            dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withIncomeExpenseSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some (.incomeExpenseCompare leftStart leftEnd rightStart rightEnd) =>
