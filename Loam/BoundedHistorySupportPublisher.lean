@@ -1,6 +1,5 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
-import Loam.ActualReview
 import Loam.BoundedHistorySupport
 import Loam.CurrentQuantityAnchor
 import Loam.HouseholdPaths
@@ -27,11 +26,12 @@ A positive claim is admitted only when:
 - the Locus is admitted for current household use;
 - the start day is a real YYYY-MM-DD date;
 - the coordinate has exact CurrentQuantityAnchor support;
-- every current Actual Event carrying nonzero quantity for the coordinate has a
-  usable occurrence date.
+- the retained exact CurrentQuantityAnchor resolves against the admitted current
+  Actual correction world.
 
-The last rule is deliberately conservative: an undated current Event cannot be
-proven to fall before the claimed start boundary.
+`ActualAuthority.Image` already proves every retained Event has one admitted
+real calendar occurrence date, so this publisher does not rebuild that
+production admission a second time.
 
 Removing a claim is always allowed when the authority image is readable.
 -/
@@ -40,33 +40,6 @@ structure Draft where
   coordinate : EffectCoordinate
   startDay : Option String
 deriving Repr, DecidableEq
-
-private def coordinateQuanta (event : Event) (coordinate : EffectCoordinate) : Int :=
-  event.effects.foldl
-    (fun total effect =>
-      if effect.coordinate = coordinate then total + effect.quantity.quanta else total)
-    0
-
-private def validateCurrentDates
-    (coordinate : EffectCoordinate) :
-    List Loam.ActualReview.Record → Except String Unit
-  | [] => .ok ()
-  | record :: rest =>
-      if !record.isCurrent || coordinateQuanta record.event coordinate = 0 then
-        validateCurrentDates coordinate rest
-      else
-        match record.date with
-        | some day =>
-            if Loam.ActualDate.validIsoDate day then
-              validateCurrentDates coordinate rest
-            else
-              .error
-                ("loam: bounded historical support requires a valid occurrence date for Event " ++
-                  record.event.id.token)
-        | none =>
-            .error
-              ("loam: bounded historical support cannot place current Event " ++
-                record.event.id.token ++ " on either side of the start boundary")
 
 def propose?
     (image : Loam.ActualAuthority.Image)
@@ -86,7 +59,11 @@ def propose?
         throw "loam: bounded historical support start must be a real YYYY-MM-DD calendar day"
       if (anchor.assertionFor? draft.coordinate).isNone then
         throw "loam: bounded historical support requires exact CurrentQuantityAnchor support"
-      validateCurrentDates draft.coordinate (Loam.ActualReview.recordsFromActualImage image)
+      let resolved ←
+        Loam.CurrentQuantityAnchor.inspectQuantity
+          image.evidence.events image.evidence.corrections anchor draft.coordinate
+      if resolved.isNone then
+        throw "loam: bounded historical support requires a usable exact CurrentQuantityAnchor"
       let support : Loam.BoundedHistorySupport.Support := {
         coordinate := draft.coordinate
         startDay := startDay
