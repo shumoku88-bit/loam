@@ -1,4 +1,5 @@
 import Loam.Core.EventMemory
+import Loam.Core.OpenRelation
 
 namespace Loam.Observation366
 
