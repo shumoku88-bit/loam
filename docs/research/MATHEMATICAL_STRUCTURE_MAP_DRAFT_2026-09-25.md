@@ -226,7 +226,7 @@ resolution, retraction, routing, and temporal validity have distinct semantics.
 
 ## MATH-4 — temporal change-point selection
 
-**Status: STRONG CANDIDATE**
+**Status: MEASURED / PRODUCTION DEFERRED AT CURRENT SCALE**
 
 Representative modules:
 
@@ -268,8 +268,7 @@ from the first dated coordinate.
 
 **Potential payoff:** medium-high for repeated historical queries  
 **Risk:** medium  
-**Next research pressure:** characterize `statusAt` observational equivalence
-and measure whether repeated queries currently rescan history.
+**Current pressure checkpoint:** Actual routing administration does issue same-time bulk queries, and a 28-subject / 29-entry production-shaped benchmark measured about 1.88x faster status selection through the transient image. The absolute saving was only about 178 µs while a proved production trial added about 243 net production/proof/test lines, so promotion remains deferred until the absolute workload becomes materially larger.
 
 ---
 
