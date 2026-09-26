@@ -354,24 +354,38 @@ theorem two_distinct_exact_splits_have_identical_bare_correspondence :
 theorem identical_bare_correspondence_can_hide_different_outstanding :
     (do
       let memory ← events?
-      pure (
-        correspondenceSetAdmissible
-          memory [commitmentA800, commitmentB800] split700_300,
-        correspondenceSetAdmissible
-          memory [commitmentA800, commitmentB800] split600_400,
-        outstanding?
-          memory [commitmentA800, commitmentB800]
-          split700_300 commitmentAId,
-        outstanding?
-          memory [commitmentA800, commitmentB800]
-          split600_400 commitmentAId,
-        outstanding?
-          memory [commitmentA800, commitmentB800]
-          split700_300 commitmentBId,
-        outstanding?
-          memory [commitmentA800, commitmentB800]
-          split600_400 commitmentBId)) =
-      some (true, true, some 100, some 200, some 500, some 400) := by
+      pure (correspondenceSetAdmissible
+        memory [commitmentA800, commitmentB800] split700_300)) =
+        some true ∧
+    (do
+      let memory ← events?
+      pure (correspondenceSetAdmissible
+        memory [commitmentA800, commitmentB800] split600_400)) =
+        some true ∧
+    (do
+      let memory ← events?
+      outstanding?
+        memory [commitmentA800, commitmentB800]
+        split700_300 commitmentAId) =
+        some 100 ∧
+    (do
+      let memory ← events?
+      outstanding?
+        memory [commitmentA800, commitmentB800]
+        split600_400 commitmentAId) =
+        some 200 ∧
+    (do
+      let memory ← events?
+      outstanding?
+        memory [commitmentA800, commitmentB800]
+        split700_300 commitmentBId) =
+        some 500 ∧
+    (do
+      let memory ← events?
+      outstanding?
+        memory [commitmentA800, commitmentB800]
+        split600_400 commitmentBId) =
+        some 400 := by
   native_decide
 
 /-!
