@@ -65,7 +65,7 @@ private def comparisonFormLines (state : State) : List Widget :=
   ]
 
 private def comparisonPanels
-    (bounds : Option Bounds) (left right : Widget) : List Widget :=
+    (bounds : Option Bounds) (left right : List Widget) : List Widget :=
   match bounds with
   | some terminal =>
       if terminal.width ≥ 120 then
@@ -73,11 +73,14 @@ private def comparisonPanels
         let dividerWidth := 3
         let leftWidth := (width - dividerWidth) / 2
         let rightWidth := width - dividerWidth - leftWidth
-        let height := max left.lines.length right.lines.length
-        Loam.Tui.Layout.sideBySide height leftWidth rightWidth left right
+        let leftWidget : Widget := .column left
+        let rightWidget : Widget := .column right
+        let height := max leftWidget.lines.length rightWidget.lines.length
+        Loam.Tui.Layout.sideBySide
+          height leftWidth rightWidth leftWidget rightWidget
       else
-        [left, blank, right]
-  | none => [left, blank, right]
+        left ++ [blank] ++ right
+  | none => left ++ [blank] ++ right
 
 private def liquidityField (state : State) : Widget :=
   .row
@@ -168,10 +171,10 @@ private def stockFlowComparisonLines
   match state.stockFlowComparison with
   | none => [muted "No two-period Stock–Flow comparison has been run yet."]
   | some comparison =>
-      let left := .column <|
+      let left :=
         [line "Left period"] ++
         stockFlowResultLines { state with stockFlowSnapshot := some comparison.left }
-      let right := .column <|
+      let right :=
         [line "Right period"] ++
         stockFlowResultLines { state with stockFlowSnapshot := some comparison.right }
       comparisonPanels bounds left right
@@ -334,11 +337,11 @@ private def incomeExpenseComparisonLines
   match state.incomeExpenseComparison with
   | none => [muted "No two-period Income & Expense comparison has been run yet."]
   | some comparison =>
-      let left := .column <|
+      let left :=
         [line "Left period"] ++
         incomeExpenseResultLines
           { state with incomeExpenseSnapshot := some comparison.left }
-      let right := .column <|
+      let right :=
         [line "Right period"] ++
         incomeExpenseResultLines
           { state with incomeExpenseSnapshot := some comparison.right }
