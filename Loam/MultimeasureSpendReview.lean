@@ -46,13 +46,11 @@ structure ExchangeOccurrence where
   source : Effect
   destination : Effect
   extraEffects : List Effect
-deriving Repr, DecidableEq
 
 structure UnresolvedEffect where
   event : EventId
   date : String
   effect : Effect
-deriving Repr, DecidableEq
 
 structure UnresolvedOriginalAmount where
   event : EventId
@@ -71,7 +69,6 @@ structure Snapshot where
   unresolvedExpenseEffects : List UnresolvedEffect
   unresolvedExchangeEffects : List UnresolvedEffect
   unresolvedOriginalAmounts : List UnresolvedOriginalAmount
-deriving Repr, DecidableEq
 
 /--
 Already-admitted evidence needed by the pure projection.
@@ -207,7 +204,7 @@ private def originalProjection
     (exchanges : ExchangeEvidenceMemory) : OriginalProjection :=
   let accumulated :=
     flow.columns.foldl
-      (fun state column =>
+      (fun (state : OriginalProjection) column =>
         if isExchangeEvent exchanges column.event.id then
           state
         else
@@ -229,7 +226,7 @@ private def originalProjection
                     } :: state.unresolved }
               else
                 state)
-      { totals := [], unresolved := [] }
+      ({ totals := [], unresolved := [] } : OriginalProjection)
   {
     totals := sortedTotals accumulated.totals
     unresolved := accumulated.unresolved.reverse
