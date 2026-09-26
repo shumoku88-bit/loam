@@ -1,0 +1,31 @@
+name: MATH-6 Row Image Pressure
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Tests/TransactionsFlowSharedImageBenchmark.lean'
+      - '.github/workflows/math6-row-image-pressure.yml'
+      - '.github/actions/lean-build/**'
+      - 'Loam/TransactionsFlowReview.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    name: Measure duplicate versus shared row image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build Transactions-Flow review
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.TransactionsFlowReview
+      - name: Run paired MATH-6 benchmark
+        run: lake env lean --run Loam/Tests/TransactionsFlowSharedImageBenchmark.lean
