@@ -53,6 +53,28 @@ def capacityEffectiveEvidenceComplete
   Loam.capacityReferencesComplete capacity effective
 
 /--
+Shared additive fold over already-admitted Capacity evidence.
+
+Every retained movement still requires its effective coordinate before selection
+is decided. The caller supplies only the temporal predicate and quantity
+projection; Measure isolation remains common to both window shapes.
+-/
+private def foldAdmittedCapacityWhere?
+    (evidence : Loam.CapacityEvidence Time)
+    (selected : Time → Bool)
+    (measure : MeasureId)
+    (project : CapacityMovement → Quantity) : Option Quantity := do
+  let quanta ← evidence.movements.movements.foldlM
+    (fun total movement => do
+      let effectiveOn ← evidence.effective.findByMovementId? movement.id
+      if selected effectiveOn && movement.measure = measure then
+        return total + (project movement).quanta
+      else
+        return total)
+    0
+  return Quantity.ofQuanta quanta
+
+/--
 Project one coordinate from already-admitted Capacity evidence inside
 `[start, end)`. Cross-family completeness is carried by the input value, so this
 path does not rescan both memories before every query.
@@ -65,15 +87,8 @@ def capacityAtAdmittedEffectiveWindow?
   if !validCapacityWindow start end_ then
     none
   else
-    let quanta ← evidence.movements.movements.foldlM
-      (fun total movement => do
-        let effectiveOn ← evidence.effective.findByMovementId? movement.id
-        if inHalfOpen start end_ effectiveOn && movement.measure = measure then
-          return total + (movement.quantityAt coordinate).quanta
-        else
-          return total)
-      0
-    return Quantity.ofQuanta quanta
+    foldAdmittedCapacityWhere? evidence (inHalfOpen start end_) measure
+      (fun movement => movement.quantityAt coordinate)
 
 /--
 Project Capacity at one coordinate inside `[start, end)` from raw memories.
@@ -100,15 +115,8 @@ def entitlementAtAdmittedEffectiveThrough?
   if !validCurrentWindow start observedAt then
     none
   else
-    let quanta ← evidence.movements.movements.foldlM
-      (fun total movement => do
-        let effectiveOn ← evidence.effective.findByMovementId? movement.id
-        if inClosed start observedAt effectiveOn && movement.measure = measure then
-          return total + (movement.quantityAt (.purpose purpose)).quanta
-        else
-          return total)
-      0
-    return Quantity.ofQuanta quanta
+    foldAdmittedCapacityWhere? evidence (inClosed start observedAt) measure
+      (fun movement => movement.quantityAt (.purpose purpose))
 
 /-- Current elapsed Entitlement from raw memories; incomplete evidence fails closed. -/
 def entitlementAtEffectiveThrough?
