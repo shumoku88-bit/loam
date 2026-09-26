@@ -56,6 +56,7 @@ def main (_args : List String) : IO Unit := do
     stockFlow := .loaded {
       start := "2026-09-01"
       endExclusive := "2026-10-01"
+      measure := some { token := "jpy" }
       reconstructedStart := Loam.Core.Quantity.ofQuanta 10000
       increasesAcrossEvents := Loam.Core.Quantity.ofQuanta 5000
       decreasesAcrossEvents := Loam.Core.Quantity.ofQuanta (-3000)

@@ -17,6 +17,7 @@ def main : IO Unit := do
   let stockFlow : Loam.StockFlowReview.Snapshot := {
     start := "2026-09-01"
     endExclusive := "2026-10-01"
+    measure := some { token := "jpy" }
     reconstructedStart := Quantity.ofQuanta 10000
     increasesAcrossEvents := Quantity.ofQuanta 5000
     decreasesAcrossEvents := Quantity.ofQuanta (-3000)
@@ -103,6 +104,8 @@ def main : IO Unit := do
         "Reports changed Stock-Flow start"
       expect (report.endExclusive == "2026-10-01")
         "Reports changed Stock-Flow end"
+      expect (report.measure == some jpy)
+        "Reports changed Stock-Flow Measure"
       expect (report.opening.quanta == 10000)
         "Reports changed Stock-Flow opening"
       expect (report.increases.quanta == 5000)
