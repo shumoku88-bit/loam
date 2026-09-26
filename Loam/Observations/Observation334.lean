@@ -92,16 +92,21 @@ private theorem updateEntry_same
   · simp only [if_pos hVisible]
     cases hPrior : index.get? entry.subject.token with
     | none =>
-        rw [hPrior]
+        change
+          (index.insert entry.subject.token entry).get? entry.subject.token =
+            some entry
         rw [Std.HashMap.get?_insert]
         simp
     | some prior =>
-        rw [hPrior]
         by_cases hLater : prior.effectiveOn ≤ entry.effectiveOn
         · simp only [if_pos hLater]
+          change
+            (index.insert entry.subject.token entry).get? entry.subject.token =
+              some entry
           rw [Std.HashMap.get?_insert]
           simp
         · simp only [if_neg hLater]
+          exact hPrior
   · simp only [if_neg hVisible]
 
 private theorem updateEntry_other
@@ -117,7 +122,9 @@ private theorem updateEntry_other
   · simp only [if_pos hVisible]
     cases hPrior : index.get? entry.subject.token with
     | none =>
-        rw [hPrior]
+        change
+          (index.insert entry.subject.token entry).get? subject.token =
+            index.get? subject.token
         rw [Std.HashMap.get?_insert]
         have hToken := locus_token_ne entry.subject subject hNe
         have hBeq : (entry.subject.token == subject.token) = false :=
@@ -125,9 +132,11 @@ private theorem updateEntry_other
         rw [hBeq]
         rfl
     | some prior =>
-        rw [hPrior]
         by_cases hLater : prior.effectiveOn ≤ entry.effectiveOn
         · simp only [if_pos hLater]
+          change
+            (index.insert entry.subject.token entry).get? subject.token =
+              index.get? subject.token
           rw [Std.HashMap.get?_insert]
           have hToken := locus_token_ne entry.subject subject hNe
           have hBeq : (entry.subject.token == subject.token) = false :=
