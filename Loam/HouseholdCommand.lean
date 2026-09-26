@@ -204,7 +204,7 @@ def assignInitialAccountingRole
   Loam.AccountingRolePublisher.publishInitialRole
     (Loam.HouseholdPaths.scheduled root).toString root.toString (Loam.HouseholdPaths.accountingRole root).toString draft
 
-/-- Publish one complete set of current quantities observed together. -/
+/-- Publish one reconciliation group of current quantities observed together now. -/
 def observeCurrentQuantities
     (root : System.FilePath)
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) :
