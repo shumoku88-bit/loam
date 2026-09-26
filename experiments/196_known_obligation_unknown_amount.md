@@ -234,3 +234,28 @@ Work     = DONE
 Finding  = COUNTEREXAMPLE
 Runtime  = RESEARCH_ONLY
 ```
+
+
+## Production follow-up — 2026-09-26
+
+A real household pressure now exercises the same information separation at the
+**current balance** boundary: one liability coordinate is known to remain
+outstanding while its exact current amount is not known.
+
+The narrow production response is `CurrentQuantityPresence`, not a generalized
+future-obligation ontology. It records only a current reflected-root cut plus
+coordinates known nonzero at that cut. `RoleBalanceReview` can therefore
+distinguish:
+
+```text
+exact current quantity
+known present, exact amount unknown
+fully unsupported
+```
+
+No arithmetic consumes the middle state. Later Event activity on that coordinate
+makes the old presence observation stop answering the current question.
+
+This follow-up does not claim that every F051 future-obligation case should use
+`CurrentQuantityPresence`; Scheduled, due-date, invoice, and obligation
+lifecycle semantics remain outside this current-balance seam.
