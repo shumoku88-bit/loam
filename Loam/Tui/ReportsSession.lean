@@ -1,5 +1,6 @@
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
+import Loam.PeriodComparisonReview
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
 import Loam.ScheduledCoverageReview
@@ -44,6 +45,12 @@ partial def run (bounds : Bounds)
         match ← Loam.StockFlowReview.loadSnapshot dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withStockFlowSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.stockFlowCompare leftStart leftEnd rightStart rightEnd) =>
+        match ← Loam.PeriodComparisonReview.loadStockFlow
+            dataDir root leftStart leftEnd rightStart rightEnd with
+        | .ok comparison =>
+            pure (Loam.Tui.Reports.withStockFlowComparison step.state comparison)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some (.transactionsFlow start endExclusive) =>
         match ← Loam.TransactionsFlowReview.loadSnapshot dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withTransactionsFlowSnapshot step.state snapshot)
@@ -51,6 +58,12 @@ partial def run (bounds : Bounds)
     | some (.incomeExpenseFlow start endExclusive) =>
         match ← Loam.RoleFlowReview.loadSnapshot dataDir root start endExclusive with
         | .ok snapshot => pure (Loam.Tui.Reports.withIncomeExpenseSnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.incomeExpenseCompare leftStart leftEnd rightStart rightEnd) =>
+        match ← Loam.PeriodComparisonReview.loadIncomeExpense
+            dataDir root leftStart leftEnd rightStart rightEnd with
+        | .ok comparison =>
+            pure (Loam.Tui.Reports.withIncomeExpenseComparison step.state comparison)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some .roleBalances =>
         match ← Loam.RoleBalanceReview.loadSnapshot dataDir root with
