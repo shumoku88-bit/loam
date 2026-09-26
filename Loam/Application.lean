@@ -12,6 +12,7 @@ import Loam.Application.ActualValidityFrontier
 import Loam.Application.AttentionInspection
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
+import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Application.OriginalAmountFrontier
 
 namespace Loam
