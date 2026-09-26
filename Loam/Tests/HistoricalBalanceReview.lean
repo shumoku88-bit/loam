@@ -175,6 +175,32 @@ def main : IO Unit := do
   expect (quantityFor? mixed usdCash == some 200)
     "USD coordinate did not reconstruct independently"
 
+  -- The general historical boundary may compose independent routes in one question.
+  let zeroCovered ← requireSome
+    (ZeroOriginCoverage.ofCoordinates? [jpyOffset])
+    "mixed historical zero-origin coverage"
+  let mixedEvidence : Loam.HistoricalBalanceReview.Evidence := {
+    evidence with zeroOrigin := zeroCovered
+  }
+  let routed ← requireOk
+    (Loam.HistoricalBalanceReview.projectStartOfDay
+      image mixedEvidence "2026-06-02" [jpyOffset, cash])
+    "mixed zero-origin and bounded historical routes"
+  expect (quantityFor? routed jpyOffset == some (-100))
+    "zero-origin route did not reconstruct forward from exact zero"
+  expect (quantityFor? routed cash == some 150)
+    "bounded route changed when composed beside zero-origin history"
+
+  let openingOnly ← requireSome
+    (OpeningSupportMap.ofSupports?
+      [{ coordinate := expense, openingEvent := ⟨"deposit"⟩ }])
+    "opening-only historical fixture"
+  expectError
+    (Loam.HistoricalBalanceReview.projectStartOfDay
+      image { evidence with opening := openingOnly } "2026-06-02" [expense])
+    "opening support does not justify historical reconstruction"
+    "OpeningSupport silently became historical completeness"
+
   expectError
     (Loam.HistoricalBalanceReview.projectBoundedStartOfDay
       image evidence "2026-05-31" [cash])
