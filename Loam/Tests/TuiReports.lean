@@ -126,6 +126,48 @@ def main : IO Unit := do
       expect (endExclusive == "2026-10-15") "preset Stock-Flow query changed end"
   | _ => throw (IO.userError "preset Stock-Flow did not reduce to an explicit coordinate query")
 
+  let pensionCompare : Loam.BoundaryPresetConfig.Preset := {
+    name := "Pension Cycle"
+    boundaries :=
+      ["2026-04-15", "2026-06-15", "2026-08-15", "2026-10-15", "2026-12-15"]
+  }
+  let comparePresetInitial :=
+    Loam.Tui.Reports.initialForDateWithPresets "2026-09-07" [pensionCompare]
+  let comparePresetStock := (Loam.Tui.Reports.update comparePresetInitial .enter).state
+  let comparePresetSingle := (Loam.Tui.Reports.update comparePresetStock (.input ']')).state
+  expect (Loam.Tui.Reports.windowSourceLabel comparePresetSingle == "Pension Cycle")
+    "comparison fixture did not select its named preset"
+  let comparePreset := (Loam.Tui.Reports.update comparePresetSingle (.input 'c')).state
+  expect (Loam.Tui.Reports.comparisonSourceLabel comparePreset == "Pension Cycle")
+    "comparison did not inherit the single-period named preset"
+  expect (comparePreset.comparison.leftStart == "2026-06-15" &&
+      comparePreset.comparison.leftEndExclusive == "2026-08-15" &&
+      comparePreset.comparison.rightStart == "2026-08-15" &&
+      comparePreset.comparison.rightEndExclusive == "2026-10-15")
+    "named preset comparison did not seed previous/current adjacent cycles"
+  let comparePresetBack := (Loam.Tui.Reports.update comparePreset .left).state
+  expect (comparePresetBack.comparison.leftStart == "2026-04-15" &&
+      comparePresetBack.comparison.leftEndExclusive == "2026-06-15" &&
+      comparePresetBack.comparison.rightStart == "2026-06-15" &&
+      comparePresetBack.comparison.rightEndExclusive == "2026-08-15")
+    "left did not shift the whole named-preset comparison pair"
+  let comparePresetForward := (Loam.Tui.Reports.update comparePreset .right).state
+  expect (comparePresetForward.comparison.leftStart == "2026-08-15" &&
+      comparePresetForward.comparison.leftEndExclusive == "2026-10-15" &&
+      comparePresetForward.comparison.rightStart == "2026-10-15" &&
+      comparePresetForward.comparison.rightEndExclusive == "2026-12-15")
+    "right did not shift the whole named-preset comparison pair"
+
+  let compareCalendarBase :=
+    (Loam.Tui.Reports.update comparePresetInitial .enter).state
+  let compareCalendar := (Loam.Tui.Reports.update compareCalendarBase (.input 'c')).state
+  let compareCycledPreset := (Loam.Tui.Reports.update compareCalendar (.input ']')).state
+  expect (Loam.Tui.Reports.comparisonSourceLabel compareCycledPreset == "Pension Cycle")
+    "comparison [ / ] source control did not select the named preset"
+  expect (compareCycledPreset.comparison.leftStart == "2026-06-15" &&
+      compareCycledPreset.comparison.rightEndExclusive == "2026-10-15")
+    "comparison source switch did not derive the named adjacent pair"
+
   let calendarAgain := (Loam.Tui.Reports.update pensionState (.input ']')).state
   expect (Loam.Tui.Reports.windowSourceLabel calendarAgain == "Calendar Month")
     "window-source cycle did not return to Calendar Month"
@@ -244,24 +286,26 @@ def main : IO Unit := do
   let stockCompare := (Loam.Tui.Reports.update stock (.input 'c')).state
   expect (match stockCompare.mode with | .stockFlowCompare => true | _ => false)
     "Stock–Flow c did not enter two-period comparison"
-  expect (stockCompare.comparison.leftStart == "2026-09-01" &&
-      stockCompare.comparison.leftEndExclusive == "2026-10-01")
-    "Stock–Flow comparison did not seed Left from the current explicit window"
-  expect (stockCompare.comparison.rightStart == "2026-10-01" &&
-      stockCompare.comparison.rightEndExclusive == "2026-11-01")
-    "Stock–Flow comparison did not seed Right from the following calendar month"
+  expect (Loam.Tui.Reports.comparisonSourceLabel stockCompare == "Calendar Month")
+    "Stock–Flow comparison did not inherit Calendar Month source"
+  expect (stockCompare.comparison.leftStart == "2026-08-01" &&
+      stockCompare.comparison.leftEndExclusive == "2026-09-01")
+    "Stock–Flow comparison did not seed Left from the previous calendar month"
+  expect (stockCompare.comparison.rightStart == "2026-09-01" &&
+      stockCompare.comparison.rightEndExclusive == "2026-10-01")
+    "Stock–Flow comparison did not seed Right from the current calendar month"
   match (Loam.Tui.Reports.update stockCompare .enter).query with
   | some (.stockFlowCompare leftStart leftEnd rightStart rightEnd) =>
-      expect (leftStart == "2026-09-01" && leftEnd == "2026-10-01")
+      expect (leftStart == "2026-08-01" && leftEnd == "2026-09-01")
         "Stock–Flow comparison changed Left coordinates"
-      expect (rightStart == "2026-10-01" && rightEnd == "2026-11-01")
+      expect (rightStart == "2026-09-01" && rightEnd == "2026-10-01")
         "Stock–Flow comparison changed Right coordinates"
   | _ => throw (IO.userError "Stock–Flow comparison did not emit both explicit windows")
 
   let stockComparisonReport := Loam.Tui.Reports.withStockFlowComparison stockCompare {
     left := {
-      start := "2026-09-01"
-      endExclusive := "2026-10-01"
+      start := "2026-08-01"
+      endExclusive := "2026-09-01"
       measure := some (⟨"jpy"⟩ : MeasureId)
       reconstructedStart := Quantity.ofQuanta 1000
       increasesAcrossEvents := Quantity.ofQuanta 300
@@ -269,8 +313,8 @@ def main : IO Unit := do
       currentTracked := Quantity.ofQuanta 1500
     }
     right := {
-      start := "2026-10-01"
-      endExclusive := "2026-11-01"
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
       measure := some (⟨"jpy"⟩ : MeasureId)
       reconstructedStart := Quantity.ofQuanta 1200
       increasesAcrossEvents := Quantity.ofQuanta 400
@@ -282,9 +326,22 @@ def main : IO Unit := do
     (Loam.Tui.Reports.viewForBounds { width := 140, height := 80 } stockComparisonReport)
   expect (contains "Left period" stockComparisonText && contains "Right period" stockComparisonText)
     "wide Stock–Flow comparison did not expose both panes"
-  expect (contains "Window [2026-09-01, 2026-10-01)" stockComparisonText &&
-      contains "Window [2026-10-01, 2026-11-01)" stockComparisonText)
+  expect (contains "Compare by: Calendar Month" stockComparisonText)
+    "Stock–Flow comparison did not render its automatic source"
+  expect (contains "Window [2026-08-01, 2026-09-01)" stockComparisonText &&
+      contains "Window [2026-09-01, 2026-10-01)" stockComparisonText)
     "Stock–Flow comparison did not render both explicit windows"
+  let stockCompareForward := (Loam.Tui.Reports.update stockCompare .right).state
+  expect (stockCompareForward.comparison.leftStart == "2026-09-01" &&
+      stockCompareForward.comparison.leftEndExclusive == "2026-10-01" &&
+      stockCompareForward.comparison.rightStart == "2026-10-01" &&
+      stockCompareForward.comparison.rightEndExclusive == "2026-11-01")
+    "right did not shift the whole Calendar Month comparison pair"
+  let stockCompareCustom := (Loam.Tui.Reports.update stockCompare (.input 'e')).state
+  expect (Loam.Tui.Reports.comparisonSourceLabel stockCompareCustom == "Custom")
+    "e did not enter manual comparison editing"
+  expect (stockCompareCustom.comparison.focus.val == 0)
+    "e did not focus Left start for manual comparison editing"
   expect (match (Loam.Tui.Reports.update stockComparisonReport .escape).state.mode with
       | .stockFlow => true | _ => false)
     "Stock–Flow comparison escape did not return to the single-period report"
@@ -362,11 +419,13 @@ def main : IO Unit := do
   let incomeCompare : Loam.Tui.Reports.State := {
     incomeCompareBase with
       comparison := {
+        incomeCompareBase.comparison with
         leftStart := "2026-01-15"
         leftEndExclusive := "2026-03-03"
         rightStart := "2026-07-01"
         rightEndExclusive := "2026-07-20"
         focus := ⟨4, by decide⟩
+        source := .custom
       }
   }
   match (Loam.Tui.Reports.update incomeCompare .enter).query with
