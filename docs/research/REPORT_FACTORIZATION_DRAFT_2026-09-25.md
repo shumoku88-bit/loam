@@ -908,6 +908,160 @@ identity matters.
 
 No production change is authorized by Observation 323.
 
+# 10. Stock-Flow public-shell factorization — Observation 324
+
+Observation 324 extends the Stock-Flow map outward from the record-scan core to
+the public project shell.
+
+Qualified research head:
+
+    73b9a9972bfef32ac0da73a6c59aa48bd20cb6ad
+
+Lean Proof Surfaces:
+
+    36206138925 — SUCCESS
+
+Compression Audit:
+
+    36206138942 — SUCCESS
+
+All three Lean proof-surface jobs passed:
+
+- product Lean surface;
+- selected live research witnesses;
+- durable Lean proof surface / axiom audit.
+
+## 10.1 Small outer image
+
+The research candidate shows that after BalanceReview has already produced its
+Snapshot, Stock-Flow needs only this balance image:
+
+    BalanceImage
+      coordinates
+      currentTracked
+
+The selected record stream then factors through:
+
+    Except String Scan
+
+where:
+
+    Scan
+      startBoundary
+      endBoundary
+      positiveWindow
+      negativeWindow
+
+The outer shell consumes only:
+
+    endpoints
+    BalanceImage
+    Except String Scan
+
+and then applies:
+
+    endpoint validation
+    -> window-order validation
+    -> scan refusal/success
+    -> parity gate
+    -> public StockFlowReview.Snapshot construction
+
+No Event or Effect evidence is observed by the outer shell after the scan
+boundary.
+
+## 10.2 General shell laws
+
+Observation 324 proves generally that:
+
+- malformed endpoints dominate any scan result;
+- reversed valid endpoints dominate any scan result;
+- a scan error passes through unchanged;
+- a successful parity-preserving Scan constructs exactly the expected Snapshot;
+- parity failure remains the same explicit internal refusal.
+
+Therefore the outer report shell is already completely described by the small
+factorization above.
+
+## 10.3 Public production pressure
+
+The research factorProject was also compared observationally with the public
+StockFlowReview.project entrance on closed cases covering:
+
+- successful boundary/window reconstruction;
+- first missing date;
+- first invalid date;
+- zero selected quantity with no date;
+- superseded undated record;
+- malformed endpoint dominating record failure;
+- reversed window dominating record failure.
+
+All selected witnesses agree with the public production result, comparing either
+the complete successful Snapshot or the exact error text.
+
+This is executable pressure, not a universal production theorem.
+
+## 10.4 Exact remaining bridge
+
+A universal theorem:
+
+    research factorProject
+      =
+    public StockFlowReview.project
+
+for arbitrary inputs is deliberately not claimed from the Observation module.
+
+The remaining obstacle is architectural rather than mathematical:
+StockFlowReview's current construction helpers are file-private.
+
+The missing production-local bridge is therefore narrow:
+
+    private selectedCoordinates
+      = research BalanceImage.coordinates
+
+    private currentTrackedQuanta
+      = research BalanceImage.currentTracked
+
+    private validateSelectedDates
+      + boundaryQuanta start
+      + boundaryQuanta end
+      + windowChanges
+      =
+    proved one-pass fail-closed Scan
+
+Once those equations are available inside StockFlowReview, the already-proved
+outer shell determines the same public result.
+
+This makes the remaining proof obligation concrete without creating a second
+authority.
+
+## 10.5 Current Stock-Flow map
+
+The complete research picture is now:
+
+    BalanceReview.Snapshot
+      -> {coordinates, currentTracked}
+                       \
+                        \
+    ActualReview.Record list
+      -> one sequential fail-closed Scan
+             {
+               startBoundary
+               endBoundary
+               positiveWindow
+               negativeWindow
+             }
+                        /
+                       /
+    endpoint gates
+      -> parity
+      -> StockFlowReview.Snapshot
+
+The mathematical compression target is therefore not "a generic flow engine".
+
+It is one very specific record-scan kernel plus a small outer shell.
+
+No production refactor is authorized by Observation 324.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
