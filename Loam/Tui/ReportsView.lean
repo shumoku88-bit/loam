@@ -2,6 +2,7 @@ import Loam.Tui.ReportsModel
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.MultimeasureSpendReview
+import Loam.MeasurePresentation
 import Loam.RoleFlowReview
 import Loam.Presentation.Reports
 import Loam.Tui.RoleBalances
@@ -418,7 +419,22 @@ private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : 
     ]
 
 
+private def formattedMeasureQuantity
+    (state : State)
+    (measure : Loam.Core.MeasureId)
+    (quantity : Loam.Core.Quantity) : String :=
+  Loam.MeasurePresentation.formatQuanta
+    state.multimeasurePresentation measure quantity.quanta
+
+private def formattedSignedMeasureQuantity
+    (state : State)
+    (measure : Loam.Core.MeasureId)
+    (quantity : Loam.Core.Quantity) : String :=
+  let text := formattedMeasureQuantity state measure quantity
+  if quantity.quanta > 0 then "+" ++ text else text
+
 private def measureTotalRows
+    (state : State)
     (heading emptyText : String)
     (rows : List Loam.MultimeasureSpendReview.MeasureTotal) : List Widget :=
   [line heading] ++
@@ -428,41 +444,50 @@ private def measureTotalRows
       rows.map fun row =>
         line
           ("  " ++ Loam.Tui.Layout.padRight 12 row.measure.token ++
-            padNum 14 (toString row.quantity.quanta) ++ " " ++ row.measure.token))
+            padNum 14 (formattedMeasureQuantity state row.measure row.quantity) ++
+            " " ++ row.measure.token))
 
 private def exchangeEffectText
+    (state : State)
     (label : String) (effect : Loam.Core.Effect) : Widget :=
   line
     ("  " ++ Loam.Tui.Layout.padRight 12 label ++
-      padNum 14 (signedQuanta effect.quantity) ++ " " ++ effect.measure.token ++
+      padNum 14
+        (formattedSignedMeasureQuantity state effect.measure effect.quantity) ++
+      " " ++ effect.measure.token ++
       "  " ++ effect.locus.token)
 
 private def exchangeOccurrenceLines
+    (state : State)
     (exchange : Loam.MultimeasureSpendReview.ExchangeOccurrence) : List Widget :=
   let description :=
     if exchange.description.isEmpty then "" else "  " ++ exchange.description
   [ line (exchange.date ++ description ++ "  [" ++ exchange.event.token ++ "]")
-  , exchangeEffectText "source" exchange.source
-  , exchangeEffectText "destination" exchange.destination
+  , exchangeEffectText state "source" exchange.source
+  , exchangeEffectText state "destination" exchange.destination
   ] ++
   (if exchange.extraEffects.isEmpty then
     []
    else
     [muted "  extra Effects"] ++
-      exchange.extraEffects.map (exchangeEffectText "extra"))
+      exchange.extraEffects.map (exchangeEffectText state "extra"))
 
 private def multimeasureUnresolvedEffectLine
+    (state : State)
     (entry : Loam.MultimeasureSpendReview.UnresolvedEffect) : Widget :=
   line
     ("? " ++ entry.date ++ "  " ++ entry.effect.locus.token ++ "  " ++
-      signedQuanta entry.effect.quantity ++ " " ++ entry.effect.measure.token ++
+      formattedSignedMeasureQuantity state entry.effect.measure entry.effect.quantity ++
+      " " ++ entry.effect.measure.token ++
       "  [" ++ entry.event.token ++ "]")
 
 private def multimeasureUnresolvedOriginalLine
+    (state : State)
     (entry : Loam.MultimeasureSpendReview.UnresolvedOriginalAmount) : Widget :=
   line
     ("? " ++ entry.date ++ "  original " ++
-      toString entry.quantity.quanta ++ " " ++ entry.measure.token ++
+      formattedMeasureQuantity state entry.measure entry.quantity ++
+      " " ++ entry.measure.token ++
       "  [" ++ entry.event.token ++ "]")
 
 private def multimeasureSpendResultLines (state : State) : List Widget :=
@@ -473,15 +498,15 @@ private def multimeasureSpendResultLines (state : State) : List Widget :=
       , muted "Distinct Measures remain separate. No FX rate, valuation, or home currency is inferred."
       , blank
       ] ++
-      measureTotalRows
+      measureTotalRows state
         "Ordinary accounting Expense" "No classified ordinary Expense in this window."
         snapshot.accountingExpense ++
       [blank] ++
-      measureTotalRows
+      measureTotalRows state
         "Original presented Expense" "No OriginalAmount evidence attached to classified Expense."
         snapshot.originalPresentedExpense ++
       [blank] ++
-      measureTotalRows
+      measureTotalRows state
         "Exchange-associated Expense" "No classified Expense attached to Exchange Events."
         snapshot.exchangeExpense ++
       [blank, line "Exchange occurrences"] ++
@@ -489,22 +514,25 @@ private def multimeasureSpendResultLines (state : State) : List Widget :=
         [muted "  No qualified Exchange Event in this window."]
        else
         snapshot.exchanges.flatMap fun exchange =>
-          exchangeOccurrenceLines exchange ++ [blank]) ++
+          exchangeOccurrenceLines state exchange ++ [blank]) ++
       [ line
           ("Unresolved ordinary Effects: " ++
             toString snapshot.unresolvedExpenseEffects.length)
       ] ++
-      (snapshot.unresolvedExpenseEffects.take 6).map multimeasureUnresolvedEffectLine ++
+      (snapshot.unresolvedExpenseEffects.take 6).map
+        (multimeasureUnresolvedEffectLine state) ++
       [ line
           ("Unresolved exchange Effects: " ++
             toString snapshot.unresolvedExchangeEffects.length)
       ] ++
-      (snapshot.unresolvedExchangeEffects.take 6).map multimeasureUnresolvedEffectLine ++
+      (snapshot.unresolvedExchangeEffects.take 6).map
+        (multimeasureUnresolvedEffectLine state) ++
       [ line
           ("Unresolved original amounts: " ++
             toString snapshot.unresolvedOriginalAmounts.length)
       ] ++
-      (snapshot.unresolvedOriginalAmounts.take 6).map multimeasureUnresolvedOriginalLine ++
+      (snapshot.unresolvedOriginalAmounts.take 6).map
+        (multimeasureUnresolvedOriginalLine state) ++
       [ muted "Exchange quantities are evidence of the exchange occurrence, not spending totals."
       , muted "Original presented amounts remain observations; they are not converted into accounting Measure."
       ]
