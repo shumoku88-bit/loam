@@ -5,8 +5,12 @@ open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def effectIn
+    (key locus measure : String) (quantity : Int) : Effect :=
+  Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quantity)
+
 private def effect (key locus : String) (quantity : Int) : Effect :=
-  Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quantity)
+  effectIn key locus "jpy" quantity
 
 private def event? (id : String) (effects : List Effect) : Option Event :=
   Event.ofEffects? ⟨id⟩ effects
@@ -51,6 +55,8 @@ def main : IO Unit := do
   match Loam.StockFlowReview.project balances records "2026-08-01" "2026-09-01" with
   | .error message => throw (IO.userError message)
   | .ok snapshot =>
+      expect (snapshot.measure == some (⟨"jpy"⟩ : MeasureId))
+        "Stock–Flow did not preserve the selected JPY Measure"
       expect (snapshot.reconstructedStart.quanta == 100)
         "Stock–Flow start reconstruction was wrong"
       expect (snapshot.reconstructedEnd.quanta == 90)
@@ -125,10 +131,33 @@ def main : IO Unit := do
       "2026-08-01" "2026-09-01" with
   | .error message =>
       expect
-        (message == "loam: stock-flow currently requires an explicit JPY balance selection")
+        (message == "loam: stock-flow selected balances span multiple measures")
         "mixed-Measure Stock-Flow refusal lost its explicit measure boundary"
   | .ok _ =>
       throw (IO.userError "mixed-Measure Stock-Flow silently summed unlike Measures")
+
+  let some usdOpening := event? "usd-opening"
+      [effectIn "uo1" "usd-cash" "usd" 30,
+       effectIn "uo2" "usd-offset" "usd" (-30)]
+    | throw (IO.userError "USD Stock-Flow fixture was rejected")
+  let usdBalances : Loam.BalanceReview.Snapshot := {
+    rows :=
+      [ { coordinate := ⟨⟨"usd-cash"⟩, ⟨"usd"⟩⟩, quantity := Quantity.ofQuanta 30 } ]
+  }
+  match Loam.StockFlowReview.project usdBalances
+      [record usdOpening (some "2026-07-01")]
+      "2026-08-01" "2026-09-01" with
+  | .error message =>
+      throw (IO.userError ("single-Measure USD Stock-Flow failed: " ++ message))
+  | .ok snapshot =>
+      expect (snapshot.measure == some (⟨"usd"⟩ : MeasureId))
+        "Stock-Flow did not preserve the selected USD Measure"
+      expect (snapshot.reconstructedStart.quanta == 30)
+        "USD Stock-Flow opening reconstruction was wrong"
+      expect (snapshot.reconstructedEnd.quanta == 30)
+        "USD Stock-Flow closing reconstruction was wrong"
+      expect (snapshot.currentTracked.quanta == 30)
+        "USD Stock-Flow current tracked quantity was wrong"
 
   match Loam.StockFlowReview.project balances [record undated none]
       "not-a-date" "2026-09-01" with
