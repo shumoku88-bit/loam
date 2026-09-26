@@ -137,25 +137,27 @@ private def sameSeriesResult
       values.length + (values.foldl (fun total value => total + value) 0).natAbs
 
 private def timeUsForced
+    (batch : Nat)
     (action : Unit → Except String (List Int)) : IO (Nat × Nat) := do
   let t0 ← IO.monoNanosNow
-  let result := action ()
-  let forced := forceSeries result
-  if forced == 999999999 then IO.println "unreachable" else pure ()
+  let mut checksum : Nat := 0
+  for _ in List.range batch do
+    checksum := checksum + forceSeries (action ())
+  if checksum == 999999999 then IO.println "unreachable" else pure ()
   let t1 ← IO.monoNanosNow
-  pure ((t1 - t0) / 1000, forced)
+  pure (((t1 - t0) / 1000) / batch, checksum)
 
 private def timeMedianUs
-    (iterations : Nat)
+    (iterations batch : Nat)
     (action : Unit → Except String (List Int)) : IO (Nat × Nat) := do
   let mut times : List Nat := []
-  let mut forced : Nat := 0
+  let mut checksum : Nat := 0
   for _ in List.range iterations do
-    let (us, value) ← timeUsForced action
+    let (us, value) ← timeUsForced batch action
     times := us :: times
-    forced := value
+    checksum := value
   let sorted := times.toArray.qsort (· < ·)
-  pure (sorted[sorted.size / 2]!, forced)
+  pure (sorted[sorted.size / 2]!, checksum)
 
 private def fmtUs (us : Nat) : String :=
   if us >= 1000000 then s!"{us / 1000000}.{(us % 1000000) / 100000} s"
@@ -172,6 +174,7 @@ def runAll : IO Unit := do
   let recordSizes := [1000, 5000, 10000]
   let daySizes := [7, 30, 90]
   let reps := 3
+  let batch := 10
 
   IO.println "=== Daily Pace Actual history: repeated scans vs fused finite-vector fold ==="
   IO.println "days | records | reference | fused | speedup"
@@ -197,9 +200,9 @@ def runAll : IO Unit := do
         throw <| IO.userError s!"semantic mismatch: days={days}, records={n}"
 
       let (referenceUs, forcedRef) ←
-        timeMedianUs reps fun _ => referenceSeries? selection records dates
+        timeMedianUs reps batch fun _ => referenceSeries? selection records dates
       let (fusedUs, forcedFused) ←
-        timeMedianUs reps fun _ => fusedSeries? selection records dates
+        timeMedianUs reps batch fun _ => fusedSeries? selection records dates
 
       unless forcedRef == forcedFused do
         throw <| IO.userError s!"forced mismatch: days={days}, records={n}"
