@@ -223,13 +223,15 @@ private def freshObservationCreatesNewCut : IO Unit := do
       events corrections debtAdmission ZeroOriginCoverage.empty
       OpeningSupportMap.empty [newAssertion])
     "fresh observation proposal"
-  expect (freshAnchor.reflectedRoots.contains old.id)
+  let freshGroup ← requireSome freshAnchor.singleGroup? "V4e fresh single group"
+  let oldGroup ← requireSome oldAnchor.singleGroup? "V4e old single group"
+  expect (freshGroup.reflectedRoots.contains old.id)
     "V4e fresh cut omitted covered old root"
-  expect (freshAnchor.reflectedRoots.contains later.id)
+  expect (freshGroup.reflectedRoots.contains later.id)
     "V4e fresh cut omitted then-current later root"
   let freshCurrent ← anchoredQuantity events corrections freshAnchor
   expect (freshCurrent == current) "V4e fresh observation changed observed quantity"
-  expect (oldAnchor.reflectedRoots != freshAnchor.reflectedRoots)
+  expect (oldGroup.reflectedRoots != freshGroup.reflectedRoots)
     "V4e fresh observation mutated no boundary at all"
 
 
