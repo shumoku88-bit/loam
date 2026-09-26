@@ -871,3 +871,61 @@ promotion because their terminal/completion semantics are distinct.
 
 The temporary benchmark source and workflow were retired after this result was
 harvested; Git history retains the executable measurement apparatus.
+
+
+## MATH-6 second-pass follow-up — shared sparse row image pressure
+
+**Status: MEASURED — NO FURTHER PRODUCTION PROMOTION EARNED**
+
+After the Web current snapshot began sharing one selected
+`TransactionsFlowReview.Snapshot` between Transactions Flow and Role Flow, the
+second MATH-6 pass found one remaining structural duplication:
+
+```text
+TransactionsFlowReview.Snapshot.columns
+    -> Snapshot.rowActivities
+    -> Transactions Flow presentation
+
+TransactionsFlowReview.Snapshot.columns
+    -> Snapshot.rowActivities
+    -> RoleFlow classification
+```
+
+The same derived `rowActivities` image also appears repeatedly inside the TUI
+Transactions Flow presentation path. This is a genuine stage-2 factorization
+opportunity: selected Columns remain authority, while the sparse
+`EffectCoordinate -> RowActivity` image is transient derived mechanics.
+
+A temporary paired benchmark therefore compared two independent
+`rowActivities` constructions with one construction shared by two consumers.
+Fixture size was supplied at runtime so the benchmark input was not a closed
+compile-time constant. Every fixture retained two Effects per Event and the
+benchmark required equal forced row digests before accepting timings.
+
+On the same GitHub Actions runner:
+
+| selected Events | duplicate construction | shared construction | observed ratio |
+| ---: | ---: | ---: | ---: |
+| 1,000 | 86 µs | 85 µs | ~1.01x |
+| 5,000 | 88 µs | 86 µs | ~1.02x |
+| 10,000 | 84 µs | 87 µs | ~0.97x |
+| 25,000 | 87 µs | 86 µs | ~1.01x |
+
+No meaningful scaling or speed difference was observed over this range. The
+structural duplication is real, but current production pressure does not justify
+adding retained derived state, a generic report cache, or a wider shared-image
+abstraction merely to remove it.
+
+The MATH-6 boundary remains:
+
+- keep selected Transactions-Flow Columns as the evidence authority;
+- keep `rowActivities` transient and derived;
+- allow narrow orchestration sharing when it is already natural, as in the Web
+  Transactions-Flow Snapshot reuse;
+- do not add new caching/state without measured pressure or net source/proof
+  reduction;
+- keep Merchant Expense separate because it observes Event identity, Merchant
+  evidence, and unresolved role witnesses that the row image forgets.
+
+The temporary benchmark source and workflow are retired after harvesting this
+negative result. Git history retains the executable measurement apparatus.
