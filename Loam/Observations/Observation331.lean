@@ -1,6 +1,4 @@
-import Loam.Observations.Observation327
-import Loam.Observations.Observation329
-import Loam.Observations.Observation330
+import Loam.Observations.Observation325
 import Std.Data.HashMap.Lemmas
 
 namespace Loam.Observation331
@@ -12,15 +10,18 @@ set_option autoImplicit false
 /-!
 # Observation 331 — Seedless one-pass Transactions-Flow RowIndex
 
-Observation 329 removed the separate Event-coordinate dedup representation:
-an Event-local CellIndex already carries exact coordinate support and exact
-post-aggregation cell values.
+Earlier RowIndex probes separated Event-local support, seeded global summaries,
+and represented-row support into several intermediate observations. This file now
+carries only the lemmas needed by the terminal seedless refinement.
 
-Observation 330 then separated global row support from presentation order:
-represented-row membership is raw selected Effect occurrence, while eraseDups
-and mergeSort only choose a duplicate-free ordered presentation.
+The key facts are:
 
-This observation asks the remaining refinement question:
+- an Event-local CellIndex carries both exact coordinate support and exact
+  post-aggregation cell values;
+- represented-row membership is raw selected Effect occurrence;
+- eraseDups and mergeSort choose representation/order rather than new meaning.
+
+This observation asks the terminal refinement question:
 
 > Can the global RowIndex start empty, discover represented keys while scanning
 > Columns, and accumulate RowActivity in that same scan?
@@ -90,14 +91,8 @@ private theorem representedInColumn_iff_key_mem
     representedInColumn coordinate column = true ↔
       Loam.Observation325.coordinateKey coordinate ∈
         (Loam.Observation325.buildCellIndex column.event.effects).keys := by
-  have h :=
-    Loam.Observation329.coordinate_mem_eventCellKeys_iff_raw_occurs
-      column.event coordinate
-  change
-    Loam.Observation325.coordinateKey coordinate ∈
-        (Loam.Observation325.buildCellIndex column.event.effects).keys ↔
-      representedInColumn coordinate column = true at h
-  exact h.symm
+  simp [representedInColumn, Std.HashMap.mem_iff_contains,
+    Loam.Observation325.buildCellIndex_contains_eq_any]
 
 private theorem directQuanta_zero_of_not_represented
     (coordinate : EffectCoordinate)
@@ -517,28 +512,6 @@ theorem seedlessRowActivity?_of_unrepresented
   rw [hSupport]
   rfl
 
-/--
-The seedless one-pass builder is pointwise extensionally equal to Observation
-327's semantic RowIndex specification for every Snapshot and EffectCoordinate.
-
-Unlike Observation 328, no precomputed Snapshot.rows seed map is needed.
--/
-theorem seedlessRowActivity?_eq_spec
-    (snapshot : Loam.TransactionsFlowReview.Snapshot)
-    (coordinate : EffectCoordinate) :
-    seedlessRowActivity? snapshot coordinate =
-      (Loam.Observation327.buildSnapshotRowIndex snapshot).get?
-        (Loam.Observation325.coordinateKey coordinate) := by
-  by_cases hRepresented : coordinate ∈ snapshot.rows
-  · rw [seedlessRowActivity?_of_represented
-      snapshot coordinate hRepresented]
-    rw [Loam.Observation327.buildSnapshotRowIndex_get?_of_represented
-      snapshot coordinate hRepresented]
-  · rw [seedlessRowActivity?_of_unrepresented
-      snapshot coordinate hRepresented]
-    rw [Loam.Observation327.buildSnapshotRowIndex_get?_of_unrepresented
-      snapshot coordinate hRepresented]
-
 /-!
 ## Finding
 
@@ -554,8 +527,9 @@ For every Snapshot and EffectCoordinate, an empty-start builder can:
       -> later occurrences update the existing state
       -> final CoordinateKey -> RowActivity
 
-and the resulting lookup is pointwise extensionally equal to Observation 327's
-semantic RowIndex specification.
+and the resulting lookup is directly qualified against the production
+`rowActivity` specification on every represented coordinate, while
+unrepresented coordinates remain absent.
 
 The important zero-cancellation boundary survives:
 
@@ -564,7 +538,10 @@ The important zero-cancellation boundary survives:
 - therefore a represented coordinate whose Event-local summed quantity is zero
   remains present globally with zero activity until later Events change it.
 
-This removes two research-only repeated-work structures from Observation 328:
+This terminal proof no longer depends on the retired intermediate RowIndex
+scaffolding. It directly carries the support/value correspondence needed for the
+seedless builder and removes two repeated-work structures from the earlier
+research shape:
 
 1. the separate list-membership Event-coordinate dedup;
 2. the precomputed Snapshot.rows zero-seeding pass.
@@ -579,17 +556,11 @@ The remaining ordered row presentation can be derived separately:
 or current Snapshot.rows can remain as the ordered compatibility view while the
 summary is built independently.
 
-This theorem qualifies semantic shape only. It does not yet establish that a
-production implementation is faster on realistic workloads.
-
-The next step is therefore empirical:
-
-1. construct a production-shaped candidate behind a benchmark-only boundary;
-2. compare current repeated row scans with one seedless sparse-summary build on
-   high-row/high-column synthetic Transactions-Flow workloads;
-3. promote nothing unless same-runner paired measurements show a material gain.
-
-No production optimization is authorized by this observation.
+This theorem qualified the semantic shape later promoted into
+`TransactionsFlowReview.rowActivities`. Production now keeps selected Columns as
+authority and derives the same seedless sparse summary transiently for bulk
+consumers. The retained production regression test compares every bulk row with
+the direct single-row `rowActivity` specification.
 -/
 
 end Loam.Observation331
