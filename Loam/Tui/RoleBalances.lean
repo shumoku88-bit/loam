@@ -349,7 +349,7 @@ private def answerabilityMapLines
   [ line "Answerability Map"
   , muted "Which current accounting questions are justified by existing evidence?"
   , line
-      ("  Current quantity support  " ++ toString quantitySupported ++ " / " ++
+      ("  Exact current quantity support  " ++ toString quantitySupported ++ " / " ++
         toString total ++ " coordinates")
   , line
       ("  AccountingRole coverage  " ++ toString roleClassified ++ " / " ++
