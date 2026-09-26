@@ -289,11 +289,11 @@ assert ExistingGroupedAnswerPreserved {
 assert CoordinateCutsDetermineGroupedCurrent {
   (Left.asserted = Right.asserted and
     Left.effective = Right.effective and
-    all c: Coordinate |
-      groupedSupported[Left, c] iff groupedSupported[Right, c] and
-    all c: Coordinate |
+    (all c: Coordinate |
+      groupedSupported[Left, c] iff groupedSupported[Right, c]) and
+    (all c: Coordinate |
       groupedSupported[Left, c] implies
-        sessionCut[Left, c] = sessionCut[Right, c]) implies
+        sessionCut[Left, c] = sessionCut[Right, c])) implies
     all c: Coordinate |
       groupedSupported[Left, c] implies
         groupedCurrent[Left, c] = groupedCurrent[Right, c]
