@@ -26,7 +26,8 @@ jobs:
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
-          build: false
+          build: true
+          build-args: Loam.Observations.Observation331
           test: false
           lint: false
           use-mathlib-cache: false
