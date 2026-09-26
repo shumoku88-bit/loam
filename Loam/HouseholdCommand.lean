@@ -1,5 +1,7 @@
 import Loam.HouseholdPaths
 import Loam.MovementPublisher
+import Loam.OriginalAmountMovementPublisher
+import Loam.ExchangePublisher
 import Loam.CorrectionPublisher
 import Loam.ActualValidityPublisher
 import Loam.ActualReversalPublisher
@@ -41,6 +43,26 @@ def record
     (draft : Loam.MovementAdmission.Draft) :
     IO (Except String Loam.Core.EventId) :=
   Loam.MovementPublisher.publishDraft root.toString draft
+
+/--
+Record one ordinary Movement together with one original presented/charged amount
+under the same Actual writer ownership and atomic publication.
+-/
+def recordWithOriginalAmount
+    (root : System.FilePath)
+    (draft : Loam.OriginalAmountMovementPublisher.Draft) :
+    IO (Except String Loam.Core.EventId) :=
+  Loam.OriginalAmountMovementPublisher.publish root.toString draft
+
+/--
+Record one newly observed cross-Measure exchange together with the
+effect-selected ExchangeEvidence that qualifies it.
+-/
+def recordExchange
+    (root : System.FilePath)
+    (draft : Loam.ExchangeAdmission.Draft) :
+    IO (Except String Loam.Core.EventId) :=
+  Loam.ExchangePublisher.publish root.toString draft
 
 /--
 Record one Actual Movement through the normalized Actual publisher under a
