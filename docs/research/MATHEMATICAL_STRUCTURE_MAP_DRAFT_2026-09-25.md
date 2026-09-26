@@ -548,28 +548,98 @@ journal workload.
 
 ## MATH-11 — normalization / canonical-image laws
 
-**Status: RESEARCH CANDIDATE**
+**Status: QUALIFIED / NARROW COMPRESSION HARVESTED**
 
 Representative modules:
 
-- `Loam/Persistence/NormalizedActualAdmission.lean`
-- normalized Actual/Capacity persistence;
-- admitted read images.
+- `Loam/Persistence/VersionedRows.lean`
+- `Loam/Persistence/NormalizedActualPersistence.lean`
+- `Loam/Persistence/NormalizedCapacityPersistence.lean`
+- proof-carrying admitted evidence types.
 
-Current design already separates:
+The useful result is not one repository-wide notion of normalization. Three
+different shapes are now distinguished.
+
+### 1. Exact framing round trip
+
+`VersionedRows` already proves that framing rows and immediately decoding the
+same newline-safe frame returns exactly the original row list:
 
 ```text
-retained evidence
--> semantic admission
--> derived current views / transient indexes
+rows
+  -> encodeVersionedRows
+  -> decodeVersionedRows?
+  -> same rows
 ```
 
-Potential laws worth observing include:
+This is representation mechanics only.
 
-- idempotence of purely semantic normalization where such normalization exists;
-- encode/decode canonicalization;
-- re-admission stability;
-- derived-index rebuild equivalence.
+### 2. Actual wire canonicalization can collapse selected representation order
+
+Observation 338 used the production normalized-Actual decoder, full semantic
+admission, and encoder. Two admitted wires with the same Effect order and facts,
+but different interleaving of row families, converged to one encoder-selected
+wire. Reapplying decode/encode to that image was a fixed point.
+
+The result is deliberately local. It does not establish permutation freedom for
+Event order, Effect order, revision order, Relation order, or Discharge order.
+
+Observation 338 was harvested from the live Lean umbrella after this conclusion
+was recorded. Its executable proof remains in Git history through PR #1342.
+
+### 3. Capacity has a semantic admission fixed point, not global wire canonicalization
+
+Observation 339 proved for every already-admitted `CapacityEvidence` that:
+
+```text
+CapacityEvidence.ofParts?
+  evidence.movements
+  evidence.effective
+= some evidence
+```
+
+The law follows directly from the `complete` proof carried by the type.
+
+At the wire level, however, two valid Capacity documents with reversed Movement
+order remained two distinct decode/encode fixed points. The normalized Capacity
+codec therefore preserves that order rather than selecting one global
+permutation-normal form.
+
+Observation 339 was harvested from the live Lean umbrella after the general law
+and the wire-order boundary were recorded. The proof remains in Git history
+through PR #1343.
+
+### Production compression harvested
+
+The cross-family audit found four hand-written recursive row traversals in
+`LocusAdmissionPersistence` and `ZeroOriginCoveragePersistence` that were
+exactly the existing `List.mapM` behavior already used by neighboring codecs.
+
+PR #1344 replaced those helpers directly:
+
+```text
++4 / -32
+= 28 production lines net removed
+```
+
+No generic persistence framework, authority change, row-order change, or wire
+change was introduced.
+
+### Stop conditions
+
+Current remaining persistence families do not justify a wider abstraction:
+
+- Actual and Scheduled routing have visibly different subject/time syntax and
+  authority meaning despite sharing `RoutingHistory`;
+- Attention and CurrentQuantityAnchor expose some family-grouping
+  canonicalization, but no current production duplication is removed by naming
+  that law;
+- Scheduled lifecycle has three physical terminal sections, but collapsing their
+  small codecs would hide Completion / Retirement / Replacement distinctions
+  for only a few lines of source reduction.
+
+Therefore MATH-11 currently supports **local fixed-point/canonical-image laws and
+small mechanical subtraction**, not a universal normalization API.
 
 ### Boundary
 
@@ -577,8 +647,10 @@ Persistence, filesystem behavior, malformed input, version compatibility, and
 crash recovery remain runtime/test obligations. A pure normalization theorem
 does not replace IO qualification.
 
-**Potential payoff:** medium  
-**Risk:** medium.
+**Potential payoff:** harvested at current pressure  
+**Risk:** low while laws remain family-local  
+**Next pressure:** reopen only when a concrete consumer repeats admission or a
+second codec duplicates enough mechanics to produce net code/proof reduction.
 
 ---
 
