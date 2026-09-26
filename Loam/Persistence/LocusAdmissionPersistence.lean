@@ -26,17 +26,10 @@ private def encodeLocusRow? (locus : LocusId) : Option String :=
   else
     none
 
-private def encodeLocusRows? : List LocusId → Option (List String)
-  | [] => some []
-  | locus :: rest => do
-      let row ← encodeLocusRow? locus
-      let rows ← encodeLocusRows? rest
-      some (row :: rows)
-
 /-- Encode one explicit vocabulary without deriving or expanding it from history. -/
 def encodeLocusAdmissionVocabulary?
     (vocabulary : LocusAdmissionVocabulary) : Option String := do
-  let rows ← encodeLocusRows? vocabulary.approved
+  let rows ← vocabulary.approved.mapM encodeLocusRow?
   some (encodeVersionedRows locusAdmissionVocabularyHeader rows)
 
 private def decodeLocusRow? (row : String) : Option LocusId :=
@@ -48,13 +41,6 @@ private def decodeLocusRow? (row : String) : Option LocusId :=
         none
   | _ => none
 
-private def decodeLocusRows? : List String → Option (List LocusId)
-  | [] => some []
-  | row :: rest => do
-      let locus ← decodeLocusRow? row
-      let loci ← decodeLocusRows? rest
-      some (locus :: loci)
-
 /--
 Decode exactly one version-1 vocabulary. Duplicate identities fail closed rather
 than allowing representation duplication to acquire accidental meaning.
@@ -62,7 +48,7 @@ than allowing representation duplication to acquire accidental meaning.
 def decodeLocusAdmissionVocabulary?
     (input : String) : Option LocusAdmissionVocabulary := do
   let rows ← decodeVersionedRows? locusAdmissionVocabularyHeader input
-  let loci ← decodeLocusRows? rows
+  let loci ← rows.mapM decodeLocusRow?
   LocusAdmissionVocabulary.ofLoci? loci
 
 /-- Atomically replace one independently persisted Locus admission vocabulary. -/
