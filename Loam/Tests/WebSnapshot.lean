@@ -155,7 +155,7 @@ def main (_args : List String) : IO Unit := do
     "Web snapshot did not expose evidence-aware Balances"
   expect (contains html "cash")
     "Web snapshot did not render the supported Balance row"
-  expect (contains html "Unresolved roles: 1; unsupported balances: 1.")
+  expect (contains html "Unresolved roles: 1; known-present balances with exact amount unknown: 0; unsupported balances: 1.")
     "Web snapshot did not preserve Balance evidence gaps"
   expect (contains html "Recent Actual")
     "Web snapshot did not expose the Actual section"
