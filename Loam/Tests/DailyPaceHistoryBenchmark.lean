@@ -124,6 +124,13 @@ private def fusedSeries?
       return addContribution validOn quantity dates totals)
     (List.replicate dates.length 0)
 
+private def sameSeriesResult
+    (left right : Except String (List Int)) : Bool :=
+  match left, right with
+  | .ok leftValues, .ok rightValues => leftValues == rightValues
+  | .error leftMessage, .error rightMessage => leftMessage == rightMessage
+  | _, _ => false
+
 @[noinline] private def forceSeries : Except String (List Int) → Nat
   | .error message => message.length
   | .ok values =>
@@ -183,7 +190,7 @@ def main : IO Unit := do
 
       let expected := referenceSeries? selection records dates
       let actual := fusedSeries? selection records dates
-      unless expected == actual do
+      unless sameSeriesResult expected actual do
         throw <| IO.userError s!"semantic mismatch: days={days}, records={n}"
 
       let (referenceUs, forcedRef) ←
