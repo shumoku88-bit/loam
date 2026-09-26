@@ -400,6 +400,8 @@ private def renderBalancesReport
       body ++ "\n" ++
       "<p class=\"note\">Unresolved roles: " ++
         escapeHtml (toString report.unresolvedRoleCount) ++
+        "; known-present balances with exact amount unknown: " ++
+        escapeHtml (toString report.knownPresentBalanceCount) ++
         "; unsupported balances: " ++ escapeHtml (toString report.unsupportedBalanceCount) ++ ".</p>")
     "Balances were not requested."
     "Balance evidence is unavailable."
