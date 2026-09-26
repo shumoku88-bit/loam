@@ -136,10 +136,12 @@ def runSize (n : Nat) : IO Unit := do
 
 end Loam.Tests.TransactionsFlowSharedImageBenchmark
 
-def main : IO Unit := do
-  let args ← IO.getArgs
-  let some token := args[0]?
-    | throw <| IO.userError "usage: benchmark <event-count>"
-  let some n := token.toNat?
+def main (args : List String) : IO UInt32 := do
+  let token ←
+    match args with
+    | [token] => pure token
+    | _ => throw <| IO.userError "usage: benchmark <event-count>"
+  let some n := String.toNat? token
     | throw <| IO.userError s!"invalid event count: {token}"
   Loam.Tests.TransactionsFlowSharedImageBenchmark.runSize n
+  return 0
