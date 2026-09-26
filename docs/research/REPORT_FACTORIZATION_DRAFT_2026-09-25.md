@@ -1539,25 +1539,118 @@ The qualified run above instead retains the actual timed results and compares
 those exact results after timing. The large change in observed scaling is why
 the corrected instrumentation is the recorded result.
 
-## 15.2 Remaining empirical question
+## 15.2 Fixed-row long-history measurement
 
-The high-cardinality case earns a stronger measurement, not automatic production
-promotion.
+The remaining practical question was then measured with a fixed row universe.
 
-The remaining practical question is:
+Fixture shape:
+
+- one shared `cash/jpy` coordinate;
+- a repeating expense-category coordinate;
+- exactly two Effects per Event;
+- expense-category counts of 16, 32, and 64;
+- therefore actual represented row counts of 17, 33, and 65;
+- Event history grows independently from 1,000 to 25,000 Events.
+
+The same corrected measurement discipline was used:
+
+- no semantic result is computed before timing;
+- baseline and candidate order alternates across repetitions;
+- five paired repetitions per case;
+- the actual timed row lists are retained;
+- complete row equality is checked after timing.
+
+Qualified benchmark commit:
+
+    2af95be0fb8d17c3e404af76bc0cd9af55d7c388
+
+GitHub Actions run:
+
+    36210678430 — SUCCESS
+
+| Expense categories | Events | Actual rows | Current median | Seedless median | Speedup |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 16 | 1,000 | 17 | 42.1 ms | 25.3 ms | 1.66x |
+| 16 | 5,000 | 17 | 213.8 ms | 126.1 ms | 1.69x |
+| 16 | 10,000 | 17 | 432.3 ms | 251.7 ms | 1.71x |
+| 16 | 25,000 | 17 | 1.0 s | 629.1 ms | 1.71x |
+| 32 | 1,000 | 33 | 80.5 ms | 25.3 ms | 3.18x |
+| 32 | 5,000 | 33 | 408.6 ms | 126.2 ms | 3.23x |
+| 32 | 10,000 | 33 | 814.0 ms | 251.6 ms | 3.23x |
+| 32 | 25,000 | 33 | 2.0 s | 624.2 ms | 3.22x |
+| 64 | 1,000 | 65 | 152.5 ms | 25.1 ms | 6.06x |
+| 64 | 5,000 | 65 | 764.3 ms | 125.1 ms | 6.10x |
+| 64 | 10,000 | 65 | 1.5 s | 249.2 ms | 6.21x |
+| 64 | 25,000 | 65 | 3.8 s | 621.8 ms | 6.20x |
+
+With row cardinality fixed, both paths are approximately linear in Event
+history length over this measured range.
+
+The important difference is the coefficient:
 
 ```text
-with a household-sized fixed row universe
-    and a long Event history,
+current materialization
+    repeatedly projects each row across the history
+    -> cost rises with represented row count
 
-does seedless construction still remove enough repeated work
-to justify its transient HashMap machinery?
+seedless materialization
+    scans each Event-local sparse cell set once
+    -> cost is nearly insensitive to the fixed row-universe size here
 ```
 
-That case should be measured separately before any production optimization is
-proposed.
+That is visible directly in the 25,000-Event measurements:
 
-No production optimization is authorized by Observation 331 or this benchmark.
+- 17 rows: 1.71x speedup;
+- 33 rows: 3.22x;
+- 65 rows: 6.20x.
+
+This is still a synthetic in-memory benchmark, not a complete TUI or Web
+end-to-end latency measurement. It does, however, show that the benefit is not
+restricted to the deliberately harsh N-rows-for-N-Events pressure case.
+
+## 15.3 Production decision boundary
+
+The combined proof and measurement evidence now supports a narrow production
+candidate.
+
+It does **not** support changing Snapshot authority or retaining a new index.
+
+The earned shape is instead:
+
+```text
+TransactionsFlowReview.Snapshot
+    retains selected Columns exactly as today
+
+new transient bulk row observation
+    Columns
+      -> seedless sparse RowIndex
+      -> ordered (EffectCoordinate, RowActivity) rows
+
+bulk consumers
+    Presentation/Reports
+    TUI Transactions-Flow rows
+    RoleFlow classified rows
+      -> use the bulk observation once
+
+focused single-row APIs
+    rowActivity
+    rowTotal
+    cellAt
+      -> may remain simple direct specifications
+```
+
+This keeps the direct functions as small semantic specifications while removing
+their repeated use from bulk report construction.
+
+Before promotion, the production-local implementation should prove or directly
+reuse the Observation 331 correspondence law and retain exact ordered-row
+compatibility.
+
+The evidence now justifies attempting that narrow production refactor in a
+separate change. It does not justify storing the transient index, changing
+persistence, or replacing selected Columns as evidence authority.
+
+No production code is changed by this research branch.
 
 ---
 
