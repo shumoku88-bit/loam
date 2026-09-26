@@ -177,7 +177,9 @@ theorem failure_kind_remains_observable
     (roleGap : UnresolvedRoleEffect) :
     observe .merchantBoundaryComplete (merchantFailure snapshot merchantGap) ≠
       observe .merchantBoundaryComplete (roleFailure snapshot roleGap) := by
-  simp [observe, merchantFailure, roleFailure]
+  change false ≠ true
+  intro h
+  cases h
 
 /--
 Therefore Merchant-boundary diagnostic completeness does not factor through the
