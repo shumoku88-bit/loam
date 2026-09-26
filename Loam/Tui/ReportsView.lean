@@ -84,20 +84,26 @@ private def menuView (state : State) : Widget :=
     , line state.notice
     ]
 
+private def stockFlowMeasureSuffix (measure : Option Loam.Core.MeasureId) : String :=
+  match measure with
+  | none => ""
+  | some selected => " " ++ selected.token
+
 private def stockFlowResultLines (state : State) : List Widget :=
   match state.stockFlowSnapshot with
   | none => [muted "No explicit Stock–Flow window has been run yet."]
   | some snapshot =>
       let label := Loam.Tui.Layout.padRight 36
+      let measure := stockFlowMeasureSuffix snapshot.measure
       [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
-      , line (label "Reconstructed at start:" ++ padNum 12 (toString snapshot.reconstructedStart.quanta) ++ " jpy")
-      , line (label "Reconstructed at end:" ++ padNum 12 (toString snapshot.reconstructedEnd.quanta) ++ " jpy")
+      , line (label "Reconstructed at start:" ++ padNum 12 (toString snapshot.reconstructedStart.quanta) ++ measure)
+      , line (label "Reconstructed at end:" ++ padNum 12 (toString snapshot.reconstructedEnd.quanta) ++ measure)
       , blank
-      , line (label "Tracked increases across Events:" ++ padNum 12 (signedQuanta snapshot.increasesAcrossEvents) ++ " jpy")
-      , line (label "Tracked decreases across Events:" ++ padNum 12 (signedQuanta snapshot.decreasesAcrossEvents) ++ " jpy")
-      , line (label "Net change:" ++ padNum 12 (signedQuanta snapshot.netChange) ++ " jpy")
+      , line (label "Tracked increases across Events:" ++ padNum 12 (signedQuanta snapshot.increasesAcrossEvents) ++ measure)
+      , line (label "Tracked decreases across Events:" ++ padNum 12 (signedQuanta snapshot.decreasesAcrossEvents) ++ measure)
+      , line (label "Net change:" ++ padNum 12 (signedQuanta snapshot.netChange) ++ measure)
       , blank
-      , muted (label "Current tracked balance now:" ++ padNum 12 (toString snapshot.currentTracked.quanta) ++ " jpy")
+      , muted (label "Current tracked balance now:" ++ padNum 12 (toString snapshot.currentTracked.quanta) ++ measure)
       , muted "Boundary values are reconstructed from current accepted evidence."
       , muted "They are not archived historical balance snapshots."
       , muted "Increase/decrease is tracked-balance motion, not income/spending."
