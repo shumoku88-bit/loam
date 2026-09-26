@@ -6,6 +6,7 @@ on:
       - 'research/actual-journal-sort-pressure'
     paths:
       - 'Loam/Tests/ActualJournalSortBenchmark.lean'
+      - 'Loam/Observations/Observation335.lean'
       - '.github/workflows/actual-journal-sort-benchmark.yml'
   workflow_dispatch:
 
@@ -33,6 +34,10 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+
+      - name: Check sort refinement observation
+        shell: bash
+        run: lake env lean Loam/Observations/Observation335.lean
 
       - name: Run paired benchmark
         shell: bash
