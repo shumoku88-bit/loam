@@ -56,7 +56,10 @@ private def comparisonField
     ]
 
 private def comparisonFormLines (state : State) : List Widget :=
-  [ comparisonField state 0 "Left start" state.comparison.leftStart
+  [ line ("Compare by: " ++ comparisonSourceLabel state)
+  , muted "Automatic sources keep two adjacent explicit windows; editing switches to Custom."
+  , blank
+  , comparisonField state 0 "Left start" state.comparison.leftStart
   , comparisonField state 1 "Left end (exclusive)" state.comparison.leftEndExclusive
   , comparisonField state 2 "Right start" state.comparison.rightStart
   , comparisonField state 3 "Right end (exclusive)" state.comparison.rightEndExclusive
@@ -190,8 +193,8 @@ private def stockFlowCompareView (state : State) (bounds : Option Bounds) : Widg
     [ blank ] ++
     stockFlowComparisonLines state bounds ++
     [ blank
-    , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc single-period Stock–Flow"
+    , muted "[ / ] source   ← / → comparison pair   e edit dates   Enter next/run"
+    , muted "Tab / Shift-Tab focus   Backspace delete   q / Esc single-period"
     , line state.notice
     ]
 
@@ -358,8 +361,8 @@ private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : 
     [ blank ] ++
     incomeExpenseComparisonLines state bounds ++
     [ blank
-    , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc single-period Income & Expense"
+    , muted "[ / ] source   ← / → comparison pair   e edit dates   Enter next/run"
+    , muted "Tab / Shift-Tab focus   Backspace delete   q / Esc single-period"
     , line state.notice
     ]
 
