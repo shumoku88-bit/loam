@@ -105,9 +105,11 @@ private def editOriginalActive
     { editor with amount := edit editor.amount }
 
 private def moveOriginalFocus
-    (editor : OriginalAmountEditor) (back : Bool) : OriginalAmountEditor :=
-  let next := if back then (editor.focus.val + 1) % 2 else (editor.focus.val + 1) % 2
-  { editor with focus := ⟨next, Nat.mod_lt _ (by decide)⟩ }
+    (editor : OriginalAmountEditor) : OriginalAmountEditor :=
+  if editor.focus.val = 0 then
+    { editor with focus := ⟨1, by decide⟩ }
+  else
+    { editor with focus := ⟨0, by decide⟩ }
 
 def attachOriginalAmount?
     (state : State) (editor : OriginalAmountEditor) : Except String State := do
@@ -378,7 +380,7 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
                 mode := .editing
                 notice := "Original amount cleared." } }
         | .tab | .shiftTab =>
-            { state := { state with mode := .originalAmount (moveOriginalFocus editor false), notice := "" } }
+            { state := { state with mode := .originalAmount (moveOriginalFocus editor), notice := "" } }
         | .backspace =>
             { state := { state with
                 mode := .originalAmount
@@ -392,7 +394,7 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .enter =>
             if editor.focus.val = 0 then
               { state := { state with
-                  mode := .originalAmount (moveOriginalFocus editor false)
+                  mode := .originalAmount (moveOriginalFocus editor)
                   notice := "" } }
             else
               match attachOriginalAmount? state editor with
