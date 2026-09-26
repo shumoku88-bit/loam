@@ -107,24 +107,30 @@ def main : IO Unit := do
       unresolvedExpenseEffects := []
       unresolvedExchangeEffects := []
       unresolvedOriginalAmounts := []
-    }
+    } [
+      { measure := ⟨"jpy"⟩, scale := 0 },
+      { measure := ⟨"usd"⟩, scale := 2 }
+    ]
   let multicurrencyReportText := widgetText (Loam.Tui.Reports.view multicurrencyReport)
   expect (contains "Ordinary accounting Expense" multicurrencyReportText &&
       contains "4700 jpy" multicurrencyReportText &&
-      contains "2500 usd" multicurrencyReportText)
+      contains "25.00 usd" multicurrencyReportText)
     "Multicurrency Spend mixed or hid ordinary Measure-separated Expense"
   expect (contains "Original presented Expense" multicurrencyReportText &&
-      contains "3000 usd" multicurrencyReportText)
+      contains "30.00 usd" multicurrencyReportText)
     "Multicurrency Spend lost OriginalAmount evidence"
   expect (contains "Exchange-associated Expense" multicurrencyReportText &&
       contains "100 jpy" multicurrencyReportText)
     "Multicurrency Spend hid exchange-associated Expense"
   expect (contains "Exchange occurrences" multicurrencyReportText &&
       contains "-15100 jpy" multicurrencyReportText &&
-      contains "+10000 usd" multicurrencyReportText)
+      contains "+100.00 usd" multicurrencyReportText)
     "Multicurrency Spend lost exact exchange source/destination evidence"
   expect (contains "No FX rate, valuation, or home currency is inferred" multicurrencyReportText)
     "Multicurrency Spend lost its no-conversion boundary"
+  expect (!contains "3000 usd" multicurrencyReportText &&
+      !contains "2500 usd" multicurrencyReportText)
+    "Multicurrency Spend ignored configured Measure decimal presentation"
 
   let coverageStep := Loam.Tui.Reports.update initial (.input 'c')
   expect (match coverageStep.state.mode with | .scheduledCoverage => true | _ => false)
