@@ -74,34 +74,13 @@ private def emptyScheduledImage : IO Loam.Persistence.ScheduledLifecycleImage :=
   return { scheduled, terminals }
 
 private def initBase (root : System.FilePath) : IO Unit := do
-  IO.println "measure-scale checkpoint: init mkdir"
   IO.FS.createDirAll root
-  IO.println "measure-scale checkpoint: init world"
   let world ← emptyWorld
-  IO.println "measure-scale checkpoint: init actual-build"
-  let evidence : Loam.ActualEvidence := {
-    Loam.ActualEvidence.empty with
-    events := world.events
-    validity := world.validity
-    descriptions := world.descriptions
-    relations := world.relations
-    discharges := world.discharges
-  }
-  IO.println "measure-scale checkpoint: init actual-publish"
-  requireOk
-    (← Loam.ActualAuthority.publishActualFile?
-      (Loam.ActualAuthority.actualPath root) evidence)
+  requireOk (← Loam.Tests.ActualWorldFixture.publishWorld? root world)
     "initialize admitted Actual fixture"
-  IO.println "measure-scale checkpoint: init locus-publish"
-  requireOk
-    (← Loam.LocusAdmissionAuthority.publishCurrent? root world.locusAdmission)
-    "initialize Locus admission fixture"
-  IO.println "measure-scale checkpoint: init scheduled-memory"
   let scheduled ← emptyScheduledImage
-  IO.println "measure-scale checkpoint: init scheduled-save"
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") scheduled)
     "initialize Scheduled"
-  IO.println "measure-scale checkpoint: init done"
 
 private def writePresentation
     (root : System.FilePath)
@@ -197,17 +176,11 @@ private def loadScale
 
 private def sequentialQualification (base : System.FilePath) : IO Unit := do
   let root := base / "used-families"
-  IO.println "measure-scale checkpoint: initBase"
   initBase root
-  IO.println "measure-scale checkpoint: actual"
   publishActualMeasure root "jpy"
-  IO.println "measure-scale checkpoint: scheduled"
   publishScheduledMeasure root "usd"
-  IO.println "measure-scale checkpoint: capacity"
   publishCapacityMeasure root "cad"
-  IO.println "measure-scale checkpoint: anchor"
   publishAnchorMeasure root "ils"
-  IO.println "measure-scale checkpoint: presentation"
   writePresentation root
     [ { measure := ⟨"jpy"⟩, scale := 0 }
     , { measure := ⟨"usd"⟩, scale := 2 }
@@ -215,7 +188,6 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
     , { measure := ⟨"ils"⟩, scale := 2 }
     , { measure := ⟨"eur"⟩, scale := 2 } ]
 
-  IO.println "measure-scale checkpoint: unused change"
   requireOk
     (← Loam.MeasurePresentationAuthority.setScale root ⟨"eur"⟩ 3)
     "unused Measure scale change"
@@ -256,7 +228,6 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
   expect (malformedBefore == malformedAfter)
     "malformed config refusal changed authority bytes"
 
-  IO.println "measure-scale checkpoint: missing-config"
   let missingRoot := base / "missing-config"
   initBase missingRoot
   publishActualMeasure missingRoot "jpy"
@@ -274,7 +245,6 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
     (← Loam.MeasurePresentationAuthority.setScale missingRoot ⟨"jpy"⟩ 2)
     "used Measure changed away from missing-config historical scale 0"
 
-  IO.println "measure-scale checkpoint: scale-first"
   let scaleFirstRoot := base / "scale-first"
   initBase scaleFirstRoot
   writePresentation scaleFirstRoot [{ measure := ⟨"usd"⟩, scale := 2 }]
