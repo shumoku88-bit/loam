@@ -39,6 +39,10 @@ def main : IO Unit := do
     (System.FilePath.mk "/tmp/loam-household-paths/current-quantity-anchor.loam") "current quantity anchor"
   expect (Loam.HouseholdPaths.currentQuantityAnchorFileName == "current-quantity-anchor.loam")
     "unexpected CurrentQuantityAnchor filename identity"
+  expectPath (Loam.HouseholdPaths.currentQuantityPresence root)
+    (System.FilePath.mk "/tmp/loam-household-paths/current-quantity-presence.loam") "current quantity presence"
+  expect (Loam.HouseholdPaths.currentQuantityPresenceFileName == "current-quantity-presence.loam")
+    "unexpected CurrentQuantityPresence filename identity"
 
   expectPath (Loam.HouseholdPaths.boundaryPresets root)
     (System.FilePath.mk "/tmp/loam-household-paths/config/boundary-presets.tsv") "boundary presets"
