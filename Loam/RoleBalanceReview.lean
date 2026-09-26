@@ -80,11 +80,12 @@ structure UnsupportedBalance where
 /--
 Shared role-aware current balance answer.
 
-The three lists are a disjoint partition of represented coordinates:
-classified supported, role-unresolved supported, and quantity-unsupported.
-A coordinate with neither quantity nor role support lives only in
-`unsupportedBalances` with `role = none`; presentation may project that one
-record into both quantity and role blocker views without duplicating the answer.
+The four lists are a disjoint partition of represented coordinates:
+classified exact-supported, role-unresolved exact-supported, known-present with
+unknown exact amount, and fully quantity-unsupported. A coordinate with neither
+quantity nor role support lives only in `unsupportedBalances` with `role = none`;
+presentation may project that one record into both quantity and role blocker
+views without duplicating the answer.
 -/
 structure Snapshot where
   rows : List Row
