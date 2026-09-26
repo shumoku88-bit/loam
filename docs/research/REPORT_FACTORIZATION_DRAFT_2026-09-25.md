@@ -1206,6 +1206,112 @@ In particular it must preserve:
 This is now an algorithm-refinement question rather than an unresolved semantic
 question.
 
+# 12. Transactions-Flow one-pass RowIndex refinement — Observation 328
+
+Observation 328 proves that the already-qualified global RowIndex meaning can be
+constructed incrementally over the selected Column stream.
+
+Qualified research head:
+
+    ff4813bb88922491f2f230264cde8a18736623b5
+
+Lean Proof Surfaces:
+
+    36207987852 — SUCCESS
+
+Compression Audit:
+
+    36207987863 — SUCCESS
+
+All three Lean proof-surface jobs passed:
+
+- product Lean surface;
+- selected live research witnesses;
+- durable Lean proof surface / axiom audit.
+
+## 12.1 Algorithm shape
+
+The research builder uses two deliberately separated stages.
+
+First, it seeds exactly the represented row keys from Snapshot.rows:
+
+    represented coordinate
+      -> zero ActivityState
+
+Second, it scans selected Columns once from left to right.
+
+For each Column:
+
+    raw Effects
+      -> Event-local CellIndex
+      -> deduplicated Event coordinates
+      -> update only pre-seeded global row keys
+
+The Event-local CellIndex is the already-proved Observation 325 representation,
+so same-Event repeated Effects are summed before sign classification.
+
+The updater refuses to insert a row key that Snapshot.rows did not seed.
+Therefore the incremental builder cannot manufacture new represented rows.
+
+## 12.2 General refinement theorem
+
+For every Transactions-Flow Snapshot and every EffectCoordinate:
+
+    fastRowActivity? snapshot coordinate
+      =
+    Observation327.buildSnapshotRowIndex(snapshot).get?(coordinateKey coordinate)
+
+This is a pointwise extensional equality against the semantic RowIndex
+specification, not a finite fixture comparison.
+
+The proof separates represented and unrepresented coordinates:
+
+- represented rows start from an explicit zero state and accumulate exactly the
+  production per-Column quantity step;
+- unrepresented rows start absent and remain absent because updates never insert
+  missing seed keys.
+
+## 12.3 Preserved meaning
+
+The one-pass refinement therefore preserves the RowIndex laws already
+established by Observations 325–327:
+
+- exact Event-local coordinate aggregation;
+- sign classification only after Event-local aggregation;
+- positive / negative row partitions;
+- active Event count;
+- represented zero-activity rows;
+- no invented row keys;
+- arbitrary Snapshot Column multiplicity, including duplicate EventIds.
+
+Retained selected Columns remain the evidence-bearing review image. The transient
+RowIndex is still derived acceleration state only.
+
+## 12.4 What remains performance-specific
+
+Observation 328 qualifies the *shape* of the one-pass algorithm, not the final
+fastest local mechanics.
+
+Its Event-coordinate dedup list is intentionally simple research machinery.
+
+A future implementation may replace that local dedup step with a HashSet,
+HashMap key iteration, or another transient finite-set representation.
+
+Such a replacement no longer needs to rediscover Transactions-Flow semantics.
+It needs only to preserve the already-qualified per-Column update law and the
+pointwise RowIndex correspondence above.
+
+The Transactions-Flow question has therefore moved from:
+
+    can a sparse one-pass summary preserve meaning?
+
+to:
+
+    which transient local representation builds the same qualified summary
+    most simply and efficiently?
+
+No production optimization is authorized by Observation 328.
+
 # Current verdict
 
 The study does not support one shared Flow engine.
