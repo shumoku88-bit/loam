@@ -69,16 +69,21 @@ private def takeGroupRows :
   | "END" :: rest, reversed => some (reversed.reverse, rest)
   | row :: rest, reversed => takeGroupRows rest (row :: reversed)
 
-private def decodeGroups? :
-    List String → Option (List Loam.CurrentQuantityAnchor.Group)
-  | [] => some []
-  | "GROUP" :: rest => do
+private def decodeGroupsWithFuel? :
+    Nat → List String → Option (List Loam.CurrentQuantityAnchor.Group)
+  | 0, _ => none
+  | _ + 1, [] => some []
+  | fuel + 1, "GROUP" :: rest => do
       let (groupRows, remaining) ← takeGroupRows rest []
       let (roots, assertions) ← decodePayloadRows? groupRows
       let group ← Loam.CurrentQuantityAnchor.Group.ofLists? roots assertions
-      let later ← decodeGroups? remaining
+      let later ← decodeGroupsWithFuel? fuel remaining
       pure (group :: later)
-  | _ => none
+  | _ + 1, _ => none
+
+private def decodeGroups?
+    (rows : List String) : Option (List Loam.CurrentQuantityAnchor.Group) :=
+  decodeGroupsWithFuel? (rows.length + 1) rows
 
 private def decodeV2?
     (input : String) : Option Loam.CurrentQuantityAnchor.Evidence := do
