@@ -86,14 +86,25 @@ intent binds the independently built Actual draft to the selected Scheduled id.
 def update
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  let step := Loam.Tui.Record.update world known state.editor key
-  let next := { state with editor := step.state }
-  if step.cancel then
-    { state := next, cancel := true }
-  else
-    { state := next
-      enableUnresolved := step.enableUnresolved
-      publish := step.publish.map (publisherDraft state.target) }
+  match key with
+  | .ctrl 'o' =>
+      { state := { state with editor := {
+          state.editor with
+          mode := .editing
+          notice := "Original amount is available from new Actual Record, not Scheduled completion."
+        } } }
+  | _ =>
+      let step := Loam.Tui.Record.update world known state.editor key
+      let next := { state with editor := step.state }
+      if step.cancel then
+        { state := next, cancel := true }
+      else
+        { state := next
+          enableUnresolved := step.enableUnresolved
+          publish := step.publish.bind fun intent =>
+            match intent with
+            | .movement draft => some (publisherDraft state.target draft)
+            | .movementWithOriginalAmount _ _ => none }
 
 /-- Failed publication returns to editable Actual evidence. -/
 def withPublishError (state : State) (message : String) : State :=
@@ -134,6 +145,8 @@ def view (_known : List String) (state : State) : Widget :=
         , Loam.Tui.Record.line state.editor.notice
         ]
   | .enableUnresolved =>
+      Loam.Tui.Record.view _known state.editor
+  | .originalAmount _ =>
       Loam.Tui.Record.view _known state.editor
   | .preview draft choice =>
       let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
