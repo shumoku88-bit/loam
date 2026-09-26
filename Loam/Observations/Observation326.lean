@@ -195,12 +195,11 @@ private theorem filterMap_indexed_eq_direct
   | cons column rest ih =>
       simp only [List.filterMap_cons]
       rw [indexedContribution?_eq_direct]
-      exact congrArg
-        (fun tail =>
-          match directContribution? coordinate column with
-          | some eventId => eventId :: tail
-          | none => tail)
-        ih
+      cases hContribution : directContribution? coordinate column with
+      | none =>
+          simp [hContribution, ih]
+      | some eventId =>
+          simp [hContribution, ih]
 
 theorem indexedContributorIds_eq_direct
     (snapshot : Loam.TransactionsFlowReview.Snapshot)
