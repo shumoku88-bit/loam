@@ -86,43 +86,40 @@ private theorem mem_eventCoordinates_iff
     (coordinate : EffectCoordinate) :
     coordinate ∈ eventCoordinates effects ↔
       ∃ effect ∈ effects, effect.coordinate = coordinate := by
-  induction effects with
+  induction effects generalizing coordinate with
   | nil =>
       simp [eventCoordinates]
   | cons effect rest ih =>
       simp only [eventCoordinates]
       by_cases hMem : effect.coordinate ∈ eventCoordinates rest
-      · have hWitness :
-            ∃ later ∈ rest, later.coordinate = effect.coordinate :=
-          (ih effect.coordinate).mp hMem
+      · simp only [hMem, if_true]
         constructor
         · intro hCoordinate
-          have hRest :
-              ∃ later ∈ rest, later.coordinate = coordinate :=
-            (ih coordinate).mp hCoordinate
-          exact ⟨hRest.1, by simp [hRest.2.1], hRest.2.2⟩
+          rcases (ih coordinate).mp hCoordinate with
+            ⟨later, hLaterMem, hLaterEq⟩
+          exact ⟨later, List.mem_cons_of_mem effect hLaterMem, hLaterEq⟩
         · intro hExists
           rcases hExists with ⟨candidate, hCandidate, hEq⟩
           simp only [List.mem_cons] at hCandidate
           rcases hCandidate with rfl | hLater
-          · exact (ih effect.coordinate).mpr hWitness
+          · simpa [hEq] using hMem
           · exact (ih coordinate).mpr ⟨candidate, hLater, hEq⟩
-      · constructor
+      · simp only [hMem, if_false]
+        constructor
         · intro hCoordinate
           simp only [List.mem_cons] at hCoordinate
           rcases hCoordinate with hHead | hRest
-          · exact ⟨effect, by simp, hHead⟩
-          · have hExists := (ih coordinate).mp hRest
-            exact ⟨hExists.1, by simp [hExists.2.1], hExists.2.2⟩
+          · exact ⟨effect, by simp, hHead.symm⟩
+          · rcases (ih coordinate).mp hRest with
+              ⟨later, hLaterMem, hLaterEq⟩
+            exact ⟨later, List.mem_cons_of_mem effect hLaterMem, hLaterEq⟩
         · intro hExists
           rcases hExists with ⟨candidate, hCandidate, hEq⟩
           simp only [List.mem_cons] at hCandidate
           rcases hCandidate with rfl | hLater
-          · simp [hEq]
-          · have hRest :
-                coordinate ∈ eventCoordinates rest :=
-              (ih coordinate).mpr ⟨candidate, hLater, hEq⟩
-            simp [hRest]
+          · exact List.mem_cons.mpr (Or.inl hEq.symm)
+          · exact List.mem_cons.mpr
+              (Or.inr ((ih coordinate).mpr ⟨candidate, hLater, hEq⟩))
 
 private def directQuanta
     (event : Event)
@@ -130,17 +127,20 @@ private def directQuanta
   (Event.quantityAt
     event coordinate.locus coordinate.measure).quanta
 
-private theorem directQuanta_zero_of_not_mem
-    (event : Event)
+private theorem quantityFold_zero_of_no_witness
+    (effects : List Effect)
     (coordinate : EffectCoordinate)
-    (hNotMem : coordinate ∉ eventCoordinates event.effects) :
-    directQuanta event coordinate = 0 := by
-  have hNoWitness :
-      ¬ ∃ effect ∈ event.effects, effect.coordinate = coordinate := by
-    intro h
-    exact hNotMem ((mem_eventCoordinates_iff event.effects coordinate).mpr h)
-  unfold directQuanta Event.quantityAt
-  induction event.effects with
+    (hNoWitness :
+      ¬ ∃ effect ∈ effects, effect.coordinate = coordinate) :
+    effects.foldr
+        (fun effect total =>
+          if effect.coordinate =
+              { locus := coordinate.locus, measure := coordinate.measure } then
+            effect.quantity.quanta + total
+          else
+            total)
+        0 = 0 := by
+  induction effects with
   | nil =>
       rfl
   | cons effect rest ih =>
@@ -152,10 +152,26 @@ private theorem directQuanta_zero_of_not_mem
           ¬ ∃ later ∈ rest, later.coordinate = coordinate := by
         intro h
         apply hNoWitness
-        exact ⟨h.1, by simp [h.2.1], h.2.2⟩
-      simp [hEffect]
-      apply ih
-      exact hRestNo
+        rcases h with ⟨later, hLaterMem, hLaterEq⟩
+        exact ⟨later, List.mem_cons_of_mem effect hLaterMem, hLaterEq⟩
+      cases coordinate with
+      | mk locus measure =>
+          simp only [List.foldr_cons]
+          simp [hEffect]
+          exact ih hRestNo
+
+private theorem directQuanta_zero_of_not_mem
+    (event : Event)
+    (coordinate : EffectCoordinate)
+    (hNotMem : coordinate ∉ eventCoordinates event.effects) :
+    directQuanta event coordinate = 0 := by
+  have hNoWitness :
+      ¬ ∃ effect ∈ event.effects, effect.coordinate = coordinate := by
+    intro h
+    exact hNotMem ((mem_eventCoordinates_iff event.effects coordinate).mpr h)
+  unfold directQuanta Event.quantityAt
+  exact quantityFold_zero_of_no_witness
+    event.effects coordinate hNoWitness
 
 /-! ## Seed exactly the represented row set -/
 
@@ -282,7 +298,10 @@ private theorem updateCoordinate_same
         (advanceState state
           ((cells.get?
             (Loam.Observation325.coordinateKey coordinate)).getD 0)) := by
-  simp [updateCoordinate, hGet]
+  unfold updateCoordinate
+  rw [hGet]
+  rw [Std.HashMap.get?_insert]
+  simp
 
 private theorem updateCoordinate_other
     (cells : Loam.Observation325.CellIndex)
@@ -319,6 +338,7 @@ private theorem updateCoordinate_other
               eq_of_beq h
             exact False.elim (hKey hSame)
       rw [hBeq]
+      simp
 
 private theorem updateCoordinate_preserves_none
     (cells : Loam.Observation325.CellIndex)
@@ -330,15 +350,19 @@ private theorem updateCoordinate_preserves_none
         (Loam.Observation325.coordinateKey coordinate) = none := by
   by_cases hEq : row = coordinate
   · subst row
-    simp [updateCoordinate, hNone]
+    unfold updateCoordinate
+    rw [hNone]
+    exact hNone
   · rw [updateCoordinate_other cells index row coordinate hEq]
     exact hNone
 
 private def updateCoordinates
-    (cells : Loam.Observation325.CellIndex)
-    (coordinates : List EffectCoordinate)
-    (index : FastRowIndex) : FastRowIndex :=
-  coordinates.foldl (updateCoordinate cells) index
+    (cells : Loam.Observation325.CellIndex) :
+    List EffectCoordinate → FastRowIndex → FastRowIndex
+  | [], index => index
+  | coordinate :: rest, index =>
+      updateCoordinates cells rest
+        (updateCoordinate cells index coordinate)
 
 private theorem updateCoordinates_preserves_none
     (cells : Loam.Observation325.CellIndex)
@@ -351,9 +375,9 @@ private theorem updateCoordinates_preserves_none
         (Loam.Observation325.coordinateKey coordinate) = none := by
   induction coordinates generalizing index with
   | nil =>
-      exact hNone
+      simpa [updateCoordinates] using hNone
   | cons row rest ih =>
-      simp only [updateCoordinates, List.foldl_cons]
+      simp only [updateCoordinates]
       apply ih
       exact updateCoordinate_preserves_none
         cells index row coordinate hNone
@@ -379,9 +403,17 @@ private theorem updateCoordinates_not_mem
         intro h
         apply hNotMem
         simp [h]
-      simp only [updateCoordinates, List.foldl_cons]
-      rw [ih (updateCoordinate cells index row) hRest]
-      exact updateCoordinate_other cells index row coordinate hHead
+      simp only [updateCoordinates]
+      calc
+        (updateCoordinates cells rest
+            (updateCoordinate cells index row)).get?
+            (Loam.Observation325.coordinateKey coordinate) =
+          (updateCoordinate cells index row).get?
+            (Loam.Observation325.coordinateKey coordinate) :=
+              ih (updateCoordinate cells index row) hRest
+        _ =
+          index.get? (Loam.Observation325.coordinateKey coordinate) :=
+            updateCoordinate_other cells index row coordinate hHead
 
 private theorem updateCoordinates_mem
     (cells : Loam.Observation325.CellIndex)
@@ -406,15 +438,26 @@ private theorem updateCoordinates_mem
   | cons row rest ih =>
       simp only [List.nodup_cons] at hNodup
       simp only [List.mem_cons] at hMem
-      simp only [updateCoordinates, List.foldl_cons]
+      simp only [updateCoordinates]
       rcases hMem with hHead | hTail
       · subst row
         have hAfter :=
           updateCoordinate_same cells index coordinate state hGet
-        rw [updateCoordinates_not_mem
-          cells rest (updateCoordinate cells index coordinate)
-          coordinate hNodup.1]
-        exact hAfter
+        calc
+          (updateCoordinates cells rest
+              (updateCoordinate cells index coordinate)).get?
+              (Loam.Observation325.coordinateKey coordinate) =
+            (updateCoordinate cells index coordinate).get?
+              (Loam.Observation325.coordinateKey coordinate) :=
+                updateCoordinates_not_mem
+                  cells rest (updateCoordinate cells index coordinate)
+                  coordinate hNodup.1
+          _ =
+            some
+              (advanceState state
+                ((cells.get?
+                  (Loam.Observation325.coordinateKey coordinate)).getD 0)) :=
+              hAfter
       · have hNe : row ≠ coordinate := by
           intro h
           subst row
