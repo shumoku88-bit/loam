@@ -1,7 +1,9 @@
 import Loam.LocusAdmissionPublisher
 import Loam.AccountingRoleReview
+import Loam.BoundedHistorySupportReview
 import Loam.HouseholdCommand
 import Loam.Tui.AccountingRoleAdministration
+import Loam.Tui.BoundedHistorySupportAdministration
 import Loam.Tui.Kernel
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.Runtime
@@ -21,9 +23,10 @@ The session owns only local interaction state. Authoritative writes are delegate
 to the shared household command boundary.
 
 While editing, Tab opens the separate initial-AccountingRole administration
-surface. That surface computes candidates from current authorities and delegates
-its write through `HouseholdCommand`; Locus admission and role assignment stay
-separate publication boundaries even though their terminal orchestration shares
+surface and Shift-Tab opens bounded historical-support administration. Both
+surfaces compute candidates from current authorities and delegate writes through
+`HouseholdCommand`; Locus admission, role assignment, and history certification
+remain separate publication boundaries even though terminal orchestration shares
 this session.
 -/
 
@@ -59,6 +62,52 @@ private def runInitialRoleAdministration
   Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
   runInitialRoleEditor bounds root admin adminFrame
 
+
+private partial def runHistorySupportEditor
+    (bounds : Bounds)
+    (root : System.FilePath)
+    (state : Loam.Tui.BoundedHistorySupportAdministration.State)
+    (frame : CompiledWidget) : IO String := do
+  let key ← Loam.Tui.Terminal.readKey
+  let step := Loam.Tui.BoundedHistorySupportAdministration.update state key
+  if step.cancel then
+    return "History support administration cancelled."
+  match step.publish with
+  | some draft =>
+      match ← Loam.HouseholdCommand.updateBoundedHistorySupport root draft with
+      | .ok () =>
+          match draft.startDay with
+          | some day =>
+              return "History support for " ++ draft.coordinate.locus.token ++
+                " / " ++ draft.coordinate.measure.token ++ " now starts " ++ day ++ "."
+          | none =>
+              return "Removed bounded history support for " ++
+                draft.coordinate.locus.token ++ " / " ++ draft.coordinate.measure.token ++ "."
+      | .error message =>
+          let next := { step.state with notice := message }
+          let nextFrame :=
+            compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          runHistorySupportEditor bounds root next nextFrame
+  | none =>
+      let nextFrame :=
+        compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      runHistorySupportEditor bounds root step.state nextFrame
+
+private def runHistorySupportAdministration
+    (bounds : Bounds)
+    (root : System.FilePath) : IO String := do
+  let snapshot ←
+    match ← Loam.BoundedHistorySupportReview.loadSnapshot root with
+    | .ok snapshot => pure snapshot
+    | .error message => return "History support unavailable: " ++ message
+  let admin := Loam.Tui.BoundedHistorySupportAdministration.initial snapshot
+  let adminFrame :=
+    compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds admin)
+  Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
+  runHistorySupportEditor bounds root admin adminFrame
+
 partial def run
     (bounds : Bounds)
     (dataDir root : System.FilePath)
@@ -69,6 +118,19 @@ partial def run
     match state.phase with
     | .editing =>
         let notice ← runInitialRoleAdministration bounds dataDir root
+        let resumed := { state with notice := notice }
+        let resumedFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds resumed)
+        Loam.Tui.Terminal.redrawFromBlank bounds resumedFrame
+        run bounds dataDir root resumed resumedFrame
+    | .preview =>
+        let step := Loam.Tui.LocusAdmissionAdministration.update state key
+        let nextFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds step.state)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        run bounds dataDir root step.state nextFrame
+  else if key = .shiftTab then
+    match state.phase with
+    | .editing =>
+        let notice ← runHistorySupportAdministration bounds root
         let resumed := { state with notice := notice }
         let resumedFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds resumed)
         Loam.Tui.Terminal.redrawFromBlank bounds resumedFrame
