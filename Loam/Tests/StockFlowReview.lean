@@ -115,6 +115,21 @@ def main : IO Unit := do
       expect (snapshot.reconstructedEnd.quanta == 90)
         "superseded Event changed the closing boundary"
 
+  let mixedBalances : Loam.BalanceReview.Snapshot := {
+    rows :=
+      [ { coordinate := ⟨⟨"bank"⟩, ⟨"jpy"⟩⟩, quantity := Quantity.ofQuanta 80 }
+      , { coordinate := ⟨⟨"cash"⟩, ⟨"usd"⟩⟩, quantity := Quantity.ofQuanta 30 }
+      ]
+  }
+  match Loam.StockFlowReview.project mixedBalances records
+      "2026-08-01" "2026-09-01" with
+  | .error message =>
+      expect
+        (message == "loam: stock-flow currently requires an explicit JPY balance selection")
+        "mixed-Measure Stock-Flow refusal lost its explicit measure boundary"
+  | .ok _ =>
+      throw (IO.userError "mixed-Measure Stock-Flow silently summed unlike Measures")
+
   match Loam.StockFlowReview.project balances [record undated none]
       "not-a-date" "2026-09-01" with
   | .error message =>
