@@ -8,8 +8,9 @@ set_option autoImplicit false
 
 private def yen : MeasureId := ⟨"jpy"⟩
 private def wallet : LocusId := ⟨"wallet"⟩
+private def cash : LocusId := ⟨"cash"⟩
 private def expense : LocusId := ⟨"expense"⟩
-private def selection : List EffectCoordinate := [⟨wallet, yen⟩]
+private def selection : List EffectCoordinate := [⟨wallet, yen⟩, ⟨cash, yen⟩]
 
 private def pointDate? (offset : Nat) : Option String :=
   Loam.ActualDate.shiftDays? "2026-01-01" (Int.ofNat offset)
@@ -138,11 +139,14 @@ private def sameSeriesResult
 
 private def timeUsForced
     (batch : Nat)
-    (action : Unit → Except String (List Int)) : IO (Nat × Nat) := do
+    (action : Bool → Except String (List Int)) : IO (Nat × Nat) := do
   let sink ← IO.mkRef 0
+  let toggle ← IO.mkRef false
   let t0 ← IO.monoNanosNow
   for _ in List.range batch do
-    let forced := forceSeries (action ())
+    let flip ← toggle.get
+    toggle.set (!flip)
+    let forced := forceSeries (action flip)
     sink.modify (fun checksum => checksum + forced)
   let checksum ← sink.get
   if checksum == 999999999 then IO.println "unreachable" else pure ()
@@ -151,7 +155,7 @@ private def timeUsForced
 
 private def timeMedianUs
     (iterations batch : Nat)
-    (action : Unit → Except String (List Int)) : IO (Nat × Nat) := do
+    (action : Bool → Except String (List Int)) : IO (Nat × Nat) := do
   let mut times : List Nat := []
   let mut checksum : Nat := 0
   for _ in List.range iterations do
@@ -210,9 +214,11 @@ def runAll : IO Unit := do
             throw <| IO.userError s!"series length mismatch: days={days}, got={expectedValues.length}"
 
       let (referenceUs, forcedRef) ←
-        timeMedianUs reps batch fun _ => referenceSeries? selection records dates
+        timeMedianUs reps batch fun flip =>
+          referenceSeries? (if flip then selection else selection.reverse) records dates
       let (fusedUs, forcedFused) ←
-        timeMedianUs reps batch fun _ => fusedSeries? selection records dates
+        timeMedianUs reps batch fun flip =>
+          fusedSeries? (if flip then selection else selection.reverse) records dates
 
       unless forcedRef == forcedFused do
         throw <| IO.userError s!"forced mismatch: days={days}, records={n}"
