@@ -380,6 +380,9 @@ jobs:
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean
 
+      - name: Build presentation-neutral boundaries
+        run: lake build Loam.Presentation.Home Loam.Presentation.Reports
+
       - name: Verify typed presentation read state
         run: lake env lean --run Loam/Tests/PresentationReadState.lean
 
