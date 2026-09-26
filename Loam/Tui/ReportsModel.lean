@@ -4,6 +4,7 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.MultimeasureSpendReview
+import Loam.MeasurePresentation
 import Loam.PeriodComparisonReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
@@ -83,6 +84,7 @@ structure State where
   incomeExpenseComparison :
     Option (Loam.PeriodComparisonReview.Pair Loam.IncomeExpenseProvenanceReview.Snapshot) := none
   multimeasureSpendSnapshot : Option Loam.MultimeasureSpendReview.Snapshot := none
+  multimeasurePresentation : List Loam.MeasurePresentation.Metadata := []
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
@@ -159,8 +161,14 @@ def withIncomeExpenseComparison
 
 
 def withMultimeasureSpendSnapshot
-    (state : State) (snapshot : Loam.MultimeasureSpendReview.Snapshot) : State :=
-  { state with multimeasureSpendSnapshot := some snapshot, notice := "", scroll := 0 }
+    (state : State)
+    (snapshot : Loam.MultimeasureSpendReview.Snapshot)
+    (presentation : List Loam.MeasurePresentation.Metadata) : State :=
+  { state with
+      multimeasureSpendSnapshot := some snapshot
+      multimeasurePresentation := presentation
+      notice := ""
+      scroll := 0 }
 
 
 def withRoleBalanceSnapshot
