@@ -41,6 +41,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/Movement/**'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/TuiExchange.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
       - 'Loam/Tests/TuiCorrection.lean'
       - 'Loam/Tests/TuiActualDateCorrection.lean'
@@ -162,6 +163,7 @@ on:
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/Movement/**'
       - 'Loam/Tests/TuiRecord.lean'
+      - 'Loam/Tests/TuiExchange.lean'
       - 'Loam/Tests/CorrectionPublisher.lean'
       - 'Loam/Tests/TuiCorrection.lean'
       - 'Loam/Tests/TuiActualDateCorrection.lean'
@@ -451,6 +453,8 @@ jobs:
 
       - name: Verify Record publication and fresh canonical review
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
+      - name: Verify direct Exchange editor
+        run: lake env lean --run Loam/Tests/TuiExchange.lean
 
       - name: Build shared Correction publisher boundary
         run: lake build Loam.CorrectionPublisher
