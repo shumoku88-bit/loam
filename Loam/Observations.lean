@@ -82,6 +82,7 @@ import Loam.Observations.Observation321
 import Loam.Observations.Observation322
 import Loam.Observations.Observation323
 import Loam.Observations.Observation324
+import Loam.Observations.Observation325
 
 /-!
 # Selected live Lean research witnesses
