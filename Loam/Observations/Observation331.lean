@@ -170,6 +170,7 @@ private theorem updateKey_other
         have hEq : row = key := eq_of_beq h
         exact False.elim (hNe hEq)
   rw [hBeq]
+  simp
 
 private def updateKeys
     (cells : CellIndex) :
@@ -308,7 +309,9 @@ private theorem updateColumn_get?
     rfl
   · have hNotRepresented :
         representedInColumn coordinate column = false := by
-      exact Bool.eq_false_of_not_eq_true hRepresented
+      cases hValue : representedInColumn coordinate column with
+      | false => exact hValue
+      | true => exact False.elim (hRepresented hValue)
     have hNotMem :
         Loam.Observation325.coordinateKey coordinate ∉ cells.keys := by
       intro hMem
@@ -367,36 +370,38 @@ private theorem optionFold_none_eq_direct_if_represented
       rfl
   | cons column rest ih =>
       simp only [List.foldl_cons, List.any_cons]
-      cases hRepresented : representedInColumn coordinate column with
-      | true =>
-          simp only [hRepresented, Bool.true_or, if_true]
-          change
-            rest.foldl (optionStep coordinate)
-                (some (directStep coordinate zeroState column)) =
-              some
-                (rest.foldl
-                  (directStep coordinate)
-                  (directStep coordinate zeroState column))
-          exact
-            optionFold_some_eq_direct
-              rest coordinate (directStep coordinate zeroState column)
-      | false =>
-          have hZero :=
-            directQuanta_zero_of_not_represented
-              coordinate column hRepresented
-          simp only [hRepresented, Bool.false_or, if_false]
-          change
-            rest.foldl (optionStep coordinate) none =
-              if rest.any (representedInColumn coordinate) then
-                some
-                  (rest.foldl
-                    (directStep coordinate)
-                    (directStep coordinate zeroState column))
-              else
-                none
-          rw [hZero]
-          simp [directStep, advanceState_zero]
-          exact ih
+      by_cases hRepresented :
+          representedInColumn coordinate column = true
+      · have hOption :
+            optionStep coordinate none column =
+              some (directStep coordinate zeroState column) := by
+          simp [optionStep, hRepresented]
+        rw [hOption]
+        have hAny :
+            (representedInColumn coordinate column ||
+              rest.any (representedInColumn coordinate)) = true := by
+          simp [hRepresented]
+        rw [hAny]
+        simp only [if_true]
+        exact
+          optionFold_some_eq_direct
+            rest coordinate (directStep coordinate zeroState column)
+      · have hFalse :
+            representedInColumn coordinate column = false := by
+          cases hValue : representedInColumn coordinate column with
+          | false => exact hValue
+          | true => exact False.elim (hRepresented hValue)
+        have hOption :
+            optionStep coordinate none column = none := by
+          simp [optionStep, hFalse]
+        have hZero :=
+          directQuanta_zero_of_not_represented
+            coordinate column hFalse
+        have hDirect :
+            directStep coordinate zeroState column = zeroState := by
+          simp [directStep, hZero, advanceState]
+        rw [hOption, hDirect]
+        simpa [hFalse] using ih
 
 /-! ## 5. Whole seedless scan -/
 
@@ -494,7 +499,7 @@ theorem seedlessRowActivity?_of_represented
     simp [hRepresented]
   unfold seedlessRowActivity? buildSeedlessRowIndex
   rw [foldColumns_get?]
-  simp only [Std.HashMap.get?_empty]
+  simp only [Std.HashMap.get?_eq_getElem?, Std.HashMap.getElem?_empty]
   rw [optionFold_none_eq_direct_if_represented]
   rw [hSupport]
   simp [activityFromDirectFold_eq_rowActivity snapshot coordinate]
@@ -513,7 +518,7 @@ theorem seedlessRowActivity?_of_unrepresented
     simp [hUnrepresented]
   unfold seedlessRowActivity? buildSeedlessRowIndex
   rw [foldColumns_get?]
-  simp only [Std.HashMap.get?_empty]
+  simp only [Std.HashMap.get?_eq_getElem?, Std.HashMap.getElem?_empty]
   rw [optionFold_none_eq_direct_if_represented]
   rw [hSupport]
   rfl
