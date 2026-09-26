@@ -96,8 +96,67 @@ def main (args : List String) : IO Unit := do
   expect
     (Loam.MeasurePresentation.parseQuanta? decimalPresentation ⟨"ils"⟩ "27.9" == some 2790)
     "ILS scale did not right-pad a shorter exact fractional input"
+
+  let originalBase : State := {
+    form := readyForm
+    measurePresentation := decimalPresentation
+  }
+  let openedOriginal := update w [] originalBase (.ctrl 'o')
+  match openedOriginal.state.mode with
+  | .originalAmount editor =>
+      expect (editor.measure.isEmpty && editor.amount.isEmpty)
+        "Ctrl-O did not open an empty original amount editor"
+  | _ => throw (IO.userError "Ctrl-O did not open original amount editor")
+
+  let originalEditor : OriginalAmountEditor := {
+    measure := "usd"
+    amount := "30.00"
+    focus := ⟨1, by decide⟩
+  }
+  let attached := update w []
+    { originalBase with mode := .originalAmount originalEditor } .enter
+  let original ←
+    match attached.state.originalAmount with
+    | some value => pure value
+    | none => throw (IO.userError "valid original amount was not attached")
+  expect (original.measure == ⟨"usd"⟩ && original.quantity.quanta == 3000)
+    "decimal original amount did not retain exact USD quanta"
+  match attached.state.mode with
+  | .editing => pure ()
+  | _ => throw (IO.userError "attaching original amount did not return to ordinary editor")
+
+  let invalidOriginal : OriginalAmountEditor := {
+    measure := "usd"
+    amount := "30.001"
+    focus := ⟨1, by decide⟩
+  }
+  expect
+    ((attachOriginalAmount? originalBase invalidOriginal).isOk == false)
+    "original amount accepted too many decimal places"
+
+  let originalPreview := preview w attached.state
+  let originalPublish := update w [] originalPreview .enter
+  match originalPublish.publish with
+  | some (.movementWithOriginalAmount publishedDraft publishedOriginal) =>
+      expect (publishedDraft.total == 2470)
+        "original amount changed the ordinary Movement total"
+      expect
+        (publishedOriginal.measure == ⟨"usd"⟩ &&
+          publishedOriginal.quantity.quanta == 3000)
+        "preview lost attached original amount"
+  | _ => throw (IO.userError "attached original amount did not emit atomic publication intent")
+
+  let cleared := update w []
+    { attached.state with mode := .originalAmount originalEditor } (.ctrl 'd')
+  expect cleared.state.originalAmount.isNone
+    "Ctrl-D did not clear attached original amount"
+  match cleared.state.mode with
+  | .editing => pure ()
+  | _ => throw (IO.userError "clearing original amount did not return to editor")
   let editor := preview w { form := readyForm }
-  expect ((update w [] editor .enter).publish.isSome) "preview must produce explicit intent"
+  match (update w [] editor .enter).publish with
+  | some (.movement _) => pure ()
+  | _ => throw (IO.userError "ordinary preview no longer emits ordinary Movement intent")
   expect ((update w [] editor .escape).publish.isNone) "cancel must not publish"
   let edited := update w [] (update w [] editor .tab).state .enter
   expect (edited.state.form.description == readyForm.description) "Edit lost description"
@@ -109,6 +168,7 @@ def main (args : List String) : IO Unit := do
   | .preview _ choice => expect (choice.val == 0) "direct preview did not select Publish"
   | .editing => throw (IO.userError "final amount Enter did not open preview")
   | .enableUnresolved => throw (IO.userError "final amount Enter opened unresolved activation")
+  | .originalAmount _ => throw (IO.userError "final amount Enter opened original amount editor")
   expect (directPreview.publish.isNone) "direct preview published without confirmation"
   expect ((update w [] directPreview.state .enter).publish.isSome)
     "direct preview did not preserve explicit publish confirmation"
@@ -121,6 +181,7 @@ def main (args : List String) : IO Unit := do
   | .preview _ choice => expect (choice.val == 0) "Preview action did not open preview"
   | .editing => throw (IO.userError "Preview action did not open preview")
   | .enableUnresolved => throw (IO.userError "Preview action opened unresolved activation")
+  | .originalAmount _ => throw (IO.userError "Preview action opened original amount editor")
 
   let addPostingForm := { readyForm with focus := ⟨8, by decide⟩ }
   let added := update w [] { form := addPostingForm } .enter
