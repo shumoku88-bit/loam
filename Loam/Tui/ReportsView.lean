@@ -47,6 +47,41 @@ private def field (state : State) (index : Nat) (label text : String) : Widget :
         (if state.window.form.focus.val = index then .selected else .normal)
     ]
 
+private def comparisonField
+    (state : State) (index : Nat) (label text : String) : Widget :=
+  .row
+    [ span (label ++ ": ")
+    , span (if text.isEmpty then "_" else text)
+        (if state.comparison.focus.val = index then .selected else .normal)
+    ]
+
+private def comparisonFormLines (state : State) : List Widget :=
+  [ comparisonField state 0 "Left start" state.comparison.leftStart
+  , comparisonField state 1 "Left end (exclusive)" state.comparison.leftEndExclusive
+  , comparisonField state 2 "Right start" state.comparison.rightStart
+  , comparisonField state 3 "Right end (exclusive)" state.comparison.rightEndExclusive
+  , .row [span "[Run comparison]"
+      (if state.comparison.focus.val = 4 then .selected else .normal)]
+  ]
+
+private def comparisonPanels
+    (bounds : Option Bounds) (left right : List Widget) : List Widget :=
+  match bounds with
+  | some terminal =>
+      if terminal.width ≥ 120 then
+        let width := Loam.Tui.Layout.contentWidth terminal
+        let dividerWidth := 3
+        let leftWidth := (width - dividerWidth) / 2
+        let rightWidth := width - dividerWidth - leftWidth
+        let leftWidget : Widget := .column left
+        let rightWidget : Widget := .column right
+        let height := max leftWidget.lines.length rightWidget.lines.length
+        Loam.Tui.Layout.sideBySide
+          height leftWidth rightWidth leftWidget rightWidget
+      else
+        left ++ [blank] ++ right
+  | none => left ++ [blank] ++ right
+
 private def liquidityField (state : State) : Widget :=
   .row
     [ span "Assume Scheduled complete through: "
@@ -127,7 +162,36 @@ private def stockFlowView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc Reports menu"
+    , muted "c compare periods   q / Esc Reports menu"
+    , line state.notice
+    ]
+
+private def stockFlowComparisonLines
+    (state : State) (bounds : Option Bounds) : List Widget :=
+  match state.stockFlowComparison with
+  | none => [muted "No two-period Stock–Flow comparison has been run yet."]
+  | some comparison =>
+      let left :=
+        [line "Left period"] ++
+        stockFlowResultLines { state with stockFlowSnapshot := some comparison.left }
+      let right :=
+        [line "Right period"] ++
+        stockFlowResultLines { state with stockFlowSnapshot := some comparison.right }
+      comparisonPanels bounds left right
+
+private def stockFlowCompareView (state : State) (bounds : Option Bounds) : Widget :=
+  .column <|
+    [ line "Reports / Stock–Flow / Compare"
+    , muted "Same qualified Stock–Flow question, two independent explicit windows."
+    , muted "Wide terminals show Left and Right side by side; narrow terminals stack them."
+    , blank
+    ] ++
+    comparisonFormLines state ++
+    [ blank ] ++
+    stockFlowComparisonLines state bounds ++
+    [ blank
+    , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
+    , muted "q / Esc single-period Stock–Flow"
     , line state.notice
     ]
 
@@ -264,7 +328,38 @@ private def incomeExpenseView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc Reports menu"
+    , muted "c compare periods   q / Esc Reports menu"
+    , line state.notice
+    ]
+
+private def incomeExpenseComparisonLines
+    (state : State) (bounds : Option Bounds) : List Widget :=
+  match state.incomeExpenseComparison with
+  | none => [muted "No two-period Income & Expense comparison has been run yet."]
+  | some comparison =>
+      let left :=
+        [line "Left period"] ++
+        incomeExpenseResultLines
+          { state with incomeExpenseSnapshot := some comparison.left }
+      let right :=
+        [line "Right period"] ++
+        incomeExpenseResultLines
+          { state with incomeExpenseSnapshot := some comparison.right }
+      comparisonPanels bounds left right
+
+private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : Widget :=
+  .column <|
+    [ line "Reports / Income & Expense / Compare"
+    , muted "Same occurrence-time role-flow question, two independent explicit windows."
+    , muted "No delta, percentage, equal-duration, or baseline meaning is inferred."
+    , blank
+    ] ++
+    comparisonFormLines state ++
+    [ blank ] ++
+    incomeExpenseComparisonLines state bounds ++
+    [ blank
+    , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
+    , muted "q / Esc single-period Income & Expense"
     , line state.notice
     ]
 
@@ -422,8 +517,10 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   match state.mode with
   | .menu => menuView state
   | .stockFlow => stockFlowView state
+  | .stockFlowCompare => stockFlowCompareView state bounds
   | .transactionsFlow => transactionsFlowView state bounds
   | .incomeExpense => incomeExpenseView state
+  | .incomeExpenseCompare => incomeExpenseCompareView state bounds
   | .balances => balancesView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
@@ -433,8 +530,10 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
 private def fixedFooterSize : Mode → Nat
   | .menu => 3
   | .stockFlow => 4
+  | .stockFlowCompare => 3
   | .transactionsFlow => 4
   | .incomeExpense => 4
+  | .incomeExpenseCompare => 3
   | .balances => 4
   | .liquidity => 3
   | .budgetWindow => 4

@@ -133,6 +133,40 @@ private def takeCellsColumns : List Cell → Nat → List Cell
 def clipCells (columns : Nat) (cells : List Cell) : List Cell :=
   takeCellsColumns cells columns
 
+private def cellsWidth (cells : List Cell) : Nat :=
+  cells.foldl (fun width cell => width + charWidth cell.glyph) 0
+
+private def cellsToSpans (cells : List Cell) : List Span :=
+  cells.map fun cell => span (String.ofList [cell.glyph]) cell.style
+
+/--
+Horizontally compose two rendered widgets into fixed-width panes.
+
+This is presentation geometry only. Callers own pane meaning, focus, scrolling,
+and responsive policy. Each side is clipped independently and the left side is
+padded before the muted divider.
+-/
+def sideBySide
+    (height leftWidth rightWidth : Nat) (left right : Widget) : List Widget :=
+  let leftLines := left.lines
+  let rightLines := right.lines
+  (List.range height).map fun row =>
+    let leftCells :=
+      match listGet? leftLines row with
+      | some cells => cells
+      | none => []
+    let rightCells :=
+      match listGet? rightLines row with
+      | some cells => cells
+      | none => []
+    let clippedLeft := clipCells leftWidth leftCells
+    let clippedRight := clipCells rightWidth rightCells
+    let leftPadding := leftWidth - cellsWidth clippedLeft
+    .row
+      (cellsToSpans clippedLeft ++
+       [span (spaces leftPadding), span " │ " .muted] ++
+       cellsToSpans clippedRight)
+
 /--
 Pack tokens into lines separated by `separator`, wrapping to a new line whenever
 adding the next token would exceed `columns` terminal columns. A single token
