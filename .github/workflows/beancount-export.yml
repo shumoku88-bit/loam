@@ -9,6 +9,7 @@ on:
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
       - 'Loam/Tests/JournalExport.lean'
+      - 'Loam/Tests/ActualJournalProjection.lean'
       - 'Loam/ActualJournalProjection.lean'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Persistence/AccountingRolePersistence.lean'
@@ -25,6 +26,7 @@ on:
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
       - 'Loam/Tests/JournalExport.lean'
+      - 'Loam/Tests/ActualJournalProjection.lean'
       - 'Loam/ActualJournalProjection.lean'
       - 'Loam/Core/AccountingRole.lean'
       - 'Loam/Persistence/AccountingRolePersistence.lean'
@@ -48,7 +50,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamBeancountExport Loam.Tests.BeancountExport Loam.Tests.JournalExport Loam.Tests.BeancountExportFixture
+          build-args: loamBeancountExport Loam.Tests.BeancountExport Loam.Tests.JournalExport Loam.Tests.ActualJournalProjection Loam.Tests.BeancountExportFixture
           test: false
           lint: false
           use-mathlib-cache: false
@@ -58,6 +60,9 @@ jobs:
 
       - name: Verify pure Beancount projection boundary
         run: lake env lean --run Loam/Tests/BeancountExport.lean
+
+      - name: Verify Actual journal ordering
+        run: lake env lean --run Loam/Tests/ActualJournalProjection.lean
 
       - name: Generate strict exported fixture
         shell: bash
