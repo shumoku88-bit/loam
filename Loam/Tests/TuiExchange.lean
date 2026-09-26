@@ -24,7 +24,7 @@ private def world : IO Loam.ExchangeAdmission.World := do
     }
     descriptions := .empty
     exchanges := .empty
-    corrections := .empty
+    corrections := { corrections := [], idNodup := by simp }
     locusAdmission := loci
   }
 
@@ -55,8 +55,10 @@ def main : IO Unit := do
     | throw (IO.userError "valid JPY -> USD exchange form did not parse")
   expect (draft.effects.length == 2)
     "exchange draft did not retain exactly two direct Effects"
-  let source := draft.effects[0]!
-  let destination := draft.effects[1]!
+  let some source := draft.effects[0]?
+    | throw (IO.userError "exchange source Effect missing")
+  let some destination := draft.effects[1]?
+    | throw (IO.userError "exchange destination Effect missing")
   expect
     (source.measure == ⟨"jpy"⟩ &&
       source.quantity.quanta == -15000 &&
@@ -69,9 +71,13 @@ def main : IO Unit := do
   | .preview previewDraft choice =>
       expect (choice == 0)
         "exchange preview did not default to Publish"
+      let some previewSource := previewDraft.effects[0]?
+        | throw (IO.userError "exchange preview source Effect missing")
+      let some previewDestination := previewDraft.effects[1]?
+        | throw (IO.userError "exchange preview destination Effect missing")
       expect
-        (previewDraft.effects[0]!.quantity.quanta == -15000 &&
-          previewDraft.effects[1]!.quantity.quanta == 10000)
+        (previewSource.quantity.quanta == -15000 &&
+          previewDestination.quantity.quanta == 10000)
         "exchange preview changed the parsed Effects"
   | _ => throw (IO.userError "destination amount Enter did not open Exchange preview")
 
@@ -127,9 +133,13 @@ def main : IO Unit := do
     } usdScale
   let .ok reverseDraft := Loam.Tui.Exchange.draft? reverse
     | throw (IO.userError "EUR -> JPY reverse-direction exchange form did not parse")
+  let some reverseSource := reverseDraft.effects[0]?
+    | throw (IO.userError "reverse exchange source Effect missing")
+  let some reverseDestination := reverseDraft.effects[1]?
+    | throw (IO.userError "reverse exchange destination Effect missing")
   expect
-    (reverseDraft.effects[0]!.quantity.quanta == -5000 &&
-      reverseDraft.effects[1]!.quantity.quanta == 8000)
+    (reverseSource.quantity.quanta == -5000 &&
+      reverseDestination.quantity.quanta == 8000)
     "reverse-direction exchange lost Measure-neutral exact quantities"
 
   IO.println "TUI Exchange: exact scaled input, preview, refusal and Measure symmetry passed."
