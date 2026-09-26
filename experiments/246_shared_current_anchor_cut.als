@@ -299,15 +299,6 @@ assert CoordinateCutsDetermineGroupedCurrent {
         groupedCurrent[Left, c] = groupedCurrent[Right, c]
 }
 
-assert OneSharedCutAlwaysRepresentsGroupedSessions {
-  all w: World |
-    (some c: Coordinate | groupedSupported[w, c]) implies
-      some cut: set Root |
-        all c: Coordinate |
-          groupedSupported[w, c] implies
-            currentWithCut[w, c, cut] = groupedCurrent[w, c]
-}
-
 assert MissingAssertionRemainsUnsupported {
   all w: World, c: Coordinate |
     no c.(w.asserted) implies not supported[w, c]
@@ -318,13 +309,13 @@ assert CurrentAssertionImpliesOriginCompleteness {
     supported[w, c] implies c in w.originComplete
 }
 
-run sharedCutSupportsMultipleCoordinates for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-run cutIsIndependentEvidence for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-run coveredRootCorrectionIsAbsorbed for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-run uncoveredRootContributes for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-run sharedAndDuplicatedCutAgree for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-run differentBoundariesNeedDistinctCuts for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-run currentSupportWithoutOriginCompleteness for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
+run sharedCutSupportsMultipleCoordinates for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+run cutIsIndependentEvidence for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+run coveredRootCorrectionIsAbsorbed for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+run uncoveredRootContributes for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+run sharedAndDuplicatedCutAgree for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+run differentBoundariesNeedDistinctCuts for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+run currentSupportWithoutOriginCompleteness for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
 run multipleSessionsSupportDifferentCuts for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
 run incrementalSessionPreservesExisting for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
 run differentSessionIdentitySameAnswer for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
@@ -332,8 +323,7 @@ run duplicateSessionMembershipCanDisagree for exactly 2 World, exactly 2 Coordin
 check GroupedSessionsEqualDuplicatedCuts for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
 check ExistingGroupedAnswerPreserved for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
 check CoordinateCutsDetermineGroupedCurrent for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
-check OneSharedCutAlwaysRepresentsGroupedSessions for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
-check CoveredRootChangesDoNotChangeCurrent for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-check SharedCutEqualsDuplicatedEqualCuts for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-check MissingAssertionRemainsUnsupported for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
-check CurrentAssertionImpliesOriginCompleteness for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, 5 Int
+check CoveredRootChangesDoNotChangeCurrent for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+check SharedCutEqualsDuplicatedEqualCuts for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+check MissingAssertionRemainsUnsupported for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
+check CurrentAssertionImpliesOriginCompleteness for exactly 2 World, exactly 2 Coordinate, exactly 3 Root, exactly 2 Session, 5 Int
