@@ -1,35 +1,20 @@
 # Actual Journal Sort Pressure Harvest — 2026-09-26
 
-Status: **research-qualified / production candidate**
+Status: **research-qualified / production promoted**
 
 This note records R4 from the repository-wide mathematical compression survey:
 measure long-journal sorting pressure before changing the production algorithm.
 
-## Existing production shape
+## Production shape
 
-ActualJournalProjection first constructs dated current entries from the already
-admitted Actual image, then orders them by:
+ActualJournalProjection constructs dated current entries from the already
+admitted Actual image and orders them by:
 
 1. current validity date;
 2. EventId token as the tie-breaker.
 
-The current sorter is a left fold of ordered insertion:
-
-```text
-current entries
-    -> insert first entry into sorted accumulator
-    -> insert second entry into sorted accumulator
-    -> ...
-    -> final ordered journal
-```
-
-This is intentionally simple, but repeated insertion into a growing List has a
-quadratic-shaped comparison/traversal cost in the long-frontier case.
-
-## Candidate
-
-The candidate keeps the exact journal key and changes only the sorting
-mechanics:
+The original production sorter was a left fold of ordered insertion. The
+qualified replacement keeps the exact journal key and now uses:
 
 ```text
 same dated current entries
@@ -37,8 +22,10 @@ same dated current entries
     -> same date / EventId ordering
 ```
 
-No persistence, Actual authority, correction selection, validity selection,
-description semantics, Entry shape, or presentation contract changes.
+PR #1326 promoted this substitution after Observation 335 and the paired
+benchmark qualified it. No persistence, Actual authority, correction selection,
+validity selection, description semantics, Entry shape, or presentation
+contract changed.
 
 ## Observation 335
 
@@ -135,38 +122,24 @@ experiment confirms that R4 identified a real algorithmic scaling boundary in a
 production path, and Observation 335 supplies the general refinement theorem
 needed to keep the semantic question separate from the implementation choice.
 
-## Production decision boundary
+## Production promotion
 
-A production change is earned, but it should be narrow.
+PR #1326 (`perf(actual): promote qualified journal merge sort`) replaced only
+the private ActualJournalProjection sorting mechanics.
 
-The next production PR may:
+Production now uses `List.mergeSort` with the same date-then-EventId relation.
+The reachable Actual domain retains EventId uniqueness, which is the local
+bridge required by Observation 335's exact-output theorem.
 
-- replace only ActualJournalProjection's private sorting mechanics;
-- retain the current date-then-EventId order exactly;
-- bridge EventMemory.idNodup to Observation 335's no-distinct-ties condition;
-- retain existing public Entry and Error shapes;
-- retain current fail-closed validity lookup;
-- add regression coverage for same-date EventId ordering and ordinary mixed-date
-  order;
-- measure the production implementation against the qualified benchmark shape.
-
-Do not:
-
-- introduce a retained index;
-- persist sorted journal state;
-- change Actual authority;
-- change correction or validity selection;
-- make journal ordering depend on source List position;
-- generalize this into a repository-wide sorting abstraction merely because the
-  theorem is generic.
+The promotion introduced no retained index, persistent sorted state, authority
+change, or repository-wide sorting abstraction.
 
 ## Verdict
 
-**R4 is mathematically and empirically qualified.**
+**R4 is mathematically, empirically, and operationally harvested.**
 
-The current journal sort has measured long-frontier pressure, and the candidate
-has a general exact-output refinement theorem with an explicit tie boundary.
+The long-frontier pressure was measured, Observation 335 qualified the exact
+refinement boundary, and PR #1326 promoted the narrow merge-sort substitution.
 
-The earned next move is a small production substitution inside
-ActualJournalProjection, after locally discharging the existing EventId
-uniqueness invariant.
+Observation 335 remains live because it continues to document the theorem behind
+the production refinement.
