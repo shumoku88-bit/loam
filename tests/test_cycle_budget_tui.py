@@ -194,6 +194,31 @@ try:
     os.write(master, b"q")
     wait_for("LOAM Home")
 
+    # Home > Balances must use current support, not require zero-origin history.
+    # This coordinate exists only in a current anchor and is deliberately absent
+    # from ZeroOriginCoverage and Actual.
+    balance_view_path = root / "config" / "balance-view.tsv"
+    balance_view = balance_view_path.read_bytes()
+    current_anchor_path = root / "current-quantity-anchor.loam"
+    previous_anchor = current_anchor_path.read_bytes() if current_anchor_path.exists() else None
+    balance_view_path.write_text("anchored-wallet\tjpy\n")
+    current_anchor_path.write_text(
+        "LOAM-CURRENT-QUANTITY-ANCHOR\t1\n"
+        "ASSERT\tanchored-wallet\tjpy\t42\n"
+    )
+    os.write(master, b"b")
+    anchored_balances = wait_for("Balances / Current")
+    assert "anchored-wallet" in anchored_balances and "42 jpy" in anchored_balances, (
+        "Home Balances did not compose CurrentQuantityAnchor support"
+    )
+    os.write(master, b"q")
+    wait_for("LOAM Home")
+    balance_view_path.write_bytes(balance_view)
+    if previous_anchor is None:
+        current_anchor_path.unlink()
+    else:
+        current_anchor_path.write_bytes(previous_anchor)
+
     # Independent malformed workspace evidence stays fail-closed, but no longer
     # terminates the whole TUI. Restore every fixture after observing refusal so
     # this remains a navigation/read test with no canonical mutation.
@@ -202,8 +227,6 @@ try:
     expect_local_unavailability(b"i", "Attention")
     attention_path.unlink()
 
-    balance_view_path = root / "config" / "balance-view.tsv"
-    balance_view = balance_view_path.read_bytes()
     balance_view_path.write_text("bad row\n")
     expect_local_unavailability(b"b", "Balances")
     balance_view_path.write_bytes(balance_view)
