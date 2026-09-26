@@ -26,5 +26,7 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: true
+      - name: Build Daily Pace review dependency
+        run: lake build Loam.CycleSpendingPaceReview
       - name: Run paired Daily Pace history benchmark
         run: lake env lean --run Loam/Tests/DailyPaceHistoryBenchmark.lean
