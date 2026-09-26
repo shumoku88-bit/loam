@@ -33,8 +33,8 @@ This is research-only. Production remains unchanged.
 
 private abbrev CoordinateKey := Loam.Observation325.CoordinateKey
 private abbrev CellIndex := Loam.Observation325.CellIndex
-private abbrev ActivityState := Int × Int × Nat
-private abbrev SeedlessRowIndex := Std.HashMap CoordinateKey ActivityState
+abbrev ActivityState := Int × Int × Nat
+abbrev SeedlessRowIndex := Std.HashMap CoordinateKey ActivityState
 
 private def zeroState : ActivityState := (0, 0, 0)
 
@@ -51,7 +51,7 @@ private theorem advanceState_zero (state : ActivityState) :
     advanceState state 0 = state := by
   simp [advanceState]
 
-private def activityFromState
+def activityFromState
     (state : ActivityState) : Loam.TransactionsFlowReview.RowActivity :=
   {
     positive := Quantity.ofQuanta state.1
@@ -434,7 +434,7 @@ private theorem foldColumns_get?
             (index.get? (Loam.Observation325.coordinateKey coordinate)) := by
               rfl
 
-private def buildSeedlessRowIndex
+def buildSeedlessRowIndex
     (snapshot : Loam.TransactionsFlowReview.Snapshot) : SeedlessRowIndex :=
   snapshot.columns.foldl updateColumn {}
 
