@@ -16,28 +16,17 @@ private def coordinate (locus : String) : EffectCoordinate :=
   ⟨⟨locus⟩, ⟨"jpy"⟩⟩
 
 private def exactRow
-    (locus : String) (quanta : Int) : Loam.RoleBalanceReview.Row :=
+    (locus : String) (quanta : Int) : Loam.BalanceReview.Row :=
   {
     coordinate := coordinate locus
-    role := .asset
     quantity := Quantity.ofQuanta quanta
   }
 
 def main : IO Unit := do
-  let snapshot : Loam.RoleBalanceReview.Snapshot := {
-    rows := [exactRow "wallet" 70]
-    unresolvedRoles := [{
-      coordinate := coordinate "cash"
-      quantity := Quantity.ofQuanta 0
-    }]
-    knownPresentBalances := [{
-      coordinate := coordinate "wifi-debt"
-      role := some .liability
-    }]
-    unsupportedBalances := [{
-      coordinate := coordinate "mystery"
-      role := none
-    }]
+  let snapshot : Loam.CurrentBalanceReview.Snapshot := {
+    rows := [exactRow "wallet" 70, exactRow "cash" 0]
+    knownPresent := [coordinate "wifi-debt"]
+    unsupported := [coordinate "mystery"]
   }
   let selection :=
     [coordinate "wallet", coordinate "cash", coordinate "wifi-debt",
@@ -47,9 +36,8 @@ def main : IO Unit := do
 
   expect (state.rows.length == 4) "duplicate balance-view row was not normalized"
   expect (contains "Balances / Current" text) "Balances heading missing"
-  expect (contains "wallet" text && contains "70 jpy" text) "exact classified balance missing"
-  expect (contains "cash" text && contains "0 jpy" text)
-    "exact balance with unresolved AccountingRole was hidden"
+  expect (contains "wallet" text && contains "70 jpy" text) "exact current balance missing"
+  expect (contains "cash" text && contains "0 jpy" text) "exact zero balance was hidden"
   expect (contains "wifi-debt" text && contains "present, amount unknown" text)
     "known-present amount-unknown balance was collapsed to unsupported"
   expect (contains "mystery" text && contains "unsupported" text)
@@ -68,4 +56,4 @@ def main : IO Unit := do
   expect (contains "No balances are selected" emptyText) "empty balance-view message missing"
 
   IO.println
-    "TUI Balances: selected exact, amount-unknown, unsupported and neutral Locus states passed."
+    "TUI Balances: neutral exact, amount-unknown and unsupported current states passed."

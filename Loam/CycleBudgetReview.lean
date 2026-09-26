@@ -1,4 +1,5 @@
 import Loam.ActualAuthority
+import Loam.CurrentBalanceReview
 import Loam.CycleFundingConfig
 import Loam.CycleFundingInspection
 import Loam.HouseholdPaths
@@ -26,7 +27,7 @@ private def attempt {α : Type} (action : IO (Except String α)) : IO (Except St
 /-- The two Cycle Budget read branches that observe normalized Actual authority. -/
 private structure ActualObservation where
   coverage : Except String Loam.CurrentCoverageReview.Snapshot
-  evidence : Except String Loam.BalanceReview.Evidence
+  balances : Except String Loam.CurrentBalanceReview.Snapshot
 
 private def loadActualObservation
     (dataDir actualRoot : System.FilePath)
@@ -39,13 +40,13 @@ private def loadActualObservation
     | .ok window =>
       Loam.CurrentCoverageReview.loadSnapshotAt
         dataDir actualRoot window.start observedAt window.endExclusive
-  let evidence ← attempt (Loam.BalanceReview.loadEvidence dataDir actualRoot)
-  return { coverage, evidence }
+  let balances ← attempt (Loam.CurrentBalanceReview.loadSnapshot dataDir actualRoot)
+  return { coverage, balances }
 
 /--
 Compose current queries without Home selected-day input. Physical display and
-funding use the same loaded balance evidence but independent selections.
-CurrentCoverage and Balance evidence reads share one Actual ownership interval,
+funding use the same neutral current-balance answer but independent selections.
+CurrentCoverage and CurrentBalance reads share one Actual ownership interval,
 so one Cycle Budget answer cannot mix two generations of `actual.loam` if a
 writer publishes concurrently. Other authorities remain independently visible;
 this still does not promise a cross-file atomic snapshot or historical balance
@@ -63,26 +64,25 @@ def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) 
       let message := "loam: Cycle Budget Actual observation unavailable: " ++ error.toString
       pure {
         coverage := .error message
-        evidence := .error message
+        balances := .error message
       }
   let coverage := observation.coverage
-  let evidence := observation.evidence
+  let balances := observation.balances
   let physical ← attempt do
-    match evidence with
+    match balances with
     | .error message => return .error message
-    | .ok evidence =>
+    | .ok current =>
       match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
       | none => return .error "balance-view.tsv malformed"
       | some coordinates =>
-        return Loam.BalanceReview.project
-          evidence.events evidence.corrections evidence.coverage coordinates
+          return Loam.CurrentBalanceReview.selectExact current coordinates
   let selection ← Loam.CycleFundingConfig.load (Loam.HouseholdPaths.cycleFunding dataDir)
   let funding := do
-    let current ← coverage
+    let currentCoverage ← coverage
     let coordinates ← selection
-    let balances ← evidence
-    Loam.CycleFundingInspection.project balances.events balances.corrections balances.coverage
-      coordinates ⟨"jpy"⟩ current
+    let currentBalances ← balances
+    let exact ← Loam.CurrentBalanceReview.selectExact currentBalances coordinates
+    Loam.CycleFundingInspection.project exact coordinates ⟨"jpy"⟩ currentCoverage
   return { observedAt, window, coverage, physical, selection, funding }
 
 end Loam.CycleBudgetReview

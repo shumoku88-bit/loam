@@ -2,6 +2,7 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.BalanceReview
+import Loam.CurrentBalanceReview
 import Loam.BoundaryPresetConfig
 import Loam.DailyPaceConfig
 import Loam.HouseholdPaths
@@ -361,12 +362,12 @@ def loadSnapshotFromActualImageAt
     match ← Loam.DailyPaceConfig.load (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
-  let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+  let current ←
+    match ← Loam.CurrentBalanceReview.loadSnapshotFromActualImage dataDir image with
     | .error message => return .error message
-    | .ok coverage => pure coverage
+    | .ok snapshot => pure snapshot
   let balances ←
-    match Loam.BalanceReview.projectImage image coverage selection with
+    match Loam.CurrentBalanceReview.selectExact current selection with
     | .error message => return .error message
     | .ok balances => pure balances
   let scheduled ←

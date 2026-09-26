@@ -33,10 +33,15 @@ def main (args : List String) : IO Unit := do
     locusAdmission := Loam.Core.LocusAdmissionVocabulary.empty }
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root world
     | throw (IO.userError "publish fixture world")
+  -- yucho keeps historical zero-origin support, while cash is deliberately
+  -- current-only. This fixture proves current Cycle Budget/Funding no longer
+  -- require historical completeness for cash.
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates?
-    [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩]) "coverage"
+    [⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩]) "coverage"
   expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero)
     "save zero-origin"
+  IO.FS.writeFile (root / "current-quantity-anchor.loam")
+    "LOAM-CURRENT-QUANTITY-ANCHOR\t1\nASSERT\tcash\tjpy\t0\n"
   let capacityFixture :=
     "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t100\nENDMOVEMENT\n"
   IO.FS.writeFile (root / "capacity.loam") capacityFixture
@@ -82,4 +87,4 @@ def main (args : List String) : IO Unit := do
   expect (!unreadable.funding.isOk && unreadable.physical.isOk) "unreadable config crashed layer"
   IO.FS.removeDir fundingPath
   IO.FS.writeFile fundingPath config
-  IO.println "CycleBudgetReview: explicit config and independent production read failures passed."
+  IO.println "CycleBudgetReview: current-anchor backing, explicit config and independent failures passed."
