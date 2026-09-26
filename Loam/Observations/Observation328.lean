@@ -277,12 +277,14 @@ private def updateCoordinate
     (cells : Loam.Observation325.CellIndex)
     (index : FastRowIndex)
     (coordinate : EffectCoordinate) : FastRowIndex :=
-  let key := Loam.Observation325.coordinateKey coordinate
-  match index.get? key with
+  match index.get? (Loam.Observation325.coordinateKey coordinate) with
   | none => index
   | some state =>
-      let quantity := (cells.get? key).getD 0
-      index.insert key (advanceState state quantity)
+      index.insert
+        (Loam.Observation325.coordinateKey coordinate)
+        (advanceState state
+          ((cells.get?
+            (Loam.Observation325.coordinateKey coordinate)).getD 0))
 
 private theorem updateCoordinate_same
     (cells : Loam.Observation325.CellIndex)
