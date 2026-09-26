@@ -6,6 +6,10 @@ on:
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
+      - 'Loam/Presentation/**'
+      - 'Loam/Tests/PresentationReadState.lean'
+      - 'Loam/Tests/PresentationHome.lean'
+      - 'Loam/Tests/PresentationReports.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
@@ -133,6 +137,10 @@ on:
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
+      - 'Loam/Presentation/**'
+      - 'Loam/Tests/PresentationReadState.lean'
+      - 'Loam/Tests/PresentationHome.lean'
+      - 'Loam/Tests/PresentationReports.lean'
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
@@ -371,6 +379,15 @@ jobs:
 
       - name: Run shared Actual review checks
         run: lake env lean --run Loam/Tests/RecordReview.lean
+
+      - name: Verify typed presentation read state
+        run: lake env lean --run Loam/Tests/PresentationReadState.lean
+
+      - name: Verify shared Home presentation
+        run: lake env lean --run Loam/Tests/PresentationHome.lean
+
+      - name: Verify shared Reports presentation
+        run: lake env lean --run Loam/Tests/PresentationReports.lean
 
       - name: Verify admitted Actual journal export
         shell: bash
