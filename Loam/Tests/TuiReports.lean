@@ -226,17 +226,17 @@ def main : IO Unit := do
   let stockReportText := widgetText (Loam.Tui.Reports.view stockReport)
   expect (contains " usd" stockReportText)
     "Stock–Flow TUI did not render the selected Measure"
-  expect (contains "Reconstructed at start:" stockReportText && contains "100 jpy" stockReportText)
+  expect (contains "Reconstructed at start:" stockReportText && contains "100 usd" stockReportText)
     "Stock–Flow start reconstruction was not rendered"
-  expect (contains "Reconstructed at end:" stockReportText && contains "130 jpy" stockReportText)
+  expect (contains "Reconstructed at end:" stockReportText && contains "130 usd" stockReportText)
     "Stock–Flow end reconstruction was not rendered"
-  expect (contains "Tracked increases across Events:" stockReportText && contains "+50 jpy" stockReportText)
+  expect (contains "Tracked increases across Events:" stockReportText && contains "+50 usd" stockReportText)
     "Stock–Flow increases were not rendered"
-  expect (contains "Tracked decreases across Events:" stockReportText && contains "-20 jpy" stockReportText)
+  expect (contains "Tracked decreases across Events:" stockReportText && contains "-20 usd" stockReportText)
     "Stock–Flow decreases were not rendered"
-  expect (contains "Net change:" stockReportText && contains "+30 jpy" stockReportText)
+  expect (contains "Net change:" stockReportText && contains "+30 usd" stockReportText)
     "Stock–Flow net change was not rendered"
-  expect (contains "Current tracked balance now:" stockReportText && contains "140 jpy" stockReportText)
+  expect (contains "Current tracked balance now:" stockReportText && contains "140 usd" stockReportText)
     "Stock–Flow current context was not rendered separately"
   expect (contains "not income/spending" stockReportText)
     "Stock–Flow lost its sign/classification non-claim"
