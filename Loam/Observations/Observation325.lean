@@ -24,11 +24,11 @@ No string concatenation or display label is used.
 The representation is research-only and carries no authority.
 -/
 
-private abbrev CoordinateKey := String × String
-private abbrev CellIndex := Std.HashMap CoordinateKey Int
+abbrev CoordinateKey := String × String
+abbrev CellIndex := Std.HashMap CoordinateKey Int
 private abbrev ColumnIndex := Std.HashMap String CellIndex
 
-private def coordinateKey (coordinate : EffectCoordinate) : CoordinateKey :=
+def coordinateKey (coordinate : EffectCoordinate) : CoordinateKey :=
   (coordinate.locus.token, coordinate.measure.token)
 
 private theorem coordinateKey_injective :
@@ -67,7 +67,7 @@ Tail-first construction makes the lookup proof align directly with the
 right-fold semantics of Event.quantityAt. Every encountered coordinate is
 inserted even when repeated quantities later sum to zero.
 -/
-private def buildCellIndex : List Effect → CellIndex
+def buildCellIndex : List Effect → CellIndex
   | [] => {}
   | effect :: rest =>
       let index := buildCellIndex rest
