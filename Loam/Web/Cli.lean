@@ -213,14 +213,15 @@ private def loadCurrentSnapshot
           Loam.StockFlowReview.loadSnapshotFromActualImage
             dataDir image window.start window.endExclusive
         pure (Loam.Presentation.ReadState.fromExcept result)
-  let transactionsFlow : Loam.Presentation.ReadState Loam.TransactionsFlowReview.Snapshot :=
+  let transactionsFlowResult : Except String Loam.TransactionsFlowReview.Snapshot :=
     match actualImage, budget.window with
-    | .error error, _ => actualFailureState error
+    | .error error, _ => .error error.message
     | _, .error message =>
-        .failed ("loam: Transactions Flow current window unavailable: " ++ message)
+        .error ("loam: Transactions Flow current window unavailable: " ++ message)
     | .ok image, .ok window =>
-        Loam.Presentation.ReadState.fromExcept
-          (Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive)
+        Loam.TransactionsFlowReview.projectImage image window.start window.endExclusive
+  let transactionsFlow : Loam.Presentation.ReadState Loam.TransactionsFlowReview.Snapshot :=
+    Loam.Presentation.ReadState.fromExcept transactionsFlowResult
   let roleFlow ←
     match actualImage, budget.window with
     | .error error, _ =>
@@ -228,10 +229,10 @@ private def loadCurrentSnapshot
           Loam.Presentation.ReadState Loam.RoleFlowReview.Snapshot)
     | _, .error message =>
         pure (.failed ("loam: Income & Expense current window unavailable: " ++ message))
-    | .ok image, .ok window => do
+    | .ok _, .ok _ => do
         let result ←
-          Loam.RoleFlowReview.loadSnapshotFromActualImage
-            dataDir image window.start window.endExclusive
+          Loam.RoleFlowReview.loadSnapshotFromTransactionsFlowResult
+            dataDir transactionsFlowResult
         pure (Loam.Presentation.ReadState.fromExcept result)
   let roleBalances ←
     match actualImage with
