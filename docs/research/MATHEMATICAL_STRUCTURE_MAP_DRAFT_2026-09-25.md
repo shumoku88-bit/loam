@@ -685,14 +685,26 @@ the current ordering result.
 
 ## R5 — observational sufficiency test
 
-Pick one real report and ask:
+**Status: QUALIFIED ON MERCHANT EXPENSE via Observation 336**
+
+Merchant Expense supplies the first production-shaped witness.
+
+For the scalar `exactTotal?` observation, a research image containing only
+`knownTotal` and one `complete` bit is sufficient. Observation 336 proves the
+answer factors through that image in the Observation 191 sense.
+
+The same image is deliberately insufficient for the inspectable diagnostic
+surface: it cannot distinguish unresolved Merchant classification from
+unresolved AccountingRole classification, while the production Snapshot can.
+
+Result:
 
 ```text
-What is the smallest summary through which this report factors?
+one observation may admit a much smaller sufficient image
+without that image being sufficient for the whole report surface
 ```
 
-Use the Observation 191 style of reasoning to reject summaries that forget an
-observable distinction.
+No production replacement is authorized by this result.
 
 ## R6 — information-order counterexample search
 
