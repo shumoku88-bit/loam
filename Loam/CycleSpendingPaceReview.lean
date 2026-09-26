@@ -5,6 +5,7 @@ import Loam.BalanceReview
 import Loam.CurrentBalanceReview
 import Loam.BoundaryPresetConfig
 import Loam.DailyPaceConfig
+import Loam.HistoricalBalanceReview
 import Loam.HouseholdPaths
 import Loam.ScheduledReview
 
@@ -153,8 +154,8 @@ def project
 The series below retains no Daily Pace observations. Instead it reconstructs each
 past day from the **current admitted household truth**:
 
-- the current Event correction frontier is cut by current occurrence dates, just
-  as Stock–Flow reconstruction cuts historical quantity boundaries;
+- historical pool quantities come from the shared HistoricalBalanceReview,
+  using each point's next start-of-day boundary;
 - a Scheduled completion is considered closed from the occurrence date of its
   retained Actual endpoint;
 - currently retained Scheduled occurrences are treated as part of the current
@@ -169,51 +170,30 @@ or dated Actual endpoint. If either would affect the selected Daily Pace pool,
 historical reconstruction refuses rather than fabricating a transition date.
 -/
 
-private def selectedEventQuanta
-    (selection : List EffectCoordinate)
-    (event : Event) : Int :=
-  event.effects.foldl
-    (fun total effect =>
-      if effect.coordinate ∈ selection then total + effect.quantity.quanta else total)
-    0
-
-private def addEligibleContribution
-    (validOn : String)
-    (quantity : Int) :
-    List String → List Int → List Int
-  | date :: laterDates, total :: laterTotals =>
-      let next := if decide (validOn ≤ date) then total + quantity else total
-      next :: addEligibleContribution validOn quantity laterDates laterTotals
-  | _, totals => totals
-
 /--
-Validate selected current Actual dates and reconstruct all requested end-of-day
-eligible-pool quantities in one Record scan.
+Reconstruct the selected pool at the end of one calendar day through the shared
+historical-balance boundary.
 
-Each selected Event is quantified once. Its signed quantity is then distributed
-across the finite date vector at every date on or after the Event date.
+End-of-day `d` is exactly start-of-day `d + 1`. This preserves the previous
+Daily Pace history meaning while delegating all zero-origin / bounded-history
+routing, EventCorrection, and ActualValidity refinement to
+`HistoricalBalanceReview`.
 -/
-private def eligiblePoolsAtEndOfDays
+private def eligiblePoolAtEndOfDay
+    (image : Loam.ActualAuthority.Image)
+    (historicalEvidence : Loam.HistoricalBalanceReview.Evidence)
     (selection : List EffectCoordinate)
-    (records : List Loam.ActualReview.Record)
-    (dates : List String) : Except String (List Int) :=
-  records.foldlM
-    (fun totals record => do
-      if !record.isCurrent then
-        return totals
-      let quantity := selectedEventQuanta selection record.event
-      if quantity = 0 then
-        return totals
-      let some validOn := record.date
-        | throw
-            ("loam: Daily Pace history unavailable: current selected Actual " ++
-              record.event.id.token ++ " has no occurrence date")
-      if !Loam.ActualDate.validIsoDate validOn then
-        throw
-          ("loam: Daily Pace history unavailable: current selected Actual " ++
-            record.event.id.token ++ " has an invalid occurrence date")
-      return addEligibleContribution validOn quantity dates totals)
-    (List.replicate dates.length 0)
+    (date : String) : Except String Int := do
+  let some nextDay := Loam.ActualDate.shiftDays? date 1
+    | throw "loam: Daily Pace history could not advance the historical day boundary"
+  let snapshot ←
+    Loam.HistoricalBalanceReview.projectStartOfDay
+      image historicalEvidence nextDay selection
+  if snapshot.rows.map (·.coordinate) != selection then
+    throw "loam: Daily Pace history balance answer does not match the selected pool"
+  return snapshot.rows.foldl
+    (fun total row => total + row.quantity.quanta)
+    0
 
 private def terminalFor?
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
@@ -317,10 +297,11 @@ This parity check prevents the trend from silently using a different balance or
 Scheduled interpretation than Home's headline number.
 -/
 def projectHistory
+    (image : Loam.ActualAuthority.Image)
+    (historicalEvidence : Loam.HistoricalBalanceReview.Evidence)
     (windowStart observedAt endExclusive : String)
     (selection : List EffectCoordinate)
     (balances : Loam.BalanceReview.Snapshot)
-    (records : List Loam.ActualReview.Record)
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
     (days : Nat) : Except String (List Snapshot) := do
   if !Loam.ActualDate.validIsoDate windowStart then
@@ -330,9 +311,11 @@ def projectHistory
   let current ← project observedAt endExclusive selection balances scheduled
   let _ ← Loam.ScheduledReview.currentOpenRecords scheduled
   let dates := recentDates windowStart observedAt days
-  let eligiblePools ← eligiblePoolsAtEndOfDays selection records dates
   if days = 0 then
     return []
+  let eligiblePools ← dates.mapM fun date =>
+    eligiblePoolAtEndOfDay image historicalEvidence selection date
+  let records := Loam.ActualReview.recordsFromActualImage image
   let points ← (dates.zip eligiblePools).mapM fun (date, eligible) =>
     reconstructedSnapshot endExclusive selection records scheduled eligible date
   match points.reverse with
@@ -415,22 +398,26 @@ def loadHistoryFromActualImageAt
     match ← Loam.DailyPaceConfig.load (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
-  let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+  let current ←
+    match ← Loam.CurrentBalanceReview.loadSnapshotFromActualImage dataDir image with
     | .error message => return .error message
-    | .ok coverage => pure coverage
+    | .ok snapshot => pure snapshot
   let balances ←
-    match Loam.BalanceReview.projectImage image coverage selection with
+    match Loam.CurrentBalanceReview.selectExact current selection with
     | .error message => return .error message
     | .ok balances => pure balances
+  let historicalEvidence ←
+    match ← Loam.HistoricalBalanceReview.loadEvidence dataDir with
+    | .error message => return .error message
+    | .ok evidence => pure evidence
   let scheduled ←
     match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents with
     | .error message => return .error message
     | .ok scheduled => pure scheduled
-  let records := Loam.ActualReview.recordsFromActualImage image
   return projectHistory
+    image historicalEvidence
     window.start observedAt window.endExclusive
-    selection balances records scheduled days
+    selection balances scheduled days
 
 /--
 Load a retrospective current-truth Daily Pace series without retaining any pace
