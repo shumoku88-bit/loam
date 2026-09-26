@@ -2,6 +2,7 @@ import Loam.Tui.ReportsModel
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.RoleFlowReview
+import Loam.Presentation.Reports
 import Loam.Tui.RoleBalances
 import Loam.Tui.ScheduledCoveragePane
 import Loam.Tui.TransactionsFlowPane
@@ -169,32 +170,6 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
       , line state.notice
       ]
 
-private def addIncomeExpenseMeasureIfAbsent
-    (measures : List Loam.Core.MeasureId) (measure : Loam.Core.MeasureId) :
-    List Loam.Core.MeasureId :=
-  if measure ∈ measures then measures else measures ++ [measure]
-
-private def incomeExpenseMeasures
-    (snapshot : Loam.RoleFlowReview.Snapshot) : List Loam.Core.MeasureId :=
-  snapshot.rows.foldl
-    (fun measures row =>
-      match row.role with
-      | .income => addIncomeExpenseMeasureIfAbsent measures row.coordinate.measure
-      | .expense => addIncomeExpenseMeasureIfAbsent measures row.coordinate.measure
-      | _ => measures)
-    []
-
-private def incomeExpenseRoleQuanta
-    (snapshot : Loam.RoleFlowReview.Snapshot)
-    (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole) : Int :=
-  snapshot.rows.foldl
-    (fun total row =>
-      if decide (row.coordinate.measure = measure ∧ row.role = role) then
-        total + row.quantity.quanta
-      else
-        total)
-    0
-
 private def incomeExpenseBreakdownRows
     (snapshot : Loam.RoleFlowReview.Snapshot)
     (measure : Loam.Core.MeasureId) (role : Loam.Core.AccountingRole) :
@@ -222,17 +197,14 @@ private def incomeExpenseBreakdownLines
           " " ++ measure.token)
 
 private def incomeExpenseMeasureLines
-    (snapshot : Loam.RoleFlowReview.Snapshot) (measure : Loam.Core.MeasureId) : List Widget :=
-  let rawIncome := incomeExpenseRoleQuanta snapshot measure .income
-  let rawExpense := incomeExpenseRoleQuanta snapshot measure .expense
-  let income := -rawIncome
-  let expense := rawExpense
-  let result := income - expense
+    (snapshot : Loam.RoleFlowReview.Snapshot)
+    (summary : Loam.Presentation.Reports.IncomeExpenseMeasure) : List Widget :=
+  let measure := summary.measure
   let label := Loam.Tui.Layout.padRight 16
   [ line (measure.token ++ "  occurrence-time P/L-shaped flow")
-  , line (label "Income:" ++ padNum 12 (toString income) ++ " " ++ measure.token)
-  , line (label "Expense:" ++ padNum 12 (toString expense) ++ " " ++ measure.token)
-  , line (label "Result:" ++ padNum 12 (toString result) ++ " " ++ measure.token)
+  , line (label "Income:" ++ padNum 12 (toString summary.income.quanta) ++ " " ++ measure.token)
+  , line (label "Expense:" ++ padNum 12 (toString summary.expense.quanta) ++ " " ++ measure.token)
+  , line (label "Result:" ++ padNum 12 (toString summary.result.quanta) ++ " " ++ measure.token)
   , blank
   ] ++
   incomeExpenseBreakdownLines snapshot measure .income "Income breakdown" ++
@@ -250,18 +222,19 @@ private def incomeExpenseResultLines (state : State) : List Widget :=
   match state.incomeExpenseSnapshot with
   | none => [muted "No explicit Income & Expense window has been run yet."]
   | some snapshot =>
-      let measures := incomeExpenseMeasures snapshot
+      let summary := Loam.Presentation.Reports.incomeExpenseFromRoleFlow snapshot
       let unresolved := snapshot.unresolvedEffects
-      [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
+      [ line ("Window [" ++ summary.start ++ ", " ++ summary.endExclusive ++ ")")
       , muted "Income display = -raw signed Income; Expense display = raw signed Expense."
       , muted "Distinct Measures remain separate and are never valued or summed together."
       , blank
       ] ++
-      (if measures.isEmpty then
+      (if summary.measures.isEmpty then
         [muted "No classified Income or Expense quantity appears in this window."]
        else
-        measures.flatMap fun measure => incomeExpenseMeasureLines snapshot measure ++ [blank]) ++
-      [ line ("Unresolved role Effects: " ++ toString unresolved.length) ] ++
+        summary.measures.flatMap fun measure =>
+          incomeExpenseMeasureLines snapshot measure ++ [blank]) ++
+      [ line ("Unresolved role Effects: " ++ toString summary.unresolvedEffectCount) ] ++
       (unresolved.take 8).map unresolvedIncomeExpenseLine ++
       (if unresolved.length > 8 then
         [muted ("... " ++ toString (unresolved.length - 8) ++ " later unresolved Effect(s) omitted")]
