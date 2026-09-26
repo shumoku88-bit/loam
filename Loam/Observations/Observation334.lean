@@ -71,6 +71,16 @@ def buildLatestIndex
     (validOn : Time) : LatestIndex Time :=
   history.entries.foldr (updateEntry validOn) {}
 
+private theorem locus_token_ne
+    (left right : LocusId)
+    (hNe : left ≠ right) :
+    left.token ≠ right.token := by
+  intro h
+  apply hNe
+  cases left
+  cases right
+  simp_all
+
 private theorem updateEntry_same
     (validOn : Time)
     (entry : RoutingEntry LocusId Time)
@@ -79,15 +89,20 @@ private theorem updateEntry_same
       chooseLatest validOn entry (index.get? entry.subject.token) := by
   unfold updateEntry chooseLatest
   by_cases hVisible : entry.effectiveOn ≤ validOn
-  · simp [hVisible]
+  · simp only [if_pos hVisible]
     cases hPrior : index.get? entry.subject.token with
     | none =>
-        simp [hPrior]
+        rw [hPrior]
+        rw [Std.HashMap.get?_insert]
+        simp
     | some prior =>
+        rw [hPrior]
         by_cases hLater : prior.effectiveOn ≤ entry.effectiveOn
-        · simp [hPrior, hLater, Std.HashMap.get?_insert]
-        · simp [hPrior, hLater]
-  · simp [hVisible]
+        · simp only [if_pos hLater]
+          rw [Std.HashMap.get?_insert]
+          simp
+        · simp only [if_neg hLater]
+  · simp only [if_neg hVisible]
 
 private theorem updateEntry_other
     (validOn : Time)
@@ -99,34 +114,28 @@ private theorem updateEntry_other
       index.get? subject.token := by
   unfold updateEntry
   by_cases hVisible : entry.effectiveOn ≤ validOn
-  · simp [hVisible]
+  · simp only [if_pos hVisible]
     cases hPrior : index.get? entry.subject.token with
     | none =>
+        rw [hPrior]
         rw [Std.HashMap.get?_insert]
-        have hToken : entry.subject.token ≠ subject.token := by
-          intro h
-          apply hNe
-          cases entry.subject
-          cases subject
-          simp_all
-        have hBeq : (entry.subject.token == subject.token) = false := by
-          exact beq_eq_false_iff_ne.mpr hToken
-        simp [hBeq]
+        have hToken := locus_token_ne entry.subject subject hNe
+        have hBeq : (entry.subject.token == subject.token) = false :=
+          beq_eq_false_iff_ne.mpr hToken
+        rw [hBeq]
+        rfl
     | some prior =>
+        rw [hPrior]
         by_cases hLater : prior.effectiveOn ≤ entry.effectiveOn
-        · rw [if_pos hLater]
+        · simp only [if_pos hLater]
           rw [Std.HashMap.get?_insert]
-          have hToken : entry.subject.token ≠ subject.token := by
-            intro h
-            apply hNe
-            cases entry.subject
-            cases subject
-            simp_all
-          have hBeq : (entry.subject.token == subject.token) = false := by
-            exact beq_eq_false_iff_ne.mpr hToken
-          simp [hBeq]
-        · simp [hLater]
-  · simp [hVisible]
+          have hToken := locus_token_ne entry.subject subject hNe
+          have hBeq : (entry.subject.token == subject.token) = false :=
+            beq_eq_false_iff_ne.mpr hToken
+          rw [hBeq]
+          rfl
+        · simp only [if_neg hLater]
+  · simp only [if_neg hVisible]
 
 private def directStep
     (subject : LocusId)
@@ -161,8 +170,6 @@ private theorem updateEntry_lookup
     · simp [hVisible]
   · rw [updateEntry_other validOn entry index subject hSubject]
     unfold directStep
-    have hEq : (entry.subject = subject) = False := by
-      exact propext (not_congr (not_not_intro hSubject))
     simp [hSubject]
 
 private theorem buildLatestIndex_lookup_direct
@@ -180,32 +187,33 @@ private theorem buildLatestIndex_lookup_direct
   | cons entry rest ih =>
       simp only [List.foldr_cons]
       rw [updateEntry_lookup]
-      exact ih
+      rw [ih]
 
 /--
-The copied direct step is definitionally the same latest-visible selection law
-used by the public focused lookup.
+Research specification copied from the public latest-visible selection rule.
+
+The production helper used inside `findLatestVisible?` is file-private, so this
+observation proves the transient image against this exact local specification.
+A production promotion can place the final bridge theorem inside
+`HistoricalRouting.lean`, where the private helper is visible.
 -/
-private theorem directFold_eq_findLatestVisible
+def directFindLatestVisible?
     (history : RoutingHistory LocusId Time)
     (subject : LocusId)
-    (validOn : Time) :
-    history.entries.foldr (directStep subject validOn) none =
-      history.findLatestVisible? subject validOn := by
-  rfl
+    (validOn : Time) : Option (RoutingEntry LocusId Time) :=
+  history.entries.foldr (directStep subject validOn) none
 
 /--
-For every Actual-routing history, Locus and observation coordinate, lookup in one
-transient fixed-time image returns exactly the focused public latest-visible
-answer.
+For every history, Locus and observation coordinate, transient-image lookup is
+exactly the research latest-visible specification.
 -/
-theorem buildLatestIndex_get?_eq_findLatestVisible
+theorem buildLatestIndex_get?_eq_direct
     (history : RoutingHistory LocusId Time)
     (subject : LocusId)
     (validOn : Time) :
     (buildLatestIndex history validOn).get? subject.token =
-      history.findLatestVisible? subject validOn := by
-  unfold buildLatestIndex
+      directFindLatestVisible? history subject validOn := by
+  unfold buildLatestIndex directFindLatestVisible?
   calc
     (history.entries.foldr (updateEntry validOn) {}).get? subject.token =
         history.entries.foldr
@@ -215,8 +223,6 @@ theorem buildLatestIndex_get?_eq_findLatestVisible
         history.entries validOn subject {}
     _ = history.entries.foldr (directStep subject validOn) none := by
       simp
-    _ = history.findLatestVisible? subject validOn :=
-      directFold_eq_findLatestVisible history subject validOn
 
 /-- Three-way status projection from the transient image. -/
 def statusFromIndex
@@ -229,17 +235,54 @@ def statusFromIndex
       | some purpose => .managed purpose
       | none => .unmanaged
 
+private def statusFromDirect
+    (history : RoutingHistory LocusId Time)
+    (subject : LocusId)
+    (validOn : Time) : RoutingStatus :=
+  match directFindLatestVisible? history subject validOn with
+  | none => .unrouted
+  | some entry =>
+      match entry.purpose with
+      | some purpose => .managed purpose
+      | none => .unmanaged
+
 /--
-Pointwise correspondence to the public focused specification.
+Pointwise correspondence to the mirrored research specification.
 -/
-theorem statusFromIndex_build_eq_statusAt
+theorem statusFromIndex_build_eq_direct
     (history : RoutingHistory LocusId Time)
     (subject : LocusId)
     (validOn : Time) :
     statusFromIndex (buildLatestIndex history validOn) subject =
-      history.statusAt subject validOn := by
-  unfold statusFromIndex RoutingHistory.statusAt
-  rw [buildLatestIndex_get?_eq_findLatestVisible]
+      statusFromDirect history subject validOn := by
+  unfold statusFromIndex statusFromDirect
+  rw [buildLatestIndex_get?_eq_direct]
+
+private def food : PurposeId := ⟨"food"⟩
+private def home : PurposeId := ⟨"home"⟩
+private def coffee : LocusId := ⟨"coffee"⟩
+private def rent : LocusId := ⟨"rent"⟩
+
+private def pressureHistory : RoutingHistory LocusId Nat :=
+  {
+    entries :=
+      [ { subject := coffee, effectiveOn := 3, purpose := some home }
+      , { subject := rent, effectiveOn := 2, purpose := none }
+      , { subject := coffee, effectiveOn := 1, purpose := some food }
+      ]
+    coordinateNodup := by native_decide
+  }
+
+/--
+Closed pressure against the public production specification covers managed,
+unmanaged, unrouted, before-first-change, exact-change and later-change cases.
+-/
+example :
+    [0, 1, 2, 3, 4].all (fun time =>
+      [coffee, rent, (⟨"ghost"⟩ : LocusId)].all (fun subject =>
+        statusFromIndex (buildLatestIndex pressureHistory time) subject ==
+          pressureHistory.statusAt subject time)) = true := by
+  native_decide
 
 /-!
 ## Finding
