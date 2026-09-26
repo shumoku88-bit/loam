@@ -451,7 +451,7 @@ private def homeBody
 
 private def dayHelpTokens : List String :=
   ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[Enter] open",
-   "[r] record", "[a] actual", "[s] scheduled", "[q] quit"]
+   "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
   ["Household:", "[i] attention", "[b] balances", "[c] budget", "[e] capacity",
