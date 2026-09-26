@@ -52,14 +52,16 @@ structure Snapshot where
 private def classifiedRows
     (flow : Loam.TransactionsFlowReview.Snapshot)
     (roles : AccountingRoleMap) : List Row :=
-  flow.rows.filterMap fun coordinate =>
+  flow.rowActivities.filterMap fun entry =>
+    let coordinate := entry.1
+    let activity := entry.2
     match roles.roleOf? coordinate.locus with
     | none => none
     | some role =>
         some {
           coordinate := coordinate
           role := role
-          quantity := Loam.TransactionsFlowReview.rowTotal flow coordinate
+          quantity := activity.net
         }
 
 private def unresolvedEffects

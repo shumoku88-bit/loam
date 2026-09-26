@@ -31,6 +31,16 @@ private def rowTokens
   snapshot.rows.map fun coordinate =>
     (coordinate.locus.token, coordinate.measure.token)
 
+private def bulkRowTokens
+    (snapshot : Loam.TransactionsFlowReview.Snapshot) : List (String × String) :=
+  snapshot.rowActivities.map fun row =>
+    (row.1.locus.token, row.1.measure.token)
+
+private def bulkRowsMatchDirect
+    (snapshot : Loam.TransactionsFlowReview.Snapshot) : Bool :=
+  snapshot.rowActivities.all fun row =>
+    row.2 == Loam.TransactionsFlowReview.rowActivity snapshot row.1
+
 
 def main : IO Unit := do
   let some original := event? "original"
@@ -70,6 +80,10 @@ def main : IO Unit := do
   expect (rowTokens snapshot ==
       [("book", "jpy"), ("food", "jpy"), ("paypay", "jpy"), ("smbc", "jpy")])
     "Transactions-Flow rows were not the represented EffectCoordinates"
+  expect (bulkRowTokens snapshot == rowTokens snapshot)
+    "bulk Transactions-Flow rows changed represented coordinate order"
+  expect (bulkRowsMatchDirect snapshot)
+    "bulk Transactions-Flow activity diverged from direct rowActivity"
 
   let bookJpy : EffectCoordinate := ⟨⟨"book"⟩, ⟨"jpy"⟩⟩
   let foodJpy : EffectCoordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
@@ -125,6 +139,29 @@ def main : IO Unit := do
   | .ok emptySnapshot =>
       expect (ids emptySnapshot == ["replacement", "later"])
         "empty undated Event became a quantity column"
+
+  let some cancelled := event? "cancelled"
+      [effect "c1" "roundtrip" "jpy" 50, effect "c2" "roundtrip" "jpy" (-50)]
+    | throw (IO.userError "cancelled Event fixture was rejected")
+  let cancelledSnapshot ←
+    match Loam.TransactionsFlowReview.project
+        [record cancelled (some "2026-09-19") "cancelled"]
+        "2026-09-01" "2026-10-01" with
+    | .error message => throw (IO.userError message)
+    | .ok selected => pure selected
+  expect (rowTokens cancelledSnapshot == [("roundtrip", "jpy")])
+    "same-Event cancellation erased represented coordinate support"
+  expect (bulkRowTokens cancelledSnapshot == rowTokens cancelledSnapshot)
+    "bulk row support erased same-Event zero cancellation"
+  expect (bulkRowsMatchDirect cancelledSnapshot)
+    "bulk zero-cancellation activity diverged from direct rowActivity"
+  let [cancelledBulk] := cancelledSnapshot.rowActivities
+    | throw (IO.userError "cancelled fixture did not yield one bulk row")
+  expect
+    (cancelledBulk.2.net.quanta == 0 &&
+      cancelledBulk.2.gross.quanta == 0 &&
+      cancelledBulk.2.activeEvents == 0)
+    "bulk zero-cancellation row invented activity"
 
   let some mixed := event? "mixed"
       [ effect "m1" "cash" "jpy" (-100)
