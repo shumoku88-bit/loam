@@ -49,6 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          lake build Loam.Observations.Observation078
           AUDIT_DIR="$RUNNER_TEMP/axiom-audit-078"
           rm -rf "$AUDIT_DIR"
           git clone --depth 1 --branch v0.1.2 \

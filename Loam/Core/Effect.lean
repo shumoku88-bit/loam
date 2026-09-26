@@ -66,6 +66,39 @@ def measure (effect : Effect) : MeasureId :=
 def quantity (effect : Effect) : Quantity :=
   effect.amount.quantity
 
+/--
+Accumulate one signed total per represented Measure.
+
+The result is a transient additive image of the retained Effect list. It forgets
+Locus and Effect identity while keeping Measures separate. Pair order follows
+first representation order only and carries no semantic meaning.
+-/
+private def addMeasureTotal
+    (totals : List (MeasureId × Int))
+    (measure : MeasureId)
+    (amount : Int) : List (MeasureId × Int) :=
+  match totals with
+  | [] => [(measure, amount)]
+  | current :: rest =>
+      if current.1 = measure then
+        (current.1, current.2 + amount) :: rest
+      else
+        current :: addMeasureTotal rest measure amount
+
+/--
+Project an Effect collection to its finite Measure-indexed signed quantity image.
+Every represented Measure appears exactly once.
+-/
+def measureTotals (effects : List Effect) : List (MeasureId × Int) :=
+  effects.foldl
+    (fun totals effect =>
+      addMeasureTotal totals effect.measure effect.quantity.quanta)
+    []
+
+/-- First represented Measure whose exact signed total is nonzero, if any. -/
+def firstNonzeroMeasureTotal? (effects : List Effect) : Option (MeasureId × Int) :=
+  (measureTotals effects).find? fun total => total.2 != 0
+
 @[simp] theorem key_ofQuantity
     (key : EffectKey) (locus : LocusId)
     (measure : MeasureId) (quantity : Quantity) :
