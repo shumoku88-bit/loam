@@ -18,6 +18,10 @@ on:
       - 'experiments/244_temporal_quantity_anchor.md'
       - 'experiments/246_shared_current_anchor_cut.als'
       - 'experiments/246_shared_current_anchor_cut.md'
+      - 'experiments/345_reconciled_interval_boundary.als'
+      - 'experiments/345_reconciled_interval_boundary.md'
+      - 'experiments/346_backward_anchor_reconstruction.als'
+      - 'experiments/346_backward_anchor_reconstruction.md'
       - 'experiments/249_cash_flow_classification.als'
       - 'experiments/249_cash_flow_classification.md'
       - 'experiments/251_loam_rea_interpretation.als'
@@ -67,6 +71,7 @@ on:
       - 'experiment/243-current-vs-historical-balance-support'
       - 'experiment/244-temporal-quantity-anchor'
       - 'experiment/246-shared-current-anchor-cut'
+      - 'experiment/345-reconciled-interval-boundary'
       - 'experiment/249-cash-flow-classification'
       - 'experiment/251-loam-rea-interpretation'
       - 'experiment/252-rea-ledger-commutation'
@@ -101,6 +106,10 @@ on:
       - 'experiments/244_temporal_quantity_anchor.md'
       - 'experiments/246_shared_current_anchor_cut.als'
       - 'experiments/246_shared_current_anchor_cut.md'
+      - 'experiments/345_reconciled_interval_boundary.als'
+      - 'experiments/345_reconciled_interval_boundary.md'
+      - 'experiments/346_backward_anchor_reconstruction.als'
+      - 'experiments/346_backward_anchor_reconstruction.md'
       - 'experiments/249_cash_flow_classification.als'
       - 'experiments/249_cash_flow_classification.md'
       - 'experiments/251_loam_rea_interpretation.als'
@@ -167,7 +176,7 @@ jobs:
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths experiments/249_cash_flow_classification.als)" =             '[]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/327-interpretation-subject-correction             --paths experiments/327_interpretation_subject_correction.als)" =             '["interpretation-subject-correction"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths verification/ci/alloy-research-cases.json)" =             '["accounting-projection-factorization"]'
-          test "$(python3 tools/select-alloy-research-cases             --event workflow_dispatch             --paths)" =             '["summary-correlation-loss","accounting-projection-factorization","current-vs-historical-balance-support","temporal-quantity-anchor","shared-current-anchor-cut","cash-flow-classification","rea-interpretation","rea-ledger-commutation","balance-history-boundary","external-party-identity-boundary","event-party-granularity","description-party-boundary","merchant-query-pressure","merchant-coverage-completeness","suspense-known-unknown","interpretation-history","reflection-subject-sufficiency","interpretation-recorded-time","interpretation-attributed-time","interpretation-carrier-compression","interpretation-attribution-unknown","interpretation-split-boundary","interpretation-subject-correction","measure-scale-history"]'
+          test "$(python3 tools/select-alloy-research-cases             --event workflow_dispatch             --paths)" =             '["summary-correlation-loss","accounting-projection-factorization","current-vs-historical-balance-support","temporal-quantity-anchor","shared-current-anchor-cut","reconciled-interval-boundary","backward-anchor-reconstruction","cash-flow-classification","rea-interpretation","rea-ledger-commutation","balance-history-boundary","external-party-identity-boundary","event-party-granularity","description-party-boundary","merchant-query-pressure","merchant-coverage-completeness","suspense-known-unknown","interpretation-history","reflection-subject-sufficiency","interpretation-recorded-time","interpretation-attributed-time","interpretation-carrier-compression","interpretation-attribution-unknown","interpretation-split-boundary","interpretation-subject-correction","measure-scale-history"]'
 
       - name: Select obligations for this event
         id: select
@@ -232,6 +241,28 @@ jobs:
       - uses: ./.github/actions/alloy-research-case
         with:
           case: shared-current-anchor-cut
+
+  reconciled-interval-boundary:
+    name: Qualify reconciled interval boundary
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'reconciled-interval-boundary') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: reconciled-interval-boundary
+
+  backward-anchor-reconstruction:
+    name: Qualify backward anchor reconstruction
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'backward-anchor-reconstruction') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: backward-anchor-reconstruction
 
   cash-flow-classification:
     name: Falsify cash-flow classification derivability
