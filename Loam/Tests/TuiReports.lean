@@ -272,6 +272,7 @@ def main : IO Unit := do
 
   let pensionCoordinate : EffectCoordinate := ⟨⟨"pension"⟩, ⟨"jpy"⟩⟩
   let foodCoordinate : EffectCoordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
+  let consultingCoordinate : EffectCoordinate := ⟨⟨"consulting"⟩, ⟨"usd"⟩⟩
   let incomeExpenseReport := Loam.Tui.Reports.withIncomeExpenseSnapshot incomeExpense {
     start := "2026-09-01"
     endExclusive := "2026-10-01"
@@ -282,6 +283,9 @@ def main : IO Unit := do
       , { coordinate := foodCoordinate
         , role := .expense
         , quantity := Quantity.ofQuanta 50000 }
+      , { coordinate := consultingCoordinate
+        , role := .income
+        , quantity := Quantity.ofQuanta (-20) }
       ]
     unresolvedEffects :=
       [ { event := ⟨"actual-unresolved"⟩
@@ -297,6 +301,8 @@ def main : IO Unit := do
     "Income & Expense view did not present debit-normal Expense"
   expect (contains "Result:" incomeExpenseReportText && contains "175276 jpy" incomeExpenseReportText)
     "Income & Expense view did not derive the occurrence-time result"
+  expect (contains "20 usd" incomeExpenseReportText && contains "consulting" incomeExpenseReportText)
+    "Income & Expense view did not preserve the shared multi-Measure summary"
   expect (contains "Income breakdown" incomeExpenseReportText && contains "pension" incomeExpenseReportText) "Income & Expense view did not expose coordinate-preserving Income detail"
   expect (contains "Expense breakdown" incomeExpenseReportText && contains "food" incomeExpenseReportText) "Income & Expense view did not expose coordinate-preserving Expense detail"
   expect (contains "Unresolved role Effects: 1" incomeExpenseReportText && contains "mystery" incomeExpenseReportText)
