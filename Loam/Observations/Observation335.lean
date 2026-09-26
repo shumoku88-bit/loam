@@ -37,7 +37,7 @@ private def orderedInsert (a : α) : List α → List α
       if r a b then
         a :: b :: rest
       else
-        b :: orderedInsert (r := r) a rest
+        b :: orderedInsert a rest
 
 /-- Exact mechanics shape used by the current journal sorter. -/
 def insertionSorted (xs : List α) : List α :=
@@ -57,7 +57,7 @@ private theorem orderedInsert_perm
       simp only [orderedInsert]
       split
       · exact List.Perm.refl _
-      · exact (List.Perm.cons b ih).trans (List.Perm.swap b a rest)
+      · exact (List.Perm.cons b ih).trans (List.Perm.swap b a rest).symm
 
 private theorem foldlInsert_perm
     (acc xs : List α) :
@@ -110,7 +110,7 @@ private theorem orderedInsert_pairwise
             (orderedInsert_perm r a rest).mem_iff.mp hc
           simp only [List.mem_cons] at hcSource
           rcases hcSource with rfl | hcRest
-          · exact (htotal a b).resolve_left hab
+          · exact (htotal c b).resolve_left hab
           · exact hParts.1 c hcRest
         · exact ih hParts.2
 
@@ -155,8 +155,8 @@ theorem mergeSorted_pairwise
           (htrans a b c (of_decide_eq_true hab) (of_decide_eq_true hbc)))
       (fun a b => by
         rcases htotal a b with hab | hba
-        · exact Or.inl (decide_eq_true hab)
-        · exact Or.inr (decide_eq_true hba))
+        · exact Bool.or_eq_true.mpr (Or.inl (decide_eq_true hab))
+        · exact Bool.or_eq_true.mpr (Or.inr (decide_eq_true hba)))
       xs
   simpa only [mergeSorted, decide_eq_true_eq] using hBool
 
