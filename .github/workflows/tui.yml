@@ -83,6 +83,7 @@ on:
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
+      - 'Loam/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
@@ -205,6 +206,7 @@ on:
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
+      - 'Loam/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
@@ -631,7 +633,7 @@ jobs:
       - name: Verify Scheduled monthly and multi-month coverage projection
         run: lake env lean --run Loam/Tests/ScheduledCoverageReview.lean
 
-      - name: Verify Reports menu, Stock-Flow, Transactions-Flow, conditional Liquidity, Budget Window and Scheduled Coverage surfaces
+      - name: Verify Reports menu, flow, multicurrency, liquidity, budget and coverage surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
 
       - name: Verify TUI owned Fava server lifecycle and shutdown

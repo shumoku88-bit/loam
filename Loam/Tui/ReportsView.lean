@@ -1,6 +1,7 @@
 import Loam.Tui.ReportsModel
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
+import Loam.MultimeasureSpendReview
 import Loam.RoleFlowReview
 import Loam.Presentation.Reports
 import Loam.Tui.RoleBalances
@@ -116,9 +117,10 @@ private def menuView (state : State) : Widget :=
     , menuRow state 4 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
-    , menuRow state 7 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
+    , menuRow state 7 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
+    , menuRow state 8 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/f direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/f direct"
     , muted "q / Esc home"
     , line state.notice
     ]
@@ -415,6 +417,118 @@ private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : 
     , line state.notice
     ]
 
+
+private def measureTotalRows
+    (heading emptyText : String)
+    (rows : List Loam.MultimeasureSpendReview.MeasureTotal) : List Widget :=
+  [line heading] ++
+    (if rows.isEmpty then
+      [muted ("  " ++ emptyText)]
+     else
+      rows.map fun row =>
+        line
+          ("  " ++ Loam.Tui.Layout.padRight 12 row.measure.token ++
+            padNum 14 (toString row.quantity.quanta) ++ " " ++ row.measure.token))
+
+private def exchangeEffectText
+    (label : String) (effect : Loam.Core.Effect) : Widget :=
+  line
+    ("  " ++ Loam.Tui.Layout.padRight 12 label ++
+      padNum 14 (signedQuanta effect.quantity) ++ " " ++ effect.measure.token ++
+      "  " ++ effect.locus.token)
+
+private def exchangeOccurrenceLines
+    (exchange : Loam.MultimeasureSpendReview.ExchangeOccurrence) : List Widget :=
+  let description :=
+    if exchange.description.isEmpty then "" else "  " ++ exchange.description
+  [ line (exchange.date ++ description ++ "  [" ++ exchange.event.token ++ "]")
+  , exchangeEffectText "source" exchange.source
+  , exchangeEffectText "destination" exchange.destination
+  ] ++
+  (if exchange.extraEffects.isEmpty then
+    []
+   else
+    [muted "  extra Effects"] ++
+      exchange.extraEffects.map (exchangeEffectText "extra"))
+
+private def multimeasureUnresolvedEffectLine
+    (entry : Loam.MultimeasureSpendReview.UnresolvedEffect) : Widget :=
+  line
+    ("? " ++ entry.date ++ "  " ++ entry.effect.locus.token ++ "  " ++
+      signedQuanta entry.effect.quantity ++ " " ++ entry.effect.measure.token ++
+      "  [" ++ entry.event.token ++ "]")
+
+private def multimeasureUnresolvedOriginalLine
+    (entry : Loam.MultimeasureSpendReview.UnresolvedOriginalAmount) : Widget :=
+  line
+    ("? " ++ entry.date ++ "  original " ++
+      toString entry.quantity.quanta ++ " " ++ entry.measure.token ++
+      "  [" ++ entry.event.token ++ "]")
+
+private def multimeasureSpendResultLines (state : State) : List Widget :=
+  match state.multimeasureSpendSnapshot with
+  | none => [muted "No explicit Multicurrency Spend window has been run yet."]
+  | some snapshot =>
+      [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
+      , muted "Distinct Measures remain separate. No FX rate, valuation, or home currency is inferred."
+      , blank
+      ] ++
+      measureTotalRows
+        "Ordinary accounting Expense" "No classified ordinary Expense in this window."
+        snapshot.accountingExpense ++
+      [blank] ++
+      measureTotalRows
+        "Original presented Expense" "No OriginalAmount evidence attached to classified Expense."
+        snapshot.originalPresentedExpense ++
+      [blank] ++
+      measureTotalRows
+        "Exchange-associated Expense" "No classified Expense attached to Exchange Events."
+        snapshot.exchangeExpense ++
+      [blank, line "Exchange occurrences"] ++
+      (if snapshot.exchanges.isEmpty then
+        [muted "  No qualified Exchange Event in this window."]
+       else
+        snapshot.exchanges.flatMap fun exchange =>
+          exchangeOccurrenceLines exchange ++ [blank]) ++
+      [ line
+          ("Unresolved ordinary Effects: " ++
+            toString snapshot.unresolvedExpenseEffects.length)
+      ] ++
+      (snapshot.unresolvedExpenseEffects.take 6).map multimeasureUnresolvedEffectLine ++
+      [ line
+          ("Unresolved exchange Effects: " ++
+            toString snapshot.unresolvedExchangeEffects.length)
+      ] ++
+      (snapshot.unresolvedExchangeEffects.take 6).map multimeasureUnresolvedEffectLine ++
+      [ line
+          ("Unresolved original amounts: " ++
+            toString snapshot.unresolvedOriginalAmounts.length)
+      ] ++
+      (snapshot.unresolvedOriginalAmounts.take 6).map multimeasureUnresolvedOriginalLine ++
+      [ muted "Exchange quantities are evidence of the exchange occurrence, not spending totals."
+      , muted "Original presented amounts remain observations; they are not converted into accounting Measure."
+      ]
+
+private def multimeasureSpendView (state : State) : Widget :=
+  .column <|
+    [ line "Reports / Multicurrency Spend"
+    , muted "What was spent, what was originally presented, and what was exchanged in this window?"
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "This is a read lens over existing evidence, not a Trip transaction type."
+    , blank
+    , field state 0 "Start" state.window.form.start
+    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
+    , blank
+    ] ++
+    multimeasureSpendResultLines state ++
+    [ blank
+    , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
+    , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
+    , muted "q / Esc Reports menu"
+    , line state.notice
+    ]
+
 private def balancesResultLines (state : State) : List Widget :=
   match state.roleBalanceSnapshot with
   | none => [muted "Current RoleBalance answer unavailable; press Enter to retry."]
@@ -573,6 +687,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .transactionsFlow => transactionsFlowView state bounds
   | .incomeExpense => incomeExpenseView state
   | .incomeExpenseCompare => incomeExpenseCompareView state bounds
+  | .multimeasureSpend => multimeasureSpendView state
   | .balances => balancesView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
@@ -586,6 +701,7 @@ private def fixedFooterSize : Mode → Nat
   | .transactionsFlow => 4
   | .incomeExpense => 4
   | .incomeExpenseCompare => 3
+  | .multimeasureSpend => 4
   | .balances => 4
   | .liquidity => 3
   | .budgetWindow => 4
@@ -618,7 +734,7 @@ private def scrollPositionLine
 private def requestedOffset (state : State) (page : Nat) : Nat :=
   match state.mode with
   | .menu =>
-      -- The seven menu rows follow four heading/context rows in `menuView`.
+      -- The nine menu rows follow four heading/context rows in `menuView`.
       (4 + state.menuIndex.val + 1) - page
   | .transactionsFlow =>
     if state.transactions.detail then

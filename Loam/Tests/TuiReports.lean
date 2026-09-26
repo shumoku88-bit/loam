@@ -27,6 +27,16 @@ private def isLiquidity (state : Loam.Tui.Reports.State) : Bool :=
   | .liquidity => true
   | _ => false
 
+private def isMultimeasureSpend (state : Loam.Tui.Reports.State) : Bool :=
+  match state.mode with
+  | .multimeasureSpend => true
+  | _ => false
+
+private def reportEffect
+    (key locus measure : String) (quanta : Int) : Effect :=
+  Effect.ofQuantity
+    ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
+
 
 def main : IO Unit := do
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
@@ -38,6 +48,7 @@ def main : IO Unit := do
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
+  expect (contains "Multicurrency Spend" menuText) "Reports menu lost Multicurrency Spend"
   expect (contains "Fava Projection" menuText) "Reports menu lost Fava Projection"
   let favaStep := Loam.Tui.Reports.update initial (.input 'f')
   expect (favaStep.query == some .favaProjection)
@@ -55,6 +66,65 @@ def main : IO Unit := do
     "Reports menu q did not return Home"
   expect (!(Loam.Tui.Reports.update initial (.input 'b')).back)
     "retired Reports b Home alias survived"
+
+  let multicurrencyStep := Loam.Tui.Reports.update initial (.input 'x')
+  expect (isMultimeasureSpend multicurrencyStep.state)
+    "Reports direct Multicurrency Spend key did not enter the report surface"
+  let multicurrencyText := widgetText (Loam.Tui.Reports.view multicurrencyStep.state)
+  expect (contains "Reports / Multicurrency Spend" multicurrencyText)
+    "Multicurrency Spend heading was not rendered"
+  expect (contains "not a Trip transaction type" multicurrencyText)
+    "Multicurrency Spend surface promoted presentation into transaction semantics"
+  match (Loam.Tui.Reports.update multicurrencyStep.state .enter).query with
+  | some (.multimeasureSpend start endExclusive) =>
+      expect (start == "2026-09-01" && endExclusive == "2026-10-01")
+        "Multicurrency Spend changed the explicit calendar window"
+  | _ =>
+      throw (IO.userError "Multicurrency Spend did not emit its explicit window query")
+
+  let multicurrencyReport :=
+    Loam.Tui.Reports.withMultimeasureSpendSnapshot multicurrencyStep.state {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      accountingExpense := [
+        { measure := ⟨"jpy"⟩, quantity := Quantity.ofQuanta 4700 },
+        { measure := ⟨"usd"⟩, quantity := Quantity.ofQuanta 2500 }
+      ]
+      exchangeExpense := [
+        { measure := ⟨"jpy"⟩, quantity := Quantity.ofQuanta 100 }
+      ]
+      originalPresentedExpense := [
+        { measure := ⟨"usd"⟩, quantity := Quantity.ofQuanta 3000 }
+      ]
+      exchanges := [{
+        event := ⟨"exchange-jpy-usd"⟩
+        date := "2026-09-13"
+        description := "cash exchange"
+        source := reportEffect "source" "cash-jpy" "jpy" (-15100)
+        destination := reportEffect "destination" "cash-usd" "usd" 10000
+        extraEffects := [reportEffect "fee" "fx-fee" "jpy" 100]
+      }]
+      unresolvedExpenseEffects := []
+      unresolvedExchangeEffects := []
+      unresolvedOriginalAmounts := []
+    }
+  let multicurrencyReportText := widgetText (Loam.Tui.Reports.view multicurrencyReport)
+  expect (contains "Ordinary accounting Expense" multicurrencyReportText &&
+      contains "4700 jpy" multicurrencyReportText &&
+      contains "2500 usd" multicurrencyReportText)
+    "Multicurrency Spend mixed or hid ordinary Measure-separated Expense"
+  expect (contains "Original presented Expense" multicurrencyReportText &&
+      contains "3000 usd" multicurrencyReportText)
+    "Multicurrency Spend lost OriginalAmount evidence"
+  expect (contains "Exchange-associated Expense" multicurrencyReportText &&
+      contains "100 jpy" multicurrencyReportText)
+    "Multicurrency Spend hid exchange-associated Expense"
+  expect (contains "Exchange occurrences" multicurrencyReportText &&
+      contains "-15100 jpy" multicurrencyReportText &&
+      contains "+10000 usd" multicurrencyReportText)
+    "Multicurrency Spend lost exact exchange source/destination evidence"
+  expect (contains "No FX rate, valuation, or home currency is inferred" multicurrencyReportText)
+    "Multicurrency Spend lost its no-conversion boundary"
 
   let coverageStep := Loam.Tui.Reports.update initial (.input 'c')
   expect (match coverageStep.state.mode with | .scheduledCoverage => true | _ => false)
