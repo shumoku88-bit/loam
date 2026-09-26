@@ -8,8 +8,10 @@ set_option autoImplicit false
 /-!
 # Observation 335 — insertion/merge sort refinement boundary
 
-ActualJournalProjection currently sorts its already-admitted dated current
-entries with a left fold of ordered insertion.
+At R4 qualification time, ActualJournalProjection sorted its already-admitted
+dated current entries with a left fold of ordered insertion. This observation
+records the refinement proof used to qualify the later production merge-sort
+promotion.
 
 R4 asks whether that quadratic-shaped mechanics can be replaced by
 List.mergeSort without changing the observable journal order.
