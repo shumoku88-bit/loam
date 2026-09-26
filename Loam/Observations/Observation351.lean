@@ -254,7 +254,7 @@ theorem placement_changes_per_disposal_gain_but_not_aggregate_gain :
 
 inductive BasisSemantics where
   | independentPerUnitCeil
-  | exactConserving RemainderPlacement
+  | exactConserving (placement : RemainderPlacement)
 deriving Repr, DecidableEq
 
 private def projectedBasis
