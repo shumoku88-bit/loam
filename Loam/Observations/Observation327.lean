@@ -63,13 +63,29 @@ theorem buildRowIndex_get?_of_mem
       · subst row
         simp [Loam.Observation326.indexedRowActivity_eq_rowActivity]
       · have hRest : coordinate ∈ rest := by
-          simpa [hEq] using hMem
+          simp only [List.mem_cons] at hMem
+          rcases hMem with hHead | hTail
+          · exact False.elim (hEq hHead.symm)
+          · exact hTail
         have hKey :
             Loam.Observation325.coordinateKey row ≠
               Loam.Observation325.coordinateKey coordinate := by
           intro h
           exact hEq (Loam.Observation325.coordinateKey_injective h)
-        simp [hKey]
+        have hBeq :
+            (Loam.Observation325.coordinateKey row ==
+              Loam.Observation325.coordinateKey coordinate) = false := by
+          cases h :
+              (Loam.Observation325.coordinateKey row ==
+                Loam.Observation325.coordinateKey coordinate) with
+          | false => rfl
+          | true =>
+              have hSame :
+                  Loam.Observation325.coordinateKey row =
+                    Loam.Observation325.coordinateKey coordinate :=
+                eq_of_beq h
+              exact False.elim (hKey hSame)
+        rw [hBeq]
         exact ih hRest
 
 /--
@@ -102,7 +118,20 @@ theorem buildRowIndex_get?_of_not_mem
             Loam.Observation325.coordinateKey coordinate := by
         intro h
         exact hHead (Loam.Observation325.coordinateKey_injective h)
-      simp [hKey]
+      have hBeq :
+          (Loam.Observation325.coordinateKey row ==
+            Loam.Observation325.coordinateKey coordinate) = false := by
+        cases h :
+            (Loam.Observation325.coordinateKey row ==
+              Loam.Observation325.coordinateKey coordinate) with
+        | false => rfl
+        | true =>
+            have hSame :
+                Loam.Observation325.coordinateKey row =
+                  Loam.Observation325.coordinateKey coordinate :=
+              eq_of_beq h
+            exact False.elim (hKey hSame)
+      rw [hBeq]
       exact ih hRest
 
 /--
