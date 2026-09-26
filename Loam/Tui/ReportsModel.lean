@@ -221,6 +221,30 @@ private def editComparisonState
       notice := ""
   }
 
+private def applyComparisonResult
+    (state : State) (result : Loam.Tui.ReportComparison.Result) : State :=
+  clearComparisonResults {
+    state with comparison := result.state, notice := result.notice
+  }
+
+private def cycleComparisonSource (state : State) (forward : Bool) : State :=
+  applyComparisonResult state
+    (Loam.Tui.ReportComparison.cycleSource state.comparison forward)
+
+private def shiftComparisonPair (state : State) (forward : Bool) : State :=
+  let result := Loam.Tui.ReportComparison.shiftPair state.comparison forward
+  if result.state = state.comparison then
+    { state with notice := result.notice }
+  else
+    applyComparisonResult state result
+
+private def beginCustomComparisonEditing (state : State) : State :=
+  clearComparisonResults {
+    state with
+      comparison := Loam.Tui.ReportComparison.beginCustomEditing state.comparison
+      notice := ""
+  }
+
 private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
   let next := (form.focus.val + 1) % 2
   { form with focus := ⟨next, by
@@ -268,6 +292,10 @@ private def editWindowState (state : State) (edit : String → String) : State :
 /-- Human-readable label for presentation only; it never enters a report query. -/
 def windowSourceLabel (state : State) : String :=
   Loam.Tui.ReportWindow.sourceLabel state.window
+
+/-- Human-readable comparison source label only; it never enters a report query. -/
+def comparisonSourceLabel (state : State) : String :=
+  Loam.Tui.ReportComparison.sourceLabel state.comparison
 
 private def resetLiquidityHorizon (state : State) : State :=
   match Loam.Tui.Calendar.calendarMonthWindowForDate? state.window.calendarAnchor with
@@ -360,6 +388,12 @@ private def updateComparison
       { state := { state with scroll := state.scroll - 1 } }
   | .down | .input 'j' | .input 'J' =>
       { state := { state with scroll := state.scroll + 1 } }
+  | .left => { state := shiftComparisonPair state false }
+  | .right => { state := shiftComparisonPair state true }
+  | .input '[' => { state := cycleComparisonSource state false }
+  | .input ']' => { state := cycleComparisonSource state true }
+  | .input 'e' | .input 'E' =>
+      { state := beginCustomComparisonEditing state }
   | .tab =>
       { state := { state with
           comparison := Loam.Tui.ReportComparison.moveFocus state.comparison false
