@@ -74,13 +74,19 @@ private def emptyScheduledImage : IO Loam.Persistence.ScheduledLifecycleImage :=
   return { scheduled, terminals }
 
 private def initBase (root : System.FilePath) : IO Unit := do
+  IO.println "measure-scale checkpoint: init mkdir"
   IO.FS.createDirAll root
+  IO.println "measure-scale checkpoint: init world"
   let world ← emptyWorld
+  IO.println "measure-scale checkpoint: init actual"
   requireOk (← Loam.Tests.ActualWorldFixture.publishWorld? root world)
     "initialize admitted Actual fixture"
+  IO.println "measure-scale checkpoint: init scheduled-memory"
   let scheduled ← emptyScheduledImage
+  IO.println "measure-scale checkpoint: init scheduled-save"
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") scheduled)
     "initialize Scheduled"
+  IO.println "measure-scale checkpoint: init done"
 
 private def writePresentation
     (root : System.FilePath)
