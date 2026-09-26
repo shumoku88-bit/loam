@@ -26,6 +26,7 @@ import Loam.Core.EventCorrection
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.EventDescription
 import Loam.Core.EventMerchantEvidence
+import Loam.Core.ExchangeEvidence
 import Loam.Core.OriginalAmountEvidence
 import Loam.Core.MovementOperationEvidence
 

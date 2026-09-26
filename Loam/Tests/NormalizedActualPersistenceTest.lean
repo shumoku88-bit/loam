@@ -558,6 +558,143 @@ def main : IO Unit := do
   requireNone (decodeNormalizedActual? crossMeasureCancellation)
     "admitted cross-Measure cancellation"
 
+  -- 6pa. A qualified two-Measure exchange bypasses ordinary per-Measure
+  -- balance without treating unlike Measures as arithmetically cancelling.
+  let qualifiedExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-jpy-usd\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tjpy-source\tusd-destination\n" ++
+    "KEYED-EFFECT\tjpy-source\tcash-jpy\tjpy\t-15000\n" ++
+    "KEYED-EFFECT\tusd-destination\tcash-usd\tusd\t100\n" ++
+    "ENDTX\n"
+  let exchangeEvidence ← requireSome (decodeNormalizedActual? qualifiedExchange)
+    "qualified cross-Measure exchange was rejected"
+  let retainedExchange ← requireSome
+    (exchangeEvidence.exchanges.findByEvent? ⟨"exchange-jpy-usd"⟩)
+    "decoded exchange evidence was missing"
+  expect (retainedExchange.source == ⟨"jpy-source"⟩ &&
+      retainedExchange.destination == ⟨"usd-destination"⟩)
+    "decoded exchange EffectKey anchors changed"
+  let reencodedExchange ← requireSome (encodeNormalizedActual? exchangeEvidence)
+    "qualified exchange failed to encode"
+  expect ((reencodedExchange.splitOn "EXCHANGE\tjpy-source\tusd-destination").length == 2)
+    "encoded wire lost exchange evidence"
+  let _ ← requireSome (decodeNormalizedActual? reencodedExchange)
+    "qualified exchange failed normalized round-trip"
+
+  -- 6pb. Extra Effects in one selected Measure remain allowed, preserving one
+  -- fee-bearing occurrence without assigning fee meaning here.
+  let feeBearingExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-with-fee\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tjpy-source\tusd-destination\n" ++
+    "KEYED-EFFECT\tjpy-source\tcash-jpy\tjpy\t-15100\n" ++
+    "KEYED-EFFECT\tfee\texchange-fee\tjpy\t100\n" ++
+    "KEYED-EFFECT\tusd-destination\tcash-usd\tusd\t100\n" ++
+    "ENDTX\n"
+  let _ ← requireSome (decodeNormalizedActual? feeBearingExchange)
+    "fee-bearing qualified exchange was rejected"
+
+  -- 6pc. EXCHANGE is not a generic unbalanced-Event escape hatch: a third
+  -- Measure is outside the currently qualified production shape.
+  let thirdMeasureExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-third-measure\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tjpy-source\tusd-destination\n" ++
+    "KEYED-EFFECT\tjpy-source\tcash-jpy\tjpy\t-15000\n" ++
+    "KEYED-EFFECT\tusd-destination\tcash-usd\tusd\t100\n" ++
+    "KEYED-EFFECT\teur-fee\tfee\teur\t1\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? thirdMeasureExchange)
+    "exchange admission allowed an unqualified third Measure"
+
+  -- 6pd. Selected source and destination must use distinct Measures.
+  let sameMeasureExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-same-measure\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tleft\tright\n" ++
+    "KEYED-EFFECT\tleft\tcash-a\tjpy\t-100\n" ++
+    "KEYED-EFFECT\tright\tcash-b\tjpy\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? sameMeasureExchange)
+    "exchange admission accepted same-Measure selected sides"
+
+  -- 6pe. Direction comes from observed signs, not Measure names.
+  let wrongDirectionExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-wrong-direction\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tusd-positive\tjpy-negative\n" ++
+    "KEYED-EFFECT\tjpy-negative\tcash-jpy\tjpy\t-15000\n" ++
+    "KEYED-EFFECT\tusd-positive\tcash-usd\tusd\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? wrongDirectionExchange)
+    "exchange admission accepted reversed source/destination signs"
+
+  -- 6pf. Both selected EffectKey anchors must resolve in the named Event.
+  let missingExchangeEffect :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-missing-effect\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tjpy-source\tmissing-usd\n" ++
+    "KEYED-EFFECT\tjpy-source\tcash-jpy\tjpy\t-15000\n" ++
+    "KEYED-EFFECT\tactual-usd\tcash-usd\tusd\t100\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? missingExchangeEffect)
+    "exchange admission accepted a dangling EffectKey"
+
+  -- 6pg. Exchange correction remains fail-closed until effect-level replacement
+  -- semantics are independently qualified.
+  let correctedExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-root\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tjpy-source\tusd-destination\n" ++
+    "KEYED-EFFECT\tjpy-source\tcash-jpy\tjpy\t-15000\n" ++
+    "KEYED-EFFECT\tusd-destination\tcash-usd\tusd\t100\n" ++
+    "ENDTX\n" ++
+    "TX\texchange-replacement\t2026-09-10\tNODESC\n" ++
+    "REPLACES\texchange-root\n" ++
+    "EFFECT\tcash-jpy\tjpy\t-14900\n" ++
+    "EFFECT\tbank-jpy\tjpy\t14900\n" ++
+    "ENDTX\n"
+  requireNone (decodeNormalizedActual? correctedExchange)
+    "exchange correction crossed canonical admission before replacement semantics were qualified"
+
+  -- 6ph. Exact physical reversal may undo a qualified exchange without
+  -- synthesizing a second EXCHANGE row for the reversal Event.
+  let reversedExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-target\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\tjpy-source\tusd-destination\n" ++
+    "KEYED-EFFECT\tjpy-source\tcash-jpy\tjpy\t-15000\n" ++
+    "KEYED-EFFECT\tusd-destination\tcash-usd\tusd\t100\n" ++
+    "ENDTX\n" ++
+    "TX\texchange-reversal\t2026-09-10\tNODESC\n" ++
+    "REVERSAL-OF\texchange-target\n" ++
+    "KEYED-EFFECT\treverse-jpy\tcash-jpy\tjpy\t15000\n" ++
+    "KEYED-EFFECT\treverse-usd\tcash-usd\tusd\t-100\n" ++
+    "ENDTX\n"
+  let reversedEvidence ← requireSome (decodeNormalizedActual? reversedExchange)
+    "exact reversal of qualified exchange was rejected"
+  expect ((reversedEvidence.exchanges.findByEvent? ⟨"exchange-target"⟩).isSome)
+    "target exchange evidence disappeared across reversal admission"
+  expect ((reversedEvidence.exchanges.findByEvent? ⟨"exchange-reversal"⟩).isNone)
+    "reversal unexpectedly synthesized exchange evidence"
+
+  -- 6pi. One Event may carry at most one EXCHANGE row.
+  let duplicateExchange :=
+    "LOAM-NORMALIZED-ACTUAL\t1\n" ++
+    "TX\texchange-duplicate\t2026-09-09\tNODESC\n" ++
+    "EXCHANGE\ta\tb\n" ++
+    "EXCHANGE\tc\td\n" ++
+    "KEYED-EFFECT\ta\tcash-jpy\tjpy\t-100\n" ++
+    "KEYED-EFFECT\tb\tcash-usd\tusd\t1\n" ++
+    "ENDTX\n"
+  match decodeNormalizedActualImageDetailed duplicateExchange with
+  | .error (.parse { reason := .duplicateExchange, .. }) => pure ()
+  | .error err =>
+      throw <| IO.userError s!"expected duplicateExchange parse failure, got: {err}"
+  | .ok _ =>
+      throw <| IO.userError "expected duplicate EXCHANGE rows to fail"
+
   -- 6q. Neutral empty-effect Events remain representable.
   let emptyEvent :=
     "LOAM-NORMALIZED-ACTUAL\t1\n" ++
