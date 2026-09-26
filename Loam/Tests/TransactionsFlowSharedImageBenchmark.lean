@@ -109,42 +109,37 @@ private def fmtRatio (numerator denominator : Nat) : String :=
   else
     "∞"
 
-def main : IO Unit := do
-  unless (mkEvent 0).effects.length == 2 do
+def runSize (n : Nat) : IO Unit := do
+  unless (mkEvent n).effects.length == 2 do
     throw <| IO.userError "MATH-6 fixture did not retain two Effects per Event"
 
-  let sizes := [1000, 5000, 10000, 25000]
+  let snapshot := mkSnapshot n
+  unless snapshot.columns.length == n do
+    throw <| IO.userError s!"MATH-6 fixture lost columns at N={n}"
+
+  let expected := forcePair (duplicateRows snapshot)
+  let candidate := forcePair (sharedRows snapshot)
+  unless expected == candidate do
+    throw <| IO.userError s!"semantic digest mismatch at N={n}: {expected} != {candidate}"
+
   let reps := 5
+  let (duplicateUs, duplicateDigest) ←
+    timeMedianUs reps fun _ => duplicateRows snapshot
+  let (sharedUs, sharedDigest) ←
+    timeMedianUs reps fun _ => sharedRows snapshot
 
-  IO.println "=== MATH-6 shared Transactions-Flow row image pressure ==="
-  IO.println "events | duplicate row image | shared row image | speedup"
+  unless duplicateDigest == sharedDigest do
+    throw <| IO.userError s!"timed semantic digest mismatch at N={n}"
 
-  for n in sizes do
-    let snapshot := mkSnapshot n
-    unless snapshot.columns.length == n do
-      throw <| IO.userError s!"MATH-6 fixture lost columns at N={n}"
-
-    let expected := forcePair (duplicateRows snapshot)
-    let candidate := forcePair (sharedRows snapshot)
-    unless expected == candidate do
-      throw <| IO.userError s!"semantic digest mismatch at N={n}: {expected} != {candidate}"
-
-    let (duplicateUs, duplicateDigest) ←
-      timeMedianUs reps fun _ => duplicateRows snapshot
-    let (sharedUs, sharedDigest) ←
-      timeMedianUs reps fun _ => sharedRows snapshot
-
-    unless duplicateDigest == sharedDigest do
-      throw <| IO.userError s!"timed semantic digest mismatch at N={n}"
-
-    IO.println
-      s!"{n} | {fmtUs duplicateUs} | {fmtUs sharedUs} | {fmtRatio duplicateUs sharedUs}"
-
-  IO.println ""
-  IO.println "This benchmark isolates only repeated stage-2 row-image construction."
-  IO.println "It does not measure whole Web rendering or authorize retained caches."
+  IO.println
+    s!"{n} | {fmtUs duplicateUs} | {fmtUs sharedUs} | {fmtRatio duplicateUs sharedUs}"
 
 end Loam.Tests.TransactionsFlowSharedImageBenchmark
 
-def main : IO Unit :=
-  Loam.Tests.TransactionsFlowSharedImageBenchmark.main
+def main : IO Unit := do
+  let args ← IO.getArgs
+  let some token := args[0]?
+    | throw <| IO.userError "usage: benchmark <event-count>"
+  let some n := token.toNat?
+    | throw <| IO.userError s!"invalid event count: {token}"
+  Loam.Tests.TransactionsFlowSharedImageBenchmark.runSize n
