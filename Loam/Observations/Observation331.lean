@@ -309,9 +309,7 @@ private theorem updateColumn_get?
     rfl
   · have hNotRepresented :
         representedInColumn coordinate column = false := by
-      cases hValue : representedInColumn coordinate column with
-      | false => exact hValue
-      | true => exact False.elim (hRepresented hValue)
+      cases hValue : representedInColumn coordinate column <;> simp_all
     have hNotMem :
         Loam.Observation325.coordinateKey coordinate ∉ cells.keys := by
       intro hMem
@@ -377,13 +375,7 @@ private theorem optionFold_none_eq_direct_if_represented
               some (directStep coordinate zeroState column) := by
           simp [optionStep, hRepresented]
         rw [hOption]
-        have hAny :
-            (representedInColumn coordinate column ||
-              rest.any (representedInColumn coordinate)) = true := by
-          simp [hRepresented]
-        rw [hAny]
-        simp only [if_true]
-        exact
+        simpa [hRepresented] using
           optionFold_some_eq_direct
             rest coordinate (directStep coordinate zeroState column)
       · have hFalse :
