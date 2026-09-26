@@ -53,15 +53,20 @@ private def ordering (left right : Entry) : Ordering :=
   | .eq => compare left.event.id.token right.event.id.token
   | other => other
 
-private def insertEntry (entry : Entry) : List Entry → List Entry
-  | [] => [entry]
-  | current :: rest =>
-      match ordering entry current with
-      | .gt => current :: insertEntry entry rest
-      | _ => entry :: current :: rest
+private def entryLe (left right : Entry) : Bool :=
+  match ordering left right with
+  | .gt => false
+  | _ => true
 
+/--
+Order the admitted current journal with merge sort.
+
+R4 / Observation 335 qualified this as an exact refinement of the former
+fold-of-insertion mechanics on the reachable Actual domain: EventMemory rejects
+duplicate EventId values, and EventId is the final journal tie-breaker.
+-/
 private def sortEntries (entries : List Entry) : List Entry :=
-  entries.foldl (fun acc entry => insertEntry entry acc) []
+  entries.mergeSort entryLe
 
 /--
 Project the correction-aware current Actual frontier into deterministic dated
