@@ -79,7 +79,7 @@ private def timeNanosForced
   let value := batchDigest batchSize action
   if value == 0 then throw <| IO.userError "benchmark digest was unexpectedly zero"
   let t1 ← IO.monoNanosNow
-  pure ((t1 - t0).toNat, value)
+  pure (t1 - t0, value)
 
 private def timeMedianNanos
     (samples batchSize : Nat)
