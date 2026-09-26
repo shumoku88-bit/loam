@@ -61,17 +61,72 @@ private def eventTrackedQuanta
       if effect.coordinate ∈ coordinates then total + effect.quantity.quanta else total)
     0
 
-private def validateSelectedDates
-    (coordinates : List EffectCoordinate) :
-    List Loam.ActualReview.Record → Except String Unit
-  | [] => .ok ()
-  | record :: rest =>
+private structure Scan where
+  startBoundary : Int
+  endBoundary : Int
+  positiveWindow : Int
+  negativeWindow : Int
+
+private def zeroScan : Scan :=
+  {
+    startBoundary := 0
+    endBoundary := 0
+    positiveWindow := 0
+    negativeWindow := 0
+  }
+
+private def updateFromQuantity
+    (start endExclusive : String)
+    (state : Scan)
+    (date : String)
+    (quantity : Int) : Scan :=
+  let nextStart :=
+    if decide (date < start) then
+      state.startBoundary + quantity
+    else
+      state.startBoundary
+  let nextEnd :=
+    if decide (date < endExclusive) then
+      state.endBoundary + quantity
+    else
+      state.endBoundary
+  let changes :=
+    if decide (start ≤ date ∧ date < endExclusive) then
+      if quantity > 0 then
+        (state.positiveWindow + quantity, state.negativeWindow)
+      else if quantity < 0 then
+        (state.positiveWindow, state.negativeWindow + quantity)
+      else
+        (state.positiveWindow, state.negativeWindow)
+    else
+      (state.positiveWindow, state.negativeWindow)
+  {
+    startBoundary := nextStart
+    endBoundary := nextEnd
+    positiveWindow := changes.1
+    negativeWindow := changes.2
+  }
+
+/--
+Scan selected current Records exactly once.
+
+For each current Record the selected Event quantity is computed once, then that
+same value drives date admission and all Stock-Flow arithmetic coordinates.
+Superseded Records remain inert, and zero selected quantity still does not
+require an occurrence date.
+-/
+private def scanRecords
+    (coordinates : List EffectCoordinate)
+    (start endExclusive : String) :
+    List Loam.ActualReview.Record → Scan → Except String Scan
+  | [], state => .ok state
+  | record :: rest, state =>
       if !record.isCurrent then
-        validateSelectedDates coordinates rest
+        scanRecords coordinates start endExclusive rest state
       else
         let quantity := eventTrackedQuanta coordinates record.event
         if quantity = 0 then
-          validateSelectedDates coordinates rest
+          scanRecords coordinates start endExclusive rest state
         else
           match record.date with
           | none =>
@@ -80,51 +135,12 @@ private def validateSelectedDates
                   record.event.id.token ++ " has no occurrence date")
           | some date =>
               if Loam.ActualDate.validIsoDate date then
-                validateSelectedDates coordinates rest
+                scanRecords coordinates start endExclusive rest
+                  (updateFromQuantity start endExclusive state date quantity)
               else
                 .error
                   ("loam: stock-flow unavailable: current selected Event " ++
                     record.event.id.token ++ " has an invalid occurrence date")
-
-private def boundaryQuanta
-    (coordinates : List EffectCoordinate)
-    (records : List Loam.ActualReview.Record)
-    (boundary : String) : Int :=
-  records.foldl
-    (fun total record =>
-      if !record.isCurrent then total
-      else
-        match record.date with
-        | some date =>
-            if decide (date < boundary) then
-              total + eventTrackedQuanta coordinates record.event
-            else
-              total
-        | none => total)
-    0
-
-private def windowChanges
-    (coordinates : List EffectCoordinate)
-    (records : List Loam.ActualReview.Record)
-    (start endExclusive : String) : Int × Int :=
-  records.foldl
-    (fun totals record =>
-      if !record.isCurrent then totals
-      else
-        match record.date with
-        | none => totals
-        | some date =>
-            if decide (start ≤ date ∧ date < endExclusive) then
-              let quantity := eventTrackedQuanta coordinates record.event
-              if quantity > 0 then
-                (totals.1 + quantity, totals.2)
-              else if quantity < 0 then
-                (totals.1, totals.2 + quantity)
-              else
-                totals
-            else
-              totals)
-    (0, 0)
 
 private def currentTrackedQuanta (balances : Loam.BalanceReview.Snapshot) : Int :=
   balances.rows.foldl (fun total row => total + row.quantity.quanta) 0
@@ -144,22 +160,18 @@ def project
     throw "loam: stock-flow start must be earlier than end"
 
   let coordinates := selectedCoordinates balances
-  validateSelectedDates coordinates records
+  let scan ← scanRecords coordinates start endExclusive records zeroScan
+  let net := scan.positiveWindow + scan.negativeWindow
 
-  let startQuanta := boundaryQuanta coordinates records start
-  let endQuanta := boundaryQuanta coordinates records endExclusive
-  let changes := windowChanges coordinates records start endExclusive
-  let net := changes.1 + changes.2
-
-  if startQuanta + net != endQuanta then
+  if scan.startBoundary + net != scan.endBoundary then
     throw "loam: stock-flow internal parity failure"
 
   return {
     start := start
     endExclusive := endExclusive
-    reconstructedStart := Quantity.ofQuanta startQuanta
-    increasesAcrossEvents := Quantity.ofQuanta changes.1
-    decreasesAcrossEvents := Quantity.ofQuanta changes.2
+    reconstructedStart := Quantity.ofQuanta scan.startBoundary
+    increasesAcrossEvents := Quantity.ofQuanta scan.positiveWindow
+    decreasesAcrossEvents := Quantity.ofQuanta scan.negativeWindow
     currentTracked := Quantity.ofQuanta (currentTrackedQuanta balances)
   }
 
