@@ -379,25 +379,35 @@ def main : IO Unit := do
   let foodCoordinate : EffectCoordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
   let consultingCoordinate : EffectCoordinate := ⟨⟨"consulting"⟩, ⟨"usd"⟩⟩
   let incomeExpenseReport := Loam.Tui.Reports.withIncomeExpenseSnapshot incomeExpense {
-    start := "2026-09-01"
-    endExclusive := "2026-10-01"
-    rows :=
-      [ { coordinate := pensionCoordinate
-        , role := .income
-        , quantity := Quantity.ofQuanta (-225276) }
-      , { coordinate := foodCoordinate
-        , role := .expense
-        , quantity := Quantity.ofQuanta 50000 }
-      , { coordinate := consultingCoordinate
-        , role := .income
-        , quantity := Quantity.ofQuanta (-20) }
-      ]
-    unresolvedEffects :=
-      [ { event := ⟨"actual-unresolved"⟩
-        , date := "2026-09-12"
-        , effect := Effect.ofAnonymousQuantity
-            ⟨"mystery"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 5) }
-      ]
+    roleFlow := {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      rows :=
+        [ { coordinate := pensionCoordinate
+          , role := .income
+          , quantity := Quantity.ofQuanta (-225276) }
+        , { coordinate := foodCoordinate
+          , role := .expense
+          , quantity := Quantity.ofQuanta 50000 }
+        , { coordinate := consultingCoordinate
+          , role := .income
+          , quantity := Quantity.ofQuanta (-20) }
+        ]
+      unresolvedEffects :=
+        [ { event := ⟨"actual-unresolved"⟩
+          , date := "2026-09-12"
+          , effect := Effect.ofAnonymousQuantity
+              ⟨"mystery"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 5) }
+        ]
+    }
+    expenseProvenance := .available {
+      scheduledLinked :=
+        [ { coordinate := foodCoordinate, role := .expense
+          , quantity := Quantity.ofQuanta 20000 } ]
+      noScheduledLink :=
+        [ { coordinate := foodCoordinate, role := .expense
+          , quantity := Quantity.ofQuanta 30000 } ]
+    }
   }
   let incomeExpenseReportText := widgetText (Loam.Tui.Reports.view incomeExpenseReport)
   expect (contains "Income:" incomeExpenseReportText && contains "225276 jpy" incomeExpenseReportText)
@@ -409,7 +419,14 @@ def main : IO Unit := do
   expect (contains "20 usd" incomeExpenseReportText && contains "consulting" incomeExpenseReportText)
     "Income & Expense view did not preserve the shared multi-Measure summary"
   expect (contains "Income breakdown" incomeExpenseReportText && contains "pension" incomeExpenseReportText) "Income & Expense view did not expose coordinate-preserving Income detail"
-  expect (contains "Expense breakdown" incomeExpenseReportText && contains "food" incomeExpenseReportText) "Income & Expense view did not expose coordinate-preserving Expense detail"
+  expect (contains "Scheduled-linked expense:" incomeExpenseReportText &&
+      contains "20000 jpy" incomeExpenseReportText)
+    "Income & Expense view did not expose Scheduled-linked Expense"
+  expect (contains "No Scheduled link:" incomeExpenseReportText &&
+      contains "30000 jpy" incomeExpenseReportText && contains "food" incomeExpenseReportText)
+    "Income & Expense view did not expose unlinked Expense"
+  expect (contains "not a fixed/recurring-cost classification" incomeExpenseReportText)
+    "Income & Expense view overstated Scheduled provenance as fixed-cost classification"
   expect (contains "Unresolved role Effects: 1" incomeExpenseReportText && contains "mystery" incomeExpenseReportText)
     "Income & Expense view hid unresolved role evidence"
   expect (contains "not accrual recognition or period closing" incomeExpenseReportText)
@@ -438,22 +455,38 @@ def main : IO Unit := do
 
   let incomeComparisonReport := Loam.Tui.Reports.withIncomeExpenseComparison incomeCompare {
     left := {
-      start := "2026-01-15"
-      endExclusive := "2026-03-03"
-      rows :=
-        [ { coordinate := pensionCoordinate, role := .income, quantity := Quantity.ofQuanta (-100) }
-        , { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 30 }
-        ]
-      unresolvedEffects := []
+      roleFlow := {
+        start := "2026-01-15"
+        endExclusive := "2026-03-03"
+        rows :=
+          [ { coordinate := pensionCoordinate, role := .income, quantity := Quantity.ofQuanta (-100) }
+          , { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 30 }
+          ]
+        unresolvedEffects := []
+      }
+      expenseProvenance := .available {
+        scheduledLinked :=
+          [ { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 10 } ]
+        noScheduledLink :=
+          [ { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 20 } ]
+      }
     }
     right := {
-      start := "2026-07-01"
-      endExclusive := "2026-07-20"
-      rows :=
-        [ { coordinate := pensionCoordinate, role := .income, quantity := Quantity.ofQuanta (-120) }
-        , { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 40 }
-        ]
-      unresolvedEffects := []
+      roleFlow := {
+        start := "2026-07-01"
+        endExclusive := "2026-07-20"
+        rows :=
+          [ { coordinate := pensionCoordinate, role := .income, quantity := Quantity.ofQuanta (-120) }
+          , { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 40 }
+          ]
+        unresolvedEffects := []
+      }
+      expenseProvenance := .available {
+        scheduledLinked :=
+          [ { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 25 } ]
+        noScheduledLink :=
+          [ { coordinate := foodCoordinate, role := .expense, quantity := Quantity.ofQuanta 15 } ]
+      }
     }
   }
   let incomeComparisonText := widgetText
@@ -466,6 +499,9 @@ def main : IO Unit := do
   expect (contains "No delta, percentage, equal-duration, or baseline meaning is inferred."
       incomeComparisonText)
     "Income & Expense comparison accidentally claimed comparison semantics"
+  expect (contains "Scheduled-linked expense:" incomeComparisonText &&
+      contains "No Scheduled link:" incomeComparisonText)
+    "Income & Expense comparison did not carry Expense provenance into both period panes"
 
   let incomeExpenseEditing : Loam.Tui.Reports.State := {
     incomeExpenseReport with
