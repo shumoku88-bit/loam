@@ -1,0 +1,269 @@
+import Loam.Core.HistoricalRouting
+import Loam.Core.Effect
+import Std.Data.HashMap.Lemmas
+
+namespace Loam.Observation334
+
+open Loam.Core
+open Std (IsLinearOrder)
+
+set_option autoImplicit false
+
+variable {Time : Type}
+  [LE Time]
+  [DecidableRel (· ≤ · : Time → Time → Prop)]
+  [Std.IsLinearOrder Time]
+
+/-!
+# Observation 334 — fixed-time Actual routing status image
+
+`RoutingHistory.statusAt` is deliberately a simple focused specification: one
+query scans the retained history and selects the latest visible assertion for one
+subject.
+
+Several production readers ask the same history at one fixed observation
+coordinate for many Loci. This observation asks whether those repeated focused
+queries factor through one transient fixed-time image.
+
+The image is keyed only by the exact `LocusId.token`. It retains, for each
+Locus visible at the queried time, the latest visible `RoutingEntry`.
+
+No persistence or routing authority is changed.
+-/
+
+abbrev LatestIndex (Time : Type) :=
+  Std.HashMap String (RoutingEntry LocusId Time)
+
+private def chooseLatest
+    (validOn : Time)
+    (entry : RoutingEntry LocusId Time)
+    (current : Option (RoutingEntry LocusId Time)) :
+    Option (RoutingEntry LocusId Time) :=
+  if entry.effectiveOn ≤ validOn then
+    match current with
+    | none => some entry
+    | some prior =>
+        if prior.effectiveOn ≤ entry.effectiveOn then
+          some entry
+        else
+          some prior
+  else
+    current
+
+private def updateEntry
+    (validOn : Time)
+    (entry : RoutingEntry LocusId Time)
+    (index : LatestIndex Time) : LatestIndex Time :=
+  if entry.effectiveOn ≤ validOn then
+    match index.get? entry.subject.token with
+    | none => index.insert entry.subject.token entry
+    | some prior =>
+        if prior.effectiveOn ≤ entry.effectiveOn then
+          index.insert entry.subject.token entry
+        else
+          index
+  else
+    index
+
+/-- One transient fixed-time latest-visible image. -/
+def buildLatestIndex
+    (history : RoutingHistory LocusId Time)
+    (validOn : Time) : LatestIndex Time :=
+  history.entries.foldr (updateEntry validOn) {}
+
+private theorem updateEntry_same
+    (validOn : Time)
+    (entry : RoutingEntry LocusId Time)
+    (index : LatestIndex Time) :
+    (updateEntry validOn entry index).get? entry.subject.token =
+      chooseLatest validOn entry (index.get? entry.subject.token) := by
+  unfold updateEntry chooseLatest
+  by_cases hVisible : entry.effectiveOn ≤ validOn
+  · simp [hVisible]
+    cases hPrior : index.get? entry.subject.token with
+    | none =>
+        simp [hPrior]
+    | some prior =>
+        by_cases hLater : prior.effectiveOn ≤ entry.effectiveOn
+        · simp [hPrior, hLater, Std.HashMap.get?_insert]
+        · simp [hPrior, hLater]
+  · simp [hVisible]
+
+private theorem updateEntry_other
+    (validOn : Time)
+    (entry : RoutingEntry LocusId Time)
+    (index : LatestIndex Time)
+    (subject : LocusId)
+    (hNe : entry.subject ≠ subject) :
+    (updateEntry validOn entry index).get? subject.token =
+      index.get? subject.token := by
+  unfold updateEntry
+  by_cases hVisible : entry.effectiveOn ≤ validOn
+  · simp [hVisible]
+    cases hPrior : index.get? entry.subject.token with
+    | none =>
+        rw [Std.HashMap.get?_insert]
+        have hToken : entry.subject.token ≠ subject.token := by
+          intro h
+          apply hNe
+          cases entry.subject
+          cases subject
+          simp_all
+        have hBeq : (entry.subject.token == subject.token) = false := by
+          exact beq_eq_false_iff_ne.mpr hToken
+        simp [hBeq]
+    | some prior =>
+        by_cases hLater : prior.effectiveOn ≤ entry.effectiveOn
+        · rw [if_pos hLater]
+          rw [Std.HashMap.get?_insert]
+          have hToken : entry.subject.token ≠ subject.token := by
+            intro h
+            apply hNe
+            cases entry.subject
+            cases subject
+            simp_all
+          have hBeq : (entry.subject.token == subject.token) = false := by
+            exact beq_eq_false_iff_ne.mpr hToken
+          simp [hBeq]
+        · simp [hLater]
+  · simp [hVisible]
+
+private def directStep
+    (subject : LocusId)
+    (validOn : Time)
+    (entry : RoutingEntry LocusId Time)
+    (current : Option (RoutingEntry LocusId Time)) :
+    Option (RoutingEntry LocusId Time) :=
+  if entry.subject = subject && entry.effectiveOn ≤ validOn then
+    match current with
+    | none => some entry
+    | some prior =>
+        if prior.effectiveOn ≤ entry.effectiveOn then
+          some entry
+        else
+          some prior
+  else
+    current
+
+private theorem updateEntry_lookup
+    (validOn : Time)
+    (entry : RoutingEntry LocusId Time)
+    (index : LatestIndex Time)
+    (subject : LocusId) :
+    (updateEntry validOn entry index).get? subject.token =
+      directStep subject validOn entry (index.get? subject.token) := by
+  by_cases hSubject : entry.subject = subject
+  · subst subject
+    rw [updateEntry_same]
+    unfold directStep chooseLatest
+    by_cases hVisible : entry.effectiveOn ≤ validOn
+    · simp [hVisible]
+    · simp [hVisible]
+  · rw [updateEntry_other validOn entry index subject hSubject]
+    unfold directStep
+    have hEq : (entry.subject = subject) = False := by
+      exact propext (not_congr (not_not_intro hSubject))
+    simp [hSubject]
+
+private theorem buildLatestIndex_lookup_direct
+    (entries : List (RoutingEntry LocusId Time))
+    (validOn : Time)
+    (subject : LocusId)
+    (index : LatestIndex Time) :
+    (entries.foldr (updateEntry validOn) index).get? subject.token =
+      entries.foldr
+        (directStep subject validOn)
+        (index.get? subject.token) := by
+  induction entries with
+  | nil =>
+      rfl
+  | cons entry rest ih =>
+      simp only [List.foldr_cons]
+      rw [updateEntry_lookup]
+      exact ih
+
+/--
+The copied direct step is definitionally the same latest-visible selection law
+used by the public focused lookup.
+-/
+private theorem directFold_eq_findLatestVisible
+    (history : RoutingHistory LocusId Time)
+    (subject : LocusId)
+    (validOn : Time) :
+    history.entries.foldr (directStep subject validOn) none =
+      history.findLatestVisible? subject validOn := by
+  rfl
+
+/--
+For every Actual-routing history, Locus and observation coordinate, lookup in one
+transient fixed-time image returns exactly the focused public latest-visible
+answer.
+-/
+theorem buildLatestIndex_get?_eq_findLatestVisible
+    (history : RoutingHistory LocusId Time)
+    (subject : LocusId)
+    (validOn : Time) :
+    (buildLatestIndex history validOn).get? subject.token =
+      history.findLatestVisible? subject validOn := by
+  unfold buildLatestIndex
+  calc
+    (history.entries.foldr (updateEntry validOn) {}).get? subject.token =
+        history.entries.foldr
+          (directStep subject validOn)
+          (({} : LatestIndex Time).get? subject.token) :=
+      buildLatestIndex_lookup_direct
+        history.entries validOn subject {}
+    _ = history.entries.foldr (directStep subject validOn) none := by
+      simp
+    _ = history.findLatestVisible? subject validOn :=
+      directFold_eq_findLatestVisible history subject validOn
+
+/-- Three-way status projection from the transient image. -/
+def statusFromIndex
+    (index : LatestIndex Time)
+    (subject : LocusId) : RoutingStatus :=
+  match index.get? subject.token with
+  | none => .unrouted
+  | some entry =>
+      match entry.purpose with
+      | some purpose => .managed purpose
+      | none => .unmanaged
+
+/--
+Pointwise correspondence to the public focused specification.
+-/
+theorem statusFromIndex_build_eq_statusAt
+    (history : RoutingHistory LocusId Time)
+    (subject : LocusId)
+    (validOn : Time) :
+    statusFromIndex (buildLatestIndex history validOn) subject =
+      history.statusAt subject validOn := by
+  unfold statusFromIndex RoutingHistory.statusAt
+  rw [buildLatestIndex_get?_eq_findLatestVisible]
+
+/-!
+## Finding
+
+At one fixed observation coordinate, repeated Actual-routing queries factor
+through one transient latest-visible image:
+
+    retained RoutingHistory
+        -> one scan at validOn
+        -> LatestIndex
+        -> many Locus status lookups
+
+The focused public `statusAt` remains the simple semantic specification.
+
+The paired benchmark that motivated this proof showed the expected crossover:
+
+- one subject / 64 history entries: focused statusAt 40 µs, image 95 µs;
+- 16 subjects / 256 entries: 1.7 ms vs 442 µs (~3.96x);
+- 64 subjects / 4096 entries: 108.7 ms vs 6.1 ms (~17.65x);
+- 256 subjects / 16384 entries: 1.7 s vs 24.4 ms (~70.84x).
+
+The result therefore supports a narrow future bulk-read optimization, not
+replacement of focused `statusAt`, not persisted indexes, and not yet a generic
+Actual/Scheduled routing abstraction.
+-/
+
+end Loam.Observation334
