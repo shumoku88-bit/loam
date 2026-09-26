@@ -33,6 +33,7 @@ import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.AttentionReview
 import Loam.BalanceViewConfig
+import Loam.CurrentBalanceReview
 import Loam.RoleBalanceReview
 import Loam.CapacityReview
 import Loam.ActualRoutingReview
@@ -345,7 +346,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         loop bounds dataDir root snapshot home nextFrame
     | some selected =>
-        match ← Loam.RoleBalanceReview.loadSnapshot dataDir root with
+        match ← Loam.CurrentBalanceReview.loadSnapshot dataDir root with
         | .error message =>
             let home := { state with notice := unavailableNotice "Balances" message }
             let nextFrame := compiledFrameFor bounds snapshot home
