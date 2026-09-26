@@ -176,11 +176,17 @@ private def loadScale
 
 private def sequentialQualification (base : System.FilePath) : IO Unit := do
   let root := base / "used-families"
+  IO.println "measure-scale checkpoint: initBase"
   initBase root
+  IO.println "measure-scale checkpoint: actual"
   publishActualMeasure root "jpy"
+  IO.println "measure-scale checkpoint: scheduled"
   publishScheduledMeasure root "usd"
+  IO.println "measure-scale checkpoint: capacity"
   publishCapacityMeasure root "cad"
+  IO.println "measure-scale checkpoint: anchor"
   publishAnchorMeasure root "ils"
+  IO.println "measure-scale checkpoint: presentation"
   writePresentation root
     [ { measure := ⟨"jpy"⟩, scale := 0 }
     , { measure := ⟨"usd"⟩, scale := 2 }
@@ -188,6 +194,7 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
     , { measure := ⟨"ils"⟩, scale := 2 }
     , { measure := ⟨"eur"⟩, scale := 2 } ]
 
+  IO.println "measure-scale checkpoint: unused change"
   requireOk
     (← Loam.MeasurePresentationAuthority.setScale root ⟨"eur"⟩ 3)
     "unused Measure scale change"
@@ -228,6 +235,7 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
   expect (malformedBefore == malformedAfter)
     "malformed config refusal changed authority bytes"
 
+  IO.println "measure-scale checkpoint: missing-config"
   let missingRoot := base / "missing-config"
   initBase missingRoot
   publishActualMeasure missingRoot "jpy"
@@ -245,6 +253,7 @@ private def sequentialQualification (base : System.FilePath) : IO Unit := do
     (← Loam.MeasurePresentationAuthority.setScale missingRoot ⟨"jpy"⟩ 2)
     "used Measure changed away from missing-config historical scale 0"
 
+  IO.println "measure-scale checkpoint: scale-first"
   let scaleFirstRoot := base / "scale-first"
   initBase scaleFirstRoot
   writePresentation scaleFirstRoot [{ measure := ⟨"usd"⟩, scale := 2 }]
