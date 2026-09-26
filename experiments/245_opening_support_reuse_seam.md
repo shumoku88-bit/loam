@@ -275,3 +275,19 @@ arbitrary later date anchor already safe in production      NO
 smallest surviving candidate                                coordinate -> opening EventId
 next pressure                                                reuse existing relation/evidence machinery before adding persistence
 ```
+
+
+## Live Lean witness retirement — 2026-09-26
+
+The standalone research Lean witness and its dedicated workflow were retired
+after the seam was promoted into production.
+
+The live boundary is now carried by:
+
+- `Loam/Core/OpeningSupport.lean`;
+- `Loam/Persistence/OpeningSupportPersistence.lean`;
+- `Loam/RoleBalanceReview.lean`;
+- Role Balance / Four Voice / Counterpoint production tests covering current
+  support, stale witnesses under correction, and explicit replacement support.
+
+The research note and Git history remain the historical qualification record.

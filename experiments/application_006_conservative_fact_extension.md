@@ -78,3 +78,20 @@ The next practical question can therefore stay small:
 > Can ordinary expense, income, and transfer recording produce the account/locus balances needed for daily use while preserving the current generic Event/Effect vocabulary?
 
 Application 006 does not create a new Observation number because it confirms and operationalizes the extensibility consequence of existing canonical-topology observations rather than discovering a new domain law.
+
+
+## Live Lean witness retirement — 2026-09-26
+
+The standalone Lean file and dedicated workflow were retired after later
+structural falsification classified this result as absorbed/redundant for the
+live repository.
+
+The durable conclusion remains:
+
+```text
+adding an independent typed evidence family
+does not by itself require rewriting older fact families or old projections
+```
+
+This note and Git history preserve the research result. No production boundary
+depends on the retired executable witness.

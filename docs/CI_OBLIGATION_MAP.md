@@ -9,9 +9,9 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. The current topology has 50.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the current topology has 48.
 
-The 47 retired workflow files are fully accounted for by four explicit
+The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
 
 | Family | Before | After | Net | Surviving control surface |
@@ -31,6 +31,17 @@ The corresponding manifests preserve the individual obligations:
 
 No solver model, Lean qualification program, branch eligibility rule, or
 path-sensitive trigger was removed merely to reduce workflow count.
+
+A later graduation pass retired two additional standalone Lean workflows:
+
+- `application-006-conservative-fact-extension.yml`: the abstract conservative
+  extension witness is now retained as research prose/Git history and is marked
+  absorbed/redundant by the structural falsification ledger;
+- `opening-support-reuse-seam.yml`: Observation 245's seam has been promoted
+  into production OpeningSupport / RoleBalance behavior and production tests.
+
+Thus the cumulative workflow reduction is now `97 -> 48`, or 49 retired
+workflow files.
 
 ## Shared Lean build mechanics
 
@@ -54,10 +65,8 @@ persistence, review, UI/CLI, or read-only trust boundaries.
   application/core qualification obligations individually named.
 - Specialized Lean checks that differ in trust or tool contract stay separate,
   including `core-finite-keyed-lookup.yml`,
-  `application-006-conservative-fact-extension.yml`,
   `non-household-core-probe.yml`,
-  `observation-274-global-done-correspondence.yml`,
-  `opening-support-reuse-seam.yml`, and
+  `observation-274-global-done-correspondence.yml`, and
   `stateless-shadow-identity-observation.yml`.
 
 ### External formal-method research
@@ -147,11 +156,12 @@ python3 tools/audit-ci-topology
 At the completion point for item 2, the measured topology is:
 
 ```text
-workflow files:      50
-workflow YAML bytes: 218436
+workflow files:      48
+workflow YAML bytes: 225221
 ```
 
 The original issue baseline was 97 workflows / 315035 workflow YAML bytes.
 The first instrumented measurement after adding the topology audit was
-97 / 315151. The final 50 / 218436 figure therefore represents the current
-repository state without hiding the small instrumentation delta.
+97 / 315151. Subsequent feature/qualification work brought the pre-graduation
+live topology to 50 / 227627. Retiring the two graduated Lean witnesses brings
+the current live topology to 48 / 225221.
