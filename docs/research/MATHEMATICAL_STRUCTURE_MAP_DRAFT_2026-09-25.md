@@ -520,7 +520,7 @@ evidence quantity with semantic information.
 
 ## MATH-9 — lifecycle state machines
 
-**Status: STRONG DESCRIPTIVE CANDIDATE, UNCLEAR COMPRESSION PAYOFF**
+**Status: DESCRIPTIVE / NO SHARED CODE COMPRESSION EARNED AT CURRENT PRESSURE**
 
 Representative domains:
 
@@ -907,99 +907,36 @@ Stock-Flow proof witness and now carries its simple List-membership quantity
 helper directly.
 
 
-## MATH-5 follow-up — Daily Pace finite-vector history
+## Second-pass measurement appendix
 
-**Status: MEASURED — PRODUCTION PROMOTION EARNED**
+Two benchmark conclusions are worth retaining in the live map.
 
-`CycleSpendingPaceReview.projectHistory` currently reconstructs the Actual-backed
-eligible pool by validating selected current Actual records once and then
-rescanning all Actual records once per requested history date.
+### Daily Pace finite-vector history
 
-A temporary paired benchmark compared that shape with one finite-vector fold:
-each current selected Event is quantified once, validated once, and its signed
-quantity is distributed to every requested date at or after the Event date.
+PR #1337 was promoted after exact-result paired measurements showed the
+single-scan finite-vector history fold improving over repeated Actual rescans by
+about:
 
-The benchmark required exact result equality before accepting timings. Batched
-forced evaluation on the same runner produced:
+- **1.9–2.0x** for the current seven-day Home horizon;
+- **~3.0x** at 30 days;
+- **~3.6x** at 90 days.
 
-| history days | Actual records | repeated scans | finite-vector fold | speedup |
-| ---: | ---: | ---: | ---: | ---: |
-| 7 | 1,000 | 10.4 ms | 5.4 ms | 1.91x |
-| 7 | 5,000 | 52.8 ms | 26.7 ms | 1.97x |
-| 7 | 10,000 | 103.6 ms | 53.2 ms | 1.94x |
-| 30 | 1,000 | 31.6 ms | 10.6 ms | 2.98x |
-| 30 | 5,000 | 158.6 ms | 53.0 ms | 2.99x |
-| 30 | 10,000 | 315.6 ms | 106.5 ms | 2.96x |
-| 90 | 1,000 | 86.7 ms | 24.2 ms | 3.57x |
-| 90 | 5,000 | 434.4 ms | 120.2 ms | 3.61x |
-| 90 | 10,000 | 864.8 ms | 239.5 ms | 3.61x |
+At 10,000 Actual records, representative timings were 103.6 ms → 53.2 ms
+(seven days), 315.6 ms → 106.5 ms (30 days), and 864.8 ms → 239.5 ms
+(90 days).
 
-The current Home surface asks for seven days, so the production-relevant result
-is already about a twofold improvement at large Actual frontiers. Longer
-hypothetical horizons show increasing benefit.
+The promotion remains narrow: no retained prefix table, persistent index, or
+generic window-query framework.
 
-This earns a narrow production change to the Actual-backed history calculation.
-It does **not** authorize a retained index, persistent prefix table, or a generic
-window-query framework. Scheduled historical deductions remain outside this
-promotion because their terminal/completion semantics are distinct.
+### Shared Transactions-Flow row image
 
-The temporary benchmark source and workflow were retired after this result was
-harvested; Git history retains the executable measurement apparatus.
+PR #1339 measured constructing `rowActivities` twice versus constructing it
+once and sharing the result. Across 1,000–25,000 selected Events the observed
+ratio stayed roughly **0.97x–1.02x**, i.e. effectively neutral.
 
+Therefore the sparse row image remains transient and derived. Selected Columns
+remain authority, and no retained report cache or wider shared-image abstraction
+was added.
 
-## MATH-6 second-pass follow-up — shared sparse row image pressure
-
-**Status: MEASURED — NO FURTHER PRODUCTION PROMOTION EARNED**
-
-After the Web current snapshot began sharing one selected
-`TransactionsFlowReview.Snapshot` between Transactions Flow and Role Flow, the
-second MATH-6 pass found one remaining structural duplication:
-
-```text
-TransactionsFlowReview.Snapshot.columns
-    -> Snapshot.rowActivities
-    -> Transactions Flow presentation
-
-TransactionsFlowReview.Snapshot.columns
-    -> Snapshot.rowActivities
-    -> RoleFlow classification
-```
-
-The same derived `rowActivities` image also appears repeatedly inside the TUI
-Transactions Flow presentation path. This is a genuine stage-2 factorization
-opportunity: selected Columns remain authority, while the sparse
-`EffectCoordinate -> RowActivity` image is transient derived mechanics.
-
-A temporary paired benchmark therefore compared two independent
-`rowActivities` constructions with one construction shared by two consumers.
-Fixture size was supplied at runtime so the benchmark input was not a closed
-compile-time constant. Every fixture retained two Effects per Event and the
-benchmark required equal forced row digests before accepting timings.
-
-On the same GitHub Actions runner:
-
-| selected Events | duplicate construction | shared construction | observed ratio |
-| ---: | ---: | ---: | ---: |
-| 1,000 | 86 µs | 85 µs | ~1.01x |
-| 5,000 | 88 µs | 86 µs | ~1.02x |
-| 10,000 | 84 µs | 87 µs | ~0.97x |
-| 25,000 | 87 µs | 86 µs | ~1.01x |
-
-No meaningful scaling or speed difference was observed over this range. The
-structural duplication is real, but current production pressure does not justify
-adding retained derived state, a generic report cache, or a wider shared-image
-abstraction merely to remove it.
-
-The MATH-6 boundary remains:
-
-- keep selected Transactions-Flow Columns as the evidence authority;
-- keep `rowActivities` transient and derived;
-- allow narrow orchestration sharing when it is already natural, as in the Web
-  Transactions-Flow Snapshot reuse;
-- do not add new caching/state without measured pressure or net source/proof
-  reduction;
-- keep Merchant Expense separate because it observes Event identity, Merchant
-  evidence, and unresolved role witnesses that the row image forgets.
-
-The temporary benchmark source and workflow are retired after harvesting this
-negative result. Git history retains the executable measurement apparatus.
+The temporary benchmark programs and workflows for both experiments were
+retired after harvesting. Full executable detail remains in Git history.
