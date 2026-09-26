@@ -103,33 +103,12 @@ private def transactionDescription
   | none =>
       "LOAM event " ++ escapeQuoted entry.event.id.token
 
-private def addMeasureTotal
-    (totals : List (MeasureId × Int))
-    (measure : MeasureId)
-    (amount : Int) : List (MeasureId × Int) :=
-  match totals with
-  | [] => [(measure, amount)]
-  | current :: rest =>
-      if current.1 = measure then
-        (current.1, current.2 + amount) :: rest
-      else
-        current :: addMeasureTotal rest measure amount
-
-private def measureTotals (event : Event) : List (MeasureId × Int) :=
-  event.effects.foldl
-    (fun totals effect =>
-      addMeasureTotal totals effect.measure effect.quantity.quanta)
-    []
-
-private def firstUnbalanced? (event : Event) : Option (MeasureId × Int) :=
-  (measureTotals event).find? fun total => total.2 != 0
-
 private def validateEvent (event : Event) : Except String Unit := do
   if event.effects.isEmpty then
     throw
       ("Beancount export cannot represent effect-free Event " ++
         event.id.token)
-  match firstUnbalanced? event with
+  match Effect.firstNonzeroMeasureTotal? event.effects with
   | some (measure, total) =>
       throw
         ("Beancount export requires per-Measure balance; Event " ++
