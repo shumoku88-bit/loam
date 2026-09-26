@@ -77,4 +77,56 @@ def main : IO Unit := do
         "undated selected Event refusal lost its evidence explanation"
   | .ok _ => throw (IO.userError "undated selected Event was silently positioned")
 
+  let some invalid := event? "invalid" [effect "i1" "cash" 2]
+    | throw (IO.userError "invalid-date Event fixture was rejected")
+  match Loam.StockFlowReview.project balances
+      (record invalid (some "2026-02-30") :: records)
+      "2026-08-01" "2026-09-01" with
+  | .error message =>
+      expect ((message.splitOn "invalid occurrence date").length > 1)
+        "invalid selected Event refusal lost its evidence explanation"
+  | .ok _ => throw (IO.userError "invalid selected Event date was accepted")
+
+  let some zeroUndated := event? "zero-undated"
+      [effect "z1" "cash" 7, effect "z2" "cash" (-7)]
+    | throw (IO.userError "zero-undated Event fixture was rejected")
+  match Loam.StockFlowReview.project balances
+      (record zeroUndated none :: records)
+      "2026-08-01" "2026-09-01" with
+  | .error message =>
+      throw (IO.userError ("zero selected quantity unexpectedly required a date: " ++ message))
+  | .ok snapshot =>
+      expect (snapshot.reconstructedStart.quanta == 100)
+        "zero-undated Event changed the opening boundary"
+      expect (snapshot.reconstructedEnd.quanta == 90)
+        "zero-undated Event changed the closing boundary"
+
+  let some supersededUndated := event? "superseded-undated"
+      [effect "su1" "cash" 999]
+    | throw (IO.userError "superseded-undated Event fixture was rejected")
+  match Loam.StockFlowReview.project balances
+      (record supersededUndated none false :: records)
+      "2026-08-01" "2026-09-01" with
+  | .error message =>
+      throw (IO.userError ("superseded undated Event affected Stock-Flow: " ++ message))
+  | .ok snapshot =>
+      expect (snapshot.reconstructedStart.quanta == 100)
+        "superseded Event changed the opening boundary"
+      expect (snapshot.reconstructedEnd.quanta == 90)
+        "superseded Event changed the closing boundary"
+
+  match Loam.StockFlowReview.project balances [record undated none]
+      "not-a-date" "2026-09-01" with
+  | .error message =>
+      expect (message == "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates")
+        "record refusal overtook malformed endpoint priority"
+  | .ok _ => throw (IO.userError "malformed Stock-Flow endpoint was accepted")
+
+  match Loam.StockFlowReview.project balances [record undated none]
+      "2026-09-01" "2026-08-01" with
+  | .error message =>
+      expect (message == "loam: stock-flow start must be earlier than end")
+        "record refusal overtook reversed-window priority"
+  | .ok _ => throw (IO.userError "reversed Stock-Flow window was accepted with failing records")
+
   IO.println "Stock–Flow Review: boundary reconstruction, event-net aggregation, later-event separation and undated refusal passed."
