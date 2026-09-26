@@ -1,4 +1,3 @@
-import Loam.Observations.Observation332
 import Loam.StockFlowReview
 
 namespace Loam.Observation333
@@ -18,6 +17,17 @@ record.
 This observation asks whether one exact Event-local quantity can drive both
 decisions without changing the complete fail-closed result.
 -/
+
+private def trackedQuantaList
+    (coordinates : List EffectCoordinate)
+    (event : Event) : Int :=
+  event.effects.foldl
+    (fun total effect =>
+      if effect.coordinate ∈ coordinates then
+        total + effect.quantity.quanta
+      else
+        total)
+    0
 
 private structure Scan where
   startBoundary : Int
@@ -78,7 +88,7 @@ private def numericStep
     | none => state
     | some date =>
         numericFromQuantity start endExclusive state date
-          (Loam.Observation332.trackedQuantaList coordinates record.event)
+          (trackedQuantaList coordinates record.event)
 
 private def recordError?
     (coordinates : List EffectCoordinate)
@@ -87,7 +97,7 @@ private def recordError?
     none
   else
     let quantity :=
-      Loam.Observation332.trackedQuantaList coordinates record.event
+      trackedQuantaList coordinates record.event
     if quantity = 0 then
       none
     else
@@ -139,7 +149,7 @@ private def singleRecord
     .ok state
   else
     let quantity :=
-      Loam.Observation332.trackedQuantaList coordinates record.event
+      trackedQuantaList coordinates record.event
     if quantity = 0 then
       .ok state
     else
@@ -174,7 +184,7 @@ private theorem singleRecord_eq_reference
       simp [singleRecord, recordError?, numericStep, hCurrent]
   | true =>
       by_cases hZero :
-          Loam.Observation332.trackedQuantaList coordinates record.event = 0
+          trackedQuantaList coordinates record.event = 0
       · cases hDate : record.date <;>
           simp [singleRecord, recordError?, numericStep, numericFromQuantity,
             hCurrent, hZero, hDate]
