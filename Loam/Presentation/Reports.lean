@@ -18,6 +18,7 @@ native widgets, or charts.
 structure StockFlow where
   start : String
   endExclusive : String
+  measure : Option MeasureId
   opening : Quantity
   increases : Quantity
   decreases : Quantity
@@ -189,6 +190,7 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
         {
           start := report.start
           endExclusive := report.endExclusive
+          measure := report.measure
           opening := report.reconstructedStart
           increases := report.increasesAcrossEvents
           decreases := report.decreasesAcrossEvents
