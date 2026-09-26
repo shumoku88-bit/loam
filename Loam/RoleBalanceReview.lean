@@ -429,6 +429,31 @@ def project
     Loam.CurrentQuantityPresence.Evidence.empty
     roles
 
+/-- Raw/in-memory Role Balance composition with explicit current-presence evidence. -/
+def projectWithPresence
+    (evidence : Loam.BalanceReview.Evidence)
+    (openingSupport : OpeningSupportMap)
+    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
+    (currentPresence : Loam.CurrentQuantityPresence.Evidence)
+    (roles : AccountingRoleMap) : Except String Snapshot := do
+  let frontier ←
+    match Loam.Application.correctionFrontierMemory? evidence.events evidence.corrections with
+    | some frontier => pure frontier
+    | none => throw "loam: role balances unavailable: event corrections do not justify one frontier"
+
+  projectWithOrdinaryFrontier
+    frontier
+    (fun coordinates =>
+      Loam.BalanceReview.project
+        evidence.events evidence.corrections evidence.coverage coordinates)
+    evidence.events
+    evidence.corrections
+    evidence.coverage
+    openingSupport
+    currentAnchor
+    currentPresence
+    roles
+
 /--
 Compose Role Balance from one fully admitted Actual read image.
 
