@@ -25,9 +25,9 @@ Unit. It is research-only and carries no authority.
 -/
 
 private abbrev CoordinateKey := Loam.Observation325.CoordinateKey
-private abbrev SupportIndex := Std.HashMap CoordinateKey Unit
+abbrev SupportIndex := Std.HashMap CoordinateKey Unit
 
-private def buildSupport : List EffectCoordinate → SupportIndex
+def buildSupport : List EffectCoordinate → SupportIndex
   | [] => {}
   | coordinate :: rest =>
       (buildSupport rest).insert
@@ -77,7 +77,7 @@ theorem buildSupport_contains_eq_mem
           exact hCoordinate h.symm
         simp [hCoordinate, hCoordinateRev, ih]
 
-private def trackedQuantaList
+def trackedQuantaList
     (coordinates : List EffectCoordinate)
     (event : Event) : Int :=
   event.effects.foldl
@@ -88,7 +88,7 @@ private def trackedQuantaList
         total)
     0
 
-private def trackedQuantaSupport
+def trackedQuantaSupport
     (support : SupportIndex)
     (event : Event) : Int :=
   event.effects.foldl
