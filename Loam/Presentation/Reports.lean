@@ -160,7 +160,15 @@ private def incomeExpenseMeasure
     result := Quantity.ofQuanta (income - expense)
   }
 
-private def presentIncomeExpense
+/--
+Surface-neutral Income & Expense summary derived from one role-aware flow answer.
+
+This is a presentation image only: it preserves the explicit window, keeps
+Measures separate, applies the established display-sign convention, and retains
+only the unresolved Effect count. Coordinate-level breakdown and witnesses stay
+in the source RoleFlow snapshot.
+-/
+def incomeExpenseFromRoleFlow
     (snapshot : Loam.RoleFlowReview.Snapshot) : IncomeExpense :=
   {
     start := snapshot.start
@@ -200,7 +208,7 @@ def fromSnapshot (snapshot : Loam.Presentation.HouseholdSnapshot) : Model :=
     transactionsFlow :=
       Loam.Presentation.ReadState.map snapshot.transactionsFlow presentTransactionsFlow
     incomeExpense :=
-      Loam.Presentation.ReadState.map snapshot.roleFlow presentIncomeExpense
+      Loam.Presentation.ReadState.map snapshot.roleFlow incomeExpenseFromRoleFlow
     balances :=
       Loam.Presentation.ReadState.map snapshot.roleBalances presentBalances
   }
