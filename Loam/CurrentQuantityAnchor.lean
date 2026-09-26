@@ -10,41 +10,50 @@ set_option autoImplicit false
 /-!
 # Current quantity anchor
 
-Observation 246 earned one narrow application-level evidence shape for quantities
-observed together at one reconciliation boundary:
+Observation 246 first earned one shared reflected-root cut for quantities observed
+together at one reconciliation boundary. Its 2026-09-27 incremental follow-up
+qualified the smallest extension needed when a household observes another
+coordinate later:
 
-- one shared finite set of Event correction roots already reflected by the
-  observation;
-- one exact asserted quantity per observed `Locus × Measure` coordinate.
+- one or more anonymous reconciliation groups;
+- one shared finite set of reflected Event correction roots per group;
+- one exact asserted quantity per observed `Locus × Measure` coordinate;
+- at most one live group for any coordinate.
 
-This is intentionally not a Core accounting primitive. It does not claim
-zero-origin history, mutate Actual, infer chronology, or restore the retired
-QuantityBasis/BasisCut subsystem.
+Groups are representation factoring, not stable household identity. Re-observing
+one coordinate may move that coordinate into a newer group without revising an
+anchor history graph.
+
+This remains application-level current-support evidence. It does not claim
+zero-origin or bounded historical completeness, mutate Actual, infer chronology,
+or restore the retired QuantityBasis/BasisCut subsystem.
 -/
 
-/-- One exact quantity assertion made at the shared reconciliation boundary. -/
+/-- One exact quantity assertion made at one reconciliation boundary. -/
 structure Assertion where
   coordinate : EffectCoordinate
   quantity : Quantity
 deriving Repr, DecidableEq
 
 /--
-One current reconciliation image. The shared root set is represented once even
-when several coordinates were observed together.
+One anonymous reconciliation group.
+
+Every assertion in the group was observed against the same reflected-root cut.
+The group itself has no stable semantic identity.
 -/
-structure Evidence where
+structure Group where
   reflectedRoots : List EventId
   assertions : List Assertion
   rootNodup : reflectedRoots.Nodup
   coordinateNodup : (assertions.map Assertion.coordinate).Nodup
 deriving Repr, DecidableEq
 
-namespace Evidence
+namespace Group
 
-/-- Admit only finite evidence with unique roots and at most one assertion per coordinate. -/
+/-- Admit one finite reconciliation group with unique roots and coordinates. -/
 def ofLists?
     (reflectedRoots : List EventId)
-    (assertions : List Assertion) : Option Evidence :=
+    (assertions : List Assertion) : Option Group :=
   if hRoots : reflectedRoots.Nodup then
     if hCoordinates : (assertions.map Assertion.coordinate).Nodup then
       some {
@@ -58,41 +67,119 @@ def ofLists?
   else
     none
 
+/-- Look up one assertion inside one reconciliation group. -/
+def assertionFor? (group : Group) (coordinate : EffectCoordinate) : Option Assertion :=
+  group.assertions.find? fun assertion => decide (assertion.coordinate = coordinate)
+
+/-- Coordinates carried by one reconciliation group. -/
+def coordinates (group : Group) : List EffectCoordinate :=
+  group.assertions.map Assertion.coordinate
+
+end Group
+
+/--
+One replaceable current-support image.
+
+The image may contain several anonymous reconciliation groups. Global coordinate
+uniqueness prevents two independently observed cuts from competing for the same
+current answer.
+-/
+structure Evidence where
+  groups : List Group
+  coordinateNodup :
+    ((groups.flatMap fun group => group.assertions).map Assertion.coordinate).Nodup
+deriving Repr, DecidableEq
+
+namespace Evidence
+
+private def allAssertions (groups : List Group) : List Assertion :=
+  groups.flatMap fun group => group.assertions
+
+/-- Admit several groups only when their asserted coordinates are globally unique. -/
+def ofGroups? (groups : List Group) : Option Evidence :=
+  let coordinates := (allAssertions groups).map Assertion.coordinate
+  if hCoordinates : coordinates.Nodup then
+    some {
+      groups := groups
+      coordinateNodup := hCoordinates
+    }
+  else
+    none
+
+/--
+Backward-compatible constructor for one reconciliation group.
+
+Existing callers that deliberately model one observation boundary can keep using
+this narrow entrance.
+-/
+def ofLists?
+    (reflectedRoots : List EventId)
+    (assertions : List Assertion) : Option Evidence := do
+  let group ← Group.ofLists? reflectedRoots assertions
+  ofGroups? [group]
+
 /-- No current reconciliation evidence. -/
 def empty : Evidence := {
-  reflectedRoots := []
-  assertions := []
-  rootNodup := by simp
+  groups := []
   coordinateNodup := by simp
 }
 
-/-- Look up only an explicitly asserted current coordinate. -/
-def assertionFor? (evidence : Evidence) (coordinate : EffectCoordinate) : Option Assertion :=
-  evidence.assertions.find? fun assertion => decide (assertion.coordinate = coordinate)
+/-- Flatten all current assertions without exposing group representation to callers. -/
+def assertions (evidence : Evidence) : List Assertion :=
+  allAssertions evidence.groups
 
-/-- Coordinates carrying explicit current assertions. -/
+/-- Coordinates carrying exact current assertions. -/
 def coordinates (evidence : Evidence) : List EffectCoordinate :=
   evidence.assertions.map Assertion.coordinate
 
-end Evidence
+/-- Find the unique reconciliation group supporting one coordinate. -/
+def groupFor? (evidence : Evidence) (coordinate : EffectCoordinate) : Option Group :=
+  evidence.groups.find? fun group => (group.assertionFor? coordinate).isSome
+
+/-- Look up only an explicitly asserted current coordinate. -/
+def assertionFor? (evidence : Evidence) (coordinate : EffectCoordinate) : Option Assertion := do
+  let group ← evidence.groupFor? coordinate
+  group.assertionFor? coordinate
+
+/-- Preserve all groups except selected coordinates, dropping groups that become empty. -/
+def withoutCoordinates
+    (evidence : Evidence)
+    (coordinates : List EffectCoordinate) : Option Evidence := do
+  let groups := evidence.groups.filterMap fun group =>
+    let assertions :=
+      group.assertions.filter fun assertion => !(coordinates.contains assertion.coordinate)
+    if assertions.isEmpty then
+      none
+    else
+      Group.ofLists? group.reflectedRoots assertions
+  ofGroups? groups
 
 /--
-Admit the one correction-aware delta Event world shared by selected assertions
-from one current reconciliation image.
+Replace any prior support for the supplied group's coordinates, then append that
+group as the newest current observation.
+
+This changes no group whose coordinates were not re-observed.
 -/
+def replacingWithGroup? (evidence : Evidence) (group : Group) : Option Evidence := do
+  let retained ← evidence.withoutCoordinates group.coordinates
+  ofGroups? (retained.groups ++ [group])
+
+end Evidence
+
+/-- Admit one correction-aware delta Event world for one reflected-root cut. -/
 private def deltaFrontier
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
-    (evidence : Evidence) : Except String EventMemory := do
+    (reflectedRoots : List EventId) : Except String EventMemory := do
   if !Loam.Application.correctionReferencesClosed events corrections then
     throw "loam: current quantity anchor cannot resolve one or more correction endpoints"
   let some currentRoots := Loam.Application.correctionRootIds? events corrections
     | throw "loam: current quantity anchor requires one admitted Event correction frontier"
-  if !(evidence.reflectedRoots.all fun root => currentRoots.contains root) then
+  if !(reflectedRoots.all fun root => currentRoots.contains root) then
     throw "loam: current quantity anchor references an Event that is not a stable correction root"
   let some frontier :=
       Loam.Application.correctionFrontierExcludingRoots?
-        events corrections evidence.reflectedRoots
+        events corrections reflectedRoots
     | throw "loam: current quantity anchor requires one admitted Event correction frontier"
   return frontier
 
@@ -105,13 +192,8 @@ private def quantityFromDelta
   Quantity.ofQuanta (assertion.quantity.quanta + delta.quanta)
 
 /--
-Inspect one asserted current quantity against the current correction-aware Event
-world.
-
-Every reflected root must still be a represented stable correction root. The
-asserted scalar is then combined only with current terminal Events whose roots
-are outside the shared cut. Event summation remains delegated to the existing
-`EventMemory.quantityAtRecorded` projection.
+Inspect one asserted current quantity against its reconciliation group's
+correction-aware Event world.
 
 Absence of an assertion is not an error; it means this evidence family does not
 support the queried coordinate.
@@ -121,30 +203,38 @@ def inspectQuantity
     (corrections : EventCorrectionMemory)
     (evidence : Evidence)
     (coordinate : EffectCoordinate) : Except String (Option Quantity) := do
-  let some assertion := evidence.assertionFor? coordinate
+  let some group := evidence.groupFor? coordinate
     | return none
-  let frontier ← deltaFrontier events corrections evidence
+  let some assertion := group.assertionFor? coordinate
+    | return none
+  let frontier ← deltaFrontier events corrections group.reflectedRoots
   return some (quantityFromDelta frontier assertion)
 
 /--
-Inspect several coordinates from one reconciliation image while admitting the
-shared reflected-root cut only once.
+Inspect several coordinates while evaluating each selected reconciliation group
+at most once.
 
-Missing assertions remain `none` in their original positions. If none of the
-requested coordinates is asserted, the correction-world obligation is not
-forced, matching the point inspection's absence behavior.
+Missing assertions remain `none` in caller order. Groups unrelated to the
+requested coordinates are not forced.
 -/
 def inspectQuantities
     (events : EventMemory)
     (corrections : EventCorrectionMemory)
     (evidence : Evidence)
     (coordinates : List EffectCoordinate) : Except String (List (Option Quantity)) := do
-  let assertions := coordinates.map fun coordinate => evidence.assertionFor? coordinate
-  if !(assertions.any fun assertion => assertion.isSome) then
-    return assertions.map fun _ => (none : Option Quantity)
-  let frontier ← deltaFrontier events corrections evidence
-  return assertions.map fun
-    | none => none
-    | some assertion => some (quantityFromDelta frontier assertion)
+  let resolved ← evidence.groups.foldlM
+    (fun rows group => do
+      let selected :=
+        coordinates.filter fun coordinate => (group.assertionFor? coordinate).isSome
+      if selected.isEmpty then
+        return rows
+      let frontier ← deltaFrontier events corrections group.reflectedRoots
+      let currentRows := selected.filterMap fun coordinate => do
+        let assertion ← group.assertionFor? coordinate
+        some (coordinate, quantityFromDelta frontier assertion)
+      return rows ++ currentRows)
+    ([] : List (EffectCoordinate × Quantity))
+  return coordinates.map fun coordinate =>
+    (resolved.find? fun row => decide (row.1 = coordinate)).map Prod.snd
 
 end Loam.CurrentQuantityAnchor
