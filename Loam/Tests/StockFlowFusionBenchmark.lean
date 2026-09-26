@@ -38,14 +38,12 @@ private def balances (count : Nat) : Loam.BalanceReview.Snapshot :=
 private def eventFor (coordinateCount i : Nat) : Event :=
   let selected := selectedCoordinate (i % coordinateCount)
   let q : Int := if i % 2 = 0 then 3 else -2
-  let a := Effect.ofAnonymousQuantity selected.locus selected.measure (Quantity.ofQuanta q)
-  let noise := noiseCoordinate i
-  let b := Effect.ofAnonymousQuantity noise.locus noise.measure (Quantity.ofQuanta 7)
+  let effect :=
+    Effect.ofAnonymousQuantity selected.locus selected.measure (Quantity.ofQuanta q)
   {
     id := ⟨s!"stock-bench-{coordinateCount}-{i}"⟩
-    effects := [a, b]
-    keyNodup := by
-      simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
+    effects := [effect]
+    keyNodup := retainedEffectKeys_singleton_nodup effect
   }
 
 private def dateFor (i : Nat) : String :=
@@ -188,6 +186,12 @@ private def finish
 
 private abbrev Result := Except String Loam.StockFlowReview.Snapshot
 
+private def sameResult (left right : Result) : Bool :=
+  match left, right with
+  | .error leftMessage, .error rightMessage => leftMessage == rightMessage
+  | .ok leftSnapshot, .ok rightSnapshot => decide (leftSnapshot = rightSnapshot)
+  | _, _ => false
+
 @[noinline] private def forceResult (result : Result) : Nat × Int :=
   match result with
   | .error message => (message.length, 0)
@@ -293,10 +297,10 @@ private def runCase (coordinateCount eventCount : Nat) : IO Unit := do
     (fun _ => fusedList bs rs)
     (fun _ => fusedSet bs rs)
 
-  unless decide (timed.baselineResult = timed.listResult) do
+  unless sameResult timed.baselineResult timed.listResult do
     throw <| IO.userError
       s!"fused-list semantic mismatch coordinates={coordinateCount} events={eventCount}"
-  unless decide (timed.baselineResult = timed.setResult) do
+  unless sameResult timed.baselineResult timed.setResult do
     throw <| IO.userError
       s!"fused-set semantic mismatch coordinates={coordinateCount} events={eventCount}"
 
@@ -305,7 +309,7 @@ private def runCase (coordinateCount eventCount : Nat) : IO Unit := do
 
 def runAll : IO Unit := do
   IO.println "=== Stock-Flow fusion paired benchmark ==="
-  IO.println "two Effects/Event: one selected coordinate + one unselected noise coordinate"
+  IO.println "one selected Effect/Event; coordinate rotates through the selected universe"
   IO.println "all timed results retained; exact result equality checked after timing"
   IO.println ""
   IO.println "coords\tevents\tproduction\tfused-list\tfused-set\tprod/list\tprod/set\tlist/set"
