@@ -69,6 +69,7 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile (dataDir / "actual-routing.loam")
     ("LOAM-ACTUAL-ROUTING\t1\n" ++
      "ROUTE\tcoffee\tINITIAL\tMANAGED\tfood\n" ++
+     "ROUTE\tcoffee\tFROM\t2026-09-10\tMANAGED\tgeneral\n" ++
      "ROUTE\tyucho\tINITIAL\tMANAGED\tsavings\n" ++
      "ROUTE\told-expense\tINITIAL\tMANAGED\tfood\n")
 
@@ -153,6 +154,16 @@ def main (args : List String) : IO Unit := do
     "historical route outside current admission stays separately visible"
   expect (snapshot.purposes.map (fun purpose => purpose.token) == ["food", "general", "savings"])
     "Purpose candidates come from retained Capacity evidence"
+
+  let laterSnapshot ←
+    match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-09-11" with
+    | .ok snapshot => pure snapshot
+    | .error message => throw (IO.userError message)
+  let laterCoffee ← requireSome
+    (laterSnapshot.rows.find? fun row => row.locus.token == "coffee")
+    "later coffee row"
+  expect (laterCoffee.status == .managed general)
+    "fixed-time routing image did not select the latest visible dated override"
 
   match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-02-29" with
   | .error _ => pure ()
