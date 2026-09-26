@@ -38,7 +38,6 @@ structure Draft where
   effects : List Effect
   source : EffectKey
   destination : EffectKey
-deriving Repr, DecidableEq
 
 /--
 The independently meaningful evidence/policy families needed to admit a new
