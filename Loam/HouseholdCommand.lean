@@ -6,6 +6,7 @@ import Loam.CorrectionPublisher
 import Loam.ActualValidityPublisher
 import Loam.ActualReversalPublisher
 import Loam.EventMerchantPublisher
+import Loam.SettlementPublisher
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.ScheduledReplacementPublisher
@@ -97,6 +98,16 @@ def classifyEventMerchant
     (draft : Loam.EventMerchantPublisher.Draft) :
     IO (Except String Unit) :=
   Loam.EventMerchantPublisher.publishDisposition root.toString draft
+
+/--
+Append one explicit settlement evidence batch through the canonical Actual
+authority. The command performs no matching or inference.
+-/
+def recordSettlementEvidence
+    (root : System.FilePath)
+    (draft : Loam.SettlementPublisher.Draft) :
+    IO (Except String Unit) :=
+  Loam.SettlementPublisher.publish root.toString draft
 
 /-- Publish one exact Actual reversal. -/
 def reverseActual
