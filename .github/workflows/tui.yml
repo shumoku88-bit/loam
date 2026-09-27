@@ -20,6 +20,9 @@ on:
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
       - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/LocusCatalog.lean'
+      - 'Loam/LocusCoherenceReview.lean'
+      - 'Loam/Tests/LocusCoherenceReview.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/LocusAdmissionPublisher.lean'
       - 'Loam/Tests/LocusAdmissionPublisher.lean'
@@ -154,6 +157,9 @@ on:
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/LocusCatalog.lean'
+      - 'Loam/LocusCoherenceReview.lean'
+      - 'Loam/Tests/LocusCoherenceReview.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Tests/LocusCatalog.lean'
       - 'Loam/LocusAdmissionPublisher.lean'
       - 'Loam/Tests/LocusAdmissionPublisher.lean'
@@ -372,6 +378,11 @@ jobs:
 
       - name: Verify display/history and admission-scoped Locus catalog
         run: lake env lean --run Loam/Tests/LocusCatalog.lean
+
+      - name: Build and verify read-only Locus coherence review
+        run: |
+          lake build Loam.LocusCoherenceReview
+          lake env lean --run Loam/Tests/LocusCoherenceReview.lean
 
       - name: Build shared Locus admission publisher boundary
         run: lake build Loam.LocusAdmissionPublisher
