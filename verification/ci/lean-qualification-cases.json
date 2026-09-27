@@ -168,6 +168,29 @@
       "tests": [
         "Loam/Tests/ActualSettlementAdmission.lean"
       ]
+    },
+    {
+      "id": "settlement-normalized-actual-v2-d3",
+      "workflowName": "Settlement Normalized Actual V2 D3",
+      "jobName": "Qualify settlement normalized Actual v2",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "feat/settlement-normalized-actual-v2"
+      ],
+      "buildArgs": "Loam.Persistence.NormalizedActualPersistence",
+      "paths": [
+        "Loam/ActualEvidence.lean",
+        "Loam/Core/Settlement.lean",
+        "Loam/Application/SettlementFrontier.lean",
+        "Loam/Persistence/NormalizedActualAdmission.lean",
+        "Loam/Persistence/NormalizedActualPersistence.lean",
+        "Loam/Tests/SettlementNormalizedActualV2.lean",
+        "experiments/372_settlement_persistence_topology_checkpoint.md"
+      ],
+      "tests": [
+        "Loam/Tests/SettlementNormalizedActualV2.lean"
+      ]
     }
   ]
 }
