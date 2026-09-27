@@ -688,6 +688,32 @@
         "CollapsedCancelDeterminesLifecycleMeaning": true,
         "OutstandingDeterminesReductionMeaning": true
       }
+    },
+    {
+      "id": "settlement-commitment-correction-targeting",
+      "observation": "Observation 374",
+      "jobName": "Qualify settlement commitment correction targeting",
+      "pushBranches": [
+        "main",
+        "experiment/374-settlement-commitment-correction-targeting"
+      ],
+      "model": "experiments/374_settlement_commitment_correction_targeting.als",
+      "paths": [
+        "experiments/374_settlement_commitment_correction_targeting.als",
+        "experiments/374_settlement_commitment_correction_targeting.md"
+      ],
+      "expected": {
+        "compatibleCorrectionPreservesHistoricalTargetWitness": true,
+        "multiVersionLineageWitness": true,
+        "incompatibleMeasureCorrectionRejectedWitness": true,
+        "incompatibleDirectionCorrectionRejectedWitness": true,
+        "overSettledCorrectionRejectedWitness": true,
+        "retractionWithDependentUseRejectedWitness": true,
+        "ExactTargetingAlwaysPreservesCompatibleAttribution": true,
+        "BlindReplacementFollowingIsAlwaysSafe": true,
+        "QualifiedFollowNeverProducesNegativeOutstanding": false,
+        "QualifiedFollowClosesCurrentTargets": false
+      }
     }
   ]
 }
