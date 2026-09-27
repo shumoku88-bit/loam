@@ -15,6 +15,8 @@ import Loam.LocusAdmissionAuthority
 import Loam.Tui.AttentionAdministration
 import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
+import Loam.Tui.SettlementWorkspace
+import Loam.SettlementReview
 import Loam.Tui.Capacity
 import Loam.Tui.CapacitySession
 import Loam.Tui.CycleBudget
@@ -304,6 +306,28 @@ partial def balancesLoop (bounds : Bounds)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       balancesLoop bounds next nextFrame
 
+/-- Read-only settlement review session; q/Esc returns to Home. -/
+partial def settlementLoop
+    (bounds : Bounds)
+    (state : Loam.Tui.SettlementWorkspace.State)
+    (frame : CompiledWidget) : IO Unit := do
+  let key ← Loam.Tui.Terminal.readKey
+  let event : Loam.Tui.SettlementWorkspace.Event :=
+    match key with
+    | .up | .input 'k' | .input 'K' => .previous
+    | .down | .input 'j' | .input 'J' => .next
+    | .input 'f' | .input 'F' => .cycleScope
+    | .escape | .input 'q' | .input 'Q' => .back
+    | _ => .other
+  let step := Loam.Tui.SettlementWorkspace.update state event
+  match step.command with
+  | .back => return ()
+  | .stay =>
+      let nextFrame :=
+        compileWidget (Loam.Tui.SettlementWorkspace.view bounds step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      settlementLoop bounds step.state nextFrame
+
 /-- Current quantity observations stay presentation-local until one new reconciliation group is published. -/
 partial def currentQuantityAnchorLoop
     (bounds : Bounds) (root : System.FilePath)
@@ -397,6 +421,23 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds fresh home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root fresh home nextFrame
+  else if (key = .input 'u' || key = .input 'U') then
+    match ← Loam.SettlementReview.loadSnapshot root with
+    | .error message =>
+        let home := { state with notice := unavailableNotice "Settlement" message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok settlementSnapshot =>
+        let settlement := Loam.Tui.SettlementWorkspace.initial settlementSnapshot
+        let settlementFrame :=
+          compileWidget (Loam.Tui.SettlementWorkspace.view bounds settlement)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame settlementFrame
+        settlementLoop bounds settlement settlementFrame
+        let home := { state with notice := "" }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'b' || key = .input 'B') then
     match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
     | none =>
