@@ -54,6 +54,13 @@ private def commitment
   quantity := Quantity.ofQuanta quanta
 }
 
+private def commitmentRevision
+    (target : String)
+    (replacement : Option String) : SettlementCommitmentRevision := {
+  target := ⟨target⟩
+  replacement := replacement.map fun token => ⟨token⟩
+}
+
 private def correspondence
     (id target event effect : String)
     (quanta : Int) : SettlementEffectCorrespondence := {
@@ -89,11 +96,13 @@ private def image?
     (correspondenceRevisions : List SettlementCorrespondenceRevision := [])
     (contexts : List SettlementNettingContext := [])
     (members : List SettlementNettingMember := [])
-    (memberRevisions : List SettlementNettingMemberRevision := []) :
+    (memberRevisions : List SettlementNettingMemberRevision := [])
+    (commitmentRevisions : List SettlementCommitmentRevision := []) :
     Option AdmittedSettlementImage :=
   admitSettlementImage?
     events
     commitments
+    commitmentRevisions
     correspondences
     correspondenceRevisions
     contexts
@@ -632,6 +641,113 @@ private def replacementConflictsFailClosed : IO Unit := do
   expect result.isNone
     "competing correspondence replacements were not refused"
 
+private def commitmentCorrectionCarriesHistoricalTarget : IO Unit := do
+  let source ← requireSome
+    (event? "commitment-current-source" [
+      keyedEffect "commitment-current-origin" sourceLocus usd 1
+    ])
+    "commitment correction current source Event failed"
+  let payment ← requireSome
+    (event? "commitment-current-payment" [
+      keyedEffect "commitment-current-jpy" bank yen (-300)
+    ])
+    "commitment correction payment Event failed"
+  let events ← requireSome (memory? [source, payment])
+    "commitment correction EventMemory failed"
+
+  -- The superseded row deliberately names missing provenance. Only the corrected
+  -- current payload is semantically admitted.
+  let old := commitment
+    "commitment-old" "missing-old-source" "missing-old-effect"
+    .household (.external broker) yen 1000
+  let current := commitment
+    "commitment-current" "commitment-current-source" "commitment-current-origin"
+    .household (.external broker) yen 700
+  let row := correspondence
+    "commitment-old-payment" "commitment-old"
+    "commitment-current-payment" "commitment-current-jpy" 300
+  let revision := commitmentRevision "commitment-old" (some "commitment-current")
+
+  let image ← requireSome
+    (image? events [old, current] [row]
+      (commitmentRevisions := [revision]))
+    "compatible commitment correction did not preserve historical target attribution"
+
+  expect (image.commitments.length == 1)
+    "commitment correction did not select one current commitment"
+  expect (image.commitments[0]?.map (fun admitted => admitted.commitment.id) ==
+      some ⟨"commitment-current"⟩)
+    "commitment correction selected the wrong current commitment"
+  expectOutstanding image "commitment-current" 400
+    "commitment correction historical target"
+
+private def incompatibleCommitmentCorrectionFailsClosed : IO Unit := do
+  let source ← requireSome
+    (event? "commitment-incompatible-source" [
+      keyedEffect "commitment-incompatible-origin" sourceLocus usd 1
+    ])
+    "incompatible correction source Event failed"
+  let payment ← requireSome
+    (event? "commitment-incompatible-payment" [
+      keyedEffect "commitment-incompatible-jpy" bank yen (-300)
+    ])
+    "incompatible correction payment Event failed"
+  let events ← requireSome (memory? [source, payment])
+    "incompatible correction EventMemory failed"
+
+  let old := commitment
+    "commitment-incompatible-old"
+    "commitment-incompatible-source" "commitment-incompatible-origin"
+    .household (.external broker) yen 1000
+  let current := commitment
+    "commitment-incompatible-current"
+    "commitment-incompatible-source" "commitment-incompatible-origin"
+    .household (.external broker) usd 700
+  let row := correspondence
+    "commitment-incompatible-row" "commitment-incompatible-old"
+    "commitment-incompatible-payment" "commitment-incompatible-jpy" 300
+  let revision :=
+    commitmentRevision "commitment-incompatible-old"
+      (some "commitment-incompatible-current")
+
+  expect
+    (image? events [old, current] [row]
+      (commitmentRevisions := [revision])).isNone
+    "Measure-changing commitment correction silently retargeted old settlement evidence"
+
+private def commitmentRetractionBoundary : IO Unit := do
+  let source ← requireSome
+    (event? "commitment-retract-source" [
+      keyedEffect "commitment-retract-origin" sourceLocus usd 1
+    ])
+    "commitment retraction source Event failed"
+  let payment ← requireSome
+    (event? "commitment-retract-payment" [
+      keyedEffect "commitment-retract-jpy" bank yen (-300)
+    ])
+    "commitment retraction payment Event failed"
+  let events ← requireSome (memory? [source, payment])
+    "commitment retraction EventMemory failed"
+
+  let c := commitment
+    "commitment-retracted"
+    "commitment-retract-source" "commitment-retract-origin"
+    .household (.external broker) yen 1000
+  let revision := commitmentRevision "commitment-retracted" none
+
+  let emptyImage ← requireSome
+    (image? events [c] (commitmentRevisions := [revision]))
+    "standalone commitment retraction was rejected"
+  expect emptyImage.commitments.isEmpty
+    "retracted commitment remained current"
+
+  let row := correspondence
+    "commitment-retract-row" "commitment-retracted"
+    "commitment-retract-payment" "commitment-retract-jpy" 300
+  expect
+    (image? events [c] [row] (commitmentRevisions := [revision])).isNone
+    "dependent current settlement evidence survived commitment retraction"
+
 def runAll : IO Unit := do
   crossMeasureCard
   securityBuyAndSell
@@ -645,6 +761,9 @@ def runAll : IO Unit := do
   correspondenceCorrection
   memberCorrection
   replacementConflictsFailClosed
+  commitmentCorrectionCarriesHistoricalTarget
+  incompatibleCommitmentCorrectionFailsClosed
+  commitmentRetractionBoundary
 
   IO.println "Settlement production Slice C qualification succeeded."
 
