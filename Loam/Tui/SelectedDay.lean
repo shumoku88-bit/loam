@@ -32,6 +32,7 @@ inductive Event where
   | reverseActual
   | correctDate
   | classifyMerchant
+  | manageLoci
   | completeScheduled
   | cancelScheduled
   | replaceScheduled
@@ -47,6 +48,7 @@ inductive Command where
   | reverseActual
   | correctDate
   | classifyMerchant
+  | manageLoci
   | completeScheduled
   | cancelScheduled
   | replaceScheduled
@@ -182,6 +184,11 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
           | none =>
               { state := { state with notice := "No current Actual is selected for Merchant classification." } }
           | some _ => { state, command := .classifyMerchant }
+  | .manageLoci =>
+      match state.pane with
+      | .actual => { state, command := .manageLoci }
+      | .scheduled =>
+          { state := { state with notice := "Locus management is available from the Actual pane." } }
   | .completeScheduled =>
       match state.pane with
       | .actual =>
@@ -320,8 +327,8 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   match state.pane with
   | .actual =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [m] merchant  [q] back"
-      let compact := "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [m] merchant [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [m] merchant  [g] loci  [q] back"
+      let compact := "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [g] loci [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else
@@ -336,9 +343,9 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
 
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read
-answers and owns only pane/cursor state. Actual Record/Correction/Reversal/date/
-Merchant actions and Scheduled creation/completion/cancellation/replacement are
-local interaction intents; publication authority stays in shared publishers.
+answers and owns only pane/cursor state. Actual Record/Correction/Reversal/date/Merchant actions, the Manage Loci
+navigation entrance, and Scheduled creation/completion/cancellation/replacement
+are local interaction intents; publication authority stays in shared publishers.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
