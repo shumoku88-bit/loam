@@ -145,6 +145,12 @@ private def fixture? : Option ActualEvidence := do
       target := ⟨"review-corrected-old"⟩
       replacement := some ⟨"review-corrected"⟩
     }]
+    extinguishments := [{
+      id := ⟨"review-extinguishment"⟩
+      target := ⟨"review-corrected-old"⟩
+      quantity := Quantity.ofQuanta 100
+      effectiveOn := some "2026-09-05"
+    }]
     correspondences := [
       {
         id := ⟨"review-mixed-direct"⟩
@@ -271,8 +277,18 @@ private def correctionUsesCurrentFrontierOnly : IO Unit := do
     "review exposed superseded commitment identity"
   expect (row.settled.quanta == 600)
     "review lost historical-target allocation after commitment correction"
-  expect (row.outstanding.quanta == 400)
-    "corrected commitment outstanding should be 400"
+  expect (row.extinguished.quanta == 100)
+    "review lost non-settlement extinguishment quantity"
+  expect (row.outstanding.quanta == 300)
+    "corrected commitment outstanding should be 300 after extinguishment"
+  expect (row.extinguishments.length == 1)
+    "review lost extinguishment provenance"
+  expect (row.extinguishments.head?.map (·.id.token) ==
+    some "review-extinguishment")
+    "review changed extinguishment identity"
+  expect (row.extinguishments.head?.bind (·.effectiveOn) ==
+    some "2026-09-05")
+    "review lost optional extinguishment effective date"
   expect (row.direct.length == 1)
     "review exposed superseded direct correspondence"
   expect (row.direct.head?.map (·.correspondence.token) ==
