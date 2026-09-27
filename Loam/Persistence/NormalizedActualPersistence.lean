@@ -26,12 +26,16 @@ def normalizedActualHeaderV1 : String := "LOAM-NORMALIZED-ACTUAL\t1"
 /-- Version-2 header adding document-level retained settlement evidence. -/
 def normalizedActualHeaderV2 : String := "LOAM-NORMALIZED-ACTUAL\t2"
 
+/-- Version-3 header adding append-only settlement commitment revision evidence. -/
+def normalizedActualHeaderV3 : String := "LOAM-NORMALIZED-ACTUAL\t3"
+
 /-- Compatibility name for the original normalized Actual header. -/
 def normalizedActualHeader : String := normalizedActualHeaderV1
 
 private inductive NormalizedActualWireVersion where
   | v1
   | v2
+  | v3
 deriving Repr, DecidableEq
 
 private def normalizedActualWireVersion? (header : String) : Option NormalizedActualWireVersion :=
@@ -39,6 +43,8 @@ private def normalizedActualWireVersion? (header : String) : Option NormalizedAc
     some .v1
   else if header == normalizedActualHeaderV2 then
     some .v2
+  else if header == normalizedActualHeaderV3 then
+    some .v3
   else
     none
 
@@ -91,7 +97,7 @@ def NormalizedActualParseError.message (err : NormalizedActualParseError) : Stri
   let reasonMsg := match err.reason with
     | .missingFinalNewline => "document must end with a newline"
     | .emptyDocument => "empty document"
-    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeaderV1}' or '{normalizedActualHeaderV2}'"
+    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeaderV1}', '{normalizedActualHeaderV2}', or '{normalizedActualHeaderV3}'"
     | .malformedTxRow detail => s!"malformed TX row: {detail}"
     | .malformedRow rowType detail => s!"malformed {rowType} row: {detail}"
     | .unknownRowType rowType => s!"unknown row type: '{rowType}'"
@@ -515,6 +521,7 @@ private def parseTxs (rows : List (Nat × String)) :
 
 private structure SettlementParseState where
   commitments : List SettlementCommitment := []
+  commitmentRevisions : List SettlementCommitmentRevision := []
   correspondences : List SettlementEffectCorrespondence := []
   correspondenceRevisions : List SettlementCorrespondenceRevision := []
   nettingContexts : List SettlementNettingContext := []
@@ -523,6 +530,7 @@ private structure SettlementParseState where
 
 private def isSettlementRowType (rowType : String) : Bool :=
   rowType == "SETTLEMENT-COMMITMENT" ||
+  rowType == "SETTLEMENT-COMMITMENT-REVISION" ||
   rowType == "SETTLEMENT-CORRESPONDENCE" ||
   rowType == "SETTLEMENT-CORRESPONDENCE-REVISION" ||
   rowType == "SETTLEMENT-NETTING" ||
@@ -570,6 +578,27 @@ private def stepSettlementParser
           measure := ⟨measure⟩
           quantity := Quantity.ofQuanta quanta
         } :: state.commitments
+      }
+  | ["SETTLEMENT-COMMITMENT-REVISION", target, "REPLACEMENT", replacement] => do
+      for token in [target, replacement] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      pure {
+        state with
+        commitmentRevisions := {
+          target := ⟨target⟩
+          replacement := some ⟨replacement⟩
+        } :: state.commitmentRevisions
+      }
+  | ["SETTLEMENT-COMMITMENT-REVISION", target, "RETRACT"] => do
+      if !validToken target then
+        throw { line := lineNo, reason := .invalidToken target }
+      pure {
+        state with
+        commitmentRevisions := {
+          target := ⟨target⟩
+          replacement := none
+        } :: state.commitmentRevisions
       }
   | ["SETTLEMENT-CORRESPONDENCE", id, "TARGET", target, "PHYSICAL",
       event, effect, quantityText] => do
@@ -661,16 +690,24 @@ private def stepSettlementParser
       else
         throw { line := lineNo, reason := .unknownRowType rowType }
 
-private structure V2ParserState where
+private structure SettlementDocumentParserState where
   tx : TxParserState := {}
   settlementStarted : Bool := false
   settlement : SettlementParseState := {}
 
-private def stepV2Parser
-    (state : V2ParserState)
-    (item : Nat × String) : Except NormalizedActualParseError V2ParserState := do
+private def stepSettlementDocumentParser
+    (allowCommitmentRevisions : Bool)
+    (state : SettlementDocumentParserState)
+    (item : Nat × String) :
+    Except NormalizedActualParseError SettlementDocumentParserState := do
   let (lineNo, row) := item
   let rowType := (row.splitOn "\t").head?.getD ""
+  if rowType == "SETTLEMENT-COMMITMENT-REVISION" && !allowCommitmentRevisions then
+    throw {
+      line := lineNo
+      reason := .malformedRow rowType
+        "settlement commitment revisions require normalized Actual v3"
+    }
   if state.settlementStarted then
     if !isSettlementRowType rowType then
       throw {
@@ -703,10 +740,12 @@ private def stepV2Parser
           let tx ← stepTxParser state.tx item
           pure { state with tx := tx }
 
-private def parseV2Rows
+private def parseSettlementRows
+    (allowCommitmentRevisions : Bool)
     (rows : List (Nat × String)) :
     Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) := do
-  let finalState ← rows.foldlM stepV2Parser {}
+  let finalState ← rows.foldlM
+    (stepSettlementDocumentParser allowCommitmentRevisions) {}
   match finalState.tx.current with
   | some draft =>
       throw { line := draft.lastLine, reason := .missingEndTx draft.event draft.txLine }
@@ -715,6 +754,7 @@ private def parseV2Rows
         finalState.tx.completed.reverse,
         {
           commitments := finalState.settlement.commitments.reverse
+          commitmentRevisions := finalState.settlement.commitmentRevisions.reverse
           correspondences := finalState.settlement.correspondences.reverse
           correspondenceRevisions := finalState.settlement.correspondenceRevisions.reverse
           nettingContexts := finalState.settlement.nettingContexts.reverse
@@ -722,6 +762,16 @@ private def parseV2Rows
           nettingMemberRevisions := finalState.settlement.nettingMemberRevisions.reverse
         }
       )
+
+private def parseV2Rows
+    (rows : List (Nat × String)) :
+    Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) :=
+  parseSettlementRows false rows
+
+private def parseV3Rows
+    (rows : List (Nat × String)) :
+    Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) :=
+  parseSettlementRows true rows
 
 /--
 Detailed decoding of a normalized Actual wire representation into an admitted image with structured diagnostics.
@@ -752,6 +802,10 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
             pure (txs, SettlementEvidence.empty)
         | .v2 =>
             match parseV2Rows indexedRows with
+            | .ok parsed => pure parsed
+            | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
+        | .v3 =>
+            match parseV3Rows indexedRows with
             | .ok parsed => pure parsed
             | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
 
@@ -897,6 +951,7 @@ def decodeNormalizedActual? (input : String) : Option ActualEvidence :=
 
 private def settlementEvidenceIsEmpty (settlement : SettlementEvidence) : Bool :=
   settlement.commitments.isEmpty &&
+  settlement.commitmentRevisions.isEmpty &&
   settlement.correspondences.isEmpty &&
   settlement.correspondenceRevisions.isEmpty &&
   settlement.nettingContexts.isEmpty &&
@@ -909,15 +964,22 @@ private def endpointTokenAdmissible : RelationEndpoint → Bool
 
 /--
 Encode persistence-neutral ActualEvidence into normalized Actual wire representation.
-Version 1 is preserved byte-for-byte in capability while settlement evidence is empty.
-Nonempty settlement evidence selects version 2 and appends document-level settlement rows.
+Version 1 is preserved while settlement evidence is empty.
+Version 2 retains the original settlement row family when no commitment revisions exist.
+Version 3 is selected when append-only commitment revision evidence is present.
 Fails closed (`none`) on invalid wire tokens or inadmissible semantic evidence.
 -/
 def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
   let _ ← admitActualEvidence? evidence
   let settlementEmpty := settlementEvidenceIsEmpty evidence.settlements
+  let hasCommitmentRevisions := !evidence.settlements.commitmentRevisions.isEmpty
   let header :=
-    if settlementEmpty then normalizedActualHeaderV1 else normalizedActualHeaderV2
+    if settlementEmpty then
+      normalizedActualHeaderV1
+    else if hasCommitmentRevisions then
+      normalizedActualHeaderV3
+    else
+      normalizedActualHeaderV2
   let mut rows : List String := [header]
 
   for event in evidence.events.events do
@@ -1019,6 +1081,22 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
         s!"{formatEndpoint commitment.debtor}\t{formatEndpoint commitment.creditor}\t" ++
         s!"{commitment.measure.token}\t{commitment.quantity.quanta}"
       ]
+
+    for revision in evidence.settlements.commitmentRevisions do
+      if !validToken revision.target.token then
+        none
+      match revision.replacement with
+      | none =>
+          rows := rows ++ [
+            s!"SETTLEMENT-COMMITMENT-REVISION\t{revision.target.token}\tRETRACT"
+          ]
+      | some replacement =>
+          if !validToken replacement.token then
+            none
+          rows := rows ++ [
+            s!"SETTLEMENT-COMMITMENT-REVISION\t{revision.target.token}\t" ++
+            s!"REPLACEMENT\t{replacement.token}"
+          ]
 
     for correspondence in evidence.settlements.correspondences do
       if !validToken correspondence.id.token ||
