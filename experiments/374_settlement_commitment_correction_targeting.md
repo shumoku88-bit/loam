@@ -1,6 +1,6 @@
 # Observation 374 — settlement commitment correction targeting
 
-Status: **BOUNDED SEMANTIC OBSERVATION — identity/version representation under test; no production change selected**
+Status: **BOUNDED RESULT — frontier-follow + current re-admission qualified; separate logical/version identity not forced**
 
 Baseline:
 
@@ -252,7 +252,45 @@ Expected: **UNSAT counterexample**.
 Every admitted dependent row resolves to exactly one current target and is
 compatible with it.
 
-## Provisional interpretation if the matrix holds
+## Alloy result
+
+Qualified on Alloy 6.2.0 with SAT4J through the repository's shared research witness harness.
+
+```text
+compatibleCorrectionPreservesHistoricalTargetWitness SAT
+multiVersionLineageWitness                           SAT
+incompatibleMeasureCorrectionRejectedWitness         SAT
+incompatibleDirectionCorrectionRejectedWitness       SAT
+overSettledCorrectionRejectedWitness                 SAT
+retractionWithDependentUseRejectedWitness             SAT
+
+ExactTargetingAlwaysPreservesCompatibleAttribution   SAT counterexample
+BlindReplacementFollowingIsAlwaysSafe                SAT counterexample
+
+QualifiedFollowNeverProducesNegativeOutstanding      UNSAT counterexample
+QualifiedFollowClosesCurrentTargets                   UNSAT counterexample
+```
+
+The bounded result rejects both extremes:
+
+```text
+exact historical row only
+blind automatic replacement following
+```
+
+and qualifies the middle candidate:
+
+```text
+retain original target identity
+-> follow commitment correction frontier in projection
+-> re-admit dependent evidence against the current commitment
+-> fail closed when corrected semantics make old evidence incompatible
+```
+
+Within the currently tested capability, a separately stored logical commitment
+identity is therefore **not forced**.
+
+## Finding
 
 The bounded capability would not yet force:
 
@@ -311,7 +349,7 @@ example:
 Those pressures are not present in the current Settlement capability and should
 not be preemptively promoted.
 
-## Next question if qualified
+## Next question
 
 If Candidate C survives, the remaining design question from Observation 373
 becomes narrower:
@@ -324,7 +362,7 @@ That should be tested before production code or TUI editing is added.
 
 ## Stop condition
 
-If the expected matrix holds:
+The qualified matrix supports:
 
 1. reject exact-row-only target semantics;
 2. reject blind replacement following;
