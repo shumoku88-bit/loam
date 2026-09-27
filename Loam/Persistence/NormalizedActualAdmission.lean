@@ -52,6 +52,7 @@ structure AdmittedActualImage where
     admitSettlementImage?
       evidence.events
       evidence.settlements.commitments
+      evidence.settlements.commitmentRevisions
       evidence.settlements.correspondences
       evidence.settlements.correspondenceRevisions
       evidence.settlements.nettingContexts
@@ -249,6 +250,7 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
                   admitSettlementImage?
                     evidence.events
                     evidence.settlements.commitments
+                    evidence.settlements.commitmentRevisions
                     evidence.settlements.correspondences
                     evidence.settlements.correspondenceRevisions
                     evidence.settlements.nettingContexts
