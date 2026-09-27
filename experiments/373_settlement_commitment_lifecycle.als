@@ -260,18 +260,18 @@ pred partialExtinguishmentWitness {
 // commitment of 7 succeeds it.
 pred successorExtinguishmentWitness {
   some w: World,
-       disj old, successor: Commitment,
+       disj old, newCommitment: Commitment,
        transition: Extinguishment | {
-    w.commitments = old + successor
+    w.commitments = old + newCommitment
     no w.revisions
     w.extinguishments = transition
     no w.settlements
 
     old.quantity = 10
-    successor.quantity = 7
+    newCommitment.quantity = 7
     transition.target = old
     transition.quantity = 10
-    transition.successor = successor
+    transition.successor = newCommitment
 
     totalOutstanding[w] = 7
   }
@@ -282,27 +282,27 @@ pred successorExtinguishmentWitness {
 // outstanding amount while answering a different historical/semantic question.
 pred sameCancelDifferentMeaningWitness {
   some disj correctionWorld, realityWorld: World,
-       disj old, successor: Commitment,
+       disj old, newCommitment: Commitment,
        revision: CommitmentRevision,
        transition: Extinguishment | {
-    correctionWorld.commitments = old + successor
-    realityWorld.commitments = old + successor
+    correctionWorld.commitments = old + newCommitment
+    realityWorld.commitments = old + newCommitment
 
     old.quantity = 10
-    successor.quantity = 7
+    newCommitment.quantity = 7
 
     correctionWorld.revisions = revision
     no correctionWorld.extinguishments
     no correctionWorld.settlements
     revision.target = old
-    revision.replacement = successor
+    revision.replacement = newCommitment
 
     no realityWorld.revisions
     realityWorld.extinguishments = transition
     no realityWorld.settlements
     transition.target = old
     transition.quantity = 10
-    transition.successor = successor
+    transition.successor = newCommitment
 
     sameCollapsedCancelView[correctionWorld, realityWorld]
     totalOutstanding[correctionWorld] = 7
