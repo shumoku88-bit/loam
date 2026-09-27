@@ -354,7 +354,7 @@ def loadSnapshotFromActualImageAt
     | .error message => return .error message
     | .ok balances => pure balances
   let scheduled ←
-    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents with
+    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events with
     | .error message => return .error message
     | .ok scheduled => pure scheduled
   return project observedAt window.endExclusive selection balances scheduled
@@ -381,9 +381,10 @@ def loadSnapshotAt
 Reconstruct a retrospective current-truth Daily Pace series from one
 caller-supplied admitted Actual image.
 
-The same image supplies balances, Scheduled completion Event references, and
-Actual review records, so a composed reader cannot mix Actual generations while
-building one answer.
+The same image supplies balances, retained Scheduled-completion Event identities,
+and Actual review records, so a composed reader cannot mix Actual generations
+while building one answer. Completion activation follows retained occurrence
+identity; Event Correction does not reopen an already-completed Scheduled item.
 -/
 def loadHistoryFromActualImageAt
     (dataDir : System.FilePath)
@@ -411,7 +412,7 @@ def loadHistoryFromActualImageAt
     | .error message => return .error message
     | .ok evidence => pure evidence
   let scheduled ←
-    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents with
+    match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events with
     | .error message => return .error message
     | .ok scheduled => pure scheduled
   return projectHistory

@@ -105,9 +105,13 @@ private def currentLocusCatalog
 /--
 Compose one Home snapshot from one already-admitted Actual generation.
 
-Every Actual-backed Home branch receives the same `ActualAuthority.Image`:
-Actual rows, Scheduled completion validation, current Daily Pace, and recent pace
-history. Independent authorities such as Scheduled storage and Attention remain
+Every Actual-backed Home branch receives the same `ActualAuthority.Image`.
+Actual rows and quantity projections use that image's admitted current
+interpretation. Scheduled completion validation uses retained Event identities
+from the same image: Correction changes current interpretation but does not erase
+the occurrence identity referenced by an already-retained completion.
+
+Independent authorities such as Scheduled storage and Attention remain
 independently refreshed; this boundary promises same-Actual-generation
 composition, not a cross-file atomic snapshot.
 -/
@@ -117,7 +121,7 @@ def loadSnapshotFromActualImage
     (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
   let actualRecords := Loam.ActualReview.recordsFromActualImage image
   let scheduled ←
-    Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.currentEvents
+    Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
   let attentionResult ←
     Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
   let attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=

@@ -259,6 +259,55 @@ def main : IO Unit := do
   expect (loadedHistory == history)
     "canonical Daily Pace history loader diverged from the shared historical projection"
 
+  -- A retained Scheduled completion remains active when its Actual endpoint is
+  -- later corrected. Correction changes current Event interpretation but does
+  -- not erase the retained occurrence identity named by the terminal relation.
+  let correctedCompletion ← requireSome
+    (Event.ofEffects? ⟨"completion-corrected"⟩
+      [ Effect.ofQuantity ⟨"completion-corrected-cash"⟩ cash yen (Quantity.ofQuanta (-300))
+      , Effect.ofQuantity ⟨"completion-corrected-expense"⟩ expense yen (Quantity.ofQuanta 300)
+      ])
+    "Daily Pace corrected completion Event fixture"
+  let correctedEvents ← requireSome
+    (EventMemory.ofEvents? [opening, spend, completion, correctedCompletion])
+    "Daily Pace corrected completion Event memory"
+  let correctedCorrections ← requireSome
+    (EventCorrectionMemory.ofCorrections?
+      [{ target := completion.id, replacement := correctedCompletion.id }])
+    "Daily Pace corrected completion relation"
+  let correctedValidity ← requireSome
+    (ActualValidityHistory.ofParts?
+      [ .base opening.id "2026-09-08"
+      , .base spend.id "2026-09-09"
+      , .base completion.id "2026-09-10"
+      , .base correctedCompletion.id "2026-09-10"
+      ]
+      [])
+    "Daily Pace corrected completion validity"
+  let correctedEvidence : Loam.ActualEvidence := {
+    Loam.ActualEvidence.empty with
+      events := correctedEvents
+      corrections := correctedCorrections
+      validity := correctedValidity
+  }
+  let correctedImage ← requireSome
+    (Loam.Persistence.admitActualImage? correctedEvidence)
+    "Daily Pace corrected completion admitted image"
+  expect
+    ((correctedImage.currentEvents.findById? completion.id).isNone &&
+      (correctedImage.evidence.events.findById? completion.id).isSome)
+    "fixture did not distinguish current interpretation from retained completion identity"
+
+  let correctedHistory ←
+    match ← Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt
+        root correctedImage "2026-09-10" 7 with
+    | .error message =>
+        throw (IO.userError
+          ("corrected completion reopened Scheduled or broke Daily Pace parity: " ++ message))
+    | .ok points => pure points
+  expect (correctedHistory == history)
+    "Actual Correction changed retained Scheduled completion meaning"
+
   let retirementTerminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals?
       [{ source := laterBill.id, target := none }])
