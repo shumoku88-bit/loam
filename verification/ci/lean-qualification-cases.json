@@ -256,6 +256,31 @@
       "tests": [
         "Loam/Tests/SettlementReview.lean"
       ]
+    },
+    {
+      "id": "deterministic-movement-scenario",
+      "workflowName": "Deterministic Movement Scenario",
+      "jobName": "Replay deterministic Movement publication scenario",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "experiment/381-deterministic-simulation-pilot"
+      ],
+      "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence",
+      "paths": [
+        "Loam/Core/LocusAdmission.lean",
+        "Loam/Core/MovementOperationEvidence.lean",
+        "Loam/MovementAdmission.lean",
+        "Loam/MovementPublisher.lean",
+        "Loam/ActualAuthority.lean",
+        "Loam/LocusAdmissionAuthority.lean",
+        "Loam/Persistence/NormalizedActualPersistence.lean",
+        "Loam/Tests/DeterministicMovementScenario.lean",
+        "experiments/381_deterministic_simulation_pilot.md"
+      ],
+      "tests": [
+        "Loam/Tests/DeterministicMovementScenario.lean"
+      ]
     }
   ]
 }
