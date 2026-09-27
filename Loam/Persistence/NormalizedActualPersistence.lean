@@ -623,6 +623,7 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
           reversals := revMemory
           relations := orderedRelations
           discharges := orderedDischarges
+          settlements := SettlementEvidence.empty
         }
 
         match admitActualImage? rawEvidence with
