@@ -1,4 +1,5 @@
 import Loam.Application.ReplacementFrontier
+import Loam.ActualDate
 import Loam.Core.EventMemory
 import Loam.Core.Settlement
 
@@ -47,6 +48,14 @@ structure AdmittedSettlementCorrespondence where
   target : AdmittedSettlementCommitment
   physical : Effect
 
+/--
+One current non-settlement extinguishment after its historical commitment target
+resolves through commitment correction lineage and its local laws pass.
+-/
+structure AdmittedSettlementExtinguishment where
+  extinguishment : SettlementCommitmentExtinguishment
+  target : AdmittedSettlementCommitment
+
 /-- One current netting member after its context/target-local laws pass. -/
 structure AdmittedSettlementNettingMember where
   member : SettlementNettingMember
@@ -71,6 +80,7 @@ and outstanding quantities remain derived.
 -/
 structure AdmittedSettlementImage where
   commitments : List AdmittedSettlementCommitment
+  extinguishments : List AdmittedSettlementExtinguishment := []
   correspondences : List AdmittedSettlementCorrespondence
   netting : List AdmittedSettlementNettingContext
 
@@ -224,6 +234,91 @@ private def resolveCommitment?
     none
   else
     findCommitment? commitments terminal
+
+private def uniqueExtinguishmentIds
+    (rows : List SettlementCommitmentExtinguishment) : Bool :=
+  decide ((rows.map SettlementCommitmentExtinguishment.id).Nodup)
+
+private def extinguishmentPresent
+    (rows : List SettlementCommitmentExtinguishment)
+    (id : SettlementExtinguishmentId) : Bool :=
+  rows.any fun row => decide (row.id = id)
+
+private def extinguishmentRevisionTargetsUnique
+    (revisions : List SettlementExtinguishmentRevision) : Bool :=
+  decide ((revisions.map SettlementExtinguishmentRevision.target).Nodup)
+
+private def extinguishmentEdges
+    (revisions : List SettlementExtinguishmentRevision) :
+    List (ReplacementFrontier.Edge SettlementExtinguishmentId) :=
+  revisions.filterMap fun revision =>
+    match revision.replacement with
+    | none => none
+    | some replacement =>
+        some { source := revision.target, successor := replacement }
+
+private def extinguishmentReferencesClosed
+    (rows : List SettlementCommitmentExtinguishment)
+    (revisions : List SettlementExtinguishmentRevision) : Bool :=
+  revisions.all fun revision =>
+    extinguishmentPresent rows revision.target &&
+      match revision.replacement with
+      | none => true
+      | some replacement => extinguishmentPresent rows replacement
+
+private def extinguishmentRetracted
+    (revisions : List SettlementExtinguishmentRevision)
+    (id : SettlementExtinguishmentId) : Bool :=
+  revisions.any fun revision =>
+    decide (revision.target = id) && revision.replacement.isNone
+
+private def currentExtinguishments?
+    (rows : List SettlementCommitmentExtinguishment)
+    (revisions : List SettlementExtinguishmentRevision) :
+    Option (List SettlementCommitmentExtinguishment) := do
+  if !uniqueExtinguishmentIds rows then
+    none
+  else if !extinguishmentRevisionTargetsUnique revisions then
+    none
+  else if !extinguishmentReferencesClosed rows revisions then
+    none
+  else
+    let edges := extinguishmentEdges revisions
+    if !ReplacementFrontier.structurallyAdmissible
+        (extinguishmentPresent rows) edges then
+      none
+    else
+      let positiveFrontier :=
+        ReplacementFrontier.frontier SettlementCommitmentExtinguishment.id rows edges
+      some (positiveFrontier.filter fun row =>
+        !extinguishmentRetracted revisions row.id)
+
+private def admitExtinguishment?
+    (commitments : List AdmittedSettlementCommitment)
+    (commitmentRevisions : List SettlementCommitmentRevision)
+    (row : SettlementCommitmentExtinguishment) :
+    Option AdmittedSettlementExtinguishment := do
+  let target ← resolveCommitment? commitments commitmentRevisions row.target
+  if row.quantity.quanta <= 0 then
+    none
+  else if let some effectiveOn := row.effectiveOn then
+    if !Loam.ActualDate.validIsoDate effectiveOn then
+      none
+    else
+      some { extinguishment := row, target := target }
+  else
+    some { extinguishment := row, target := target }
+
+private def admitExtinguishments? :
+    List AdmittedSettlementCommitment →
+    List SettlementCommitmentRevision →
+    List SettlementCommitmentExtinguishment →
+    Option (List AdmittedSettlementExtinguishment)
+  | _, _, [] => some []
+  | commitments, commitmentRevisions, row :: rest => do
+      let admitted ← admitExtinguishment? commitments commitmentRevisions row
+      let later ← admitExtinguishments? commitments commitmentRevisions rest
+      some (admitted :: later)
 
 private def correspondenceEdges
     (revisions : List SettlementCorrespondenceRevision) :
@@ -464,13 +559,26 @@ private def netTargetTotal
         total)
     0
 
+private def extinguishmentTargetTotal
+    (rows : List AdmittedSettlementExtinguishment)
+    (target : SettlementCommitmentId) : Int :=
+  rows.foldl
+    (fun total row =>
+      if row.target.commitment.id = target then
+        total + row.extinguishment.quantity.quanta
+      else
+        total)
+    0
+
 private def targetConservationAdmissible
     (commitments : List AdmittedSettlementCommitment)
     (direct : List AdmittedSettlementCorrespondence)
-    (netting : List AdmittedSettlementNettingContext) : Bool :=
+    (netting : List AdmittedSettlementNettingContext)
+    (extinguishments : List AdmittedSettlementExtinguishment) : Bool :=
   commitments.all fun admitted =>
     directTargetTotal direct admitted.commitment.id +
-      netTargetTotal netting admitted.commitment.id <=
+      netTargetTotal netting admitted.commitment.id +
+      extinguishmentTargetTotal extinguishments admitted.commitment.id <=
         admitted.commitment.quantity.quanta
 
 private def netPhysicalAnchor?
@@ -502,12 +610,13 @@ Admission order is intentional:
 
 1. validate commitment revision topology and select the current commitment frontier;
 2. admit only current commitment payloads;
-3. validate correspondence/member revision topology and select current row frontiers;
+3. validate extinguishment/correspondence/member revision topology and select current row frontiers;
 4. resolve each historical dependent target through commitment correction lineage;
-5. re-admit current direct/member rows against the resolved current commitment;
+5. re-admit current extinguishment/direct/member rows against the resolved current commitment;
 6. derive and admit each netting context outcome;
 7. enforce direct physical coverage;
-8. enforce cross-mode target and physical conservation.
+8. enforce committed = settled + extinguished + outstanding conservation;
+9. enforce cross-mode physical conservation.
 
 Superseded correspondence/member payload is retained history but not current
 semantic state.
@@ -516,6 +625,8 @@ def admitSettlementImage?
     (events : EventMemory)
     (commitments : List SettlementCommitment)
     (commitmentRevisions : List SettlementCommitmentRevision)
+    (extinguishments : List SettlementCommitmentExtinguishment)
+    (extinguishmentRevisions : List SettlementExtinguishmentRevision)
     (correspondences : List SettlementEffectCorrespondence)
     (correspondenceRevisions : List SettlementCorrespondenceRevision)
     (contexts : List SettlementNettingContext)
@@ -526,6 +637,10 @@ def admitSettlementImage?
     none
   let currentCommitments ← currentCommitments? commitments commitmentRevisions
   let admittedCommitments ← admitCommitments? events currentCommitments
+  let currentExtinguishments ← currentExtinguishments?
+    extinguishments extinguishmentRevisions
+  let admittedExtinguishments ← admitExtinguishments?
+    admittedCommitments commitmentRevisions currentExtinguishments
   let currentDirect ← currentCorrespondences?
     correspondences correspondenceRevisions
   let admittedDirect ← admitCorrespondences?
@@ -538,13 +653,14 @@ def admitSettlementImage?
   let admittedNetting ← admitNettingContexts?
     events admittedMembers contexts
   if !targetConservationAdmissible
-      admittedCommitments admittedDirect admittedNetting then
+      admittedCommitments admittedDirect admittedNetting admittedExtinguishments then
     none
   else if !physicalConservationAdmissible admittedDirect admittedNetting then
     none
   else
     some {
       commitments := admittedCommitments
+      extinguishments := admittedExtinguishments
       correspondences := admittedDirect
       netting := admittedNetting
     }
@@ -556,17 +672,25 @@ def AdmittedSettlementImage.settledQuanta
   directTargetTotal image.correspondences target +
     netTargetTotal image.netting target
 
+/-- Exact current non-settlement extinguished magnitude for one commitment. -/
+def AdmittedSettlementImage.extinguishedQuanta
+    (image : AdmittedSettlementImage)
+    (target : SettlementCommitmentId) : Int :=
+  extinguishmentTargetTotal image.extinguishments target
+
 /--
 Exact current outstanding Quantity for one admitted commitment.
 
-The value is derived, never retained. Admission already guarantees settled
-attribution does not exceed the commitment Quantity.
+The value is derived, never retained. Admission already guarantees combined
+settlement plus non-settlement extinguishment does not exceed commitment Quantity.
 -/
 def AdmittedSettlementImage.outstanding?
     (image : AdmittedSettlementImage)
     (target : SettlementCommitmentId) : Option Quantity := do
   let commitment ← findCommitment? image.commitments target
   some (Quantity.ofQuanta
-    (commitment.commitment.quantity.quanta - image.settledQuanta target))
+    (commitment.commitment.quantity.quanta -
+      image.settledQuanta target -
+      image.extinguishedQuanta target))
 
 end Loam.Application
