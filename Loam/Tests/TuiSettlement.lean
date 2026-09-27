@@ -155,6 +155,8 @@ def main : IO Unit := do
           !contains "SettlementCommitment" actionText &&
           !contains "extinguishment" actionText)
     "friendly settlement action menu leaked internal vocabulary"
+  expect (!contains "Review an earlier decrease" actionText)
+    "routine action menu exposed reduction-repair complexity too early"
 
   -- Amount correction validates against already explained quantity before
   -- emitting the surface-neutral intent.
@@ -226,6 +228,77 @@ def main : IO Unit := do
         "friendly reduction emitted guessed or incorrect evidence"
   | _ => throw (IO.userError "friendly reduction did not emit intent")
 
+  -- Existing decreases are managed only inside the third branch, so the top
+  -- level stays small. The list uses amount/date rather than retained row IDs.
+  let reductionHub :=
+    (Loam.Tui.SettlementAction.update action (.input '3')).state
+  let reductionHubText := widgetText (Loam.Tui.SettlementAction.view reductionHub)
+  expect (contains "Record another decrease" reductionHubText &&
+          contains "Review an earlier decrease" reductionHubText)
+    "existing reduction did not reveal the nested review branch"
+
+  let reductionList :=
+    (Loam.Tui.SettlementAction.update reductionHub (.input '2')).state
+  let reductionListText := widgetText (Loam.Tui.SettlementAction.view reductionList)
+  expect (contains "1. 100" reductionListText &&
+          contains "date unknown" reductionListText)
+    "earlier reduction list lost human-recognizable amount/date"
+  expect (!contains "adjust-1" reductionListText)
+    "earlier reduction list leaked retained row identity"
+
+  let reductionItem :=
+    (Loam.Tui.SettlementAction.update reductionList .enter).state
+  let reductionItemText := widgetText (Loam.Tui.SettlementAction.view reductionItem)
+  expect (contains "Change this decrease" reductionItemText &&
+          contains "This decrease record is wrong" reductionItemText)
+    "earlier reduction actions missing"
+
+  let repairAmount : Loam.Tui.SettlementAction.State := {
+    action with
+    mode := .repairAmount 0 "80"
+  }
+  let repairWhen :=
+    (Loam.Tui.SettlementAction.update repairAmount .enter).state
+  let repairPreview :=
+    (Loam.Tui.SettlementAction.update repairWhen (.input '3')).state
+  let repairPreviewText :=
+    widgetText (Loam.Tui.SettlementAction.view repairPreview)
+  expect (contains "from 100 to 80" repairPreviewText &&
+          contains "date unknown" repairPreviewText &&
+          contains "Remaining would be 320" repairPreviewText)
+    "earlier reduction correction preview is unclear"
+  expect (!contains "adjust-1" repairPreviewText)
+    "earlier reduction correction preview leaked retained identity"
+  match (Loam.Tui.SettlementAction.update repairPreview .enter).publish with
+  | some (.correctReduction draft) =>
+      expect (draft.target.token == "adjust-1" &&
+              draft.quantity.quanta == 80 &&
+              draft.effectiveOn.isNone)
+        "earlier reduction correction emitted the wrong hidden intent"
+  | _ => throw (IO.userError "earlier reduction correction did not emit intent")
+
+  let tooLargeRepair : Loam.Tui.SettlementAction.State := {
+    action with
+    mode := .repairAmount 0 "401"
+  }
+  let tooLargeRepairStep :=
+    Loam.Tui.SettlementAction.update tooLargeRepair .enter
+  expect (contains "larger than the amount" tooLargeRepairStep.state.notice)
+    "earlier reduction correction did not explain its upper bound"
+
+  let retractReduction :=
+    (Loam.Tui.SettlementAction.update
+      { action with mode := .reductionItem 0 0 } (.input '2')).state
+  let retractReductionText :=
+    widgetText (Loam.Tui.SettlementAction.view retractReduction)
+  expect (contains "Remaining would return to 400" retractReductionText)
+    "earlier reduction retraction did not explain the resulting balance"
+  match (Loam.Tui.SettlementAction.update retractReduction .enter).publish with
+  | some (.retractReduction draft) =>
+      expect (draft.target.token == "adjust-1")
+        "earlier reduction retraction emitted the wrong hidden target"
+  | _ => throw (IO.userError "earlier reduction retraction did not emit intent")
+
   let tooLargeReduction : Loam.Tui.SettlementAction.State := {
     action with
     mode := .reduceAmount "400"
@@ -250,4 +323,4 @@ def main : IO Unit := do
   expect (contains "nothing to show in this view" emptyText)
     "empty settlement workspace message missing"
 
-  IO.println "TUI Settlement: compact review, on-demand detail, and friendly action intents passed."
+  IO.println "TUI Settlement: compact review and nested friendly settlement repair passed."
