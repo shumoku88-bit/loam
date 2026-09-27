@@ -118,7 +118,8 @@ private def worldWith (reversals : ActualReversalMemory) : Loam.ActualEvidence :
     corrections := noCorrections
     reversals := reversals
     relations := []
-    discharges := [] }
+    discharges := []
+    settlements := .empty }
 
 def worldAB : Loam.ActualEvidence :=
   worldWith reversalsAB
