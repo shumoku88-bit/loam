@@ -134,7 +134,7 @@ def view (_known : List String) (state : State) : Widget :=
   | .editing =>
       let form := state.editor.form
       let rowLines := Loam.Tui.Record.postingFieldLines form
-      let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let actions := ["Preview", "Add posting", "Drop last row", "Cancel"]
       let options := Loam.Tui.Record.catalogCandidates state.editor
       let selectedIndex :=
         if options.isEmpty then 0 else state.editor.candidateIndex % options.length
