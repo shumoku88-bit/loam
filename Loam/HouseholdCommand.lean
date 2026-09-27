@@ -7,6 +7,7 @@ import Loam.ActualValidityPublisher
 import Loam.ActualReversalPublisher
 import Loam.EventMerchantPublisher
 import Loam.SettlementPublisher
+import Loam.SettlementActionPublisher
 import Loam.ScheduledCreationPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.ScheduledReplacementPublisher
@@ -108,6 +109,30 @@ def recordSettlementEvidence
     (draft : Loam.SettlementPublisher.Draft) :
     IO (Except String Unit) :=
   Loam.SettlementPublisher.publish root.toString draft
+
+/-- Correct only the amount of one current settlement item. -/
+def correctSettlementAmount
+    (root : System.FilePath)
+    (intent : Loam.SettlementActionPublisher.AmountCorrection) :
+    IO (Except String Loam.Core.SettlementCommitmentId) :=
+  Loam.SettlementActionPublisher.correctAmount root.toString intent
+
+/--
+Retract one current settlement commitment because the commitment record itself
+was erroneous.
+-/
+def retractSettlement
+    (root : System.FilePath)
+    (intent : Loam.SettlementActionPublisher.Retraction) :
+    IO (Except String Unit) :=
+  Loam.SettlementActionPublisher.retract root.toString intent
+
+/-- Record an exact non-payment reduction of one current settlement commitment. -/
+def reduceSettlementWithoutPayment
+    (root : System.FilePath)
+    (intent : Loam.SettlementActionPublisher.NonSettlementReduction) :
+    IO (Except String Loam.Core.SettlementExtinguishmentId) :=
+  Loam.SettlementActionPublisher.reduceWithoutPayment root.toString intent
 
 /-- Publish one exact Actual reversal. -/
 def reverseActual
