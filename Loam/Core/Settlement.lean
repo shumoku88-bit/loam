@@ -7,7 +7,7 @@ set_option autoImplicit false
 /-!
 # Settlement vocabulary
 
-Observations 359–371 qualified a settlement family that remains additive beside
+Observations 359–376 qualified a settlement family that remains additive beside
 `OpenRelation`.
 
 The distinction is intentional:
@@ -66,6 +66,25 @@ structure SettlementCommitment where
   creditor : RelationEndpoint
   measure : MeasureId
   quantity : Quantity
+deriving Repr, DecidableEq
+
+/--
+One append-only evidence-side revision of a retained settlement commitment.
+
+Observation 376 qualified one family-specific authority for both positive
+correction and explicit retraction:
+
+- `replacement = some id` means the target row is superseded by another retained
+  commitment version;
+- `replacement = none` means the target row is explicitly retracted with no
+  positive successor.
+
+This is evidence lifecycle only. It must not be used for physical/net settlement
+or for quantity-bearing non-settlement extinguishment.
+-/
+structure SettlementCommitmentRevision where
+  target : SettlementCommitmentId
+  replacement : Option SettlementCommitmentId
 deriving Repr, DecidableEq
 
 /--
@@ -189,6 +208,7 @@ admitted. Those laws remain owned by the Application settlement image.
 -/
 structure SettlementEvidence where
   commitments : List SettlementCommitment
+  commitmentRevisions : List SettlementCommitmentRevision := []
   correspondences : List SettlementEffectCorrespondence
   correspondenceRevisions : List SettlementCorrespondenceRevision
   nettingContexts : List SettlementNettingContext
@@ -199,6 +219,7 @@ deriving Repr, DecidableEq
 /-- Empty retained settlement evidence for Actual generations with no settlement facts. -/
 def SettlementEvidence.empty : SettlementEvidence := {
   commitments := []
+  commitmentRevisions := []
   correspondences := []
   correspondenceRevisions := []
   nettingContexts := []
