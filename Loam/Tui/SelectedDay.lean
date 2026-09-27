@@ -63,6 +63,13 @@ structure Step where
 def initial (focusDate : String) : State :=
   { focusDate := focusDate }
 
+/-- Open one dated current Actual with that exact Event selected in the day workspace. -/
+def initialForActual? (snapshot : Snapshot) (record : ReviewRecord) : Option State := do
+  let date ← record.date
+  let index ← (recordsForDay snapshot date).findIdx? fun item =>
+    item.event.id == record.event.id
+  some { focusDate := date, pane := .actual, actualRow := index }
+
 /-- Selected-day Actual is exactly the existing shared ActualReview day answer. -/
 def actualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   recordsForDay snapshot state.focusDate

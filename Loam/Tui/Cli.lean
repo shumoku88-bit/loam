@@ -190,25 +190,65 @@ def homeEventOfKey : Loam.Tui.Terminal.Key → Event
   | key => eventOfKey key
 
 /-- Actual workspace interaction grammar over presentation-only pane and cursor state. -/
-def actualWorkspaceEventOfKey : Loam.Tui.Terminal.Key → Loam.Tui.ActualWorkspace.Event
-  | .up | .input 'k' | .input 'K' => .previous
-  | .down | .input 'j' | .input 'J' => .next
-  | .left | .input 'h' | .input 'H' => .focusLeft
-  | .right | .input 'l' | .input 'L' => .focusRight
-  | .input 'f' | .input 'F' => .cycleFilter
-  | .input 's' | .input 'S' => .cycleOrder
-  | .input 'n' | .input 'N' => .recordNew
-  | .escape | .input 'q' | .input 'Q' => .back
-  | _ => .other
+def actualWorkspaceEventOfKey
+    (state : Loam.Tui.ActualWorkspace.State) :
+    Loam.Tui.Terminal.Key → Loam.Tui.ActualWorkspace.Event :=
+  if state.searchEditing then
+    fun key =>
+      match key with
+      | .escape => .cancelSearch
+      | .backspace => .searchBackspace
+      | .enter => .acceptSearch
+      | .input char => .searchInput char
+      | _ => .other
+  else
+    fun key =>
+      match key with
+      | .up | .input 'k' | .input 'K' => .previous
+      | .down | .input 'j' | .input 'J' => .next
+      | .left | .input 'h' | .input 'H' => .focusLeft
+      | .right | .input 'l' | .input 'L' => .focusRight
+      | .input 'f' | .input 'F' => .cycleFilter
+      | .input 's' | .input 'S' => .cycleOrder
+      | .input '/' => .beginSearch
+      | .enter => .openSelected
+      | .input 'n' | .input 'N' => .recordNew
+      | .escape | .input 'q' | .input 'Q' => .back
+      | _ => .other
 
 /-- Actual workspace session. `q` returns to Home; `n` reuses the shared Movement writer. -/
 partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.ActualWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
   let step := Loam.Tui.ActualWorkspace.update snapshot state
-    (actualWorkspaceEventOfKey (← Loam.Tui.Terminal.readKey))
+    (actualWorkspaceEventOfKey state (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
+  | .openSelected =>
+      match Loam.Tui.ActualWorkspace.selectedRecord? snapshot step.state with
+      | none =>
+          let next := { step.state with notice := "No current Actual is selected to open." }
+          let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          actualWorkspaceLoop bounds dataDir root snapshot next nextFrame
+      | some record =>
+          match Loam.Tui.SelectedDay.initialForActual? snapshot record with
+          | none =>
+              let next := { step.state with
+                notice := "The selected Actual has no dated day workspace coordinate." }
+              let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot next)
+              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+              actualWorkspaceLoop bounds dataDir root snapshot next nextFrame
+          | some day =>
+              let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot day)
+              Loam.Tui.Terminal.redrawFromBlank bounds dayFrame
+              let fresh ← Loam.Tui.SelectedDaySession.run
+                bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
+              let refreshed := Loam.Tui.ActualWorkspace.refreshed fresh step.state
+              let next := { refreshed with notice := "" }
+              let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
+              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+              actualWorkspaceLoop bounds dataDir root fresh next nextFrame
   | .recordNew =>
       let world ←
         match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
