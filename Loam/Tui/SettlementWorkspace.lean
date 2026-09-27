@@ -119,8 +119,8 @@ private def windowStart (state : State) : Nat :=
 
 private def rowText
     (selected : Bool) (row : Loam.SettlementReview.Row) : String :=
-  let prefix := if selected then " > " else "   "
-  prefix ++
+  let marker := if selected then " > " else "   "
+  marker ++
     Loam.Tui.Layout.padRight 22 row.id.token ++
     Loam.Tui.Layout.padLeft 11 (toString row.committed.quanta) ++
     Loam.Tui.Layout.padLeft 11 (toString row.settled.quanta) ++
