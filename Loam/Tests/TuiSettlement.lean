@@ -150,7 +150,7 @@ def main : IO Unit := do
 
   let empty := Loam.Tui.SettlementWorkspace.initial { rows := [] }
   let emptyText := widgetText (Loam.Tui.SettlementWorkspace.view bounds empty)
-  expect (contains "no settlement commitments" emptyText)
+  expect (contains "nothing to show in this view" emptyText)
     "empty settlement workspace message missing"
 
   IO.println "TUI Settlement: compact routine view and on-demand provenance detail passed."
