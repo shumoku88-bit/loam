@@ -59,7 +59,7 @@ private def roleGapText
     | none => "quantity also unsupported"
   coordinateText gap.coordinate ++ "  " ++ quantityState
 
-private def plain
+def plainText
     (summary : Loam.RoleBalanceAnswerability.Summary) : String :=
   let stockTargets :=
     (summary.balanceSheetAmountUnknown.map fun row =>
@@ -103,7 +103,7 @@ private def machineRecord (fields : List String) : String :=
 private def blockerRole (role : Option AccountingRole) : String :=
   role.map roleText |>.getD "UNRESOLVED"
 
-private def machine
+def machineText
     (summary : Loam.RoleBalanceAnswerability.Summary) : String :=
   let base := [
     machineRecord ["meta", "schema", "1"],
@@ -157,7 +157,7 @@ def run (args : List String) : IO UInt32 := do
         IO.eprintln message
         return 2
   let summary := Loam.RoleBalanceAnswerability.summarize snapshot
-  IO.println (if machineMode then machine summary else plain summary)
+  IO.println (if machineMode then machineText summary else plainText summary)
   return 0
 
 end Loam.ExplainCli
