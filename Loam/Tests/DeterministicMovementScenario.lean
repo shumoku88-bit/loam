@@ -75,8 +75,11 @@ private def dateFor (seed : Nat) : String :=
   | 3 => "2026-09-04"
   | _ => "2026-09-05"
 
-private def operationFor (seed : Nat) : MovementOperationId :=
-  ⟨s!"scenario-op-{seed % 7}"⟩
+private def operationFor (seed kind : Nat) : MovementOperationId :=
+  if kind < 3 then
+    ⟨s!"scenario-invalid-{kind}-{seed}"⟩
+  else
+    ⟨s!"scenario-op-{seed % 7}"⟩
 
 private def balancedEffects
     (destination : LocusId)
@@ -91,7 +94,8 @@ private def balancedEffects
 private def scenarioStep (seed : Nat) : ScenarioStep :=
   let amount : Int := Int.ofNat ((((seed / 11) % 9) + 1) * 100)
   let destination := destinationFor seed
-  let operation := operationFor seed
+  let kind := (seed / 7) % 6
+  let operation := operationFor seed kind
   let baseDraft : Loam.MovementAdmission.Draft := {
     validOn := dateFor seed
     description := some s!"deterministic scenario {seed}"
@@ -100,7 +104,7 @@ private def scenarioStep (seed : Nat) : ScenarioStep :=
     discharges := []
     total := amount
   }
-  match (seed / 7) % 6 with
+  match kind with
   | 0 =>
       { seed := seed
         operation := operation
