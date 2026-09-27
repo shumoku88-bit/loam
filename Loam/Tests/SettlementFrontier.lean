@@ -632,7 +632,7 @@ private def replacementConflictsFailClosed : IO Unit := do
   expect result.isNone
     "competing correspondence replacements were not refused"
 
-def main : IO Unit := do
+def runAll : IO Unit := do
   crossMeasureCard
   securityBuyAndSell
   partialMultiEventDirect
@@ -649,3 +649,6 @@ def main : IO Unit := do
   IO.println "Settlement production Slice C qualification succeeded."
 
 end Loam.Tests.SettlementFrontier
+
+def main : IO Unit :=
+  Loam.Tests.SettlementFrontier.runAll
