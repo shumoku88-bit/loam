@@ -266,6 +266,51 @@ private def v3Fixture? : Option ActualEvidence := do
     }
   }
 
+private def v4Fixture? : Option ActualEvidence := do
+  let base ← v3Fixture?
+  some {
+    base with
+    settlements := {
+      base.settlements with
+      extinguishments := [
+        {
+          id := ⟨"v4-unknown"⟩
+          target := ⟨"v2-corr-target"⟩
+          quantity := Quantity.ofQuanta 100
+          effectiveOn := none
+        },
+        {
+          id := ⟨"v4-old"⟩
+          target := ⟨"v2-corr-target"⟩
+          quantity := Quantity.ofQuanta 80
+          effectiveOn := some "2026-02-29"
+        },
+        {
+          id := ⟨"v4-new"⟩
+          target := ⟨"v2-corr-target"⟩
+          quantity := Quantity.ofQuanta 50
+          effectiveOn := some "2026-09-08"
+        },
+        {
+          id := ⟨"v4-retracted"⟩
+          target := ⟨"v2-corr-target"⟩
+          quantity := Quantity.ofQuanta 40
+          effectiveOn := none
+        }
+      ]
+      extinguishmentRevisions := [
+        {
+          target := ⟨"v4-old"⟩
+          replacement := some ⟨"v4-new"⟩
+        },
+        {
+          target := ⟨"v4-retracted"⟩
+          replacement := none
+        }
+      ]
+    }
+  }
+
 private def v1RemainsV1WhenSettlementEmpty : IO Unit := do
   let actual ← requireSome fixture? "v2 fixture construction failed"
   let empty : ActualEvidence := {
@@ -362,6 +407,69 @@ private def v3RoundTripsCommitmentRevisionAuthority : IO Unit := do
   expect ((image.settlement.outstanding? ⟨"v3-retract-target"⟩).isNone)
     "retracted commitment remained current after v3 round-trip"
 
+private def v4RoundTripsExtinguishmentAuthority : IO Unit := do
+  let actual ← requireSome v4Fixture? "v4 fixture construction failed"
+  let wire ← requireSome (encodeNormalizedActual? actual)
+    "extinguishment evidence failed to encode"
+
+  expect (wire.startsWith (normalizedActualHeaderV4 ++ "\n"))
+    "extinguishment evidence did not select the v4 header"
+  expect (wire.contains
+      "SETTLEMENT-EXTINGUISHMENT\tv4-unknown\tTARGET\tv2-corr-target\t100\tUNKNOWN")
+    "v4 encoder omitted unknown-time extinguishment"
+  expect (wire.contains
+      "SETTLEMENT-EXTINGUISHMENT\tv4-new\tTARGET\tv2-corr-target\t50\tEFFECTIVE\t2026-09-08")
+    "v4 encoder omitted effective extinguishment date"
+  expect (wire.contains
+      "SETTLEMENT-EXTINGUISHMENT-REVISION\tv4-old\tREPLACEMENT\tv4-new")
+    "v4 encoder omitted extinguishment correction"
+  expect (wire.contains
+      "SETTLEMENT-EXTINGUISHMENT-REVISION\tv4-retracted\tRETRACT")
+    "v4 encoder omitted extinguishment retraction"
+
+  let decoded ← requireSome (decodeNormalizedActual? wire)
+    "v4 extinguishment round-trip failed"
+  expect (decoded.settlements.extinguishments ==
+      actual.settlements.extinguishments)
+    "v4 round-trip changed extinguishment history"
+  expect (decoded.settlements.extinguishmentRevisions ==
+      actual.settlements.extinguishmentRevisions)
+    "v4 round-trip changed extinguishment revision authority"
+
+  let image ← requireSome (decodeNormalizedActualImage? wire)
+    "v4 admitted image decode failed"
+  expect (image.settlement.extinguishedQuanta ⟨"v3-corr-current"⟩ == 150)
+    "v4 did not resolve historical extinguishment targets to current commitment"
+  let outstanding ← requireSome
+    (image.settlement.outstanding? ⟨"v3-corr-current"⟩)
+    "v4 corrected commitment missing"
+  expect (outstanding.quanta == 150)
+    s!"expected v4 outstanding 150, got {outstanding.quanta}"
+
+private def v3RejectsExtinguishmentRows : IO Unit := do
+  let wire :=
+    normalizedActualHeaderV3 ++ "\n" ++
+    "SETTLEMENT-EXTINGUISHMENT\text\tTARGET\ttarget\t10\tUNKNOWN\n"
+  expect (decodeNormalizedActual? wire).isNone
+    "v3 decoder accepted a v4-only extinguishment row"
+
+private def invalidCurrentExtinguishmentDateFails : IO Unit := do
+  let actual ← requireSome v3Fixture? "invalid v4 date fixture failed"
+  let malformed : ActualEvidence := {
+    actual with
+    settlements := {
+      actual.settlements with
+      extinguishments := [{
+        id := ⟨"v4-invalid-current"⟩
+        target := ⟨"v3-corr-current"⟩
+        quantity := Quantity.ofQuanta 10
+        effectiveOn := some "2026-02-29"
+      }]
+    }
+  }
+  expect (encodeNormalizedActual? malformed).isNone
+    "v4 encoder admitted an impossible current effective date"
+
 private def v2RejectsCommitmentRevisionRows : IO Unit := do
   let wire :=
     normalizedActualHeaderV2 ++ "\n" ++
@@ -424,13 +532,16 @@ def runAll : IO Unit := do
   v1RemainsV1WhenSettlementEmpty
   v2RoundTripsAllBaseSettlementRows
   v3RoundTripsCommitmentRevisionAuthority
+  v4RoundTripsExtinguishmentAuthority
+  v3RejectsExtinguishmentRows
+  invalidCurrentExtinguishmentDateFails
   v2RejectsCommitmentRevisionRows
   v1RejectsSettlementRows
   v2RejectsSettlementInsideTx
   v2RejectsTxAfterSettlementRegion
   v2RejectsUnknownDocumentRow
   v2RejectsMalformedCurrentReference
-  IO.println "Settlement normalized Actual v2 qualification succeeded."
+  IO.println "Settlement normalized Actual v1-v4 qualification succeeded."
 
 end Loam.Tests.SettlementNormalizedActualV2
 
