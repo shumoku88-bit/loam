@@ -40,6 +40,13 @@ structure NettingAllocation where
   outcome : NetSettlementOutcome
 deriving Repr, DecidableEq
 
+/-- One current non-settlement extinguishment allocation. -/
+structure ExtinguishmentAllocation where
+  id : SettlementExtinguishmentId
+  quantity : Quantity
+  effectiveOn : Option String
+deriving Repr, DecidableEq
+
 /--
 One current commitment summary.
 
@@ -59,6 +66,8 @@ structure Row where
   outstanding : Quantity
   direct : List DirectAllocation
   netting : List NettingAllocation
+  extinguished : Quantity := Quantity.ofQuanta 0
+  extinguishments : List ExtinguishmentAllocation := []
 deriving Repr, DecidableEq
 
 structure Snapshot where
@@ -94,11 +103,25 @@ private def nettingAllocations
       else
         none
 
+private def extinguishmentAllocations
+    (image : AdmittedSettlementImage)
+    (target : SettlementCommitmentId) : List ExtinguishmentAllocation :=
+  image.extinguishments.filterMap fun admitted =>
+    if admitted.target.commitment.id = target then
+      some {
+        id := admitted.extinguishment.id
+        quantity := admitted.extinguishment.quantity
+        effectiveOn := admitted.extinguishment.effectiveOn
+      }
+    else
+      none
+
 private def row
     (image : AdmittedSettlementImage)
     (admitted : AdmittedSettlementCommitment) : Row :=
   let commitment := admitted.commitment
   let settledQuanta := image.settledQuanta commitment.id
+  let extinguishedQuanta := image.extinguishedQuanta commitment.id
   {
     id := commitment.id
     sourceEvent := commitment.sourceEvent
@@ -109,9 +132,11 @@ private def row
     committed := commitment.quantity
     settled := Quantity.ofQuanta settledQuanta
     outstanding := Quantity.ofQuanta
-      (commitment.quantity.quanta - settledQuanta)
+      (commitment.quantity.quanta - settledQuanta - extinguishedQuanta)
     direct := directAllocations image commitment.id
     netting := nettingAllocations image commitment.id
+    extinguished := Quantity.ofQuanta extinguishedQuanta
+    extinguishments := extinguishmentAllocations image commitment.id
   }
 
 /-- Project every current settlement commitment from one canonical Actual image. -/
