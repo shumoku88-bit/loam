@@ -561,7 +561,7 @@ private def wideHomeBody
   let pastOpenDates := pendingDates pending
   let contentWidth := Loam.Tui.Layout.contentWidth bounds
   let dividerWidth := 3
-  let rightWidth := 50
+  let rightWidth := 64
   let leftWidth := contentWidth - dividerWidth - rightWidth
   let panelRows := widePanelRows bounds footerRows
   let left := wideCalendarPane leftWidth snapshot state pastOpenDates
