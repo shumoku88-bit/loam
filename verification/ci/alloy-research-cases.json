@@ -716,6 +716,32 @@
         "ReferenceResolutionPreservesLineage": false,
         "ExactTargetProjectionIsEnough": true
       }
+    },
+    {
+      "id": "settlement-commitment-correction-targeting",
+      "observation": "Observation 375",
+      "jobName": "Qualify settlement commitment correction targeting",
+      "pushBranches": [
+        "main",
+        "experiment/375-settlement-commitment-correction-targeting"
+      ],
+      "model": "experiments/375_settlement_commitment_correction_targeting.als",
+      "paths": [
+        "experiments/375_settlement_commitment_correction_targeting.als",
+        "experiments/375_settlement_commitment_correction_targeting.md"
+      ],
+      "expected": {
+        "compatibleCorrectionPreservesHistoricalTargetWitness": true,
+        "multiVersionLineageWitness": true,
+        "incompatibleMeasureCorrectionRejectedWitness": true,
+        "incompatibleDirectionCorrectionRejectedWitness": true,
+        "overSettledCorrectionRejectedWitness": true,
+        "retractionWithDependentUseRejectedWitness": true,
+        "ExactTargetingAlwaysPreservesCompatibleAttribution": true,
+        "BlindReplacementFollowingIsAlwaysSafe": true,
+        "QualifiedFollowNeverProducesNegativeOutstanding": false,
+        "QualifiedFollowClosesCurrentTargets": false
+      }
     }
   ]
 }
