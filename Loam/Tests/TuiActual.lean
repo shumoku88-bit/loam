@@ -1,5 +1,6 @@
 import Loam.Tui.Main
 import Loam.Tui.ActualWorkspace
+import Loam.Tui.SelectedDay
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -78,6 +79,64 @@ def main : IO Unit := do
     "Actual workspace filter did not expand from Focus Day to all current Actual evidence"
   expect (allCurrent.order == .asc)
     "Actual workspace initial order was not ascending"
+
+  -- Slash-style search reuses ActualReview text search across all current evidence.
+  let some searchMetadata := Loam.LocusCatalog.decode?
+      ("paypay\tPayPay\tPayPay残高\n" ++
+       "food\t食費\t食費支出\n" ++
+       "smbc\tSMBC\t銀行口座\n" ++
+       "books\t書籍\t本・学習用の書籍\n")
+    | throw (IO.userError "Actual workspace search metadata fixture")
+  let searchStart := Loam.Tui.ActualWorkspace.withMetadata
+    (Loam.Tui.ActualWorkspace.initial "2026-09-07") searchMetadata
+  let searching := (Loam.Tui.ActualWorkspace.update snapshot searchStart .beginSearch).state
+  expect (searching.scope == .allCurrent && searching.pane == .transactions &&
+      searching.searchEditing)
+    "Actual workspace search did not enter all-current transaction search"
+  let gammaSearch := "gamma".toList.foldl
+    (fun current char =>
+      (Loam.Tui.ActualWorkspace.update snapshot current (.searchInput char)).state)
+    searching
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot gammaSearch).map (·.description) == ["gamma"])
+    "Actual workspace description search did not isolate the older matching Actual"
+  let keptSearch := (Loam.Tui.ActualWorkspace.update snapshot gammaSearch .acceptSearch).state
+  expect (!keptSearch.searchEditing && keptSearch.searchQuery == "gamma")
+    "Actual workspace Enter did not keep the accepted search result"
+  let openSearch := Loam.Tui.ActualWorkspace.update snapshot keptSearch .openSelected
+  expect (openSearch.command == .openSelected)
+    "Actual workspace Enter intent did not open the selected search result"
+  let gammaRecord ← requireSome
+    (Loam.Tui.ActualWorkspace.selectedRecord? snapshot keptSearch)
+    "Actual workspace search result selection disappeared"
+  let gammaDay ← requireSome
+    (Loam.Tui.SelectedDay.initialForActual? snapshot gammaRecord)
+    "Selected-day workspace could not initialize from the searched Actual"
+  expect (gammaDay.focusDate == "2026-09-06")
+    "Actual search did not preserve the selected record occurrence date"
+  let openedGamma ← requireSome
+    (Loam.Tui.SelectedDay.selectedActual? snapshot gammaDay)
+    "Selected-day search handoff lost the exact selected Actual"
+  expect (openedGamma.event.id.token == "event-2")
+    "Selected-day search handoff selected a different Actual on the target date"
+
+  let dateSearch := { searching with searchQuery := "2026-09-06", searchEditing := false }
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot dateSearch).map (·.description) == ["gamma"])
+    "Actual workspace date search did not reuse ActualReview text matching"
+  let locusSearch := { searching with searchQuery := "books", searchEditing := false }
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot locusSearch).map (·.description) == ["gamma"])
+    "Actual workspace Locus-token search did not reuse ActualReview text matching"
+  let labelSearch := { searching with searchQuery := "書籍", searchEditing := false }
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot labelSearch).map (·.description) == ["gamma"])
+    "Actual workspace human-facing Locus label search did not find the matching Actual"
+  let searchText := widgetText
+    (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot gammaSearch)
+  expect (contains "Search: /gamma_" searchText &&
+      contains "Backspace delete" searchText)
+    "Actual workspace active search query or search help disappeared"
+  let cancelledSearch := (Loam.Tui.ActualWorkspace.update snapshot gammaSearch .cancelSearch).state
+  expect (cancelledSearch.searchQuery.isEmpty && !cancelledSearch.searchEditing &&
+      (Loam.Tui.ActualWorkspace.visibleRecords snapshot cancelledSearch).length == 3)
+    "Actual workspace Esc-style search cancellation did not restore all-current browsing"
 
   -- Focus left pane (loci) and select locus 1 (paypay)
   let allCurrentLoci := (Loam.Tui.ActualWorkspace.update snapshot allCurrent .focusLeft).state
@@ -168,4 +227,4 @@ def main : IO Unit := do
     contains "No next Actual row" longBlocked.notice)
     "Actual workspace end-of-list refusal moved selection or lost its notice"
 
-  IO.println "TUI Actual: Actual workspace mechanics and production viewport checks passed."
+  IO.println "TUI Actual: Actual workspace search/open, mechanics and production viewport checks passed."
