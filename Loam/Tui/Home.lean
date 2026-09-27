@@ -681,8 +681,12 @@ private def homeBody
   if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
   else stackedHomeBody bounds snapshot state
 
-private def dayHelpTokens : List String :=
-  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[f] money", "[Enter] open",
+private def dayHelpTokens (state : State) : List String :=
+  let calendarToggle :=
+    match state.calendarMode with
+    | .plain => "[f] flow"
+    | .money => "[f] calendar"
+  ["Day:", "[h/l] day", "[k/j] week", "[t] today", calendarToggle, "[Enter] open",
    "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
@@ -692,10 +696,10 @@ private def householdHelpTokens : List String :=
 private def manageHelpTokens : List String :=
   ["Manage:", "[p] purpose routing", "[m] manage loci", "[o] observe quantities"]
 
-private def helpLines (bounds : Bounds) : List Widget :=
+private def helpLines (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   (Loam.Tui.Layout.flowLines width "  "
-    [dayHelpTokens, householdHelpTokens, manageHelpTokens]).map mutedLine
+    [dayHelpTokens state, householdHelpTokens, manageHelpTokens]).map mutedLine
 
 /-- Wide Home is a spatial projection; narrow Home retains the stacked projection. -/
 def usesWideLayout (bounds : Bounds) : Bool :=
@@ -709,7 +713,7 @@ def detailScrollDirection?
   | _ => none
 
 private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
-  let help := helpLines bounds
+  let help := helpLines bounds state
   if usesWideLayout bounds then
     (if state.notice.isEmpty then [blankLine] else [plainLine state.notice]) ++ help
   else
