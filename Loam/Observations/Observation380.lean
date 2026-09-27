@@ -68,12 +68,25 @@ theorem ledgerFlowQuanta_append
         ledgerFlowQuantaAtChanges measure right account := by
   induction left with
   | nil =>
-      simp [ledgerFlowQuantaAtChanges]
+      rfl
   | cons change rest ih =>
+      change
+        (if accountOf change.coordinate measure = account then
+            change.quantity.quanta +
+              ledgerFlowQuantaAtChanges measure (rest ++ right) account
+          else
+            ledgerFlowQuantaAtChanges measure (rest ++ right) account) =
+          (if accountOf change.coordinate measure = account then
+              change.quantity.quanta +
+                ledgerFlowQuantaAtChanges measure rest account
+            else
+              ledgerFlowQuantaAtChanges measure rest account) +
+            ledgerFlowQuantaAtChanges measure right account
+      rw [ih]
       by_cases hAccount :
           accountOf change.coordinate measure = account
-      · simp [ledgerFlowQuantaAtChanges, hAccount, ih, Int.add_assoc]
-      · simp [ledgerFlowQuantaAtChanges, hAccount, ih]
+      · simp [hAccount, Int.add_assoc]
+      · simp [hAccount]
 
 /-- Quantity-valued additive form of `ledgerFlowQuanta_append`. -/
 theorem ledgerFlowAtChanges_append
@@ -105,10 +118,22 @@ theorem ledgerFlowQuanta_negated
   | nil =>
       rfl
   | cons change rest ih =>
+      change
+        (if accountOf change.coordinate measure = account then
+            (-change.quantity).quanta +
+              ledgerFlowQuantaAtChanges measure (negateChanges rest) account
+          else
+            ledgerFlowQuantaAtChanges measure (negateChanges rest) account) =
+          -(if accountOf change.coordinate measure = account then
+              change.quantity.quanta +
+                ledgerFlowQuantaAtChanges measure rest account
+            else
+              ledgerFlowQuantaAtChanges measure rest account)
+      rw [ih]
       by_cases hAccount :
           accountOf change.coordinate measure = account
-      · simp [negateChanges, ledgerFlowQuantaAtChanges, hAccount, ih, Int.neg_add]
-      · simp [negateChanges, ledgerFlowQuantaAtChanges, hAccount, ih]
+      · simp [hAccount, Int.neg_add]
+      · simp [hAccount]
 
 /-- Quantity-valued additive-inverse form of `ledgerFlowQuanta_negated`. -/
 theorem ledgerFlowAtChanges_negated
