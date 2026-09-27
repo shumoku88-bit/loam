@@ -232,7 +232,10 @@ private def moneyCalendarRows
     [ dateLine
     , plusLine
     , minusLine
-    , moneyRule paneWidth '├' '┼' '┤'
+    , if row = 5 then
+        moneyRule paneWidth '└' '┴' '┘'
+      else
+        moneyRule paneWidth '├' '┼' '┤'
     ]
 
 private def moneyCalendarBlock
