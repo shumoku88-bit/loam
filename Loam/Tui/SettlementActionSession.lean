@@ -53,9 +53,8 @@ partial def run
   | some (.reduceWithoutPayment draft) =>
       match ← Loam.HouseholdCommand.reduceSettlementWithoutPayment root draft with
       | .ok _ =>
-          return
-            ("Remaining amount reduced by " ++
-              toString draft.quantity.quanta ++ " without payment.")
+          return "Remaining amount reduced by " ++
+            toString draft.quantity.quanta ++ " without payment."
       | .error message =>
           let next := Loam.Tui.SettlementAction.withPublishError step.state message
           let nextFrame := compileWidget (Loam.Tui.SettlementAction.view next)
