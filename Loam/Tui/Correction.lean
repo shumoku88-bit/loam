@@ -141,12 +141,16 @@ def view (_known : List String) (state : State) : Widget :=
       let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
       let visible := (options.drop candidateStart).take 5
       let candidateLines :=
-        if visible.isEmpty then
-          [Loam.Tui.Record.line "  (no matching admitted Locus)"]
-        else
-          (visible.zipIdx).map fun (entry, index) =>
-            let marker := if candidateStart + index = selectedIndex then "> " else "  "
-            Loam.Tui.Record.line (marker ++ Loam.Tui.LocusPicker.display entry)
+        match Loam.Tui.Record.activeLocus? state.editor.form with
+        | none =>
+            [Loam.Tui.Record.line "  (focus a Locus field to search admitted Loci)"]
+        | some _ =>
+            if visible.isEmpty then
+              [Loam.Tui.Record.line "  (no matching admitted Locus)"]
+            else
+              (visible.zipIdx).map fun (entry, index) =>
+                let marker := if candidateStart + index = selectedIndex then "> " else "  "
+                Loam.Tui.Record.line (marker ++ Loam.Tui.LocusPicker.display entry)
       let helpLines :=
         match Loam.Tui.Record.selectedCatalogCandidate? state.editor with
         | some entry =>
