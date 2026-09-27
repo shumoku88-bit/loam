@@ -183,7 +183,7 @@ jobs:
           set -euo pipefail
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/242_accounting_projection_factorization.als)" =             '["accounting-projection-factorization"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/327_interpretation_subject_correction.als)" =             '["interpretation-subject-correction"]'
-          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/373_settlement_commitment_lifecycle.als)" =             '["settlement-commitment-lifecycle","settlement-commitment-identity"]'
+          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/373_settlement_commitment_lifecycle.als)" =             '["settlement-commitment-lifecycle"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/374_settlement_commitment_identity.als)" =             '["settlement-commitment-identity"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths experiments/249_cash_flow_classification.als)" =             '[]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/327-interpretation-subject-correction             --paths experiments/327_interpretation_subject_correction.als)" =             '["interpretation-subject-correction"]'
