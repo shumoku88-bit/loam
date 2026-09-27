@@ -85,6 +85,9 @@ def main : IO Unit := do
   let dateStep := Loam.Tui.SelectedDay.update snapshot state .correctDate
   expect (dateStep.command == .correctDate)
     "Selected-day Actual selection stopped delegating date-correction intent"
+  let lociStep := Loam.Tui.SelectedDay.update snapshot state .manageLoci
+  expect (lociStep.command == .manageLoci)
+    "Selected-day Actual pane stopped delegating Manage Loci navigation"
 
   let scheduledState := (Loam.Tui.SelectedDay.update snapshot state .focusRight).state
   let scheduledText := widgetText (Loam.Tui.SelectedDay.view { width := 100, height := 30 } snapshot scheduledState)
@@ -106,6 +109,9 @@ def main : IO Unit := do
   let refusedDate := Loam.Tui.SelectedDay.update snapshot scheduledState .correctDate
   expect (refusedDate.command == .stay)
     "Scheduled pane emitted an Actual date-correction intent"
+  let refusedLoci := Loam.Tui.SelectedDay.update snapshot scheduledState .manageLoci
+  expect (refusedLoci.command == .stay)
+    "Scheduled pane emitted Actual-side Manage Loci navigation"
 
   let movedSnapshot : Loam.Tui.Main.Snapshot := {
     snapshot with actual := { snapshot.actual with allRecords := [] } }
@@ -140,4 +146,4 @@ def main : IO Unit := do
   expect (unavailableCreate.command == .stay)
     "Selected-day workspace emitted a Scheduled write intent while Scheduled evidence was unavailable"
 
-  IO.println "TUI selected day: shared composition, Record/Correction/Reversal/date delegation, refresh, Unknown and Scheduled unavailability passed."
+  IO.println "TUI selected day: shared composition, Record/Correction/Reversal/date/Manage-Loci delegation, refresh, Unknown and Scheduled unavailability passed."
