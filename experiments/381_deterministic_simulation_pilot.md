@@ -1,6 +1,6 @@
 # Observation 381 — deterministic production-scenario pilot
 
-Status: **EXECUTABLE PILOT — TigerBeetle-inspired deterministic scenario testing; no production architecture change**
+Status: **QUALIFIED EXECUTABLE PILOT — deterministic production replay succeeded; no production architecture change**
 
 LOAM baseline:
 
@@ -163,6 +163,60 @@ equal.
 
 The selected seed is printed in failure contexts so a discovered failure can be
 replayed directly.
+
+## Executed result
+
+The shared Lean qualification ran the scenario successfully after one useful
+generator correction.
+
+Qualified run:
+
+```text
+workflow: Lean Application Qualifications
+run:      36339619475
+job:      Replay deterministic Movement publication scenario
+result:   SUCCESS
+
+seed:          3812026
+steps:         48
+applied:        7
+rejectedFresh: 19
+retries:       22
+```
+
+The same seed was replayed in two isolated household roots and produced identical
+final canonical `actual.loam` bytes and identical counters.
+
+### The first run failed usefully
+
+The first pilot run failed its own coverage checker:
+
+```text
+no invalid fresh operation was exercised
+```
+
+This was not a production defect. Invalid-looking generated drafts were sometimes
+using an operation identity that had already succeeded earlier. Production
+idempotency correctly returned the original Event without revalidating the retry
+payload.
+
+That failure exposed an incorrect assumption in the generated model:
+
+```text
+invalid-looking payload
+    !=
+fresh invalid operation
+
+when logical operation identity is already retained
+```
+
+The generator was corrected so deliberately invalid fresh cases use seed-specific
+operation identities, while valid cases continue to use a small collision-prone
+identity set for retry pressure.
+
+This is itself a useful pilot result: a reproducible generated history found a
+composition fact spanning payload validation and idempotency identity that an
+isolated invalid-draft test would not express.
 
 ## Distinct role beside formal methods
 
