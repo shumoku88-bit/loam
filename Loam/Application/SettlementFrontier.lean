@@ -20,8 +20,10 @@ provenance.
 It keeps three responsibilities separate:
 
 1. raw Core values retain facts and append-only revision edges;
-2. generic `ReplacementFrontier` selects current correspondence/member rows;
-3. this settlement-specific image enforces local and cross-mode conservation.
+2. settlement-specific commitment revision semantics select current commitments;
+3. generic `ReplacementFrontier` selects current correspondence/member rows;
+4. this settlement-specific image re-resolves historical commitment targets and
+   enforces local and cross-mode conservation.
 
 Superseded correspondence/member rows are retained history and are not
 re-admitted as current settlement facts. Structural revision topology still
@@ -101,6 +103,76 @@ private def uniqueCommitmentIds
     (commitments : List SettlementCommitment) : Bool :=
   decide ((commitments.map SettlementCommitment.id).Nodup)
 
+private def commitmentPresent
+    (commitments : List SettlementCommitment)
+    (id : SettlementCommitmentId) : Bool :=
+  commitments.any fun commitment => decide (commitment.id = id)
+
+private def commitmentRevisionTargetsUnique
+    (revisions : List SettlementCommitmentRevision) : Bool :=
+  decide ((revisions.map SettlementCommitmentRevision.target).Nodup)
+
+private def commitmentEdges
+    (revisions : List SettlementCommitmentRevision) :
+    List (ReplacementFrontier.Edge SettlementCommitmentId) :=
+  revisions.filterMap fun revision =>
+    match revision.replacement with
+    | none => none
+    | some replacement =>
+        some { source := revision.target, successor := replacement }
+
+private def commitmentReferencesClosed
+    (commitments : List SettlementCommitment)
+    (revisions : List SettlementCommitmentRevision) : Bool :=
+  revisions.all fun revision =>
+    commitmentPresent commitments revision.target &&
+      match revision.replacement with
+      | none => true
+      | some replacement => commitmentPresent commitments replacement
+
+private def commitmentRetracted
+    (revisions : List SettlementCommitmentRevision)
+    (id : SettlementCommitmentId) : Bool :=
+  revisions.any fun revision =>
+    decide (revision.target = id) && revision.replacement.isNone
+
+private def currentCommitments?
+    (commitments : List SettlementCommitment)
+    (revisions : List SettlementCommitmentRevision) :
+    Option (List SettlementCommitment) := do
+  if !uniqueCommitmentIds commitments then
+    none
+  else if !commitmentRevisionTargetsUnique revisions then
+    none
+  else if !commitmentReferencesClosed commitments revisions then
+    none
+  else
+    let edges := commitmentEdges revisions
+    if !ReplacementFrontier.structurallyAdmissible
+        (commitmentPresent commitments) edges then
+      none
+    else
+      let positiveFrontier :=
+        ReplacementFrontier.frontier SettlementCommitment.id commitments edges
+      some (positiveFrontier.filter fun commitment =>
+        !commitmentRetracted revisions commitment.id)
+
+private def nextCommitmentId?
+    (edges : List (ReplacementFrontier.Edge SettlementCommitmentId))
+    (id : SettlementCommitmentId) : Option SettlementCommitmentId :=
+  match edges.find? fun edge => edge.source = id with
+  | none => none
+  | some edge => some edge.successor
+
+private def terminalCommitmentIdWithin
+    (edges : List (ReplacementFrontier.Edge SettlementCommitmentId)) :
+    Nat → SettlementCommitmentId → Option SettlementCommitmentId
+  | 0, _ => none
+  | fuel + 1, current =>
+      match nextCommitmentId? edges current with
+      | none => some current
+      | some next => terminalCommitmentIdWithin edges fuel next
+
 private def uniqueCorrespondenceIds
     (rows : List SettlementEffectCorrespondence) : Bool :=
   decide ((rows.map SettlementEffectCorrespondence.id).Nodup)
@@ -141,6 +213,18 @@ private def findCommitment?
     Option AdmittedSettlementCommitment :=
   commitments.find? fun admitted => admitted.commitment.id = id
 
+private def resolveCommitment?
+    (commitments : List AdmittedSettlementCommitment)
+    (revisions : List SettlementCommitmentRevision)
+    (historical : SettlementCommitmentId) :
+    Option AdmittedSettlementCommitment := do
+  let edges := commitmentEdges revisions
+  let terminal ← terminalCommitmentIdWithin edges (edges.length + 1) historical
+  if commitmentRetracted revisions terminal then
+    none
+  else
+    findCommitment? commitments terminal
+
 private def correspondenceEdges
     (revisions : List SettlementCorrespondenceRevision) :
     List (ReplacementFrontier.Edge SettlementCorrespondenceId) :=
@@ -168,9 +252,10 @@ private def currentCorrespondences?
 private def admitCorrespondence?
     (events : EventMemory)
     (commitments : List AdmittedSettlementCommitment)
+    (commitmentRevisions : List SettlementCommitmentRevision)
     (row : SettlementEffectCorrespondence) :
     Option AdmittedSettlementCorrespondence := do
-  let target ← findCommitment? commitments row.target
+  let target ← resolveCommitment? commitments commitmentRevisions row.target
   let physical ← findEffect? events row.event row.effect
   if row.quantity.quanta <= 0 then
     none
@@ -192,12 +277,15 @@ private def admitCorrespondence?
 private def admitCorrespondences? :
     EventMemory →
     List AdmittedSettlementCommitment →
+    List SettlementCommitmentRevision →
     List SettlementEffectCorrespondence →
     Option (List AdmittedSettlementCorrespondence)
-  | _, _, [] => some []
-  | events, commitments, row :: rest => do
-      let admitted ← admitCorrespondence? events commitments row
-      let later ← admitCorrespondences? events commitments rest
+  | _, _, _, [] => some []
+  | events, commitments, commitmentRevisions, row :: rest => do
+      let admitted ← admitCorrespondence?
+        events commitments commitmentRevisions row
+      let later ← admitCorrespondences?
+        events commitments commitmentRevisions rest
       some (admitted :: later)
 
 private structure EffectAnchor where
@@ -260,11 +348,12 @@ private def findContext?
 
 private def admitMember?
     (commitments : List AdmittedSettlementCommitment)
+    (commitmentRevisions : List SettlementCommitmentRevision)
     (contexts : List SettlementNettingContext)
     (member : SettlementNettingMember) :
     Option AdmittedSettlementNettingMember := do
   let context ← findContext? contexts member.context
-  let target ← findCommitment? commitments member.target
+  let target ← resolveCommitment? commitments commitmentRevisions member.target
   if member.quantity.quanta <= 0 then
     none
   else if member.quantity.quanta > target.commitment.quantity.quanta then
@@ -276,13 +365,16 @@ private def admitMember?
 
 private def admitMembers? :
     List AdmittedSettlementCommitment →
+    List SettlementCommitmentRevision →
     List SettlementNettingContext →
     List SettlementNettingMember →
     Option (List AdmittedSettlementNettingMember)
-  | _, _, [] => some []
-  | commitments, contexts, member :: rest => do
-      let admitted ← admitMember? commitments contexts member
-      let later ← admitMembers? commitments contexts rest
+  | _, _, _, [] => some []
+  | commitments, commitmentRevisions, contexts, member :: rest => do
+      let admitted ← admitMember?
+        commitments commitmentRevisions contexts member
+      let later ← admitMembers?
+        commitments commitmentRevisions contexts rest
       some (admitted :: later)
 
 private def membersForContext
@@ -352,7 +444,7 @@ private def directTargetTotal
     (target : SettlementCommitmentId) : Int :=
   rows.foldl
     (fun total row =>
-      if row.correspondence.target = target then
+      if row.target.commitment.id = target then
         total + row.correspondence.quantity.quanta
       else
         total)
@@ -365,7 +457,7 @@ private def netTargetTotal
     (fun total context =>
       context.members.foldl
         (fun subtotal member =>
-          if member.member.target = target then
+          if member.target.commitment.id = target then
             subtotal + member.member.quantity.quanta
           else
             subtotal)
@@ -408,12 +500,14 @@ Build one safe current settlement image.
 
 Admission order is intentional:
 
-1. admit all unversioned commitments;
-2. validate revision topology and select current direct/member frontiers;
-3. admit current direct rows and current member rows;
-4. derive and admit each netting context outcome;
-5. enforce direct physical coverage;
-6. enforce cross-mode target and physical conservation.
+1. validate commitment revision topology and select the current commitment frontier;
+2. admit only current commitment payloads;
+3. validate correspondence/member revision topology and select current row frontiers;
+4. resolve each historical dependent target through commitment correction lineage;
+5. re-admit current direct/member rows against the resolved current commitment;
+6. derive and admit each netting context outcome;
+7. enforce direct physical coverage;
+8. enforce cross-mode target and physical conservation.
 
 Superseded correspondence/member payload is retained history but not current
 semantic state.
@@ -421,24 +515,26 @@ semantic state.
 def admitSettlementImage?
     (events : EventMemory)
     (commitments : List SettlementCommitment)
+    (commitmentRevisions : List SettlementCommitmentRevision)
     (correspondences : List SettlementEffectCorrespondence)
     (correspondenceRevisions : List SettlementCorrespondenceRevision)
     (contexts : List SettlementNettingContext)
     (members : List SettlementNettingMember)
     (memberRevisions : List SettlementNettingMemberRevision) :
     Option AdmittedSettlementImage := do
-  if !uniqueCommitmentIds commitments || !uniqueContextIds contexts then
+  if !uniqueContextIds contexts then
     none
-  let admittedCommitments ← admitCommitments? events commitments
+  let currentCommitments ← currentCommitments? commitments commitmentRevisions
+  let admittedCommitments ← admitCommitments? events currentCommitments
   let currentDirect ← currentCorrespondences?
     correspondences correspondenceRevisions
   let admittedDirect ← admitCorrespondences?
-    events admittedCommitments currentDirect
+    events admittedCommitments commitmentRevisions currentDirect
   if !directPhysicalCoverageAdmissible admittedDirect then
     none
   let currentNetMembers ← currentMembers? members memberRevisions
   let admittedMembers ← admitMembers?
-    admittedCommitments contexts currentNetMembers
+    admittedCommitments commitmentRevisions contexts currentNetMembers
   let admittedNetting ← admitNettingContexts?
     events admittedMembers contexts
   if !targetConservationAdmissible

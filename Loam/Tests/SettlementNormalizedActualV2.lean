@@ -228,6 +228,44 @@ private def fixture? : Option ActualEvidence := do
     settlements := settlements
   }
 
+private def v3Fixture? : Option ActualEvidence := do
+  let base ← fixture?
+  let corrected : SettlementCommitment := {
+    id := ⟨"v3-corr-current"⟩
+    sourceEvent := ⟨"v2-corr-source"⟩
+    sourceEffect := ⟨"v2-corr-usd"⟩
+    debtor := .household
+    creditor := .external broker
+    measure := yen
+    quantity := Quantity.ofQuanta 900
+  }
+  let retractable : SettlementCommitment := {
+    id := ⟨"v3-retract-target"⟩
+    sourceEvent := ⟨"v2-zero-source"⟩
+    sourceEffect := ⟨"v2-zero-usd"⟩
+    debtor := .household
+    creditor := .external broker
+    measure := yen
+    quantity := Quantity.ofQuanta 250
+  }
+  some {
+    base with
+    settlements := {
+      base.settlements with
+      commitments := base.settlements.commitments ++ [corrected, retractable]
+      commitmentRevisions := [
+        {
+          target := ⟨"v2-corr-target"⟩
+          replacement := some ⟨"v3-corr-current"⟩
+        },
+        {
+          target := ⟨"v3-retract-target"⟩
+          replacement := none
+        }
+      ]
+    }
+  }
+
 private def v1RemainsV1WhenSettlementEmpty : IO Unit := do
   let actual ← requireSome fixture? "v2 fixture construction failed"
   let empty : ActualEvidence := {
@@ -292,6 +330,45 @@ private def v2RoundTripsAllBaseSettlementRows : IO Unit := do
   expect (memberOutstanding.quanta == 0)
     "v2 round-trip re-admitted superseded netting member"
 
+private def v3RoundTripsCommitmentRevisionAuthority : IO Unit := do
+  let actual ← requireSome v3Fixture? "v3 fixture construction failed"
+  let wire ← requireSome (encodeNormalizedActual? actual)
+    "commitment revision evidence failed to encode"
+
+  expect (wire.startsWith (normalizedActualHeaderV3 ++ "\n"))
+    "commitment revision evidence did not select the v3 header"
+  expect (wire.contains
+      "SETTLEMENT-COMMITMENT-REVISION\tv2-corr-target\tREPLACEMENT\tv3-corr-current")
+    "v3 encoder omitted positive commitment correction"
+  expect (wire.contains
+      "SETTLEMENT-COMMITMENT-REVISION\tv3-retract-target\tRETRACT")
+    "v3 encoder omitted explicit commitment retraction"
+
+  let decoded ← requireSome (decodeNormalizedActual? wire)
+    "v3 settlement round-trip failed"
+  expect (decoded.settlements.commitmentRevisions ==
+      actual.settlements.commitmentRevisions)
+    "v3 round-trip changed commitment revision authority"
+
+  let image ← requireSome (decodeNormalizedActualImage? wire)
+    "v3 admitted image decode failed"
+  let correctedOutstanding ← requireSome
+    (image.settlement.outstanding? ⟨"v3-corr-current"⟩)
+    "corrected commitment missing after v3 round-trip"
+  expect (correctedOutstanding.quanta == 300)
+    s!"expected corrected outstanding 300, got {correctedOutstanding.quanta}"
+  expect ((image.settlement.outstanding? ⟨"v2-corr-target"⟩).isNone)
+    "superseded commitment remained current after v3 round-trip"
+  expect ((image.settlement.outstanding? ⟨"v3-retract-target"⟩).isNone)
+    "retracted commitment remained current after v3 round-trip"
+
+private def v2RejectsCommitmentRevisionRows : IO Unit := do
+  let wire :=
+    normalizedActualHeaderV2 ++ "\n" ++
+    "SETTLEMENT-COMMITMENT-REVISION\told\tRETRACT\n"
+  expect (decodeNormalizedActual? wire).isNone
+    "v2 decoder accepted a v3-only commitment revision row"
+
 private def v1RejectsSettlementRows : IO Unit := do
   let wire :=
     normalizedActualHeaderV1 ++ "\n" ++
@@ -346,6 +423,8 @@ private def v2RejectsMalformedCurrentReference : IO Unit := do
 def runAll : IO Unit := do
   v1RemainsV1WhenSettlementEmpty
   v2RoundTripsAllBaseSettlementRows
+  v3RoundTripsCommitmentRevisionAuthority
+  v2RejectsCommitmentRevisionRows
   v1RejectsSettlementRows
   v2RejectsSettlementInsideTx
   v2RejectsTxAfterSettlementRegion

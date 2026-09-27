@@ -14,9 +14,10 @@ set_option autoImplicit false
 This is the presentation-neutral read boundary for the promoted settlement
 family.
 
-It consumes only one fully admitted `ActualAuthority.Image`. Retained
-superseded correspondence/member rows therefore remain historical provenance but
-do not reappear as current settlement allocations.
+It consumes only one fully admitted `ActualAuthority.Image`. Retained superseded commitment/correspondence/member rows therefore remain
+historical provenance but do not reappear as current settlement allocations.
+Dependent rows retain their historical commitment target in evidence while the
+admitted image exposes the resolved current commitment target.
 
 The review adds no matching, valuation, accounting recognition, or finality
 semantics. It only names already-admitted quantities and provenance so TUI, CLI,
@@ -68,7 +69,7 @@ private def directAllocations
     (image : AdmittedSettlementImage)
     (target : SettlementCommitmentId) : List DirectAllocation :=
   image.correspondences.filterMap fun admitted =>
-    if admitted.correspondence.target = target then
+    if admitted.target.commitment.id = target then
       some {
         correspondence := admitted.correspondence.id
         event := admitted.correspondence.event
@@ -83,7 +84,7 @@ private def nettingAllocations
     (target : SettlementCommitmentId) : List NettingAllocation :=
   image.netting.flatMap fun admittedContext =>
     admittedContext.members.filterMap fun admittedMember =>
-      if admittedMember.member.target = target then
+      if admittedMember.target.commitment.id = target then
         some {
           member := admittedMember.member.id
           context := admittedContext.context.id

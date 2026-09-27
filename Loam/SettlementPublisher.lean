@@ -15,7 +15,8 @@ This is the first production write seam for retained settlement evidence.
 
 It is intentionally narrow:
 
-- every commitment / correspondence / netting fact is supplied explicitly;
+- every currently writable commitment / correspondence / netting fact is supplied explicitly;
+- retained commitment revision authority is preserved but not yet writable through this Draft;
 - the publisher performs no amount/date matching or inference;
 - referenced Actual Events / Effects must already be retained;
 - one Draft is appended and admitted as one complete Actual generation;
@@ -51,6 +52,9 @@ private def appendEvidence
     (existing : SettlementEvidence)
     (draft : Draft) : SettlementEvidence := {
   commitments := existing.commitments ++ draft.commitments
+  -- Commitment revision publication is promoted separately. Until then this
+  -- writer must preserve already-retained revision authority exactly.
+  commitmentRevisions := existing.commitmentRevisions
   correspondences := existing.correspondences ++ draft.correspondences
   correspondenceRevisions :=
     existing.correspondenceRevisions ++ draft.correspondenceRevisions
