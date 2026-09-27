@@ -58,6 +58,23 @@ def main (args : List String) : IO Unit := do
     "TUI Record draft diverged from shared Record preview"
   expect (draft.effects.map (fun effect => effect.quantity.quanta) == [-2470, 2470])
     "signed postings did not preserve their quantities"
+
+  let paddedForm : Form := {
+    readyForm with
+    rows := #[
+      { locus := "paypay", amount := "  -2470 " },
+      { locus := "books", amount := " 2470  " }] }
+  let .ok paddedDraft := draft? paddedForm
+    | throw (IO.userError "Record amount edge whitespace was not tolerated")
+  expect (paddedDraft.effects.map (fun effect => effect.quantity.quanta) == [-2470, 2470])
+    "Record amount edge trimming changed exact signed quantities"
+  match draft? { readyForm with rows := #[
+      { locus := "paypay", amount := "-2470" },
+      { locus := "books", amount := "oops" }] } with
+  | .error message =>
+      expect (message.startsWith "Posting 2 amount 'oops'")
+        "Record invalid amount feedback did not identify the failing posting"
+  | .ok _ => throw (IO.userError "invalid Record amount unexpectedly parsed")
   let usdForm : Form := {
     readyForm with
     measure := "usd"

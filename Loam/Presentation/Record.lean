@@ -58,14 +58,15 @@ private def draftUsingPresentation?
   let mut total := 0
   for index in List.range input.rows.size do
     let row := input.rows[index]!
-    let some amount := Loam.MeasurePresentation.parseQuanta? metadata measure row.amount
-      | throw
-          ("Enter a nonzero signed " ++ input.measure ++ " amount with at most " ++
-            toString scale ++ " decimal places for every posting.")
+    let amountText := row.amount.trimAscii.toString
+    let amountError :=
+      "Posting " ++ toString (index + 1) ++ " amount '" ++ row.amount ++
+        "' must be a nonzero signed " ++ input.measure ++ " amount with at most " ++
+        toString scale ++ " decimal places."
+    let some amount := Loam.MeasurePresentation.parseQuanta? metadata measure amountText
+      | throw amountError
     if amount = 0 then
-      throw
-        ("Enter a nonzero signed " ++ input.measure ++ " amount with at most " ++
-          toString scale ++ " decimal places for every posting.")
+      throw amountError
     effects := effects ++ [Loam.Core.Effect.ofQuantity
       ⟨"effect-" ++ toString (index + 1)⟩ ⟨row.locus⟩ measure
       (Loam.Core.Quantity.ofQuanta amount)]

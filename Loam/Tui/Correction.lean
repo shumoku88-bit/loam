@@ -134,19 +134,23 @@ def view (_known : List String) (state : State) : Widget :=
   | .editing =>
       let form := state.editor.form
       let rowLines := Loam.Tui.Record.postingFieldLines form
-      let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
+      let actions := ["Preview", "Add posting", "Drop last row", "Cancel"]
       let options := Loam.Tui.Record.catalogCandidates state.editor
       let selectedIndex :=
         if options.isEmpty then 0 else state.editor.candidateIndex % options.length
       let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
       let visible := (options.drop candidateStart).take 5
       let candidateLines :=
-        if visible.isEmpty then
-          [Loam.Tui.Record.line "  (no matching admitted Locus)"]
-        else
-          (visible.zipIdx).map fun (entry, index) =>
-            let marker := if candidateStart + index = selectedIndex then "> " else "  "
-            Loam.Tui.Record.line (marker ++ Loam.Tui.LocusPicker.display entry)
+        match Loam.Tui.Record.activeLocus? state.editor.form with
+        | none =>
+            [Loam.Tui.Record.line "  (focus a Locus field to search admitted Loci)"]
+        | some _ =>
+            if visible.isEmpty then
+              [Loam.Tui.Record.line "  (no matching admitted Locus)"]
+            else
+              (visible.zipIdx).map fun (entry, index) =>
+                let marker := if candidateStart + index = selectedIndex then "> " else "  "
+                Loam.Tui.Record.line (marker ++ Loam.Tui.LocusPicker.display entry)
       let helpLines :=
         match Loam.Tui.Record.selectedCatalogCandidate? state.editor with
         | some entry =>

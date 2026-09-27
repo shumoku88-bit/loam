@@ -132,10 +132,23 @@ def main (args : List String) : IO Unit := do
     editor with editor := filteredEditor
   }
   let filteredText := widgetText (Loam.Tui.Correction.view known filteredState)
+  expect (contains "[Preview] [Add posting] [Drop last row] [Cancel]" filteredText)
+    "Correction action labels drifted from Record action semantics"
   expect (contains "receivable:mother" filteredText && contains "母への立替金" filteredText)
     "Correction did not expose filtered human-facing Locus candidates"
   expect (!contains "coffee  コーヒー" filteredText)
     "Correction candidate list ignored the typed Locus filter"
+
+  let amountFocusForm : Loam.Tui.Record.Form :=
+    Loam.Tui.Record.moveFocus filteredForm false
+  let amountFocusState : Loam.Tui.Correction.State := {
+    filteredState with editor := { filteredState.editor with form := amountFocusForm }
+  }
+  let amountFocusText := widgetText (Loam.Tui.Correction.view known amountFocusState)
+  expect (contains "focus a Locus field to search admitted Loci" amountFocusText)
+    "Correction amount focus still pretended the Locus search had no matches"
+  expect (!contains "(no matching admitted Locus)" amountFocusText)
+    "Correction amount focus still showed a false no-matching-Locus warning"
 
   let originalSuppressed := Loam.Tui.Correction.update world known editor (.ctrl 'o')
   expect originalSuppressed.publish.isNone
