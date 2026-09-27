@@ -73,6 +73,45 @@ private def anchorAssertion
 def main : IO Unit := do
   let snapshot ← buildSnapshot
 
+  -- 0. Money calendar is role-aware: assets/transfers do not become fake +/- flow.
+  let incomeEvent ← requireSome
+    (Event.ofEffects? ⟨"income-event"⟩
+      [ Effect.ofQuantity ⟨"income-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 12000)
+      , Effect.ofQuantity ⟨"income-role"⟩ ⟨"salary"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-12000))
+      ])
+    "money calendar income fixture"
+  let expenseEvent ← requireSome
+    (Event.ofEffects? ⟨"expense-event"⟩
+      [ Effect.ofQuantity ⟨"expense-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-2470))
+      , Effect.ofQuantity ⟨"expense-role"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 2470)
+      ])
+    "money calendar expense fixture"
+  let transferEvent ← requireSome
+    (Event.ofEffects? ⟨"transfer-event"⟩
+      [ Effect.ofQuantity ⟨"transfer-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-3000))
+      , Effect.ofQuantity ⟨"transfer-paypay"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 3000)
+      ])
+    "money calendar transfer fixture"
+  let roles ← requireSome
+    (AccountingRoleMap.ofAssignments?
+      [ { locus := ⟨"wallet"⟩, role := .asset }
+      , { locus := ⟨"paypay"⟩, role := .asset }
+      , { locus := ⟨"salary"⟩, role := .income }
+      , { locus := ⟨"food"⟩, role := .expense }
+      ])
+    "money calendar role map fixture"
+  let records : List Loam.ActualReview.Record :=
+    [ { event := incomeEvent, date := some "2026-09-10", description := "", replacement := none }
+    , { event := expenseEvent, date := some "2026-09-10", description := "", replacement := none }
+    , { event := transferEvent, date := some "2026-09-10", description := "", replacement := none }
+    ]
+  let moneyProjection := Loam.CalendarMoneyReview.project records roles
+  let moneyRow ← requireSome (moneyProjection.rowFor? "2026-09-10" ⟨"jpy"⟩)
+    "money calendar lost the represented day"
+  let direction := moneyRow.directional
+  expect (direction.plus.quanta == 12000 && direction.minus.quanta == 2470)
+    "money calendar counted an asset transfer or changed Income/Expense direction"
+
   -- 1. Test flowTokens primitives
   let emptyTokens : List String := []
   expect (flowTokens 80 "  " emptyTokens == [])
