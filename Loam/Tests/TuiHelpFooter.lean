@@ -111,6 +111,12 @@ def main : IO Unit := do
   let direction := moneyRow.directional
   expect (direction.plus.quanta == 12000 && direction.minus.quanta == 2470)
     "money calendar counted an asset transfer or changed Income/Expense direction"
+  let monthSummary :=
+    moneyProjection.summaryForWindow "2026-09-01" "2026-10-01" ⟨"jpy"⟩
+  expect (monthSummary.plus.quanta == 12000 &&
+          monthSummary.minus.quanta == 2470 &&
+          monthSummary.unresolvedEffectCount == 0)
+    "money calendar month summary changed daily directional semantics"
 
   -- 1. Test flowTokens primitives
   let emptyTokens : List String := []
@@ -219,6 +225,8 @@ def main : IO Unit := do
     "money calendar did not expose its selected Measure"
   expect (contains "+12,000" moneyText && contains "-2,470" moneyText)
     "money calendar did not render grouped daily + / - totals"
+  expect (contains "+12,000   -2,470   = +9,530" moneyText)
+    "money calendar did not render the symbolic monthly + / - / net summary"
   expect (contains "┌" moneyText && contains "┬" moneyText &&
           contains "│" moneyText && contains "┼" moneyText &&
           contains "└" moneyText && contains "┴" moneyText)

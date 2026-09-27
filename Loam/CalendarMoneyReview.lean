@@ -48,6 +48,12 @@ structure Directional where
   minus : Quantity
   deriving Repr, DecidableEq
 
+structure WindowSummary where
+  plus : Quantity
+  minus : Quantity
+  unresolvedEffectCount : Nat
+  deriving Repr, DecidableEq
+
 private def sameKey (row : Row) (date : String) (measure : MeasureId) : Bool :=
   row.date == date && decide (row.measure = measure)
 
@@ -174,5 +180,34 @@ def Snapshot.measuresInWindow
         measures)
     []
     |>.mergeSort fun left right => left.token <= right.token
+
+/--
+Gross directional summary for one date window and one Measure.
+
+This folds the already-projected daily rows rather than reopening Actual evidence.
+Distinct Measures remain separate, and unresolved role evidence remains explicit
+instead of being silently treated as complete classification.
+-/
+def Snapshot.summaryForWindow
+    (snapshot : Snapshot)
+    (start endExclusive : String)
+    (measure : MeasureId) : WindowSummary :=
+  snapshot.rows.foldl
+    (fun total row =>
+      if decide (start <= row.date && row.date < endExclusive) &&
+          decide (row.measure = measure) then
+        let directional := row.directional
+        {
+          plus := Quantity.ofQuanta (total.plus.quanta + directional.plus.quanta)
+          minus := Quantity.ofQuanta (total.minus.quanta + directional.minus.quanta)
+          unresolvedEffectCount := total.unresolvedEffectCount + row.unresolvedEffectCount
+        }
+      else
+        total)
+    {
+      plus := Quantity.ofQuanta 0
+      minus := Quantity.ofQuanta 0
+      unresolvedEffectCount := 0
+    }
 
 end Loam.CalendarMoneyReview

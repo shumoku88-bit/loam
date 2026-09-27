@@ -186,6 +186,30 @@ private def groupedAmountText (text : String) : String :=
   | [whole, fractional] => groupThousands whole ++ "." ++ fractional
   | _ => text
 
+private def groupedQuantaText
+    (money : MoneyCalendarSnapshot)
+    (measure : Loam.Core.MeasureId)
+    (quanta : Int) : String :=
+  groupedAmountText <|
+    Loam.MeasurePresentation.formatQuanta money.presentation measure quanta
+
+private def moneyMonthSummaryText
+    (snapshot : Snapshot) (state : State) : String :=
+  match moneyMeasureInfo snapshot state with
+  | none => ""
+  | some (_, []) => ""
+  | some (money, measure :: _) =>
+      let window := moneyWindow state
+      let summary := money.flow.summaryForWindow window.1 window.2 measure
+      let plusText := "+" ++ groupedQuantaText money measure summary.plus.quanta
+      let minusText := "-" ++ groupedQuantaText money measure summary.minus.quanta
+      let net := summary.plus.quanta - summary.minus.quanta
+      let netText :=
+        if net > 0 then "+" ++ groupedQuantaText money measure net
+        else groupedQuantaText money measure net
+      plusText ++ "   " ++ minusText ++ "   = " ++ netText ++
+        (if summary.unresolvedEffectCount = 0 then "" else "  ?")
+
 private def moneyAmountSpan
     (paneWidth : Nat) (today : String)
     (snapshot : Snapshot) (state : State)
@@ -250,6 +274,9 @@ private def moneyCalendarBlock
   , moneyRule paneWidth '├' '┼' '┤'
   ] ++
   moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state ++
+  (let summary := moneyMonthSummaryText snapshot state
+   if summary.isEmpty then []
+   else [plainLine (centeredText gridWidth summary)]) ++
   [mutedLine " underline = today; ! = Scheduled still open; ? = unresolved role"]
 
 private def displayDescription (record : ReviewRecord) : String :=
