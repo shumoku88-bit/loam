@@ -688,6 +688,34 @@
         "CollapsedCancelDeterminesLifecycleMeaning": true,
         "OutstandingDeterminesReductionMeaning": true
       }
+    },
+    {
+      "id": "settlement-commitment-identity",
+      "observation": "Observation 374",
+      "jobName": "Test replacement lineage as settlement commitment identity",
+      "pushBranches": [
+        "main",
+        "experiment/374-settlement-commitment-identity"
+      ],
+      "model": "experiments/374_settlement_commitment_identity.als",
+      "paths": [
+        "experiments/374_settlement_commitment_identity.als",
+        "experiments/374_settlement_commitment_identity.md"
+      ],
+      "expected": {
+        "oldReferenceFollowsCorrectionWitness": true,
+        "mixedVersionReferencesCoalesceWitness": true,
+        "multiStepLineageWitness": true,
+        "correctedThenRetractedWitness": true,
+        "independentLineagesStayDistinctWitness": true,
+        "exactTargetProjectionDropsOldReferenceWitness": true,
+        "mergeWouldAmbiguateLineage": false,
+        "cycleWouldDestroyCurrentIdentity": false,
+        "CurrentVersionIsUnique": false,
+        "SameLineageSharesCurrentProjection": false,
+        "ReferenceResolutionPreservesLineage": false,
+        "ExactTargetProjectionIsEnough": true
+      }
     }
   ]
 }
