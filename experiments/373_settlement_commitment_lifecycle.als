@@ -100,16 +100,16 @@ fun collapsedTerminalTargets[w: World]: set Commitment {
 }
 
 fun revisionSuccessorRelation[w: World]: Commitment -> Commitment {
-  { before, after: Commitment |
+  { source, successor: Commitment |
     some r: w.revisions |
-      r.target = before and r.replacement = after
+      r.target = source and r.replacement = successor
   }
 }
 
 fun extinguishmentSuccessorRelation[w: World]: Commitment -> Commitment {
-  { before, after: Commitment |
+  { source, successor: Commitment |
     some e: w.extinguishments |
-      e.target = before and e.successor = after
+      e.target = source and e.successor = successor
   }
 }
 
