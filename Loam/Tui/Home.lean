@@ -690,8 +690,8 @@ private def dayHelpTokens (state : State) : List String :=
    "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
-  ["Household:", "[i] attention", "[b] balances", "[c] budget", "[e] capacity",
-   "[v] reports"]
+  ["Household:", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
+   "[e] capacity", "[v] reports"]
 
 private def manageHelpTokens : List String :=
   ["Manage:", "[p] purpose routing", "[m] manage loci", "[o] observe quantities"]
