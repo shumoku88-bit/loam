@@ -16,6 +16,8 @@ import Loam.Tui.AttentionAdministration
 import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances
 import Loam.Tui.SettlementWorkspace
+import Loam.Tui.SettlementAction
+import Loam.Tui.SettlementActionSession
 import Loam.SettlementReview
 import Loam.Tui.Capacity
 import Loam.Tui.CapacitySession
@@ -309,6 +311,8 @@ partial def balancesLoop (bounds : Bounds)
 /-- Read-only settlement review session; q/Esc returns to Home. -/
 partial def settlementLoop
     (bounds : Bounds)
+    (root : System.FilePath)
+    (today : String)
     (state : Loam.Tui.SettlementWorkspace.State)
     (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
@@ -317,17 +321,44 @@ partial def settlementLoop
     | .up | .input 'k' | .input 'K' => .previous
     | .down | .input 'j' | .input 'J' => .next
     | .input 'f' | .input 'F' => .cycleScope
+    | .input 'a' | .input 'A' => .action
     | .input 'd' | .input 'D' => .toggleDetail
     | .escape | .input 'q' | .input 'Q' => .back
     | _ => .other
   let step := Loam.Tui.SettlementWorkspace.update state event
   match step.command with
   | .back => return ()
+  | .action =>
+      match Loam.Tui.SettlementWorkspace.selectedRow? step.state with
+      | none =>
+          let next := { step.state with notice := "No item is selected." }
+          let nextFrame :=
+            compileWidget (Loam.Tui.SettlementWorkspace.view bounds next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          settlementLoop bounds root today next nextFrame
+      | some row =>
+          let action := Loam.Tui.SettlementAction.initial today row
+          let actionFrame := compileWidget (Loam.Tui.SettlementAction.view action)
+          Loam.Tui.Terminal.redrawFromBlank bounds actionFrame
+          let notice ← Loam.Tui.SettlementActionSession.run
+            bounds root action actionFrame
+          let refreshedSnapshot ←
+            match ← Loam.SettlementReview.loadSnapshot root with
+            | .ok snapshot => pure snapshot
+            | .error message =>
+                throw (IO.userError ("Settlement action completed but reload failed: " ++ message))
+          let next :=
+            Loam.Tui.SettlementWorkspace.refreshed
+              refreshedSnapshot step.state notice
+          let nextFrame :=
+            compileWidget (Loam.Tui.SettlementWorkspace.view bounds next)
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+          settlementLoop bounds root today next nextFrame
   | .stay =>
       let nextFrame :=
         compileWidget (Loam.Tui.SettlementWorkspace.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      settlementLoop bounds step.state nextFrame
+      settlementLoop bounds root today step.state nextFrame
 
 /-- Current quantity observations stay presentation-local until one new reconciliation group is published. -/
 partial def currentQuantityAnchorLoop
@@ -434,7 +465,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let settlementFrame :=
           compileWidget (Loam.Tui.SettlementWorkspace.view bounds settlement)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame settlementFrame
-        settlementLoop bounds settlement settlementFrame
+        settlementLoop bounds root snapshot.actual.today settlement settlementFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame

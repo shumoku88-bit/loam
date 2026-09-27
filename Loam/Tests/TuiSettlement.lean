@@ -1,4 +1,5 @@
 import Loam.Tui.SettlementWorkspace
+import Loam.Tui.SettlementAction
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -138,6 +139,102 @@ def main : IO Unit := do
           contains "[zero]" settledDetailedText)
     "zero-net provenance missing from details"
 
+  -- Friendly action entrance emits human intent without asking for retained IDs.
+  match Loam.Tui.SettlementWorkspace.update initial .action with
+  | { command := .action, .. } => pure ()
+  | _ => throw (IO.userError "Settlement workspace action intent missing")
+
+  let action := Loam.Tui.SettlementAction.initial "2026-09-28" rowOpen
+  let actionText := widgetText (Loam.Tui.SettlementAction.view action)
+  expect (contains "Card purchase" actionText &&
+          contains "Change the original amount" actionText &&
+          contains "This record itself is wrong" actionText &&
+          contains "Remaining amount decreased without payment" actionText)
+    "friendly settlement action menu missing"
+  expect (!contains "open-card" actionText &&
+          !contains "SettlementCommitment" actionText &&
+          !contains "extinguishment" actionText)
+    "friendly settlement action menu leaked internal vocabulary"
+
+  -- Amount correction validates against already explained quantity before
+  -- emitting the surface-neutral intent.
+  let amountEditing := {
+    action with
+    mode := Loam.Tui.SettlementAction.Mode.editAmount "1200"
+  }
+  let amountPreview :=
+    (Loam.Tui.SettlementAction.update amountEditing .enter).state
+  match amountPreview.mode with
+  | .editAmountPreview quantity =>
+      expect (quantity.quanta == 1200)
+        "friendly amount editor changed entered quantity"
+  | _ => throw (IO.userError "friendly amount editor did not enter preview")
+  match (Loam.Tui.SettlementAction.update amountPreview .enter).publish with
+  | some (.correctAmount draft) =>
+      expect (draft.target == rowOpen.id && draft.quantity.quanta == 1200)
+        "friendly amount editor emitted the wrong correction intent"
+  | _ => throw (IO.userError "friendly amount editor did not emit correction intent")
+
+  let tooSmall := {
+    action with
+    mode := Loam.Tui.SettlementAction.Mode.editAmount "500"
+  }
+  let tooSmallStep := Loam.Tui.SettlementAction.update tooSmall .enter
+  expect (contains "smaller than payment/adjustment" tooSmallStep.state.notice)
+    "friendly amount editor did not explain its lower bound"
+
+  -- Whole-record retraction is unavailable when later activity exists.
+  let blockedWrong :=
+    Loam.Tui.SettlementAction.update action (.input '2')
+  expect (contains "later payment or adjustment" blockedWrong.state.notice)
+    "friendly action menu did not preflight unsafe whole-record retraction"
+
+  let cleanRow : Loam.SettlementReview.Row := {
+    rowOpen with
+    settled := Quantity.ofQuanta 0
+    outstanding := Quantity.ofQuanta 1000
+    direct := []
+    extinguished := Quantity.ofQuanta 0
+    extinguishments := []
+  }
+  let cleanAction := Loam.Tui.SettlementAction.initial "2026-09-28" cleanRow
+  let retractConfirm :=
+    (Loam.Tui.SettlementAction.update cleanAction (.input '2')).state
+  match (Loam.Tui.SettlementAction.update retractConfirm .enter).publish with
+  | some (.retract draft) =>
+      expect (draft.target == cleanRow.id)
+        "friendly retraction emitted the wrong target"
+  | _ => throw (IO.userError "friendly retraction did not emit intent")
+
+  -- "I don't know" remains a first-class date answer and emits no guessed date.
+  let reduceAmountState : Loam.Tui.SettlementAction.State := {
+    action with
+    mode := .reduceAmount "100"
+  }
+  let reduceWhen :=
+    (Loam.Tui.SettlementAction.update reduceAmountState .enter).state
+  let reduceUnknown :=
+    (Loam.Tui.SettlementAction.update reduceWhen (.input '3')).state
+  let reduceUnknownText := widgetText (Loam.Tui.SettlementAction.view reduceUnknown)
+  expect (contains "date unknown" reduceUnknownText)
+    "friendly reduction preview did not preserve unknown date"
+  match (Loam.Tui.SettlementAction.update reduceUnknown .enter).publish with
+  | some (.reduceWithoutPayment draft) =>
+      expect (draft.target == rowOpen.id &&
+              draft.quantity.quanta == 100 &&
+              draft.effectiveOn.isNone)
+        "friendly reduction emitted guessed or incorrect evidence"
+  | _ => throw (IO.userError "friendly reduction did not emit intent")
+
+  let tooLargeReduction : Loam.Tui.SettlementAction.State := {
+    action with
+    mode := .reduceAmount "400"
+  }
+  let tooLargeStep :=
+    Loam.Tui.SettlementAction.update tooLargeReduction .enter
+  expect (contains "larger than the remaining amount" tooLargeStep.state.notice)
+    "friendly reduction did not explain its upper bound"
+
   let backToFirst :=
     (Loam.Tui.SettlementWorkspace.update selectedSecond .previous).state
   expect ((Loam.Tui.SettlementWorkspace.selectedRow? backToFirst).map (·.id.token) ==
@@ -153,4 +250,4 @@ def main : IO Unit := do
   expect (contains "nothing to show in this view" emptyText)
     "empty settlement workspace message missing"
 
-  IO.println "TUI Settlement: compact routine view and on-demand provenance detail passed."
+  IO.println "TUI Settlement: compact review, on-demand detail, and friendly action intents passed."

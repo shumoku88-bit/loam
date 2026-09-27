@@ -244,6 +244,123 @@ private def cleanupDir (dir : System.FilePath) : IO Unit := do
   if ← dir.pathExists then
     IO.FS.removeDirAll dir
 
+private def friendlyActionBoundary : IO Unit := do
+  let root := System.FilePath.mk "scratch/test-settlement-friendly-actions"
+  cleanupDir root
+  IO.FS.createDirAll root
+
+  let initial ← initialActual
+  let _ ← requireOk
+    (← Loam.ActualAuthority.publishActual? root initial)
+    "friendly action initial Actual publication failed"
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root directBatch)
+    "friendly action direct settlement seed failed"
+
+  -- A1: amount correction needs no caller-supplied replacement identity.
+  let replacementId ← requireOk
+    (← Loam.HouseholdCommand.correctSettlementAmount root {
+      target := ⟨"writer-card-commitment"⟩
+      quantity := Quantity.ofQuanta 1200
+    })
+    "friendly amount correction failed"
+  expect (replacementId.token.startsWith "settlement-commitment-")
+    "friendly amount correction did not allocate an internal commitment identity"
+  expectOutstanding root replacementId.token 500
+    "friendly amount correction"
+
+  -- A2: an amount smaller than already-settled quantity fails closed.
+  let beforeTooSmall ← loadActual root "before too-small friendly correction"
+  match ← Loam.HouseholdCommand.correctSettlementAmount root {
+      target := replacementId
+      quantity := Quantity.ofQuanta 600
+    } with
+  | .ok _ =>
+      throw <| IO.userError
+        "friendly amount correction admitted amount below existing settlement"
+  | .error _ => pure ()
+  let afterTooSmall ← loadActual root "after too-small friendly correction"
+  expect (decide (afterTooSmall.settlements = beforeTooSmall.settlements))
+    "failed friendly amount correction changed settlement authority"
+
+  -- A3: non-payment reduction allocates its own stable row identity and keeps
+  -- unknown effective time unknown.
+  let extinguishmentId ← requireOk
+    (← Loam.HouseholdCommand.reduceSettlementWithoutPayment root {
+      target := replacementId
+      quantity := Quantity.ofQuanta 200
+      effectiveOn := none
+    })
+    "friendly non-payment reduction failed"
+  expect (extinguishmentId.token.startsWith "settlement-extinguishment-")
+    "friendly reduction did not allocate an internal extinguishment identity"
+  expectOutstanding root replacementId.token 300
+    "friendly non-payment reduction"
+  let afterReduction ← loadActual root "after friendly reduction"
+  let retainedReduction ← requireSome
+    (afterReduction.settlements.extinguishments.find?
+      (fun row => row.id = extinguishmentId))
+    "friendly reduction row missing"
+  expect retainedReduction.effectiveOn.isNone
+    "friendly unknown-date reduction fabricated an effective date"
+
+  -- A4: explicit known date is checked before publication.
+  let beforeBadDate ← loadActual root "before bad friendly date"
+  match ← Loam.HouseholdCommand.reduceSettlementWithoutPayment root {
+      target := replacementId
+      quantity := Quantity.ofQuanta 10
+      effectiveOn := some "2026-02-29"
+    } with
+  | .ok _ =>
+      throw <| IO.userError "friendly reduction accepted impossible date"
+  | .error _ => pure ()
+  let afterBadDate ← loadActual root "after bad friendly date"
+  expect (decide (afterBadDate.settlements = beforeBadDate.settlements))
+    "failed friendly dated reduction changed settlement authority"
+
+  -- A5: whole-record retraction remains semantically distinct and refuses
+  -- while later payment/reduction evidence survives.
+  let beforeBlockedRetraction ← loadActual root "before friendly blocked retraction"
+  match ← Loam.HouseholdCommand.retractSettlement root {
+      target := replacementId
+    } with
+  | .ok () =>
+      throw <| IO.userError
+        "friendly retraction erased a commitment with later activity"
+  | .error _ => pure ()
+  let afterBlockedRetraction ← loadActual root "after friendly blocked retraction"
+  expect (decide
+      (afterBlockedRetraction.settlements = beforeBlockedRetraction.settlements))
+    "failed friendly retraction changed settlement authority"
+
+  -- A6: a genuinely erroneous independent commitment can be retracted without
+  -- the caller constructing revision evidence.
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root {
+      commitments := [{
+        id := ⟨"friendly-retractable"⟩
+        sourceEvent := sourceEventId
+        sourceEffect := sourceEffectKey
+        debtor := .household
+        creditor := .external ⟨"writer-card-issuer"⟩
+        measure := yen
+        quantity := Quantity.ofQuanta 250
+      }]
+    })
+    "friendly retractable commitment seed failed"
+  expectOutstanding root "friendly-retractable" 250
+    "friendly retractable before retraction"
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.retractSettlement root {
+      target := ⟨"friendly-retractable"⟩
+    })
+    "friendly whole-record retraction failed"
+  let image ← loadImage root "after friendly whole-record retraction"
+  expect ((image.settlement.outstanding? ⟨"friendly-retractable"⟩).isNone)
+    "friendly whole-record retraction left commitment current"
+
+  cleanupDir root
+
 def runAll : IO Unit := do
   let root := System.FilePath.mk "scratch/test-settlement-explicit-publisher"
   cleanupDir root
@@ -476,7 +593,8 @@ def runAll : IO Unit := do
   | .error _ => pure ()
 
   cleanupDir root
-  IO.println "Explicit settlement publisher Slice E qualification succeeded."
+  friendlyActionBoundary
+  IO.println "Explicit settlement publisher Slice E and friendly action boundary qualification succeeded."
 
 end Loam.Tests.SettlementPublisher
 
