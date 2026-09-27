@@ -137,6 +137,18 @@ def main (args : List String) : IO Unit := do
   expect (!contains "coffee  コーヒー" filteredText)
     "Correction candidate list ignored the typed Locus filter"
 
+  let amountFocusForm : Loam.Tui.Record.Form := {
+    filteredForm with focus := ⟨4, by decide⟩
+  }
+  let amountFocusState : Loam.Tui.Correction.State := {
+    filteredState with editor := { filteredState.editor with form := amountFocusForm }
+  }
+  let amountFocusText := widgetText (Loam.Tui.Correction.view known amountFocusState)
+  expect (contains "focus a Locus field to search admitted Loci" amountFocusText)
+    "Correction amount focus still pretended the Locus search had no matches"
+  expect (!contains "(no matching admitted Locus)" amountFocusText)
+    "Correction amount focus still showed a false no-matching-Locus warning"
+
   let originalSuppressed := Loam.Tui.Correction.update world known editor (.ctrl 'o')
   expect originalSuppressed.publish.isNone
     "Correction leaked an original-amount publication intent"
