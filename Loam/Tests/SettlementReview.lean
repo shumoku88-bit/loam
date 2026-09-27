@@ -105,6 +105,15 @@ private def fixture? : Option ActualEvidence := do
         quantity := Quantity.ofQuanta 300
       },
       {
+        id := ⟨"review-corrected-old"⟩
+        sourceEvent := sourceEventId
+        sourceEffect := sourceEffectKey
+        debtor := .household
+        creditor := .external ⟨"review-broker"⟩
+        measure := yen
+        quantity := Quantity.ofQuanta 1200
+      },
+      {
         id := ⟨"review-corrected"⟩
         sourceEvent := sourceEventId
         sourceEffect := sourceEffectKey
@@ -132,6 +141,10 @@ private def fixture? : Option ActualEvidence := do
         quantity := Quantity.ofQuanta 500
       }
     ]
+    commitmentRevisions := [{
+      target := ⟨"review-corrected-old"⟩
+      replacement := some ⟨"review-corrected"⟩
+    }]
     correspondences := [
       {
         id := ⟨"review-mixed-direct"⟩
@@ -142,14 +155,14 @@ private def fixture? : Option ActualEvidence := do
       },
       {
         id := ⟨"review-correction-old"⟩
-        target := ⟨"review-corrected"⟩
+        target := ⟨"review-corrected-old"⟩
         event := ⟨"review-missing-event"⟩
         effect := ⟨"review-missing-effect"⟩
         quantity := Quantity.ofQuanta 700
       },
       {
         id := ⟨"review-correction-new"⟩
-        target := ⟨"review-corrected"⟩
+        target := ⟨"review-corrected-old"⟩
         event := correctionEventId
         effect := correctionEffectKey
         quantity := Quantity.ofQuanta 600
@@ -254,8 +267,10 @@ private def correctionUsesCurrentFrontierOnly : IO Unit := do
     (snapshot.find? ⟨"review-corrected"⟩)
     "corrected commitment missing from review"
 
+  expect ((snapshot.find? ⟨"review-corrected-old"⟩).isNone)
+    "review exposed superseded commitment identity"
   expect (row.settled.quanta == 600)
-    "review re-counted superseded correspondence quantity"
+    "review lost historical-target allocation after commitment correction"
   expect (row.outstanding.quanta == 400)
     "corrected commitment outstanding should be 400"
   expect (row.direct.length == 1)
