@@ -8,6 +8,7 @@ import Loam.Core.MovementOperationEvidence
 import Loam.Core.EventCorrectionMemory
 import Loam.Core.ActualReversal
 import Loam.Core.OpenRelation
+import Loam.Core.Settlement
 
 namespace Loam
 
@@ -40,6 +41,7 @@ structure ActualEvidence where
   reversals : ActualReversalMemory
   relations : List RelationUnit
   discharges : List RelationDischarge
+  settlements : SettlementEvidence
 
 /--
 Whether retained Relation or Discharge provenance names one Event directly.
@@ -71,6 +73,7 @@ def ActualEvidence.empty : ActualEvidence := {
   reversals := ActualReversalMemory.empty
   relations := []
   discharges := []
+  settlements := SettlementEvidence.empty
 }
 
 end Loam
