@@ -128,7 +128,7 @@ private def moneyDateSpan
   let pending := pastOpenDates.any fun candidate => candidate == date
   let unresolved :=
     match moneyRowFor? snapshot state date with
-    | some row => row.unresolvedEffectCount > 0
+    | some row => decide (0 < row.unresolvedEffectCount)
     | none => false
   let markers := (if pending then "!" else "") ++ (if unresolved then "?" else "")
   let body := shortDay date ++ markers
@@ -152,8 +152,8 @@ private def moneyAmountSpan
         let amount := if positive then directional.plus.quanta else directional.minus.quanta
         if amount = 0 then ""
         else
-          let prefix := if positive then "+" else "-"
-          prefix ++ Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
+          let signText := if positive then "+" else "-"
+          signText ++ Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
     | _, _ => ""
   span (Loam.Tui.Layout.padLeft cellWidth text)
 
