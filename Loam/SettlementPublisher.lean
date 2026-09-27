@@ -15,7 +15,7 @@ This is the first production write seam for retained settlement evidence.
 
 It is intentionally narrow:
 
-- every commitment / commitment revision / correspondence / netting fact is supplied explicitly;
+- every commitment / revision / extinguishment / correspondence / netting fact is supplied explicitly;
 - the publisher performs no amount/date matching or inference;
 - referenced Actual Events / Effects must already be retained;
 - one Draft is appended and admitted as one complete Actual generation;
@@ -33,6 +33,8 @@ duplicates.
 structure Draft where
   commitments : List SettlementCommitment := []
   commitmentRevisions : List SettlementCommitmentRevision := []
+  extinguishments : List SettlementCommitmentExtinguishment := []
+  extinguishmentRevisions : List SettlementExtinguishmentRevision := []
   correspondences : List SettlementEffectCorrespondence := []
   correspondenceRevisions : List SettlementCorrespondenceRevision := []
   nettingContexts : List SettlementNettingContext := []
@@ -43,6 +45,8 @@ deriving Repr, DecidableEq
 private def Draft.isEmpty (draft : Draft) : Bool :=
   draft.commitments.isEmpty &&
   draft.commitmentRevisions.isEmpty &&
+  draft.extinguishments.isEmpty &&
+  draft.extinguishmentRevisions.isEmpty &&
   draft.correspondences.isEmpty &&
   draft.correspondenceRevisions.isEmpty &&
   draft.nettingContexts.isEmpty &&
@@ -55,6 +59,10 @@ private def appendEvidence
   commitments := existing.commitments ++ draft.commitments
   commitmentRevisions :=
     existing.commitmentRevisions ++ draft.commitmentRevisions
+  extinguishments :=
+    existing.extinguishments ++ draft.extinguishments
+  extinguishmentRevisions :=
+    existing.extinguishmentRevisions ++ draft.extinguishmentRevisions
   correspondences := existing.correspondences ++ draft.correspondences
   correspondenceRevisions :=
     existing.correspondenceRevisions ++ draft.correspondenceRevisions
