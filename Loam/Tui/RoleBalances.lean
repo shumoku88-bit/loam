@@ -219,9 +219,8 @@ private def unresolvedLine (row : RoleGap) : Widget :=
       Loam.Tui.Layout.padLeft 12 quantity ++ " " ++ row.coordinate.measure.token ++
       "  role unresolved")
 
-private def answerabilityStatus
-    (quantityBlockers roleBlockers : Nat) : String :=
-  if quantityBlockers == 0 && roleBlockers == 0 then "ANSWERABLE" else "BLOCKED"
+private def answerabilityStatus (answerable : Bool) : String :=
+  if answerable then "ANSWERABLE" else "BLOCKED"
 
 private def answerabilitySupportGapLine
     (row : Loam.RoleBalanceReview.UnsupportedBalance) : Widget :=
@@ -271,13 +270,13 @@ private def answerabilityMapLines
         toString total ++ " coordinates")
   , line
       ("  Balance Sheet            " ++
-        answerabilityStatus (stockKnownPresent.length + stockBlockers.length) roleBlockers ++
+        answerabilityStatus summary.balanceSheetAnswerable ++
         "  (" ++ toString stockKnownPresent.length ++ " amount-unknown, " ++
         toString stockBlockers.length ++ " unsupported, " ++
         toString roleBlockers ++ " role blockers)")
   , line
       ("  Net Worth                " ++
-        answerabilityStatus (netWorthKnownPresentRows.length + netWorthBlockers.length) roleBlockers ++
+        answerabilityStatus summary.netWorthAnswerable ++
         "  (" ++ toString netWorthKnownPresentRows.length ++ " amount-unknown, " ++
         toString netWorthBlockers.length ++ " unsupported, " ++
         toString roleBlockers ++ " role blockers)")
