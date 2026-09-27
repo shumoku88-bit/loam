@@ -65,6 +65,126 @@ def calendarSpans
 private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
   (List.range 6).map fun row => .row (calendarSpans today pastOpenDates state row)
 
+private def moneyWindow (state : State) : String × String :=
+  Loam.Tui.Calendar.monthWindow (selectedMonth state)
+
+private def moneyMeasureInfo
+    (snapshot : Snapshot) (state : State) : Option (MoneyCalendarSnapshot × List Loam.Core.MeasureId) :=
+  match snapshot.moneyCalendar with
+  | .loaded money =>
+      let window := moneyWindow state
+      some (money, money.flow.measuresInWindow window.1 window.2)
+  | _ => none
+
+private def moneyMeasure?
+    (snapshot : Snapshot) (state : State) : Option Loam.Core.MeasureId := do
+  let (_, measures) ← moneyMeasureInfo snapshot state
+  measures.head?
+
+private def moneyTitle (snapshot : Snapshot) (state : State) : String :=
+  let month := monthTitle state
+  match snapshot.moneyCalendar with
+  | .notRequested => month ++ "  ± not requested"
+  | .unavailable => month ++ "  ± unavailable"
+  | .failed _ => month ++ "  ± unavailable"
+  | .loaded money =>
+      let window := moneyWindow state
+      let measures := money.flow.measuresInWindow window.1 window.2
+      match measures with
+      | [] => month ++ "  ±"
+      | measure :: rest =>
+          month ++ "  ± " ++ measure.token ++
+            (if rest.isEmpty then "" else "  (" ++ toString measures.length ++ " measures)")
+
+private def centeredText (width : Nat) (text : String) : String :=
+  let textWidth := Loam.Tui.Layout.displayWidth text
+  let padding := if textWidth < width then (width - textWidth) / 2 else 0
+  repeatChar padding ' ' ++ text
+
+private def moneyCalendarHeader (paneWidth : Nat) : Widget :=
+  let cellWidth := paneWidth / 7
+  .row <| ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map fun label =>
+    span (Loam.Tui.Layout.padRight cellWidth (" " ++ label)) .muted
+
+private def shortDay (date : String) : String :=
+  match date.splitOn "-" with
+  | [_, _, text] =>
+      match text.toNat? with
+      | some day => toString day
+      | none => text
+  | _ => date
+
+private def moneyRowFor?
+    (snapshot : Snapshot) (state : State) (date : String) :
+    Option Loam.CalendarMoneyReview.Row := do
+  let (money, measures) ← moneyMeasureInfo snapshot state
+  let measure ← measures.head?
+  money.flow.rowFor? date measure
+
+private def moneyDateSpan
+    (paneWidth : Nat) (today : String) (pastOpenDates : List String)
+    (snapshot : Snapshot) (state : State) (date : String) : Span :=
+  let cellWidth := paneWidth / 7
+  let pending := pastOpenDates.any fun candidate => candidate == date
+  let unresolved :=
+    match moneyRowFor? snapshot state date with
+    | some row => row.unresolvedEffectCount > 0
+    | none => false
+  let markers := (if pending then "!" else "") ++ (if unresolved then "?" else "")
+  let body := shortDay date ++ markers
+  let text :=
+    if date == state.selectedDate then "[" ++ body ++ "]"
+    else " " ++ body
+  span (Loam.Tui.Layout.padRight cellWidth text)
+    (if date == state.selectedDate then
+      if date == today then .selectedUnderlined else .selected
+    else if date == today then .underlined
+    else .normal)
+
+private def moneyAmountSpan
+    (paneWidth : Nat) (snapshot : Snapshot) (state : State)
+    (date : String) (positive : Bool) : Span :=
+  let cellWidth := paneWidth / 7
+  let text :=
+    match moneyRowFor? snapshot state date, moneyMeasureInfo snapshot state with
+    | some row, some (money, _) =>
+        let directional := row.directional
+        let amount := if positive then directional.plus.quanta else directional.minus.quanta
+        if amount = 0 then ""
+        else
+          let prefix := if positive then "+" else "-"
+          prefix ++ Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
+    | _, _ => ""
+  span (Loam.Tui.Layout.padLeft cellWidth text)
+
+private def moneyCalendarRows
+    (paneWidth : Nat) (today : String) (pastOpenDates : List String)
+    (snapshot : Snapshot) (state : State) : List Widget :=
+  (List.range 6).flatMap fun row =>
+    let dates := (List.range 7).map fun col => calendarSlot state row col
+    let dateLine := .row <| dates.map fun slot =>
+      match slot with
+      | none => span (Loam.Tui.Layout.padRight (paneWidth / 7) "")
+      | some date => moneyDateSpan paneWidth today pastOpenDates snapshot state date
+    let plusLine := .row <| dates.map fun slot =>
+      match slot with
+      | none => span (Loam.Tui.Layout.padRight (paneWidth / 7) "")
+      | some date => moneyAmountSpan paneWidth snapshot state date true
+    let minusLine := .row <| dates.map fun slot =>
+      match slot with
+      | none => span (Loam.Tui.Layout.padRight (paneWidth / 7) "")
+      | some date => moneyAmountSpan paneWidth snapshot state date false
+    [dateLine, plusLine, minusLine]
+
+private def moneyCalendarBlock
+    (paneWidth : Nat) (snapshot : Snapshot) (state : State)
+    (pastOpenDates : List String) : List Widget :=
+  [ plainLine (centeredText paneWidth (moneyTitle snapshot state))
+  , moneyCalendarHeader paneWidth
+  ] ++
+  moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state ++
+  [mutedLine " underline = today; ! = Scheduled still open; ? = unresolved role"]
+
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
   else Loam.ActualReview.displayText record.description
@@ -338,15 +458,20 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
       , span "]" .muted
       ]
   , ruleLine bounds '='
-  , plainLine (centeredMonthTitle state)
-  , calendarHeader
   ] ++
-  calendarRows snapshot.actual.today pastOpenDates state ++
-  [mutedLine " underline = today"] ++
-  (if pastOpenDates.isEmpty then [] else
-    [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
-  [blankLine] ++
-  homeSummaryLines snapshot ++
+  (match state.calendarMode with
+   | .plain =>
+       [ plainLine (centeredMonthTitle state)
+       , calendarHeader
+       ] ++
+       calendarRows snapshot.actual.today pastOpenDates state ++
+       [mutedLine " underline = today"] ++
+       (if pastOpenDates.isEmpty then [] else
+         [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
+       [blankLine] ++
+       homeSummaryLines snapshot
+   | .money =>
+       moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates) ++
   [ ruleLine bounds '-'
   , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
   ] ++
@@ -364,17 +489,22 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
   [ruleLine bounds '=']
 
 private def wideCalendarPane
+    (paneWidth : Nat)
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : Widget :=
-  .column
-    ([ plainLine (centeredMonthTitle state)
-     , calendarHeader
-     ] ++
-     calendarRows snapshot.actual.today pastOpenDates state ++
-     [mutedLine " underline = today"] ++
-     (if pastOpenDates.isEmpty then [] else
-       [mutedLine " ! = still current-open"]) ++
-     [blankLine] ++
-     wideHomeSummaryLines snapshot)
+  .column <|
+    match state.calendarMode with
+    | .plain =>
+        [ plainLine (centeredMonthTitle state)
+        , calendarHeader
+        ] ++
+        calendarRows snapshot.actual.today pastOpenDates state ++
+        [mutedLine " underline = today"] ++
+        (if pastOpenDates.isEmpty then [] else
+          [mutedLine " ! = still current-open"]) ++
+        [blankLine] ++
+        wideHomeSummaryLines snapshot
+    | .money =>
+        moneyCalendarBlock paneWidth snapshot state pastOpenDates
 
 private def wideDetailLines
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
@@ -430,11 +560,11 @@ private def wideHomeBody
   let pending := pendingEvidence snapshot
   let pastOpenDates := pendingDates pending
   let contentWidth := Loam.Tui.Layout.contentWidth bounds
-  let leftWidth := 41
   let dividerWidth := 3
-  let rightWidth := contentWidth - leftWidth - dividerWidth
+  let rightWidth := 42
+  let leftWidth := contentWidth - dividerWidth - rightWidth
   let panelRows := widePanelRows bounds footerRows
-  let left := wideCalendarPane snapshot state pastOpenDates
+  let left := wideCalendarPane leftWidth snapshot state pastOpenDates
   let right := wideSelectedDayPane panelRows snapshot state pending
   [ ruleLine bounds '='
   , .row
@@ -455,7 +585,7 @@ private def homeBody
   else stackedHomeBody bounds snapshot state
 
 private def dayHelpTokens : List String :=
-  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[Enter] open",
+  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[f] money", "[Enter] open",
    "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
