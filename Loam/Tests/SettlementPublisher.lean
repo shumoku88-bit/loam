@@ -134,6 +134,41 @@ private def correctionBatch : Loam.SettlementPublisher.Draft := {
   }]
 }
 
+private def commitmentCorrectionBatch : Loam.SettlementPublisher.Draft := {
+  commitments := [{
+    id := ⟨"writer-card-commitment-v2"⟩
+    sourceEvent := sourceEventId
+    sourceEffect := sourceEffectKey
+    debtor := .household
+    creditor := .external ⟨"writer-card-issuer"⟩
+    measure := yen
+    quantity := Quantity.ofQuanta 900
+  }]
+  commitmentRevisions := [{
+    target := ⟨"writer-card-commitment"⟩
+    replacement := some ⟨"writer-card-commitment-v2"⟩
+  }]
+}
+
+private def retractableCommitmentBatch : Loam.SettlementPublisher.Draft := {
+  commitments := [{
+    id := ⟨"writer-retractable"⟩
+    sourceEvent := sourceEventId
+    sourceEffect := sourceEffectKey
+    debtor := .household
+    creditor := .external ⟨"writer-card-issuer"⟩
+    measure := yen
+    quantity := Quantity.ofQuanta 250
+  }]
+}
+
+private def retractCommitmentBatch : Loam.SettlementPublisher.Draft := {
+  commitmentRevisions := [{
+    target := ⟨"writer-retractable"⟩
+    replacement := none
+  }]
+}
+
 private def zeroNetBatch : Loam.SettlementPublisher.Draft := {
   commitments := [
     {
@@ -224,44 +259,29 @@ def runAll : IO Unit := do
   expectOutstanding root "writer-card-commitment" 400
     "after correspondence correction"
 
-  -- E3: seed one already-admitted commitment correction through canonical Actual
-  -- authority. SettlementPublisher does not write this family yet, but every
-  -- later settlement publication must preserve it exactly.
-  let correctedCommitment : SettlementCommitment := {
-    id := ⟨"writer-card-commitment-v2"⟩
-    sourceEvent := sourceEventId
-    sourceEffect := sourceEffectKey
-    debtor := .household
-    creditor := .external ⟨"writer-card-issuer"⟩
-    measure := yen
-    quantity := Quantity.ofQuanta 900
-  }
-  let withCommitmentRevision : ActualEvidence := {
-    afterCorrection with
-    settlements := {
-      afterCorrection.settlements with
-      commitments := afterCorrection.settlements.commitments ++ [correctedCommitment]
-      commitmentRevisions := [{
-        target := ⟨"writer-card-commitment"⟩
-        replacement := some ⟨"writer-card-commitment-v2"⟩
-      }]
-    }
-  }
+  -- E3: commitment correction publishes the replacement commitment and the
+  -- revision edge atomically. Existing correspondence evidence keeps its
+  -- historical target and is re-admitted against the replacement commitment.
   let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root withCommitmentRevision)
-    "commitment revision authority seed failed"
+    (← Loam.HouseholdCommand.recordSettlementEvidence root commitmentCorrectionBatch)
+    "commitment correction publication failed"
 
-  let afterCommitmentRevision ← loadActual root "after commitment revision seed"
+  let afterCommitmentRevision ← loadActual root "after commitment correction"
+  expect (afterCommitmentRevision.settlements.commitments.length == 2)
+    "commitment correction did not retain old and replacement commitment rows"
   expect (afterCommitmentRevision.settlements.commitmentRevisions.length == 1)
-    "seeded commitment revision authority missing"
+    "commitment correction did not retain revision authority"
   expectOutstanding root "writer-card-commitment-v2" 300
-    "after commitment revision seed"
+    "after commitment correction"
   let v3Wire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
   expect (v3Wire.startsWith (normalizedActualHeaderV3 ++ "\n"))
-    "commitment revision authority did not promote canonical Actual to v3"
+    "commitment correction publication did not promote canonical Actual to v3"
+  expect (v3Wire.contains
+      "SETTLEMENT-COMMITMENT-REVISION\twriter-card-commitment\tREPLACEMENT\twriter-card-commitment-v2")
+    "commitment correction revision row was not persisted"
 
-  -- E4: zero-net evidence is publishable without inventing another Event and
-  -- must preserve pre-existing commitment revision authority.
+  -- E4: unrelated settlement evidence must preserve existing commitment
+  -- revision authority without inventing another Event.
   let eventCountBeforeZero := afterCommitmentRevision.events.events.length
   let _ ← requireOk
     (← Loam.HouseholdCommand.recordSettlementEvidence root zeroNetBatch)
@@ -284,7 +304,49 @@ def runAll : IO Unit := do
   expect (zeroWire.contains "SETTLEMENT-NETTING\twriter-zero-context\tjpy\tZERO")
     "zero-net settlement did not persist explicit ZERO outcome"
 
-  -- E5: a mixed batch is all-or-nothing. One invalid row prevents the valid row too.
+  -- E5: an independent commitment may be explicitly retracted through the
+  -- same append-only publisher. The retained row remains evidence, but it leaves
+  -- the current settlement projection.
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root retractableCommitmentBatch)
+    "retractable commitment publication failed"
+  expectOutstanding root "writer-retractable" 250
+    "before explicit commitment retraction"
+
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root retractCommitmentBatch)
+    "commitment retraction publication failed"
+
+  let afterRetraction ← loadActual root "after commitment retraction"
+  expect (afterRetraction.settlements.commitmentRevisions.length == 2)
+    "commitment retraction was not retained"
+  let retractedImage ← loadImage root "after commitment retraction"
+  expect ((retractedImage.settlement.outstanding? ⟨"writer-retractable"⟩).isNone)
+    "retracted commitment remained current"
+  let retractionWire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  expect (retractionWire.contains
+      "SETTLEMENT-COMMITMENT-REVISION\twriter-retractable\tRETRACT")
+    "commitment retraction row was not persisted"
+
+  -- E6: retracting a commitment with still-current dependent settlement evidence
+  -- fails closed and leaves the canonical generation unchanged.
+  let beforeBlockedRetraction ← loadActual root "before blocked retraction"
+  let blockedRetraction : Loam.SettlementPublisher.Draft := {
+    commitmentRevisions := [{
+      target := ⟨"writer-card-commitment-v2"⟩
+      replacement := none
+    }]
+  }
+  match ← Loam.HouseholdCommand.recordSettlementEvidence root blockedRetraction with
+  | .ok () =>
+      throw <| IO.userError
+        "commitment with current dependent settlement evidence was retracted"
+  | .error _ => pure ()
+  let afterBlockedRetraction ← loadActual root "after blocked retraction"
+  expect (afterBlockedRetraction.settlements == beforeBlockedRetraction.settlements)
+    "failed commitment retraction changed retained settlement authority"
+
+  -- E7: a mixed batch is all-or-nothing. One invalid row prevents the valid row too.
   let beforeInvalid ← loadActual root "before invalid batch"
   let invalidBatch : Loam.SettlementPublisher.Draft := {
     commitments := [{
@@ -314,7 +376,7 @@ def runAll : IO Unit := do
   expect (decide (afterInvalid.settlements = beforeInvalid.settlements))
     "invalid batch partially changed settlement authority"
 
-  -- E6: retrying the same stable row identities is refused, not duplicated.
+  -- E8: retrying the same stable row identities is refused, not duplicated.
   match ← Loam.HouseholdCommand.recordSettlementEvidence root directBatch with
   | .ok () =>
       throw <| IO.userError "duplicate settlement row identities were silently republished"
@@ -324,7 +386,7 @@ def runAll : IO Unit := do
   expect (decide (afterDuplicate.settlements = beforeInvalid.settlements))
     "duplicate retry changed retained settlement evidence"
 
-  -- E7: an empty command is not a meaningful publication.
+  -- E9: an empty command is not a meaningful publication.
   match ← Loam.HouseholdCommand.recordSettlementEvidence root {} with
   | .ok () => throw <| IO.userError "empty settlement batch was accepted"
   | .error _ => pure ()
