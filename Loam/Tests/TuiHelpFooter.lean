@@ -217,8 +217,12 @@ def main : IO Unit := do
   let moneyText := widgetText moneyView
   expect (contains "± jpy" moneyText)
     "money calendar did not expose its selected Measure"
-  expect (contains "+12000" moneyText && contains "-2470" moneyText)
-    "money calendar did not render simple daily + / - totals"
+  expect (contains "+12,000" moneyText && contains "-2,470" moneyText)
+    "money calendar did not render grouped daily + / - totals"
+  expect (contains "┌" moneyText && contains "┬" moneyText &&
+          contains "│" moneyText && contains "┼" moneyText &&
+          contains "└" moneyText && contains "┴" moneyText)
+    "money calendar did not render visible day-cell boundaries"
 
   let scrollBounds : Bounds := { width := 150, height := 15 }
   expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .up == none)
