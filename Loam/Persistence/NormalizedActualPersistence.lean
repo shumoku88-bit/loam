@@ -20,8 +20,27 @@ open Loam.Application
 
 set_option autoImplicit false
 
-/-- Header marker for the single-generation normalized Actual wire representation. -/
-def normalizedActualHeader : String := "LOAM-NORMALIZED-ACTUAL\t1"
+/-- Version-1 header for TX-only normalized Actual documents. -/
+def normalizedActualHeaderV1 : String := "LOAM-NORMALIZED-ACTUAL\t1"
+
+/-- Version-2 header adding document-level retained settlement evidence. -/
+def normalizedActualHeaderV2 : String := "LOAM-NORMALIZED-ACTUAL\t2"
+
+/-- Compatibility name for the original normalized Actual header. -/
+def normalizedActualHeader : String := normalizedActualHeaderV1
+
+private inductive NormalizedActualWireVersion where
+  | v1
+  | v2
+deriving Repr, DecidableEq
+
+private def normalizedActualWireVersion? (header : String) : Option NormalizedActualWireVersion :=
+  if header == normalizedActualHeaderV1 then
+    some .v1
+  else if header == normalizedActualHeaderV2 then
+    some .v2
+  else
+    none
 
 /-- Format one open relation endpoint for normalized wire representation. -/
 def formatEndpoint (endpoint : RelationEndpoint) : String :=
@@ -72,7 +91,7 @@ def NormalizedActualParseError.message (err : NormalizedActualParseError) : Stri
   let reasonMsg := match err.reason with
     | .missingFinalNewline => "document must end with a newline"
     | .emptyDocument => "empty document"
-    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeader}'"
+    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeaderV1}' or '{normalizedActualHeaderV2}'"
     | .malformedTxRow detail => s!"malformed TX row: {detail}"
     | .malformedRow rowType detail => s!"malformed {rowType} row: {detail}"
     | .unknownRowType rowType => s!"unknown row type: '{rowType}'"
@@ -493,6 +512,217 @@ private def parseTxs (rows : List (Nat × String)) :
   | none =>
       Except.ok finalState.completed.reverse
 
+
+private structure SettlementParseState where
+  commitments : List SettlementCommitment := []
+  correspondences : List SettlementEffectCorrespondence := []
+  correspondenceRevisions : List SettlementCorrespondenceRevision := []
+  nettingContexts : List SettlementNettingContext := []
+  nettingMembers : List SettlementNettingMember := []
+  nettingMemberRevisions : List SettlementNettingMemberRevision := []
+
+private def isSettlementRowType (rowType : String) : Bool :=
+  rowType == "SETTLEMENT-COMMITMENT" ||
+  rowType == "SETTLEMENT-CORRESPONDENCE" ||
+  rowType == "SETTLEMENT-CORRESPONDENCE-REVISION" ||
+  rowType == "SETTLEMENT-NETTING" ||
+  rowType == "SETTLEMENT-MEMBER" ||
+  rowType == "SETTLEMENT-MEMBER-REVISION"
+
+private def stepSettlementParser
+    (state : SettlementParseState)
+    (item : Nat × String) : Except NormalizedActualParseError SettlementParseState := do
+  let (lineNo, row) := item
+  let fields := row.splitOn "\t"
+  match fields with
+  | ["SETTLEMENT-COMMITMENT", id, "SOURCE", sourceEvent, sourceEffect,
+      debtorText, creditorText, measure, quantityText] => do
+      for token in [id, sourceEvent, sourceEffect, measure] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      let debtor ← match parseEndpoint? debtorText with
+        | some endpoint => pure endpoint
+        | none =>
+            throw {
+              line := lineNo
+              reason := .malformedRow "SETTLEMENT-COMMITMENT"
+                s!"invalid debtor endpoint '{debtorText}'"
+            }
+      let creditor ← match parseEndpoint? creditorText with
+        | some endpoint => pure endpoint
+        | none =>
+            throw {
+              line := lineNo
+              reason := .malformedRow "SETTLEMENT-COMMITMENT"
+                s!"invalid creditor endpoint '{creditorText}'"
+            }
+      let quanta ← match quantityText.toInt? with
+        | some value => pure value
+        | none => throw { line := lineNo, reason := .invalidInteger quantityText }
+      pure {
+        state with
+        commitments := {
+          id := ⟨id⟩
+          sourceEvent := ⟨sourceEvent⟩
+          sourceEffect := ⟨sourceEffect⟩
+          debtor := debtor
+          creditor := creditor
+          measure := ⟨measure⟩
+          quantity := Quantity.ofQuanta quanta
+        } :: state.commitments
+      }
+  | ["SETTLEMENT-CORRESPONDENCE", id, "TARGET", target, "PHYSICAL",
+      event, effect, quantityText] => do
+      for token in [id, target, event, effect] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      let quanta ← match quantityText.toInt? with
+        | some value => pure value
+        | none => throw { line := lineNo, reason := .invalidInteger quantityText }
+      pure {
+        state with
+        correspondences := {
+          id := ⟨id⟩
+          target := ⟨target⟩
+          event := ⟨event⟩
+          effect := ⟨effect⟩
+          quantity := Quantity.ofQuanta quanta
+        } :: state.correspondences
+      }
+  | ["SETTLEMENT-CORRESPONDENCE-REVISION", target, "REPLACEMENT", replacement] => do
+      for token in [target, replacement] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      pure {
+        state with
+        correspondenceRevisions := {
+          target := ⟨target⟩
+          replacement := ⟨replacement⟩
+        } :: state.correspondenceRevisions
+      }
+  | ["SETTLEMENT-NETTING", id, measure, "ZERO"] => do
+      for token in [id, measure] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      pure {
+        state with
+        nettingContexts := {
+          id := ⟨id⟩
+          measure := ⟨measure⟩
+          outcome := .zero
+        } :: state.nettingContexts
+      }
+  | ["SETTLEMENT-NETTING", id, measure, "PHYSICAL", event, effect] => do
+      for token in [id, measure, event, effect] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      pure {
+        state with
+        nettingContexts := {
+          id := ⟨id⟩
+          measure := ⟨measure⟩
+          outcome := .physical ⟨event⟩ ⟨effect⟩
+        } :: state.nettingContexts
+      }
+  | ["SETTLEMENT-MEMBER", id, "CONTEXT", context, "TARGET", target, quantityText] => do
+      for token in [id, context, target] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      let quanta ← match quantityText.toInt? with
+        | some value => pure value
+        | none => throw { line := lineNo, reason := .invalidInteger quantityText }
+      pure {
+        state with
+        nettingMembers := {
+          id := ⟨id⟩
+          context := ⟨context⟩
+          target := ⟨target⟩
+          quantity := Quantity.ofQuanta quanta
+        } :: state.nettingMembers
+      }
+  | ["SETTLEMENT-MEMBER-REVISION", target, "REPLACEMENT", replacement] => do
+      for token in [target, replacement] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      pure {
+        state with
+        nettingMemberRevisions := {
+          target := ⟨target⟩
+          replacement := ⟨replacement⟩
+        } :: state.nettingMemberRevisions
+      }
+  | _ =>
+      let rowType := fields.head?.getD ""
+      if isSettlementRowType rowType then
+        throw {
+          line := lineNo
+          reason := .malformedRow rowType "invalid settlement row shape"
+        }
+      else
+        throw { line := lineNo, reason := .unknownRowType rowType }
+
+private structure V2ParserState where
+  tx : TxParserState := {}
+  settlementStarted : Bool := false
+  settlement : SettlementParseState := {}
+
+private def stepV2Parser
+    (state : V2ParserState)
+    (item : Nat × String) : Except NormalizedActualParseError V2ParserState := do
+  let (lineNo, row) := item
+  let rowType := (row.splitOn "\t").head?.getD ""
+  if state.settlementStarted then
+    if !isSettlementRowType rowType then
+      throw {
+        line := lineNo
+        reason := .malformedRow rowType
+          "transaction rows may not follow the document-level settlement region"
+      }
+    let settlement ← stepSettlementParser state.settlement item
+    pure { state with settlement := settlement }
+  else
+    match state.tx.current with
+    | some draft =>
+        if isSettlementRowType rowType then
+          throw {
+            line := lineNo
+            reason := .malformedRow rowType
+              s!"document-level settlement row appears inside transaction '{draft.event.token}'"
+          }
+        let tx ← stepTxParser state.tx item
+        pure { state with tx := tx }
+    | none =>
+        if isSettlementRowType rowType then
+          let settlement ← stepSettlementParser state.settlement item
+          pure {
+            state with
+            settlementStarted := true
+            settlement := settlement
+          }
+        else
+          let tx ← stepTxParser state.tx item
+          pure { state with tx := tx }
+
+private def parseV2Rows
+    (rows : List (Nat × String)) :
+    Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) := do
+  let finalState ← rows.foldlM stepV2Parser {}
+  match finalState.tx.current with
+  | some draft =>
+      throw { line := draft.lastLine, reason := .missingEndTx draft.event draft.txLine }
+  | none =>
+      pure (
+        finalState.tx.completed.reverse,
+        {
+          commitments := finalState.settlement.commitments.reverse
+          correspondences := finalState.settlement.correspondences.reverse
+          correspondenceRevisions := finalState.settlement.correspondenceRevisions.reverse
+          nettingContexts := finalState.settlement.nettingContexts.reverse
+          nettingMembers := finalState.settlement.nettingMembers.reverse
+          nettingMemberRevisions := finalState.settlement.nettingMemberRevisions.reverse
+        }
+      )
+
 /--
 Detailed decoding of a normalized Actual wire representation into an admitted image with structured diagnostics.
 Returns machine-readable and human-formattable error on syntax, construction, or semantic failure.
@@ -508,16 +738,24 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
   | [] =>
       throw (NormalizedActualDecodeError.parse { line := 1, reason := .emptyDocument })
   | header :: rowLines =>
-      if header != normalizedActualHeader then
-        throw (NormalizedActualDecodeError.parse { line := 1, reason := .invalidHeader header })
-      else
-        let indexedRows : List (Nat × String) :=
-          rowLines.mapIdx fun idx row => (idx + 2, row)
-        let txs ← match parseTxs indexedRows with
-          | .ok txs => pure txs
-          | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
+      let version ← match normalizedActualWireVersion? header with
+        | some version => pure version
+        | none =>
+            throw (NormalizedActualDecodeError.parse { line := 1, reason := .invalidHeader header })
+      let indexedRows : List (Nat × String) :=
+        rowLines.mapIdx fun idx row => (idx + 2, row)
+      let (txs, settlements) ← match version with
+        | .v1 =>
+            let txs ← match parseTxs indexedRows with
+              | .ok txs => pure txs
+              | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
+            pure (txs, SettlementEvidence.empty)
+        | .v2 =>
+            match parseV2Rows indexedRows with
+            | .ok parsed => pure parsed
+            | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
 
-        -- Construct Core Event instances
+      -- Construct Core Event instances
         let mut events : List Event := []
         let mut facts : List (ActualValidityFact String) := []
         let mut valCorrections : List ActualValidityCorrection := []
@@ -623,7 +861,7 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
           reversals := revMemory
           relations := orderedRelations
           discharges := orderedDischarges
-          settlements := SettlementEvidence.empty
+          settlements := settlements
         }
 
         match admitActualImage? rawEvidence with
@@ -657,13 +895,30 @@ def decodeNormalizedActual? (input : String) : Option ActualEvidence :=
   | .ok evidence => some evidence
   | .error _ => none
 
+private def settlementEvidenceIsEmpty (settlement : SettlementEvidence) : Bool :=
+  settlement.commitments.isEmpty &&
+  settlement.correspondences.isEmpty &&
+  settlement.correspondenceRevisions.isEmpty &&
+  settlement.nettingContexts.isEmpty &&
+  settlement.nettingMembers.isEmpty &&
+  settlement.nettingMemberRevisions.isEmpty
+
+private def endpointTokenAdmissible : RelationEndpoint → Bool
+  | .household => true
+  | .external id => validToken id.token
+
 /--
 Encode persistence-neutral ActualEvidence into normalized Actual wire representation.
-Fails closed (`none`) if any Event lacks an occurrence date or contains invalid characters.
+Version 1 is preserved byte-for-byte in capability while settlement evidence is empty.
+Nonempty settlement evidence selects version 2 and appends document-level settlement rows.
+Fails closed (`none`) on invalid wire tokens or inadmissible semantic evidence.
 -/
 def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
   let _ ← admitActualEvidence? evidence
-  let mut rows : List String := [normalizedActualHeader]
+  let settlementEmpty := settlementEvidenceIsEmpty evidence.settlements
+  let header :=
+    if settlementEmpty then normalizedActualHeaderV1 else normalizedActualHeaderV2
+  let mut rows : List String := [header]
 
   for event in evidence.events.events do
     -- Find base occurrence date for this event
@@ -748,6 +1003,76 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
         rows := rows ++ [s!"DISCHARGE\t{discharge.target.token}\t{discharge.quantity.quanta}"]
 
     rows := rows ++ ["ENDTX"]
+
+  if !settlementEmpty then
+    for commitment in evidence.settlements.commitments do
+      if !validToken commitment.id.token ||
+          !validToken commitment.sourceEvent.token ||
+          !validToken commitment.sourceEffect.token ||
+          !endpointTokenAdmissible commitment.debtor ||
+          !endpointTokenAdmissible commitment.creditor ||
+          !validToken commitment.measure.token then
+        none
+      rows := rows ++ [
+        s!"SETTLEMENT-COMMITMENT\t{commitment.id.token}\tSOURCE\t" ++
+        s!"{commitment.sourceEvent.token}\t{commitment.sourceEffect.token}\t" ++
+        s!"{formatEndpoint commitment.debtor}\t{formatEndpoint commitment.creditor}\t" ++
+        s!"{commitment.measure.token}\t{commitment.quantity.quanta}"
+      ]
+
+    for correspondence in evidence.settlements.correspondences do
+      if !validToken correspondence.id.token ||
+          !validToken correspondence.target.token ||
+          !validToken correspondence.event.token ||
+          !validToken correspondence.effect.token then
+        none
+      rows := rows ++ [
+        s!"SETTLEMENT-CORRESPONDENCE\t{correspondence.id.token}\tTARGET\t" ++
+        s!"{correspondence.target.token}\tPHYSICAL\t{correspondence.event.token}\t" ++
+        s!"{correspondence.effect.token}\t{correspondence.quantity.quanta}"
+      ]
+
+    for revision in evidence.settlements.correspondenceRevisions do
+      if !validToken revision.target.token || !validToken revision.replacement.token then
+        none
+      rows := rows ++ [
+        s!"SETTLEMENT-CORRESPONDENCE-REVISION\t{revision.target.token}\t" ++
+        s!"REPLACEMENT\t{revision.replacement.token}"
+      ]
+
+    for context in evidence.settlements.nettingContexts do
+      if !validToken context.id.token || !validToken context.measure.token then
+        none
+      match context.outcome with
+      | .zero =>
+          rows := rows ++ [
+            s!"SETTLEMENT-NETTING\t{context.id.token}\t{context.measure.token}\tZERO"
+          ]
+      | .physical event effect =>
+          if !validToken event.token || !validToken effect.token then
+            none
+          rows := rows ++ [
+            s!"SETTLEMENT-NETTING\t{context.id.token}\t{context.measure.token}\t" ++
+            s!"PHYSICAL\t{event.token}\t{effect.token}"
+          ]
+
+    for member in evidence.settlements.nettingMembers do
+      if !validToken member.id.token ||
+          !validToken member.context.token ||
+          !validToken member.target.token then
+        none
+      rows := rows ++ [
+        s!"SETTLEMENT-MEMBER\t{member.id.token}\tCONTEXT\t{member.context.token}\t" ++
+        s!"TARGET\t{member.target.token}\t{member.quantity.quanta}"
+      ]
+
+    for revision in evidence.settlements.nettingMemberRevisions do
+      if !validToken revision.target.token || !validToken revision.replacement.token then
+        none
+      rows := rows ++ [
+        s!"SETTLEMENT-MEMBER-REVISION\t{revision.target.token}\t" ++
+        s!"REPLACEMENT\t{revision.replacement.token}"
+      ]
 
   some (String.intercalate "\n" rows ++ "\n")
 
