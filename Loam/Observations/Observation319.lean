@@ -84,7 +84,8 @@ private def actual : Loam.ActualEvidence :=
     corrections := corrections
     reversals := ActualReversalMemory.empty
     relations := []
-    discharges := [] }
+    discharges := []
+    settlements := .empty }
 
 theorem common_actual_is_admitted :
     (Loam.Persistence.admitActualImage? actual).isSome = true := by
