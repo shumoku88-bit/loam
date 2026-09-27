@@ -35,6 +35,7 @@ import Loam.AttentionReview
 import Loam.BalanceViewConfig
 import Loam.CurrentBalanceReview
 import Loam.RoleBalanceReview
+import Loam.RoleFlowReview
 import Loam.CapacityReview
 import Loam.ActualRoutingReview
 import Loam.Tui.Main
@@ -135,6 +136,17 @@ def loadSnapshotFromActualImage
   let paceHistoryResult ←
     Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt dataDir image today 7
   let paceHistory := Loam.Presentation.ReadState.fromExcept paceHistoryResult
+  let moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot ←
+    match ← Loam.RoleFlowReview.loadRoleMap dataDir with
+    | .error message => pure (.failed message)
+    | .ok roles =>
+        match ← Loam.MeasurePresentation.loadMetadata dataDir with
+        | .error message => pure (.failed message)
+        | .ok presentation =>
+            pure (.loaded {
+              flow := Loam.CalendarMoneyReview.project actualRecords roles
+              presentation := presentation
+            })
   let actual : ActualSnapshot := {
     today := today
     allRecords := actualRecords
@@ -145,6 +157,7 @@ def loadSnapshotFromActualImage
     attention := attention
     pace := pace
     paceHistory := paceHistory
+    moneyCalendar := moneyCalendar
   }
 
 private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do
@@ -326,6 +339,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
+  else if (key = .input 'f' || key = .input 'F') then
+    let home := Loam.Tui.Main.toggleCalendarMode state
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'm' || key = .input 'M') then
     let world ←
       match ← Loam.MovementWorldLoader.loadSelectedWorld? root with

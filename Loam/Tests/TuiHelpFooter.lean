@@ -73,6 +73,45 @@ private def anchorAssertion
 def main : IO Unit := do
   let snapshot ← buildSnapshot
 
+  -- 0. Money calendar is role-aware: assets/transfers do not become fake +/- flow.
+  let incomeEvent ← requireSome
+    (Event.ofEffects? ⟨"income-event"⟩
+      [ Effect.ofQuantity ⟨"income-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 12000)
+      , Effect.ofQuantity ⟨"income-role"⟩ ⟨"salary"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-12000))
+      ])
+    "money calendar income fixture"
+  let expenseEvent ← requireSome
+    (Event.ofEffects? ⟨"expense-event"⟩
+      [ Effect.ofQuantity ⟨"expense-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-2470))
+      , Effect.ofQuantity ⟨"expense-role"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 2470)
+      ])
+    "money calendar expense fixture"
+  let transferEvent ← requireSome
+    (Event.ofEffects? ⟨"transfer-event"⟩
+      [ Effect.ofQuantity ⟨"transfer-wallet"⟩ ⟨"wallet"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-3000))
+      , Effect.ofQuantity ⟨"transfer-paypay"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 3000)
+      ])
+    "money calendar transfer fixture"
+  let roles ← requireSome
+    (AccountingRoleMap.ofAssignments?
+      [ { locus := ⟨"wallet"⟩, role := .asset }
+      , { locus := ⟨"paypay"⟩, role := .asset }
+      , { locus := ⟨"salary"⟩, role := .income }
+      , { locus := ⟨"food"⟩, role := .expense }
+      ])
+    "money calendar role map fixture"
+  let records : List Loam.ActualReview.Record :=
+    [ { event := incomeEvent, date := some "2026-09-10", description := "", replacement := none }
+    , { event := expenseEvent, date := some "2026-09-10", description := "", replacement := none }
+    , { event := transferEvent, date := some "2026-09-10", description := "", replacement := none }
+    ]
+  let moneyProjection := Loam.CalendarMoneyReview.project records roles
+  let moneyRow ← requireSome (moneyProjection.rowFor? "2026-09-10" ⟨"jpy"⟩)
+    "money calendar lost the represented day"
+  let direction := moneyRow.directional
+  expect (direction.plus.quanta == 12000 && direction.minus.quanta == 2470)
+    "money calendar counted an asset transfer or changed Income/Expense direction"
+
   -- 1. Test flowTokens primitives
   let emptyTokens : List String := []
   expect (flowTokens 80 "  " emptyTokens == [])
@@ -103,8 +142,16 @@ def main : IO Unit := do
 
   -- 2. Test Home help lines at various terminal widths
   let state := Loam.Tui.Main.initialState "2026-09-10"
+  expect (state.calendarMode == .plain)
+    "Home calendar did not default to the quiet plain lens"
+  let moneyState := Loam.Tui.Main.toggleCalendarMode state
+  expect (moneyState.calendarMode == .money)
+    "Home calendar toggle did not enter the money lens"
+  expect ((Loam.Tui.Main.toggleCalendarMode moneyState).calendarMode == .plain)
+    "Home calendar toggle did not return to the plain lens"
+
   let expectedTokens := [
-    "[h/l] day", "[k/j] week", "[t] today", "[Enter] open", "[r] record",
+    "[h/l] day", "[k/j] week", "[t] today", "[f] money", "[Enter] open", "[r] record",
     "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
     "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
@@ -152,6 +199,26 @@ def main : IO Unit := do
   for token in expectedTokens do
     expect (contains token mediumText)
       s!"150-column Home lost token {token}; must not be clipped"
+
+  let moneyFlow : Loam.CalendarMoneyReview.Snapshot := {
+    rows := [{
+      date := "2026-09-10"
+      measure := ⟨"jpy"⟩
+      income := Quantity.ofQuanta 12000
+      expense := Quantity.ofQuanta 2470
+      unresolvedEffectCount := 0
+    }]
+  }
+  let moneySnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with
+    moneyCalendar := .loaded { flow := moneyFlow, presentation := [] }
+  }
+  let moneyView := Loam.Tui.Home.view mediumBounds moneySnapshot moneyState
+  let moneyText := widgetText moneyView
+  expect (contains "± jpy" moneyText)
+    "money calendar did not expose its selected Measure"
+  expect (contains "+12000" moneyText && contains "-2470" moneyText)
+    "money calendar did not render simple daily + / - totals"
 
   let scrollBounds : Bounds := { width := 150, height := 15 }
   expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .up == none)

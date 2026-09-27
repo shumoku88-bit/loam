@@ -1,6 +1,8 @@
 import Loam.ActualReview
 import Loam.AttentionReview
+import Loam.CalendarMoneyReview
 import Loam.CycleSpendingPaceReview
+import Loam.MeasurePresentation
 import Loam.Presentation.ReadState
 import Loam.ScheduledReview
 import Loam.Tui.Calendar
@@ -20,6 +22,11 @@ abbrev ScheduledAvailability := Except String Loam.ScheduledReview.EvidenceSnaps
 structure ActualSnapshot where
   today : String
   allRecords : List ReviewRecord
+
+/-- Optional Home money-calendar answer plus exact per-Measure rendering convention. -/
+structure MoneyCalendarSnapshot where
+  flow : Loam.CalendarMoneyReview.Snapshot
+  presentation : List Loam.MeasurePresentation.Metadata
 
 /-- One admitted household read snapshot. It is process-local evidence, never TUI authority. -/
 structure Snapshot where
@@ -44,13 +51,25 @@ structure Snapshot where
   -/
   paceHistory : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) :=
     .notRequested
+  /--
+  Optional role-aware daily money projection used only by Home's alternate calendar
+  lens. Failure must not prevent ordinary Home navigation or accounting workspaces.
+  -/
+  moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot := .notRequested
 
-/-- Production root state now owns only Home date focus and a human-facing notice. -/
+inductive CalendarMode where
+  | plain
+  | money
+  deriving Repr, DecidableEq, BEq
+
+/-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
   notice : String := ""
   /-- Presentation-only viewport offset for the wide Home detail pane. -/
   detailScroll : Nat := 0
+  /-- Replaceable Home calendar lens; ordinary date view remains the default. -/
+  calendarMode : CalendarMode := .plain
 
 inductive Event where
   | left
@@ -68,6 +87,17 @@ structure Step where
 
 def initialState (selectedDate : String) : State :=
   { selectedDate := selectedDate }
+
+/-- Toggle only presentation; no household evidence is mutated or reclassified. -/
+def toggleCalendarMode (state : State) : State :=
+  { state with
+    calendarMode :=
+      match state.calendarMode with
+      | .plain => .money
+      | .money => .plain
+    notice := ""
+    detailScroll := 0
+  }
 
 
 def plainLine (text : String) : Widget := .row [span text]
