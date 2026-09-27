@@ -68,6 +68,8 @@ on:
       - 'experiments/375_settlement_commitment_correction_targeting.md'
       - 'experiments/376_settlement_commitment_authority_split.als'
       - 'experiments/376_settlement_commitment_authority_split.md'
+      - 'experiments/377_settlement_extinguishment_identity.als'
+      - 'experiments/377_settlement_extinguishment_identity.md'
       - 'tools/run-alloy-research-case'
       - 'tools/select-alloy-research-cases'
       - 'verification/ci/alloy-research-cases.json'
@@ -102,6 +104,7 @@ on:
       - 'experiment/374-settlement-commitment-identity'
       - 'experiment/375-settlement-commitment-correction-targeting'
       - 'experiment/376-settlement-commitment-authority-split'
+      - 'experiment/377-settlement-extinguishment-identity'
     paths:
       - '.github/actions/alloy-research-case/**'
       - '.github/workflows/alloy-research-witnesses.yml'
@@ -196,7 +199,8 @@ jobs:
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/373_settlement_commitment_lifecycle.als)" =             '["settlement-commitment-lifecycle"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/374_settlement_commitment_identity.als)" =             '["settlement-commitment-identity"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/375_settlement_commitment_correction_targeting.als)" =             '["settlement-commitment-correction-targeting"]'
-          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/376_settlement_commitment_authority_split.als)" =             '["settlement-commitment-authority-split"]'
+          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/376_settlement_commitment_authority_split.als)" =             '["settlement-commitment-authority-split","settlement-extinguishment-identity"]'
+          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/377_settlement_extinguishment_identity.als)" =             '["settlement-extinguishment-identity"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths experiments/249_cash_flow_classification.als)" =             '[]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/327-interpretation-subject-correction             --paths experiments/327_interpretation_subject_correction.als)" =             '["interpretation-subject-correction"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths verification/ci/alloy-research-cases.json)" =             '["accounting-projection-factorization"]'
@@ -541,3 +545,14 @@ jobs:
         with:
           case: settlement-commitment-authority-split
 
+
+  settlement-extinguishment-identity:
+    name: Test settlement extinguishment row identity
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'settlement-extinguishment-identity') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: settlement-extinguishment-identity
