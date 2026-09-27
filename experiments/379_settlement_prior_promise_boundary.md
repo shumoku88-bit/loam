@@ -1,6 +1,6 @@
 # Observation 379 — source-backed settlement obligation versus prior promise
 
-Status: **BOUNDED QUESTION — distinguishability probe; no production vocabulary change**
+Status: **QUALIFIED BOUNDED ALLOY RESULT — prior promise is distinguishable but not required by current settlement arithmetic; no production vocabulary change**
 
 Baseline:
 
@@ -182,7 +182,37 @@ Positive sanity law.
 
 Expected: **UNSAT counterexample**.
 
-## Interpretation if the matrix qualifies
+## Alloy result
+
+Qualified with Alloy 6.2.0 / SAT4J in the shared Alloy research witness
+workflow.
+
+```text
+workflow run: 36337326350
+job:          108670589728
+
+sameSettlementImageDifferentPriorPromiseWitness    SAT
+eventTriggeredObligationWithoutPriorPromiseWitness SAT
+
+SettlementImageDeterminesPriorPromise              SAT counterexample
+PriorPromiseDoesNotAffectCurrentOutstanding        UNSAT counterexample
+EverySourceBackedObligationHasPriorPromise          SAT counterexample
+RetainedPriorPromisePrecedesSourceEvent             UNSAT counterexample
+```
+
+The complete expected matrix held.
+
+The central counterexample therefore exists: two worlds may share the same
+source-backed settlement evidence and current outstanding quantity while
+differing on whether that obligation was already promised before the source
+Event.
+
+At the same time, when admitted settlement evidence is held fixed, the presence
+or absence of prior-promise evidence does not change current outstanding. The
+distinction is real information, but it is not part of the arithmetic authority
+qualified for the current Settlement surface.
+
+## Interpretation
 
 The narrow result would be:
 
