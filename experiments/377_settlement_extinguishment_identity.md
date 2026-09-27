@@ -1,6 +1,6 @@
 # Observation 377 — settlement extinguishment row identity
 
-Status: **BOUNDED SEMANTIC OBSERVATION — test whether quantity-bearing extinguishment needs stable row identity and evidence revision**
+Status: **BOUNDED RESULT — stable extinguishment row identity and evidence revision are required**
 
 Baseline:
 
@@ -225,7 +225,35 @@ CoordinateViewDeterminesCurrentTotal          SAT counterexample
 CoordinateRetractionMatchesIdentityRetraction SAT counterexample
 ```
 
-## Provisional finding if the matrix holds
+## Alloy result
+
+Qualified on Alloy 6.2.0 with SAT4J through the shared research witness harness.
+
+```text
+duplicateCoordinateWitness                    SAT
+sameCoordinateDifferentMultiplicityWitness    SAT
+correctionWitness                             SAT
+retractionWitness                             SAT
+retractOneDuplicateCoordinateWitness          SAT
+
+CurrentRowsHaveUniqueIdentity                 UNSAT counterexample
+CoordinateViewDeterminesCurrentTotal          SAT counterexample
+CoordinateRetractionMatchesIdentityRetraction SAT counterexample
+```
+
+The bounded result shows two independent pressures for stable row identity:
+
+1. multiplicity is semantically relevant, because one `(target, quantity)` row and
+   two equal-coordinate rows can have the same identity-free coordinate view but
+   different total extinguished quantity;
+2. evidence correction/retraction must be able to address exactly one row even
+   when another retained row has the same target and quantity.
+
+So row identity is not merely implementation bookkeeping. It preserves
+distinguishability that current quantity derivation and append-only repair both
+need.
+
+## Finding
 
 Stable extinguishment row identity is earned.
 
