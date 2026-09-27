@@ -132,14 +132,19 @@ Home favors exact recent values over a shape-only graph.
 The review boundary may derive seven days, while Home keeps the last five rows
 to preserve the calendar as the dominant object in the left pane.
 -/
+private def readFailureDetailLines (message : String) : List Widget :=
+  (Loam.Tui.Layout.flowTokens 36 " " (message.splitOn " ")).take 3 |>.map fun text =>
+    mutedLine ("   " ++ text)
+
 private def dailyPaceHistoryLines (snapshot : Snapshot) : List Widget :=
   match snapshot.paceHistory with
   | .notRequested =>
       [mutedLine " Recent pace (current truth): not requested"]
   | .unavailable =>
       [mutedLine " Recent pace (current truth): unavailable"]
-  | .failed _ =>
-      [mutedLine " Recent pace (current truth): failed"]
+  | .failed message =>
+      [mutedLine " Recent pace (current truth): failed"] ++
+        readFailureDetailLines message
   | .loaded history =>
       let recent := (history.reverse.take 5).reverse
       if recent.isEmpty then

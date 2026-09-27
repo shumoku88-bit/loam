@@ -147,8 +147,9 @@ def main : IO Unit := do
     widgetText (Loam.Tui.Home.view stateBounds failedSnapshot home)
   expect (contains "Attention: failed" failedText &&
       contains "Daily pace: failed" failedText &&
-      contains "Recent pace (current truth): failed" failedText)
-    "Home collapsed failed read state into ordinary unavailability"
+      contains "Recent pace (current truth): failed" failedText &&
+      contains "pace history read failed" failedText)
+    "Home hid the failed Recent Pace read reason"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
