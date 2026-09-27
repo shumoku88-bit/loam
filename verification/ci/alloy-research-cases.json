@@ -742,6 +742,36 @@
         "QualifiedFollowNeverProducesNegativeOutstanding": false,
         "QualifiedFollowClosesCurrentTargets": false
       }
+    },
+    {
+      "id": "settlement-commitment-authority-split",
+      "observation": "Observation 376",
+      "jobName": "Test settlement commitment authority split",
+      "pushBranches": [
+        "main",
+        "experiment/376-settlement-commitment-authority-split"
+      ],
+      "model": "experiments/376_settlement_commitment_authority_split.als",
+      "paths": [
+        "experiments/376_settlement_commitment_authority_split.als",
+        "experiments/376_settlement_commitment_authority_split.md"
+      ],
+      "expected": {
+        "correctionWitness": true,
+        "retractionWitness": true,
+        "correctionThenRetractionWitness": true,
+        "partialExtinguishmentWitness": true,
+        "fullExtinguishmentWitness": true,
+        "settlementPlusExtinguishmentWitness": true,
+        "sameZeroOpenDifferentAuthorityWitness": true,
+        "UnifiedRevisionMatchesDerivedSplitFrontier": false,
+        "RevisionKindRecoverable": false,
+        "AdmittedOutstandingNeverNegative": false,
+        "CurrentReductionPartition": false,
+        "ZeroOpenMeansNoCurrentCommitment": true,
+        "EveryExtinguishmentIsTerminal": true,
+        "RevisionAuthorityExplainsEveryNonSettlementReduction": true
+      }
     }
   ]
 }
