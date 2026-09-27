@@ -158,7 +158,7 @@ def main : IO Unit := do
 
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[t] today", "[f] flow", "[Enter] open", "[r] record",
-    "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
+    "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
     "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
   ]
@@ -192,7 +192,7 @@ def main : IO Unit := do
   let expectedWidePanelRows := footerBodyCapacity wideBounds 4 - 4
   expect (occurrences " │ " wideText == expectedWidePanelRows)
     "wide Home divider height changed with content instead of filling the fixed viewport"
-  for token in ["[i] attention", "[b] balances", "[c] budget", "[e] capacity",
+  for token in ["[i] attention", "[b] balances", "[u] settlements", "[c] budget", "[e] capacity",
                 "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
                 "[v] reports"] do
     expect (occurrences token wideText == 1)
