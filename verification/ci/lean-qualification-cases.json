@@ -126,6 +126,26 @@
         "Loam/Tests/ScheduledInspectionTest.lean",
         "Loam/Tests/ReplacementFrontierIndexedByTest.lean"
       ]
+    },
+    {
+      "id": "settlement-production-slice-c",
+      "workflowName": "Settlement Production Slice C",
+      "jobName": "Qualify promoted settlement frontier",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "test/settlement-production-qualification"
+      ],
+      "buildArgs": "Loam.Application.SettlementFrontier",
+      "paths": [
+        "Loam/Core/Settlement.lean",
+        "Loam/Application/SettlementFrontier.lean",
+        "Loam/Tests/SettlementFrontier.lean",
+        "experiments/371_settlement_production_promotion_checkpoint.md"
+      ],
+      "tests": [
+        "Loam/Tests/SettlementFrontier.lean"
+      ]
     }
   ]
 }
