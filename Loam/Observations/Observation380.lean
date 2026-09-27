@@ -68,7 +68,7 @@ theorem ledgerFlowQuanta_append
         ledgerFlowQuantaAtChanges measure right account := by
   induction left with
   | nil =>
-      rfl
+      simp [ledgerFlowQuantaAtChanges]
   | cons change rest ih =>
       change
         (if accountOf change.coordinate measure = account then
