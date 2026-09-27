@@ -135,7 +135,8 @@ private def nonAdmittedLocusText
     else " | label=" ++ row.label
   let detail :=
     "  " ++ row.locus.token ++
-    " | actual-events=" ++ toString row.actualOccurrences ++
+    " | current-events=" ++ toString row.currentOccurrences ++
+    " | retained-events=" ++ toString row.retainedOccurrences ++
     " | role=" ++ role ++
     " | route-evidence=" ++ route ++ label
   if row.help.isEmpty then detail else detail ++ "\n    " ++ row.help
@@ -152,6 +153,7 @@ private def locusCoherenceReportText
     , "Read-only comparison of independent authorities; differences are not auto-errors."
     , ""
     , "Current new-write admission: " ++ toString snapshot.admittedLoci.length
+    , "Current effective Actual Loci: " ++ toString snapshot.currentActualLoci.length
     , "Retained Actual Loci: " ++ toString snapshot.retainedActualLoci.length
     , ""
     , "Admitted without AccountingRole:"

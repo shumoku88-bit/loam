@@ -27,7 +27,8 @@ def main : IO Unit := do
     effects := [Effect.ofAnonymousQuantity old yen (Quantity.ofQuanta 10)]
     keyNodup := by simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
   }
-  let events ← requireSome (EventMemory.ofEvents? [event]) "event fixture"
+  let retainedEvents ← requireSome (EventMemory.ofEvents? [event]) "retained event fixture"
+  let currentEvents ← requireSome (EventMemory.ofEvents? []) "current event fixture"
 
   let roles ← requireSome
     (AccountingRoleMap.ofAssignments?
@@ -50,13 +51,15 @@ def main : IO Unit := do
     | throw (IO.userError "metadata fixture")
 
   let snapshot := Loam.LocusCoherenceReview.review
-    admission events roles routing metadata
+    admission retainedEvents currentEvents roles routing metadata
 
   expect (snapshot.admittedLoci.map (fun locus => locus.token) ==
       ["current", "mystery", "no-label"])
     "admission order changed"
   expect (snapshot.retainedActualLoci.map (fun locus => locus.token) == ["old-expense"])
     "retained Actual Locus inventory changed"
+  expect snapshot.currentActualLoci.isEmpty
+    "superseded-only Locus leaked into current Actual inventory"
   expect (snapshot.admittedMissingRole.map (fun locus => locus.token) ==
       ["mystery", "no-label"])
     "missing AccountingRole differences were not reported"
@@ -67,7 +70,8 @@ def main : IO Unit := do
 
   let row ← requireSome snapshot.nonAdmitted.head? "historical row"
   expect (row.locus == old) "wrong historical row"
-  expect (row.actualOccurrences == 1) "historical Actual occurrence count"
+  expect (row.retainedOccurrences == 1) "retained Actual occurrence count"
+  expect (row.currentOccurrences == 0) "superseded-only occurrence leaked into current count"
   expect (row.role == some .expense) "historical AccountingRole disappeared"
   expect row.hasRoutingEvidence "historical routing evidence disappeared"
   expect (row.label == "Old expense") "historical display metadata disappeared"
@@ -76,4 +80,4 @@ def main : IO Unit := do
   expect (!(snapshot.nonAdmitted.any fun historical => historical.locus == current))
     "current admission was incorrectly reported as historical-only"
 
-  IO.println "Locus coherence review: independent authorities remain separate and their differences stay visible."
+  IO.println "Locus coherence review: retained and correction-frontier current Actual stay visibly distinct."
