@@ -261,10 +261,10 @@ def runAll : IO Unit := do
     "D4-F: date publisher overwrote newer Merchant evidence"
   let imageAfterDate ← loadImage root "D4-F admitted image"
   let currentDate ← requireSome
-    (imageAfterDate.currentValidities.current? sourceEventId)
+    (imageAfterDate.currentValidities.findByEventId? sourceEventId)
     "D4-F: corrected current occurrence date missing"
-  expect (currentDate.validOn == "2026-09-03")
-    s!"D4-F: expected current date 2026-09-03, got {currentDate.validOn}"
+  expect (currentDate == "2026-09-03")
+    s!"D4-F: expected current date 2026-09-03, got {currentDate}"
   expectV2 root "D4-F"
   expectSettled root "D4-F"
 
