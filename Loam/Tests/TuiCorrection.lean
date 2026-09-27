@@ -132,6 +132,8 @@ def main (args : List String) : IO Unit := do
     editor with editor := filteredEditor
   }
   let filteredText := widgetText (Loam.Tui.Correction.view known filteredState)
+  expect (contains "[Preview] [Add posting] [Drop last row] [Cancel]" filteredText)
+    "Correction action labels drifted from Record action semantics"
   expect (contains "receivable:mother" filteredText && contains "母への立替金" filteredText)
     "Correction did not expose filtered human-facing Locus candidates"
   expect (!contains "coffee  コーヒー" filteredText)
