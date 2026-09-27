@@ -157,7 +157,7 @@ def main : IO Unit := do
     "Home calendar toggle did not return to the plain lens"
 
   let expectedTokens := [
-    "[h/l] day", "[k/j] week", "[t] today", "[f] money", "[Enter] open", "[r] record",
+    "[h/l] day", "[k/j] week", "[t] today", "[f] flow", "[Enter] open", "[r] record",
     "[a] actual", "[s] scheduled", "[i] attention", "[b] balances", "[c] budget",
     "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
@@ -221,6 +221,8 @@ def main : IO Unit := do
   }
   let moneyView := Loam.Tui.Home.view mediumBounds moneySnapshot moneyState
   let moneyText := widgetText moneyView
+  expect (contains "[f] calendar" moneyText && !contains "[f] flow" moneyText)
+    "money calendar footer did not advertise the return-to-calendar action"
   expect (contains "± jpy" moneyText)
     "money calendar did not expose its selected Measure"
   expect (contains "+12,000" moneyText && contains "-2,470" moneyText)
