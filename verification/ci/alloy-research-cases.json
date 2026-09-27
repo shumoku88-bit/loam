@@ -660,6 +660,34 @@
         "CurrentSnapshotDeterminesHistoricalConvention": true,
         "QualifiedSnapshotDeterminesHistoricalConvention": false
       }
+    },
+    {
+      "id": "settlement-commitment-lifecycle",
+      "observation": "Observation 373",
+      "jobName": "Falsify plain settlement commitment cancel collapse",
+      "pushBranches": [
+        "main",
+        "experiment/373-settlement-commitment-lifecycle"
+      ],
+      "model": "experiments/373_settlement_commitment_lifecycle.als",
+      "paths": [
+        "experiments/373_settlement_commitment_lifecycle.als",
+        "experiments/373_settlement_commitment_lifecycle.md"
+      ],
+      "expected": {
+        "correctionWitness": true,
+        "retractionWitness": true,
+        "fullExtinguishmentWitness": true,
+        "partialExtinguishmentWitness": true,
+        "successorExtinguishmentWitness": true,
+        "sameCancelDifferentMeaningWitness": true,
+        "sameOutstandingSettlementVsExtinguishmentWitness": true,
+        "OutstandingNeverNegative": false,
+        "CurrentCommitmentPartition": false,
+        "EveryExtinguishmentIsTerminal": true,
+        "CollapsedCancelDeterminesLifecycleMeaning": true,
+        "OutstandingDeterminesReductionMeaning": true
+      }
     }
   ]
 }
