@@ -343,7 +343,8 @@ def runAll : IO Unit := do
         "commitment with current dependent settlement evidence was retracted"
   | .error _ => pure ()
   let afterBlockedRetraction ← loadActual root "after blocked retraction"
-  expect (afterBlockedRetraction.settlements == beforeBlockedRetraction.settlements)
+  expect (decide
+      (afterBlockedRetraction.settlements = beforeBlockedRetraction.settlements))
     "failed commitment retraction changed retained settlement authority"
 
   -- E7: a mixed batch is all-or-nothing. One invalid row prevents the valid row too.
