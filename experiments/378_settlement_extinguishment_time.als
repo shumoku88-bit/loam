@@ -3,6 +3,7 @@ module experiments/observation_378_settlement_extinguishment_time
 open util/ordering[Moment] as time
 
 sig Moment {}
+
 sig Commitment {
   quantity: one Int,
   openedAt: one Moment
@@ -13,16 +14,16 @@ sig ExtinguishmentId {}
 sig Extinguishment {
   id: one ExtinguishmentId,
   target: one Commitment,
-  quantity: one Int,
-  // Optional semantic occurrence time.
-  // Absence means "the extinguishment is retained current evidence,
-  // but its historical placement is unknown."
-  effectiveAt: lone Moment
+  quantity: one Int
 }
 
 abstract sig World {
   commitments: set Commitment,
-  extinguishments: set Extinguishment
+  extinguishments: set Extinguishment,
+
+  // Candidate semantic occurrence coordinate.
+  // Absence means historical placement is explicitly unknown.
+  effectiveAt: Extinguishment -> lone Moment
 }
 
 one sig Left, Right extends World {}
@@ -32,23 +33,35 @@ fact QuantityShape {
     c.quantity > 0
     c.quantity <= 10
   }
+
   all e: Extinguishment | {
     e.quantity > 0
     e.quantity <= 10
   }
 }
 
-fact SameRetainedRows {
+fact SameNonTemporalEvidence {
   Left.commitments = Right.commitments
   Left.extinguishments = Right.extinguishments
 }
 
-fact EffectiveTimeNotBeforeCommitment {
-  all w: World, e: w.extinguishments |
-    some e.effectiveAt implies
-      let opened = e.target.openedAt,
-          effective = e.effectiveAt |
-        opened = effective or time/lt[opened, effective]
+fact ReferenceClosure {
+  all w: World |
+    w.extinguishments.target in w.commitments
+}
+
+pred atOrBefore[a, b: Moment] {
+  a = b or time/lt[a, b]
+}
+
+fact EffectiveTimeShape {
+  all w: World, e: Extinguishment | {
+    some e.(w.effectiveAt) implies {
+      e in w.extinguishments
+      atOrBefore[e.target.openedAt, e.(w.effectiveAt)]
+    }
+    e not in w.extinguishments implies no e.(w.effectiveAt)
+  }
 }
 
 fun totalExtinguished[w: World, c: Commitment]: one Int {
@@ -63,8 +76,8 @@ fun currentOutstanding[w: World, c: Commitment]: one Int {
 fun placedExtinguishedBy[w: World, c: Commitment, cutoff: Moment]: one Int {
   sum e: w.extinguishments |
     (e.target = c and
-     some e.effectiveAt and
-     (e.effectiveAt = cutoff or time/lt[e.effectiveAt, cutoff]))
+     some e.(w.effectiveAt) and
+     atOrBefore[e.(w.effectiveAt), cutoff])
       => e.quantity else 0
 }
 
@@ -84,19 +97,23 @@ pred sameCurrentDifferentHistoricalPlacementWitness {
     e.target = c
     e.quantity = 3
 
-    e.effectiveAt = early
+    e.(Left.effectiveAt) = early
+    e.(Right.effectiveAt) = late
+
     time/lt[early, cutoff]
     time/lt[cutoff, late]
 
-    // Rebind the same retained row to a later semantic placement in Right.
-    // The worlds intentionally differ only in effective time.
     currentOutstanding[Left, c] = 7
     currentOutstanding[Right, c] = 7
+
+    historicalOutstandingAt[Left, c, cutoff] = 7
+    historicalOutstandingAt[Right, c, cutoff] = 10
   }
 }
 
 pred knownEarlyVersusUnknownWitness {
-  some c: Commitment, e: Extinguishment, effective, cutoff: Moment | {
+  some c: Commitment, e: Extinguishment,
+       effective, cutoff: Moment | {
     Left.commitments = c
     Right.commitments = c
     Left.extinguishments = e
@@ -105,33 +122,16 @@ pred knownEarlyVersusUnknownWitness {
     c.quantity = 10
     e.target = c
     e.quantity = 3
-    e.effectiveAt = effective
-    time/lt[effective, cutoff]
-  }
-}
 
-// A separate pair of rows is used to model equal non-temporal evidence where
-// one world knows placement and the other does not.
-sig TemporalProbe {
-  known: one Extinguishment,
-  unknown: one Extinguishment
-}
-
-pred optionalTimePreservesUnknownWitness {
-  some probe: TemporalProbe, c: Commitment, effective, cutoff: Moment | {
-    probe.known != probe.unknown
-    probe.known.target = c
-    probe.unknown.target = c
-    probe.known.quantity = 3
-    probe.unknown.quantity = 3
-
-    some probe.known.effectiveAt
-    probe.known.effectiveAt = effective
-    no probe.unknown.effectiveAt
-
+    e.(Left.effectiveAt) = effective
+    no e.(Right.effectiveAt)
     time/lt[effective, cutoff]
 
-    c.quantity = 10
+    currentOutstanding[Left, c] = 7
+    currentOutstanding[Right, c] = 7
+
+    historicalOutstandingAt[Left, c, cutoff] = 7
+    historicalOutstandingAt[Right, c, cutoff] = 10
   }
 }
 
@@ -139,10 +139,11 @@ pred unknownStillDeterminesCurrentOutstandingWitness {
   some c: Commitment, e: Extinguishment | {
     c in Left.commitments
     e in Left.extinguishments
-    e.target = c
+
     c.quantity = 10
+    e.target = c
     e.quantity = 3
-    no e.effectiveAt
+    no e.(Left.effectiveAt)
 
     currentOutstanding[Left, c] = 7
   }
@@ -160,54 +161,55 @@ assert KnownHistoricalPlacementDeterminesAsOfView {
       sub[c.quantity, placedExtinguishedBy[w, c, cutoff]]
 }
 
-// Deliberately too strong: current state does not determine historical placement.
+// Deliberately too strong: equal current state does not determine historical
+// placement when effective times differ or are unknown.
 assert CurrentOutstandingDeterminesHistoricalOutstanding {
   all c: Commitment, cutoff: Moment |
-    c in Left.commitments and c in Right.commitments and
+    c in Left.commitments and
+    c in Right.commitments and
     currentOutstanding[Left, c] = currentOutstanding[Right, c]
     implies
       historicalOutstandingAt[Left, c, cutoff] =
         historicalOutstandingAt[Right, c, cutoff]
 }
 
-// Deliberately too strong: missing effective time cannot be silently interpreted
-// as commitment-open time for historical queries.
+// Deliberately too strong: missing effective time must not silently mean the
+// commitment's opening time.
 assert UnknownEffectiveTimeEqualsOpenTime {
-  all e: Extinguishment, cutoff: Moment |
-    no e.effectiveAt implies
+  all e: Left.extinguishments, cutoff: Moment |
+    no e.(Left.effectiveAt) implies
       let c = e.target |
         historicalOutstandingAt[Left, c, cutoff] =
-          sub[c.quantity,
-            (c.openedAt = cutoff or time/lt[c.openedAt, cutoff])
-              => e.quantity else 0]
+          sub[
+            c.quantity,
+            atOrBefore[c.openedAt, cutoff] => e.quantity else 0
+          ]
 }
+
+run sameCurrentDifferentHistoricalPlacementWitness
+  for exactly 2 World, exactly 3 Moment, exactly 1 Commitment,
+      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, 8 Int
+
+run knownEarlyVersusUnknownWitness
+  for exactly 2 World, exactly 3 Moment, exactly 1 Commitment,
+      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, 8 Int
 
 run unknownStillDeterminesCurrentOutstandingWitness
   for exactly 2 World, exactly 3 Moment, exactly 1 Commitment,
-      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, exactly 0 TemporalProbe,
-      8 Int
-
-run optionalTimePreservesUnknownWitness
-  for exactly 2 World, exactly 3 Moment, exactly 1 Commitment,
-      exactly 2 ExtinguishmentId, exactly 2 Extinguishment, exactly 1 TemporalProbe,
-      8 Int
+      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, 8 Int
 
 check CurrentOutstandingIgnoresTemporalPlacement
   for exactly 2 World, exactly 3 Moment, exactly 2 Commitment,
-      exactly 3 ExtinguishmentId, exactly 3 Extinguishment, exactly 0 TemporalProbe,
-      8 Int
+      exactly 3 ExtinguishmentId, exactly 3 Extinguishment, 8 Int
 
 check KnownHistoricalPlacementDeterminesAsOfView
   for exactly 2 World, exactly 3 Moment, exactly 2 Commitment,
-      exactly 3 ExtinguishmentId, exactly 3 Extinguishment, exactly 0 TemporalProbe,
-      8 Int
+      exactly 3 ExtinguishmentId, exactly 3 Extinguishment, 8 Int
 
 check CurrentOutstandingDeterminesHistoricalOutstanding
   for exactly 2 World, exactly 3 Moment, exactly 1 Commitment,
-      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, exactly 0 TemporalProbe,
-      8 Int
+      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, 8 Int
 
 check UnknownEffectiveTimeEqualsOpenTime
   for exactly 2 World, exactly 3 Moment, exactly 1 Commitment,
-      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, exactly 0 TemporalProbe,
-      8 Int
+      exactly 1 ExtinguishmentId, exactly 1 Extinguishment, 8 Int
