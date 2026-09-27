@@ -688,6 +688,31 @@
         "CollapsedCancelDeterminesLifecycleMeaning": true,
         "OutstandingDeterminesReductionMeaning": true
       }
+    },
+    {
+      "id": "settlement-commitment-version-identity",
+      "observation": "Observation 374",
+      "jobName": "Test settlement commitment version identity boundary",
+      "pushBranches": [
+        "main",
+        "experiment/374-settlement-commitment-version-identity"
+      ],
+      "model": "experiments/374_settlement_commitment_version_identity.als",
+      "paths": [
+        "experiments/374_settlement_commitment_version_identity.als",
+        "experiments/374_settlement_commitment_version_identity.md"
+      ],
+      "expected": {
+        "benignCorrectionCarriesUse": true,
+        "multiStepCorrectionCarriesUse": true,
+        "unsafeCarryRawWitness": true,
+        "equalPayloadIndependentVersionsRemainDistinct": true,
+        "sameOperationalDifferentLogicalLabels": true,
+        "AdmittedChaseNeverOverSettles": false,
+        "DirectTargetingEqualsChasedTargeting": true,
+        "CurrentProjectionIndependentOfLogicalLabels": false,
+        "OperationalEvidenceDeterminesLogicalLabels": true
+      }
     }
   ]
 }
