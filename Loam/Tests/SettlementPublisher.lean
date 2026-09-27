@@ -304,7 +304,53 @@ private def friendlyActionBoundary : IO Unit := do
   expect retainedReduction.effectiveOn.isNone
     "friendly unknown-date reduction fabricated an effective date"
 
-  -- A4: explicit known date is checked before publication.
+  -- A4: an earlier non-payment decrease can be corrected without the caller
+  -- constructing replacement-row identity or revision evidence.
+  let correctedReductionId ← requireOk
+    (← Loam.HouseholdCommand.correctSettlementReduction root {
+      target := extinguishmentId
+      quantity := Quantity.ofQuanta 150
+      effectiveOn := some "2026-09-20"
+    })
+    "friendly reduction correction failed"
+  expect (correctedReductionId != extinguishmentId)
+    "friendly reduction correction reused the superseded row identity"
+  expect (correctedReductionId.token.startsWith "settlement-extinguishment-")
+    "friendly reduction correction did not allocate an internal replacement identity"
+  let correctedReductionImage ← loadImage root "after friendly reduction correction"
+  expect (correctedReductionImage.settlement.extinguishedQuanta replacementId == 150)
+    "friendly reduction correction did not replace the current quantity"
+  expectOutstanding root replacementId.token 350
+    "friendly corrected reduction"
+
+  let afterReductionCorrection ← loadActual root "after friendly reduction correction"
+  expect (afterReductionCorrection.settlements.extinguishments.length == 2)
+    "friendly reduction correction did not retain old and replacement rows"
+  expect (afterReductionCorrection.settlements.extinguishmentRevisions.length == 1)
+    "friendly reduction correction did not retain revision evidence"
+  let correctedRetained ← requireSome
+    (afterReductionCorrection.settlements.extinguishments.find?
+      (fun row => row.id = correctedReductionId))
+    "friendly corrected reduction row missing"
+  expect (correctedRetained.effectiveOn == some "2026-09-20")
+    "friendly reduction correction lost corrected effective date"
+
+  -- A5: retracting the corrected decrease restores only that decrease while
+  -- leaving the commitment and physical settlement current.
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.retractSettlementReduction root {
+      target := correctedReductionId
+    })
+    "friendly reduction retraction failed"
+  let afterReductionRetraction ← loadImage root "after friendly reduction retraction"
+  expect (afterReductionRetraction.settlement.extinguishedQuanta replacementId == 0)
+    "friendly reduction retraction left decrease current"
+  expect (afterReductionRetraction.settlement.settledQuanta replacementId == 700)
+    "friendly reduction retraction changed physical settlement"
+  expectOutstanding root replacementId.token 500
+    "friendly reduction retraction"
+
+  -- A6: explicit known date is checked before publication.
   let beforeBadDate ← loadActual root "before bad friendly date"
   match ← Loam.HouseholdCommand.reduceSettlementWithoutPayment root {
       target := replacementId
@@ -318,7 +364,7 @@ private def friendlyActionBoundary : IO Unit := do
   expect (decide (afterBadDate.settlements = beforeBadDate.settlements))
     "failed friendly dated reduction changed settlement authority"
 
-  -- A5: whole-record retraction remains semantically distinct and refuses
+  -- A7: whole-record retraction remains semantically distinct and refuses
   -- while later payment/reduction evidence survives.
   let beforeBlockedRetraction ← loadActual root "before friendly blocked retraction"
   match ← Loam.HouseholdCommand.retractSettlement root {
@@ -333,7 +379,7 @@ private def friendlyActionBoundary : IO Unit := do
       (afterBlockedRetraction.settlements = beforeBlockedRetraction.settlements))
     "failed friendly retraction changed settlement authority"
 
-  -- A6: a genuinely erroneous independent commitment can be retracted without
+  -- A8: a genuinely erroneous independent commitment can be retracted without
   -- the caller constructing revision evidence.
   let _ ← requireOk
     (← Loam.HouseholdCommand.recordSettlementEvidence root {
