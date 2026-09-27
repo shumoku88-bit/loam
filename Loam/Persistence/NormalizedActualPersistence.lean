@@ -29,6 +29,9 @@ def normalizedActualHeaderV2 : String := "LOAM-NORMALIZED-ACTUAL\t2"
 /-- Version-3 header adding append-only settlement commitment revision evidence. -/
 def normalizedActualHeaderV3 : String := "LOAM-NORMALIZED-ACTUAL\t3"
 
+/-- Version-4 header adding quantity-bearing non-settlement extinguishment evidence. -/
+def normalizedActualHeaderV4 : String := "LOAM-NORMALIZED-ACTUAL\t4"
+
 /-- Compatibility name for the original normalized Actual header. -/
 def normalizedActualHeader : String := normalizedActualHeaderV1
 
@@ -36,6 +39,7 @@ private inductive NormalizedActualWireVersion where
   | v1
   | v2
   | v3
+  | v4
 deriving Repr, DecidableEq
 
 private def normalizedActualWireVersion? (header : String) : Option NormalizedActualWireVersion :=
@@ -45,6 +49,8 @@ private def normalizedActualWireVersion? (header : String) : Option NormalizedAc
     some .v2
   else if header == normalizedActualHeaderV3 then
     some .v3
+  else if header == normalizedActualHeaderV4 then
+    some .v4
   else
     none
 
@@ -97,7 +103,7 @@ def NormalizedActualParseError.message (err : NormalizedActualParseError) : Stri
   let reasonMsg := match err.reason with
     | .missingFinalNewline => "document must end with a newline"
     | .emptyDocument => "empty document"
-    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeaderV1}', '{normalizedActualHeaderV2}', or '{normalizedActualHeaderV3}'"
+    | .invalidHeader found => s!"invalid header: '{found}', expected '{normalizedActualHeaderV1}', '{normalizedActualHeaderV2}', '{normalizedActualHeaderV3}', or '{normalizedActualHeaderV4}'"
     | .malformedTxRow detail => s!"malformed TX row: {detail}"
     | .malformedRow rowType detail => s!"malformed {rowType} row: {detail}"
     | .unknownRowType rowType => s!"unknown row type: '{rowType}'"
@@ -522,6 +528,8 @@ private def parseTxs (rows : List (Nat × String)) :
 private structure SettlementParseState where
   commitments : List SettlementCommitment := []
   commitmentRevisions : List SettlementCommitmentRevision := []
+  extinguishments : List SettlementCommitmentExtinguishment := []
+  extinguishmentRevisions : List SettlementExtinguishmentRevision := []
   correspondences : List SettlementEffectCorrespondence := []
   correspondenceRevisions : List SettlementCorrespondenceRevision := []
   nettingContexts : List SettlementNettingContext := []
@@ -531,6 +539,8 @@ private structure SettlementParseState where
 private def isSettlementRowType (rowType : String) : Bool :=
   rowType == "SETTLEMENT-COMMITMENT" ||
   rowType == "SETTLEMENT-COMMITMENT-REVISION" ||
+  rowType == "SETTLEMENT-EXTINGUISHMENT" ||
+  rowType == "SETTLEMENT-EXTINGUISHMENT-REVISION" ||
   rowType == "SETTLEMENT-CORRESPONDENCE" ||
   rowType == "SETTLEMENT-CORRESPONDENCE-REVISION" ||
   rowType == "SETTLEMENT-NETTING" ||
@@ -599,6 +609,60 @@ private def stepSettlementParser
           target := ⟨target⟩
           replacement := none
         } :: state.commitmentRevisions
+      }
+  | ["SETTLEMENT-EXTINGUISHMENT", id, "TARGET", target, quantityText, "UNKNOWN"] => do
+      for token in [id, target] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      let quanta ← match quantityText.toInt? with
+        | some value => pure value
+        | none => throw { line := lineNo, reason := .invalidInteger quantityText }
+      pure {
+        state with
+        extinguishments := {
+          id := ⟨id⟩
+          target := ⟨target⟩
+          quantity := Quantity.ofQuanta quanta
+          effectiveOn := none
+        } :: state.extinguishments
+      }
+  | ["SETTLEMENT-EXTINGUISHMENT", id, "TARGET", target, quantityText,
+      "EFFECTIVE", effectiveOn] => do
+      for token in [id, target, effectiveOn] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      let quanta ← match quantityText.toInt? with
+        | some value => pure value
+        | none => throw { line := lineNo, reason := .invalidInteger quantityText }
+      pure {
+        state with
+        extinguishments := {
+          id := ⟨id⟩
+          target := ⟨target⟩
+          quantity := Quantity.ofQuanta quanta
+          effectiveOn := some effectiveOn
+        } :: state.extinguishments
+      }
+  | ["SETTLEMENT-EXTINGUISHMENT-REVISION", target, "REPLACEMENT", replacement] => do
+      for token in [target, replacement] do
+        if !validToken token then
+          throw { line := lineNo, reason := .invalidToken token }
+      pure {
+        state with
+        extinguishmentRevisions := {
+          target := ⟨target⟩
+          replacement := some ⟨replacement⟩
+        } :: state.extinguishmentRevisions
+      }
+  | ["SETTLEMENT-EXTINGUISHMENT-REVISION", target, "RETRACT"] => do
+      if !validToken target then
+        throw { line := lineNo, reason := .invalidToken target }
+      pure {
+        state with
+        extinguishmentRevisions := {
+          target := ⟨target⟩
+          replacement := none
+        } :: state.extinguishmentRevisions
       }
   | ["SETTLEMENT-CORRESPONDENCE", id, "TARGET", target, "PHYSICAL",
       event, effect, quantityText] => do
@@ -697,6 +761,7 @@ private structure SettlementDocumentParserState where
 
 private def stepSettlementDocumentParser
     (allowCommitmentRevisions : Bool)
+    (allowExtinguishments : Bool)
     (state : SettlementDocumentParserState)
     (item : Nat × String) :
     Except NormalizedActualParseError SettlementDocumentParserState := do
@@ -707,6 +772,14 @@ private def stepSettlementDocumentParser
       line := lineNo
       reason := .malformedRow rowType
         "settlement commitment revisions require normalized Actual v3"
+    }
+  if (rowType == "SETTLEMENT-EXTINGUISHMENT" ||
+      rowType == "SETTLEMENT-EXTINGUISHMENT-REVISION") &&
+      !allowExtinguishments then
+    throw {
+      line := lineNo
+      reason := .malformedRow rowType
+        "settlement extinguishment evidence requires normalized Actual v4"
     }
   if state.settlementStarted then
     if !isSettlementRowType rowType then
@@ -742,10 +815,11 @@ private def stepSettlementDocumentParser
 
 private def parseSettlementRows
     (allowCommitmentRevisions : Bool)
+    (allowExtinguishments : Bool)
     (rows : List (Nat × String)) :
     Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) := do
   let finalState ← rows.foldlM
-    (stepSettlementDocumentParser allowCommitmentRevisions) {}
+    (stepSettlementDocumentParser allowCommitmentRevisions allowExtinguishments) {}
   match finalState.tx.current with
   | some draft =>
       throw { line := draft.lastLine, reason := .missingEndTx draft.event draft.txLine }
@@ -755,6 +829,8 @@ private def parseSettlementRows
         {
           commitments := finalState.settlement.commitments.reverse
           commitmentRevisions := finalState.settlement.commitmentRevisions.reverse
+          extinguishments := finalState.settlement.extinguishments.reverse
+          extinguishmentRevisions := finalState.settlement.extinguishmentRevisions.reverse
           correspondences := finalState.settlement.correspondences.reverse
           correspondenceRevisions := finalState.settlement.correspondenceRevisions.reverse
           nettingContexts := finalState.settlement.nettingContexts.reverse
@@ -766,12 +842,17 @@ private def parseSettlementRows
 private def parseV2Rows
     (rows : List (Nat × String)) :
     Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) :=
-  parseSettlementRows false rows
+  parseSettlementRows false false rows
 
 private def parseV3Rows
     (rows : List (Nat × String)) :
     Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) :=
-  parseSettlementRows true rows
+  parseSettlementRows true false rows
+
+private def parseV4Rows
+    (rows : List (Nat × String)) :
+    Except NormalizedActualParseError (List ParsedTx × SettlementEvidence) :=
+  parseSettlementRows true true rows
 
 /--
 Detailed decoding of a normalized Actual wire representation into an admitted image with structured diagnostics.
@@ -806,6 +887,10 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
             | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
         | .v3 =>
             match parseV3Rows indexedRows with
+            | .ok parsed => pure parsed
+            | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
+        | .v4 =>
+            match parseV4Rows indexedRows with
             | .ok parsed => pure parsed
             | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
 
@@ -952,6 +1037,8 @@ def decodeNormalizedActual? (input : String) : Option ActualEvidence :=
 private def settlementEvidenceIsEmpty (settlement : SettlementEvidence) : Bool :=
   settlement.commitments.isEmpty &&
   settlement.commitmentRevisions.isEmpty &&
+  settlement.extinguishments.isEmpty &&
+  settlement.extinguishmentRevisions.isEmpty &&
   settlement.correspondences.isEmpty &&
   settlement.correspondenceRevisions.isEmpty &&
   settlement.nettingContexts.isEmpty &&
@@ -967,15 +1054,21 @@ Encode persistence-neutral ActualEvidence into normalized Actual wire representa
 Version 1 is preserved while settlement evidence is empty.
 Version 2 retains the original settlement row family when no commitment revisions exist.
 Version 3 is selected when append-only commitment revision evidence is present.
+Version 4 is selected when non-settlement extinguishment evidence is present.
 Fails closed (`none`) on invalid wire tokens or inadmissible semantic evidence.
 -/
 def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
   let _ ← admitActualEvidence? evidence
   let settlementEmpty := settlementEvidenceIsEmpty evidence.settlements
   let hasCommitmentRevisions := !evidence.settlements.commitmentRevisions.isEmpty
+  let hasExtinguishments :=
+    !evidence.settlements.extinguishments.isEmpty ||
+      !evidence.settlements.extinguishmentRevisions.isEmpty
   let header :=
     if settlementEmpty then
       normalizedActualHeaderV1
+    else if hasExtinguishments then
+      normalizedActualHeaderV4
     else if hasCommitmentRevisions then
       normalizedActualHeaderV3
     else
@@ -1095,6 +1188,41 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
             none
           rows := rows ++ [
             s!"SETTLEMENT-COMMITMENT-REVISION\t{revision.target.token}\t" ++
+            s!"REPLACEMENT\t{replacement.token}"
+          ]
+
+    for extinguishment in evidence.settlements.extinguishments do
+      if !validToken extinguishment.id.token ||
+          !validToken extinguishment.target.token then
+        none
+      match extinguishment.effectiveOn with
+      | none =>
+          rows := rows ++ [
+            s!"SETTLEMENT-EXTINGUISHMENT\t{extinguishment.id.token}\tTARGET\t" ++
+            s!"{extinguishment.target.token}\t{extinguishment.quantity.quanta}\tUNKNOWN"
+          ]
+      | some effectiveOn =>
+          if !validToken effectiveOn then
+            none
+          rows := rows ++ [
+            s!"SETTLEMENT-EXTINGUISHMENT\t{extinguishment.id.token}\tTARGET\t" ++
+            s!"{extinguishment.target.token}\t{extinguishment.quantity.quanta}\t" ++
+            s!"EFFECTIVE\t{effectiveOn}"
+          ]
+
+    for revision in evidence.settlements.extinguishmentRevisions do
+      if !validToken revision.target.token then
+        none
+      match revision.replacement with
+      | none =>
+          rows := rows ++ [
+            s!"SETTLEMENT-EXTINGUISHMENT-REVISION\t{revision.target.token}\tRETRACT"
+          ]
+      | some replacement =>
+          if !validToken replacement.token then
+            none
+          rows := rows ++ [
+            s!"SETTLEMENT-EXTINGUISHMENT-REVISION\t{revision.target.token}\t" ++
             s!"REPLACEMENT\t{replacement.token}"
           ]
 

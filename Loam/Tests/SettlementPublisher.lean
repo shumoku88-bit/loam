@@ -169,6 +169,35 @@ private def retractCommitmentBatch : Loam.SettlementPublisher.Draft := {
   }]
 }
 
+private def extinguishmentBatch : Loam.SettlementPublisher.Draft := {
+  extinguishments := [{
+    id := ⟨"writer-ext-v1"⟩
+    target := ⟨"writer-card-commitment-v2"⟩
+    quantity := Quantity.ofQuanta 100
+    effectiveOn := none
+  }]
+}
+
+private def extinguishmentCorrectionBatch : Loam.SettlementPublisher.Draft := {
+  extinguishments := [{
+    id := ⟨"writer-ext-v2"⟩
+    target := ⟨"writer-card-commitment-v2"⟩
+    quantity := Quantity.ofQuanta 50
+    effectiveOn := some "2026-09-10"
+  }]
+  extinguishmentRevisions := [{
+    target := ⟨"writer-ext-v1"⟩
+    replacement := some ⟨"writer-ext-v2"⟩
+  }]
+}
+
+private def extinguishmentRetractionBatch : Loam.SettlementPublisher.Draft := {
+  extinguishmentRevisions := [{
+    target := ⟨"writer-ext-v2"⟩
+    replacement := none
+  }]
+}
+
 private def zeroNetBatch : Loam.SettlementPublisher.Draft := {
   commitments := [
     {
@@ -304,7 +333,61 @@ def runAll : IO Unit := do
   expect (zeroWire.contains "SETTLEMENT-NETTING\twriter-zero-context\tjpy\tZERO")
     "zero-net settlement did not persist explicit ZERO outcome"
 
-  -- E5: an independent commitment may be explicitly retracted through the
+  -- E5: non-settlement extinguishment reduces current outstanding without
+  -- inventing a physical Event or changing settled quantity.
+  let eventCountBeforeExtinguishment := afterZero.events.events.length
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root extinguishmentBatch)
+    "extinguishment publication failed"
+
+  let afterExtinguishment ← loadActual root "after extinguishment"
+  expect (afterExtinguishment.events.events.length == eventCountBeforeExtinguishment)
+    "extinguishment publisher invented an Actual Event"
+  expectOutstanding root "writer-card-commitment-v2" 200
+    "after extinguishment"
+  let extImage ← loadImage root "after extinguishment"
+  expect (extImage.settlement.settledQuanta ⟨"writer-card-commitment-v2"⟩ == 600)
+    "extinguishment changed settled quantity"
+  expect (extImage.settlement.extinguishedQuanta ⟨"writer-card-commitment-v2"⟩ == 100)
+    "extinguishment quantity missing from current image"
+  let v4Wire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  expect (v4Wire.startsWith (normalizedActualHeaderV4 ++ "\n"))
+    "extinguishment publication did not promote canonical Actual to v4"
+  expect (v4Wire.contains
+      "SETTLEMENT-EXTINGUISHMENT\twriter-ext-v1\tTARGET\twriter-card-commitment-v2\t100\tUNKNOWN")
+    "unknown-time extinguishment row was not persisted"
+
+  -- E6: extinguishment evidence itself is append-only correctable.
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root extinguishmentCorrectionBatch)
+    "extinguishment correction publication failed"
+  let correctedExtImage ← loadImage root "after extinguishment correction"
+  expect (correctedExtImage.settlement.extinguishedQuanta
+      ⟨"writer-card-commitment-v2"⟩ == 50)
+    "extinguishment correction did not select replacement row"
+  expectOutstanding root "writer-card-commitment-v2" 250
+    "after extinguishment correction"
+
+  -- E7: retracting erroneous extinguishment evidence restores only that
+  -- non-settlement reduction; the valid commitment and physical settlement stay.
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.recordSettlementEvidence root extinguishmentRetractionBatch)
+    "extinguishment retraction publication failed"
+  let retractedExtImage ← loadImage root "after extinguishment retraction"
+  expect (retractedExtImage.settlement.extinguishedQuanta
+      ⟨"writer-card-commitment-v2"⟩ == 0)
+    "retracted extinguishment remained current"
+  expect (retractedExtImage.settlement.settledQuanta
+      ⟨"writer-card-commitment-v2"⟩ == 600)
+    "extinguishment retraction changed physical settlement"
+  expectOutstanding root "writer-card-commitment-v2" 300
+    "after extinguishment retraction"
+  let extRetractionWire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  expect (extRetractionWire.contains
+      "SETTLEMENT-EXTINGUISHMENT-REVISION\twriter-ext-v2\tRETRACT")
+    "extinguishment retraction row was not persisted"
+
+  -- E8: an independent commitment may be explicitly retracted through the
   -- same append-only publisher. The retained row remains evidence, but it leaves
   -- the current settlement projection.
   let _ ← requireOk
@@ -328,7 +411,7 @@ def runAll : IO Unit := do
       "SETTLEMENT-COMMITMENT-REVISION\twriter-retractable\tRETRACT")
     "commitment retraction row was not persisted"
 
-  -- E6: retracting a commitment with still-current dependent settlement evidence
+  -- E9: retracting a commitment with still-current dependent settlement evidence
   -- fails closed and leaves the canonical generation unchanged.
   let beforeBlockedRetraction ← loadActual root "before blocked retraction"
   let blockedRetraction : Loam.SettlementPublisher.Draft := {
@@ -347,7 +430,7 @@ def runAll : IO Unit := do
       (afterBlockedRetraction.settlements = beforeBlockedRetraction.settlements))
     "failed commitment retraction changed retained settlement authority"
 
-  -- E7: a mixed batch is all-or-nothing. One invalid row prevents the valid row too.
+  -- E10: a mixed batch is all-or-nothing. One invalid row prevents the valid row too.
   let beforeInvalid ← loadActual root "before invalid batch"
   let invalidBatch : Loam.SettlementPublisher.Draft := {
     commitments := [{
@@ -377,7 +460,7 @@ def runAll : IO Unit := do
   expect (decide (afterInvalid.settlements = beforeInvalid.settlements))
     "invalid batch partially changed settlement authority"
 
-  -- E8: retrying the same stable row identities is refused, not duplicated.
+  -- E11: retrying the same stable row identities is refused, not duplicated.
   match ← Loam.HouseholdCommand.recordSettlementEvidence root directBatch with
   | .ok () =>
       throw <| IO.userError "duplicate settlement row identities were silently republished"
@@ -387,7 +470,7 @@ def runAll : IO Unit := do
   expect (decide (afterDuplicate.settlements = beforeInvalid.settlements))
     "duplicate retry changed retained settlement evidence"
 
-  -- E9: an empty command is not a meaningful publication.
+  -- E12: an empty command is not a meaningful publication.
   match ← Loam.HouseholdCommand.recordSettlementEvidence root {} with
   | .ok () => throw <| IO.userError "empty settlement batch was accepted"
   | .error _ => pure ()

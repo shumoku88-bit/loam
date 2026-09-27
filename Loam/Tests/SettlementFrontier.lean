@@ -61,6 +61,24 @@ private def commitmentRevision
   replacement := replacement.map fun token => ⟨token⟩
 }
 
+private def extinguishment
+    (id target : String)
+    (quanta : Int)
+    (effectiveOn : Option String := none) :
+    SettlementCommitmentExtinguishment := {
+  id := ⟨id⟩
+  target := ⟨target⟩
+  quantity := Quantity.ofQuanta quanta
+  effectiveOn := effectiveOn
+}
+
+private def extinguishmentRevision
+    (target : String)
+    (replacement : Option String) : SettlementExtinguishmentRevision := {
+  target := ⟨target⟩
+  replacement := replacement.map fun token => ⟨token⟩
+}
+
 private def correspondence
     (id target event effect : String)
     (quanta : Int) : SettlementEffectCorrespondence := {
@@ -97,12 +115,16 @@ private def image?
     (contexts : List SettlementNettingContext := [])
     (members : List SettlementNettingMember := [])
     (memberRevisions : List SettlementNettingMemberRevision := [])
-    (commitmentRevisions : List SettlementCommitmentRevision := []) :
+    (commitmentRevisions : List SettlementCommitmentRevision := [])
+    (extinguishments : List SettlementCommitmentExtinguishment := [])
+    (extinguishmentRevisions : List SettlementExtinguishmentRevision := []) :
     Option AdmittedSettlementImage :=
   admitSettlementImage?
     events
     commitments
     commitmentRevisions
+    extinguishments
+    extinguishmentRevisions
     correspondences
     correspondenceRevisions
     contexts
@@ -747,6 +769,136 @@ private def commitmentRetractionBoundary : IO Unit := do
   expect
     (image? events [c] [row] (commitmentRevisions := [revision])).isNone
     "dependent current settlement evidence survived commitment retraction"
+
+private def extinguishmentLifecycle : IO Unit := do
+  let source ← requireSome
+    (event? "ext-source" [
+      keyedEffect "ext-origin" sourceLocus usd 1
+    ])
+    "extinguishment source Event failed"
+  let events ← requireSome (memory? [source])
+    "extinguishment EventMemory failed"
+
+  let c := commitment
+    "ext-target" "ext-source" "ext-origin"
+    .household (.external broker) yen 1000
+
+  let unknown := extinguishment "ext-unknown" "ext-target" 300
+  let imageUnknown ← requireSome
+    (image? events [c] (extinguishments := [unknown]))
+    "unknown-time extinguishment was rejected"
+  expect (imageUnknown.extinguishedQuanta ⟨"ext-target"⟩ == 300)
+    "unknown-time extinguishment total changed"
+  expectOutstanding imageUnknown "ext-target" 700
+    "unknown-time extinguishment"
+
+  let known := extinguishment
+    "ext-known" "ext-target" 250 (some "2026-09-20")
+  let imageKnown ← requireSome
+    (image? events [c] (extinguishments := [known]))
+    "known-time extinguishment was rejected"
+  expectOutstanding imageKnown "ext-target" 750
+    "known-time extinguishment"
+
+  let invalid := extinguishment
+    "ext-invalid" "ext-target" 100 (some "2026-02-29")
+  expect (image? events [c] (extinguishments := [invalid])).isNone
+    "invalid effective date was admitted"
+
+  let old := extinguishment
+    "ext-old" "ext-target" 400 (some "2026-02-29")
+  let replacement := extinguishment
+    "ext-new" "ext-target" 200 (some "2026-09-21")
+  let correction := extinguishmentRevision "ext-old" (some "ext-new")
+  let corrected ← requireSome
+    (image? events [c]
+      (extinguishments := [old, replacement])
+      (extinguishmentRevisions := [correction]))
+    "superseded malformed extinguishment poisoned current admission"
+  expect (corrected.extinguishedQuanta ⟨"ext-target"⟩ == 200)
+    "extinguishment correction did not select replacement quantity"
+  expectOutstanding corrected "ext-target" 800
+    "extinguishment correction"
+
+  let retracted ← requireSome
+    (image? events [c]
+      (extinguishments := [unknown])
+      (extinguishmentRevisions := [
+        extinguishmentRevision "ext-unknown" none
+      ]))
+    "extinguishment retraction was rejected"
+  expect (retracted.extinguishedQuanta ⟨"ext-target"⟩ == 0)
+    "retracted extinguishment remained current"
+  expectOutstanding retracted "ext-target" 1000
+    "extinguishment retraction"
+
+private def extinguishmentComposesWithSettlement : IO Unit := do
+  let source ← requireSome
+    (event? "ext-compose-source" [
+      keyedEffect "ext-compose-origin" sourceLocus usd 1
+    ])
+    "extinguishment composition source Event failed"
+  let payment ← requireSome
+    (event? "ext-compose-payment" [
+      keyedEffect "ext-compose-jpy" bank yen (-600)
+    ])
+    "extinguishment composition payment Event failed"
+  let events ← requireSome (memory? [source, payment])
+    "extinguishment composition EventMemory failed"
+
+  let c := commitment
+    "ext-compose-target" "ext-compose-source" "ext-compose-origin"
+    .household (.external broker) yen 1000
+  let paid := correspondence
+    "ext-compose-row" "ext-compose-target"
+    "ext-compose-payment" "ext-compose-jpy" 600
+  let reduced := extinguishment
+    "ext-compose-reduced" "ext-compose-target" 300
+
+  let admitted ← requireSome
+    (image? events [c] [paid] (extinguishments := [reduced]))
+    "settlement plus extinguishment within commitment bound was rejected"
+  expect (admitted.settledQuanta ⟨"ext-compose-target"⟩ == 600)
+    "settled quantity changed under extinguishment"
+  expect (admitted.extinguishedQuanta ⟨"ext-compose-target"⟩ == 300)
+    "extinguished quantity changed under settlement"
+  expectOutstanding admitted "ext-compose-target" 100
+    "settlement plus extinguishment"
+
+  let over := extinguishment
+    "ext-compose-over" "ext-compose-target" 500
+  expect (image? events [c] [paid] (extinguishments := [over])).isNone
+    "settled 600 + extinguished 500 exceeded commitment 1000"
+
+private def extinguishmentFollowsCommitmentCorrection : IO Unit := do
+  let source ← requireSome
+    (event? "ext-corr-source" [
+      keyedEffect "ext-corr-origin" sourceLocus usd 1
+    ])
+    "extinguishment commitment correction source Event failed"
+  let events ← requireSome (memory? [source])
+    "extinguishment commitment correction EventMemory failed"
+
+  let old := commitment
+    "ext-corr-old" "ext-corr-source" "ext-corr-origin"
+    .household (.external broker) yen 1000
+  let current := commitment
+    "ext-corr-current" "ext-corr-source" "ext-corr-origin"
+    .household (.external broker) yen 700
+  let commitmentCorrection :=
+    commitmentRevision "ext-corr-old" (some "ext-corr-current")
+  let reduced := extinguishment
+    "ext-corr-row" "ext-corr-old" 200 (some "2026-09-22")
+
+  let image ← requireSome
+    (image? events [old, current]
+      (commitmentRevisions := [commitmentCorrection])
+      (extinguishments := [reduced]))
+    "historical extinguishment target did not follow commitment correction"
+  expect (image.extinguishedQuanta ⟨"ext-corr-current"⟩ == 200)
+    "extinguishment did not resolve onto current commitment identity"
+  expectOutstanding image "ext-corr-current" 500
+    "extinguishment after commitment correction"
 
 def runAll : IO Unit := do
   crossMeasureCard
