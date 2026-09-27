@@ -1,6 +1,6 @@
 # Observation 373 — settlement commitment lifecycle distinguishability
 
-Status: **BOUNDED SEMANTIC OBSERVATION — plain cancel collapse under test; no production change selected**
+Status: **BOUNDED RESULT — plain untyped cancel collapse falsified; no production representation selected**
 
 Baseline:
 
@@ -347,6 +347,32 @@ The equation is only a bounded candidate law at this stage.
 It does not yet decide whether non-settlement extinguishment belongs in the base
 Settlement family, beside it, or in a later obligation lifecycle layer.
 
+## Alloy result
+
+Qualified on Alloy 6.2.0 with SAT4J through the repository's shared research
+witness harness.
+
+```text
+correctionWitness                                 SAT
+retractionWitness                                 SAT
+fullExtinguishmentWitness                         SAT
+partialExtinguishmentWitness                      SAT
+successorExtinguishmentWitness                    SAT
+sameCancelDifferentMeaningWitness                 SAT
+sameOutstandingSettlementVsExtinguishmentWitness SAT
+
+OutstandingNeverNegative                         UNSAT counterexample
+CurrentCommitmentPartition                       UNSAT counterexample
+
+EveryExtinguishmentIsTerminal                    SAT counterexample
+CollapsedCancelDeterminesLifecycleMeaning        SAT counterexample
+OutstandingDeterminesReductionMeaning            SAT counterexample
+```
+
+The result directly falsifies the untyped `cancel old -> optional successor`
+collapse inside the bounded model. It also preserves the candidate arithmetic
+partition for current commitments.
+
 ## Expected Alloy matrix
 
 ```text
@@ -366,7 +392,7 @@ CollapsedCancelDeterminesLifecycleMeaning      SAT counterexample
 OutstandingDeterminesReductionMeaning          SAT counterexample
 ```
 
-## Provisional finding if the matrix holds
+## Finding
 
 A plain terminal:
 
@@ -458,7 +484,7 @@ implemented.
 
 ## Stop condition
 
-If the expected matrix holds:
+The qualified bounded matrix supports the stop condition:
 
 1. reject untyped terminal cancel as the commitment lifecycle model;
 2. keep production code unchanged;
