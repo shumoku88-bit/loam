@@ -113,8 +113,10 @@ unapproved Locus
 incorrect declared total
 ```
 
-Because operation identities intentionally repeat, later generated payloads also
-exercise the production idempotency rule:
+Valid operation identities intentionally come from a small collision-prone set,
+so later generated payloads exercise the production idempotency rule. Deliberately
+invalid fresh drafts use seed-specific operation identities so refusal coverage
+cannot be accidentally converted entirely into retries:
 
 ```text
 retained operation identity
