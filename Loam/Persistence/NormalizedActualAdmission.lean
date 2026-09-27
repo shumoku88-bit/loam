@@ -19,6 +19,7 @@ import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
 import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Application.OriginalAmountFrontier
+import Loam.Application.SettlementFrontier
 import Std.Data.HashMap
 import Std.Data.HashSet
 
@@ -30,21 +31,33 @@ open Loam.Application
 set_option autoImplicit false
 
 /--
-One fully admitted normalized Actual image plus the two read-side projections
-that production repeatedly reconstructs.
+One fully admitted normalized Actual image plus the shared read-side
+projections that production repeatedly reconstructs.
 
 The raw retained evidence remains available for writer candidate construction.
-`currentEvents` and `currentValidities` are derived views, not new authorities.
-Their proof fields prevent those views from drifting from the retained evidence.
+`currentEvents`, `currentValidities`, and `settlement` are derived views,
+not new authorities. Their proof fields prevent those views from drifting from
+the retained evidence and retained Event generation.
 -/
 structure AdmittedActualImage where
   evidence : ActualEvidence
   currentEvents : EventMemory
   currentValidities : ActualValidityMemory String
+  settlement : AdmittedSettlementImage
   currentEvents_admitted :
     correctionFrontierMemory? evidence.events evidence.corrections = some currentEvents
   currentValidities_admitted :
     admittedActualValidityMemory? evidence.validity = some currentValidities
+  settlement_admitted :
+    admitSettlementImage?
+      evidence.events
+      evidence.settlements.commitments
+      evidence.settlements.correspondences
+      evidence.settlements.correspondenceRevisions
+      evidence.settlements.nettingContexts
+      evidence.settlements.nettingMembers
+      evidence.settlements.nettingMemberRevisions =
+        some settlement
 
 private def retainedEventIndex
     (events : EventMemory) : Std.HashMap String Event :=
@@ -232,13 +245,26 @@ def admitActualImage? (evidence : ActualEvidence) : Option AdmittedActualImage :
                 hRelations
                 evidence.discharges
 
-              some {
-                evidence := evidence
-                currentEvents := currentEvents
-                currentValidities := admittedDates
-                currentEvents_admitted := hFrontier
-                currentValidities_admitted := hValidity
-              }
+              match hSettlement :
+                  admitSettlementImage?
+                    evidence.events
+                    evidence.settlements.commitments
+                    evidence.settlements.correspondences
+                    evidence.settlements.correspondenceRevisions
+                    evidence.settlements.nettingContexts
+                    evidence.settlements.nettingMembers
+                    evidence.settlements.nettingMemberRevisions with
+              | none => none
+              | some settlement =>
+                  some {
+                    evidence := evidence
+                    currentEvents := currentEvents
+                    currentValidities := admittedDates
+                    settlement := settlement
+                    currentEvents_admitted := hFrontier
+                    currentValidities_admitted := hValidity
+                    settlement_admitted := hSettlement
+                  }
 
 /--
 Compatibility entrance returning only retained ActualEvidence.

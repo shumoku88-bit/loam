@@ -146,6 +146,28 @@
       "tests": [
         "Loam/Tests/SettlementFrontier.lean"
       ]
+    },
+    {
+      "id": "settlement-actual-image-d2",
+      "workflowName": "Settlement Actual Image D2",
+      "jobName": "Qualify settlement Actual-image admission",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "feat/settlement-admitted-actual-image"
+      ],
+      "buildArgs": "Loam.Persistence.NormalizedActualAdmission",
+      "paths": [
+        "Loam/ActualEvidence.lean",
+        "Loam/Core/Settlement.lean",
+        "Loam/Application/SettlementFrontier.lean",
+        "Loam/Persistence/NormalizedActualAdmission.lean",
+        "Loam/Tests/ActualSettlementAdmission.lean",
+        "experiments/372_settlement_persistence_topology_checkpoint.md"
+      ],
+      "tests": [
+        "Loam/Tests/ActualSettlementAdmission.lean"
+      ]
     }
   ]
 }
