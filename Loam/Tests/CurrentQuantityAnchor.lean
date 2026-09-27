@@ -110,6 +110,32 @@ def main : IO Unit := do
   expect (publishedQuantity.quanta == anchored.quanta)
     "new reconciliation session did not preserve the observed current quantity"
 
+  -- A later exact observation explicitly refines weaker amount-unknown presence
+  -- for the same coordinate without affecting unrelated presence evidence.
+  let currentPresence ← requireSome
+    (Loam.CurrentQuantityPresence.Evidence.ofLists? roots [debt, cash])
+    "current presence fixture"
+  let refinedPresence ← requireOk
+    (Loam.CurrentQuantityAnchorPublisher.refinePresenceForExact?
+      currentPresence [nowAssertion])
+    "current presence refinement"
+  expect (!refinedPresence.covers debt)
+    "exact observation failed to retire weaker presence for the same coordinate"
+  expect (refinedPresence.covers cash)
+    "exact observation retired unrelated current presence"
+
+  let debtOnlyPresence ← requireSome
+    (Loam.CurrentQuantityPresence.Evidence.ofLists? roots [debt])
+    "single-coordinate presence fixture"
+  let emptiedPresence ← requireOk
+    (Loam.CurrentQuantityAnchorPublisher.refinePresenceForExact?
+      debtOnlyPresence [nowAssertion])
+    "single-coordinate current presence refinement"
+  expect emptiedPresence.coordinates.isEmpty
+    "last weaker presence coordinate survived exact observation"
+  expect emptiedPresence.reflectedRoots.isEmpty
+    "empty presence retained stale reflected roots"
+
   -- Retained anchor evidence may still describe a historical/read-only Locus, but a
   -- new publication cannot create a canonical quantity coordinate outside current admission.
   let historicalOnly ← requireSome
