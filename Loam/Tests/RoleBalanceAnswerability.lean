@@ -1,4 +1,4 @@
-import Loam.RoleBalanceAnswerability
+import Loam.Cli.ExplainCli
 
 open Loam.Core
 
@@ -77,6 +77,26 @@ def main : IO Unit := do
     "flow-only quantity gap blocked Balance Sheet"
   expect cleanSummary.netWorthAnswerable
     "flow-only quantity gap blocked Net Worth"
+
+  let machine := Loam.ExplainCli.machineText summary
+  let machineLines := machine.splitOn "\n"
+  expect
+    (machineLines.contains "EXPLAIN1\tstatus\tbalance-sheet\tBLOCKED")
+    "machine explanation changed Balance Sheet status"
+  expect
+    (machineLines.contains "EXPLAIN1\tstatus\tnet-worth\tBLOCKED")
+    "machine explanation changed Net Worth status"
+  expect
+    (machineLines.contains
+      "EXPLAIN1\tblocker\tbalance-sheet\tamount-unknown\tdebt\tjpy\tLIABILITY")
+    "machine explanation lost amount-unknown blocker identity"
+  expect
+    (machineLines.contains
+      "EXPLAIN1\tgap\tflow-role-quantity\tfood\tjpy\tEXPENSE\tnonblocking-stock")
+    "machine explanation lost nonblocking flow gap"
+  expect
+    (machineLines.getLast? == some "EXPLAIN1\tmeta\tstatus\tcomplete")
+    "machine explanation lost complete terminal framing"
 
   IO.println
     "RoleBalance answerability: shared stock blockers and nonblocking flow gaps qualified."
