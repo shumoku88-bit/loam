@@ -123,9 +123,13 @@ pred sameCollapsedCancelView[a, b: World] {
   collapsedTerminalSuccessors[a] = collapsedTerminalSuccessors[b]
 }
 
-pred sameReductionMeaning[a, b: World] {
+pred sameLifecycleMeaning[a, b: World] {
   a.revisions = b.revisions
   a.extinguishments = b.extinguishments
+}
+
+pred sameReductionMeaning[a, b: World] {
+  sameLifecycleMeaning[a, b]
   a.settlements = b.settlements
 }
 
@@ -366,7 +370,7 @@ assert EveryExtinguishmentIsTerminal {
 assert CollapsedCancelDeterminesLifecycleMeaning {
   all disj a, b: World |
     sameCollapsedCancelView[a, b]
-    implies sameReductionMeaning[a, b]
+    implies sameLifecycleMeaning[a, b]
 }
 
 // Deliberately too strong: equal outstanding does not determine whether the
