@@ -101,10 +101,33 @@ private def centeredText (width : Nat) (text : String) : String :=
   let padding := if textWidth < width then (width - textWidth) / 2 else 0
   repeatChar padding ' ' ++ text
 
+private def moneyCellWidth (paneWidth : Nat) : Nat :=
+  (paneWidth - 8) / 7
+
+private def moneyGridWidth (paneWidth : Nat) : Nat :=
+  8 + 7 * moneyCellWidth paneWidth
+
+private def moneyRule
+    (paneWidth : Nat) (left middle right : Char) : Widget :=
+  let cellWidth := moneyCellWidth paneWidth
+  let segment := repeatChar cellWidth '─'
+  mutedLine <|
+    String.ofList [left] ++
+      String.intercalate (String.ofList [middle]) (List.replicate 7 segment) ++
+      String.ofList [right]
+
+private def moneyGridSpans : List Span → List Span
+  | [] => [span "│" .muted]
+  | cell :: rest => span "│" .muted :: cell :: moneyGridSpans rest
+
+private def moneyGridRow (cells : List Span) : Widget :=
+  .row (moneyGridSpans cells)
+
 private def moneyCalendarHeader (paneWidth : Nat) : Widget :=
-  let cellWidth := paneWidth / 7
-  .row <| ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map fun label =>
-    span (Loam.Tui.Layout.padRight cellWidth (" " ++ label)) .muted
+  let cellWidth := moneyCellWidth paneWidth
+  moneyGridRow <|
+    ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map fun label =>
+      span (Loam.Tui.Layout.padRight cellWidth (" " ++ label)) .muted
 
 private def shortDay (date : String) : String :=
   match date.splitOn "-" with
@@ -121,30 +144,53 @@ private def moneyRowFor?
   let measure ← measures.head?
   money.flow.rowFor? date measure
 
+private def moneyCellStyle
+    (today : String) (state : State) (date : String) : Style :=
+  if date == state.selectedDate then
+    if date == today then .selectedUnderlined else .selected
+  else if date == today then
+    .underlined
+  else
+    .normal
+
 private def moneyDateSpan
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
     (snapshot : Snapshot) (state : State) (date : String) : Span :=
-  let cellWidth := paneWidth / 7
+  let cellWidth := moneyCellWidth paneWidth
   let pending := pastOpenDates.any fun candidate => candidate == date
   let unresolved :=
     match moneyRowFor? snapshot state date with
     | some row => decide (0 < row.unresolvedEffectCount)
     | none => false
   let markers := (if pending then "!" else "") ++ (if unresolved then "?" else "")
-  let body := shortDay date ++ markers
-  let text :=
-    if date == state.selectedDate then "[" ++ body ++ "]"
-    else " " ++ body
+  let text := " " ++ shortDay date ++ markers
   span (Loam.Tui.Layout.padRight cellWidth text)
-    (if date == state.selectedDate then
-      if date == today then .selectedUnderlined else .selected
-    else if date == today then .underlined
-    else .normal)
+    (moneyCellStyle today state date)
+
+private def commaEveryThreeFromRight : List Char → Nat → List Char
+  | [], _ => []
+  | char :: rest, count =>
+      if count = 3 then
+        ',' :: char :: commaEveryThreeFromRight rest 1
+      else
+        char :: commaEveryThreeFromRight rest (count + 1)
+
+private def groupThousands (text : String) : String :=
+  let reversed :=
+    commaEveryThreeFromRight text.toList.reverse 0
+  String.ofList reversed.reverse
+
+private def groupedAmountText (text : String) : String :=
+  match text.splitOn "." with
+  | [whole] => groupThousands whole
+  | [whole, fractional] => groupThousands whole ++ "." ++ fractional
+  | _ => text
 
 private def moneyAmountSpan
-    (paneWidth : Nat) (snapshot : Snapshot) (state : State)
+    (paneWidth : Nat) (today : String)
+    (snapshot : Snapshot) (state : State)
     (date : String) (positive : Bool) : Span :=
-  let cellWidth := paneWidth / 7
+  let cellWidth := moneyCellWidth paneWidth
   let text :=
     match moneyRowFor? snapshot state date, moneyMeasureInfo snapshot state with
     | some row, some (money, _) =>
@@ -153,34 +199,50 @@ private def moneyAmountSpan
         if amount = 0 then ""
         else
           let signText := if positive then "+" else "-"
-          signText ++ Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
+          let rendered :=
+            Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
+          signText ++ groupedAmountText rendered
     | _, _ => ""
   span (Loam.Tui.Layout.padLeft cellWidth text)
+    (if date == state.selectedDate then
+      if date == today then .selectedUnderlined else .selected
+    else
+      .normal)
+
+private def blankMoneyCell (paneWidth : Nat) : Span :=
+  span (repeatChar (moneyCellWidth paneWidth) ' ')
 
 private def moneyCalendarRows
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
     (snapshot : Snapshot) (state : State) : List Widget :=
   (List.range 6).flatMap fun row =>
     let dates := (List.range 7).map fun col => calendarSlot state row col
-    let dateLine := .row <| dates.map fun slot =>
+    let dateLine := moneyGridRow <| dates.map fun slot =>
       match slot with
-      | none => span (Loam.Tui.Layout.padRight (paneWidth / 7) "")
+      | none => blankMoneyCell paneWidth
       | some date => moneyDateSpan paneWidth today pastOpenDates snapshot state date
-    let plusLine := .row <| dates.map fun slot =>
+    let plusLine := moneyGridRow <| dates.map fun slot =>
       match slot with
-      | none => span (Loam.Tui.Layout.padRight (paneWidth / 7) "")
-      | some date => moneyAmountSpan paneWidth snapshot state date true
-    let minusLine := .row <| dates.map fun slot =>
+      | none => blankMoneyCell paneWidth
+      | some date => moneyAmountSpan paneWidth today snapshot state date true
+    let minusLine := moneyGridRow <| dates.map fun slot =>
       match slot with
-      | none => span (Loam.Tui.Layout.padRight (paneWidth / 7) "")
-      | some date => moneyAmountSpan paneWidth snapshot state date false
-    [dateLine, plusLine, minusLine]
+      | none => blankMoneyCell paneWidth
+      | some date => moneyAmountSpan paneWidth today snapshot state date false
+    [ dateLine
+    , plusLine
+    , minusLine
+    , moneyRule paneWidth '├' '┼' '┤'
+    ]
 
 private def moneyCalendarBlock
     (paneWidth : Nat) (snapshot : Snapshot) (state : State)
     (pastOpenDates : List String) : List Widget :=
-  [ plainLine (centeredText paneWidth (moneyTitle snapshot state))
+  let gridWidth := moneyGridWidth paneWidth
+  [ plainLine (centeredText gridWidth (moneyTitle snapshot state))
+  , moneyRule paneWidth '┌' '┬' '┐'
   , moneyCalendarHeader paneWidth
+  , moneyRule paneWidth '├' '┼' '┤'
   ] ++
   moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state ++
   [mutedLine " underline = today; ! = Scheduled still open; ? = unresolved role"]
