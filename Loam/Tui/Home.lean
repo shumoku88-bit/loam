@@ -201,7 +201,9 @@ private def moneyAmountSpan
           let signText := if positive then "+" else "-"
           let rendered :=
             Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
-          signText ++ groupedAmountText rendered
+          let plain := signText ++ rendered
+          let grouped := signText ++ groupedAmountText rendered
+          if Loam.Tui.Layout.displayWidth grouped ≤ cellWidth then grouped else plain
     | _, _ => ""
   span (Loam.Tui.Layout.padLeft cellWidth text)
     (if date == state.selectedDate then
@@ -626,7 +628,10 @@ private def wideHomeBody
   let pastOpenDates := pendingDates pending
   let contentWidth := Loam.Tui.Layout.contentWidth bounds
   let dividerWidth := 3
-  let rightWidth := 64
+  let rightWidth :=
+    match state.calendarMode with
+    | .plain => 64
+    | .money => 50
   let leftWidth := contentWidth - dividerWidth - rightWidth
   let panelRows := widePanelRows bounds footerRows
   let left := wideCalendarPane leftWidth snapshot state pastOpenDates
