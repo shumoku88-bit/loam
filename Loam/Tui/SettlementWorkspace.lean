@@ -44,12 +44,14 @@ inductive Event where
   | next
   | cycleScope
   | toggleDetail
+  | action
   | back
   | other
 deriving Repr, DecidableEq, BEq
 
 inductive Command where
   | stay
+  | action
   | back
 deriving Repr, DecidableEq, BEq
 
@@ -72,6 +74,22 @@ private def clamp (state : State) : State :=
   let count := (visibleRows state).length
   if count = 0 then { state with row := 0 }
   else { state with row := min state.row (count - 1) }
+
+/--
+Refresh from a newly loaded canonical Settlement snapshot while preserving only
+presentation state that is still safe to keep. Detail is closed after any write
+and the row cursor is clamped to the refreshed scope.
+-/
+def refreshed
+    (snapshot : Loam.SettlementReview.Snapshot)
+    (state : State)
+    (notice : String := "") : State :=
+  clamp {
+    state with
+    snapshot := snapshot
+    detailOpen := false
+    notice := notice
+  }
 
 private def previous (state : State) : State :=
   if state.row = 0 then
@@ -102,6 +120,10 @@ def update (state : State) (event : Event) : Step :=
   | .next => { state := next { state with detailOpen := false } }
   | .cycleScope => { state := cycleScope state }
   | .toggleDetail => { state := toggleDetail state }
+  | .action =>
+      match selectedRow? state with
+      | none => { state := { state with notice := "No item is selected." } }
+      | some _ => { state, command := .action }
   | .back => { state, command := .back }
   | .other => { state }
 
@@ -193,7 +215,7 @@ private def summaryLines (state : State) : List Widget :=
       , line
           ("   Remaining " ++ toString row.outstanding.quanta ++
             " " ++ row.measure.token)
-      , muted "   [d] details"
+      , muted "   [a] action   [d] details"
       ]
 
 private def detailLines (state : State) : List Widget :=
@@ -228,7 +250,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
     (if state.detailOpen then detailLines state else summaryLines state) ++
     (if state.notice.isEmpty then [] else [line state.notice])
   let footer :=
-    [ muted "[j/k] select   [f] open/all   [d] details   [q/Esc] home"
+    [ muted "[j/k] select   [f] open/all   [a] action   [d] details   [q/Esc] home"
     , muted "Routine view hides internal IDs and provenance."
     ]
   .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
