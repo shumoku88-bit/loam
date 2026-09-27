@@ -819,6 +819,28 @@
         "CurrentOutstandingDeterminesHistoricalOutstanding": true,
         "UnknownEffectiveTimeEqualsOpenTime": true
       }
+    },
+    {
+      "id": "settlement-prior-promise-boundary",
+      "observation": "Observation 379",
+      "jobName": "Test settlement prior-promise boundary",
+      "pushBranches": [
+        "main",
+        "experiment/379-settlement-prior-promise-boundary"
+      ],
+      "model": "experiments/379_settlement_prior_promise_boundary.als",
+      "paths": [
+        "experiments/379_settlement_prior_promise_boundary.als",
+        "experiments/379_settlement_prior_promise_boundary.md"
+      ],
+      "expected": {
+        "sameSettlementImageDifferentPriorPromiseWitness": true,
+        "eventTriggeredObligationWithoutPriorPromiseWitness": true,
+        "SettlementImageDeterminesPriorPromise": true,
+        "PriorPromiseDoesNotAffectCurrentOutstanding": false,
+        "EverySourceBackedObligationHasPriorPromise": true,
+        "RetainedPriorPromisePrecedesSourceEvent": false
+      }
     }
   ]
 }
