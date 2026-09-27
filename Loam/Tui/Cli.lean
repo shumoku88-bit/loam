@@ -317,6 +317,7 @@ partial def settlementLoop
     | .up | .input 'k' | .input 'K' => .previous
     | .down | .input 'j' | .input 'J' => .next
     | .input 'f' | .input 'F' => .cycleScope
+    | .input 'd' | .input 'D' => .toggleDetail
     | .escape | .input 'q' | .input 'Q' => .back
     | _ => .other
   let step := Loam.Tui.SettlementWorkspace.update state event

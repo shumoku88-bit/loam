@@ -56,6 +56,7 @@ allocation that produced `settled`.
 -/
 structure Row where
   id : SettlementCommitmentId
+  label : Option String := none
   sourceEvent : EventId
   sourceEffect : EffectKey
   debtor : RelationEndpoint
@@ -118,12 +119,14 @@ private def extinguishmentAllocations
 
 private def row
     (image : AdmittedSettlementImage)
+    (descriptions : EventDescriptionMemory)
     (admitted : AdmittedSettlementCommitment) : Row :=
   let commitment := admitted.commitment
   let settledQuanta := image.settledQuanta commitment.id
   let extinguishedQuanta := image.extinguishedQuanta commitment.id
   {
     id := commitment.id
+    label := descriptions.findText? commitment.sourceEvent
     sourceEvent := commitment.sourceEvent
     sourceEffect := commitment.sourceEffect
     debtor := commitment.debtor
@@ -142,7 +145,8 @@ private def row
 /-- Project every current settlement commitment from one canonical Actual image. -/
 def projectImage (image : Loam.ActualAuthority.Image) : Snapshot :=
   {
-    rows := image.settlement.commitments.map (row image.settlement)
+    rows := image.settlement.commitments.map
+      (row image.settlement image.evidence.descriptions)
   }
 
 /-- Find one commitment summary by stable retained identity. -/

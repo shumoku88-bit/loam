@@ -83,6 +83,10 @@ private def fixture? : Option ActualEvidence := do
     .base netEventId "2026-09-03",
     .base correctionEventId "2026-09-04"
   ] []
+  let descriptions ← EventDescriptionMemory.ofEntries? [{
+    event := sourceEventId
+    text := "Review obligation"
+  }]
 
   let settlements : SettlementEvidence := {
     commitments := [
@@ -223,6 +227,7 @@ private def fixture? : Option ActualEvidence := do
     ActualEvidence.empty with
     events := events
     validity := validity
+    descriptions := descriptions
     settlements := settlements
   }
 
@@ -238,6 +243,8 @@ private def mixedModeSummary : IO Unit := do
     (snapshot.find? ⟨"review-mixed-out"⟩)
     "mixed commitment missing from review"
 
+  expect (row.label == some "Review obligation")
+    "settlement review did not carry source Event description"
   expect (row.measure == yen)
     "mixed commitment review changed settlement Measure"
   expect (row.committed.quanta == 1000)

@@ -11,18 +11,19 @@ open Loam.Tui.Main
 set_option autoImplicit false
 
 /-!
-# Read-only settlement workspace
+# Settlement workspace
 
-Presentation-only workspace over `SettlementReview.Snapshot`.
+The default surface is intentionally compact. It answers the ordinary question:
 
-The workspace owns no settlement interpretation or write authority. It can only:
+```text
+what is this?
+how much remains?
+```
 
-- switch between open-only and all current commitments;
-- move one list cursor;
-- render the already-admitted direct/netting provenance.
-
-A later input workflow may reuse this screen, but this first surface is
-deliberately observational.
+Internal identity, source provenance, allocation modes, revision-aware
+extinguishment evidence, and exact composition stay behind an explicit detail
+toggle. This keeps the admitted semantic model rich without making the routine
+screen read like an audit log.
 -/
 
 inductive Scope where
@@ -34,6 +35,7 @@ structure State where
   snapshot : Loam.SettlementReview.Snapshot
   scope : Scope := .openOnly
   row : Nat := 0
+  detailOpen : Bool := false
   notice : String := ""
 deriving Repr, DecidableEq
 
@@ -41,6 +43,7 @@ inductive Event where
   | previous
   | next
   | cycleScope
+  | toggleDetail
   | back
   | other
 deriving Repr, DecidableEq, BEq
@@ -72,7 +75,7 @@ private def clamp (state : State) : State :=
 
 private def previous (state : State) : State :=
   if state.row = 0 then
-    { state with notice := "No previous settlement commitment." }
+    { state with notice := "No previous item." }
   else
     { state with row := state.row - 1, notice := "" }
 
@@ -80,19 +83,25 @@ private def next (state : State) : State :=
   if state.row + 1 < (visibleRows state).length then
     { state with row := state.row + 1, notice := "" }
   else
-    { state with notice := "No next settlement commitment." }
+    { state with notice := "No next item." }
 
 private def cycleScope (state : State) : State :=
   let scope := match state.scope with
     | .openOnly => Scope.all
     | .all => Scope.openOnly
-  clamp { state with scope := scope, row := 0, notice := "" }
+  clamp { state with scope := scope, row := 0, detailOpen := false, notice := "" }
+
+private def toggleDetail (state : State) : State :=
+  match selectedRow? state with
+  | none => { state with notice := "No item is selected." }
+  | some _ => { state with detailOpen := !state.detailOpen, notice := "" }
 
 def update (state : State) (event : Event) : Step :=
   match event with
-  | .previous => { state := previous state }
-  | .next => { state := next state }
+  | .previous => { state := previous { state with detailOpen := false } }
+  | .next => { state := next { state with detailOpen := false } }
   | .cycleScope => { state := cycleScope state }
+  | .toggleDetail => { state := toggleDetail state }
   | .back => { state, command := .back }
   | .other => { state }
 
@@ -107,34 +116,35 @@ private def endpointText : RelationEndpoint → String
 private def directionText (row : Loam.SettlementReview.Row) : String :=
   endpointText row.debtor ++ " -> " ++ endpointText row.creditor
 
-private def statusText (row : Loam.SettlementReview.Row) : String :=
-  if row.outstanding.quanta = 0 then "settled" else "open"
+private def displayName (row : Loam.SettlementReview.Row) : String :=
+  match row.label with
+  | some label => if label.isEmpty then row.id.token else label
+  | none => row.id.token
 
 private def scopeText : Scope → String
   | .openOnly => "Open"
   | .all => "All current"
 
 private def windowStart (state : State) : Nat :=
-  if state.row > 7 then state.row - 6 else 0
+  if state.row > 9 then state.row - 8 else 0
 
 private def rowText
     (selected : Bool) (row : Loam.SettlementReview.Row) : String :=
   let marker := if selected then " > " else "   "
+  let status := if row.outstanding.quanta = 0 then "done" else ""
   marker ++
-    Loam.Tui.Layout.padRight 22 row.id.token ++
-    Loam.Tui.Layout.padLeft 11 (toString row.committed.quanta) ++
-    Loam.Tui.Layout.padLeft 11 (toString row.settled.quanta) ++
-    Loam.Tui.Layout.padLeft 11 (toString row.outstanding.quanta) ++
-    " " ++ Loam.Tui.Layout.padRight 8 row.measure.token ++
-    " " ++ statusText row
+    Loam.Tui.Layout.padRight 38 (displayName row) ++
+    Loam.Tui.Layout.padLeft 13 (toString row.outstanding.quanta) ++
+    " " ++ Loam.Tui.Layout.padRight 9 row.measure.token ++
+    status
 
 private def listLines (state : State) : List Widget :=
   let rows := visibleRows state
   let start := windowStart state
   if rows.isEmpty then
-    [muted "  (no settlement commitments in this scope)"]
+    [muted "  (nothing to show in this view)"]
   else
-    (List.range 9).filterMap fun offset => do
+    (List.range 11).filterMap fun offset => do
       let index := start + offset
       let row ← rows[index]?
       some (line (rowText (index = state.row) row))
@@ -164,43 +174,62 @@ private def nettingLines (row : Loam.SettlementReview.Row) : List Widget :=
           "  context " ++ allocation.context.token ++
           "  [" ++ nettingOutcomeText allocation.outcome ++ "]")
 
+private def extinguishmentLines (row : Loam.SettlementReview.Row) : List Widget :=
+  if row.extinguishments.isEmpty then
+    [muted "     (none)"]
+  else
+    row.extinguishments.map fun allocation =>
+      let whenText := allocation.effectiveOn.getD "date unknown"
+      line
+        ("     " ++ allocation.id.token ++ "  " ++
+          toString allocation.quantity.quanta ++ " " ++ row.measure.token ++
+          "  @ " ++ whenText)
+
+private def summaryLines (state : State) : List Widget :=
+  match selectedRow? state with
+  | none => []
+  | some row =>
+      [ line (" Selected: " ++ displayName row)
+      , line
+          ("   Remaining " ++ toString row.outstanding.quanta ++
+            " " ++ row.measure.token)
+      , muted "   [d] details"
+      ]
+
 private def detailLines (state : State) : List Widget :=
   match selectedRow? state with
-  | none =>
-      [ line " Selected settlement details"
-      , muted "   (no commitment selected)"
-      ]
+  | none => []
   | some row =>
-      [ line " Selected settlement details"
+      [ line (" Details: " ++ displayName row)
       , line ("   Identity    : " ++ row.id.token)
       , line ("   Direction   : " ++ directionText row)
       , line ("   Source      : " ++ row.sourceEvent.token ++ "/" ++ row.sourceEffect.token)
       , line ("   Measure     : " ++ row.measure.token)
       , line ("   Committed   : " ++ toString row.committed.quanta)
       , line ("   Settled     : " ++ toString row.settled.quanta)
-      , line ("   Outstanding : " ++ toString row.outstanding.quanta)
+      , line ("   Adjusted    : " ++ toString row.extinguished.quanta)
+      , line ("   Remaining   : " ++ toString row.outstanding.quanta)
       , line "   Direct:"
       ] ++ directLines row ++
-      [line "   Netting:"] ++ nettingLines row
+      [line "   Netting:"] ++ nettingLines row ++
+      [line "   Non-settlement reduction:"] ++ extinguishmentLines row
 
 def view (bounds : Bounds) (state : State) : Widget :=
   let count := (visibleRows state).length
   let body :=
     [ line " Settlement"
     , muted "Home > Settlement"
-    , muted
-        ("Current admitted commitments; scope: " ++ scopeText state.scope ++
-          " (" ++ toString count ++ ")")
+    , muted (scopeText state.scope ++ " (" ++ toString count ++ ")")
     , blank
-    , muted "   Commitment              committed    settled outstanding measure  status"
+    , muted "   Item                                      remaining measure"
     ] ++
     listLines state ++
     [blank] ++
-    detailLines state ++
+    (if state.detailOpen then detailLines state else summaryLines state) ++
     (if state.notice.isEmpty then [] else [line state.notice])
   let footer :=
-    [ muted "[j/k] select   [f] open/all   [q/Esc] home"
-    , muted "Read-only: quantities and provenance come from SettlementReview."
+    [ muted "[j/k] select   [f] open/all   [d] details   [q/Esc] home"
+    , muted "Routine view hides internal IDs and provenance."
     ]
   .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
 
