@@ -38,6 +38,7 @@ on:
       - 'Loam/Tests/SettlementNormalizedActualV2.lean'
       - 'Loam/Tests/SettlementActualAuthorityPreservation.lean'
       - 'Loam/Tests/SettlementPublisher.lean'
+      - 'Loam/Tests/SettlementReview.lean'
       - 'experiments/109_practical_slice_c1.md'
       - 'lake-manifest.json'
       - 'lakefile.lean'
@@ -59,6 +60,7 @@ on:
       - 'feat/settlement-normalized-actual-v2'
       - 'test/settlement-actual-authority-preservation'
       - 'feat/settlement-explicit-publisher'
+      - 'feat/settlement-review'
     paths:
       - '.github/actions/lean-build/**'
       - '.github/workflows/lean-application-qualifications.yml'
@@ -95,6 +97,7 @@ on:
       - 'Loam/Tests/SettlementNormalizedActualV2.lean'
       - 'Loam/Tests/SettlementActualAuthorityPreservation.lean'
       - 'Loam/Tests/SettlementPublisher.lean'
+      - 'Loam/Tests/SettlementReview.lean'
       - 'experiments/109_practical_slice_c1.md'
       - 'lake-manifest.json'
       - 'lakefile.lean'
@@ -126,7 +129,7 @@ jobs:
           test "$(python3 tools/select-lean-qualification-cases --event push --branch feat/attention-practical-core --paths Loam/Core/Capacity.lean)" = '[]'
           test "$(python3 tools/select-lean-qualification-cases --event push --branch perf/indexed-correction-frontier --paths Loam/Application/CorrectionFrontier.lean)" = '["actual-correction-frontier"]'
           test "$(python3 tools/select-lean-qualification-cases --event push --branch feat/scheduled-replacement-frontier --paths verification/ci/lean-qualification-cases.json)" = '["scheduled-replacement-frontier"]'
-          test "$(python3 tools/select-lean-qualification-cases --event workflow_dispatch --paths)" = '["attention-slice-c1","capacity-slice-a1","actual-correction-frontier","capacity-effective-window","scheduled-replacement-frontier","settlement-production-slice-c","settlement-actual-image-d2","settlement-normalized-actual-v2-d3","settlement-actual-authority-d4","settlement-explicit-writer-e"]'
+          test "$(python3 tools/select-lean-qualification-cases --event workflow_dispatch --paths)" = '["attention-slice-c1","capacity-slice-a1","actual-correction-frontier","capacity-effective-window","scheduled-replacement-frontier","settlement-production-slice-c","settlement-actual-image-d2","settlement-normalized-actual-v2-d3","settlement-actual-authority-d4","settlement-explicit-writer-e","settlement-review"]'
 
       - name: Select qualifications for this event
         id: select

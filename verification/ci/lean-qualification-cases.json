@@ -236,6 +236,26 @@
       "tests": [
         "Loam/Tests/SettlementPublisher.lean"
       ]
+    },
+    {
+      "id": "settlement-review",
+      "workflowName": "Settlement Review",
+      "jobName": "Qualify shared settlement review",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "feat/settlement-review"
+      ],
+      "buildArgs": "Loam.SettlementReview",
+      "paths": [
+        "Loam/SettlementReview.lean",
+        "Loam/Application/SettlementFrontier.lean",
+        "Loam/Persistence/NormalizedActualAdmission.lean",
+        "Loam/Tests/SettlementReview.lean"
+      ],
+      "tests": [
+        "Loam/Tests/SettlementReview.lean"
+      ]
     }
   ]
 }
