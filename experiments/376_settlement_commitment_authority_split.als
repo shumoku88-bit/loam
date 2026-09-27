@@ -207,20 +207,20 @@ pred retractionWitness {
 pred correctionThenRetractionWitness {
   some w: World,
        disj firstVersion, secondVersion: Commitment,
-       disj replacement, retraction: CommitmentRevision | {
+       disj correctionRevision, retractionRevision: CommitmentRevision | {
     w.commitments = firstVersion + secondVersion
-    w.revisions = replacement + retraction
+    w.revisions = correctionRevision + retractionRevision
     no w.settlements
     no w.extinguishments
 
     firstVersion.quantity = 10
     secondVersion.quantity = 7
 
-    replacement.target = firstVersion
-    replacement.replacement = secondVersion
+    correctionRevision.target = firstVersion
+    correctionRevision.replacement = secondVersion
 
-    retraction.target = secondVersion
-    no retraction.replacement
+    retractionRevision.target = secondVersion
+    no retractionRevision.replacement
 
     structurallyAdmissible[w]
     no currentDescendant[w, firstVersion]
