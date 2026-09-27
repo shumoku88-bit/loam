@@ -6,10 +6,17 @@ import Loam.MovementPublisher
 import Loam.ActualReview
 import Lean.Elab.Tactic.Omega
 
-open Loam.Core
+open Loam.Core Loam.Tui.Kernel
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
+
+private def widgetText (widget : Widget) : String :=
+  String.intercalate "\n" <| widget.lines.map fun cells =>
+    String.ofList (cells.map Cell.glyph)
+
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
 
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
@@ -18,7 +25,8 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
 
 private def emptyWorld : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
-  let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"coffee"⟩]
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci?
+      [⟨"paypay"⟩, ⟨"coffee"⟩, ⟨"receivable:mother"⟩]
     | throw (IO.userError "vocabulary")
   return {
     events := events
@@ -88,7 +96,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok world ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
-  let known := ["paypay", "coffee"]
+  let known := ["paypay", "coffee", "receivable:mother"]
   let forcedForm : Loam.Tui.Record.Form := {
     editor.editor.form with focus := ⟨0, by omega⟩ }
   let forced : Loam.Tui.Correction.State := {
@@ -101,6 +109,31 @@ def main (args : List String) : IO Unit := do
   let shifted := Loam.Tui.Correction.update world known editor .shiftTab
   expect (shifted.state.editor.form.focus.val != 0)
     "Correction focus reached the fixed Date field"
+
+  let some catalogMetadata := Loam.LocusCatalog.decode?
+      ("paypay\tPayPay\tPayPay残高\n" ++
+       "coffee\tコーヒー\tコーヒー支出\n" ++
+       "receivable:mother\t母への立替金\t母への未回収立替残高\n")
+    | throw (IO.userError "Correction catalog metadata fixture")
+  let catalog := Loam.LocusCatalog.forVocabulary world.locusAdmission catalogMetadata
+  let filteredRows := editor.editor.form.rows.set 0
+    { editor.editor.form.rows[0]! with locus := "rece" }
+  let filteredForm : Loam.Tui.Record.Form := {
+    editor.editor.form with
+      rows := filteredRows
+      focus := ⟨3, by simp [filteredRows]; omega⟩
+  }
+  let filteredEditor :=
+    Loam.Tui.Record.withCatalog
+      { editor.editor with form := filteredForm } catalog
+  let filteredState : Loam.Tui.Correction.State := {
+    editor with editor := filteredEditor
+  }
+  let filteredText := widgetText (Loam.Tui.Correction.view known filteredState)
+  expect (contains "receivable:mother" filteredText && contains "母への立替金" filteredText)
+    "Correction did not expose filtered human-facing Locus candidates"
+  expect (!contains "coffee  コーヒー" filteredText)
+    "Correction candidate list ignored the typed Locus filter"
 
   let originalSuppressed := Loam.Tui.Correction.update world known editor (.ctrl 'o')
   expect originalSuppressed.publish.isNone
@@ -193,4 +226,4 @@ def main (args : List String) : IO Unit := do
   let stale ← Loam.CorrectionPublisher.publishCorrection root.toString correctionDraft
   expect (!stale.isOk) "stale TUI correction intent bypassed shared publisher re-checks"
 
-  IO.println "TUI Correction: fixed date, JPY/USD Measure prefill, representability, explicit Reversal independence, shared intent, publication and fresh reload passed."
+  IO.println "TUI Correction: fixed date, filtered labeled Locus candidates, JPY/USD Measure prefill, representability, explicit Reversal independence, shared intent, publication and fresh reload passed."
