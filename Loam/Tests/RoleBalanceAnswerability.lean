@@ -62,7 +62,7 @@ def main : IO Unit := do
   expect (summary.flowRoleQuantityGaps.length == 1)
     "flow-role quantity gap disappeared"
   expect
-    (summary.flowRoleQuantityGaps[0]?.map (fun row => row.coordinate.locus.token) ==
+    (summary.flowRoleQuantityGaps.head?.map (fun row => row.coordinate.locus.token) ==
       some "food")
     "flow gap classification changed"
 
