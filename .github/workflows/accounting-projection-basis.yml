@@ -6,6 +6,8 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/RoleFlowReview.lean'
       - 'Loam/RoleBalanceReview.lean'
+      - 'Loam/RoleBalanceAnswerability.lean'
+      - 'Loam/Cli/ExplainCli.lean'
       - 'Loam/CurrentBalanceReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/MultimeasureSpendReview.lean'
@@ -31,6 +33,7 @@ on:
       - 'Loam/Tests/RoleFlowReview.lean'
       - 'Loam/Tests/MultimeasureSpendReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
+      - 'Loam/Tests/RoleBalanceAnswerability.lean'
       - 'Loam/Tests/CurrentBalanceReview.lean'
       - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
@@ -47,6 +50,8 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/RoleFlowReview.lean'
       - 'Loam/RoleBalanceReview.lean'
+      - 'Loam/RoleBalanceAnswerability.lean'
+      - 'Loam/Cli/ExplainCli.lean'
       - 'Loam/CurrentBalanceReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/MultimeasureSpendReview.lean'
@@ -72,6 +77,7 @@ on:
       - 'Loam/Tests/RoleFlowReview.lean'
       - 'Loam/Tests/MultimeasureSpendReview.lean'
       - 'Loam/Tests/RoleBalanceReview.lean'
+      - 'Loam/Tests/RoleBalanceAnswerability.lean'
       - 'Loam/Tests/CurrentBalanceReview.lean'
       - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
@@ -102,7 +108,7 @@ jobs:
       - name: Build accounting projection basis
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.RoleFlowReview Loam.CurrentBalanceReview Loam.HistoricalBalanceReview Loam.RoleBalanceReview Loam.MultimeasureSpendReview Loam.CurrentQuantityAnchorPublisher Loam.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
+          build-args: Loam.RoleFlowReview Loam.CurrentBalanceReview Loam.HistoricalBalanceReview Loam.RoleBalanceReview Loam.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.MultimeasureSpendReview Loam.CurrentQuantityAnchorPublisher Loam.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Qualify role-aware flow composition
@@ -111,6 +117,8 @@ jobs:
         run: lake env lean --run Loam/Tests/CurrentBalanceReview.lean
       - name: Qualify role-aware balance composition
         run: lake env lean --run Loam/Tests/RoleBalanceReview.lean
+      - name: Qualify shared balance answerability explanation
+        run: lake env lean --run Loam/Tests/RoleBalanceAnswerability.lean
       - name: Qualify bounded historical balance reconstruction
         run: lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
       - name: Qualify Measure-neutral spending window
