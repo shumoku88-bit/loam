@@ -73,6 +73,7 @@ on:
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
+      - 'Loam/Tests/TuiSettlement.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiCapacityRebalance.lean'
@@ -210,6 +211,7 @@ on:
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
+      - 'Loam/Tests/TuiSettlement.lean'
       - 'Loam/Tests/TuiCapacity.lean'
       - 'Loam/Tests/TuiCapacityTransfer.lean'
       - 'Loam/Tests/TuiCapacityRebalance.lean'
@@ -692,6 +694,9 @@ jobs:
 
       - name: Verify TUI owned Fava server lifecycle and shutdown
         run: lake env lean --run Loam/Tests/TuiFavaLifecycle.lean
+
+      - name: Verify read-only Settlement workspace
+        run: lake env lean --run Loam/Tests/TuiSettlement.lean
 
       - name: Verify TUI help footer geometry and adaptive flow
         run: lake env lean --run Loam/Tests/TuiHelpFooter.lean
