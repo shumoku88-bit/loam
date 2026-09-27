@@ -292,11 +292,13 @@ def fillUnresolvedRemainder?
       throw "Complete every current Locus before filling the unresolved remainder."
     if !world.locusAdmission.allows ⟨row.locus⟩ then
       throw "Every current posting must use an admitted Locus."
+    let amountText := row.amount.trimAscii.toString
     let some amount :=
         Loam.MeasurePresentation.parseQuanta?
-          state.measurePresentation measure row.amount
+          state.measurePresentation measure amountText
       | throw
-          "Complete every current nonzero amount before filling the unresolved remainder."
+          ("Posting " ++ toString (index + 1) ++ " amount '" ++ row.amount ++
+            "' is not a valid nonzero amount for unresolved remainder assistance.")
     if amount = 0 then
       throw
         "Complete every current nonzero amount before filling the unresolved remainder."
@@ -321,10 +323,12 @@ def fillUnresolvedRemainder?
     | some index =>
         if h : index < state.form.rows.size then
           let row := state.form.rows[index]
+          let amountText := row.amount.trimAscii.toString
           let some current :=
               Loam.MeasurePresentation.parseQuanta?
-                state.measurePresentation measure row.amount
-            | throw "The existing unresolved amount is not valid."
+                state.measurePresentation measure amountText
+            | throw
+                ("The existing unresolved amount '" ++ row.amount ++ "' is not valid.")
           let adjusted := current + adjustment
           if adjusted = 0 then
             pure <| state.form.rows.filter fun item =>
