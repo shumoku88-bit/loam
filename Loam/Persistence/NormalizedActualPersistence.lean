@@ -756,117 +756,117 @@ def decodeNormalizedActualImageDetailed (input : String) : Except NormalizedActu
             | .error parseErr => throw (NormalizedActualDecodeError.parse parseErr)
 
       -- Construct Core Event instances
-        let mut events : List Event := []
-        let mut facts : List (ActualValidityFact String) := []
-        let mut valCorrections : List ActualValidityCorrection := []
-        let mut descriptions : List EventDescription := []
-        let mut merchants : List EventMerchantEvidence := []
-        let mut exchanges : List ExchangeEvidence := []
-        let mut originalAmounts : List OriginalAmountEvidence := []
-        let mut movementOperations : List MovementOperationEvidence := []
-        let mut corrections : List EventCorrection := []
-        let mut reversals : List ActualReversal := []
-        let mut relations : List RelationUnit := []
-        let mut discharges : List RelationDischarge := []
+      let mut events : List Event := []
+      let mut facts : List (ActualValidityFact String) := []
+      let mut valCorrections : List ActualValidityCorrection := []
+      let mut descriptions : List EventDescription := []
+      let mut merchants : List EventMerchantEvidence := []
+      let mut exchanges : List ExchangeEvidence := []
+      let mut originalAmounts : List OriginalAmountEvidence := []
+      let mut movementOperations : List MovementOperationEvidence := []
+      let mut corrections : List EventCorrection := []
+      let mut reversals : List ActualReversal := []
+      let mut relations : List RelationUnit := []
+      let mut discharges : List RelationDischarge := []
 
-        -- Accumulate in reverse so decoding remains linear in retained row count.
-        -- The final reversals below restore the canonical persistence representation order.
-        for tx in txs do
-          let event ← match Event.ofEffects? tx.event tx.effects with
-            | some ev => pure ev
-            | none => throw (NormalizedActualDecodeError.construction (.eventEffects tx.event))
-          events := event :: events
-          facts := .base tx.event tx.baseValidOn :: facts
+      -- Accumulate in reverse so decoding remains linear in retained row count.
+      -- The final reversals below restore the canonical persistence representation order.
+      for tx in txs do
+        let event ← match Event.ofEffects? tx.event tx.effects with
+          | some ev => pure ev
+          | none => throw (NormalizedActualDecodeError.construction (.eventEffects tx.event))
+        events := event :: events
+        facts := .base tx.event tx.baseValidOn :: facts
 
-          if let some descText := tx.description then
-            descriptions := { event := tx.event, text := descText } :: descriptions
+        if let some descText := tx.description then
+          descriptions := { event := tx.event, text := descText } :: descriptions
 
-          if let some disposition := tx.merchant then
-            merchants := { event := tx.event, disposition := disposition } :: merchants
+        if let some disposition := tx.merchant then
+          merchants := { event := tx.event, disposition := disposition } :: merchants
 
-          if let some exchange := tx.exchange then
-            exchanges := exchange :: exchanges
+        if let some exchange := tx.exchange then
+          exchanges := exchange :: exchanges
 
-          if let some originalAmount := tx.originalAmount then
-            originalAmounts := originalAmount :: originalAmounts
+        if let some originalAmount := tx.originalAmount then
+          originalAmounts := originalAmount :: originalAmounts
 
-          if let some operation := tx.movementOperation then
-            movementOperations :=
-              { operation := operation, event := tx.event } :: movementOperations
+        if let some operation := tx.movementOperation then
+          movementOperations :=
+            { operation := operation, event := tx.event } :: movementOperations
 
-          if let some target := tx.replaces then
-            corrections := { target := target, replacement := tx.event } :: corrections
+        if let some target := tx.replaces then
+          corrections := { target := target, replacement := tx.event } :: corrections
 
-          if let some target := tx.reversalOf then
-            reversals := { target := target, reversal := tx.event } :: reversals
+        if let some target := tx.reversalOf then
+          reversals := { target := target, reversal := tx.event } :: reversals
 
-          for (revId, date, targetRef) in tx.dateRevisions do
-            facts := .revision revId tx.event date :: facts
-            valCorrections := { target := targetRef, replacement := revId } :: valCorrections
+        for (revId, date, targetRef) in tx.dateRevisions do
+          facts := .revision revId tx.event date :: facts
+          valCorrections := { target := targetRef, replacement := revId } :: valCorrections
 
-          relations := tx.relations.foldl (fun acc relation => relation :: acc) relations
-          discharges := tx.discharges.foldl (fun acc discharge => discharge :: acc) discharges
+        relations := tx.relations.foldl (fun acc relation => relation :: acc) relations
+        discharges := tx.discharges.foldl (fun acc discharge => discharge :: acc) discharges
 
-        let orderedEvents := events.reverse
-        let orderedFacts := facts.reverse
-        let orderedValCorrections := valCorrections.reverse
-        let orderedDescriptions := descriptions.reverse
-        let orderedMerchants := merchants.reverse
-        let orderedExchanges := exchanges.reverse
-        let orderedOriginalAmounts := originalAmounts.reverse
-        let orderedMovementOperations := movementOperations.reverse
-        let orderedCorrections := corrections.reverse
-        let orderedReversals := reversals.reverse
-        let orderedRelations := relations.reverse
-        let orderedDischarges := discharges.reverse
+      let orderedEvents := events.reverse
+      let orderedFacts := facts.reverse
+      let orderedValCorrections := valCorrections.reverse
+      let orderedDescriptions := descriptions.reverse
+      let orderedMerchants := merchants.reverse
+      let orderedExchanges := exchanges.reverse
+      let orderedOriginalAmounts := originalAmounts.reverse
+      let orderedMovementOperations := movementOperations.reverse
+      let orderedCorrections := corrections.reverse
+      let orderedReversals := reversals.reverse
+      let orderedRelations := relations.reverse
+      let orderedDischarges := discharges.reverse
 
-        let eventMemory ← match EventMemory.ofEvents? orderedEvents with
-          | some m => pure m
-          | none => throw (NormalizedActualDecodeError.construction .eventMemory)
-        let validityHistory ← match ActualValidityHistory.ofParts? orderedFacts orderedValCorrections with
-          | some v => pure v
-          | none => throw (NormalizedActualDecodeError.construction .validityHistory)
-        let descMemory ← match EventDescriptionMemory.ofEntries? orderedDescriptions with
-          | some d => pure d
-          | none => throw (NormalizedActualDecodeError.construction .descriptionMemory)
-        let merchantMemory ← match EventMerchantEvidenceMemory.ofEntries? orderedMerchants with
-          | some m => pure m
-          | none => throw (NormalizedActualDecodeError.construction .merchantMemory)
-        let exchangeMemory ← match ExchangeEvidenceMemory.ofEntries? orderedExchanges with
-          | some m => pure m
-          | none => throw (NormalizedActualDecodeError.construction .exchangeMemory)
-        let originalAmountMemory ← match OriginalAmountEvidenceMemory.ofEntries? orderedOriginalAmounts with
-          | some m => pure m
-          | none => throw (NormalizedActualDecodeError.construction .originalAmountMemory)
-        let movementOperationMemory ←
-          match MovementOperationEvidenceMemory.ofEntries? orderedMovementOperations with
-          | some m => pure m
-          | none => throw (NormalizedActualDecodeError.construction .movementOperationMemory)
-        let corrMemory ← match EventCorrectionMemory.ofCorrections? orderedCorrections with
-          | some c => pure c
-          | none => throw (NormalizedActualDecodeError.construction .correctionMemory)
-        let revMemory ← match ActualReversalMemory.ofReversals? orderedReversals with
-          | some r => pure r
-          | none => throw (NormalizedActualDecodeError.construction .reversalMemory)
+      let eventMemory ← match EventMemory.ofEvents? orderedEvents with
+        | some m => pure m
+        | none => throw (NormalizedActualDecodeError.construction .eventMemory)
+      let validityHistory ← match ActualValidityHistory.ofParts? orderedFacts orderedValCorrections with
+        | some v => pure v
+        | none => throw (NormalizedActualDecodeError.construction .validityHistory)
+      let descMemory ← match EventDescriptionMemory.ofEntries? orderedDescriptions with
+        | some d => pure d
+        | none => throw (NormalizedActualDecodeError.construction .descriptionMemory)
+      let merchantMemory ← match EventMerchantEvidenceMemory.ofEntries? orderedMerchants with
+        | some m => pure m
+        | none => throw (NormalizedActualDecodeError.construction .merchantMemory)
+      let exchangeMemory ← match ExchangeEvidenceMemory.ofEntries? orderedExchanges with
+        | some m => pure m
+        | none => throw (NormalizedActualDecodeError.construction .exchangeMemory)
+      let originalAmountMemory ← match OriginalAmountEvidenceMemory.ofEntries? orderedOriginalAmounts with
+        | some m => pure m
+        | none => throw (NormalizedActualDecodeError.construction .originalAmountMemory)
+      let movementOperationMemory ←
+        match MovementOperationEvidenceMemory.ofEntries? orderedMovementOperations with
+        | some m => pure m
+        | none => throw (NormalizedActualDecodeError.construction .movementOperationMemory)
+      let corrMemory ← match EventCorrectionMemory.ofCorrections? orderedCorrections with
+        | some c => pure c
+        | none => throw (NormalizedActualDecodeError.construction .correctionMemory)
+      let revMemory ← match ActualReversalMemory.ofReversals? orderedReversals with
+        | some r => pure r
+        | none => throw (NormalizedActualDecodeError.construction .reversalMemory)
 
-        let rawEvidence : ActualEvidence := {
-          events := eventMemory
-          validity := validityHistory
-          descriptions := descMemory
-          merchants := merchantMemory
-          exchanges := exchangeMemory
-          originalAmounts := originalAmountMemory
-          movementOperations := movementOperationMemory
-          corrections := corrMemory
-          reversals := revMemory
-          relations := orderedRelations
-          discharges := orderedDischarges
-          settlements := settlements
-        }
+      let rawEvidence : ActualEvidence := {
+        events := eventMemory
+        validity := validityHistory
+        descriptions := descMemory
+        merchants := merchantMemory
+        exchanges := exchangeMemory
+        originalAmounts := originalAmountMemory
+        movementOperations := movementOperationMemory
+        corrections := corrMemory
+        reversals := revMemory
+        relations := orderedRelations
+        discharges := orderedDischarges
+        settlements := settlements
+      }
 
-        match admitActualImage? rawEvidence with
-        | some image => pure image
-        | none => throw NormalizedActualDecodeError.admission
+      match admitActualImage? rawEvidence with
+      | some image => pure image
+      | none => throw NormalizedActualDecodeError.admission
 
 /--
 Decode a complete normalized Actual document into an admitted image.
