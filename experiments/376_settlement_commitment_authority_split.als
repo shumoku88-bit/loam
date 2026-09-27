@@ -353,10 +353,13 @@ assert UnifiedRevisionMatchesDerivedSplitFrontier {
 // A structurally valid revision can always be classified from its retained
 // successor cardinality without another kind tag.
 assert RevisionKindRecoverable {
-  all w: World, r: w.revisions | {
-    some r.replacement iff r.target in correctionTargets[w]
-    no r.replacement iff r.target in retractionTargets[w]
-  }
+  all w: World |
+    structurallyAdmissible[w]
+    implies
+      all r: w.revisions | {
+        some r.replacement iff r.target in correctionTargets[w]
+        no r.replacement iff r.target in retractionTargets[w]
+      }
 }
 
 assert AdmittedOutstandingNeverNegative {
