@@ -796,6 +796,29 @@
         "CoordinateViewDeterminesCurrentTotal": true,
         "CoordinateRetractionMatchesIdentityRetraction": true
       }
+    },
+    {
+      "id": "settlement-extinguishment-time",
+      "observation": "Observation 378",
+      "jobName": "Test settlement extinguishment temporal placement",
+      "pushBranches": [
+        "main",
+        "experiment/378-settlement-extinguishment-time"
+      ],
+      "model": "experiments/378_settlement_extinguishment_time.als",
+      "paths": [
+        "experiments/378_settlement_extinguishment_time.als",
+        "experiments/378_settlement_extinguishment_time.md"
+      ],
+      "expected": {
+        "sameCurrentDifferentHistoricalPlacementWitness": true,
+        "knownEarlyVersusUnknownWitness": true,
+        "unknownStillDeterminesCurrentOutstandingWitness": true,
+        "CurrentOutstandingIgnoresTemporalPlacement": false,
+        "KnownHistoricalPlacementDeterminesAsOfView": false,
+        "CurrentOutstandingDeterminesHistoricalOutstanding": true,
+        "UnknownEffectiveTimeEqualsOpenTime": true
+      }
     }
   ]
 }
