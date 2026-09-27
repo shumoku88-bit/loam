@@ -1,6 +1,6 @@
 # Observation 376 — settlement commitment authority split
 
-Status: **BOUNDED SEMANTIC OBSERVATION — test one evidence-side revision authority against separate quantity-bearing extinguishment**
+Status: **BOUNDED RESULT — optional-successor evidence revision qualified; quantity-bearing extinguishment remains separate**
 
 Baseline:
 
@@ -374,7 +374,50 @@ EveryExtinguishmentIsTerminal                  SAT counterexample
 RevisionAuthorityExplainsEveryNonSettlementReduction SAT counterexample
 ```
 
-## Provisional finding if the matrix holds
+## Alloy result
+
+Qualified on Alloy 6.2.0 with SAT4J through the repository's shared research witness harness.
+
+```text
+correctionWitness                              SAT
+retractionWitness                              SAT
+correctionThenRetractionWitness                SAT
+partialExtinguishmentWitness                   SAT
+fullExtinguishmentWitness                      SAT
+settlementPlusExtinguishmentWitness            SAT
+sameZeroOpenDifferentAuthorityWitness          SAT
+
+UnifiedRevisionMatchesDerivedSplitFrontier     UNSAT counterexample
+RevisionKindRecoverable                        UNSAT counterexample
+AdmittedOutstandingNeverNegative               UNSAT counterexample
+CurrentReductionPartition                      UNSAT counterexample
+
+ZeroOpenMeansNoCurrentCommitment               SAT counterexample
+EveryExtinguishmentIsTerminal                  SAT counterexample
+RevisionAuthorityExplainsEveryNonSettlementReduction SAT counterexample
+```
+
+The first run exposed one useful modeling boundary rather than a semantic failure:
+`RevisionKindRecoverable` originally quantified malformed pre-admission worlds.
+After restricting that assertion to structurally admitted revision evidence, the
+expected matrix held.
+
+The bounded result therefore supports both halves of the candidate split:
+
+```text
+correction + retraction
+  may share one optional-successor evidence revision authority
+
+non-settlement extinguishment
+  cannot be reduced to that revision frontier
+  and requires exact quantity
+```
+
+Full extinguishment is especially important: it can produce the same numeric
+`open = 0` as retraction while preserving the opposite historical answer about
+whether the original commitment was valid evidence.
+
+## Finding
 
 The smallest currently earned lifecycle split becomes:
 
