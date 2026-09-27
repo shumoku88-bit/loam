@@ -14,6 +14,7 @@ private def contains (needle haystack : String) : Bool :=
 
 private def rowOpen : Loam.SettlementReview.Row := {
   id := ⟨"open-card"⟩
+  label := some "Card purchase"
   sourceEvent := ⟨"purchase-event"⟩
   sourceEffect := ⟨"purchase-usd"⟩
   debtor := .household
@@ -21,7 +22,7 @@ private def rowOpen : Loam.SettlementReview.Row := {
   measure := ⟨"jpy"⟩
   committed := Quantity.ofQuanta 1000
   settled := Quantity.ofQuanta 600
-  outstanding := Quantity.ofQuanta 400
+  outstanding := Quantity.ofQuanta 300
   direct := [{
     correspondence := ⟨"direct-1"⟩
     event := ⟨"payment-event"⟩
@@ -29,10 +30,17 @@ private def rowOpen : Loam.SettlementReview.Row := {
     quantity := Quantity.ofQuanta 600
   }]
   netting := []
+  extinguished := Quantity.ofQuanta 100
+  extinguishments := [{
+    id := ⟨"adjust-1"⟩
+    quantity := Quantity.ofQuanta 100
+    effectiveOn := none
+  }]
 }
 
 private def rowSettled : Loam.SettlementReview.Row := {
   id := ⟨"settled-net"⟩
+  label := some "Broker settlement"
   sourceEvent := ⟨"trade-event"⟩
   sourceEffect := ⟨"trade-source"⟩
   debtor := .external ⟨"broker"⟩
@@ -67,18 +75,35 @@ def main : IO Unit := do
     widgetText (Loam.Tui.SettlementWorkspace.view bounds initial)
   expect (contains "Settlement" initialText)
     "Settlement workspace heading missing"
-  expect (contains "open-card" initialText &&
-          contains "1000" initialText &&
-          contains "600" initialText &&
-          contains "400" initialText)
-    "open commitment summary missing"
-  expect (contains "household -> issuer" initialText)
-    "commitment direction missing from details"
-  expect (contains "purchase-event/purchase-usd" initialText)
-    "source provenance missing from details"
-  expect (contains "direct-1" initialText &&
-          contains "payment-event/payment-jpy" initialText)
-    "direct settlement provenance missing"
+  expect (contains "Card purchase" initialText &&
+          contains "300" initialText &&
+          contains "jpy" initialText)
+    "compact open commitment summary missing"
+  expect (!contains "open-card" initialText &&
+          !contains "purchase-event/purchase-usd" initialText &&
+          !contains "direct-1" initialText)
+    "compact settlement view leaked internal identity or provenance"
+  expect (!contains "Committed" initialText &&
+          !contains "Settled" initialText &&
+          !contains "Adjusted" initialText)
+    "compact settlement view exposed accounting decomposition by default"
+
+  let detailed :=
+    (Loam.Tui.SettlementWorkspace.update initial .toggleDetail).state
+  let detailedText :=
+    widgetText (Loam.Tui.SettlementWorkspace.view bounds detailed)
+  expect (contains "open-card" detailedText &&
+          contains "household -> issuer" detailedText &&
+          contains "purchase-event/purchase-usd" detailedText)
+    "settlement detail toggle did not expose identity and source provenance"
+  expect (contains "direct-1" detailedText &&
+          contains "payment-event/payment-jpy" detailedText)
+    "settlement detail toggle lost direct provenance"
+  expect (contains "Adjusted" detailedText &&
+          contains "100" detailedText &&
+          contains "adjust-1" detailedText &&
+          contains "date unknown" detailedText)
+    "settlement detail toggle lost non-settlement reduction provenance"
 
   let allStep :=
     Loam.Tui.SettlementWorkspace.update initial .cycleScope
@@ -94,12 +119,23 @@ def main : IO Unit := do
 
   let settledText :=
     widgetText (Loam.Tui.SettlementWorkspace.view bounds selectedSecond)
-  expect (contains "settled-net" settledText &&
-          contains "broker -> household" settledText)
+  expect (contains "Broker settlement" settledText &&
+          contains "done" settledText)
+    "settled commitment compact summary missing"
+  expect (!contains "net-member" settledText &&
+          !contains "broker -> household" settledText)
+    "settled compact view leaked provenance"
+
+  let settledDetailed :=
+    (Loam.Tui.SettlementWorkspace.update selectedSecond .toggleDetail).state
+  let settledDetailedText :=
+    widgetText (Loam.Tui.SettlementWorkspace.view bounds settledDetailed)
+  expect (contains "settled-net" settledDetailedText &&
+          contains "broker -> household" settledDetailedText)
     "settled commitment details missing"
-  expect (contains "net-member" settledText &&
-          contains "context net-context" settledText &&
-          contains "[zero]" settledText)
+  expect (contains "net-member" settledDetailedText &&
+          contains "context net-context" settledDetailedText &&
+          contains "[zero]" settledDetailedText)
     "zero-net provenance missing from details"
 
   let backToFirst :=
@@ -117,4 +153,4 @@ def main : IO Unit := do
   expect (contains "no settlement commitments" emptyText)
     "empty settlement workspace message missing"
 
-  IO.println "TUI Settlement: read-only open/all list and provenance detail passed."
+  IO.println "TUI Settlement: compact routine view and on-demand provenance detail passed."
