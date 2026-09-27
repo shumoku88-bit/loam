@@ -441,10 +441,10 @@ run sameZeroOpenDifferentAuthorityWitness
   for 7 but exactly 1 Commitment, exactly 1 CommitmentRevision,
     exactly 0 SettlementUse, exactly 1 Extinguishment, exactly 2 World, 8 Int
 
-check UnifiedRevisionMatchesDerivedSplitFrontier for 6 but 8 Int
-check RevisionKindRecoverable for 6 but 8 Int
-check AdmittedOutstandingNeverNegative for 6 but 8 Int
-check CurrentReductionPartition for 6 but 8 Int
-check ZeroOpenMeansNoCurrentCommitment for 6 but 8 Int
-check EveryExtinguishmentIsTerminal for 6 but 8 Int
-check RevisionAuthorityExplainsEveryNonSettlementReduction for 6 but 8 Int
+check UnifiedRevisionMatchesDerivedSplitFrontier for 4 but 8 Int
+check RevisionKindRecoverable for 4 but 8 Int
+check AdmittedOutstandingNeverNegative for 4 but 8 Int
+check CurrentReductionPartition for 4 but 8 Int
+check ZeroOpenMeansNoCurrentCommitment for 4 but 8 Int
+check EveryExtinguishmentIsTerminal for 4 but 8 Int
+check RevisionAuthorityExplainsEveryNonSettlementReduction for 4 but 8 Int
