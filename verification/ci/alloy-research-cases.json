@@ -772,6 +772,30 @@
         "EveryExtinguishmentIsTerminal": true,
         "RevisionAuthorityExplainsEveryNonSettlementReduction": true
       }
+    },
+    {
+      "id": "settlement-extinguishment-identity",
+      "observation": "Observation 377",
+      "jobName": "Test settlement extinguishment row identity",
+      "pushBranches": [
+        "main",
+        "experiment/377-settlement-extinguishment-identity"
+      ],
+      "model": "experiments/377_settlement_extinguishment_identity.als",
+      "paths": [
+        "experiments/377_settlement_extinguishment_identity.als",
+        "experiments/377_settlement_extinguishment_identity.md"
+      ],
+      "expected": {
+        "duplicateCoordinateWitness": true,
+        "sameCoordinateDifferentMultiplicityWitness": true,
+        "correctionWitness": true,
+        "retractionWitness": true,
+        "retractOneDuplicateCoordinateWitness": true,
+        "CurrentRowsHaveUniqueIdentity": false,
+        "CoordinateViewDeterminesCurrentTotal": true,
+        "CoordinateRetractionMatchesIdentityRetraction": true
+      }
     }
   ]
 }
