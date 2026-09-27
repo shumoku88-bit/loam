@@ -1,6 +1,6 @@
 # Observation 374 — settlement commitment replacement lineage as identity
 
-Status: **BOUNDED IDENTITY QUESTION — test whether a separately stored logical commitment ID is earned**
+Status: **BOUNDED RESULT — replacement lineage is sufficient for current identity; separate stored logical ID not yet earned**
 
 Baseline:
 
@@ -147,6 +147,34 @@ This preserves historical target provenance while projecting current meaning.
 
 The model deliberately tests that these projections can differ.
 
+## Alloy result
+
+Qualified with Alloy 6.2.0 / SAT4J through the shared research harness:
+
+```text
+oldReferenceFollowsCorrectionWitness           SAT
+mixedVersionReferencesCoalesceWitness          SAT
+multiStepLineageWitness                        SAT
+correctedThenRetractedWitness                  SAT
+independentLineagesStayDistinctWitness         SAT
+exactTargetProjectionDropsOldReferenceWitness  SAT
+
+mergeWouldAmbiguateLineage                     UNSAT
+cycleWouldDestroyCurrentIdentity               UNSAT
+
+CurrentVersionIsUnique                         UNSAT counterexample
+SameLineageSharesCurrentProjection              UNSAT counterexample
+ReferenceResolutionPreservesLineage             UNSAT counterexample
+
+ExactTargetProjectionIsEnough                  SAT counterexample
+```
+
+Within the bounded one-to-one acyclic replacement model, revision lineage is
+sufficient to derive one current commitment identity without persisting a second
+logical identifier.
+
+The result also directly falsifies exact-target-only current projection.
+
 ## Expected matrix
 
 ```text
@@ -167,7 +195,7 @@ ReferenceResolutionPreservesLineage            UNSAT counterexample
 ExactTargetProjectionIsEnough                  SAT counterexample
 ```
 
-## Interpretation if the matrix holds
+## Finding
 
 A second stored logical commitment ID is **not yet earned** merely to preserve
 identity across one-to-one append-only corrections.
