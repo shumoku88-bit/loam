@@ -116,12 +116,14 @@ def main (args : List String) : IO Unit := do
        "receivable:mother\t母への立替金\t母への未回収立替残高\n")
     | throw (IO.userError "Correction catalog metadata fixture")
   let catalog := Loam.LocusCatalog.forVocabulary world.locusAdmission catalogMetadata
-  let filteredRows := editor.editor.form.rows.set 0
-    { editor.editor.form.rows[0]! with locus := "rece" }
   let filteredForm : Loam.Tui.Record.Form := {
-    editor.editor.form with
-      rows := filteredRows
-      focus := ⟨3, by simp [filteredRows]; omega⟩
+    date := editor.editor.form.date
+    description := editor.editor.form.description
+    measure := editor.editor.form.measure
+    rows := #[
+      { locus := "rece", amount := "-640" },
+      { locus := "coffee", amount := "640" }]
+    focus := ⟨3, by decide⟩
   }
   let filteredEditor :=
     Loam.Tui.Record.withCatalog
