@@ -220,10 +220,8 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       else
         { state }
   | .cancelSearch =>
-      let cleared := {
-        state with searchQuery := "", searchEditing := false,
-          transactionRow := 0, notice := ""
-      }
+      let cleared := { state with searchQuery := "", searchEditing := false,
+        transactionRow := 0, notice := "" }
       { state := clampState snapshot cleared }
   | .openSelected =>
       match state.pane, selectedRecord? snapshot state with
