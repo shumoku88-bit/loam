@@ -191,6 +191,28 @@
       "tests": [
         "Loam/Tests/SettlementNormalizedActualV2.lean"
       ]
+    },
+    {
+      "id": "settlement-actual-authority-d4",
+      "workflowName": "Settlement Actual Authority D4",
+      "jobName": "Qualify settlement Actual authority preservation",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "test/settlement-actual-authority-preservation"
+      ],
+      "buildArgs": "Loam.ActualAuthority Loam.EventMerchantPublisher Loam.ActualValidityPublisher",
+      "paths": [
+        "Loam/ActualAuthority.lean",
+        "Loam/ActualValidityPublisher.lean",
+        "Loam/EventMerchantPublisher.lean",
+        "Loam/Persistence/NormalizedActualPersistence.lean",
+        "Loam/Tests/SettlementActualAuthorityPreservation.lean",
+        "experiments/372_settlement_persistence_topology_checkpoint.md"
+      ],
+      "tests": [
+        "Loam/Tests/SettlementActualAuthorityPreservation.lean"
+      ]
     }
   ]
 }
