@@ -1,6 +1,6 @@
 # Observation 378 — extinguishment temporal placement
 
-Status: **BOUNDED SEMANTIC OBSERVATION — test the smallest time coordinate needed for history without forcing false precision**
+Status: **BOUNDED RESULT — optional effective time is sufficient; unknown placement must remain explicit**
 
 Baseline:
 
@@ -125,7 +125,41 @@ precision and changes as-of answers.
 
 Expected: **SAT counterexample**.
 
-## Provisional finding if the matrix holds
+## Alloy result
+
+Qualified on Alloy 6.2.0 with SAT4J through the shared research witness harness.
+
+```text
+sameCurrentDifferentHistoricalPlacementWitness SAT
+knownEarlyVersusUnknownWitness                 SAT
+unknownStillDeterminesCurrentOutstandingWitness SAT
+
+CurrentOutstandingIgnoresTemporalPlacement     UNSAT counterexample
+KnownHistoricalPlacementDeterminesAsOfView     UNSAT counterexample
+
+CurrentOutstandingDeterminesHistoricalOutstanding SAT counterexample
+UnknownEffectiveTimeEqualsOpenTime                SAT counterexample
+```
+
+The bounded result supports a deliberately asymmetric treatment:
+
+```text
+current state
+  exact extinguishment quantity is enough
+  effective time may remain unknown
+
+historical placement
+  only explicitly known effective time may place the reduction at a cutoff
+  unknown must remain unplaced
+```
+
+So optional time is not extra display metadata. It is the minimum information
+needed to distinguish equal current states with different histories.
+
+At the same time, requiring an exact date would be too strong: unknown-time
+extinguishment still determines current outstanding correctly.
+
+## Finding
 
 The smallest production shape becomes:
 
