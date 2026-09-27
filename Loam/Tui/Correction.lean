@@ -135,9 +135,23 @@ def view (_known : List String) (state : State) : Widget :=
       let form := state.editor.form
       let rowLines := Loam.Tui.Record.postingFieldLines form
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
-      let candidate :=
-        ((Loam.Tui.Record.selectedCatalogCandidate? state.editor).map
-          (fun entry => entry.locus.token)).getD ""
+      let options := Loam.Tui.Record.catalogCandidates state.editor
+      let selectedIndex :=
+        if options.isEmpty then 0 else state.editor.candidateIndex % options.length
+      let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
+      let visible := (options.drop candidateStart).take 5
+      let candidateLines :=
+        if visible.isEmpty then
+          [Loam.Tui.Record.line "  (no matching admitted Locus)"]
+        else
+          (visible.zipIdx).map fun (entry, index) =>
+            let marker := if candidateStart + index = selectedIndex then "> " else "  "
+            Loam.Tui.Record.line (marker ++ Loam.Tui.LocusPicker.display entry)
+      let helpLines :=
+        match Loam.Tui.Record.selectedCatalogCandidate? state.editor with
+        | some entry =>
+            if entry.help.isEmpty then [] else [Loam.Tui.Record.line ("  " ++ entry.help)]
+        | none => []
       .column <|
         [ Loam.Tui.Record.line "Correction / Edit"
         , Loam.Tui.Record.line ("Target: " ++ state.target.token)
@@ -148,13 +162,14 @@ def view (_known : List String) (state : State) : Widget :=
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
               (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal))
-        , Loam.Tui.Record.line ("Candidate: " ++ candidate)
-        , Loam.Tui.Record.line
+        , Loam.Tui.Record.line "Locus catalog:"
+        ] ++ candidateLines ++ helpLines ++
+        [ Loam.Tui.Record.line
             ("Posting " ++ form.measure ++ " is signed; negative and positive rows may appear in any order.")
         , Loam.Tui.Record.line
-            "Tab / Shift-Tab focus   Enter next/final amount preview/action   Right accept candidate"
+            "Type to filter   Up / Down choose   Enter / Right accept candidate"
         , Loam.Tui.Record.line
-            "Ctrl-U fill unresolved remainder   Ctrl-N add row   Ctrl-D drop row"
+            "Tab / Shift-Tab focus   Ctrl-U unresolved   Ctrl-N add row   Ctrl-D drop row"
         , Loam.Tui.Record.line "Esc cancel   Date is retained from the selected Actual"
         , Loam.Tui.Record.line state.editor.notice
         ]

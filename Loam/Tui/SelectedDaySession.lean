@@ -9,6 +9,8 @@ import Loam.Tui.ActualReversalSession
 import Loam.Tui.Correction
 import Loam.Tui.CorrectionSession
 import Loam.Tui.EventMerchant
+import Loam.Tui.LocusAdmissionAdministration
+import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Kernel
 import Loam.Tui.Main
 import Loam.Tui.Record
@@ -89,6 +91,7 @@ def eventOfKey
   | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'd' | .input 'D' => .correctDate
   | .input 'm' | .input 'M' => .classifyMerchant
+  | .input 'g' | .input 'G' => .manageLoci
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
@@ -147,6 +150,24 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
     (eventOfKey state.pane (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
+  | .manageLoci =>
+      let world ←
+        match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
+        | .error message => throw (IO.userError message)
+        | .ok world => pure world
+      let catalog ← currentLocusCatalog dataDir world
+      let admin := Loam.Tui.LocusAdmissionAdministration.initial catalog
+      let adminFrame :=
+        compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds admin)
+      Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
+      let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
+        bounds dataDir root admin adminFrame
+      let fresh ← requireReload notice reload
+      let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
+      let next := { refreshed with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+      run bounds dataDir root reload fresh next nextFrame
   | .createScheduled =>
       let world ←
         match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
@@ -325,12 +346,17 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               run bounds dataDir root reload snapshot next nextFrame
-          | .ok editor =>
+          | .ok rawEditor =>
               let world ←
                 match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
+              let catalog ← currentLocusCatalog dataDir world
+              let editor := {
+                rawEditor with
+                editor := Loam.Tui.Record.withCatalog rawEditor.editor catalog
+              }
               let editorFrame := compileWidget (Loam.Tui.Correction.view known editor)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
               let notice ← Loam.Tui.CorrectionSession.run bounds root

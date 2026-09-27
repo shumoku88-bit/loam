@@ -213,6 +213,8 @@ def main : IO Unit := do
   let selView100 := Loam.Tui.SelectedDay.view selBounds100 snapshot selState
   let selText100 := widgetText selView100
   expect (contains "[j/k] select" selText100) "SelectedDay lost navigation help"
+  expect (contains "[g] loci" selText100)
+    "SelectedDay compact Actual footer lost Manage Loci navigation"
 
   let selBounds130 : Bounds := { width := 130, height := 30 }
   let selView130 := Loam.Tui.SelectedDay.view selBounds130 snapshot selState
