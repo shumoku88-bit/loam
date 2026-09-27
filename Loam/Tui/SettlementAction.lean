@@ -15,11 +15,13 @@ set_option autoImplicit false
 /-!
 # Friendly settlement action editor
 
-This is a presentation-only translator from ordinary household intent to the
-surface-neutral `SettlementActionPublisher` drafts.
+This presentation-only workflow keeps the routine vocabulary small. The top
+level remains three ordinary household intents. Existing non-payment reductions
+are managed only inside the third branch, so repair capability does not make the
+main Settlement surface denser.
 
-It deliberately does not expose retained row IDs, revision edges, or the word
-"extinguishment" in its ordinary workflow.
+Retained row IDs, revision edges, and backend lifecycle vocabulary are never
+entered by the user.
 -/
 
 inductive Mode where
@@ -27,10 +29,18 @@ inductive Mode where
   | editAmount (input : String)
   | editAmountPreview (quantity : Quantity)
   | retractConfirm
+  | reductionHub (choice : Nat := 0)
+  | reductionList (index : Nat := 0)
+  | reductionItem (index : Nat) (choice : Nat := 0)
   | reduceAmount (input : String)
   | reduceWhen (quantity : Quantity) (choice : Nat := 0)
   | reduceDate (quantity : Quantity) (input : String)
   | reducePreview (quantity : Quantity) (effectiveOn : Option String)
+  | repairAmount (index : Nat) (input : String)
+  | repairWhen (index : Nat) (quantity : Quantity) (choice : Nat := 0)
+  | repairDate (index : Nat) (quantity : Quantity) (input : String)
+  | repairPreview (index : Nat) (quantity : Quantity) (effectiveOn : Option String)
+  | repairRetractConfirm (index : Nat)
 deriving Repr, DecidableEq
 
 structure State where
@@ -45,6 +55,10 @@ inductive Publish where
   | retract (draft : Loam.SettlementActionPublisher.Retraction)
   | reduceWithoutPayment
       (draft : Loam.SettlementActionPublisher.NonSettlementReduction)
+  | correctReduction
+      (draft : Loam.SettlementActionPublisher.ReductionCorrection)
+  | retractReduction
+      (draft : Loam.SettlementActionPublisher.ReductionRetraction)
 deriving Repr, DecidableEq
 
 structure Step where
@@ -82,6 +96,22 @@ private def remainingForAmount
     (quantity : Quantity) : Int :=
   quantity.quanta - explainedQuanta row
 
+private def reductionAt?
+    (state : State)
+    (index : Nat) : Option Loam.SettlementReview.ExtinguishmentAllocation :=
+  state.row.extinguishments[index]?
+
+private def remainingAfterRepair
+    (state : State)
+    (current : Loam.SettlementReview.ExtinguishmentAllocation)
+    (quantity : Quantity) : Int :=
+  state.row.outstanding.quanta + current.quantity.quanta - quantity.quanta
+
+private def remainingAfterReductionRetraction
+    (state : State)
+    (current : Loam.SettlementReview.ExtinguishmentAllocation) : Int :=
+  state.row.outstanding.quanta + current.quantity.quanta
+
 private def editText (text : String) (key : Loam.Tui.Terminal.Key) : String :=
   match key with
   | .backspace => String.ofList text.toList.dropLast
@@ -89,6 +119,8 @@ private def editText (text : String) (key : Loam.Tui.Terminal.Key) : String :=
   | _ => text
 
 private def menuChoiceCount : Nat := 4
+private def hubChoiceCount : Nat := 3
+private def itemChoiceCount : Nat := 3
 private def whenChoiceCount : Nat := 3
 
 private def moveChoice (choice count : Nat) (back : Bool) : Nat :=
@@ -114,14 +146,34 @@ private def enterMenu (state : State) (choice : Nat) : Step :=
               "This item already has later payment or adjustment activity, so the whole record cannot be marked wrong here."
           } }
   | 2 =>
+      if state.row.extinguishments.isEmpty then
+        if state.row.outstanding.quanta <= 0 then
+          { state := {
+              state with
+              notice := "There is no remaining amount to reduce."
+            } }
+        else
+          { state := { state with mode := .reduceAmount "", notice := "" } }
+      else
+        { state := { state with mode := .reductionHub 0, notice := "" } }
+  | _ => { state, cancel := true }
+
+private def enterReductionHub (state : State) (choice : Nat) : Step :=
+  match choice % hubChoiceCount with
+  | 0 =>
       if state.row.outstanding.quanta <= 0 then
         { state := {
             state with
-            notice := "There is no remaining amount to reduce."
+            notice := "There is no remaining amount to reduce further."
           } }
       else
         { state := { state with mode := .reduceAmount "", notice := "" } }
-  | _ => { state, cancel := true }
+  | 1 =>
+      if state.row.extinguishments.isEmpty then
+        { state := { state with notice := "There are no earlier reductions to review." } }
+      else
+        { state := { state with mode := .reductionList 0, notice := "" } }
+  | _ => { state := { state with mode := .menu 2, notice := "" } }
 
 private def previewCorrectAmount
     (state : State)
@@ -158,6 +210,28 @@ private def previewReduceAmount
       else
         { state := { state with mode := .reduceWhen quantity 0, notice := "" } }
 
+private def previewRepairAmount
+    (state : State)
+    (index : Nat)
+    (input : String) : Step :=
+  match reductionAt? state index with
+  | none => { state := { state with mode := .reductionList 0, notice := "That earlier reduction is no longer available." } }
+  | some current =>
+      match positiveQuantity? input with
+      | .error message => { state := { state with notice := message } }
+      | .ok quantity =>
+          if remainingAfterRepair state current quantity < 0 then
+            { state := {
+                state with
+                notice := "The corrected reduction would be larger than the amount that can remain explained."
+              } }
+          else
+            { state := {
+                state with
+                mode := .repairWhen index quantity 0
+                notice := ""
+              } }
+
 private def enterWhen
     (state : State)
     (quantity : Quantity)
@@ -182,6 +256,39 @@ private def enterWhen
           notice := ""
         } }
 
+private def enterRepairWhen
+    (state : State)
+    (index : Nat)
+    (quantity : Quantity)
+    (choice : Nat) : Step :=
+  match reductionAt? state index with
+  | none =>
+      { state := {
+          state with
+          mode := .reductionList 0
+          notice := "That earlier reduction is no longer available."
+        } }
+  | some current =>
+      match choice % whenChoiceCount with
+      | 0 =>
+          { state := {
+              state with
+              mode := .repairPreview index quantity current.effectiveOn
+              notice := ""
+            } }
+      | 1 =>
+          { state := {
+              state with
+              mode := .repairDate index quantity (current.effectiveOn.getD state.today)
+              notice := ""
+            } }
+      | _ =>
+          { state := {
+              state with
+              mode := .repairPreview index quantity none
+              notice := ""
+            } }
+
 private def previewDate
     (state : State)
     (quantity : Quantity)
@@ -194,6 +301,28 @@ private def previewDate
       } }
   else
     { state := { state with notice := "Date must be a real YYYY-MM-DD calendar date." } }
+
+private def previewRepairDate
+    (state : State)
+    (index : Nat)
+    (quantity : Quantity)
+    (input : String) : Step :=
+  if Loam.ActualDate.validIsoDate input then
+    { state := {
+        state with
+        mode := .repairPreview index quantity (some input)
+        notice := ""
+      } }
+  else
+    { state := { state with notice := "Date must be a real YYYY-MM-DD calendar date." } }
+
+private def moveReductionIndex
+    (state : State)
+    (index : Nat)
+    (back : Bool) : Nat :=
+  let count := state.row.extinguishments.length
+  if count = 0 then 0
+  else moveChoice index count back
 
 def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match state.mode with
@@ -243,9 +372,71 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .input 'q' | .input 'Q' => { state, cancel := true }
       | _ => { state }
 
-  | .reduceAmount input =>
+  | .reductionHub choice =>
       match key with
       | .escape => { state := { state with mode := .menu 2, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | .up | .input 'k' | .input 'K' =>
+          { state := { state with mode := .reductionHub (moveChoice choice hubChoiceCount true), notice := "" } }
+      | .down | .input 'j' | .input 'J' | .tab =>
+          { state := { state with mode := .reductionHub (moveChoice choice hubChoiceCount false), notice := "" } }
+      | .input '1' => enterReductionHub state 0
+      | .input '2' => enterReductionHub state 1
+      | .input '3' => enterReductionHub state 2
+      | .enter => enterReductionHub state choice
+      | _ => { state }
+
+  | .reductionList index =>
+      match key with
+      | .escape => { state := { state with mode := .reductionHub 1, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | .up | .input 'k' | .input 'K' =>
+          { state := { state with mode := .reductionList (moveReductionIndex state index true), notice := "" } }
+      | .down | .input 'j' | .input 'J' =>
+          { state := { state with mode := .reductionList (moveReductionIndex state index false), notice := "" } }
+      | .enter =>
+          match reductionAt? state index with
+          | none => { state := { state with mode := .reductionHub 1, notice := "There are no earlier reductions to review." } }
+          | some _ => { state := { state with mode := .reductionItem index 0, notice := "" } }
+      | _ => { state }
+
+  | .reductionItem index choice =>
+      match key with
+      | .escape => { state := { state with mode := .reductionList index, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | .up | .input 'k' | .input 'K' =>
+          { state := { state with mode := .reductionItem index (moveChoice choice itemChoiceCount true), notice := "" } }
+      | .down | .input 'j' | .input 'J' | .tab =>
+          { state := { state with mode := .reductionItem index (moveChoice choice itemChoiceCount false), notice := "" } }
+      | .input '1' =>
+          match reductionAt? state index with
+          | some current => { state := { state with mode := .repairAmount index (toString current.quantity.quanta), notice := "" } }
+          | none => { state := { state with mode := .reductionHub 1, notice := "That earlier reduction is no longer available." } }
+      | .input '2' =>
+          match reductionAt? state index with
+          | some _ => { state := { state with mode := .repairRetractConfirm index, notice := "" } }
+          | none => { state := { state with mode := .reductionHub 1, notice := "That earlier reduction is no longer available." } }
+      | .input '3' => { state := { state with mode := .reductionList index, notice := "" } }
+      | .enter =>
+          match choice % itemChoiceCount with
+          | 0 =>
+              match reductionAt? state index with
+              | some current => { state := { state with mode := .repairAmount index (toString current.quantity.quanta), notice := "" } }
+              | none => { state := { state with mode := .reductionHub 1, notice := "That earlier reduction is no longer available." } }
+          | 1 =>
+              match reductionAt? state index with
+              | some _ => { state := { state with mode := .repairRetractConfirm index, notice := "" } }
+              | none => { state := { state with mode := .reductionHub 1, notice := "That earlier reduction is no longer available." } }
+          | _ => { state := { state with mode := .reductionList index, notice := "" } }
+      | _ => { state }
+
+  | .reduceAmount input =>
+      match key with
+      | .escape =>
+          if state.row.extinguishments.isEmpty then
+            { state := { state with mode := .menu 2, notice := "" } }
+          else
+            { state := { state with mode := .reductionHub 0, notice := "" } }
       | .input 'q' | .input 'Q' => { state, cancel := true }
       | .enter => previewReduceAmount state input
       | _ => { state := { state with mode := .reduceAmount (editText input key), notice := "" } }
@@ -319,6 +510,70 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .input 'q' | .input 'Q' => { state, cancel := true }
       | _ => { state }
 
+  | .repairAmount index input =>
+      match key with
+      | .escape => { state := { state with mode := .reductionItem index 0, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | .enter => previewRepairAmount state index input
+      | _ => { state := { state with mode := .repairAmount index (editText input key), notice := "" } }
+
+  | .repairWhen index quantity choice =>
+      match key with
+      | .escape => { state := { state with mode := .repairAmount index (toString quantity.quanta), notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | .up | .left | .input 'k' | .input 'K' =>
+          { state := { state with mode := .repairWhen index quantity (moveChoice choice whenChoiceCount true), notice := "" } }
+      | .down | .right | .input 'j' | .input 'J' | .tab =>
+          { state := { state with mode := .repairWhen index quantity (moveChoice choice whenChoiceCount false), notice := "" } }
+      | .input '1' => enterRepairWhen state index quantity 0
+      | .input '2' => enterRepairWhen state index quantity 1
+      | .input '3' => enterRepairWhen state index quantity 2
+      | .enter => enterRepairWhen state index quantity choice
+      | _ => { state }
+
+  | .repairDate index quantity input =>
+      match key with
+      | .escape => { state := { state with mode := .repairWhen index quantity 1, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | .enter => previewRepairDate state index quantity input
+      | .backspace =>
+          { state := { state with mode := .repairDate index quantity (String.ofList input.toList.dropLast), notice := "" } }
+      | .input char =>
+          if char.isDigit || char = '-' then
+            { state := { state with mode := .repairDate index quantity (input.push char), notice := "" } }
+          else
+            { state }
+      | _ => { state }
+
+  | .repairPreview index quantity effectiveOn =>
+      match key with
+      | .enter =>
+          match reductionAt? state index with
+          | none => { state := { state with mode := .reductionHub 1, notice := "That earlier reduction is no longer available." } }
+          | some current =>
+              { state
+                publish := some (.correctReduction {
+                  target := current.id
+                  quantity := quantity
+                  effectiveOn := effectiveOn
+                }) }
+      | .escape | .input 'e' | .input 'E' =>
+          { state := { state with mode := .repairWhen index quantity 0, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | _ => { state }
+
+  | .repairRetractConfirm index =>
+      match key with
+      | .enter =>
+          match reductionAt? state index with
+          | none => { state := { state with mode := .reductionHub 1, notice := "That earlier reduction is no longer available." } }
+          | some current =>
+              { state
+                publish := some (.retractReduction { target := current.id }) }
+      | .escape => { state := { state with mode := .reductionItem index 1, notice := "" } }
+      | .input 'q' | .input 'Q' => { state, cancel := true }
+      | _ => { state }
+
 /-- Return a refused publication to a safe editable surface. -/
 def withPublishError (state : State) (message : String) : State :=
   match state.mode with
@@ -330,6 +585,12 @@ def withPublishError (state : State) (message : String) : State :=
       match effectiveOn with
       | none => { state with mode := .reduceWhen quantity 2, notice := message }
       | some date => { state with mode := .reduceDate quantity date, notice := message }
+  | .repairPreview index quantity effectiveOn =>
+      match effectiveOn with
+      | none => { state with mode := .repairWhen index quantity 2, notice := message }
+      | some date => { state with mode := .repairDate index quantity date, notice := message }
+  | .repairRetractConfirm _ =>
+      { state with notice := message }
   | _ => { state with notice := message }
 
 private def line (text : String) : Widget := .row [span text]
@@ -348,6 +609,23 @@ private def header (state : State) : List Widget :=
 
 private def noticeLines (state : State) : List Widget :=
   if state.notice.isEmpty then [] else [line state.notice]
+
+private def reductionLabel
+    (index : Nat)
+    (allocation : Loam.SettlementReview.ExtinguishmentAllocation) : String :=
+  let whenText := allocation.effectiveOn.getD "date unknown"
+  toString (index + 1) ++ ". " ++
+    toString allocation.quantity.quanta ++ "  " ++ whenText
+
+private def reductionListLines
+    (state : State)
+    (selectedIndex : Nat) : List Widget :=
+  if state.row.extinguishments.isEmpty then
+    [muted "  (none)"]
+  else
+    (state.row.extinguishments.zipIdx).map fun (allocation, index) =>
+      line ((if index = selectedIndex then "> " else "  ") ++
+        reductionLabel index allocation)
 
 def view (state : State) : Widget :=
   let common := header state
@@ -393,6 +671,41 @@ def view (state : State) : Widget :=
         , muted "Enter confirm   Esc back   q cancel"
         ] ++ noticeLines state
 
+  | .reductionHub choice =>
+      .column <| common ++
+        [ line ""
+        , line "Non-payment changes"
+        , choiceLine (choice % hubChoiceCount = 0) "1" "Record another decrease"
+        , choiceLine (choice % hubChoiceCount = 1) "2" "Review an earlier decrease"
+        , choiceLine (choice % hubChoiceCount = 2) "3" "Back"
+        , muted "This submenu appears only because earlier decreases exist."
+        , muted "Up/Down or 1-3 choose   Enter open   Esc back"
+        ] ++ noticeLines state
+
+  | .reductionList index =>
+      .column <| common ++
+        [ line ""
+        , line "Earlier decreases"
+        ] ++ reductionListLines state index ++
+        [ muted "Up/Down select   Enter open   Esc back" ] ++ noticeLines state
+
+  | .reductionItem index choice =>
+      match reductionAt? state index with
+      | none =>
+          .column <| common ++
+            [line "", line "That earlier decrease is no longer available."] ++ noticeLines state
+      | some current =>
+          .column <| common ++
+            [ line ""
+            , line ("Earlier decrease: " ++
+                toString current.quantity.quanta ++ " " ++ state.row.measure.token)
+            , line ("When: " ++ current.effectiveOn.getD "date unknown")
+            , choiceLine (choice % itemChoiceCount = 0) "1" "Change this decrease"
+            , choiceLine (choice % itemChoiceCount = 1) "2" "This decrease record is wrong"
+            , choiceLine (choice % itemChoiceCount = 2) "3" "Back"
+            , muted "The original history is retained when a correction is published."
+            ] ++ noticeLines state
+
   | .reduceAmount input =>
       .column <| common ++
         [ line ""
@@ -434,5 +747,74 @@ def view (state : State) : Widget :=
         , muted "This records a real reduction without payment; it does not erase the obligation history."
         , muted "Enter publish   Esc/e edit   q cancel"
         ] ++ noticeLines state
+
+  | .repairAmount index input =>
+      match reductionAt? state index with
+      | none => .column <| common ++ [line "", line "That earlier decrease is no longer available."]
+      | some current =>
+          .column <| common ++
+            [ line ""
+            , line ("Current decrease: " ++ toString current.quantity.quanta ++
+                " " ++ state.row.measure.token)
+            , line ("Correct decrease: " ++ if input.isEmpty then "_" else input)
+            , muted ("Maximum while keeping the item consistent: " ++
+                toString (state.row.outstanding.quanta + current.quantity.quanta) ++
+                " " ++ state.row.measure.token)
+            , muted "Digits only   Backspace edit   Enter next   Esc back"
+            ] ++ noticeLines state
+
+  | .repairWhen index _ choice =>
+      match reductionAt? state index with
+      | none => .column <| common ++ [line "", line "That earlier decrease is no longer available."]
+      | some current =>
+          .column <| common ++
+            [ line ""
+            , line "When should this corrected decrease belong?"
+            , choiceLine (choice % whenChoiceCount = 0) "1"
+                ("Keep current (" ++ current.effectiveOn.getD "date unknown" ++ ")")
+            , choiceLine (choice % whenChoiceCount = 1) "2" "Choose a date"
+            , choiceLine (choice % whenChoiceCount = 2) "3" "Date unknown"
+            , muted "Unknown is kept unknown; LOAM will not guess a date."
+            , muted "Up/Down or 1-3 choose   Enter next   Esc back"
+            ] ++ noticeLines state
+
+  | .repairDate _ _ input =>
+      .column <| common ++
+        [ line ""
+        , line ("Correct date: " ++ if input.isEmpty then "_" else input)
+        , muted "YYYY-MM-DD   Backspace edit   Enter preview   Esc back"
+        ] ++ noticeLines state
+
+  | .repairPreview index quantity effectiveOn =>
+      match reductionAt? state index with
+      | none => .column <| common ++ [line "", line "That earlier decrease is no longer available."]
+      | some current =>
+          .column <| common ++
+            [ line ""
+            , line ("Change earlier decrease from " ++
+                toString current.quantity.quanta ++ " to " ++
+                toString quantity.quanta ++ " " ++ state.row.measure.token ++ "?")
+            , line ("When: " ++ effectiveOn.getD "date unknown")
+            , line ("Remaining would be " ++
+                toString (remainingAfterRepair state current quantity) ++
+                " " ++ state.row.measure.token)
+            , muted "The earlier entry stays in history and is superseded by the correction."
+            , muted "Enter publish   Esc/e edit   q cancel"
+            ] ++ noticeLines state
+
+  | .repairRetractConfirm index =>
+      match reductionAt? state index with
+      | none => .column <| common ++ [line "", line "That earlier decrease is no longer available."]
+      | some current =>
+          .column <| common ++
+            [ line ""
+            , line ("Mark this " ++ toString current.quantity.quanta ++
+                " " ++ state.row.measure.token ++ " decrease record as wrong?")
+            , line ("Remaining would return to " ++
+                toString (remainingAfterReductionRetraction state current) ++
+                " " ++ state.row.measure.token)
+            , muted "This removes only this decrease from the current view; the obligation stays."
+            , muted "Enter confirm   Esc back   q cancel"
+            ] ++ noticeLines state
 
 end Loam.Tui.SettlementAction

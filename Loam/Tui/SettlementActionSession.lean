@@ -61,6 +61,26 @@ partial def run
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           run bounds root next nextFrame
 
+  | some (.correctReduction draft) =>
+      match ← Loam.HouseholdCommand.correctSettlementReduction root draft with
+      | .ok _ =>
+          return "Earlier non-payment decrease updated."
+      | .error message =>
+          let next := Loam.Tui.SettlementAction.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.SettlementAction.view next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          run bounds root next nextFrame
+
+  | some (.retractReduction draft) =>
+      match ← Loam.HouseholdCommand.retractSettlementReduction root draft with
+      | .ok () =>
+          return "Earlier non-payment decrease marked as erroneous."
+      | .error message =>
+          let next := Loam.Tui.SettlementAction.withPublishError step.state message
+          let nextFrame := compileWidget (Loam.Tui.SettlementAction.view next)
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          run bounds root next nextFrame
+
   | none =>
       let nextFrame := compileWidget (Loam.Tui.SettlementAction.view step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
