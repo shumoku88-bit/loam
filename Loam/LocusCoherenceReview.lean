@@ -1,6 +1,7 @@
 import Loam.HouseholdPaths
 import Loam.LocusCatalog
-import Loam.MovementWorldLoader
+import Loam.ActualAuthority
+import Loam.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 
@@ -34,7 +35,8 @@ infers admission, retirement, aliases, role changes, or historical rewrites.
 
 structure NonAdmittedRow where
   locus : LocusId
-  actualOccurrences : Nat
+  retainedOccurrences : Nat
+  currentOccurrences : Nat
   role : Option AccountingRole
   hasRoutingEvidence : Bool
   label : String
@@ -44,6 +46,7 @@ structure NonAdmittedRow where
 structure Snapshot where
   admittedLoci : List LocusId
   retainedActualLoci : List LocusId
+  currentActualLoci : List LocusId
   admittedMissingRole : List LocusId
   admittedMissingMetadata : List LocusId
   nonAdmitted : List NonAdmittedRow
@@ -68,6 +71,7 @@ private def routingLoci (routing : ActualRoutingHistory) : List LocusId :=
 
 /--
 Build one read-only cross-authority snapshot from already-loaded evidence.
+Retained Actual and correction-frontier current Actual stay visible separately.
 
 List order is presentation convenience only: admitted rows preserve admission
 order, while non-admitted rows preserve first occurrence across retained Actual,
@@ -75,14 +79,15 @@ AccountingRole, and ActualRouting evidence.
 -/
 def review
     (admission : LocusAdmissionVocabulary)
-    (events : EventMemory)
+    (retainedEvents currentEvents : EventMemory)
     (roles : AccountingRoleMap)
     (routing : ActualRoutingHistory)
     (metadata : List Loam.LocusCatalog.Metadata) : Snapshot :=
   let admitted := admission.approved
-  let actual := actualLoci events
+  let retainedActual := actualLoci retainedEvents
+  let currentActual := actualLoci currentEvents
   let routed := routingLoci routing
-  let known := (actual ++ roleLoci roles ++ routed).eraseDups
+  let known := (retainedActual ++ roleLoci roles ++ routed).eraseDups
   let admittedMissingRole :=
     admitted.filter fun locus => (roles.roleOf? locus).isNone
   let admittedMissingMetadata :=
@@ -93,13 +98,15 @@ def review
   let nonAdmitted :=
     nonAdmittedLoci.map fun locus =>
       { locus := locus
-        actualOccurrences := actualOccurrences events locus
+        retainedOccurrences := actualOccurrences retainedEvents locus
+        currentOccurrences := actualOccurrences currentEvents locus
         role := roles.roleOf? locus
         hasRoutingEvidence := containsLocus routed locus
         label := Loam.LocusCatalog.labelForToken metadata locus.token
         help := Loam.LocusCatalog.helpForToken metadata locus.token }
   { admittedLoci := admitted
-    retainedActualLoci := actual
+    retainedActualLoci := retainedActual
+    currentActualLoci := currentActual
     admittedMissingRole := admittedMissingRole
     admittedMissingMetadata := admittedMissingMetadata
     nonAdmitted := nonAdmitted }
@@ -110,9 +117,13 @@ No writer, repair path, or inferred policy is invoked.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
-  let world ←
-    match ← Loam.MovementWorldLoader.loadSelectedWorld? actualRoot with
-    | .ok world => pure world
+  let image ←
+    match ← Loam.ActualAuthority.loadImage? actualRoot with
+    | .ok image => pure image
+    | .error message => return .error message
+  let admission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
+    | .ok admission => pure admission
     | .error message => return .error message
 
   let rolePath := Loam.HouseholdPaths.accountingRole dataDir
@@ -136,6 +147,6 @@ def loadSnapshot
     | .ok metadata => pure metadata
     | .error message => return .error message
 
-  return .ok (review world.locusAdmission world.events roles routing metadata)
+  return .ok (review admission image.evidence.events image.currentEvents roles routing metadata)
 
 end Loam.LocusCoherenceReview
