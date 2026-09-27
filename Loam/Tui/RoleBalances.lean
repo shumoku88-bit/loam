@@ -1,4 +1,5 @@
 import Loam.RoleBalanceReview
+import Loam.RoleBalanceAnswerability
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 
@@ -47,45 +48,20 @@ private def roleLabel : AccountingRole → String
   | .income => "Income"
   | .expense => "Expense"
 
-private def isBalanceSheetRole : AccountingRole → Bool
-  | .asset => true
-  | .liability => true
-  | .equity => true
-  | .income => false
-  | .expense => false
+private def isBalanceSheetRole : AccountingRole → Bool :=
+  Loam.RoleBalanceAnswerability.isBalanceSheetRole
 
-private def isNetWorthRole : AccountingRole → Bool
-  | .asset => true
-  | .liability => true
-  | .equity => false
-  | .income => false
-  | .expense => false
-
-private def isFlowRole : AccountingRole → Bool
-  | .income => true
-  | .expense => true
-  | _ => false
+private def isNetWorthRole : AccountingRole → Bool :=
+  Loam.RoleBalanceAnswerability.isNetWorthRole
 
 private def addMeasureIfAbsent
     (measures : List MeasureId) (measure : MeasureId) : List MeasureId :=
   if measure ∈ measures then measures else measures ++ [measure]
 
-/-- Presentation projection of every coordinate whose AccountingRole is unresolved. -/
-private structure RoleGap where
-  coordinate : EffectCoordinate
-  quantity : Option Quantity
+private abbrev RoleGap := Loam.RoleBalanceAnswerability.RoleGap
 
 private def roleGaps (snapshot : Loam.RoleBalanceReview.Snapshot) : List RoleGap :=
-  snapshot.unresolvedRoles.map (fun row =>
-    { coordinate := row.coordinate, quantity := some row.quantity }) ++
-  snapshot.knownPresentBalances.filterMap (fun row =>
-    match row.role with
-    | some _ => none
-    | none => some { coordinate := row.coordinate, quantity := none }) ++
-  snapshot.unsupportedBalances.filterMap fun row =>
-    match row.role with
-    | some _ => none
-    | none => some { coordinate := row.coordinate, quantity := none }
+  Loam.RoleBalanceAnswerability.roleGaps snapshot
 
 private def balanceMeasures (snapshot : Loam.RoleBalanceReview.Snapshot) : List MeasureId :=
   let supported := snapshot.rows.foldl
@@ -243,68 +219,6 @@ private def unresolvedLine (row : RoleGap) : Widget :=
       Loam.Tui.Layout.padLeft 12 quantity ++ " " ++ row.coordinate.measure.token ++
       "  role unresolved")
 
-private def quantitySupportedCount
-    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  snapshot.rows.length + snapshot.unresolvedRoles.length
-
-private def totalCoordinateCount
-    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  quantitySupportedCount snapshot +
-    snapshot.knownPresentBalances.length +
-    snapshot.unsupportedBalances.length
-
-private def classifiedUnsupportedCount
-    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  (snapshot.unsupportedBalances.filter fun row => row.role.isSome).length
-
-private def classifiedKnownPresentCount
-    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  (snapshot.knownPresentBalances.filter fun row => row.role.isSome).length
-
-private def roleClassifiedCount
-    (snapshot : Loam.RoleBalanceReview.Snapshot) : Nat :=
-  snapshot.rows.length + classifiedKnownPresentCount snapshot + classifiedUnsupportedCount snapshot
-
-private def balanceSheetKnownPresent
-    (snapshot : Loam.RoleBalanceReview.Snapshot) :
-    List Loam.RoleBalanceReview.KnownPresentBalance :=
-  snapshot.knownPresentBalances.filter fun row =>
-    match row.role with
-    | some role => isBalanceSheetRole role
-    | none => false
-
-private def netWorthKnownPresent
-    (snapshot : Loam.RoleBalanceReview.Snapshot) :
-    List Loam.RoleBalanceReview.KnownPresentBalance :=
-  snapshot.knownPresentBalances.filter fun row =>
-    match row.role with
-    | some role => isNetWorthRole role
-    | none => false
-
-private def balanceSheetUnsupported
-    (snapshot : Loam.RoleBalanceReview.Snapshot) :
-    List Loam.RoleBalanceReview.UnsupportedBalance :=
-  snapshot.unsupportedBalances.filter fun row =>
-    match row.role with
-    | some role => isBalanceSheetRole role
-    | none => false
-
-private def netWorthUnsupported
-    (snapshot : Loam.RoleBalanceReview.Snapshot) :
-    List Loam.RoleBalanceReview.UnsupportedBalance :=
-  snapshot.unsupportedBalances.filter fun row =>
-    match row.role with
-    | some role => isNetWorthRole role
-    | none => false
-
-private def flowUnsupported
-    (snapshot : Loam.RoleBalanceReview.Snapshot) :
-    List Loam.RoleBalanceReview.UnsupportedBalance :=
-  snapshot.unsupportedBalances.filter fun row =>
-    match row.role with
-    | some role => isFlowRole role
-    | none => false
-
 private def answerabilityStatus
     (quantityBlockers roleBlockers : Nat) : String :=
   if quantityBlockers == 0 && roleBlockers == 0 then "ANSWERABLE" else "BLOCKED"
@@ -336,16 +250,17 @@ private def answerabilityRoleGapLine (row : RoleGap) : Widget :=
 
 private def answerabilityMapLines
     (snapshot : Loam.RoleBalanceReview.Snapshot) : List Widget :=
-  let total := totalCoordinateCount snapshot
-  let quantitySupported := quantitySupportedCount snapshot
-  let roleClassified := roleClassifiedCount snapshot
-  let stockKnownPresent := balanceSheetKnownPresent snapshot
-  let netWorthKnownPresentRows := netWorthKnownPresent snapshot
-  let stockBlockers := balanceSheetUnsupported snapshot
-  let netWorthBlockers := netWorthUnsupported snapshot
-  let unresolved := roleGaps snapshot
+  let summary := Loam.RoleBalanceAnswerability.summarize snapshot
+  let total := summary.totalCoordinates
+  let quantitySupported := summary.exactCurrentQuantitySupport
+  let roleClassified := summary.accountingRoleCoverage
+  let stockKnownPresent := summary.balanceSheetAmountUnknown
+  let netWorthKnownPresentRows := summary.netWorthAmountUnknown
+  let stockBlockers := summary.balanceSheetUnsupported
+  let netWorthBlockers := summary.netWorthUnsupported
+  let unresolved := summary.roleBlockers
   let roleBlockers := unresolved.length
-  let flowGaps := flowUnsupported snapshot
+  let flowGaps := summary.flowRoleQuantityGaps
   [ line "Answerability Map"
   , muted "Which current accounting questions are justified by existing evidence?"
   , line
