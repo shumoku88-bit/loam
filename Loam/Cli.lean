@@ -21,6 +21,7 @@ import Loam.Cli.BeancountExportCli
 import Loam.Cli.MeasureScaleCli
 import Loam.Tui.Cli
 import Loam.RoleBalanceReview
+import Loam.LocusCoherenceReview
 import Loam.Tui.Kernel
 import Loam.Tui.RoleBalances
 import Std
@@ -49,8 +50,9 @@ private def practicalUsage : String :=
   "  loam export journal ACTUAL_FILE OUTPUT_FILE\n" ++
   "  loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
   "  loam export beancount [--partial|--suspense] ...\n\n" ++
-  "Print the evidence-aware Balances report as plain text:\n" ++
-  "  loam report balances [LOAM_DATA_DIR]\n\n" ++
+  "Print read-only household reports as plain text:\n" ++
+  "  loam report balances [LOAM_DATA_DIR]\n" ++
+  "  loam report loci [LOAM_DATA_DIR]\n\n" ++
   "Publish one complete current quantity observation image:\n" ++
   "  loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
   "Administer one Measure presentation scale:\n" ++
@@ -108,6 +110,74 @@ def showRoleBalanceReport (path? : Option String := none) : IO UInt32 := do
       return 2
   | .ok snapshot =>
       IO.println (roleBalanceReportText snapshot)
+      return 0
+
+
+private def accountingRoleText : Loam.Core.AccountingRole → String
+  | .asset => "ASSET"
+  | .liability => "LIABILITY"
+  | .equity => "EQUITY"
+  | .income => "INCOME"
+  | .expense => "EXPENSE"
+
+private def locusListText (loci : List Loam.Core.LocusId) : String :=
+  if loci.isEmpty then
+    "  (none)"
+  else
+    String.intercalate "\n" <| loci.map fun locus => "  " ++ locus.token
+
+private def nonAdmittedLocusText
+    (row : Loam.LocusCoherenceReview.NonAdmittedRow) : String :=
+  let role := row.role.map accountingRoleText |>.getD "unresolved"
+  let route := if row.hasRoutingEvidence then "yes" else "no"
+  let label :=
+    if row.label == row.locus.token then ""
+    else " | label=" ++ row.label
+  let detail :=
+    "  " ++ row.locus.token ++
+    " | actual-events=" ++ toString row.actualOccurrences ++
+    " | role=" ++ role ++
+    " | route-evidence=" ++ route ++ label
+  if row.help.isEmpty then detail else detail ++ "\n    " ++ row.help
+
+private def locusCoherenceReportText
+    (snapshot : Loam.LocusCoherenceReview.Snapshot) : String :=
+  let nonAdmitted :=
+    if snapshot.nonAdmitted.isEmpty then
+      "  (none)"
+    else
+      String.intercalate "\n" <| snapshot.nonAdmitted.map nonAdmittedLocusText
+  String.intercalate "\n"
+    [ "Locus coherence"
+    , "Read-only comparison of independent authorities; differences are not auto-errors."
+    , ""
+    , "Current new-write admission: " ++ toString snapshot.admittedLoci.length
+    , "Retained Actual Loci: " ++ toString snapshot.retainedActualLoci.length
+    , ""
+    , "Admitted without AccountingRole:"
+    , locusListText snapshot.admittedMissingRole
+    , ""
+    , "Admitted without display metadata:"
+    , locusListText snapshot.admittedMissingMetadata
+    , ""
+    , "Not currently admitted but retained by Actual / Role / Routing:"
+    , nonAdmitted
+    ]
+
+/-- Print the read-only cross-authority Locus coherence view. -/
+def showLocusCoherenceReport (path? : Option String := none) : IO UInt32 := do
+  let dataDir ←
+    match ← resolveReportDataDir path? with
+    | .error message =>
+        IO.eprintln message
+        return 2
+    | .ok path => pure path
+  match ← Loam.LocusCoherenceReview.loadSnapshot dataDir dataDir with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok snapshot =>
+      IO.println (locusCoherenceReportText snapshot)
       return 0
 
 /-- Show recorded quantities without adding correction or balance semantics. -/
@@ -171,6 +241,8 @@ def run (args : List String) : IO UInt32 := do
       return 0
   | ["report", "balances"] => showRoleBalanceReport
   | ["report", "balances", dataDir] => showRoleBalanceReport (some dataDir)
+  | ["report", "loci"] => showLocusCoherenceReport
+  | ["report", "loci", dataDir] => showLocusCoherenceReport (some dataDir)
   | "current-quantity-anchor" :: observationArgs =>
       Loam.CurrentQuantityAnchorCli.run observationArgs
   | "measure-scale" :: scaleArgs =>
