@@ -139,9 +139,8 @@ def main (args : List String) : IO Unit := do
   expect (!contains "coffee  コーヒー" filteredText)
     "Correction candidate list ignored the typed Locus filter"
 
-  let amountFocusForm : Loam.Tui.Record.Form := {
-    filteredForm with focus := ⟨4, by decide⟩
-  }
+  let amountFocusForm : Loam.Tui.Record.Form :=
+    Loam.Tui.Record.moveFocus filteredForm false
   let amountFocusState : Loam.Tui.Correction.State := {
     filteredState with editor := { filteredState.editor with form := amountFocusForm }
   }
