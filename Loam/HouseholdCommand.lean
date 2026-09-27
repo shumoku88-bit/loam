@@ -134,6 +134,20 @@ def reduceSettlementWithoutPayment
     IO (Except String Loam.Core.SettlementExtinguishmentId) :=
   Loam.SettlementActionPublisher.reduceWithoutPayment root.toString intent
 
+/-- Correct one previously recorded non-payment reduction. -/
+def correctSettlementReduction
+    (root : System.FilePath)
+    (intent : Loam.SettlementActionPublisher.ReductionCorrection) :
+    IO (Except String Loam.Core.SettlementExtinguishmentId) :=
+  Loam.SettlementActionPublisher.correctReduction root.toString intent
+
+/-- Retract one erroneous non-payment reduction while keeping its commitment. -/
+def retractSettlementReduction
+    (root : System.FilePath)
+    (intent : Loam.SettlementActionPublisher.ReductionRetraction) :
+    IO (Except String Unit) :=
+  Loam.SettlementActionPublisher.retractReduction root.toString intent
+
 /-- Publish one exact Actual reversal. -/
 def reverseActual
     (root : System.FilePath)
