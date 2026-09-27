@@ -281,6 +281,31 @@
       "tests": [
         "Loam/Tests/DeterministicMovementScenario.lean"
       ]
+    },
+    {
+      "id": "deterministic-actual-mutation-scenario",
+      "workflowName": "Deterministic Actual Mutation Scenario",
+      "jobName": "Replay deterministic Correction and Reversal composition",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "experiment/382-deterministic-actual-mutation-scenario"
+      ],
+      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence",
+      "paths": [
+        "Loam/CorrectionPublisher.lean",
+        "Loam/ActualReversalPublisher.lean",
+        "Loam/HouseholdCommand.lean",
+        "Loam/ActualAuthority.lean",
+        "Loam/LocusAdmissionAuthority.lean",
+        "Loam/Persistence/NormalizedActualPersistence.lean",
+        "Loam/Persistence/ScheduledLifecyclePersistence.lean",
+        "Loam/Tests/DeterministicActualMutationScenario.lean",
+        "experiments/382_deterministic_actual_mutation_composition.md"
+      ],
+      "tests": [
+        "Loam/Tests/DeterministicActualMutationScenario.lean"
+      ]
     }
   ]
 }
