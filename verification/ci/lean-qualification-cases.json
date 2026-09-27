@@ -213,6 +213,29 @@
       "tests": [
         "Loam/Tests/SettlementActualAuthorityPreservation.lean"
       ]
+    },
+    {
+      "id": "settlement-explicit-writer-e",
+      "workflowName": "Settlement Explicit Writer E",
+      "jobName": "Qualify explicit settlement publisher",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "feat/settlement-explicit-publisher"
+      ],
+      "buildArgs": "Loam.SettlementPublisher Loam.HouseholdCommand",
+      "paths": [
+        "Loam/SettlementPublisher.lean",
+        "Loam/HouseholdCommand.lean",
+        "Loam/ActualAuthority.lean",
+        "Loam/Application/SettlementFrontier.lean",
+        "Loam/Persistence/NormalizedActualPersistence.lean",
+        "Loam/Tests/SettlementPublisher.lean",
+        "experiments/372_settlement_persistence_topology_checkpoint.md"
+      ],
+      "tests": [
+        "Loam/Tests/SettlementPublisher.lean"
+      ]
     }
   ]
 }
