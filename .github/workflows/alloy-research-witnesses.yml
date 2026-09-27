@@ -66,6 +66,8 @@ on:
       - 'experiments/374_settlement_commitment_identity.md'
       - 'experiments/375_settlement_commitment_correction_targeting.als'
       - 'experiments/375_settlement_commitment_correction_targeting.md'
+      - 'experiments/376_settlement_commitment_authority_split.als'
+      - 'experiments/376_settlement_commitment_authority_split.md'
       - 'tools/run-alloy-research-case'
       - 'tools/select-alloy-research-cases'
       - 'verification/ci/alloy-research-cases.json'
@@ -99,6 +101,7 @@ on:
       - 'experiment/373-settlement-commitment-lifecycle'
       - 'experiment/374-settlement-commitment-identity'
       - 'experiment/375-settlement-commitment-correction-targeting'
+      - 'experiment/376-settlement-commitment-authority-split'
     paths:
       - '.github/actions/alloy-research-case/**'
       - '.github/workflows/alloy-research-witnesses.yml'
@@ -161,6 +164,10 @@ on:
       - 'experiments/373_settlement_commitment_lifecycle.md'
       - 'experiments/374_settlement_commitment_identity.als'
       - 'experiments/374_settlement_commitment_identity.md'
+      - 'experiments/375_settlement_commitment_correction_targeting.als'
+      - 'experiments/375_settlement_commitment_correction_targeting.md'
+      - 'experiments/376_settlement_commitment_authority_split.als'
+      - 'experiments/376_settlement_commitment_authority_split.md'
       - 'tools/run-alloy-research-case'
       - 'tools/select-alloy-research-cases'
       - 'verification/ci/alloy-research-cases.json'
@@ -189,10 +196,11 @@ jobs:
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/373_settlement_commitment_lifecycle.als)" =             '["settlement-commitment-lifecycle"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/374_settlement_commitment_identity.als)" =             '["settlement-commitment-identity"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/375_settlement_commitment_correction_targeting.als)" =             '["settlement-commitment-correction-targeting"]'
+          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/376_settlement_commitment_authority_split.als)" =             '["settlement-commitment-authority-split"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths experiments/249_cash_flow_classification.als)" =             '[]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/327-interpretation-subject-correction             --paths experiments/327_interpretation_subject_correction.als)" =             '["interpretation-subject-correction"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths verification/ci/alloy-research-cases.json)" =             '["accounting-projection-factorization"]'
-          test "$(python3 tools/select-alloy-research-cases             --event workflow_dispatch             --paths)" =             '["summary-correlation-loss","accounting-projection-factorization","current-vs-historical-balance-support","temporal-quantity-anchor","shared-current-anchor-cut","reconciled-interval-boundary","backward-anchor-reconstruction","cash-flow-classification","rea-interpretation","rea-ledger-commutation","balance-history-boundary","external-party-identity-boundary","event-party-granularity","description-party-boundary","merchant-query-pressure","merchant-coverage-completeness","suspense-known-unknown","interpretation-history","reflection-subject-sufficiency","interpretation-recorded-time","interpretation-attributed-time","interpretation-carrier-compression","interpretation-attribution-unknown","interpretation-split-boundary","interpretation-subject-correction","measure-scale-history","settlement-commitment-lifecycle","settlement-commitment-identity","settlement-commitment-correction-targeting"]'
+          test "$(python3 tools/select-alloy-research-cases             --event workflow_dispatch             --paths)" =             '["summary-correlation-loss","accounting-projection-factorization","current-vs-historical-balance-support","temporal-quantity-anchor","shared-current-anchor-cut","reconciled-interval-boundary","backward-anchor-reconstruction","cash-flow-classification","rea-interpretation","rea-ledger-commutation","balance-history-boundary","external-party-identity-boundary","event-party-granularity","description-party-boundary","merchant-query-pressure","merchant-coverage-completeness","suspense-known-unknown","interpretation-history","reflection-subject-sufficiency","interpretation-recorded-time","interpretation-attributed-time","interpretation-carrier-compression","interpretation-attribution-unknown","interpretation-split-boundary","interpretation-subject-correction","measure-scale-history","settlement-commitment-lifecycle","settlement-commitment-identity","settlement-commitment-correction-targeting","settlement-commitment-authority-split"]'
 
       - name: Select obligations for this event
         id: select
@@ -521,4 +529,15 @@ jobs:
       - uses: ./.github/actions/alloy-research-case
         with:
           case: settlement-commitment-correction-targeting
+
+  settlement-commitment-authority-split:
+    name: Test settlement commitment authority split
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'settlement-commitment-authority-split') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: settlement-commitment-authority-split
 
