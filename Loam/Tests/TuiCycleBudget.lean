@@ -55,14 +55,37 @@ def main : IO Unit := do
   let state : Loam.Tui.CycleBudget.State := { snapshot := fixture }
   let rendered := text (Loam.Tui.CycleBudget.view bounds state)
   for value in ["Budget / Pension Cycle", "2026-08-14 -> 2026-10-15", "Observed 2026-09-08",
-      "37 days to next boundary", "111", "222", "-111", "333", "-444", "食費:ストック",
-      "76389", "47068", "29321", "4810", "1234", "2345", "Residual before unresolved",
-      "Boundary horizon: 2026-10-15 is the last explicitly configured boundary.",
-      "Unresolved future pressure", "Unrouted future pressure", "Unmanaged future pressure",
-      "Actual routing frontier", "Unrouted Actual Expense rows: 1", "Role-unresolved Actual rows: 1",
-      "Purpose coverage excludes still-unresolved current-window Actual interpretation.",
-      "cash: 909 jpy  [budget backing]", "yucho: 555 jpy  [outside budget backing]"] do
-    expect (contains value rendered) ("missing supplied answer: " ++ value)
+      "37 days to next boundary", "Boundary horizon: 2026-10-15 is the last explicitly configured boundary.",
+      "Purpose / jpy", "Purpose totals / jpy (allocated capacity, not money received)",
+      "Assigned 111   Spent 222   Now -111",
+      "~jpy/day", "After-known", "known managed plans only; not spending permission",
+      "-111", "-444", "食費:ストック", "-12", "d details", "Other future pressure is not assigned",
+      "Unrouted Actual interpretation is not included", "Funding / jpy (separate from Purpose totals)",
+      "Backing 76389   Remaining assigned 47068   Residual 29321"] do
+    expect (contains value rendered) ("missing compact answer: " ++ value)
+  expect (!(contains "Budgetable backing" rendered) && !(contains "cash: 909" rendered) &&
+    !(contains "Details / Purpose components" rendered))
+    "expanded accounting details displaced the Purpose overview"
+  expect (!(contains "Daily pace:" rendered)) "Purpose guide copied the independent Home pool pace"
+  let rowText := text (Loam.Tui.CycleBudget.coverageRow []
+    { purpose := ⟨"食費"⟩, entitlement := q 100, consumption := q 0, commitment := q 0 } (some 3))
+  expect (contains "食費" rowText && contains "33" rowText &&
+    Loam.Tui.Layout.displayWidth rowText == 61)
+    "Japanese label or daily guide broke fixed-column coverage row"
+  let (expanded, detailIntent) := Loam.Tui.CycleBudget.update bounds state (.input 'd')
+  expect (detailIntent == .stay && expanded.details && expanded.scroll == 0)
+    "d did not open detail mode"
+  let detailsText := text (Loam.Tui.CycleBudget.view bounds expanded)
+  for value in ["111", "222", "333", "76389", "47068", "29321", "4810", "1234", "2345",
+      "Residual before unresolved", "Unresolved future pressure", "Unrouted future pressure",
+      "Unmanaged future pressure", "Actual routing frontier", "Unrouted Actual Expense rows: 1",
+      "Role-unresolved Actual rows: 1", "Purpose coverage excludes still-unresolved",
+      "cash: 909 jpy  [budget backing]", "yucho: 555 jpy  [outside budget backing]",
+      "Cap", "Spent", "Known future"] do
+    expect (contains value detailsText) ("details lost supplied evidence: " ++ value)
+  let (collapsed, _) := Loam.Tui.CycleBudget.update bounds expanded (.input 'D')
+  expect (!collapsed.details && !(contains "Budgetable backing" <|
+    text (Loam.Tui.CycleBudget.view bounds collapsed))) "D did not collapse details"
   expect (!(contains "Safe to spend" rendered) && !(contains "Available" rendered))
     "residual was promoted to spending permission"
   expect (!(contains "Capacity/actions" rendered)) "retired Budget Capacity detour still rendered"
@@ -80,15 +103,50 @@ def main : IO Unit := do
   let missing : Loam.Tui.CycleBudget.State := { snapshot := { fixture with
     selection := .error "not configured", funding := .error "not configured" } }
   let missingText := text (Loam.Tui.CycleBudget.view bounds missing)
+  expect (contains "食費:ストック" missingText && contains "-12" missingText &&
+    contains "Assigned 111   Spent 222   Now -111" missingText &&
+    contains "Funding unavailable: not configured" missingText)
+    "independent funding failure hid Purpose totals or guide"
+  let missingDetails := text (Loam.Tui.CycleBudget.view bounds { missing with details := true })
   for value in ["Funding unavailable: not configured", "-111", "cash: 909 jpy",
       "backing selection unavailable", "4810"] do
-    expect (contains value missingText) ("optional failure hid evidence: " ++ value)
-  expect (!(contains "[outside budget backing]" missingText)) "missing selection inferred outside"
+    expect (contains value missingDetails) ("optional failure hid detail evidence: " ++ value)
+  expect (!(contains "[outside budget backing]" missingDetails)) "missing selection inferred outside"
+  let .ok originalCoverage := fixture.coverage
+    | throw (IO.userError "fixture has no coverage")
+  let threeDays : Loam.Tui.CycleBudget.State := {
+    snapshot := { fixture with
+      observedAt := "2026-10-12"
+      coverage := .ok { originalCoverage with
+        observedAt := "2026-10-12"
+        rows := [{ purpose := ⟨"食費"⟩, entitlement := q 100, consumption := q 0, commitment := q 0 }] } } }
+  let threeDaysText := text (Loam.Tui.CycleBudget.view bounds threeDays)
+  expect (contains "食費" threeDaysText && contains "33" threeDaysText)
+    "positive guide did not divide After-known by remaining calendar days"
+  expect (contains "Assigned 100   Spent 0   Now 100" threeDaysText)
+    "Purpose totals were not recomputed from the current rows"
+  let stale : Loam.Tui.CycleBudget.State := {
+    snapshot := { fixture with observedAt := "2026-10-12" } }
+  expect (contains "Per-day guide unavailable: coverage horizon differs" <|
+    text (Loam.Tui.CycleBudget.view bounds stale))
+    "mismatched coverage was divided by a new date"
+  let expired : Loam.Tui.CycleBudget.State := {
+    snapshot := { fixture with
+      observedAt := "2026-10-15"
+      coverage := .ok { originalCoverage with
+        observedAt := "2026-10-15" } } }
+  expect (contains "Per-day guide unavailable: no remaining calendar days" <|
+    text (Loam.Tui.CycleBudget.view bounds expired))
+    "zero-day horizon was divided"
   let failed : Loam.Tui.CycleBudget.State := { snapshot := { fixture with
     coverage := .error "bad evidence", funding := .error "bad evidence" } }
   let failedText := text (Loam.Tui.CycleBudget.view bounds failed)
-  expect (contains "CurrentCoverage unavailable" failedText && contains "cash: 909" failedText)
-    "coverage failure hid physical evidence"
+  expect (contains "CurrentCoverage unavailable" failedText &&
+    contains "Funding unavailable: bad evidence" failedText)
+    "independent coverage or funding failure was hidden"
+  expect (!(contains "cash: 909" failedText)) "detail balances leaked into compact view"
+  expect (!(contains "~jpy/day" failedText) && !(contains "Purpose totals / jpy" failedText))
+    "missing coverage invented totals or a daily guide"
   expect (Loam.Tui.CycleBudget.isHomeEntrance (.input 'c')) "Home c entrance missing"
   expect (!(Loam.Tui.CycleBudget.isHomeEntrance (.input 'e'))) "raw Capacity alias stolen"
   expect ((Loam.Tui.CycleBudget.update bounds state (.input 'q')).2 == .home) "q is not Home"
