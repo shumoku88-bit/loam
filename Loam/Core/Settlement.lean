@@ -180,4 +180,30 @@ structure SettlementNettingMemberRevision where
   replacement : SettlementNettingMemberId
 deriving Repr, DecidableEq
 
+/--
+Persistence-neutral retained aggregate for the base settlement family.
+
+This is a raw collection boundary only. It does not imply that references,
+replacement frontiers, netting arithmetic, or composed conservation have been
+admitted. Those laws remain owned by the Application settlement image.
+-/
+structure SettlementEvidence where
+  commitments : List SettlementCommitment
+  correspondences : List SettlementEffectCorrespondence
+  correspondenceRevisions : List SettlementCorrespondenceRevision
+  nettingContexts : List SettlementNettingContext
+  nettingMembers : List SettlementNettingMember
+  nettingMemberRevisions : List SettlementNettingMemberRevision
+deriving Repr, DecidableEq
+
+/-- Empty retained settlement evidence for Actual generations with no settlement facts. -/
+def SettlementEvidence.empty : SettlementEvidence := {
+  commitments := []
+  correspondences := []
+  correspondenceRevisions := []
+  nettingContexts := []
+  nettingMembers := []
+  nettingMemberRevisions := []
+}
+
 end Loam.Core

@@ -132,6 +132,7 @@ private def evidence : ActualEvidence := {
   reversals := .empty
   relations := []
   discharges := []
+  settlements := .empty
 }
 
 /-- A representative correction-bearing Actual world admits one reusable read image. -/
