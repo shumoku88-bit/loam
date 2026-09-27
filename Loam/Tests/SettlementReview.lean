@@ -236,12 +236,16 @@ private def mixedModeSummary : IO Unit := do
   expect (row.netting.head?.map (·.quantity.quanta) == some 600)
     "mixed netting allocation should be 600"
 
-  match row.netting.head?.map (·.outcome) with
-  | some (.physical event effect) =>
-      expect (event == netEventId && effect == netEffectKey)
-        "mixed netting review lost physical outcome anchor"
-  | _ =>
-      throw <| IO.userError "mixed netting review did not expose physical outcome"
+  match row.netting.head? with
+  | some allocation =>
+      match allocation.outcome with
+      | NetSettlementOutcome.physical event effect =>
+          expect (event == netEventId && effect == netEffectKey)
+            "mixed netting review lost physical outcome anchor"
+      | NetSettlementOutcome.zero =>
+          throw <| IO.userError "mixed netting review exposed zero outcome"
+  | none =>
+      throw <| IO.userError "mixed netting review did not expose netting allocation"
 
 private def correctionUsesCurrentFrontierOnly : IO Unit := do
   let image ← qualifiedImage
@@ -275,10 +279,14 @@ private def zeroNetExplainsWithoutPhysicalEvent : IO Unit := do
     "zero-net review invented a direct physical allocation"
   expect (outgoing.netting.length == 1)
     "zero-net review lost netting provenance"
-  match outgoing.netting.head?.map (·.outcome) with
-  | some .zero => pure ()
-  | _ =>
-      throw <| IO.userError "zero-net review invented a physical outcome"
+  match outgoing.netting.head? with
+  | some allocation =>
+      match allocation.outcome with
+      | NetSettlementOutcome.zero => pure ()
+      | NetSettlementOutcome.physical _ _ =>
+          throw <| IO.userError "zero-net review invented a physical outcome"
+  | none =>
+      throw <| IO.userError "zero-net review lost netting allocation"
 
 private def openRowsUseDerivedOutstanding : IO Unit := do
   let image ← qualifiedImage
