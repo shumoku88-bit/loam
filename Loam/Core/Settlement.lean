@@ -7,7 +7,7 @@ set_option autoImplicit false
 /-!
 # Settlement vocabulary
 
-Observations 359–376 qualified a settlement family that remains additive beside
+Observations 359–378 qualified a settlement family that remains additive beside
 `OpenRelation`.
 
 The distinction is intentional:
@@ -85,6 +85,50 @@ or for quantity-bearing non-settlement extinguishment.
 structure SettlementCommitmentRevision where
   target : SettlementCommitmentId
   replacement : Option SettlementCommitmentId
+deriving Repr, DecidableEq
+
+/--
+Stable identity for one retained non-settlement extinguishment row.
+
+Observation 377 showed that `target + quantity` is not enough: two independent
+rows may share that coordinate, and append-only repair must be able to address
+exactly one retained row.
+-/
+structure SettlementExtinguishmentId where
+  token : String
+deriving Repr, DecidableEq
+
+/--
+One exact non-settlement reduction of a valid settlement commitment.
+
+This is not physical/net fulfillment and not commitment retraction. The target
+commitment remains valid historical evidence while `quantity` records how much
+later ceased to bind without settlement.
+
+`effectiveOn` is optional semantic placement in the same practical ISO date
+spelling used by Actual validity. Observation 378 requires absence to remain
+meaningful: unknown placement must not be silently replaced by commitment date,
+recording date, or today.
+-/
+structure SettlementCommitmentExtinguishment where
+  id : SettlementExtinguishmentId
+  target : SettlementCommitmentId
+  quantity : Quantity
+  effectiveOn : Option String := none
+deriving Repr, DecidableEq
+
+/--
+Append-only evidence correction/retraction for extinguishment rows.
+
+- `replacement = some id` corrects one retained extinguishment claim;
+- `replacement = none` retracts an erroneous extinguishment claim.
+
+This revises extinguishment evidence only. It does not retract the target
+commitment.
+-/
+structure SettlementExtinguishmentRevision where
+  target : SettlementExtinguishmentId
+  replacement : Option SettlementExtinguishmentId
 deriving Repr, DecidableEq
 
 /--
@@ -209,6 +253,8 @@ admitted. Those laws remain owned by the Application settlement image.
 structure SettlementEvidence where
   commitments : List SettlementCommitment
   commitmentRevisions : List SettlementCommitmentRevision := []
+  extinguishments : List SettlementCommitmentExtinguishment := []
+  extinguishmentRevisions : List SettlementExtinguishmentRevision := []
   correspondences : List SettlementEffectCorrespondence
   correspondenceRevisions : List SettlementCorrespondenceRevision
   nettingContexts : List SettlementNettingContext
@@ -220,6 +266,8 @@ deriving Repr, DecidableEq
 def SettlementEvidence.empty : SettlementEvidence := {
   commitments := []
   commitmentRevisions := []
+  extinguishments := []
+  extinguishmentRevisions := []
   correspondences := []
   correspondenceRevisions := []
   nettingContexts := []
