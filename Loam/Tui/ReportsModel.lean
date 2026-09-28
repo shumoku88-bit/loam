@@ -3,6 +3,7 @@ import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
+import Loam.LocusCatalog
 import Loam.LocusTrendReview
 import Loam.LocusTrendCompareReview
 import Loam.MultimeasureSpendReview
@@ -757,19 +758,19 @@ private def updateLocusTrendCompare
     updateTrendSeriesPicker state key
   else
     match key with
-  | .escape | .input 'q' | .input 'Q' =>
+    | .escape | .input 'q' | .input 'Q' =>
       { state := { state with mode := .menu, notice := "", scroll := 0 } }
-  | .left | .up | .input 'h' | .input 'H' =>
+    | .left | .up | .input 'h' | .input 'H' =>
       { state := { state with
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.moveSelection state.trendCompare true
           notice := "" } }
-  | .right | .down | .input 'l' | .input 'L' =>
+    | .right | .down | .input 'l' | .input 'L' =>
       { state := { state with
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.moveSelection state.trendCompare false
           notice := "" } }
-  | .input '[' =>
+    | .input '[' =>
       let trendCompare :=
         Loam.Tui.LocusTrendComparePane.changeGranularity state.trendCompare false
       let next := { state with trendCompare := trendCompare, notice := "" }
@@ -777,7 +778,7 @@ private def updateLocusTrendCompare
         { state := next }
       else
         { state := next, query := queryForMode next }
-  | .input ']' =>
+    | .input ']' =>
       let trendCompare :=
         Loam.Tui.LocusTrendComparePane.changeGranularity state.trendCompare true
       let next := { state with trendCompare := trendCompare, notice := "" }
@@ -785,7 +786,7 @@ private def updateLocusTrendCompare
         { state := next }
       else
         { state := next, query := queryForMode next }
-  | .input 's' =>
+    | .input 's' =>
       let trendCompare :=
         Loam.Tui.LocusTrendComparePane.changeScope state.trendCompare true
       let next := { state with trendCompare := trendCompare, notice := "" }
@@ -793,7 +794,7 @@ private def updateLocusTrendCompare
         { state := next }
       else
         { state := next, query := queryForMode next }
-  | .input 'S' =>
+    | .input 'S' =>
       let trendCompare :=
         Loam.Tui.LocusTrendComparePane.changeScope state.trendCompare false
       let next := { state with trendCompare := trendCompare, notice := "" }
@@ -801,20 +802,20 @@ private def updateLocusTrendCompare
         { state := next }
       else
         { state := next, query := queryForMode next }
-  | .input 'a' | .input 'A' =>
+    | .input 'a' | .input 'A' =>
       { state := { state with
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.openSeriesPicker
               state.trendCompare state.trendCompareSeries.length
           notice := "" } }
-  | .input 'r' | .input 'R' =>
+    | .input 'r' | .input 'R' =>
       { state := { state with
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.cycleRenderer state.trendCompare
           notice := "" } }
-  | .enter =>
+    | .enter =>
       { state, query := queryForMode state }
-  | _ => { state }
+    | _ => { state }
 
 
 private def updateLocusTrend
