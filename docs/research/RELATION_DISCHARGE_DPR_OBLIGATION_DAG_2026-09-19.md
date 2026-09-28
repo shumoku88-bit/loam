@@ -1,6 +1,6 @@
 # Relation / Discharge — D/P/R obligation scaffold
 
-Status: **focused audit — KEEP CURRENT BOUNDARIES**
+Status: **CURRENT PRODUCTION BOUNDARY — KEEP CURRENT BOUNDARIES**
 
 Date: 2026-09-19
 
@@ -192,6 +192,45 @@ Observations 178 and 182 did not earn a calendar-order invariant for discharge.
 Therefore the word "later" means the discharge occurrence Event in the semantic
 correspondence, not a retained proof that its current `validOn` is later than the
 source Event's current `validOn`.
+
+## Durable promotion boundary inherited from Observations 176 and 178
+
+The historical Observation 176 promotion checkpoint and Observation 178
+quantity-pressure model/prose have graduated to Git history.
+
+Their current production conclusions are now owned directly by:
+
+- `Loam/Core/OpenRelation.lean`;
+- `Loam/Application/OpenRelationFrontier.lean`;
+- `Loam/Application/RelationDischargeFrontier.lean`;
+- normalized Actual admission/persistence and focused production tests.
+
+The retained minimum remains:
+
+```text
+RelationUnit
+  stable identity
+  exact (EventId, EffectKey) source
+  Household/external directional endpoints
+  exact raw Quantity
+
+RelationDischarge
+  discharge EventId
+  target RelationUnitId
+  exact raw Quantity
+```
+
+Application admission gives the raw quantities their current positive/bounded
+meaning. Relation quantity remains bounded by source-Effect magnitude; aggregate
+current relation coverage cannot exceed that source magnitude. Discharge quantity
+is independent evidence, may be partial, and aggregate admitted discharge cannot
+exceed the target RelationUnit quantity.
+
+Outstanding quantity remains derived rather than retained.
+
+The historical bounded models are no longer live CI instruments. Their exact
+sources remain available in Git history; current executable production
+boundaries and this obligation scaffold own the durable result.
 
 ## R — residuals
 
