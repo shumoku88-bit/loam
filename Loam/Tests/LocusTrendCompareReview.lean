@@ -163,4 +163,90 @@ def main : IO Unit := do
           point.endExclusive == "2026-05-01")
         "Trend Compare overstated a mid-month history start as a complete month"
 
-  IO.println "Trend Compare: aligned exact-Locus cycle/month/day projections passed."
+  let scopePreset : Loam.BoundaryPresetConfig.Preset := {
+    name := "Pension"
+    boundaries := ["2026-04-01", "2026-05-15", "2026-07-15"]
+  }
+  let scopeRecords :=
+    [ record "st1" "2026-05-01" "tobacco" 100
+    , record "st2" "2026-05-14" "tobacco" 300
+    , record "st3" "2026-05-15" "tobacco" 500
+    , record "st4" "2026-05-31" "tobacco" 700
+    ]
+
+  let currentCycleDaily ←
+    match Loam.LocusTrendCompareReview.projectAtScope
+        scopeRecords scopePreset "2026-05-31" .day .currentCycle specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect
+    (currentCycleDaily.scope == .currentCycle &&
+      currentCycleDaily.scopeStart == "2026-05-15" &&
+      currentCycleDaily.scopeEndExclusive == "2026-06-01" &&
+      currentCycleDaily.pointCount == 17)
+    "Trend Compare Current cycle scope did not clip daily evidence"
+
+  let currentMonthDaily ←
+    match Loam.LocusTrendCompareReview.projectAtScope
+        scopeRecords scopePreset "2026-05-31" .day .currentMonth specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect
+    (currentMonthDaily.scope == .currentMonth &&
+      currentMonthDaily.scopeStart == "2026-05-01" &&
+      currentMonthDaily.scopeEndExclusive == "2026-06-01" &&
+      currentMonthDaily.pointCount == 31)
+    "Trend Compare This month scope did not use the calendar month"
+
+  let last30Daily ←
+    match Loam.LocusTrendCompareReview.projectAtScope
+        scopeRecords scopePreset "2026-05-31" .day .last30Days specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect
+    (last30Daily.scopeStart == "2026-05-02" &&
+      last30Daily.scopeEndExclusive == "2026-06-01" &&
+      last30Daily.pointCount == 30)
+    "Trend Compare Last 30 days scope did not retain exactly 30 calendar days"
+
+  let allHistoryDaily ←
+    match Loam.LocusTrendCompareReview.projectAtScope
+        scopeRecords scopePreset "2026-05-31" .day .allHistory specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect
+    (allHistoryDaily.scopeStart == "2026-04-01" &&
+      allHistoryDaily.scopeEndExclusive == "2026-06-01" &&
+      allHistoryDaily.pointCount == 61)
+    "Trend Compare All history scope changed configured history coverage"
+
+  let monthInsideCycle ←
+    match Loam.LocusTrendCompareReview.projectAtScope
+        scopeRecords scopePreset "2026-05-31" .month .currentCycle specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  let scopedMonthTobacco ← requireSome monthInsideCycle.series[0]?
+    "Trend Compare lost scoped monthly tobacco series"
+  match scopedMonthTobacco.points with
+  | [point] =>
+      expect (!point.complete && point.start == "2026-05-15" &&
+          point.endExclusive == "2026-06-01" &&
+          point.dailyAverageQuanta == 70)
+        "Trend Compare did not aggregate Month strictly inside Current cycle"
+  | _ => throw (IO.userError "Trend Compare Current cycle/month scope shape changed")
+
+  let cyclesInsideMonth ←
+    match Loam.LocusTrendCompareReview.projectAtScope
+        scopeRecords scopePreset "2026-05-31" .cycle .currentMonth specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  let scopedCycleTobacco ← requireSome cyclesInsideMonth.series[0]?
+    "Trend Compare lost scoped cycle tobacco series"
+  expect
+    (scopedCycleTobacco.points.map
+      (fun point => (point.start, point.endExclusive, point.dailyAverageQuanta, point.complete)) ==
+      [("2026-05-01", "2026-05-15", 28, false),
+       ("2026-05-15", "2026-06-01", 70, false)])
+    "Trend Compare leaked days outside This month into Cycle grain"
+
+  IO.println "Trend Compare: exact-Locus grain and scope projections passed."
