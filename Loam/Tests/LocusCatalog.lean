@@ -38,6 +38,14 @@ def main : IO Unit := do
     "Japanese label prefix did not find book"
   expect ((Loam.LocusCatalog.search catalog "mi").map (fun entry => entry.locus.token) == ["misc"])
     "stable token prefix did not find misc"
+
+  let readCatalog :=
+    Loam.LocusCatalog.forLoci [⟨"book"⟩, ⟨"softbank"⟩, ⟨"book"⟩] metadata
+  expect (readCatalog.map (fun entry => entry.locus.token) == ["book", "softbank"])
+    "read-only Locus catalog did not preserve explicit historical identities or remove duplicates"
+  expect ((Loam.LocusCatalog.exactToken? readCatalog "softbank").map (·.label) ==
+      some "SoftBank（旧記録）")
+    "read-only historical Locus did not receive presentation metadata"
   expect ((Loam.Tui.LocusPicker.selected? catalog "" 1).map (fun entry => entry.locus.token) == some "misc")
     "shared picker cursor did not select the expected admitted entry"
   let some smaller := LocusAdmissionVocabulary.ofLoci? [⟨"misc"⟩]
@@ -47,4 +55,4 @@ def main : IO Unit := do
     "fresh admission did not prune stale presentation entries"
   expect (Loam.LocusCatalog.decode? "book\t書籍\t説明\nbook\t別名\t説明\n" |>.isNone)
     "duplicate catalog metadata was accepted"
-  IO.println "Locus catalog: historical display, admission scoping, whole-list browsing, label filtering and fresh-policy restriction passed."
+  IO.println "Locus catalog: historical display, write admission scoping, explicit read sets, browsing, filtering and fresh-policy restriction passed."
