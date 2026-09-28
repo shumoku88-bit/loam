@@ -1,13 +1,14 @@
 import Loam.ActualAuthority
 import Loam.LocusAdmissionAuthority
 import Loam.MovementPublisher
-import Loam.Persistence.NormalizedActualPersistence
+import Loam.Tests.DeterministicScenarioSupport
 
 namespace Loam.Tests.DeterministicMovementScenario
 
 open Loam
 open Loam.Core
 open Loam.Persistence
+open Loam.Tests.DeterministicScenarioSupport
 
 set_option autoImplicit false
 
@@ -35,24 +36,6 @@ private structure Stats where
   applied : Nat := 0
   rejectedFresh : Nat := 0
   retries : Nat := 0
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do
-    throw <| IO.userError message
-
-private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw <| IO.userError message
-
-private def requireOk {α : Type} (value : Except String α) (message : String) : IO α :=
-  match value with
-  | .ok result => pure result
-  | .error detail => throw <| IO.userError s!"{message}: {detail}"
-
-private def cleanupDir (dir : System.FilePath) : IO Unit := do
-  if ← dir.pathExists then
-    IO.FS.removeDirAll dir
 
 /--
 Small platform-independent recurrence used only to choose the next scenario
@@ -144,17 +127,12 @@ private def expectedEvent?
 private def stepContext (index seed : Nat) : String :=
   s!"deterministic scenario seed={seed} step={index}"
 
-private def readAuthorityBytes (root : System.FilePath) : IO String :=
-  IO.FS.readFile (Loam.ActualAuthority.actualPath root)
-
 private def checkSnapshot
     (root : System.FilePath)
     (expected : ExpectedOperations)
     (index seed : Nat) : IO String := do
   let context := stepContext index seed
-  let evidence ← requireOk
-    (← Loam.ActualAuthority.loadActual? root)
-    s!"{context}: typed Actual reload failed"
+  let (evidence, canonicalBytes) ← loadCanonicalActual root context
 
   expect (evidence.events.events.length == expected.length)
     s!"{context}: Event count diverged from successful logical operations"
@@ -185,22 +163,7 @@ private def checkSnapshot
         throw <| IO.userError
           s!"{context}: retained operation points to missing Event '{event.token}'"
 
-  let encoded ← requireSome
-    (encodeNormalizedActual? evidence)
-    s!"{context}: reloaded evidence failed canonical encoding"
-  let decoded ← requireSome
-    (decodeNormalizedActual? encoded)
-    s!"{context}: canonical bytes failed typed decoding"
-  let reencoded ← requireSome
-    (encodeNormalizedActual? decoded)
-    s!"{context}: decoded evidence failed canonical re-encoding"
-  expect (encoded == reencoded)
-    s!"{context}: normalized Actual encode/decode was not canonical"
-
-  let disk ← readAuthorityBytes root
-  expect (disk == encoded)
-    s!"{context}: authority bytes differ from canonical encoding of the admitted reload"
-  pure disk
+  pure canonicalBytes
 
 private def prepareRoot (root : System.FilePath) : IO Unit := do
   cleanupDir root
@@ -227,7 +190,7 @@ private def runSteps
   | _, [], stats => pure stats
   | index, step :: rest, stats => do
       let context := stepContext index step.seed
-      let before ← readAuthorityBytes root
+      let before ← authorityBytes root
       let known := expectedEvent? step.operation stats.expected
       let result ←
         Loam.MovementPublisher.publishDraftIdempotent
@@ -265,7 +228,7 @@ private def runSteps
             else
               match result with
               | .error _ =>
-                  let after ← readAuthorityBytes root
+                  let after ← authorityBytes root
                   expect (after == before)
                     s!"{context}: rejected fresh operation changed canonical authority bytes"
                   pure { stats with rejectedFresh := stats.rejectedFresh + 1 }

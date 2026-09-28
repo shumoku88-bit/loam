@@ -1,12 +1,13 @@
 import Loam.ActualAuthority
 import Loam.HouseholdCommand
-import Loam.Persistence.NormalizedActualPersistence
+import Loam.Tests.DeterministicScenarioSupport
 
 namespace Loam.Tests.DeterministicSettlementScenario
 
 open Loam
 open Loam.Core
 open Loam.Persistence
+open Loam.Tests.DeterministicScenarioSupport
 
 set_option autoImplicit false
 
@@ -18,24 +19,6 @@ private structure Stats where
   commitmentRetractions : Nat := 0
   refusals : Nat := 0
 deriving Repr, DecidableEq
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do
-    throw <| IO.userError message
-
-private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw <| IO.userError message
-
-private def requireOk {α : Type} (value : Except String α) (message : String) : IO α :=
-  match value with
-  | .ok result => pure result
-  | .error detail => throw <| IO.userError s!"{message}: {detail}"
-
-private def cleanupDir (dir : System.FilePath) : IO Unit := do
-  if ← dir.pathExists then
-    IO.FS.removeDirAll dir
 
 private def usd : MeasureId := ⟨"usd"⟩
 private def yen : MeasureId := ⟨"jpy"⟩
@@ -125,40 +108,11 @@ private def retractableBatch : Loam.SettlementPublisher.Draft := {
   }]
 }
 
-private def authorityBytes (root : System.FilePath) : IO String :=
-  IO.FS.readFile (Loam.ActualAuthority.actualPath root)
-
-private def loadActual
-    (root : System.FilePath)
-    (context : String) : IO ActualEvidence := do
-  requireOk (← Loam.ActualAuthority.loadActual? root)
-    s!"{context}: typed Actual reload failed"
-
 private def loadImage
     (root : System.FilePath)
     (context : String) : IO Loam.ActualAuthority.Image := do
   requireOk (← Loam.ActualAuthority.loadImage? root)
     s!"{context}: admitted Actual image reload failed"
-
-private def checkCanonical
-    (root : System.FilePath)
-    (context : String) : IO String := do
-  let evidence ← loadActual root context
-  let encoded ← requireSome
-    (encodeNormalizedActual? evidence)
-    s!"{context}: admitted Actual failed canonical encoding"
-  let decoded ← requireSome
-    (decodeNormalizedActual? encoded)
-    s!"{context}: canonical bytes failed typed decoding"
-  let reencoded ← requireSome
-    (encodeNormalizedActual? decoded)
-    s!"{context}: decoded Actual failed canonical re-encoding"
-  expect (encoded == reencoded)
-    s!"{context}: normalized Actual encode/decode was not canonical"
-  let disk ← authorityBytes root
-  expect (disk == encoded)
-    s!"{context}: authority bytes diverged from canonical encoding"
-  pure disk
 
 private def outstanding
     (root : System.FilePath)
@@ -178,21 +132,6 @@ private def expectOutstanding
   let actual ← outstanding root target context
   expect (actual == expected)
     s!"{context}: expected outstanding {expected}, got {actual}"
-
-private def expectRefusal {α : Type}
-    (root : System.FilePath)
-    (context : String)
-    (action : IO (Except String α)) : IO Unit := do
-  let before ← authorityBytes root
-  match ← action with
-  | .ok _ =>
-      throw <| IO.userError s!"{context}: operation unexpectedly succeeded"
-  | .error _ => pure ()
-  let after ← authorityBytes root
-  expect (after == before)
-    s!"{context}: refused operation changed Actual authority bytes"
-  let _ ← checkCanonical root context
-  pure ()
 
 private def prepareRoot (root : System.FilePath) : IO Unit := do
   cleanupDir root

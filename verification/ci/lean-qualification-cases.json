@@ -266,7 +266,7 @@
         "main",
         "experiment/381-deterministic-simulation-pilot"
       ],
-      "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence",
+      "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/Core/LocusAdmission.lean",
         "Loam/Core/MovementOperationEvidence.lean",
@@ -276,7 +276,8 @@
         "Loam/LocusAdmissionAuthority.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/DeterministicMovementScenario.lean",
-        "experiments/381_deterministic_simulation_pilot.md"
+        "experiments/381_deterministic_simulation_pilot.md",
+        "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
         "Loam/Tests/DeterministicMovementScenario.lean"
@@ -291,7 +292,7 @@
         "main",
         "experiment/382-deterministic-actual-mutation-scenario"
       ],
-      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence",
+      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/CorrectionPublisher.lean",
         "Loam/ActualReversalPublisher.lean",
@@ -301,7 +302,8 @@
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Persistence/ScheduledLifecyclePersistence.lean",
         "Loam/Tests/DeterministicActualMutationScenario.lean",
-        "experiments/382_deterministic_actual_mutation_composition.md"
+        "experiments/382_deterministic_actual_mutation_composition.md",
+        "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
         "Loam/Tests/DeterministicActualMutationScenario.lean"
@@ -316,7 +318,7 @@
         "main",
         "experiment/383-deterministic-settlement-scenario"
       ],
-      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence",
+      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/Core/Settlement.lean",
         "Loam/Application/SettlementFrontier.lean",
@@ -327,7 +329,8 @@
         "Loam/Persistence/NormalizedActualAdmission.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/DeterministicSettlementScenario.lean",
-        "experiments/383_deterministic_settlement_lifecycle.md"
+        "experiments/383_deterministic_settlement_lifecycle.md",
+        "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
         "Loam/Tests/DeterministicSettlementScenario.lean"
