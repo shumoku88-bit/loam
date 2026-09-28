@@ -43,19 +43,19 @@ After filtering to Balance Sheet roles, the concrete pressure is much smaller. C
 
 ```text
 2026-04-04
-  equity:opening-balances +217706
-  debt-friend-k          -217706
+  equity:opening-balances +120000
+  liability-opening          -120000
 
 2026-06-14
   tobacco                 +500
-  debt-mother             -500
+  liability-zero-net             -500
 
 2026-06-15
-  debt-mother             +500
-  smbc                    -500
+  liability-zero-net             +500
+  checking                    -500
 ```
 
-`debt-friend-k` therefore has a retained non-zero opening/reconstruction entry. `debt-mother` has visible borrow/repay activity but no independent machine-readable proof that the retained stream begins at exact zero.
+`liability-opening` therefore has a retained non-zero opening/reconstruction entry. `liability-zero-net` has visible borrow/repay activity but no independent machine-readable proof that the retained stream begins at exact zero.
 
 This exposes a narrower question than Observation 242:
 
@@ -170,14 +170,14 @@ The shared frontier intentionally contains coordinates needed by different poten
 For current household data, the interesting Balance Sheet pressure is concentrated in the non-zero / non-zero-origin side, especially:
 
 ```text
-debt-friend-k
-debt-mother
+liability-opening
+liability-zero-net
 equity:opening-balances
 ```
 
 The first is especially important because canonical Actual already retains a reconstruction entry for a non-zero liability opening balance. Treating that coordinate as exact-zero-origin would be false, yet the retained ledger contains stronger current-balance evidence than a plain uncovered coordinate.
 
-`debt-mother` is different: visible borrow/repay activity does not by itself prove there was no earlier liability. The model therefore does not authorize treating it as supported merely because the current net happens to be zero.
+`liability-zero-net` is different: visible borrow/repay activity does not by itself prove there was no earlier liability. The model therefore does not authorize treating it as supported merely because the current net happens to be zero.
 
 ## Production gate
 
@@ -212,7 +212,7 @@ This observation does not establish:
 - accrual recognition;
 - full Trial Balance completeness;
 - that every Event paired with Equity is an opening anchor;
-- that `debt-mother` begins at zero;
+- that `liability-zero-net` begins at zero;
 - that a new persistent support family is required;
 - that retired QuantityBasis should return.
 
