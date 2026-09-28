@@ -78,3 +78,18 @@ jobs:
           set -euo pipefail
           fixture="$(mktemp -d)/multimeasure-recording"
           lake env lean --run Loam/Tests/MultimeasureRecordingPublishers.lean "$fixture"
+
+      - name: Qualify HOBS1 cycle funding diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/hobs1-funding"
+          lake env lean --run Loam/Tests/CycleBudgetReview.lean "$fixture"
+          output="$fixture/current.hobs1"
+          .lake/build/bin/loamHouseholdObservation \
+            "$fixture" 2026-08-14 2026-10-15 2026-09-08 > "$output"
+          grep -Fxq HOBS1\tmeta\tfunding_observed_at\t2026-09-08' "$output"
+          grep -Fxq HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy\t0' "$output"
+          grep -Fxq HOBS1\tscalar\tfunding\tremaining_assigned\tjpy\t100' "$output"
+          grep -Fxq HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100' "$output"
+          grep -Fxq HOBS1\tmeta\tstatus\tcomplete' <(tail -n 1 "$output")
