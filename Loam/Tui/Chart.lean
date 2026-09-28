@@ -320,11 +320,11 @@ def renderInRange
               span (String.ofList [base])
     .row spans
 
-private def plotSeriesMarkerAt?
+private def plotSeriesMarkersAt
     (series : List PlotSeries)
     (range : Range)
-    (width height col row logicalIndex : Nat) : Option (Char × Style) :=
-  series.findSome? fun item =>
+    (width height col row logicalIndex : Nat) : List (Char × Style) :=
+  series.filterMap fun item =>
     match item.values[logicalIndex]? with
     | none => none
     | some value =>
@@ -365,11 +365,16 @@ def renderManyInRange
   (List.range actualHeight).map fun row =>
     let spans :=
       (List.range actualWidth).map fun col =>
-        match plotSeriesMarkerAt?
+        match plotSeriesMarkersAt
             series range actualWidth actualHeight col row selected with
-        | some (glyph, style) =>
+        | (glyph, style) :: [] =>
             span (String.ofList [glyph]) style
-        | none =>
+        | _ :: _ :: _ =>
+            -- Two or more selected-period series quantize to the same terminal
+            -- cell. Keep the shared coordinate honest instead of nudging one
+            -- series sideways into a false time position.
+            span "◎" .selected
+        | [] =>
             match plotSeriesLineAt?
                 renderer series range actualWidth actualHeight col row with
             | some (glyph, style) =>
