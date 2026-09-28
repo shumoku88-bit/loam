@@ -106,7 +106,7 @@ def main (args : List String) : IO Unit := do
   let selected ← requireSome
     (Loam.Tui.SelectedDay.selectedScheduled? snapshot scheduledState)
     "selected Scheduled fixture disappeared"
-  let .ok editor := Loam.Tui.ScheduledCompletion.initial? selected snapshot.actual.today
+  let .ok editor := Loam.Tui.ScheduledCompletion.initialWithPresentation? [] selected snapshot.actual.today
     | throw (IO.userError "initialize Scheduled completion editor")
   expect
     (editor.editor.form.rows.size == 2 &&
