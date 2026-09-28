@@ -24,7 +24,9 @@ inductive Key where
   | input (char : Char)
   /-- Zero-based pointer press coordinate. Surfaces decide whether it is actionable. -/
   | pointer (col row : Nat)
-  /-- Zero-based pointer motion coordinate, kept distinct from an explicit press. -/
+  /-- Zero-based pointer motion while the primary button remains pressed. -/
+  | pointerDrag (col row : Nat)
+  /-- Zero-based passive pointer motion with no button pressed. -/
   | pointerMotion (col row : Nat)
   | other
   deriving Repr, DecidableEq
@@ -84,12 +86,16 @@ def decodeSgrMousePayload (payload : String) : Key :=
       match buttonText.toNat?, colText.toNat?, rowText.toNat? with
       | some 64, _, _ => .up
       | some 65, _, _ => .down
+      | some 66, _, _ => .left
+      | some 67, _, _ => .right
       | some button, some col, some row =>
           if col = 0 || row = 0 then
             .other
           else if button = 0 then
             .pointer (col - 1) (row - 1)
-          else if button = 32 || button = 35 then
+          else if button = 32 then
+            .pointerDrag (col - 1) (row - 1)
+          else if button = 35 then
             .pointerMotion (col - 1) (row - 1)
           else
             .other
@@ -206,13 +212,22 @@ def setPointerMotion (enabled : Bool) : IO Unit := do
   IO.print (if enabled then "\x1b[?1003h" else "\x1b[?1003l")
   (← IO.getStdout).flush
 
+/--
+Enable or disable button-motion reporting. Unlike all-pointer-motion, this emits
+motion only while a mouse button is held, which supports drag/scrub interaction
+without turning ordinary hover into selection.
+-/
+def setButtonMotion (enabled : Bool) : IO Unit := do
+  IO.print (if enabled then "\x1b[?1002h" else "\x1b[?1002l")
+  (← IO.getStdout).flush
+
 def enter : IO Unit := do
   setTerminalMode "-echo -icanon min 0 time 1"
   IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
 def leave : IO Unit := do
-  IO.print "\x1b[0m\x1b[?1003l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
+  IO.print "\x1b[0m\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"
 
