@@ -9,17 +9,17 @@ set_option autoImplicit false
 /-!
 # Observation 295 — stable subject compression needs semantic domain indexing
 
-Observation 204 and Observation 294 reached stable-subject pressure from
-different directions.
+Observation 204 and the retired Observation 294 fixture reached stable-subject
+pressure from different directions.
 
 Observation 204:
 - one future subject may be known before exact amount or due evidence exists;
 - amount and due remain independently attachable;
 - loose identity-free pools do not preserve subject-specific pairing.
 
-Observation 294:
+Retired Observation 294 fixture:
 - one user-created lot-like subject may exist before provenance membership;
-- title, note, provenance members, and provider aliases may all change;
+- title, note, provenance members, lineage, and provider aliases may all change;
 - two independently created subjects may have identical complete current
   payloads and still need to remain distinguishable.
 
@@ -153,6 +153,12 @@ structure EffectAnchor where
   effect : EffectKey
 deriving Repr, DecidableEq
 
+structure LineageEdge where
+  source : EffectAnchor
+  target : EffectAnchor
+  units : Quantity
+deriving Repr, DecidableEq
+
 structure ExternalAlias where
   provider : String
   account : String
@@ -163,6 +169,7 @@ structure LotPayload where
   title : String
   note : String
   members : List EffectAnchor
+  lineage : List LineageEdge
   aliases : List ExternalAlias
 deriving Repr, DecidableEq
 
@@ -174,10 +181,18 @@ deriving Repr, DecidableEq
 private def anchor : EffectAnchor :=
   ⟨⟨"o295-event"⟩, ⟨"o295-effect"⟩⟩
 
+private def alternateAnchor : EffectAnchor :=
+  ⟨⟨"o295-event-retargeted"⟩, ⟨"o295-effect-retargeted"⟩⟩
+
 private def sameLotPayload : LotPayload := {
   title := "retirement reserve"
   note := "user-created durable subject"
   members := [anchor]
+  lineage := [{
+    source := anchor
+    target := alternateAnchor
+    units := Quantity.ofQuanta 1
+  }]
   aliases := [{
     provider := "custodian-x"
     account := "account-1"
@@ -196,9 +211,9 @@ private def lotTwinB : LotSnapshot := {
 }
 
 /--
-The selected Observation-294 pressure also survives under the same generic
-identity shape: complete current payload does not determine independently
-created subject identity.
+The retired Observation-294 pressure remains live under the stronger generic
+identity shape: complete current payload, including lineage, does not determine
+independently created subject identity.
 -/
 theorem same_lot_payload_does_not_determine_subject :
     lotTwinA.payload = lotTwinB.payload ∧
@@ -209,7 +224,24 @@ private def emptyLotPayload : LotPayload := {
   title := "new lot"
   note := "created before membership"
   members := []
+  lineage := []
   aliases := []
+}
+
+private def retargetedLotPayload : LotPayload := {
+  title := "reviewed reserve"
+  note := "same durable subject after membership review"
+  members := [alternateAnchor]
+  lineage := [{
+    source := alternateAnchor
+    target := anchor
+    units := Quantity.ofQuanta 1
+  }]
+  aliases := [{
+    provider := "custodian-y"
+    account := "account-9"
+    externalId := "LOT-99"
+  }]
 }
 
 private def emptyLot : LotSnapshot := {
@@ -222,10 +254,21 @@ private def populatedLot : LotSnapshot := {
   payload := sameLotPayload
 }
 
-/-- Stable identity survives the selected transition from no members to members. -/
-theorem lot_subject_survives_payload_change :
+private def retargetedLot : LotSnapshot := {
+  subject := lotA
+  payload := retargetedLotPayload
+}
+
+/--
+Stable identity survives the selected lifecycle from no provenance, through a
+populated payload, and then through changed membership, lineage, aliases, title,
+and note.
+-/
+theorem lot_subject_survives_payload_replacement :
     emptyLot.subject = populatedLot.subject ∧
-      emptyLot.payload ≠ populatedLot.payload := by
+      populatedLot.subject = retargetedLot.subject ∧
+      emptyLot.payload ≠ populatedLot.payload ∧
+      populatedLot.payload ≠ retargetedLot.payload := by
   native_decide
 
 /-! ## Why one untyped token space is too broad -/
@@ -292,7 +335,8 @@ This is enough to reproduce the two selected pressures:
 
 2. User-created lot-like object:
    stable identity distinguishes independently created subjects even when their
-   complete current payload is identical, and survives payload replacement.
+   complete current payload, including lineage, is identical, and survives
+   payload replacement.
 
 The domain index matters.
 

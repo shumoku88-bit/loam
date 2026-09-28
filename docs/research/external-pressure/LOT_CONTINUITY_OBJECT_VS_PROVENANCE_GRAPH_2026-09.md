@@ -415,7 +415,9 @@ If the product also permits:
 
 then current payload is not the object identity.
 
-Observation 294 models exactly that case. Two snapshots can retain identical:
+The retired Observation 294 fixture first modeled exactly that case. Its live
+successor, Observation 295, now retains the same executable pressure under a
+domain-indexed stable subject. The selected snapshots can retain identical:
 
 - members;
 - complete lineage;
@@ -469,8 +471,9 @@ Core.LotId is earned unconditionally.
 
 ## 13. Cross-domain convergence: Observation 204 already found stable subject pressure
 
-Observation 294 is not the first place in LOAM research where a stable semantic
-subject has appeared.
+The stable-subject pressure first isolated by the retired Observation 294
+fixture is not the first place in LOAM research where such a semantic subject
+has appeared.
 
 Earlier Observation 204 asked whether two pre-Scheduled partial-knowledge
 pressures could share one subject-attached carrier. Its bounded result retained
@@ -491,10 +494,10 @@ candidate.
 The investment sequence now reaches the same architectural shape from a
 different direction.
 
-Observation 294 starts from a user-created durable lot-like object whose
-membership, aliases, title, and note may all change. If independently created
-objects with identical current payload must remain distinguishable, some stable
-subject identity is required.
+Observation 295 now retains that user-created durable lot-like pressure in the
+live Lean surface: membership, lineage, aliases, title, and note may all change
+while the typed subject remains stable. Independently created objects with
+identical current payload still remain distinguishable.
 
 The convergence is therefore:
 
@@ -514,8 +517,8 @@ semantic reason. That discipline should remain in force.
 The next falsification question is therefore not "should LOAM add LotId?" but:
 
 Can one small typed stable-subject abstraction satisfy both the Observation 204
-partial-knowledge pressure and the Observation 294 user-created durable-object
-pressure without collapsing their domain-specific evidence?
+partial-knowledge pressure and the user-created durable-object pressure first
+isolated by Observation 294, without collapsing their domain-specific evidence?
 
 Until that question is qualified and dogfood requires such a subject, the
 production Core should remain unchanged.
@@ -539,8 +542,8 @@ For the pre-Scheduled case, subject-attached amount/due evidence preserves the
 pairing that identity-free value pools lose.
 
 For the user-created lot-like case, subject identity still distinguishes two
-independently created subjects with identical complete current payload and
-survives a transition from no members to populated membership.
+independently created subjects with identical complete current payload,
+including lineage, and survives empty, populated, and retargeted payloads.
 
 The important negative result is domain erasure.
 

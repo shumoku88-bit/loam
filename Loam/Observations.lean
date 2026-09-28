@@ -38,7 +38,6 @@ import Loam.Observations.Observation290
 import Loam.Observations.Observation291
 import Loam.Observations.Observation292
 import Loam.Observations.Observation293
-import Loam.Observations.Observation294
 import Loam.Observations.Observation295
 import Loam.Observations.Observation296
 import Loam.Observations.Observation297
@@ -158,6 +157,10 @@ Research compaction notes:
   coordinate fixtures and dedicated prose were discovery scaffolds; current
   summary-fiber and future-context work now builds on Observations 029, 192,
   297, and 307.
+- 2026-09-28: Observation 294 retired after Observation 295 retained its
+  user-created durable-subject pressure inside the stronger domain-indexed
+  StableSubjectId witness. The live specimen now covers empty pre-provenance,
+  populated, and retargeted payloads while preserving lineage and aliases.
 
 Retired source remains available in Git history.
 -/
