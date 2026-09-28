@@ -326,9 +326,10 @@ scheduling is the pressure point.
 
 ### Retired one-off toolchains
 
-J, miniKanren/Racket, and Dafny have historical research results in this
-repository, but their executable sources and dedicated CI toolchains are not
-part of the current working tree.
+J, miniKanren/Racket, and Dafny have historical research results retained in
+Git history and compressed research checkpoints, but their executable sources,
+detailed one-off Dafny notes, and dedicated CI toolchains are not part of the
+current working tree.
 
 Use Git history and the corresponding observation/experiment records when
 reviewing those results. Reintroduce one only if a new bounded question earns a
