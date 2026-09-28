@@ -121,8 +121,8 @@ private def menuView (state : State) : Widget :=
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
     , menuRow state 7 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
-    , menuRow state 8 "Trend Compare" "compare several exact Loci across long household cycles"
-    , menuRow state 9 "Locus Trend" "interactive daily quantity history for one exact coordinate"
+    , menuRow state 8 "Trend" "one to three exact Loci on one shared time axis"
+    , menuRow state 9 "Locus Trend" "temporary single-Locus drill-down surface"
     , menuRow state 10 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
     , blank
     , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/v/g/f direct"
