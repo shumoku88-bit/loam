@@ -81,7 +81,7 @@ Primary sources:
 
 GnuCash uses a first-class GUID-backed Lot. A Lot groups Splits, may be created before membership exists, has title and notes, and can later gain or lose members. Security buys and sells are linked through Lots, and scrubbing may generate gain/loss transactions.
 
-This proves a durable Lot object is useful. It does not prove every accounting kernel needs one. LOAM Observation 294 reaches the same stable-identity requirement only when the product promises an independently created durable subject whose identity survives payload changes.
+This proves a durable Lot object is useful. It does not prove every accounting kernel needs one. The retired LOAM Observation 294 fixture first isolated the same stable-identity requirement; live Observation 295 now retains it under a domain-indexed subject, and only when the product promises an independently created durable subject whose identity survives payload changes.
 
 ## 5. The new pressure: cross-Measure mechanics
 
