@@ -199,6 +199,38 @@ one per coordinate.
 
 Verdict: **SIMPLIFY**.
 
+## Observation 201 graduation — assertion is not reconstruction
+
+Observation 201's bounded Alloy model and detailed prose have graduated to Git
+history because the selected information distinction is now owned directly by
+current production.
+
+The durable boundary is:
+
+```text
+correction-aware reconstructed history
+    !=
+independently observed exact quantity assertion
+```
+
+Two worlds may share the same retained Event history and the same reconstructed
+quantity while differing in the separately observed physical/current quantity.
+That observation carries information reconstruction alone does not contain.
+
+Production represents the independently observed side through
+`CurrentQuantityAnchor.Assertion`, together with the reflected-root cut that
+prevents already-observed Event roots from being counted twice. It deliberately
+does not reinterpret that assertion as proof that prior history was complete.
+
+A disagreement between reconstructed history and an independently observed
+quantity is therefore evidence about the quantity-support boundary, not
+permission to fabricate missing Events, silently rewrite Actual, or infer a
+historical-completeness claim.
+
+The later `BoundedHistorySupport` family remains the explicit owner of
+complete-since historical evidence. Numeric endpoint agreement alone never
+creates that claim.
+
 ## Durable quantity-support boundary from Observations 243/244/246/345/346
 
 The detailed prose for Observations 243, 244, 246, 345, and 346 has graduated
