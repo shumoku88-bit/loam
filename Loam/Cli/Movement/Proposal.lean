@@ -173,9 +173,7 @@ private def draftFromState?
   let discharges ←
     Loam.MovementDischargeEntry.parseScripted?
       (String.intercalate "\n" parsed.dischargeRows)
-  let total :=
-    parsed.effects.foldl
-      (fun sum effect => sum + max 0 effect.quantity.quanta) 0
+  let total := Effect.positiveQuantaTotal parsed.effects
   pure {
     validOn := validOn
     description := parsed.description

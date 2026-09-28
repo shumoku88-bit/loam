@@ -99,6 +99,10 @@ def measureTotals (effects : List Effect) : List (MeasureId × Int) :=
 def firstNonzeroMeasureTotal? (effects : List Effect) : Option (MeasureId × Int) :=
   (measureTotals effects).find? fun total => total.2 != 0
 
+/-- Sum only positive exact quanta across one Effect collection. -/
+def positiveQuantaTotal (effects : List Effect) : Int :=
+  effects.foldl (fun total effect => total + max 0 effect.quantity.quanta) 0
+
 @[simp] theorem key_ofQuantity
     (key : EffectKey) (locus : LocusId)
     (measure : MeasureId) (quantity : Quantity) :
