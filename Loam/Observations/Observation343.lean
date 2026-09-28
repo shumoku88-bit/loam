@@ -1,19 +1,21 @@
-import Loam.Observations.Observation340
-import Loam.Observations.Observation342
+import Loam.Application.ExchangeEvidenceFrontier
+import Loam.Application.OriginalAmountFrontier
 import Loam.PracticalMovement
 
 namespace Loam.Observation343
 
 open Loam.Core
+open Loam.Application
 
 set_option autoImplicit false
 
 /-!
 # Observation 343 — travel evidence is symmetric in household and destination Measures
 
-Observations 340 and 342 were motivated by a JPY household travelling into
-USD / ILS use. This observation checks that the surviving evidence shapes did
-not accidentally encode that direction.
+The retired travel-candidate observations were motivated by a JPY household
+travelling into USD / ILS use. This observation keeps the independent symmetry
+question live against the promoted production evidence boundaries: do the
+surviving shapes accidentally encode that direction?
 
 Selected counter-direction specimen:
 
@@ -23,13 +25,17 @@ Selected counter-direction specimen:
 - a EUR-funded debit-card purchase is presented by the merchant as JPY;
 - remaining JPY cash is exchanged back into EUR.
 
-No new evidence family is introduced here. The observation reuses exactly:
+No new evidence family is introduced here. The observation uses the promoted
+production families directly:
 
-    Observation340.ExchangeEvidence
-    Observation342.OriginalAmountEvidence
+    Core.ExchangeEvidence
+    Core.OriginalAmountEvidence
+    Application.ExchangeEvidenceFrontier
+    Application.OriginalAmountFrontier
 
-The selected question is whether those candidates remain valid when JPY is the
-destination / presented Measure and EUR is the household funding Measure.
+The selected question is whether those production evidence shapes remain valid
+when JPY is the destination / presented Measure and EUR is the household funding
+Measure.
 -/
 
 private def euro : MeasureId := ⟨"eur"⟩
@@ -40,6 +46,9 @@ private def cashJpy : LocusId := ⟨"cash-jpy"⟩
 private def bankEur : LocusId := ⟨"bank-eur"⟩
 private def food : LocusId := ⟨"food"⟩
 private def transport : LocusId := ⟨"transport"⟩
+
+private def noCorrections : EventCorrectionMemory :=
+  { corrections := [], idNodup := by simp }
 
 private def outboundId : EventId := ⟨"eur-household-japan-cash-exchange"⟩
 private def outboundSource : EffectKey := ⟨"eur-source"⟩
@@ -88,13 +97,13 @@ private def tripEvents? : Option EventMemory := do
   let returnExchange ← returnExchange?
   EventMemory.ofEvents? [outbound, cashSpend, debit, returnExchange]
 
-private def outboundEvidence : Loam.Observation340.ExchangeEvidence := {
+private def outboundEvidence : ExchangeEvidence := {
   event := outboundId
   source := outboundSource
   destination := outboundDestination
 }
 
-private def returnEvidence : Loam.Observation340.ExchangeEvidence := {
+private def returnEvidence : ExchangeEvidence := {
   event := returnId
   source := returnSource
   destination := returnDestination
@@ -108,8 +117,8 @@ theorem eur_to_jpy_exchange_uses_the_same_evidence_shape :
     (do
       let events ← tripEvents?
       pure
-        (Loam.Observation340.exchangeEvidenceAdmitted?
-          events outboundEvidence)) =
+        (exchangeEvidenceAdmitted?
+          events noCorrections outboundEvidence)) =
       some true := by
   native_decide
 
@@ -121,8 +130,8 @@ theorem jpy_to_eur_return_exchange_uses_the_same_evidence_shape :
     (do
       let events ← tripEvents?
       pure
-        (Loam.Observation340.exchangeEvidenceAdmitted?
-          events returnEvidence)) =
+        (exchangeEvidenceAdmitted?
+          events noCorrections returnEvidence)) =
       some true := by
   native_decide
 
@@ -155,11 +164,29 @@ theorem eur_funded_debit_purchase_remains_ordinary_eur_movement :
   native_decide
 
 private def debitOriginal :
-    Loam.Observation342.OriginalAmountEvidence := {
+    OriginalAmountEvidence := {
   event := debitId
   measure := yen
   quantity := Quantity.ofQuanta 5000
 }
+
+private def admittedOriginals?
+    (events : EventMemory)
+    (entries : List OriginalAmountEvidence) :
+    Option OriginalAmountEvidenceMemory := do
+  let memory ← OriginalAmountEvidenceMemory.ofEntries? entries
+  admittedOriginalAmounts? events noCorrections memory
+
+private def originalTotalAt
+    (memory : OriginalAmountEvidenceMemory)
+    (measure : MeasureId) : Quantity :=
+  Quantity.ofQuanta <|
+    memory.entries.foldl
+      (fun total evidence =>
+        if evidence.measure = measure
+        then total + evidence.quantity.quanta
+        else total)
+      0
 
 /--
 The original-amount evidence is equally valid with JPY as the presented Measure
@@ -169,11 +196,11 @@ theorem jpy_original_amount_is_admitted_against_eur_accounting :
     (do
       let events ← tripEvents?
       let memory ←
-        Loam.Observation342.originalAmountsAgainst?
+        admittedOriginals?
           events [debitOriginal]
       pure
-        ((Loam.Observation342.originalTotalAt memory yen).quanta,
-         (Loam.Observation342.originalTotalAt memory euro).quanta)) =
+        ((originalTotalAt memory yen).quanta,
+         (originalTotalAt memory euro).quanta)) =
       some (5000, 0) := by
   native_decide
 
@@ -204,16 +231,16 @@ geographic direction:
 private def fullSymmetryWitness? : Option (Bool × Bool × Bool × Bool) := do
   let events ← tripEvents?
   let original ←
-    Loam.Observation342.originalAmountsAgainst?
+    admittedOriginals?
       events [debitOriginal]
   pure (
-    Loam.Observation340.exchangeEvidenceAdmitted?
-      events outboundEvidence,
+    exchangeEvidenceAdmitted?
+      events noCorrections outboundEvidence,
     cashSpendIsOrdinaryJpyMovement,
     debitPurchaseIsOrdinaryEurMovement &&
-      (Loam.Observation342.originalTotalAt original yen).quanta = 5000,
-    Loam.Observation340.exchangeEvidenceAdmitted?
-      events returnEvidence)
+      (originalTotalAt original yen).quanta = 5000,
+    exchangeEvidenceAdmitted?
+      events noCorrections returnEvidence)
 
 theorem eur_household_japan_trip_is_supported_by_the_same_candidate_shapes :
     fullSymmetryWitness? = some (true, true, true, true) := by
@@ -244,9 +271,9 @@ This does not prove the whole product UI is household-currency-neutral.
 Current input surfaces may still choose JPY as a convenience default. That is a
 presentation / configuration concern and should not be promoted into Core law.
 
-No new production type is earned by this observation. Its result instead reduces
-the risk of promoting the already-selected ExchangeEvidence and
-OriginalAmountEvidence candidates.
+No new production type is earned by this observation. Its role is now narrower
+and stronger: it is a live regression that the promoted ExchangeEvidence and
+OriginalAmountEvidence boundaries remain Measure-symmetric.
 -/
 
 end Loam.Observation343

@@ -69,11 +69,8 @@ import Loam.Observations.Observation334
 import Loam.Observations.Observation335
 import Loam.Observations.Observation336
 import Loam.Observations.Observation337
-import Loam.Observations.Observation340
 import Loam.Observations.Observation341
-import Loam.Observations.Observation342
 import Loam.Observations.Observation343
-import Loam.Observations.Observation344
 import Loam.Observations.Observation345
 import Loam.Observations.Observation346
 import Loam.Observations.Observation347
@@ -161,6 +158,13 @@ Research compaction notes:
   user-created durable-subject pressure inside the stronger domain-indexed
   StableSubjectId witness. The live specimen now covers empty pre-provenance,
   populated, and retargeted payloads while preserving lineage and aliases.
+- 2026-09-28: Observations 340, 342, and 344 retired after their travel
+  evidence candidates became production boundaries. ExchangeEvidence and
+  OriginalAmountEvidence now live in Core, their correction-aware admission
+  lives in Application frontiers, and normalized Actual regression tests own
+  duplicate/positivity, correction, reversal, and wire-roundtrip behavior.
+  Observation 343 remains live against those production APIs as the independent
+  Measure-symmetry witness.
 
 Retired source remains available in Git history.
 -/
