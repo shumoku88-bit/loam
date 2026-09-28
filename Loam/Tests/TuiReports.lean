@@ -131,14 +131,24 @@ def main : IO Unit := do
 
   let trendText := widgetText
     (Loam.Tui.Reports.viewForBounds trendBounds trendPointer)
-  expect (contains "Reports / Locus Trend" trendText &&
-      contains "Pension cycles through 2026-09-07" trendText &&
+  expect (contains "Locus Trend   tobacco / jpy" trendText &&
+      contains "Pension cycles" trendText &&
+      contains "through Sep 7, 2026" trendText &&
+      contains "Selected   Apr 15 → Jun 15   ● complete" trendText &&
       contains "¥459/day" trendText &&
-      contains "● completed configured cycle" trendText &&
-      contains "◇" trendText)
+      contains "● completed cycle" trendText &&
+      contains "◇ current partial" trendText)
     "Locus Trend did not render the polished long-history overview"
   expect ((Loam.Tui.Reports.viewForBounds trendBounds trendPointer).lines.length <= trendBounds.height)
     "full-screen Locus Trend exceeded the terminal height"
+  let narrowTrendBounds : Bounds := { width := 48, height := 20 }
+  let narrowTrendText := widgetText
+    (Loam.Tui.Reports.viewForBounds narrowTrendBounds trendPointer)
+  expect ((Loam.Tui.Reports.viewForBounds narrowTrendBounds trendPointer).lines.length <=
+      narrowTrendBounds.height)
+    "polished Locus Trend exceeded a narrow terminal height"
+  expect (contains "q/Esc reports" narrowTrendText)
+    "polished Locus Trend footer wrapping lost the back navigation"
   expect (contains "braille" trendText)
     "Locus Trend did not default to the high-resolution portable renderer"
 
@@ -185,8 +195,8 @@ def main : IO Unit := do
     }
   let trendDailyText := widgetText
     (Loam.Tui.Reports.viewForBounds trendBounds trendDaily)
-  expect (contains "Reports / Locus Trend / Daily" trendDailyText &&
-      contains "Selected 2026-04-17" trendDailyText)
+  expect (contains "Locus Trend / Daily   tobacco / jpy" trendDailyText &&
+      contains "Selected   Apr 17" trendDailyText)
     "Locus Trend daily drill-down did not render the selected day"
 
   let trendBack := (Loam.Tui.Reports.update trendDaily (.input 'q')).state

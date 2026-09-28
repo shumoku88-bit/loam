@@ -102,14 +102,14 @@ def selectedPoint? (state : State) : Option Loam.LocusTrendReview.Point := do
 /-- Fixed terminal column where chart data begins after the amount axis. -/
 def plotLeft : Nat := 11
 
-/-- Header rows before the first chart row in the full-screen Trend surface. -/
-def plotTop : Nat := 7
+/-- Fixed compact header rows before the full-screen chart body. -/
+def plotTop : Nat := 5
 
 def plotWidth (bounds : Bounds) : Nat :=
   max 1 (Loam.Tui.Layout.contentWidth bounds - plotLeft)
 
 def plotHeight (bounds : Bounds) : Nat :=
-  if bounds.height > 11 then bounds.height - 11 else 3
+  if bounds.height > 9 then bounds.height - 9 else 3
 
 /--
 Select the chart point nearest one physical pointer column.
@@ -178,6 +178,35 @@ private def centered (width : Nat) (text : String) : String :=
   let left := remaining / 2
   spaces left ++ clipped ++ spaces (remaining - left)
 
+private def monthLabel : String → String
+  | "01" => "Jan"
+  | "02" => "Feb"
+  | "03" => "Mar"
+  | "04" => "Apr"
+  | "05" => "May"
+  | "06" => "Jun"
+  | "07" => "Jul"
+  | "08" => "Aug"
+  | "09" => "Sep"
+  | "10" => "Oct"
+  | "11" => "Nov"
+  | "12" => "Dec"
+  | value => value
+
+private def shortDate (date : String) : String :=
+  match date.splitOn "-" with
+  | [_, month, day] =>
+      monthLabel month ++ " " ++
+        (day.toNat?.map toString |>.getD day)
+  | _ => date
+
+private def longDate (date : String) : String :=
+  match date.splitOn "-" with
+  | [year, month, day] =>
+      monthLabel month ++ " " ++
+        (day.toNat?.map toString |>.getD day) ++ ", " ++ year
+  | _ => date
+
 private def values (state : State) : List Int :=
   match state.view with
   | .overview =>
@@ -224,10 +253,13 @@ private def chartRows
   let height := plotHeight bounds
   let series := values state
   let scale := chartScale state
+  let gridRows :=
+    scale.ticks.map fun tick =>
+      Loam.Tui.Chart.rowForValue height scale.range tick
   let rendered :=
     Loam.Tui.Chart.renderInRange
       state.renderer width height series state.selected
-      scale.range (observedMarkers state)
+      scale.range (observedMarkers state) gridRows
   (List.range height).map fun row =>
     match rendered[row]? with
     | some widget =>
@@ -248,10 +280,8 @@ private def overviewAxisRows
   let chunk := if count = 0 then width else max 1 (width / count)
   let dateLabels := snapshot.points.map fun point =>
     let endLabel :=
-      if point.complete then point.endExclusive else point.throughExclusive
-    let startShort := String.ofList (point.start.toList.drop 5)
-    let endShort := String.ofList (endLabel.toList.drop 5)
-    centered chunk (startShort ++ "→" ++ endShort)
+      if point.complete then point.endExclusive else snapshot.observedAt
+    centered chunk (shortDate point.start ++ " → " ++ shortDate endLabel)
   let valueLabels := snapshot.points.map fun point =>
     let marker := if point.complete then "● " else "◇ "
     let partialSuffix := if point.complete then "" else " partial"
@@ -268,7 +298,9 @@ private def detailAxis
   let selected := (selectedPoint? state).map (·.date) |>.getD snapshot.start
   let last :=
     snapshot.points.getLast?.map (·.date) |>.getD snapshot.start
-  let text := snapshot.start ++ "    " ++ selected ++ "    " ++ last
+  let text :=
+    shortDate snapshot.start ++ "    " ++ shortDate selected ++
+      "    " ++ shortDate last
   .row
     [ span (String.ofList (List.replicate plotLeft ' '))
     , span (Loam.Tui.Layout.clip (plotWidth bounds) text) .muted
@@ -279,67 +311,62 @@ private def header (state : State) : List Widget :=
   | .overview =>
       match state.overview, selectedOverviewPoint? state with
       | some snapshot, some point =>
-          let observedEnd :=
-            if point.complete then point.endExclusive else point.throughExclusive
-          [ line "Reports / Locus Trend"
+          let endLabel :=
+            if point.complete then point.endExclusive else snapshot.observedAt
+          let status := if point.complete then "● complete" else "◇ current partial"
+          [ line
+              ("Locus Trend   " ++ snapshot.coordinate.locus.token ++
+                " / " ++ snapshot.coordinate.measure.token)
           , muted
-              (snapshot.source ++ " cycles through " ++ snapshot.observedAt ++
-                "   ·   " ++ snapshot.coordinate.locus.token ++
-                " / " ++ snapshot.coordinate.measure.token ++
-                "   ·   " ++ state.renderer.label)
+              (snapshot.source ++ " cycles   ·   through " ++
+                longDate snapshot.observedAt ++ "   ·   " ++ state.renderer.label)
           , line
-              ("Selected [" ++ point.start ++ ", " ++ observedEnd ++
-                (if point.complete then ")" else ")  partial"))
+              ("Selected   " ++ shortDate point.start ++ " → " ++
+                shortDate endLabel ++ "   " ++ status)
           , line
               (amountText state point.dailyAverageQuanta ++ "/day   ·   " ++
                 amountText state point.total.quanta ++ " total   ·   " ++
                 toString point.observedDays ++ " days")
-          , muted "● completed configured cycle   ◇ current partial cycle"
-          , muted "Line segments interpolate between the marked cycle observations."
-          , blank
+          , muted "● completed cycle   ◇ current partial   ·   line connects observed cycle values"
           ]
       | _, _ =>
-          [ line "Reports / Locus Trend"
+          [ line "Locus Trend"
           , muted "Long-history overview unavailable."
-          , blank, blank, blank, blank, blank
+          , blank, blank, blank
           ]
   | .detail =>
       match state.snapshot, selectedPoint? state with
       | some snapshot, some point =>
-          [ line "Reports / Locus Trend / Daily"
+          [ line
+              ("Locus Trend / Daily   " ++ snapshot.coordinate.locus.token ++
+                " / " ++ snapshot.coordinate.measure.token)
           , muted
-              ("Daily detail [" ++ snapshot.start ++ ", " ++
-                snapshot.endExclusive ++ ")")
-          , line
-              (snapshot.coordinate.locus.token ++
-                " / " ++ snapshot.coordinate.measure.token ++
+              (shortDate snapshot.start ++ " → " ++ shortDate snapshot.endExclusive ++
                 "   ·   " ++ state.renderer.label)
           , line
-              ("Selected " ++ point.date ++
+              ("Selected   " ++ shortDate point.date ++
                 "   ·   " ++ amountText state point.daily.quanta)
           , line
               ("Cumulative " ++ amountText state point.cumulative.quanta ++
                 "   ·   running avg " ++
                 amountText state point.runningDailyAverageQuanta ++ "/day")
-          , muted "Current admitted truth; corrected originals are excluded."
-          , blank
+          , muted "Current admitted truth   ·   corrected originals excluded"
           ]
       | _, _ =>
-          [ line "Reports / Locus Trend / Daily"
+          [ line "Locus Trend / Daily"
           , muted "Daily detail unavailable."
-          , blank, blank, blank, blank, blank
+          , blank, blank, blank
           ]
 
-private def footer (state : State) : List Widget :=
-  match state.view with
-  | .overview =>
-      [ muted "←/→ or h/l select cycle   Enter daily detail   mouse hover selects cycle"
-      , muted "r renderer fallback   q / Esc Reports menu"
-      ]
-  | .detail =>
-      [ muted "←/→ or h/l select day   mouse hover selects day"
-      , muted "r renderer fallback   q / Esc long history"
-      ]
+private def footer (bounds : Bounds) (state : State) : List Widget :=
+  let tokens :=
+    match state.view with
+    | .overview =>
+        ["←/→ select cycle", "Enter daily", "mouse hover select", "r renderer", "q/Esc reports"]
+    | .detail =>
+        ["←/→ select day", "mouse hover select", "r renderer", "q/Esc overview"]
+  (Loam.Tui.Layout.flowTokens
+      (Loam.Tui.Layout.contentWidth bounds) "   " tokens).map muted
 
 /--
 Render Trend as a dedicated full-screen chart instead of the ordinary Reports
@@ -356,10 +383,10 @@ def viewFullScreen (bounds : Bounds) (state : State) (notice : String := "") : W
         | none => [muted "", muted ""]
     | .detail =>
         match state.snapshot with
-        | some snapshot => [detailAxis bounds state snapshot]
-        | none => [muted ""]
+        | some snapshot => [detailAxis bounds state snapshot, muted ""]
+        | none => [muted "", muted ""]
   let all :=
-    header state ++ chart ++ axisRows ++ footer state ++
+    header state ++ chart ++ axisRows ++ footer bounds state ++
       (if notice.isEmpty then [] else [line notice])
   .column (all.take bounds.height)
 
