@@ -250,7 +250,7 @@ def main : IO Unit := do
   -- SGR attributes accumulate: each style must clear the previous underline,
   -- background and dim attributes before setting its own (including dirty redraw).
   for style in [Style.normal, .selected, .muted, .underlined, .selectedUnderlined,
-      .series1, .series2, .series3] do
+      .series1, .series2, .series3, .series4, .series5] do
     let sgr := Loam.Tui.Terminal.ansiStyle style
     expect (sgr.startsWith "\x1b[0;" || sgr == "\x1b[0m")
       "Terminal style can leak attributes into the next calendar cell"
