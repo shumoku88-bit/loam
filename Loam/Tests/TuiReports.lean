@@ -242,9 +242,10 @@ def main : IO Unit := do
     (Loam.Tui.Reports.viewForBounds { width := 100, height := 30 } monthReport)
   expect (contains "Trend Compare   month average / day" monthText &&
       contains "Aug 1 → Sep 1" monthText &&
-      contains "Scope All history" monthText &&
-      contains "[ / ] grain" monthText && contains "s/S scope" monthText)
-    "Trend Compare month view did not expose its granularity and selected month"
+      contains "Grain Month" monthText &&
+      contains "[ / ] grain" monthText &&
+      !(contains "Range " monthText) && !(contains "s/S range" monthText))
+    "Trend Compare Month did not stay all-history without Day range controls"
 
   let dayRequest := Loam.Tui.Reports.update monthReport (.input ']')
   match dayRequest.query with
@@ -261,28 +262,52 @@ def main : IO Unit := do
         "Trend Compare [ did not return from month to cycle granularity"
   | _ => throw (IO.userError "Trend Compare [ did not request cycle granularity")
 
-  let currentCycleRequest := Loam.Tui.Reports.update compareReport (.input 's')
+  let ignoredCycleRange := Loam.Tui.Reports.update compareReport (.input 's')
+  expect (ignoredCycleRange.query.isNone &&
+      ignoredCycleRange.state.trendCompare.scope == .allHistory)
+    "Trend Compare exposed Range changes while Cycle grain was active"
+
+  let currentCycleRequest := Loam.Tui.Reports.update dayRequest.state (.input 's')
   match currentCycleRequest.query with
   | some (.locusTrendCompare observedAt granularity scope series) =>
-      expect (observedAt == "2026-09-07" && granularity == .cycle &&
+      expect (observedAt == "2026-09-07" && granularity == .day &&
           scope == .currentCycle &&
           series.map (·.label) == ["Tobacco", "Coffee", "Food"])
-        "Trend Compare s did not request Current cycle with the same exact series"
-  | _ => throw (IO.userError "Trend Compare s did not request Current cycle")
+        "Trend Compare Day s did not request Current cycle with the same exact series"
+  | _ => throw (IO.userError "Trend Compare Day s did not request Current cycle")
 
   let currentMonthRequest := Loam.Tui.Reports.update currentCycleRequest.state (.input 's')
   match currentMonthRequest.query with
-  | some (.locusTrendCompare _ _ scope _) =>
-      expect (scope == .currentMonth)
-        "Trend Compare second s did not request This month"
-  | _ => throw (IO.userError "Trend Compare second s did not request This month")
+  | some (.locusTrendCompare _ granularity scope _) =>
+      expect (granularity == .day && scope == .currentMonth)
+        "Trend Compare Day second s did not request This month"
+  | _ => throw (IO.userError "Trend Compare Day second s did not request This month")
 
   let scopeBackRequest := Loam.Tui.Reports.update currentCycleRequest.state (.input 'S')
   match scopeBackRequest.query with
-  | some (.locusTrendCompare _ _ scope _) =>
-      expect (scope == .allHistory)
-        "Trend Compare S did not return to All history"
-  | _ => throw (IO.userError "Trend Compare S did not request All history")
+  | some (.locusTrendCompare _ granularity scope _) =>
+      expect (granularity == .day && scope == .allHistory)
+        "Trend Compare Day S did not return to All history"
+  | _ => throw (IO.userError "Trend Compare Day S did not request All history")
+
+  let monthFromScopedDay := Loam.Tui.Reports.update currentCycleRequest.state (.input '[')
+  match monthFromScopedDay.query with
+  | some (.locusTrendCompare _ granularity scope _) =>
+      expect (granularity == .month && scope == .allHistory)
+        "Trend Compare Month did not force All history after leaving a scoped Day view"
+  | _ => throw (IO.userError "Trend Compare scoped Day did not request Month")
+  expect (monthFromScopedDay.state.trendCompare.scope == .currentCycle)
+    "Trend Compare forgot the preferred Day Range while Month was active"
+  let loadedMonthFromScopedDay :=
+    Loam.Tui.Reports.withLocusTrendCompareSnapshot monthFromScopedDay.state monthSnapshot
+  expect (loadedMonthFromScopedDay.trendCompare.scope == .currentCycle)
+    "Trend Compare Month snapshot overwrote the remembered Day Range"
+  let dayAgain := Loam.Tui.Reports.update loadedMonthFromScopedDay (.input ']')
+  match dayAgain.query with
+  | some (.locusTrendCompare _ granularity scope _) =>
+      expect (granularity == .day && scope == .currentCycle)
+        "Trend Compare did not restore the remembered Range when returning to Day"
+  | _ => throw (IO.userError "Trend Compare did not return from Month to scoped Day")
 
   let compareLeft := (Loam.Tui.Reports.update compareReport .left).state
   expect (compareLeft.trendCompare.selected == 1)
@@ -374,6 +399,8 @@ def main : IO Unit := do
   let viewportText := widgetText
     (Loam.Tui.Reports.viewForBounds compareBounds viewportReport)
   expect (contains "31-day viewport" viewportText &&
+      contains "Range All history" viewportText &&
+      contains "s/S range" viewportText &&
       contains "wheel select period" viewportText &&
       contains "mouse click/drag scrub" viewportText &&
       contains "Aug 10" viewportText && contains "Sep 9" viewportText)
@@ -399,7 +426,8 @@ def main : IO Unit := do
   }
   let scopedViewportText := widgetText
     (Loam.Tui.Reports.viewForBounds compareBounds scopedViewportReport)
-  expect (contains "Scope Current cycle" scopedViewportText &&
+  expect (contains "Range Current cycle" scopedViewportText &&
+      contains "s/S range" scopedViewportText &&
       !(contains "31-day viewport" scopedViewportText))
     "Trend Compare did not expose the scoped Day range as a whole"
 
@@ -418,8 +446,8 @@ def main : IO Unit := do
       contains "Coffee" compareText && contains "¥131/day" compareText &&
       contains "Food" compareText && contains "¥477/day" compareText)
     "Trend Compare did not show all selected-cycle series values together"
-  expect (contains "Scope All history" compareText)
-    "Trend Compare did not expose its active scope"
+  expect (!(contains "Range " compareText) && !(contains "s/S range" compareText))
+    "Trend Compare Cycle exposed Day-only Range controls"
   expect (contains "Exact Locus series" compareText)
     "Trend Compare lost its no-reclassification boundary"
   expect ((Loam.Tui.Reports.viewForBounds compareBounds comparePointer).lines.length <=
