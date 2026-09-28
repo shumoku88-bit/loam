@@ -2,8 +2,6 @@ import Loam.Observations.Observation008
 import Loam.Observations.Observation011
 import Loam.Observations.Observation029
 import Loam.Observations.Observation078
-import Loam.Observations.Observation129
-import Loam.Observations.Observation135
 import Loam.Observations.Observation159
 import Loam.Observations.Observation179
 import Loam.Observations.Observation180
@@ -148,6 +146,11 @@ Research compaction notes:
   after `EventDescription` became a production Core evidence family. The Core
   type now owns Event-scoped uniqueness, lookup, and neutrality; the old 558-row
   migration pressure and candidate comparison remain available in Git history.
+- 2026-09-28: Observations 129 and 135 plus their one-shot historical-admission
+  notes retired after the migration-specific multi-stream PREPARED/receipt and
+  snapshot-archive candidates never became current authority. Normalized
+  `actual.loam` now publishes one fully admitted image through staged typed
+  re-decode and a single atomic rename; migration provenance remains Git history.
 
 Retired source remains available in Git history.
 -/
