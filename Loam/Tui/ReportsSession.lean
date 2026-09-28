@@ -107,6 +107,10 @@ partial def run (bounds : Bounds)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
+  let wasTrend := state.mode == .locusTrend
+  let isTrend := next.mode == .locusTrend
+  if wasTrend != isTrend then
+    Loam.Tui.Terminal.setPointerMotion isTrend
   let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds next)
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
   run bounds dataDir root next nextFrame
