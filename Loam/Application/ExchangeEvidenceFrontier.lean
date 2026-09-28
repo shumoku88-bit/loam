@@ -10,9 +10,9 @@ set_option autoImplicit false
 /-!
 # Exchange evidence admission
 
-Production admission strengthens the research candidate from Observation 340
-just enough to let one cross-Measure Event bypass ordinary per-Measure balance
-without turning EXCHANGE into a generic escape hatch.
+Production admission owns the narrow effect-selected exchange boundary first
+isolated during travel research. It lets one cross-Measure Event bypass ordinary
+per-Measure balance without turning EXCHANGE into a generic escape hatch.
 
 A qualified Event must:
 
