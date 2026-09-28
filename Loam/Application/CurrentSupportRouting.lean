@@ -31,6 +31,10 @@ precedence policy:
 def eventCoordinates (events : EventMemory) : List EffectCoordinate :=
   events.events.flatMap fun event => event.effects.map fun effect => effect.coordinate
 
+def eventContainsCoordinate
+    (event : Event) (coordinate : EffectCoordinate) : Bool :=
+  event.effects.any fun effect => decide (effect.coordinate = coordinate)
+
 def hasOpeningSupport
     (supportMap : OpeningSupportMap) (coordinate : EffectCoordinate) : Bool :=
   (supportMap.supportFor? coordinate).isSome
