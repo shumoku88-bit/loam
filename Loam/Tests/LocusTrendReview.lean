@@ -57,6 +57,27 @@ def main : IO Unit := do
   expect (snapshot.undatedMatchingCurrentRecords == 1)
     "Locus Trend hid matching current evidence with unknown occurrence date"
 
+  let preset : Loam.BoundaryPresetConfig.Preset := {
+    name := "Cycle"
+    boundaries := ["2026-09-01", "2026-09-03", "2026-09-05"]
+  }
+  let overview ←
+    match Loam.LocusTrendReview.projectOverview
+        records preset "2026-09-03" coordinate with
+    | .ok snapshot => pure snapshot
+    | .error message => throw (IO.userError message)
+  expect (overview.points.length == 2)
+    "Locus Trend overview did not retain every configured adjacent window"
+  expect
+    (overview.points.map (·.dailyAverageQuanta) == [550, 0])
+    "Locus Trend overview did not derive per-observed-day cycle averages"
+  expect (overview.points[0]?.map (·.complete) == some true)
+    "Locus Trend overview lost completion of the first configured window"
+  expect (overview.points[1]?.map (·.complete) == some false)
+    "Locus Trend overview promoted a partial current window to complete"
+  expect (overview.points[1]?.map (·.throughExclusive) == some "2026-09-04")
+    "Locus Trend overview did not truncate the current window at observedAt + 1"
+
   match Loam.LocusTrendReview.project
       records "2026-09-05" "2026-09-01" coordinate with
   | .error _ => pure ()
