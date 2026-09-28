@@ -306,6 +306,32 @@
       "tests": [
         "Loam/Tests/DeterministicActualMutationScenario.lean"
       ]
+    },
+    {
+      "id": "deterministic-settlement-scenario",
+      "workflowName": "Deterministic Settlement Scenario",
+      "jobName": "Replay deterministic Settlement lifecycle composition",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "experiment/383-deterministic-settlement-scenario"
+      ],
+      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence",
+      "paths": [
+        "Loam/Core/Settlement.lean",
+        "Loam/Application/SettlementFrontier.lean",
+        "Loam/SettlementPublisher.lean",
+        "Loam/SettlementActionPublisher.lean",
+        "Loam/HouseholdCommand.lean",
+        "Loam/ActualAuthority.lean",
+        "Loam/Persistence/NormalizedActualAdmission.lean",
+        "Loam/Persistence/NormalizedActualPersistence.lean",
+        "Loam/Tests/DeterministicSettlementScenario.lean",
+        "experiments/383_deterministic_settlement_lifecycle.md"
+      ],
+      "tests": [
+        "Loam/Tests/DeterministicSettlementScenario.lean"
+      ]
     }
   ]
 }
