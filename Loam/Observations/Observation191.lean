@@ -1,23 +1,20 @@
-import Loam.Observations.Observation180
-
 namespace Loam.Observation191
-
-open Loam.Core
-open Loam.Observation159
 
 set_option autoImplicit false
 
 /-!
 # Observation 191 — observational quotient factorization
 
-Observations 159, 179, and 180 exposed three nearby structures:
+Earlier finite field trials exposed three nearby structures:
 
 * equality under a selected family of observations;
 * a preservation polarity between observations and evidence transformations;
 * double-polarity closure of an observation family.
 
-This observation asks whether those are merely adjacent uses of familiar
-mathematics or whether one smaller structure explains their connection.
+This observation is the generalized live owner of their common structure. The
+older wallet/food normalization and minimal-basis fixtures have graduated to Git
+history; downstream research now depends on the generic quotient/factorization
+boundary below.
 
 The generic witness deliberately assumes only:
 
@@ -144,8 +141,8 @@ indistinguishability quotient induced by the starting observation family.
 
 The reverse direction uses the endomap that redirects one evidence value to an
 indistinguishable representative and fixes every other evidence value. This is
-why the theorem depends on the all-endomap closure used by Observation 180; it
-does not automatically apply to a restricted production transformation set.
+why the theorem depends on all-endomap closure; it does not automatically apply
+to a restricted production transformation set.
 -/
 theorem closure_iff_factors_through_indistinguishability
     (observe : (observable : Observable) → Evidence → Value observable)
@@ -173,179 +170,10 @@ theorem closure_iff_factors_through_indistinguishability
 
 end Generic
 
-/-! ## Specialization back to Observations 159–180 -/
-
-namespace Existing
-
-abbrev Evidence := Loam.Observation180.Evidence
-abbrev Observable := Loam.Observation180.Observable
-
-/-- Observation 180 is exactly the generic all-endomap closure specialized to its observer. -/
-theorem observation180_closure_is_generic
-    (observables : Observable → Prop)
-    (observable : Observable) :
-    Loam.Observation180.Closure observables observable ↔
-      Closure Loam.Observation180.observe observables observable := by
-  rfl
-
-/--
-Observation 159's candidate free-Abelian quotient relation is exactly
-indistinguishability under Observation 180's two-coordinate additive basis.
--/
-theorem additive_indistinguishability_iff_vector_equivalent
-    (left right : Evidence) :
-    IndistinguishableBy
-        Loam.Observation180.observe
-        Loam.Observation180.AdditiveBasis
-        left right ↔
-      VectorEquivalent left right := by
-  constructor
-  · intro h coordinate
-    cases coordinate with
-    | wallet =>
-        have hw := h .walletQuantity (by simp [Loam.Observation180.AdditiveBasis])
-        change
-          (aggregateAt left .wallet).quanta =
-            (aggregateAt right .wallet).quanta at hw
-        calc
-          aggregateAt left .wallet =
-              Quantity.ofQuanta (aggregateAt left .wallet).quanta := by
-                symm
-                exact Quantity.ofQuanta_quanta _
-          _ = Quantity.ofQuanta (aggregateAt right .wallet).quanta := by
-                exact congrArg Quantity.ofQuanta hw
-          _ = aggregateAt right .wallet := Quantity.ofQuanta_quanta _
-    | food =>
-        have hf := h .foodQuantity (by simp [Loam.Observation180.AdditiveBasis])
-        change
-          (aggregateAt left .food).quanta =
-            (aggregateAt right .food).quanta at hf
-        calc
-          aggregateAt left .food =
-              Quantity.ofQuanta (aggregateAt left .food).quanta := by
-                symm
-                exact Quantity.ofQuanta_quanta _
-          _ = Quantity.ofQuanta (aggregateAt right .food).quanta := by
-                exact congrArg Quantity.ofQuanta hf
-          _ = aggregateAt right .food := Quantity.ofQuanta_quanta _
-  · intro h observable hObservable
-    cases observable with
-    | walletQuantity =>
-        change
-          (aggregateAt left .wallet).quanta =
-            (aggregateAt right .wallet).quanta
-        exact congrArg (fun quantity : Quantity => quantity.quanta) (h .wallet)
-    | foodQuantity =>
-        change
-          (aggregateAt left .food).quanta =
-            (aggregateAt right .food).quanta
-        exact congrArg (fun quantity : Quantity => quantity.quanta) (h .food)
-    | totalQuantity =>
-        simp [Loam.Observation180.AdditiveBasis] at hObservable
-    | representationLength =>
-        simp [Loam.Observation180.AdditiveBasis] at hObservable
-
-/--
-The promised bridge across the earlier observations. An Observation-180 target
-belongs to the additive closure exactly when it cannot distinguish any two
-Observation-159 vector-equivalent presentations.
--/
-theorem additive_closure_iff_respects_vector_equivalence
-    (target : Observable) :
-    Loam.Observation180.Closure Loam.Observation180.AdditiveBasis target ↔
-      ∀ left right : Evidence,
-        VectorEquivalent left right →
-          Loam.Observation180.observe target left =
-            Loam.Observation180.observe target right := by
-  constructor
-  · intro hClosed left right hVector
-    have hGeneric :
-        Closure
-          Loam.Observation180.observe
-          Loam.Observation180.AdditiveBasis
-          target :=
-      (observation180_closure_is_generic
-        Loam.Observation180.AdditiveBasis target).mp hClosed
-    have hFactors :=
-      (closure_iff_factors_through_indistinguishability
-        Loam.Observation180.observe
-        Loam.Observation180.AdditiveBasis
-        target).mp hGeneric
-    exact hFactors left right
-      ((additive_indistinguishability_iff_vector_equivalent left right).mpr hVector)
-  · intro hFactors
-    have hGeneric :
-        Closure
-          Loam.Observation180.observe
-          Loam.Observation180.AdditiveBasis
-          target := by
-      apply
-        (closure_iff_factors_through_indistinguishability
-          Loam.Observation180.observe
-          Loam.Observation180.AdditiveBasis
-          target).mpr
-      intro left right hIndistinguishable
-      exact hFactors left right
-        ((additive_indistinguishability_iff_vector_equivalent left right).mp
-          hIndistinguishable)
-    exact
-      (observation180_closure_is_generic
-        Loam.Observation180.AdditiveBasis target).mpr hGeneric
-
-/-- The derived total is constant on every Observation-159 additive equivalence class. -/
-theorem total_respects_vector_equivalence
-    (left right : Evidence)
-    (h : VectorEquivalent left right) :
-    Loam.Observation180.observe .totalQuantity left =
-      Loam.Observation180.observe .totalQuantity right := by
-  have hw := congrArg (fun quantity : Quantity => quantity.quanta) (h .wallet)
-  have hf := congrArg (fun quantity : Quantity => quantity.quanta) (h .food)
-  change
-    (aggregateAt left .wallet).quanta + (aggregateAt left .food).quanta =
-      (aggregateAt right .wallet).quanta + (aggregateAt right .food).quanta
-  rw [hw, hf]
-
-/-- Observation 180's derived-total result is recovered directly as quotient factorization. -/
-theorem total_is_closed_because_it_factors :
-    Loam.Observation180.Closure
-      Loam.Observation180.AdditiveBasis
-      .totalQuantity :=
-  (additive_closure_iff_respects_vector_equivalence .totalQuantity).mpr
-    total_respects_vector_equivalence
-
-/-- Retained presentation length distinguishes Observation 159's equivalent representatives. -/
-theorem representation_length_does_not_respect_vector_equivalence :
-    ¬ (∀ left right : Evidence,
-        VectorEquivalent left right →
-          Loam.Observation180.observe .representationLength left =
-            Loam.Observation180.observe .representationLength right) := by
-  intro h
-  have hLength := h
-    compactPresentation
-    splitPresentation
-    split_and_compact_are_vector_equivalent
-  simp [Loam.Observation180.observe, compactPresentation, splitPresentation] at hLength
-
-/--
-Observation 180's negative representation result is likewise recovered directly
-from Observation 159's quotient witness, without needing normalization as a
-separate counterexample transformation.
--/
-theorem representation_length_is_not_closed_because_it_does_not_factor :
-    ¬ Loam.Observation180.Closure
-      Loam.Observation180.AdditiveBasis
-      .representationLength := by
-  intro hClosed
-  exact representation_length_does_not_respect_vector_equivalence
-    ((additive_closure_iff_respects_vector_equivalence .representationLength).mp
-      hClosed)
-
-end Existing
-
 /-!
 ## Finding
 
-The three earlier observations now have one common minimal reading:
+The surviving structure is intentionally small:
 
 ```text
 retained evidence E
@@ -361,21 +189,18 @@ Closure(O)
     = observations that factor through E / ~O
 ```
 
-Observation 159 supplies a concrete nontrivial quotient: for the two-coordinate
-field trial, `~O` is exactly the free-Abelian-style coordinate-vector
-equivalence. Observation 179 supplies the preservation polarity. Observation
-180's all-endomap double polarity then becomes quotient factorization rather
-than a separate closure phenomenon.
+The finite wallet/food transformations that originally established the shape
+were representative discovery fixtures. They are no longer needed as live
+dependencies once the generic theorem above owns preservation polarity and
+closure/factorization directly.
 
-This is a structural unification, not a claim of new mathematics. The generic
-theorem is a familiar quotient/invariant/Galois-closure shape. LOAM's specific
-content is that the same shape arose independently from practical evidence
-retention and additive projection pressure.
-
-The all-endomap assumption is essential to the exact factorization theorem.
+This is a structural unification, not a claim of new mathematics. The
+all-endomap assumption remains essential to the exact factorization theorem.
 Production correction, routing, relation authority, time selection, publication,
 or human decision policy are not thereby arbitrary evidence endomaps and are
 not collapsed into this observation-local structure.
+
+Retired finite witnesses remain available in Git history.
 -/
 
 end Loam.Observation191
