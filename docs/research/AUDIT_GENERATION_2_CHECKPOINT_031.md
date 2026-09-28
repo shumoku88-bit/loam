@@ -1,6 +1,6 @@
 # LOAM Audit Generation 2 — Coverage Checkpoint at G2-031
 
-Status: **ACTIVE CAMPAIGN — BROAD COVERAGE, TARGETED GAPS REMAIN**
+Status: **HISTORICAL CHECKPOINT — CAMPAIGN CLOSED AT G2-034**
 
 Baseline main:
 
@@ -9,9 +9,10 @@ Baseline main:
 refactor(tui): remove Snapshot from Home transition (#972)
 ```
 
-This checkpoint catches the Generation-2 campaign up to the repository rather
-than the older starting ledger. The original `AUDIT_GENERATION_2.md` remains the
-historical launch document; this file is the current coverage view after G2-031.
+This checkpoint records the Generation-2 campaign through G2-031 rather than the
+older starting ledger. The original `AUDIT_GENERATION_2.md` remains the historical
+launch document, and `AUDIT_GENERATION_2_CLOSURE_034.md` is the current campaign
+closure record.
 
 Generation 2 still follows the same rule:
 
@@ -50,8 +51,9 @@ repository.
 ## Observation ledger
 
 The rows below record the main question or result of each merged numbered
-observation. They are a navigation index, not replacements for the detailed DAGs,
-DRAKON maps, tests, and PR discussions.
+observation. They are now the live navigation ledger for G2-001 through G2-031.
+Detailed campaign-local DAGs may graduate to Git history once their surviving
+meaning is owned here, by the G2-034 closure, and by current production/tests.
 
 | ID | Surface | Main result / checkpoint |
 | --- | --- | --- |
