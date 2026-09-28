@@ -137,7 +137,7 @@ def update (state : State) (key : Key) : Step :=
           else
             stay state
       | .backspace =>
-          let buf' := String.ofList buf.toList.dropLast
+          let buf' := Loam.Tui.Terminal.backspaceText buf
           stay { state with mode := .editingDelta buf', notice := "" }
       | .escape =>
           stay { state with mode := .selecting, notice := "Edit cancelled." }
