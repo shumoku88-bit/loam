@@ -124,7 +124,7 @@ private def eraseSeriesAt :
       List Loam.LocusTrendCompareReview.SeriesSpec
   | [], _ => []
   | _ :: rest, 0 => rest
-  | item :: rest, index + 1 => item :: eraseSeriesAt rest index
+  | item :: rest, Nat.succ index => item :: eraseSeriesAt rest index
 
 def removeFocusedSeries (state : State) : State :=
   if state.series.length <= 1 then state
