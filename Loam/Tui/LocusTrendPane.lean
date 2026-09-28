@@ -254,9 +254,9 @@ private def overviewAxisRows
     centered chunk (startShort ++ "→" ++ endShort)
   let valueLabels := snapshot.points.map fun point =>
     let marker := if point.complete then "● " else "◇ "
-    let partial := if point.complete then "" else " partial"
+    let partialSuffix := if point.complete then "" else " partial"
     centered chunk
-      (marker ++ amountText state point.dailyAverageQuanta ++ "/day" ++ partial)
+      (marker ++ amountText state point.dailyAverageQuanta ++ "/day" ++ partialSuffix)
   [ .row ([span (spaces plotLeft)] ++ dateLabels.map fun text => span text .muted)
   , .row ([span (spaces plotLeft)] ++ valueLabels.map span)
   ]
