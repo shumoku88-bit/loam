@@ -297,6 +297,50 @@ private def seriesMarker (index : Nat) : Char :=
   | 1 => '◆'
   | _ => '▲'
 
+private def seriesRack (state : State) : Widget :=
+  let seriesSpans :=
+    state.series.zipIdx.flatMap fun (spec, index) =>
+      let marker := String.ofList [seriesMarker index]
+      let label :=
+        if index == state.rackFocus then
+          "[" ++ marker ++ " " ++ spec.label ++ "]"
+        else
+          " " ++ marker ++ " " ++ spec.label ++ " "
+      [span label (seriesStyle index), span "  "]
+  let addText :=
+    if state.series.length < maxSeries then
+      "[+ Add Locus]"
+    else
+      "[3/3]"
+  .row
+    ([span "Series  "] ++ seriesSpans ++
+      [span addText .muted])
+
+private def pickerWindowSize : Nat := 7
+
+private def pickerRows (state : State) : List Widget :=
+  if !state.pickerOpen then []
+  else
+    let candidates := pickerCandidates state
+    if candidates.isEmpty then
+      [ muted "Add Locus   no additional admitted Loci available"
+      , muted "Esc/q cancel"
+      ]
+    else
+      let selected := state.pickerIndex % candidates.length
+      let start :=
+        if selected < pickerWindowSize then 0
+        else selected + 1 - pickerWindowSize
+      let visible := (candidates.drop start).take pickerWindowSize
+      [ muted "Add Locus   ↑/↓ choose   Enter add   Esc/q cancel" ] ++
+        visible.zipIdx.map fun (entry, offset) =>
+          let index := start + offset
+          .row
+            [ span (if index == selected then "> " else "  ")
+            , span (Loam.Tui.LocusPicker.display entry)
+                (if index == selected then .selected else .normal)
+            ]
+
 private def commaEveryThreeFromRight : List Char → Nat → List Char
   | [], _ => []
   | char :: rest, count =>
@@ -374,9 +418,9 @@ private def periodStatus
 
 private def heading :
     Loam.LocusTrendCompareReview.Granularity → String
-  | .cycle => "Trend Compare   cycle average / day"
-  | .month => "Trend Compare   month average / day"
-  | .day => "Trend Compare   daily amount"
+  | .cycle => "Trend   cycle average / day"
+  | .month => "Trend   month average / day"
+  | .day => "Trend   daily amount"
 
 private def scopeEndLabel
     (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
@@ -418,8 +462,10 @@ private def selectedLine
         shortDate endLabel ++ "   ·   " ++ periodStatus snapshot point
 
 private def header (state : State) : List Widget :=
+  let rack := [seriesRack state] ++ pickerRows state
   match state.snapshot, selectedWindow? state with
   | some snapshot, some point =>
+      rack ++
       [ line (heading snapshot.granularity)
       , muted
           (sourceLine state snapshot)
@@ -427,8 +473,9 @@ private def header (state : State) : List Widget :=
       ] ++ selectedSeriesRows state ++
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ]
   | _, _ =>
-      [ line ("Trend Compare   " ++ state.granularity.label)
-      , muted "Multi-series history unavailable."
+      rack ++
+      [ line ("Trend   " ++ state.granularity.label)
+      , muted "Trend history unavailable."
       ]
 
 private def allValues (state : State) : List Int :=
@@ -465,11 +512,15 @@ private def axisText
   | none => "         │ "
 
 private def footerTokens (state : State) : List String :=
-  let common :=
-    ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] grain"]
-  let range :=
-    if state.granularity == .day then ["s/S range"] else []
-  common ++ range ++ ["r renderer", "q/Esc Reports"]
+  if state.pickerOpen then
+    ["↑/↓ choose Locus", "Enter add", "Esc/q cancel"]
+  else
+    let common :=
+      ["Tab series", "a add", "x remove",
+       "←/→ or wheel period", "mouse click/drag", "[ / ] grain"]
+    let range :=
+      if state.granularity == .day then ["s/S range"] else []
+    common ++ range ++ ["r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
