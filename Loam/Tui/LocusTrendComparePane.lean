@@ -1,5 +1,7 @@
 import Loam.LocusTrendCompareReview
+import Loam.LocusCatalog
 import Loam.Tui.Chart
+import Loam.Tui.LocusPicker
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 
@@ -29,15 +31,56 @@ structure State where
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   scope : Loam.LocusTrendCompareReview.Scope := .allHistory
   renderer : Loam.Tui.Chart.Renderer := .braille
+  candidateCatalog : Loam.LocusCatalog.Catalog := []
+  pickerOpen : Bool := false
+  pickerSlot : Nat := 0
+  pickerIndex : Nat := 0
   deriving Repr, DecidableEq
 
 def initial : State := {}
+
+def maxSeries : Nat := 3
+
+def withCatalog
+    (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
+  { state with candidateCatalog := catalog, pickerIndex := 0 }
+
+def isPickerOpen (state : State) : Bool := state.pickerOpen
+
+def openSeriesPicker (state : State) (activeCount : Nat) : State :=
+  let slot := if activeCount < maxSeries then activeCount else 0
+  { state with pickerOpen := true, pickerSlot := slot, pickerIndex := 0 }
+
+def closeSeriesPicker (state : State) : State :=
+  { state with pickerOpen := false, pickerIndex := 0 }
+
+def selectPickerSlot (state : State) (slot : Nat) : State :=
+  if slot < maxSeries then { state with pickerSlot := slot } else state
+
+def movePicker (state : State) (back : Bool) : State :=
+  let options := state.candidateCatalog
+  if options.isEmpty then { state with pickerIndex := 0 }
+  else if back then
+    { state with pickerIndex :=
+        Loam.Tui.CyclicIndex.backward options.length state.pickerIndex }
+  else
+    { state with pickerIndex :=
+        Loam.Tui.CyclicIndex.forward options.length state.pickerIndex }
+
+def selectedPickerEntry? (state : State) : Option Loam.LocusCatalog.Entry :=
+  if state.candidateCatalog.isEmpty then none
+  else state.candidateCatalog[state.pickerIndex % state.candidateCatalog.length]?
 
 /-- One calendar-month-ish inspection window without inventing aggregation semantics. -/
 def dayViewportSize : Nat := 31
 
 def clear (state : State) : State :=
-  { state with snapshot := none, selected := 0, viewportStart := 0 }
+  { state with
+      snapshot := none
+      selected := 0
+      viewportStart := 0
+      pickerOpen := false
+      pickerIndex := 0 }
 
 private def maxDayViewportStart (count : Nat) : Nat :=
   count - min dayViewportSize count
@@ -249,6 +292,40 @@ private def selectedWindow?
   let snapshot ← state.snapshot
   snapshot.selectedWindow? state.selected
 
+private def seriesRack
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot) : Widget :=
+  let slots := (List.range maxSeries).flatMap fun index =>
+    match snapshot.series[index]? with
+    | some series =>
+        [ span
+            ("[" ++ toString (index + 1) ++ " " ++
+              String.ofList [seriesMarker index] ++ " " ++ series.spec.label ++ "] ")
+            (seriesStyle index) ]
+    | none =>
+        [ span ("[" ++ toString (index + 1) ++ " + Add] ") .muted ]
+  .row ([span "Series  " .muted] ++ slots)
+
+private def pickerRows (state : State) : List Widget :=
+  if !state.pickerOpen then []
+  else
+    let count := state.candidateCatalog.length
+    if count = 0 then
+      [ muted "Series picker: no currently admitted Locus is available."
+      , muted "Esc cancel"
+      ]
+    else
+      let selected := state.pickerIndex % count
+      let start := selected - min selected 3
+      let visible := (state.candidateCatalog.drop start).take 7
+      [ line ("Series picker   slot " ++ toString (state.pickerSlot + 1) ++
+          " / " ++ toString maxSeries ++ "   ·   exact Locus / inherited Measure") ] ++
+      visible.zipIdx.map (fun (entry, localIndex) =>
+        let absoluteIndex := start + localIndex
+        let marker := if absoluteIndex == selected then "› " else "  "
+        .row
+          [ span (marker ++ Loam.Tui.LocusPicker.display entry)
+              (if absoluteIndex == selected then .selected else .normal) ])
+
 private def selectedSeriesRows (state : State) : List Widget :=
   match state.snapshot with
   | none => []
@@ -323,15 +400,16 @@ private def header (state : State) : List Widget :=
   match state.snapshot, selectedWindow? state with
   | some snapshot, some point =>
       [ line (heading snapshot.granularity)
-      , muted
-          (sourceLine state snapshot)
+      , seriesRack snapshot
+      , muted (sourceLine state snapshot)
       , line (selectedLine snapshot point)
       ] ++ selectedSeriesRows state ++
-      [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ]
+      [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ] ++
+      pickerRows state
   | _, _ =>
       [ line ("Trend Compare   " ++ state.granularity.label)
       , muted "Multi-series history unavailable."
-      ]
+      ] ++ pickerRows state
 
 private def allValues (state : State) : List Int :=
   match state.snapshot with
@@ -367,11 +445,15 @@ private def axisText
   | none => "         │ "
 
 private def footerTokens (state : State) : List String :=
-  let common :=
-    ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] grain"]
-  let range :=
-    if state.granularity == .day then ["s/S range"] else []
-  common ++ range ++ ["r renderer", "q/Esc Reports"]
+  if state.pickerOpen then
+    ["↑/↓ choose Locus", "1/2/3 slot", "Enter apply", "x remove", "Esc cancel"]
+  else
+    let common :=
+      ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] grain",
+       "a series"]
+    let range :=
+      if state.granularity == .day then ["s/S range"] else []
+    common ++ range ++ ["r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
