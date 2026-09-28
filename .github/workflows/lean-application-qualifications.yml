@@ -53,6 +53,7 @@ on:
       - 'Loam/Tests/SettlementPublisher.lean'
       - 'Loam/Tests/SettlementReview.lean'
       - 'Loam/Tests/DeterministicMovementScenario.lean'
+      - 'Loam/Tests/DeterministicScenarioSupport.lean'
       - 'Loam/Tests/DeterministicActualMutationScenario.lean'
       - 'Loam/Tests/DeterministicSettlementScenario.lean'
       - 'experiments/109_practical_slice_c1.md'
@@ -134,6 +135,7 @@ on:
       - 'Loam/Tests/SettlementPublisher.lean'
       - 'Loam/Tests/SettlementReview.lean'
       - 'Loam/Tests/DeterministicMovementScenario.lean'
+      - 'Loam/Tests/DeterministicScenarioSupport.lean'
       - 'Loam/Tests/DeterministicActualMutationScenario.lean'
       - 'Loam/Tests/DeterministicSettlementScenario.lean'
       - 'experiments/109_practical_slice_c1.md'
@@ -173,6 +175,7 @@ jobs:
           test "$(python3 tools/select-lean-qualification-cases --event pull_request --paths Loam/Tests/DeterministicMovementScenario.lean)" = '["deterministic-movement-scenario"]'
           test "$(python3 tools/select-lean-qualification-cases --event pull_request --paths Loam/Tests/DeterministicActualMutationScenario.lean)" = '["deterministic-actual-mutation-scenario"]'
           test "$(python3 tools/select-lean-qualification-cases --event pull_request --paths Loam/Tests/DeterministicSettlementScenario.lean)" = '["deterministic-settlement-scenario"]'
+          test "$(python3 tools/select-lean-qualification-cases --event pull_request --paths Loam/Tests/DeterministicScenarioSupport.lean)" = '["deterministic-movement-scenario","deterministic-actual-mutation-scenario","deterministic-settlement-scenario"]'
           test "$(python3 tools/select-lean-qualification-cases --event workflow_dispatch --paths)" = '["attention-slice-c1","capacity-slice-a1","actual-correction-frontier","capacity-effective-window","scheduled-replacement-frontier","settlement-production-slice-c","settlement-actual-image-d2","settlement-normalized-actual-v2-d3","settlement-actual-authority-d4","settlement-explicit-writer-e","settlement-review","deterministic-movement-scenario","deterministic-actual-mutation-scenario","deterministic-settlement-scenario"]'
 
       - name: Select qualifications for this event
