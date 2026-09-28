@@ -24,6 +24,7 @@ the chart does not rely on color alone.
 structure State where
   snapshot : Option Loam.LocusTrendCompareReview.Snapshot := none
   selected : Nat := 0
+  granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
@@ -32,11 +33,41 @@ def initial : State := {}
 def clear (state : State) : State :=
   { state with snapshot := none, selected := 0 }
 
+private def selectedAnchor? (state : State) : Option String := do
+  let snapshot ← state.snapshot
+  let point ← snapshot.selectedWindow? state.selected
+  pure point.start
+
+private def indexContainingFrom?
+    (anchor : String) :
+    List Loam.LocusTrendReview.OverviewPoint → Nat → Option Nat
+  | [], _ => none
+  | point :: rest, index =>
+      if decide (point.start <= anchor && anchor < point.throughExclusive) then
+        some index
+      else
+        indexContainingFrom? anchor rest (index + 1)
+
 def withSnapshot
     (state : State)
     (snapshot : Loam.LocusTrendCompareReview.Snapshot) : State :=
-  let selected := if snapshot.pointCount = 0 then 0 else snapshot.pointCount - 1
-  { state with snapshot := some snapshot, selected := selected }
+  let fallback := if snapshot.pointCount = 0 then 0 else snapshot.pointCount - 1
+  let selected :=
+    match selectedAnchor? state, snapshot.series.head? with
+    | some anchor, some first =>
+        (indexContainingFrom? anchor first.points 0).getD fallback
+    | _, _ => fallback
+  {
+    state with
+      snapshot := some snapshot
+      selected := selected
+      granularity := snapshot.granularity
+  }
+
+def changeGranularity (state : State) (finer : Bool) : State :=
+  let granularity :=
+    if finer then state.granularity.finer else state.granularity.coarser
+  { state with granularity := granularity }
 
 def moveSelection (state : State) (back : Bool) : State :=
   match state.snapshot with
@@ -143,29 +174,70 @@ private def selectedSeriesRows (state : State) : List Widget :=
   | some snapshot =>
       snapshot.series.zipIdx.map fun (series, index) =>
         let value := series.valueAt? state.selected |>.getD 0
+        let suffix := if snapshot.granularity == .day then "" else "/day"
         .row
           [ span (String.ofList [seriesMarker index] ++ " " ++ series.spec.label ++ "  ")
               (seriesStyle index)
-          , span (amountText value ++ "/day")
+          , span (amountText value ++ suffix)
           ]
+
+private def isCurrentPartial
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (point : Loam.LocusTrendReview.OverviewPoint) : Bool :=
+  !point.complete && snapshot.observedAt < point.throughExclusive
+
+private def periodStatus
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (point : Loam.LocusTrendReview.OverviewPoint) : String :=
+  if point.complete then "complete"
+  else if isCurrentPartial snapshot point then "current partial"
+  else "partial coverage"
+
+private def heading :
+    Loam.LocusTrendCompareReview.Granularity → String
+  | .cycle => "Trend Compare   cycle average / day"
+  | .month => "Trend Compare   month average / day"
+  | .day => "Trend Compare   daily amount"
+
+private def sourceLine
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
+  match snapshot.granularity with
+  | .cycle =>
+      snapshot.source ++ " cycles through " ++ longDate snapshot.observedAt
+  | .month =>
+      "Calendar months from " ++ snapshot.source ++ " history through " ++
+        longDate snapshot.observedAt
+  | .day =>
+      "Calendar days from " ++ snapshot.source ++ " history through " ++
+        longDate snapshot.observedAt
+
+private def selectedLine
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (point : Loam.LocusTrendReview.OverviewPoint) : String :=
+  match snapshot.granularity with
+  | .day =>
+      "Selected   " ++ longDate point.start ++
+        (if isCurrentPartial snapshot point then "   ·   current day" else "")
+  | _ =>
+      let endLabel :=
+        if isCurrentPartial snapshot point then snapshot.observedAt
+        else point.endExclusive
+      "Selected   " ++ shortDate point.start ++ " → " ++
+        shortDate endLabel ++ "   ·   " ++ periodStatus snapshot point
 
 private def header (state : State) : List Widget :=
   match state.snapshot, selectedWindow? state with
   | some snapshot, some point =>
-      let endLabel :=
-        if point.complete then point.endExclusive else snapshot.observedAt
-      let status := if point.complete then "complete" else "current partial"
-      [ line "Trend Compare   cycle average / day"
+      [ line (heading snapshot.granularity)
       , muted
-          (snapshot.source ++ " cycles through " ++ longDate snapshot.observedAt ++
-            "   ·   jpy   ·   " ++ state.renderer.label)
-      , line
-          ("Selected   " ++ shortDate point.start ++ " → " ++
-            shortDate endLabel ++ "   ·   " ++ status)
+          (sourceLine snapshot ++
+            "   ·   jpy   ·   " ++ state.renderer.label ++
+            "   ·   " ++ snapshot.granularity.label)
+      , line (selectedLine snapshot point)
       ] ++ selectedSeriesRows state ++
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ]
   | _, _ =>
-      [ line "Trend Compare"
+      [ line ("Trend Compare   " ++ state.granularity.label)
       , muted "Multi-series history unavailable."
       ]
 
@@ -203,7 +275,8 @@ private def axisText
   | none => "         │ "
 
 private def footerTokens : List String :=
-  ["←/→ select period", "mouse hover select", "r renderer", "q/Esc Reports"]
+  ["←/→ select period", "mouse hover select", "[ / ] granularity",
+   "r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) : List Widget :=
   (Loam.Tui.Layout.flowTokens
@@ -244,6 +317,14 @@ private def chartRows (bounds : Bounds) (state : State) : List Widget :=
         | Widget.column _ => Widget.row [span (axisText height row scale)]
     | none => Widget.row [span (axisText height row scale)]
 
+private def compactAxisRow
+    (bounds : Bounds)
+    (first : Loam.LocusTrendReview.OverviewPoint)
+    (last : Loam.LocusTrendReview.OverviewPoint) : Widget :=
+  let width := plotWidth bounds
+  let text := shortDate first.start ++ "   …   " ++ shortDate last.start
+  .row [span (spaces plotLeft), span (centered width text) .muted]
+
 private def axisRow
     (bounds : Bounds) (state : State) : Widget :=
   match state.snapshot with
@@ -254,12 +335,20 @@ private def axisRow
       | some first =>
           let width := plotWidth bounds
           let count := first.points.length
-          let chunk := if count = 0 then width else max 1 (width / count)
-          let labels := first.points.map fun point =>
-            let endLabel :=
-              if point.complete then point.endExclusive else snapshot.observedAt
-            centered chunk (shortDate point.start ++ " → " ++ shortDate endLabel)
-          .row ([span (spaces plotLeft)] ++ labels.map fun text => span text .muted)
+          match first.points.head?, first.points.getLast? with
+          | some firstPoint, some lastPoint =>
+              if snapshot.granularity == .day ||
+                  (count > 0 && width / count < 8) then
+                compactAxisRow bounds firstPoint lastPoint
+              else
+                let chunk := if count = 0 then width else max 1 (width / count)
+                let labels := first.points.map fun point =>
+                  let endLabel :=
+                    if isCurrentPartial snapshot point then snapshot.observedAt
+                    else point.endExclusive
+                  centered chunk (shortDate point.start ++ " → " ++ shortDate endLabel)
+                .row ([span (spaces plotLeft)] ++ labels.map fun text => span text .muted)
+          | _, _ => muted ""
 
 /-- Render the comparison as a dedicated full-screen chart. -/
 def viewFullScreen

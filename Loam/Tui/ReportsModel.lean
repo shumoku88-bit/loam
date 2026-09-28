@@ -75,6 +75,7 @@ inductive Query where
   | scheduledCoverage (observedAt : String)
   | locusTrendCompare
       (observedAt : String)
+      (granularity : Loam.LocusTrendCompareReview.Granularity)
       (series : List Loam.LocusTrendCompareReview.SeriesSpec)
   | locusTrendOverview
       (observedAt : String)
@@ -426,7 +427,8 @@ private def selectMenuStep (state : State) : Step :=
     | .locusTrendCompare =>
         { state := next,
           query := some (.locusTrendCompare
-            next.window.calendarAnchor next.trendCompareSeries) }
+            next.window.calendarAnchor next.trendCompare.granularity
+            next.trendCompareSeries) }
     | .locusTrend =>
         { state := next,
           query := some (.locusTrendOverview
@@ -461,7 +463,8 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       let next := { state with mode := .locusTrendCompare, notice := "", scroll := 0 }
       { state := next,
         query := some (.locusTrendCompare
-          next.window.calendarAnchor next.trendCompareSeries) }
+          next.window.calendarAnchor next.trendCompare.granularity
+          next.trendCompareSeries) }
   | .input 'g' | .input 'G' =>
       let next := { state with mode := .locusTrend, notice := "", scroll := 0 }
       { state := next,
@@ -480,7 +483,8 @@ private def queryForMode (state : State) : Option Query :=
   | .budgetWindow => some (.budgetWindow state.window.form.start state.window.form.endExclusive)
   | .locusTrendCompare =>
       some (.locusTrendCompare
-        state.window.calendarAnchor state.trendCompareSeries)
+        state.window.calendarAnchor state.trendCompare.granularity
+        state.trendCompareSeries)
   | .locusTrend =>
       if Loam.Tui.LocusTrendPane.isOverview state.trend then
         some (.locusTrendOverview
@@ -663,6 +667,22 @@ private def updateLocusTrendCompare
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.moveSelection state.trendCompare false
           notice := "" } }
+  | .input '[' =>
+      let trendCompare :=
+        Loam.Tui.LocusTrendComparePane.changeGranularity state.trendCompare false
+      let next := { state with trendCompare := trendCompare, notice := "" }
+      if trendCompare.granularity == state.trendCompare.granularity then
+        { state := next }
+      else
+        { state := next, query := queryForMode next }
+  | .input ']' =>
+      let trendCompare :=
+        Loam.Tui.LocusTrendComparePane.changeGranularity state.trendCompare true
+      let next := { state with trendCompare := trendCompare, notice := "" }
+      if trendCompare.granularity == state.trendCompare.granularity then
+        { state := next }
+      else
+        { state := next, query := queryForMode next }
   | .input 'r' | .input 'R' =>
       { state := { state with
           trendCompare :=

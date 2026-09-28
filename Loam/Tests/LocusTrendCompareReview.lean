@@ -82,4 +82,85 @@ def main : IO Unit := do
       expect (!point.complete && point.throughExclusive == "2026-04-18")
         "Trend Compare lost partial current-window semantics"
 
-  IO.println "Trend Compare: aligned exact-Locus cycle averages passed."
+  expect (snapshot.granularity == .cycle)
+    "Trend Compare changed the backwards-compatible projection granularity"
+
+  let calendarPreset : Loam.BoundaryPresetConfig.Preset := {
+    name := "Pension"
+    boundaries := ["2026-04-01", "2026-06-01"]
+  }
+  let calendarRecords :=
+    [ record "mt1" "2026-04-01" "tobacco" 300
+    , record "mt2" "2026-04-30" "tobacco" 300
+    , record "mt3" "2026-05-01" "tobacco" 100
+    , record "mt4" "2026-05-02" "tobacco" 300
+    , record "mc1" "2026-04-01" "coffee" 60
+    , record "mc2" "2026-04-30" "coffee" 240
+    , record "mc3" "2026-05-01" "coffee" 50
+    , record "mc4" "2026-05-02" "coffee" 150
+    , record "mf1" "2026-04-15" "food" 900
+    , record "mf2" "2026-05-02" "food" 600
+    ]
+
+  let monthly ←
+    match Loam.LocusTrendCompareReview.projectAtGranularity
+        calendarRecords calendarPreset "2026-05-02" .month specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect (monthly.granularity == .month && monthly.pointCount == 2)
+    "Trend Compare did not align calendar-month comparison points"
+  let monthlyTobacco ← requireSome monthly.series[0]?
+    "Trend Compare lost monthly tobacco series"
+  let monthlyCoffee ← requireSome monthly.series[1]?
+    "Trend Compare lost monthly coffee series"
+  expect
+    (monthlyTobacco.points.map (·.dailyAverageQuanta) == [20, 200])
+    "Trend Compare changed monthly tobacco averages"
+  expect
+    (monthlyCoffee.points.map (·.dailyAverageQuanta) == [10, 100])
+    "Trend Compare changed monthly coffee averages"
+  match monthlyTobacco.points[1]? with
+  | none => throw (IO.userError "Trend Compare lost current calendar month")
+  | some point =>
+      expect (!point.complete && point.start == "2026-05-01" &&
+          point.throughExclusive == "2026-05-03")
+        "Trend Compare lost current partial-month semantics"
+
+  let daily ←
+    match Loam.LocusTrendCompareReview.projectAtGranularity
+        calendarRecords calendarPreset "2026-05-02" .day specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect (daily.granularity == .day && daily.pointCount == 32)
+    "Trend Compare did not preserve one point per calendar day"
+  let dailyTobacco ← requireSome daily.series[0]?
+    "Trend Compare lost daily tobacco series"
+  expect
+    (dailyTobacco.points[0]?.map (·.dailyAverageQuanta) == some 300 &&
+      dailyTobacco.points[1]?.map (·.dailyAverageQuanta) == some 0 &&
+      dailyTobacco.points[30]?.map (·.dailyAverageQuanta) == some 100 &&
+      dailyTobacco.points[31]?.map (·.dailyAverageQuanta) == some 300)
+    "Trend Compare changed exact calendar-day values or zero days"
+  match dailyTobacco.points[31]? with
+  | none => throw (IO.userError "Trend Compare lost the observation day")
+  | some point =>
+      expect (!point.complete && point.start == "2026-05-02")
+        "Trend Compare did not mark the observation day as current"
+
+  let partialPreset : Loam.BoundaryPresetConfig.Preset := {
+    name := "Pension"
+    boundaries := ["2026-04-15", "2026-06-15"]
+  }
+  let partialMonthly ←
+    match Loam.LocusTrendCompareReview.projectAtGranularity
+        calendarRecords partialPreset "2026-05-02" .month specs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  match partialMonthly.selectedWindow? 0 with
+  | none => throw (IO.userError "Trend Compare lost first partial month")
+  | some point =>
+      expect (!point.complete && point.start == "2026-04-15" &&
+          point.endExclusive == "2026-05-01")
+        "Trend Compare overstated a mid-month history start as a complete month"
+
+  IO.println "Trend Compare: aligned exact-Locus cycle/month/day projections passed."

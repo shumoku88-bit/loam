@@ -83,9 +83,11 @@ def main : IO Unit := do
   expect (isLocusTrendCompare compareStep.state)
     "Reports direct Trend Compare key did not enter the comparison surface"
   match compareStep.query with
-  | some (.locusTrendCompare observedAt series) =>
+  | some (.locusTrendCompare observedAt granularity series) =>
       expect (observedAt == "2026-09-07")
         "Trend Compare lost the selected Home observation date"
+      expect (granularity == .cycle)
+        "Trend Compare did not open at cycle granularity"
       expect (series.map (·.label) == ["Tobacco", "Coffee", "Food"])
         "Trend Compare default series labels changed"
       expect
@@ -163,6 +165,75 @@ def main : IO Unit := do
     Loam.Tui.Reports.withLocusTrendCompareSnapshot compareStep.state compareSnapshot
   expect (compareReport.trendCompare.selected == 2)
     "Trend Compare did not select the current cycle initially"
+
+  let monthRequest := Loam.Tui.Reports.update compareReport (.input ']')
+  match monthRequest.query with
+  | some (.locusTrendCompare observedAt granularity series) =>
+      expect (observedAt == "2026-09-07" && granularity == .month &&
+          series.map (·.label) == ["Tobacco", "Coffee", "Food"])
+        "Trend Compare ] did not request the same exact series at month granularity"
+  | _ => throw (IO.userError "Trend Compare ] did not request month granularity")
+
+  let monthPoints : List Loam.LocusTrendReview.OverviewPoint :=
+    [ { start := "2026-04-15", endExclusive := "2026-05-01",
+        throughExclusive := "2026-05-01", total := Quantity.ofQuanta 7000,
+        observedDays := 16, dailyAverageQuanta := 437, complete := false }
+    , { start := "2026-05-01", endExclusive := "2026-06-01",
+        throughExclusive := "2026-06-01", total := Quantity.ofQuanta 14500,
+        observedDays := 31, dailyAverageQuanta := 467, complete := true }
+    , { start := "2026-06-01", endExclusive := "2026-07-01",
+        throughExclusive := "2026-07-01", total := Quantity.ofQuanta 15000,
+        observedDays := 30, dailyAverageQuanta := 500, complete := true }
+    , { start := "2026-07-01", endExclusive := "2026-08-01",
+        throughExclusive := "2026-08-01", total := Quantity.ofQuanta 15810,
+        observedDays := 31, dailyAverageQuanta := 510, complete := true }
+    , { start := "2026-08-01", endExclusive := "2026-09-01",
+        throughExclusive := "2026-09-01", total := Quantity.ofQuanta 15500,
+        observedDays := 31, dailyAverageQuanta := 500, complete := true }
+    , { start := "2026-09-01", endExclusive := "2026-09-08",
+        throughExclusive := "2026-09-08", total := Quantity.ofQuanta 3500,
+        observedDays := 7, dailyAverageQuanta := 500, complete := false }
+    ]
+  let monthTobacco : Loam.LocusTrendCompareReview.Series := {
+    spec := tobaccoSpec, points := monthPoints, undatedMatchingCurrentRecords := 0
+  }
+  let monthCoffee : Loam.LocusTrendCompareReview.Series := {
+    spec := coffeeSpec, points := monthPoints, undatedMatchingCurrentRecords := 0
+  }
+  let monthFood : Loam.LocusTrendCompareReview.Series := {
+    spec := foodSpec, points := monthPoints, undatedMatchingCurrentRecords := 0
+  }
+  let monthSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
+    source := "Pension"
+    observedAt := "2026-09-07"
+    granularity := .month
+    series := [monthTobacco, monthCoffee, monthFood]
+  }
+  let monthReport :=
+    Loam.Tui.Reports.withLocusTrendCompareSnapshot monthRequest.state monthSnapshot
+  expect (monthReport.trendCompare.granularity == .month &&
+      monthReport.trendCompare.selected == 4)
+    "Trend Compare did not preserve the selected Aug 14 period when zooming to months"
+  let monthText := widgetText
+    (Loam.Tui.Reports.viewForBounds { width := 100, height := 30 } monthReport)
+  expect (contains "Trend Compare   month average / day" monthText &&
+      contains "Aug 1 → Sep 1" monthText &&
+      contains "[ / ] granularity" monthText)
+    "Trend Compare month view did not expose its granularity and selected month"
+
+  let dayRequest := Loam.Tui.Reports.update monthReport (.input ']')
+  match dayRequest.query with
+  | some (.locusTrendCompare observedAt granularity _) =>
+      expect (observedAt == "2026-09-07" && granularity == .day)
+        "Trend Compare second ] did not request day granularity"
+  | _ => throw (IO.userError "Trend Compare second ] did not request day granularity")
+
+  let cycleRequest := Loam.Tui.Reports.update monthReport (.input '[')
+  match cycleRequest.query with
+  | some (.locusTrendCompare _ granularity _) =>
+      expect (granularity == .cycle)
+        "Trend Compare [ did not return from month to cycle granularity"
+  | _ => throw (IO.userError "Trend Compare [ did not request cycle granularity")
 
   let compareLeft := (Loam.Tui.Reports.update compareReport .left).state
   expect (compareLeft.trendCompare.selected == 1)
