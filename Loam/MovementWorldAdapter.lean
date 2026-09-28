@@ -40,7 +40,4 @@ def ofActual
   locusAdmission := locusAdmission
 }
 
-/-- Compatibility alias for `ofActual`. -/
-abbrev movementWorld := ofActual
-
 end Loam.MovementWorldAdapter
