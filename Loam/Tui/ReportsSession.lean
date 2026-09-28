@@ -1,6 +1,8 @@
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
+import Loam.LocusAdmissionAuthority
+import Loam.LocusCatalog
 import Loam.LocusTrendReview
 import Loam.LocusTrendCompareReview
 import Loam.MultimeasureSpendReview
@@ -31,6 +33,15 @@ Owns only the TUI orchestration that turns a Reports query into an existing
 shared Review answer and redraws the Reports workspace. Household semantics,
 query meaning, and report rendering remain in their existing owners.
 -/
+
+private def currentTrendCatalog
+    (dataDir : System.FilePath) : IO Loam.LocusCatalog.Catalog := do
+  match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
+  | .error _ => return []
+  | .ok vocabulary =>
+      match ← Loam.LocusCatalog.loadForVocabulary dataDir vocabulary with
+      | .ok catalog => return catalog
+      | .error _ => return Loam.LocusCatalog.fallback vocabulary
 
 /-- Reports session; q/Esc moves back one level and eventually returns Home. -/
 partial def run (bounds : Bounds)
@@ -101,11 +112,18 @@ partial def run (bounds : Bounds)
         | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some (.locusTrendCompare observedAt granularity scope series) =>
+        let catalog ← currentTrendCatalog dataDir
         match ← Loam.LocusTrendCompareReview.loadConfiguredAtScope
             dataDir root observedAt granularity scope series with
         | .ok snapshot =>
-            pure (Loam.Tui.Reports.withLocusTrendCompareSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
+            let loaded :=
+              Loam.Tui.Reports.withLocusTrendCompareSnapshot step.state snapshot
+            pure { loaded with
+              trendCompare :=
+                Loam.Tui.LocusTrendComparePane.withCatalog
+                  loaded.trendCompare catalog }
+        | .error message =>
+            pure (Loam.Tui.Reports.withTrendError step.state message)
     | some (.locusTrendOverview observedAt coordinate) =>
         match ← Loam.LocusTrendReview.loadConfiguredOverview
             dataDir root observedAt coordinate with
