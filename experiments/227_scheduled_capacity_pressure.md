@@ -9,7 +9,7 @@ The production household uses `Scheduled` for roughly fixed expected future cash
 Current retained examples therefore include both sides of that practical idea:
 
 ```text
-wifi / povo / subscriptions / insurance / rent / utilities / debt repayment
+connectivity / mobile / subscriptions / insurance / rent / utilities / debt repayment
 pension / support receipts
 ```
 
@@ -21,7 +21,7 @@ explicitly unmanaged
 unrouted
 ```
 
-That is now under stronger household pressure. A positive Asset receipt such as pension landing in `smbc` is Scheduled, but it should not consume household Capacity merely because its quantity is positive.
+That is now under stronger household pressure. A positive Asset receipt such as income receipt landing in `bank-a` is Scheduled, but it should not consume household Capacity merely because its quantity is positive.
 
 At the same time, simply changing the default to positive Expense only would lose another real household pressure: a debt repayment has a positive Liability coordinate and is still a fixed outgoing obligation.
 
@@ -44,14 +44,14 @@ No HRA type or Envelope ontology is imported by this experiment.
 
 ## Household provenance pressure
 
-The current 11 Scheduled occurrences in `loam-data` were imported from the then-current HRA household source into direct LOAM Loci without copying HRA AccountType, recurrence, series, anchor, or other HRA ontology.
+The private household Scheduled occurrences were imported from the then-current household source into direct LOAM Loci without copying HRA AccountType, recurrence, series, anchor, or other HRA ontology.
 
 The source evidence distinguishes representative shapes:
 
 ```text
-positive Expense       wifi, rent, utilities, insurance, subscriptions
+positive Expense       connectivity, rent, utilities, insurance, subscriptions
 positive Liability     debt repayment
-positive Asset         pension/support receipt into smbc
+positive Asset         income/support receipt into bank-a
 ```
 
 The old all-positive projection therefore visibly over-approximates Capacity pressure in this real household slice.
@@ -96,7 +96,7 @@ unresolved eligibility
 This gives the current household the intended distinctions without a new retained eligibility bit:
 
 ```text
-wifi               Expense + managed route -> managed pressure
+connectivity       Expense + managed route -> managed pressure
 pension receipt    Asset + no route         -> resolved non-pressure
 debt repayment     Liability + no route     -> unrouted pressure
 planned savings    Asset + managed route    -> managed pressure
@@ -229,4 +229,4 @@ Production work remains separate from this Observation:
 4. add representative tests for Asset receipt, Liability repayment, Expense, routed Asset, missing-role/unrouted, and negative funding coordinates;
 5. only then consider admitting household ScheduledRouting rows supported by explicit provenance.
 
-No canonical routing rows should be guessed merely from labels such as `wifi`, `rent`, or `utilities`.
+No canonical routing rows should be guessed merely from labels such as `connectivity`, `rent`, or `utilities`.

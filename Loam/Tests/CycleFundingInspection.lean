@@ -38,7 +38,7 @@ private def current (rows : List Loam.CurrentCoverageReview.Row) :
     scheduledFrontier := some {
       unmanaged := Quantity.ofQuanta 3
       unrouted := Quantity.ofQuanta 5
-      unresolvedEligibility := Quantity.ofQuanta 4810 } }
+      unresolvedEligibility := Quantity.ofQuanta 4000 } }
 
 private def assertAmounts (label : String) (summary : Summary)
     (backing assigned residual : Int) : IO Unit := do

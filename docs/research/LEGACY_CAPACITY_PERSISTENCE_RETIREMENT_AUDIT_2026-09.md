@@ -26,7 +26,7 @@ All production properties are either preserved or strengthened by operating excl
    - **Status**: Identity allocation (`freshCapacityId`) computes across both `CapacityMovement` and `CapacityEffective` memory in `CapacityEvidence`. It does not rely on filesystem splitting.
 
 4. **Canonical Data Status**
-   - **Status**: Canonical household repository `loam-data` (PR #110 merged at `f49aba369ef9947eb52fb4cda4fa2e0192645473`) has already migrated to `LOAM-NORMALIZED-CAPACITY 1` (25 movements, 25 effective dates, 1-to-1 correspondence) and removed `capacity.loam.effective`.
+   - **Status**: The private household repository has already migrated to `LOAM-NORMALIZED-CAPACITY 1` with complete one-to-one movement/effective correspondence and removed `capacity.loam.effective`; the private revision and row counts are intentionally omitted here.
    - Git history serves as the historical archive; keeping migration scaffolding in the active production tree is unnecessary.
 
 5. **Writer Behavior**

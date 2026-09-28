@@ -19,8 +19,8 @@ Tracks: #1372
 Household dogfooding exposed a gap between current quantity support and useful
 historical reconstruction.
 
-For the current household data, `cash/jpy`, `yucho/jpy`, and
-`all-country/jpy` have:
+For the current household data, `wallet-a/jpy`, `savings-a/jpy`, and
+`investment-a/jpy` have:
 
 - retained dated Actual changes;
 - a user-confirmed claim that household changes have been recorded since the
@@ -115,10 +115,10 @@ unknown.
 
 ```text
 computed ledger  1200
-observed reality 1259
-difference        +59
+observed reality 1250
+difference        +50
 
-explicit adjustment +59
+explicit adjustment +50
   -> later balance boundary is usable again
 ```
 

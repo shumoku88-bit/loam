@@ -10,16 +10,16 @@ remaining, scheduled totals, or SafeToSpend authority.
 
 - LOAM remote main: `15bcc2928e58d03a8b061c56a232f55d437c1bd8`.
   Local main was two commits behind and was fast-forwarded before branching.
-- loam-data local and remote main: `2e2c7058353e443868d04a7a1391c0c75b140d07`.
-  No tracked uncommitted changes; neither repository had an open PR.
+- private household revision: omitted from the public research record.
+  The private repository was clean and had no open PR at the time of qualification.
 - `feat/tui` was not used as a starting point.
 
 ### Concrete seam: current entitlement and editor date
 
 CurrentCoverage bounded Actual consumption but used all-retained Capacity.
-`capacity-11` grants stock food 1180 and `capacity-12` grants general living
-5546; **both** have retained effective date 2026-10-08. The user's stated intent
-was current-cycle correction as observed on 2026-09-08.
+Two private household Capacity grants had been retained with a later effective
+date than the intended current-cycle observation. Exact movement identities,
+amounts, and private revision are intentionally omitted from the public record.
 
 Capacity session passed Home's selected date into Transfer and Rebalance.
 The session must instead receive only observedAt for Capacity editor defaults;
@@ -56,7 +56,7 @@ No household files were changed during this initial qualification. Before any
 recovery, recheck git status, both original movement IDs/dates, and newly added
 movements. After recovery verify both the 2026-09-08 and 2026-10-08 projections,
 plus effective completeness and physical balances (which must not change).
-The existing CurrentCoverageDogfood checkpoint describes the **pre-recovery**
+The corresponding private household qualification describes the **pre-recovery**
 answer and must not be silently relabeled as the recovered answer.
 
 ## Reused boundaries and following PRs
@@ -179,6 +179,6 @@ LOAM Home.
 - `tests/test_cycle_budget_tui.py`: real PTY interaction with `loamTui` on isolated
   synthetic evidence, verifying `c` entrance, focus independence, Capacity transition,
   `b` back-navigation, clean exit, and zero disk mutation.
-- `Loam/Tests/CycleBudgetDogfood.lean`: read-only verification against the 2026-09-08
-  checkpoint in `loam-data`.
+- private household qualification: read-only verification against the selected
+  household checkpoint remains private; public CI uses synthetic fixtures.
 

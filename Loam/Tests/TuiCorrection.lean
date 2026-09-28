@@ -26,7 +26,7 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
 private def emptyWorld : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci?
-      [⟨"paypay"⟩, ⟨"coffee"⟩, ⟨"receivable:mother"⟩]
+      [⟨"paypay"⟩, ⟨"coffee"⟩, ⟨"receivable:counterparty"⟩]
     | throw (IO.userError "vocabulary")
   return {
     events := events
@@ -96,7 +96,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok world ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
-  let known := ["paypay", "coffee", "receivable:mother"]
+  let known := ["paypay", "coffee", "receivable:counterparty"]
   let forcedForm : Loam.Tui.Record.Form := {
     editor.editor.form with focus := ⟨0, by omega⟩ }
   let forced : Loam.Tui.Correction.State := {
@@ -113,7 +113,7 @@ def main (args : List String) : IO Unit := do
   let some catalogMetadata := Loam.LocusCatalog.decode?
       ("paypay\tPayPay\tPayPay残高\n" ++
        "coffee\tコーヒー\tコーヒー支出\n" ++
-       "receivable:mother\t母への立替金\t母への未回収立替残高\n")
+       "receivable:counterparty\t立替金\t未回収立替残高\n")
     | throw (IO.userError "Correction catalog metadata fixture")
   let catalog := Loam.LocusCatalog.forVocabulary world.locusAdmission catalogMetadata
   let filteredForm : Loam.Tui.Record.Form := {
@@ -134,7 +134,7 @@ def main (args : List String) : IO Unit := do
   let filteredText := widgetText (Loam.Tui.Correction.view known filteredState)
   expect (contains "[Preview] [Add posting] [Drop last row] [Cancel]" filteredText)
     "Correction action labels drifted from Record action semantics"
-  expect (contains "receivable:mother" filteredText && contains "母への立替金" filteredText)
+  expect (contains "receivable:counterparty" filteredText && contains "立替金" filteredText)
     "Correction did not expose filtered human-facing Locus candidates"
   expect (!contains "coffee  コーヒー" filteredText)
     "Correction candidate list ignored the typed Locus filter"

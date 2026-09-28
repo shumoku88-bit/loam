@@ -25,15 +25,15 @@ private def balancedEvent
 def main : IO Unit := do
   let roles ← requireSome
     (AccountingRoleMap.ofAssignments?
-      [ { locus := ⟨"smbc"⟩, role := .asset }
-      , { locus := ⟨"gpt-plus"⟩, role := .expense }
+      [ { locus := ⟨"checking"⟩, role := .asset }
+      , { locus := ⟨"software"⟩, role := .expense }
       , { locus := ⟨"pension"⟩, role := .income }
-      , { locus := ⟨"debt-friend-k"⟩, role := .liability }
+      , { locus := ⟨"personal-loan"⟩, role := .liability }
       , { locus := ⟨"equity:opening-balances"⟩, role := .equity }
       ])
     "role fixture"
 
-  let event ← balancedEvent "event-1" "smbc" "gpt-plus" "jpy" 3000
+  let event ← balancedEvent "event-1" "checking" "software" "jpy" 3000
   let entry : Loam.ActualJournalProjection.Entry := {
     event := event
     validOn := "2026-09-15"
@@ -46,12 +46,12 @@ def main : IO Unit := do
     "transaction heading was not normalized into one safe line"
   expect (contains "    ; loam-event-id: event-1" rendered)
     "LOAM Event identity was not retained as a transaction comment"
-  expect (contains "    assets:smbc  -3000 jpy" rendered)
+  expect (contains "    assets:checking  -3000 jpy" rendered)
     "Asset role did not project to assets: account prefix"
-  expect (contains "    expenses:gpt-plus  3000 jpy" rendered)
+  expect (contains "    expenses:software  3000 jpy" rendered)
     "Expense role did not project to expenses: account prefix"
 
-  let incomeEvent ← balancedEvent "event-income" "pension" "smbc" "jpy" 1000
+  let incomeEvent ← balancedEvent "event-income" "pension" "checking" "jpy" 1000
   let incomeEntry : Loam.ActualJournalProjection.Entry := {
     event := incomeEvent
     validOn := "2026-09-15"
@@ -61,10 +61,10 @@ def main : IO Unit := do
     | throw (IO.userError "income PTA export refused")
   expect (contains "    income:pension  -1000 jpy" incomeRendered)
     "Income sign was rewritten instead of preserving LOAM quantity"
-  expect (contains "    assets:smbc  1000 jpy" incomeRendered)
+  expect (contains "    assets:checking  1000 jpy" incomeRendered)
     "Asset side of income Event changed sign"
 
-  let liabilityEvent ← balancedEvent "event-liability" "smbc" "debt-friend-k" "jpy" 500
+  let liabilityEvent ← balancedEvent "event-liability" "checking" "personal-loan" "jpy" 500
   let liabilityEntry : Loam.ActualJournalProjection.Entry := {
     event := liabilityEvent
     validOn := "2026-09-15"
@@ -73,11 +73,11 @@ def main : IO Unit := do
   let .ok liabilityRendered :=
       Loam.PlainTextAccountingExport.render? roles [liabilityEntry]
     | throw (IO.userError "liability PTA export refused")
-  expect (contains "    liabilities:debt-friend-k  500 jpy" liabilityRendered)
+  expect (contains "    liabilities:personal-loan  500 jpy" liabilityRendered)
     "Liability sign was rewritten instead of preserving LOAM quantity"
 
   let openingEvent ← balancedEvent
-    "event-opening" "equity:opening-balances" "smbc" "jpy" 100
+    "event-opening" "equity:opening-balances" "checking" "jpy" 100
   let openingEntry : Loam.ActualJournalProjection.Entry := {
     event := openingEvent
     validOn := "2026-09-15"
@@ -91,7 +91,7 @@ def main : IO Unit := do
   expect (!contains "equity:equity:opening-balances" openingRendered)
     "explicit role prefix duplicated in PTA account name"
 
-  let usdEvent ← balancedEvent "event-usd" "smbc" "gpt-plus" "usd" 1234
+  let usdEvent ← balancedEvent "event-usd" "checking" "software" "usd" 1234
   let usdEntry : Loam.ActualJournalProjection.Entry := {
     event := usdEvent
     validOn := "2026-09-15"
@@ -102,12 +102,12 @@ def main : IO Unit := do
   let .ok usdRendered :=
       Loam.PlainTextAccountingExport.renderWithPresentation? presentation roles [usdEntry]
     | throw (IO.userError "scaled USD PTA export refused")
-  expect (contains "    assets:smbc  -12.34 usd" usdRendered)
+  expect (contains "    assets:checking  -12.34 usd" usdRendered)
     "PTA asset posting did not preserve USD scale"
-  expect (contains "    expenses:gpt-plus  12.34 usd" usdRendered)
+  expect (contains "    expenses:software  12.34 usd" usdRendered)
     "PTA expense posting did not preserve USD scale"
 
-  let unresolved ← balancedEvent "event-2" "smbc" "legacy-bucket" "jpy" 500
+  let unresolved ← balancedEvent "event-2" "checking" "legacy-bucket" "jpy" 500
   let unresolvedEntry : Loam.ActualJournalProjection.Entry := {
     event := unresolved
     validOn := "2026-09-16"
@@ -121,7 +121,7 @@ def main : IO Unit := do
 
   let unbalanced ← requireSome
     (Event.ofEffects? ⟨"event-unbalanced"⟩
-      [Effect.ofAnonymousQuantity ⟨"smbc"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100))])
+      [Effect.ofAnonymousQuantity ⟨"checking"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100))])
     "unbalanced Event fixture admission"
   let unbalancedEntry : Loam.ActualJournalProjection.Entry := {
     event := unbalanced

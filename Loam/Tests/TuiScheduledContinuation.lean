@@ -35,7 +35,7 @@ def main : IO Unit := do
   let source ← occurrence "source" "2026-09-15" "gpt-plus" 3000
   let nextRaised ← occurrence "next-raised" "2026-10-15" "gpt-plus" 6000
   let laterRaised ← occurrence "later-raised" "2026-11-15" "gpt-plus" 6000
-  let other ← occurrence "other" "2026-10-10" "wifi" 4810
+  let other ← occurrence "other" "2026-10-10" "service" 4000
   let earlierSame ← occurrence "earlier-same" "2026-09-10" "gpt-plus" 3000
 
   let scheduled ← requireSome

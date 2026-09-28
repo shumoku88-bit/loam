@@ -9,13 +9,13 @@ Production `loamTui` dogfood exposed a concrete input inconsistency.
 A normal household record could be entered as:
 
 ```text
-paypay -> coffee
+wallet-a -> coffee
 ```
 
 but the current approved vocabulary required:
 
 ```text
-paypay -> expenses:タバコ
+wallet-a -> expenses:タバコ
 ```
 
 rather than the human input `タバコ`.
@@ -40,14 +40,14 @@ while current holding/operational identities include flat tokens such as:
 
 ```text
 cash
-paypay
-smbc
-yucho
-all-country
+wallet-a
+bank-a
+savings-a
+investment-a
 coffee
 pension
 support
-debt-friend-k
+liability-a
 ```
 
 This asymmetry is already tracked as `loam-data` debt DD-002, "HRA-derived Locus
@@ -59,7 +59,7 @@ The current new-write admission vocabulary already supplies one useful
 separation. Historical `income:*`, `liabilities:*`, and `equity:*` tokens remain
 readable in admitted Event history but are not generally approved as the current
 operational spellings for new writes. Current operational tokens instead include
-flat identities such as `pension`, `support`, and `debt-friend-k`.
+flat identities such as `pension`, `support`, and `liability-a`.
 
 The remaining visible friction is concentrated in approved source-shaped expense
 identities such as:
@@ -94,7 +94,7 @@ A superseded pre-cutover experiment had directly rewritten a small dataset:
 ```text
 缶コーヒー -> coffee
 タバコ     -> tobacco
-オルカン積立 -> all-country
+オルカン積立 -> investment-a
 ```
 
 The later destructive historical cutover intentionally did not generalize that

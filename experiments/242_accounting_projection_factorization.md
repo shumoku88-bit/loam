@@ -114,10 +114,10 @@ Current zero-origin coverage, however, covers only five JPY holding coordinates:
 
 ```text
 cash
-paypay
-smbc
-yucho
-all-country
+wallet-a
+bank-a
+savings-a
+investment-a
 ```
 
 Therefore current evidence can support a broad occurrence-time RoleFlow projection more readily than a complete all-account RoleBalance / Trial Balance projection.

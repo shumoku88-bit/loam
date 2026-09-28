@@ -12,11 +12,11 @@ feat(cli): expose balances report as plain text (#822)
 Household pressure:
 
 ```text
-loam-data 9aca13c98dd8a479b3817478d603976b9aa32ac4
+private household revision omitted
 
 RoleBalance quantity blockers:
-  debt-mother
-  debt-mother-wifi
+  liability-a
+  liability-b
 ```
 
 The user has independently confirmed that current real-world balances are correct, while retained history does not justify zero-origin support for these two liabilities.
