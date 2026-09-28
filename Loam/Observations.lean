@@ -3,7 +3,6 @@ import Loam.Observations.Observation011
 import Loam.Observations.Observation029
 import Loam.Observations.Observation078
 import Loam.Observations.Observation129
-import Loam.Observations.Observation130
 import Loam.Observations.Observation135
 import Loam.Observations.Observation159
 import Loam.Observations.Observation179
@@ -145,6 +144,10 @@ Research compaction notes:
   specimen became ordinary production behavior: `ActualValidityPublisher`
   appends date-revision evidence while preserving the Event/Effects, and focused
   tests pin repeated correction and current-truth `ActualReview` placement.
+- 2026-09-28: Observation 130 and its migration-era qualification note retired
+  after `EventDescription` became a production Core evidence family. The Core
+  type now owns Event-scoped uniqueness, lookup, and neutrality; the old 558-row
+  migration pressure and candidate comparison remain available in Git history.
 
 Retired source remains available in Git history.
 -/
