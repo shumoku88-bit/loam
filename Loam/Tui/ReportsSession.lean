@@ -1,6 +1,7 @@
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
+import Loam.LocusTrendReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
 import Loam.PeriodComparisonReview
@@ -92,6 +93,11 @@ partial def run (bounds : Bounds)
         match ← Loam.ScheduledCoverageReview.loadSnapshot
             dataDir root observedAt with
         | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.locusTrend start endExclusive coordinate) =>
+        match ← Loam.LocusTrendReview.loadSnapshot
+            root start endExclusive coordinate with
+        | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
