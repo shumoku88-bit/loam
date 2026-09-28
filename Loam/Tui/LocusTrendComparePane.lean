@@ -67,9 +67,8 @@ def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
     let count := pointCount state
     if count = 0 then state
     else
-      { state with selected :=
-          Loam.Tui.Chart.nearestIndex
-            (plotWidth bounds) count (column - plotLeft) }
+      { state with selected := Loam.Tui.Chart.nearestIndex
+          (plotWidth bounds) count (column - plotLeft) }
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
@@ -118,7 +117,7 @@ private def shortDate (date : String) : String :=
 
 private def longDate (date : String) : String :=
   match date.splitOn "-" with
-  | [year, month, day] =>
+  | [year, _, _] =>
       shortDate date ++ ", " ++ year
   | _ => date
 
