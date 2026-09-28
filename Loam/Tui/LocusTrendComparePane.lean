@@ -1,5 +1,8 @@
+import Loam.LocusCatalog
 import Loam.LocusTrendCompareReview
 import Loam.Tui.Chart
+import Loam.Tui.CyclicIndex
+import Loam.Tui.LocusPicker
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 
@@ -11,15 +14,24 @@ open Loam.Tui.Kernel
 set_option autoImplicit false
 
 /-!
-# Full-screen multi-Locus Trend Compare
+# Full-screen Trend
 
-Presentation-only comparison of several exact Locus/Measure series over the same
-configured historical windows.
+One to three exact Locus/Measure series share the same time axis. With one
+selected series this is an ordinary single-Locus trend; with several it becomes
+a comparison without changing report semantics.
 
 Pointer and keyboard navigation select one time window shared by every series.
 Series identity is expressed by both a standard ANSI style and a marker glyph so
 the chart does not rely on color alone.
 -/
+
+def defaultSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
+  [ { label := "Tobacco", coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ }
+  , { label := "Coffee", coordinate := ⟨⟨"coffee"⟩, ⟨"jpy"⟩⟩ }
+  , { label := "Food", coordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩ }
+  ]
+
+def maxSeries : Nat := 3
 
 structure State where
   snapshot : Option Loam.LocusTrendCompareReview.Snapshot := none
@@ -28,6 +40,13 @@ structure State where
   viewportStart : Nat := 0
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   scope : Loam.LocusTrendCompareReview.Scope := .allHistory
+  /-- DAW-like rack: one series is a Trend, several are a comparison. -/
+  series : List Loam.LocusTrendCompareReview.SeriesSpec := defaultSeries
+  rackFocus : Nat := 0
+  /-- Current admitted Locus vocabulary with presentation labels. -/
+  catalog : Loam.LocusCatalog.Catalog := []
+  pickerOpen : Bool := false
+  pickerIndex : Nat := 0
   renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
@@ -37,7 +56,86 @@ def initial : State := {}
 def dayViewportSize : Nat := 31
 
 def clear (state : State) : State :=
-  { state with snapshot := none, selected := 0, viewportStart := 0 }
+  { state with
+      snapshot := none
+      selected := 0
+      viewportStart := 0
+      pickerOpen := false
+      pickerIndex := 0 }
+
+def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
+  { state with catalog := catalog, pickerIndex := 0 }
+
+private def seriesContainsLocus
+    (state : State) (locus : LocusId) : Bool :=
+  state.series.any fun spec => spec.coordinate.locus == locus
+
+def pickerCandidates (state : State) : Loam.LocusCatalog.Catalog :=
+  state.catalog.filter fun entry => !(seriesContainsLocus state entry.locus)
+
+def selectedPickerCandidate? (state : State) : Option Loam.LocusCatalog.Entry :=
+  Loam.Tui.LocusPicker.selected?
+    (pickerCandidates state) "" state.pickerIndex
+
+def openPicker (state : State) : State :=
+  if state.series.length >= maxSeries then state
+  else { state with pickerOpen := true, pickerIndex := 0 }
+
+def closePicker (state : State) : State :=
+  { state with pickerOpen := false, pickerIndex := 0 }
+
+def movePicker (state : State) (back : Bool) : State :=
+  if !state.pickerOpen then state
+  else
+    { state with
+        pickerIndex :=
+          Loam.Tui.LocusPicker.move
+            (pickerCandidates state) "" state.pickerIndex back }
+
+def acceptPicker (state : State) : State :=
+  if !state.pickerOpen || state.series.length >= maxSeries then state
+  else
+    match selectedPickerCandidate? state with
+    | none => state
+    | some entry =>
+        let spec : Loam.LocusTrendCompareReview.SeriesSpec := {
+          label := entry.label
+          coordinate := ⟨entry.locus, ⟨"jpy"⟩⟩
+        }
+        { state with
+            series := state.series ++ [spec]
+            rackFocus := state.series.length
+            pickerOpen := false
+            pickerIndex := 0 }
+
+def moveRackFocus (state : State) (back : Bool) : State :=
+  let count := state.series.length
+  if count == 0 then { state with rackFocus := 0 }
+  else
+    { state with
+        rackFocus :=
+          if back then
+            Loam.Tui.CyclicIndex.backward count state.rackFocus
+          else
+            Loam.Tui.CyclicIndex.forward count state.rackFocus }
+
+private def eraseSeriesAt :
+    List Loam.LocusTrendCompareReview.SeriesSpec → Nat →
+      List Loam.LocusTrendCompareReview.SeriesSpec
+  | [], _ => []
+  | _ :: rest, 0 => rest
+  | item :: rest, index + 1 => item :: eraseSeriesAt rest index
+
+def removeFocusedSeries (state : State) : State :=
+  if state.series.length <= 1 then state
+  else
+    let series := eraseSeriesAt state.series state.rackFocus
+    let focus := min state.rackFocus (series.length - 1)
+    { state with
+        series := series
+        rackFocus := focus
+        pickerOpen := false
+        pickerIndex := 0 }
 
 private def maxDayViewportStart (count : Nat) : Nat :=
   count - min dayViewportSize count
