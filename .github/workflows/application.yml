@@ -88,8 +88,8 @@ jobs:
           output="$fixture/current.hobs1"
           .lake/build/bin/loamHouseholdObservation \
             "$fixture" 2026-08-14 2026-10-15 2026-09-08 > "$output"
-          grep -Fqx "$(printf 'HOBS1\\tmeta\\tfunding_observed_at\\t2026-09-08')" "$output"
-          grep -Fqx "$(printf 'HOBS1\\tscalar\\tfunding\\tbudgetable_backing\\tjpy\\t0')" "$output"
-          grep -Fqx "$(printf 'HOBS1\\tscalar\\tfunding\\tremaining_assigned\\tjpy\\t100')" "$output"
-          grep -Fqx "$(printf 'HOBS1\\tscalar\\tfunding\\tresidual_before_unresolved\\tjpy\\t-100')" "$output"
-          grep -Fqx "$(printf 'HOBS1\\tmeta\\tstatus\\tcomplete')" <(tail -n 1 "$output")
+          grep -Fqx "$(printf 'HOBS1\tmeta\tfunding_observed_at\t2026-09-08')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy\t0')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tjpy\t100')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$output")
