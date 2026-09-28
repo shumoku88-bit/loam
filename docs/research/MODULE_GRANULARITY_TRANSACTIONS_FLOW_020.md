@@ -1,6 +1,6 @@
 # MGA-020 — qualified Transactions Flow result-pane boundary
 
-Status: **KEEP_BOUNDARY / SPLIT_QUALIFIED**
+Status: **CURRENT PRODUCTION BOUNDARY / KEEP_BOUNDARY / SPLIT_QUALIFIED**
 
 Baseline:
 
@@ -207,6 +207,48 @@ Reports imports pane; pane imports Reports              NO
 focused Transactions behavior preserved               YES
 production root reachability preserved                 YES
 ```
+
+## Observation 233–236 graduation
+
+The detailed Transactions Flow research prose from Observations 233–236 has
+graduated to Git history. The selected behavior is now owned directly by current
+production and focused tests.
+
+The durable semantic boundary is:
+
+```text
+row    = EffectCoordinate = LocusId × MeasureId
+column = current dated Event
+cell   = exact signed Quantity at that coordinate in that Event
+```
+
+This is an incidence view, not a source/destination graph. A multi-posting Event
+does not authorize invented pairwise edges, transfer partners, posting order, or
+cross-Measure aggregation.
+
+Current production preserves the original research sequence:
+
+- `TransactionsFlowReview` reuses correction-aware Actual evidence and an
+  explicit half-open report window rather than introducing a second Event/date
+  engine;
+- current quantity-bearing Events without usable occurrence dates fail closed;
+- rows remain exact coordinates and columns remain current Events;
+- row net, positive, negative, gross activity, active-event count, and
+  per-Measure residuals are derived from the selected Event evidence;
+- the production TUI uses a sparse coordinate-first summary and focused nonzero
+  contributors instead of rendering a dense zero-heavy matrix;
+- gross-activity ordering is presentation salience only, not accounting or
+  causal priority;
+- signs remain exact quantity movement and do not silently mean
+  income/expense, debit/credit, source/destination, or good/bad.
+
+Observation 235's private household dogfood served only to choose the sparse
+presentation direction. Its private transaction identities, descriptions,
+amounts, and revision were never retained in the public repository.
+
+The working tree therefore no longer needs four historical narrative files
+beside the production review, pane, current module-granularity audit, and focused
+tests.
 
 ## Verdict
 
