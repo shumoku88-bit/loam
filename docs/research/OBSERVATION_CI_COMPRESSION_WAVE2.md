@@ -198,8 +198,15 @@ Observation 196's result is now explicit in the Reports query boundary:
 coordinates. `BudgetWindowReview` accepts only those explicit coordinates and
 does not infer a retained Period identity.
 
-The two intermediate Lean probes therefore graduate to Git history. Their
-research notes remain as the rationale for the production shape.
+The two intermediate Lean probes and their detailed experiment notes therefore
+graduate to Git history. The durable rationale is now the production shape
+itself:
+
+- Remaining is derived from Entitlement and Consumption;
+- report-window selection is explicit policy producing half-open coordinates,
+  not a retained Period identity.
+
+Production code/tests own both claims.
 
 ## Follow-up — graduate presentation/topology probes
 
@@ -223,11 +230,20 @@ remain.
 ## Follow-up — retire inactive experimental toolchains
 
 J, miniKanren/Racket, and Dafny executable probes have graduated to Git history.
-Their research findings remain in prose, while no production or durable-proof
-surface depends on those runtimes.
+No production or durable-proof surface depends on those runtimes.
 
 Observation 083 keeps its Alloy counterexample job; its J array rendering was a
 secondary explanatory lens. Observation 187 remains a historical backwards-search
-record without a live miniKanren runtime. Application 001/002 retain their
-qualified findings in prose and in later production/protocol work without a live
-Dafny toolchain.
+record because that research question still has no production owner.
+
+Application 001/002 no longer need standalone detailed Dafny notes. Their durable
+findings are:
+
+- a query-shaped application gate can preserve Lean-owned quantity semantics
+  without importing a second accounting model;
+- writer authorization must distinguish current-and-distinct, stale, and
+  duplicate-identity cases, while physical publication still requires a
+  stronger ownership/atomicity protocol.
+
+Later Application and WriterOwnership work owns the live protocol boundary.
+The exact Dafny experiments remain in Git history.
