@@ -47,6 +47,25 @@ private def reportEffect
   Effect.ofQuantity
     ⟨key⟩ ⟨locus⟩ ⟨measure⟩ (Quantity.ofQuanta quanta)
 
+private def dayPoints
+    (start : String) (count : Nat) (firstValue regularValue : Int) :
+    List Loam.LocusTrendReview.OverviewPoint :=
+  (List.range count).map fun index =>
+    let date :=
+      (Loam.ActualDate.shiftDays? start (Int.ofNat index)).getD start
+    let endExclusive :=
+      (Loam.ActualDate.shiftDays? date 1).getD date
+    let value := if index == 0 then firstValue else regularValue
+    {
+      start := date
+      endExclusive := endExclusive
+      throughExclusive := endExclusive
+      total := Quantity.ofQuanta value
+      observedDays := 1
+      dailyAverageQuanta := value
+      complete := decide (index + 1 < count)
+    }
+
 
 def main : IO Unit := do
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
@@ -240,6 +259,80 @@ def main : IO Unit := do
     "Trend Compare left arrow did not move one shared cycle"
 
   let compareBounds : Bounds := { width := 100, height := 30 }
+
+  let viewportTobacco : Loam.LocusTrendCompareReview.Series := {
+    spec := tobaccoSpec
+    points := dayPoints "2026-08-01" 40 500 500
+    undatedMatchingCurrentRecords := 0
+  }
+  let viewportCoffee : Loam.LocusTrendCompareReview.Series := {
+    spec := coffeeSpec
+    points := dayPoints "2026-08-01" 40 100 100
+    undatedMatchingCurrentRecords := 0
+  }
+  let viewportFood : Loam.LocusTrendCompareReview.Series := {
+    spec := foodSpec
+    points := dayPoints "2026-08-01" 40 8000 400
+    undatedMatchingCurrentRecords := 0
+  }
+  let viewportSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
+    source := "Pension"
+    observedAt := "2026-09-09"
+    granularity := .day
+    series := [viewportTobacco, viewportCoffee, viewportFood]
+  }
+  let viewportState :=
+    Loam.Tui.LocusTrendComparePane.withSnapshot
+      Loam.Tui.LocusTrendComparePane.initial viewportSnapshot
+  expect (viewportState.selected == 39 &&
+      Loam.Tui.LocusTrendComparePane.visibleStart viewportState == 9 &&
+      Loam.Tui.LocusTrendComparePane.visibleCount viewportState == 31)
+    "Trend Compare Day did not open on the trailing 31-day viewport"
+
+  let viewportOneLeft :=
+    Loam.Tui.LocusTrendComparePane.moveSelection viewportState true
+  expect (viewportOneLeft.selected == 38 &&
+      Loam.Tui.LocusTrendComparePane.visibleStart viewportOneLeft == 9)
+    "Trend Compare Day moved the viewport before selection reached its edge"
+
+  let viewportAtLeft :=
+    (List.range 30).foldl
+      (fun state _ => Loam.Tui.LocusTrendComparePane.moveSelection state true)
+      viewportState
+  expect (viewportAtLeft.selected == 9 &&
+      Loam.Tui.LocusTrendComparePane.visibleStart viewportAtLeft == 9)
+    "Trend Compare Day did not keep the selected day at the left viewport edge"
+  let viewportPastLeft :=
+    Loam.Tui.LocusTrendComparePane.moveSelection viewportAtLeft true
+  expect (viewportPastLeft.selected == 8 &&
+      Loam.Tui.LocusTrendComparePane.visibleStart viewportPastLeft == 8)
+    "Trend Compare Day did not scroll exactly one day past the viewport edge"
+
+  let viewportReport : Loam.Tui.Reports.State := {
+    compareReport with trendCompare := viewportState
+  }
+  let viewportPress :=
+    (Loam.Tui.Reports.updateForBounds compareBounds viewportReport
+      (.pointer Loam.Tui.LocusTrendComparePane.plotLeft
+        (Loam.Tui.LocusTrendComparePane.plotTop viewportState + 1))).state
+  expect (viewportPress.trendCompare.selected == 9)
+    "Trend Compare click did not select inside the visible Day viewport"
+  let viewportMotion :=
+    (Loam.Tui.Reports.updateForBounds compareBounds viewportReport
+      (.pointerMotion Loam.Tui.LocusTrendComparePane.plotLeft
+        (Loam.Tui.LocusTrendComparePane.plotTop viewportState + 1))).state
+  expect (viewportMotion.trendCompare.selected == viewportState.selected)
+    "Trend Compare still followed pointer motion after click-only selection"
+
+  let viewportText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds viewportReport)
+  expect (contains "31-day viewport" viewportText &&
+      contains "mouse click select" viewportText &&
+      contains "Aug 10" viewportText && contains "Sep 9" viewportText)
+    "Trend Compare Day did not expose the visible 31-day window"
+  expect (!(contains "¥8,000" viewportText))
+    "Trend Compare Day scale still included an outlier outside the visible viewport"
+
   let comparePointer :=
     (Loam.Tui.Reports.updateForBounds compareBounds compareLeft
       (.pointer Loam.Tui.LocusTrendComparePane.plotLeft

@@ -44,13 +44,16 @@ fallbacks for the same values.
 
 ## Pointer contract
 
-Trend enables all-pointer-motion reporting only while the Trend surface is
-active. The terminal boundary converts SGR coordinates to zero-based
-`Key.pointer col row` values. The chart then maps the physical column to the
-nearest logical point.
+The terminal boundary preserves explicit pointer presses and pointer motion as
+different normalized inputs.
 
-Keyboard Left/Right, click, and hover therefore converge on the same selection
-state. Dragging is never required.
+Single-Locus Trend enables all-pointer-motion reporting while that surface is
+active, so keyboard Left/Right, click, and hover can converge on the same
+selection state.
+
+Trend Compare deliberately keeps ordinary button reporting only. A click selects
+the nearest visible period, but later mouse movement does not move the shared
+comparison cursor. Dragging is never required.
 
 ## Resize contract
 

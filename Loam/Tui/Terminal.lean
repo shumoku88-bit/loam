@@ -22,8 +22,10 @@ inductive Key where
   | escape
   | ctrl (char : Char)
   | input (char : Char)
-  /-- Zero-based terminal pointer coordinate. Surfaces decide whether it is actionable. -/
+  /-- Zero-based pointer press coordinate. Surfaces decide whether it is actionable. -/
   | pointer (col row : Nat)
+  /-- Zero-based pointer motion coordinate, kept distinct from an explicit press. -/
+  | pointerMotion (col row : Nat)
   | other
   deriving Repr, DecidableEq
 
@@ -83,8 +85,12 @@ def decodeSgrMousePayload (payload : String) : Key :=
       | some 64, _, _ => .up
       | some 65, _, _ => .down
       | some button, some col, some row =>
-          if (button = 0 || button = 32 || button = 35) && col > 0 && row > 0 then
+          if col = 0 || row = 0 then
+            .other
+          else if button = 0 then
             .pointer (col - 1) (row - 1)
+          else if button = 32 || button = 35 then
+            .pointerMotion (col - 1) (row - 1)
           else
             .other
       | _, _, _ => .other
