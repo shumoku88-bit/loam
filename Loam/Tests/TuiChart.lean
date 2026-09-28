@@ -8,7 +8,8 @@ private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
 private def text (rows : List Widget) : String :=
-  String.intercalate "\n" <| rows.flatMap Widget.lines |>.map fun cells =>
+  let lines := rows.flatMap Widget.lines
+  String.intercalate "\n" <| lines.map fun cells =>
     String.ofList (cells.map Cell.glyph)
 
 def main : IO Unit := do
@@ -26,6 +27,12 @@ def main : IO Unit := do
     "portable chart final logical point left the final plot column"
   expect (Loam.Tui.Chart.nearestIndex 61 3 30 == 1)
     "portable chart pointer hit-testing drifted from logical selection"
+
+  expect
+    (Loam.Tui.Layout.displayWidth (String.ofList [Char.ofNat 0x28ff]) == 1 &&
+      Loam.Tui.Layout.displayWidth "█" == 1 &&
+      Loam.Tui.Layout.displayWidth "◆" == 1)
+    "portable chart glyphs stopped occupying one terminal column"
 
   let braille := Loam.Tui.Chart.render .braille 24 8 [459, 508, 500] 2
   let block := Loam.Tui.Chart.render .block 24 8 [459, 508, 500] 2
@@ -52,5 +59,12 @@ def main : IO Unit := do
     "renderer fallback order lost block to ASCII transition"
   expect (Loam.Tui.Chart.Renderer.next .ascii == .braille)
     "renderer fallback order lost ASCII to Braille transition"
+
+  let narrow := Loam.Tui.Chart.render .braille 12 4 [459, 508, 500] 1
+  let wide := Loam.Tui.Chart.render .braille 48 12 [459, 508, 500] 1
+  expect (narrow.all fun row => row.width == 12)
+    "portable chart did not reflow to a narrow terminal width"
+  expect (wide.length == 12 && wide.all fun row => row.width == 48)
+    "portable chart did not reflow to a larger terminal geometry"
 
   IO.println "portable TUI chart geometry and renderer fallbacks passed."
