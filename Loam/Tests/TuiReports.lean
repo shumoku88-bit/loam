@@ -187,6 +187,84 @@ def main : IO Unit := do
   expect (compareReport.trendCompare.selected == 2)
     "Trend Compare did not select the current cycle initially"
 
+  let trendCatalog : Loam.LocusCatalog.Catalog :=
+    [ { locus := ⟨"tobacco"⟩, label := "Tobacco", help := "" }
+    , { locus := ⟨"coffee"⟩, label := "Coffee", help := "" }
+    , { locus := ⟨"food"⟩, label := "Food", help := "" }
+    , { locus := ⟨"books"⟩, label := "Books", help := "" }
+    ]
+  let rackReport : Loam.Tui.Reports.State := {
+    compareReport with
+      trendCompare :=
+        Loam.Tui.LocusTrendComparePane.withCatalog
+          compareReport.trendCompare trendCatalog
+  }
+  let rackText := widgetText
+    (Loam.Tui.Reports.viewForBounds { width := 100, height := 30 } rackReport)
+  expect (contains "[1 ● Tobacco]" rackText &&
+      contains "[2 ◆ Coffee]" rackText &&
+      contains "[3 ▲ Food]" rackText &&
+      contains "a series" rackText)
+    "Trend Compare did not expose the three-slot Series rack"
+
+  let pickerOpen := (Loam.Tui.Reports.update rackReport (.input 'a')).state
+  expect (Loam.Tui.LocusTrendComparePane.isPickerOpen pickerOpen.trendCompare &&
+      pickerOpen.trendCompare.pickerSlot == 0)
+    "Trend series picker did not open on slot 1 when all three slots were occupied"
+  let pickerAtBooks :=
+    (List.range 3).foldl
+      (fun state _ => (Loam.Tui.Reports.update state .down).state)
+      pickerOpen
+  let replaceBooks := Loam.Tui.Reports.update pickerAtBooks .enter
+  match replaceBooks.query with
+  | some (.locusTrendCompare _ _ _ series) =>
+      expect (series.map (·.label) == ["Books", "Coffee", "Food"])
+        "Trend series picker did not replace slot 1 with Books"
+  | _ => throw (IO.userError "Trend series replacement did not rerun the Trend query")
+  expect (replaceBooks.state.trendCompareSeries.length == 3 &&
+      !Loam.Tui.LocusTrendComparePane.isPickerOpen replaceBooks.state.trendCompare)
+    "Trend series replacement changed the three-slot cap or left the picker open"
+
+  let removeThirdOpen := (Loam.Tui.Reports.update replaceBooks.state (.input 'a')).state
+  let removeThirdSlot := (Loam.Tui.Reports.update removeThirdOpen (.input '3')).state
+  let removeThird := Loam.Tui.Reports.update removeThirdSlot (.input 'x')
+  expect (removeThird.state.trendCompareSeries.map (·.label) == ["Books", "Coffee"])
+    "Trend series picker did not remove slot 3"
+
+  let removeSecondOpen := (Loam.Tui.Reports.update removeThird.state (.input 'a')).state
+  let removeSecondSlot := (Loam.Tui.Reports.update removeSecondOpen (.input '2')).state
+  let removeSecond := Loam.Tui.Reports.update removeSecondSlot (.input 'x')
+  expect (removeSecond.state.trendCompareSeries.map (·.label) == ["Books"])
+    "Trend series picker did not reduce to a valid one-series Trend"
+
+  let keepOneOpen := (Loam.Tui.Reports.update removeSecond.state (.input 'a')).state
+  let keepOne := Loam.Tui.Reports.update keepOneOpen (.input 'x')
+  expect (keepOne.query.isNone &&
+      keepOne.state.trendCompareSeries.map (·.label) == ["Books"] &&
+      contains "at least one active series" keepOne.state.notice)
+    "Trend allowed its final active series to be removed"
+
+  let addSecondOpen := (Loam.Tui.Reports.update removeSecond.state (.input 'a')).state
+  expect (addSecondOpen.trendCompare.pickerSlot == 1)
+    "Trend with one series did not target the next empty slot"
+  let duplicateSecond := Loam.Tui.Reports.update addSecondOpen .enter
+  expect (duplicateSecond.query.isSome &&
+      duplicateSecond.state.trendCompareSeries.map (·.label) == ["Books", "Tobacco"])
+    "Trend did not add a second distinct series"
+
+  let addThirdOpen := (Loam.Tui.Reports.update duplicateSecond.state (.input 'a')).state
+  let duplicateTobacco := Loam.Tui.Reports.update addThirdOpen .enter
+  expect (duplicateTobacco.query.isNone &&
+      duplicateTobacco.state.trendCompareSeries.length == 2 &&
+      contains "already active" duplicateTobacco.state.notice)
+    "Trend accepted the same exact Locus twice"
+  let chooseCoffee := (Loam.Tui.Reports.update duplicateTobacco.state .down).state
+  let addThird := Loam.Tui.Reports.update chooseCoffee .enter
+  expect (addThird.state.trendCompareSeries.map (·.label) ==
+      ["Books", "Tobacco", "Coffee"] &&
+      addThird.state.trendCompareSeries.length == Loam.Tui.LocusTrendComparePane.maxSeries)
+    "Trend did not refill exactly three active series"
+
   let monthRequest := Loam.Tui.Reports.update compareReport (.input ']')
   match monthRequest.query with
   | some (.locusTrendCompare observedAt granularity scope series) =>
