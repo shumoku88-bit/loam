@@ -14,7 +14,7 @@ open Loam.Tui.Kernel
 set_option autoImplicit false
 
 /-!
-# Full-screen multi-Locus Trend Compare
+# Full-screen multi-Locus Trend
 
 Presentation-only comparison of several exact Locus/Measure series over the same
 configured historical windows.
@@ -354,9 +354,9 @@ private def periodStatus
 
 private def heading :
     Loam.LocusTrendCompareReview.Granularity → String
-  | .cycle => "Trend Compare   cycle average / day"
-  | .month => "Trend Compare   month average / day"
-  | .day => "Trend Compare   daily amount"
+  | .cycle => "Trend   cycle average / day"
+  | .month => "Trend   month average / day"
+  | .day => "Trend   daily amount"
 
 private def scopeEndLabel
     (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
@@ -408,7 +408,7 @@ private def header (state : State) : List Widget :=
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ] ++
       pickerRows state
   | _, _ =>
-      [ line ("Trend Compare   " ++ state.granularity.label)
+      [ line ("Trend   " ++ state.granularity.label)
       , muted "Multi-series history unavailable."
       ] ++ pickerRows state
 
@@ -529,7 +529,7 @@ private def axisRow
                 .row ([span (spaces plotLeft)] ++ labels.map fun text => span text .muted)
           | _, _ => muted ""
 
-/-- Render the comparison as a dedicated full-screen chart. -/
+/-- Render Trend as a dedicated full-screen chart. -/
 def viewFullScreen
     (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
   let rows :=
