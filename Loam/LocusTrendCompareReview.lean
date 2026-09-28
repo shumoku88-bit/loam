@@ -14,15 +14,12 @@ set_option autoImplicit false
 A read-only comparison over several exact `(Locus, Measure)` coordinates.
 
 Every series is projected through the same explicitly configured household
-history and observation date. Cycle, calendar-month, and calendar-day views are
-different read-only aggregations of that same exact admitted Actual evidence.
+history and observation date. Scope first selects occurrence-time evidence;
+Cycle, calendar-month, and calendar-day grains then aggregate that same scoped
+daily evidence.
 
 No description text, Purpose routing, aliases, or historical reclassification
 is inferred here.
-
-This means a `coffee` series is exactly the admitted `coffee / jpy`
-coordinate. If older evidence used another Locus, that is a separate historical
-classification question rather than something this comparison silently repairs.
 -/
 
 inductive Granularity where
@@ -50,6 +47,35 @@ def finer : Granularity → Granularity
 
 end Granularity
 
+inductive Scope where
+  | allHistory
+  | currentCycle
+  | currentMonth
+  | last30Days
+  deriving Repr, DecidableEq
+
+namespace Scope
+
+def label : Scope → String
+  | .allHistory => "All history"
+  | .currentCycle => "Current cycle"
+  | .currentMonth => "This month"
+  | .last30Days => "Last 30 days"
+
+def next : Scope → Scope
+  | .allHistory => .currentCycle
+  | .currentCycle => .currentMonth
+  | .currentMonth => .last30Days
+  | .last30Days => .allHistory
+
+def previous : Scope → Scope
+  | .allHistory => .last30Days
+  | .currentCycle => .allHistory
+  | .currentMonth => .currentCycle
+  | .last30Days => .currentMonth
+
+end Scope
+
 structure SeriesSpec where
   label : String
   coordinate : EffectCoordinate
@@ -65,6 +91,9 @@ structure Snapshot where
   source : String
   observedAt : String
   granularity : Granularity := .cycle
+  scope : Scope := .allHistory
+  scopeStart : String := ""
+  scopeEndExclusive : String := ""
   series : List Series
   deriving Repr, DecidableEq
 
@@ -87,6 +116,51 @@ private def startsCalendarMonth (date : String) : Bool :=
   match date.splitOn "-" with
   | [_, _, day] => day == "01"
   | _ => false
+
+private def laterDate (first second : String) : String :=
+  if first < second then second else first
+
+private def earlierDate (first second : String) : String :=
+  if first < second then first else second
+
+private def calendarMonthWindow?
+    (date : String) : Option (String × String) := do
+  if !Loam.ActualDate.validIsoDate date then none else do
+    let [year, month, _] := date.splitOn "-" | none
+    let start := year ++ "-" ++ month ++ "-01"
+    let endExclusive ← Loam.ActualDate.shiftMonthsSameDay? start 1
+    some (start, endExclusive)
+
+private def scopeWindow
+    (preset : Loam.BoundaryPresetConfig.Preset)
+    (observedAt : String)
+    (scope : Scope) : Except String (String × String) := do
+  let some historyStart := preset.boundaries.head?
+    | throw "loam: Trend Compare scope requires a configured history boundary"
+  let some observedEndExclusive := Loam.ActualDate.shiftDays? observedAt 1
+    | throw "loam: Trend Compare scope could not construct the observation boundary"
+  let (requestedStart, requestedEnd) ←
+    match scope with
+    | .allHistory =>
+        pure (historyStart, observedEndExclusive)
+    | .currentCycle =>
+        match Loam.BoundaryPresetConfig.windowForDate? preset observedAt with
+        | some (start, endExclusive) => pure (start, endExclusive)
+        | none => throw "loam: Trend Compare current-cycle scope is unavailable"
+    | .currentMonth =>
+        match calendarMonthWindow? observedAt with
+        | some window => pure window
+        | none => throw "loam: Trend Compare current-month scope is unavailable"
+    | .last30Days =>
+        match Loam.ActualDate.shiftDays? observedAt (-29) with
+        | some start => pure (start, observedEndExclusive)
+        | none => throw "loam: Trend Compare 30-day scope is unavailable"
+  let start := laterDate historyStart requestedStart
+  let endExclusive := earlierDate observedEndExclusive requestedEnd
+  if decide (start < endExclusive) then
+    pure (start, endExclusive)
+  else
+    throw "loam: Trend Compare scope has no configured historical coverage"
 
 structure MonthBucket where
   start : String
@@ -174,6 +248,63 @@ private def dailyPoints
       complete := point.date < observedAt
     }
 
+private def adjacentWindowsFrom
+    (previous : String) :
+    List String → List (String × String)
+  | [] => []
+  | next :: rest =>
+      (previous, next) :: adjacentWindowsFrom next rest
+
+private def adjacentWindows :
+    List String → List (String × String)
+  | [] => []
+  | first :: rest => adjacentWindowsFrom first rest
+
+private def cyclePoint?
+    (scopeStart scopeEndExclusive : String)
+    (points : List Loam.LocusTrendReview.Point)
+    (window : String × String) :
+    Option Loam.LocusTrendReview.OverviewPoint :=
+  let (naturalStart, naturalEnd) := window
+  let start := laterDate naturalStart scopeStart
+  let endExclusive := earlierDate naturalEnd scopeEndExclusive
+  if !(decide (start < endExclusive)) then
+    none
+  else
+    let matching :=
+      points.filter fun point =>
+        decide (start <= point.date && point.date < endExclusive)
+    let observedDays := matching.length
+    if observedDays = 0 then
+      none
+    else
+      let totalQuanta :=
+        matching.foldl (fun total point => total + point.daily.quanta) 0
+      some {
+        start := start
+        endExclusive := endExclusive
+        throughExclusive := endExclusive
+        total := Quantity.ofQuanta totalQuanta
+        observedDays := observedDays
+        dailyAverageQuanta := totalQuanta / Int.ofNat observedDays
+        complete := start == naturalStart && endExclusive == naturalEnd
+      }
+
+private def cyclePoints
+    (preset : Loam.BoundaryPresetConfig.Preset)
+    (scopeStart scopeEndExclusive : String)
+    (points : List Loam.LocusTrendReview.Point) :
+    List Loam.LocusTrendReview.OverviewPoint :=
+  (adjacentWindows preset.boundaries).filterMap fun window =>
+    cyclePoint? scopeStart scopeEndExclusive points window
+
+private def scopedDailyPoints
+    (start endExclusive : String)
+    (points : List Loam.LocusTrendReview.Point) :
+    List Loam.LocusTrendReview.Point :=
+  points.filter fun point =>
+    decide (start <= point.date && point.date < endExclusive)
+
 private def projectSeries
     (records : List Loam.ActualReview.Record)
     (preset : Loam.BoundaryPresetConfig.Preset)
@@ -211,22 +342,60 @@ private def projectSeries
         undatedMatchingCurrentRecords := history.undatedMatchingCurrentRecords
       }
 
+private def projectScopedSeries
+    (records : List Loam.ActualReview.Record)
+    (preset : Loam.BoundaryPresetConfig.Preset)
+    (observedAt start endExclusive : String)
+    (granularity : Granularity)
+    (spec : SeriesSpec) : Except String Series := do
+  let history ←
+    Loam.LocusTrendReview.projectConfiguredHistory
+      records preset observedAt spec.coordinate
+  let scopedPoints := scopedDailyPoints start endExclusive history.points
+  let points ←
+    match granularity with
+    | .cycle => pure (cyclePoints preset start endExclusive scopedPoints)
+    | .month => monthlyPoints scopedPoints
+    | .day => dailyPoints observedAt scopedPoints
+  return {
+    spec := spec
+    points := points
+    undatedMatchingCurrentRecords := history.undatedMatchingCurrentRecords
+  }
+
+def projectAtScope
+    (records : List Loam.ActualReview.Record)
+    (preset : Loam.BoundaryPresetConfig.Preset)
+    (observedAt : String)
+    (granularity : Granularity)
+    (scope : Scope)
+    (specs : List SeriesSpec) : Except String Snapshot := do
+  if specs.isEmpty then
+    throw "loam: Trend Compare requires at least one exact coordinate"
+  let (start, endExclusive) ← scopeWindow preset observedAt scope
+  let series ← specs.mapM fun spec =>
+    if scope == .allHistory then
+      projectSeries records preset observedAt granularity spec
+    else
+      projectScopedSeries
+        records preset observedAt start endExclusive granularity spec
+  return {
+    source := preset.name
+    observedAt := observedAt
+    granularity := granularity
+    scope := scope
+    scopeStart := start
+    scopeEndExclusive := endExclusive
+    series := series
+  }
+
 def projectAtGranularity
     (records : List Loam.ActualReview.Record)
     (preset : Loam.BoundaryPresetConfig.Preset)
     (observedAt : String)
     (granularity : Granularity)
-    (specs : List SeriesSpec) : Except String Snapshot := do
-  if specs.isEmpty then
-    throw "loam: Trend Compare requires at least one exact coordinate"
-  let series ← specs.mapM fun spec =>
-    projectSeries records preset observedAt granularity spec
-  return {
-    source := preset.name
-    observedAt := observedAt
-    granularity := granularity
-    series := series
-  }
+    (specs : List SeriesSpec) : Except String Snapshot :=
+  projectAtScope records preset observedAt granularity .allHistory specs
 
 /-- Backwards-compatible cycle projection used by existing callers and tests. -/
 def project
@@ -236,15 +405,11 @@ def project
     (specs : List SeriesSpec) : Except String Snapshot :=
   projectAtGranularity records preset observedAt .cycle specs
 
-/--
-Load admitted Actual once, resolve the unique configured preset containing
-`observedAt`, and project every requested exact coordinate through that same
-historical evidence at the requested granularity.
--/
-def loadConfiguredAtGranularity
+def loadConfiguredAtScope
     (dataDir root : System.FilePath)
     (observedAt : String)
     (granularity : Granularity)
+    (scope : Scope)
     (specs : List SeriesSpec) : IO (Except String Snapshot) := do
   match ← Loam.BoundaryPresetConfig.load?
       (Loam.HouseholdPaths.boundaryPresets dataDir) with
@@ -259,8 +424,16 @@ def loadConfiguredAtGranularity
               match ← Loam.ActualReview.loadRecordsFromActual root with
               | .error message => return .error message
               | .ok records =>
-                  return projectAtGranularity
-                    records preset observedAt granularity specs
+                  return projectAtScope
+                    records preset observedAt granularity scope specs
+
+def loadConfiguredAtGranularity
+    (dataDir root : System.FilePath)
+    (observedAt : String)
+    (granularity : Granularity)
+    (specs : List SeriesSpec) : IO (Except String Snapshot) :=
+  loadConfiguredAtScope
+    dataDir root observedAt granularity .allHistory specs
 
 /-- Backwards-compatible configured cycle projection. -/
 def loadConfigured

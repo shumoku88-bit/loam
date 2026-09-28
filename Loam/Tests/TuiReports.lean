@@ -102,11 +102,11 @@ def main : IO Unit := do
   expect (isLocusTrendCompare compareStep.state)
     "Reports direct Trend Compare key did not enter the comparison surface"
   match compareStep.query with
-  | some (.locusTrendCompare observedAt granularity series) =>
+  | some (.locusTrendCompare observedAt granularity scope series) =>
       expect (observedAt == "2026-09-07")
         "Trend Compare lost the selected Home observation date"
-      expect (granularity == .cycle)
-        "Trend Compare did not open at cycle granularity"
+      expect (granularity == .cycle && scope == .allHistory)
+        "Trend Compare did not open at Cycle / All history"
       expect (series.map (·.label) == ["Tobacco", "Coffee", "Food"])
         "Trend Compare default series labels changed"
       expect
@@ -178,6 +178,8 @@ def main : IO Unit := do
   let compareSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
     source := "Pension"
     observedAt := "2026-09-07"
+    scopeStart := "2026-04-15"
+    scopeEndExclusive := "2026-09-08"
     series := [tobaccoSeries, coffeeSeries, foodSeries]
   }
   let compareReport :=
@@ -187,8 +189,9 @@ def main : IO Unit := do
 
   let monthRequest := Loam.Tui.Reports.update compareReport (.input ']')
   match monthRequest.query with
-  | some (.locusTrendCompare observedAt granularity series) =>
+  | some (.locusTrendCompare observedAt granularity scope series) =>
       expect (observedAt == "2026-09-07" && granularity == .month &&
+          scope == .allHistory &&
           series.map (·.label) == ["Tobacco", "Coffee", "Food"])
         "Trend Compare ] did not request the same exact series at month granularity"
   | _ => throw (IO.userError "Trend Compare ] did not request month granularity")
@@ -226,6 +229,8 @@ def main : IO Unit := do
     source := "Pension"
     observedAt := "2026-09-07"
     granularity := .month
+    scopeStart := "2026-04-15"
+    scopeEndExclusive := "2026-09-08"
     series := [monthTobacco, monthCoffee, monthFood]
   }
   let monthReport :=
@@ -237,22 +242,47 @@ def main : IO Unit := do
     (Loam.Tui.Reports.viewForBounds { width := 100, height := 30 } monthReport)
   expect (contains "Trend Compare   month average / day" monthText &&
       contains "Aug 1 → Sep 1" monthText &&
-      contains "[ / ] granularity" monthText)
+      contains "Scope All history" monthText &&
+      contains "[ / ] grain" monthText && contains "s/S scope" monthText)
     "Trend Compare month view did not expose its granularity and selected month"
 
   let dayRequest := Loam.Tui.Reports.update monthReport (.input ']')
   match dayRequest.query with
-  | some (.locusTrendCompare observedAt granularity _) =>
-      expect (observedAt == "2026-09-07" && granularity == .day)
+  | some (.locusTrendCompare observedAt granularity scope _) =>
+      expect (observedAt == "2026-09-07" && granularity == .day &&
+          scope == .allHistory)
         "Trend Compare second ] did not request day granularity"
   | _ => throw (IO.userError "Trend Compare second ] did not request day granularity")
 
   let cycleRequest := Loam.Tui.Reports.update monthReport (.input '[')
   match cycleRequest.query with
-  | some (.locusTrendCompare _ granularity _) =>
-      expect (granularity == .cycle)
+  | some (.locusTrendCompare _ granularity scope _) =>
+      expect (granularity == .cycle && scope == .allHistory)
         "Trend Compare [ did not return from month to cycle granularity"
   | _ => throw (IO.userError "Trend Compare [ did not request cycle granularity")
+
+  let currentCycleRequest := Loam.Tui.Reports.update compareReport (.input 's')
+  match currentCycleRequest.query with
+  | some (.locusTrendCompare observedAt granularity scope series) =>
+      expect (observedAt == "2026-09-07" && granularity == .cycle &&
+          scope == .currentCycle &&
+          series.map (·.label) == ["Tobacco", "Coffee", "Food"])
+        "Trend Compare s did not request Current cycle with the same exact series"
+  | _ => throw (IO.userError "Trend Compare s did not request Current cycle")
+
+  let currentMonthRequest := Loam.Tui.Reports.update currentCycleRequest.state (.input 's')
+  match currentMonthRequest.query with
+  | some (.locusTrendCompare _ _ scope _) =>
+      expect (scope == .currentMonth)
+        "Trend Compare second s did not request This month"
+  | _ => throw (IO.userError "Trend Compare second s did not request This month")
+
+  let scopeBackRequest := Loam.Tui.Reports.update currentCycleRequest.state (.input 'S')
+  match scopeBackRequest.query with
+  | some (.locusTrendCompare _ _ scope _) =>
+      expect (scope == .allHistory)
+        "Trend Compare S did not return to All history"
+  | _ => throw (IO.userError "Trend Compare S did not request All history")
 
   let compareLeft := (Loam.Tui.Reports.update compareReport .left).state
   expect (compareLeft.trendCompare.selected == 1)
@@ -279,6 +309,8 @@ def main : IO Unit := do
     source := "Pension"
     observedAt := "2026-09-09"
     granularity := .day
+    scopeStart := "2026-08-01"
+    scopeEndExclusive := "2026-09-10"
     series := [viewportTobacco, viewportCoffee, viewportFood]
   }
   let viewportState :=
@@ -349,6 +381,28 @@ def main : IO Unit := do
   expect (!(contains "¥8,000" viewportText))
     "Trend Compare Day scale still included an outlier outside the visible viewport"
 
+  let scopedViewportSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
+    viewportSnapshot with
+      scope := .currentCycle
+      scopeStart := "2026-08-01"
+      scopeEndExclusive := "2026-09-10"
+  }
+  let scopedViewportState :=
+    Loam.Tui.LocusTrendComparePane.withSnapshot
+      viewportState scopedViewportSnapshot
+  expect (scopedViewportState.scope == .currentCycle &&
+      Loam.Tui.LocusTrendComparePane.visibleStart scopedViewportState == 0 &&
+      Loam.Tui.LocusTrendComparePane.visibleCount scopedViewportState == 40)
+    "Trend Compare scoped Day view incorrectly retained the All-history 31-day viewport"
+  let scopedViewportReport : Loam.Tui.Reports.State := {
+    compareReport with trendCompare := scopedViewportState
+  }
+  let scopedViewportText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds scopedViewportReport)
+  expect (contains "Scope Current cycle" scopedViewportText &&
+      !(contains "31-day viewport" scopedViewportText))
+    "Trend Compare did not expose the scoped Day range as a whole"
+
   let comparePointer :=
     (Loam.Tui.Reports.updateForBounds compareBounds compareLeft
       (.pointer Loam.Tui.LocusTrendComparePane.plotLeft
@@ -364,6 +418,8 @@ def main : IO Unit := do
       contains "Coffee" compareText && contains "¥131/day" compareText &&
       contains "Food" compareText && contains "¥477/day" compareText)
     "Trend Compare did not show all selected-cycle series values together"
+  expect (contains "Scope All history" compareText)
+    "Trend Compare did not expose its active scope"
   expect (contains "Exact Locus series" compareText)
     "Trend Compare lost its no-reclassification boundary"
   expect ((Loam.Tui.Reports.viewForBounds compareBounds comparePointer).lines.length <=
