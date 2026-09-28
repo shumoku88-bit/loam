@@ -6,6 +6,62 @@ Primary instruments: **DRAKONview + production-bound proof-obligation DAG**.
 
 This audit places `RoleFlowReview` and `RoleBalanceReview` beside each other at the same semantic scale. The important question is not whether both reports use `AccountingRole`. It is whether their upstream evidence, branch obligations, and quantity worlds are actually the same.
 
+
+## Observation 242 graduation boundary
+
+Observation 242 originally falsified the proposed accounting projection basis with
+a bounded Alloy model. Its historical prose has now graduated to Git history,
+while the Alloy witness remains live because it still protects a useful negative
+and positive boundary independently of the production implementation.
+
+The durable result is:
+
+```text
+coordinate-preserving RoleFlow
++
+coordinate-preserving RoleBalance with explicit support
++
+AccountingRole
++
+visible unresolved / unsupported frontiers
+    -> selected conventional accounting presentations
+```
+
+The model established four distinctions that current production still preserves:
+
+- per-role totals are too compressed for account/Locus-granular views such as a
+  Trial-Balance-shaped frontier;
+- selected-period flow and current/as-of balance are independently observable
+  quantity worlds and must not be collapsed into one universal role scalar;
+- a numeric balance does not establish that the balance is justified: support
+  and completeness evidence remain independent from the quantity itself;
+- within the bounded vocabulary, P&L-shaped flow views and
+  Balance-Sheet-/Net-Worth-/Trial-Balance-shaped current views do not require
+  separate semantic engines once exact coordinates, role evidence, and support
+  frontiers are retained.
+
+Current ownership is direct:
+
+- `Loam/RoleFlowReview.lean` overlays partial `AccountingRole` evidence on the
+  correction-aware Transactions-Flow answer and preserves unresolved Effects;
+- `Loam/RoleBalanceReview.lean` owns the distinct current-balance support world
+  and keeps unsupported quantity / role frontiers explicit;
+- `Loam/Tui/RoleBalances.lean` derives Balance-Sheet-, Net-Worth-, and
+  Trial-Balance-shaped presentation from one `RoleBalanceReview.Snapshot`;
+- `accounting-projection-basis.yml` qualifies those production compositions.
+
+The live formal witness remains
+`experiments/242_accounting_projection_factorization.als`. Its CI path trigger
+is intentionally attached to this durable current-facing record rather than to
+the retired historical narrative.
+
+This graduation does **not** promote the bounded Alloy result into a universal
+accounting theorem. Historical as-of reconstruction, retained-earnings and
+closing policy, accrual/recognition, valuation, FX gain/loss, tax, rich
+investment accounting, and cross-Measure valuation remain separate pressure.
+In particular, current quantity support must not be reinterpreted as complete
+history support or zero-origin evidence.
+
 ## Sibling topology
 
 `RoleFlowReview` is deliberately thin:

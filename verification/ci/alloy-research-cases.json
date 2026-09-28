@@ -41,7 +41,7 @@
       "model": "experiments/242_accounting_projection_factorization.als",
       "paths": [
         "experiments/242_accounting_projection_factorization.als",
-        "experiments/242_accounting_projection_factorization.md"
+        "docs/research/ROLE_REVIEW_OBLIGATION_DAG.md"
       ],
       "expected": {
         "sameRoleTotalsDifferentTrialBalance": true,
