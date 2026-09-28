@@ -33,10 +33,7 @@ def move
     (index : Nat) (back : Bool) : Nat :=
   let options := candidates catalog entered
   if options.isEmpty then 0
-  else if back then
-    Loam.Tui.CyclicIndex.backward options.length index
-  else
-    Loam.Tui.CyclicIndex.forward options.length index
+  else Loam.Tui.CyclicIndex.move options.length index back
 
 /-- Human-facing compact row; token remains visible because it is the stable identity. -/
 def display (entry : Loam.LocusCatalog.Entry) : String :=

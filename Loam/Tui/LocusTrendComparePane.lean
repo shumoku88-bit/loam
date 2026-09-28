@@ -61,12 +61,9 @@ def selectPickerSlot (state : State) (slot : Nat) : State :=
 def movePicker (state : State) (back : Bool) : State :=
   let options := state.candidateCatalog
   if options.isEmpty then { state with pickerIndex := 0 }
-  else if back then
-    { state with pickerIndex :=
-        Loam.Tui.CyclicIndex.backward options.length state.pickerIndex }
   else
     { state with pickerIndex :=
-        Loam.Tui.CyclicIndex.forward options.length state.pickerIndex }
+        Loam.Tui.CyclicIndex.move options.length state.pickerIndex back }
 
 def selectedPickerEntry? (state : State) : Option Loam.LocusCatalog.Entry :=
   if state.candidateCatalog.isEmpty then none

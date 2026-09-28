@@ -58,10 +58,7 @@ private def focusCount : Nat := 10
 private def previewAction : Nat := 8
 
 private def moveFocus (form : Form) (back : Bool) : Form :=
-  let next :=
-    if back then Loam.Tui.CyclicIndex.backward focusCount form.focus
-    else Loam.Tui.CyclicIndex.forward focusCount form.focus
-  { form with focus := next }
+  { form with focus := Loam.Tui.CyclicIndex.move focusCount form.focus back }
 
 private def editActive (form : Form) (edit : String → String) : Form :=
   if form.focus = 0 then { form with date := edit form.date }

@@ -146,14 +146,9 @@ def moveFocus (form : Form) (back : Bool) : Form :=
   have hcount : 0 < count := by
     dsimp [count]
     omega
-  let next :=
-    if back then Loam.Tui.CyclicIndex.backward count form.focus.val
-    else Loam.Tui.CyclicIndex.forward count form.focus.val
-  have hnext : next < count := by
-    dsimp [next]
-    split
-    · exact Loam.Tui.CyclicIndex.backward_lt count form.focus.val hcount
-    · exact Loam.Tui.CyclicIndex.forward_lt count form.focus.val hcount
+  let next := Loam.Tui.CyclicIndex.move count form.focus.val back
+  have hnext : next < count :=
+    Loam.Tui.CyclicIndex.move_lt count form.focus.val back hcount
   { form with focus := ⟨next, by simpa [count] using hnext⟩ }
 
 def replaceRows (form : Form) (rows : Array Row) : Form :=

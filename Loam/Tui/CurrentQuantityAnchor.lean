@@ -52,10 +52,7 @@ private def focusCount : Nat := 6
 private def firstAction : Nat := 3
 
 private def moveFocus (form : Form) (back : Bool) : Form :=
-  let next :=
-    if back then Loam.Tui.CyclicIndex.backward focusCount form.focus
-    else Loam.Tui.CyclicIndex.forward focusCount form.focus
-  { form with focus := next }
+  { form with focus := Loam.Tui.CyclicIndex.move focusCount form.focus back }
 
 private def editActive (form : Form) (edit : String → String) : Form :=
   if form.focus = 0 then { form with locus := edit form.locus }

@@ -137,14 +137,9 @@ def fromWindow (window : Loam.Tui.ReportWindow.State) : State :=
 
 /-- Move among Left Start/End, Right Start/End, and Run. -/
 def moveFocus (state : State) (back : Bool) : State :=
-  let next :=
-    if back then Loam.Tui.CyclicIndex.backward 5 state.focus.val
-    else Loam.Tui.CyclicIndex.forward 5 state.focus.val
+  let next := Loam.Tui.CyclicIndex.move 5 state.focus.val back
   { state with focus := ⟨next, by
-      dsimp [next]
-      split
-      · exact Loam.Tui.CyclicIndex.backward_lt 5 state.focus.val (by decide)
-      · exact Loam.Tui.CyclicIndex.forward_lt 5 state.focus.val (by decide)⟩ }
+      exact Loam.Tui.CyclicIndex.move_lt 5 state.focus.val back (by decide)⟩ }
 
 /-- Start manual editing while preserving the currently visible coordinates. -/
 def beginCustomEditing (state : State) : State :=
