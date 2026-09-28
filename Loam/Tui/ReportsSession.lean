@@ -39,7 +39,7 @@ partial def run (bounds : Bounds)
   let key ← Loam.Tui.Terminal.readKey
   let activeBounds ←
     match key with
-    | .other | .pointer _ _ | .pointerMotion _ _ => pure bounds
+    | .other | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ => pure bounds
     | _ => Loam.Tui.Terminal.currentBounds
   let resized := activeBounds != bounds
   let step := Loam.Tui.Reports.updateForBounds activeBounds state key
@@ -125,10 +125,14 @@ partial def run (bounds : Bounds)
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
   /-
-  Only the single-Locus Trend keeps hover-style all-pointer-motion reporting.
-  Trend Compare uses ordinary button reporting from Terminal.enter, so a click
-  selects one period without the cursor continuing to chase later mouse motion.
+  Single-Locus Trend keeps hover-style all-pointer-motion reporting.
+  Trend Compare uses button-motion reporting: click and drag can scrub periods,
+  while passive hover remains inert.
   -/
+  let hadButtonMotion := state.mode == .locusTrendCompare
+  let wantsButtonMotion := next.mode == .locusTrendCompare
+  if hadButtonMotion != wantsButtonMotion then
+    Loam.Tui.Terminal.setButtonMotion wantsButtonMotion
   let hadPointerMotion := state.mode == .locusTrend
   let wantsPointerMotion := next.mode == .locusTrend
   if hadPointerMotion != wantsPointerMotion then
