@@ -21,6 +21,14 @@ def main : IO Unit := do
   expect (positive.low > 0 && positive.high > 508)
     "portable chart range unnecessarily forced zero into positive history"
 
+  let overviewScale := Loam.Tui.Chart.scaleFor [464, 508, 500] 3
+  expect
+    (overviewScale.range.low == 460 &&
+      overviewScale.range.high == 520 &&
+      overviewScale.step == 20 &&
+      overviewScale.ticks == [460, 480, 500, 520])
+    "portable chart nice scale regressed to awkward sparse-history ticks"
+
   expect (Loam.Tui.Chart.xForIndex 61 3 0 == 0)
     "portable chart first logical point left the first plot column"
   expect (Loam.Tui.Chart.xForIndex 61 3 2 == 60)
@@ -52,6 +60,24 @@ def main : IO Unit := do
     "Braille chart renderer emitted no Braille pattern cells"
   expect (brailleText.toList.any fun ch => ch = '◆')
     "portable chart renderer lost the selected crosshair intersection"
+
+  let marked :=
+    Loam.Tui.Chart.renderInRange .braille 36 10
+      [464, 508, 500] 0 overviewScale.range
+      [ { index := 0, kind := .observed }
+      , { index := 1, kind := .observed }
+      , { index := 2, kind := .incomplete }
+      ]
+  let markedText := text marked
+  expect (markedText.toList.any fun ch => ch = '◆')
+    "selected observed chart point lost its explicit marker"
+  expect (markedText.toList.any fun ch => ch = '●')
+    "unselected observed chart point lost its explicit marker"
+  expect (markedText.toList.any fun ch => ch = '◇')
+    "partial chart point lost its distinct marker"
+  let horizontalGuides := (markedText.toList.filter fun ch => ch = '─').length
+  expect (horizontalGuides <= 4)
+    "selected crosshair expanded back into a distracting full-width ruler"
 
   expect (Loam.Tui.Chart.Renderer.next .braille == .block)
     "renderer fallback order lost Braille to block transition"
