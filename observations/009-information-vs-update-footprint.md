@@ -88,7 +88,7 @@ The `00 -> 10` witness is therefore not an isolated parsing artifact. Across thi
 
 A retained-state representation can preserve exactly the distinctions needed by the chosen future vocabulary while arranging those distinctions into coordinates that react differently to change.
 
-Observation 008 showed that sufficiency belongs to a decoding relationship rather than one privileged representation. Observation 009 adds a second axis: different sufficient coordinate systems can also distribute change differently across their stored coordinates.
+The recoverability result first explored in Observation 008 now lives in Observation 029's vocabulary-relative summary boundary: sufficiency belongs to a decoding relationship rather than one privileged representation. Observation 009 adds a second axis: different sufficient coordinate systems can also distribute change differently across their stored coordinates.
 
 So choosing a state representation may involve at least two independent questions:
 

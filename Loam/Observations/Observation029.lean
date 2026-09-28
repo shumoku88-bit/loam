@@ -2,7 +2,7 @@ namespace Loam.Observation029
 
 set_option autoImplicit false
 
-universe uH uQ uA uS
+universe uH uQ uA uS uT
 
 /-- A future vocabulary is the set of questions that future observers are
 allowed to ask. -/
@@ -70,6 +70,63 @@ theorem sufficiencyDescends
   refine ⟨decode, ?_⟩
   intro h q hSmall
   exact hDecode h q (hIncluded q hSmall)
+
+/--
+Sufficiency transfers through a new representation whenever that representation
+can recover an already-sufficient summary on every encoded history.
+
+This is the vocabulary-relative form of the recoverability law first explored
+by the retired Observation 008 fixture.
+-/
+theorem sufficiencyTransfersThroughRecovery
+    {History : Type uH}
+    {Question : Type uQ}
+    {Answer : Type uA}
+    {A : Type uS}
+    {B : Type uT}
+    (answer : History → Question → Answer)
+    (vocabulary : Vocabulary Question)
+    (encodeA : History → A)
+    (encodeB : History → B)
+    (recoverA : B → A)
+    (hSufficient : SufficientFor answer vocabulary encodeA)
+    (hRecover : ∀ h, recoverA (encodeB h) = encodeA h) :
+    SufficientFor answer vocabulary encodeB := by
+  rcases hSufficient with ⟨decode, hDecode⟩
+  refine ⟨fun b question => decode (recoverA b) question, ?_⟩
+  intro h question hVisible
+  change decode (recoverA (encodeB h)) question = answer h question
+  rw [hRecover h]
+  exact hDecode h question hVisible
+
+/--
+Two encodings that recover each other on the image of histories induce exactly
+the same summary fibers. Representation coordinates may differ while the
+retained distinctions are identical.
+-/
+theorem mutualRecovery_preservesSummaryFibers
+    {History : Type uH}
+    {A : Type uS}
+    {B : Type uT}
+    (encodeA : History → A)
+    (encodeB : History → B)
+    (toB : A → B)
+    (toA : B → A)
+    (hToB : ∀ h, toB (encodeA h) = encodeB h)
+    (hToA : ∀ h, toA (encodeB h) = encodeA h)
+    (h₁ h₂ : History) :
+    encodeA h₁ = encodeA h₂ ↔ encodeB h₁ = encodeB h₂ := by
+  constructor
+  · intro hEq
+    calc
+      encodeB h₁ = toB (encodeA h₁) := (hToB h₁).symm
+      _ = toB (encodeA h₂) := congrArg toB hEq
+      _ = encodeB h₂ := hToB h₂
+  · intro hEq
+    calc
+      encodeA h₁ = toA (encodeB h₁) := (hToA h₁).symm
+      _ = toA (encodeB h₂) := congrArg toA hEq
+      _ = encodeA h₂ := hToA h₂
 
 /-- Equal sufficient summaries make histories indistinguishable to every
 question in the vocabulary. -/

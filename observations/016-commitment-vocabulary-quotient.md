@@ -125,7 +125,7 @@ A concise reading is:
 
 > Identity becomes retained state when the vocabulary is allowed to name it.
 
-This sharpens Observation 005 and Observation 008 in the commitment setting. The state boundary is induced by observable distinctions; a representation such as `set Unit` is one way to coordinatize those distinctions, not the distinctions themselves.
+This sharpens Observation 005 and the recovery law now owned by Observation 029 in the commitment setting. The state boundary is induced by observable distinctions; a representation such as `set Unit` is one way to coordinatize those distinctions, not the distinctions themselves.
 
 ## Why J mattered here
 
@@ -148,7 +148,7 @@ This is a deliberately small universe:
 
 The observation does not prove that these are the vocabularies a household system should expose, that `set Unit` is globally minimal for every identity-sensitive vocabulary, or that identity can always be discarded from aggregate household semantics.
 
-TLA+ is not used because no claim is made about preservation through transitions. Lean is not used because Observation 008 already provides the general sufficiency/recoverability law; Observation 016 is a concrete application that discovers which distinctions the chosen vocabularies expose.
+TLA+ is not used because no claim is made about preservation through transitions. Lean is not used because Observation 029 now owns the general vocabulary-relative sufficiency/recoverability law; Observation 016 is a concrete application that discovers which distinctions the chosen vocabularies expose.
 
 ## Consequence for the implementation-language question
 

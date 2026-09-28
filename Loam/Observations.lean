@@ -1,4 +1,3 @@
-import Loam.Observations.Observation008
 import Loam.Observations.Observation011
 import Loam.Observations.Observation029
 import Loam.Observations.Observation078
@@ -154,6 +153,11 @@ Research compaction notes:
   the current observation-independent quotient/factorization theorem. The live
   downstream users depend only on Observation 191's generic machinery; the
   representative normalization and minimal-basis field trials remain in Git history.
+- 2026-09-28: Observation 008 retired after its reusable recovery laws moved
+  into Observation 029's vocabulary-relative summary boundary. The old Boolean
+  coordinate fixtures and dedicated prose were discovery scaffolds; current
+  summary-fiber and future-context work now builds on Observations 029, 192,
+  297, and 307.
 
 Retired source remains available in Git history.
 -/
