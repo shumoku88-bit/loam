@@ -44,16 +44,18 @@ fallbacks for the same values.
 
 ## Pointer contract
 
-The terminal boundary preserves explicit pointer presses and pointer motion as
-different normalized inputs.
+The terminal boundary preserves explicit pointer presses, primary-button drag,
+and passive pointer motion as different normalized inputs. Vertical wheel input
+maps to Up/Down; horizontal wheel input maps to Left/Right.
 
 Single-Locus Trend enables all-pointer-motion reporting while that surface is
-active, so keyboard Left/Right, click, and hover can converge on the same
+active, so keyboard Left/Right, click, drag, and hover can converge on the same
 selection state.
 
-Trend Compare deliberately keeps ordinary button reporting only. A click selects
-the nearest visible period, but later mouse movement does not move the shared
-comparison cursor. Dragging is never required.
+Trend Compare enables button-motion reporting only. Click and primary-button
+drag scrub the nearest visible period, and wheel motion moves one active period
+at a time. Passive hover is inert, so the shared comparison cursor does not keep
+following the mouse after release.
 
 ## Resize contract
 

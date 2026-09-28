@@ -823,7 +823,8 @@ def updateForBounds
     (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   let pointerAdjusted :=
     match state.mode, key with
-    | .locusTrendCompare, .pointer col row =>
+    | .locusTrendCompare, .pointer col row
+    | .locusTrendCompare, .pointerDrag col row =>
         if Loam.Tui.LocusTrendComparePane.pointerInPlot
             bounds state.trendCompare row then
           { state with
@@ -834,6 +835,7 @@ def updateForBounds
         else
           state
     | .locusTrend, .pointer col row
+    | .locusTrend, .pointerDrag col row
     | .locusTrend, .pointerMotion col row =>
         if Loam.Tui.LocusTrendPane.pointerInPlot bounds state.trend row then
           { state with
@@ -844,7 +846,8 @@ def updateForBounds
     | _, _ => state
   let step : Step :=
     match key with
-    | .pointer _ _ | .pointerMotion _ _ => { state := pointerAdjusted }
+    | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ =>
+        { state := pointerAdjusted }
     | _ => update pointerAdjusted key
   if step.state.mode = .locusTrendCompare || step.state.mode = .locusTrend then
     { step with state := { step.state with scroll := 0 } }

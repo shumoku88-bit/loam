@@ -317,19 +317,35 @@ def main : IO Unit := do
         (Loam.Tui.LocusTrendComparePane.plotTop viewportState + 1))).state
   expect (viewportPress.trendCompare.selected == 9)
     "Trend Compare click did not select inside the visible Day viewport"
+
+  let viewportDrag :=
+    (Loam.Tui.Reports.updateForBounds compareBounds viewportReport
+      (.pointerDrag Loam.Tui.LocusTrendComparePane.plotLeft
+        (Loam.Tui.LocusTrendComparePane.plotTop viewportState + 1))).state
+  expect (viewportDrag.trendCompare.selected == 9)
+    "Trend Compare drag did not scrub inside the visible Day viewport"
+
   let viewportMotion :=
     (Loam.Tui.Reports.updateForBounds compareBounds viewportReport
       (.pointerMotion Loam.Tui.LocusTrendComparePane.plotLeft
         (Loam.Tui.LocusTrendComparePane.plotTop viewportState + 1))).state
   expect (viewportMotion.trendCompare.selected == viewportState.selected)
-    "Trend Compare still followed pointer motion after click-only selection"
+    "Trend Compare still followed passive pointer motion"
+
+  let viewportWheelBack := (Loam.Tui.Reports.update viewportReport .up).state
+  expect (viewportWheelBack.trendCompare.selected == 38)
+    "Trend Compare wheel-up did not move one Day period backward"
+  let viewportWheelForward := (Loam.Tui.Reports.update viewportWheelBack .down).state
+  expect (viewportWheelForward.trendCompare.selected == 39)
+    "Trend Compare wheel-down did not move one Day period forward"
 
   let viewportText := widgetText
     (Loam.Tui.Reports.viewForBounds compareBounds viewportReport)
   expect (contains "31-day viewport" viewportText &&
-      contains "mouse click select" viewportText &&
+      contains "wheel select period" viewportText &&
+      contains "mouse click/drag scrub" viewportText &&
       contains "Aug 10" viewportText && contains "Sep 9" viewportText)
-    "Trend Compare Day did not expose the visible 31-day window"
+    "Trend Compare Day did not expose the visible 31-day window and mouse controls"
   expect (!(contains "¥8,000" viewportText))
     "Trend Compare Day scale still included an outlier outside the visible viewport"
 

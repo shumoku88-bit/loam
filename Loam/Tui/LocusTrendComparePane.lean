@@ -328,7 +328,7 @@ private def axisText
   | none => "         │ "
 
 private def footerTokens : List String :=
-  ["←/→ select period", "mouse click select", "[ / ] granularity",
+  ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] granularity",
    "r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) : List Widget :=

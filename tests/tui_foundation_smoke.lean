@@ -30,8 +30,10 @@ example : Loam.Tui.CyclicIndex.forward 3 2 = 0 := by decide
 
 example : Loam.Tui.Terminal.decodeSgrMousePayload "64;10;5" = .up := by native_decide
 example : Loam.Tui.Terminal.decodeSgrMousePayload "65;10;5" = .down := by native_decide
+example : Loam.Tui.Terminal.decodeSgrMousePayload "66;10;5" = .left := by native_decide
+example : Loam.Tui.Terminal.decodeSgrMousePayload "67;10;5" = .right := by native_decide
 example : Loam.Tui.Terminal.decodeSgrMousePayload "0;10;5" = .pointer 9 4 := by native_decide
-example : Loam.Tui.Terminal.decodeSgrMousePayload "32;11;6" = .pointerMotion 10 5 := by native_decide
+example : Loam.Tui.Terminal.decodeSgrMousePayload "32;11;6" = .pointerDrag 10 5 := by native_decide
 example : Loam.Tui.Terminal.decodeSgrMousePayload "35;12;7" = .pointerMotion 11 6 := by native_decide
 
 private def widgetText (widget : Widget) : String :=
