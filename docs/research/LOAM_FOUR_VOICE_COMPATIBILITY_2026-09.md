@@ -212,7 +212,7 @@ The executable probe established:
 5. **More raw correction facts can remove all current answers.** A branching correction relation is retainable raw evidence but does not justify one current frontier, so RoleBalance refuses the projection.
 6. **Zero-origin and OpeningSupport overlap now fails closed too.** V6 exposed a small implementation seam: RoleBalance's module contract already said support families were non-overlapping, but the reader previously selected zero-origin first for this pair. The boundary was tightened to match the declared semantics instead of inventing precedence.
 
-The household canonical data did not contain this overlap when checked: OpeningSupport names `debt-friend-k / jpy`, while zero-origin coverage names a disjoint set of coordinates.
+The household canonical data did not contain this overlap when checked: OpeningSupport names `liability-opening / jpy`, while zero-origin coverage names a disjoint set of coordinates.
 
 ### Consequence for information-order ideas
 
