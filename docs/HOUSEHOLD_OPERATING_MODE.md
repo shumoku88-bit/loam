@@ -33,6 +33,59 @@ household facts
 
 If evidence required for a migration or historical claim is unavailable, fail closed rather than guessing.
 
+
+## Known physical facts with unresolved classification
+
+Ordinary recording distinguishes an unresolved household classification from an
+invalid physical Movement.
+
+If the exact quantity and Measure are known, the Movement may retain an explicit
+ordinary `suspense` Locus while some destination meaning is still unknown. The
+Movement must still pass normal exact conservation and admission. Unknown
+classification never licenses an imbalanced recording.
+
+`suspense` is a household convention over ordinary `LocusId`, not a Core
+type, Measure, AccountingRole, Purpose, Attention fact, transaction kind, or
+separate authority. A known JPY/USD/EUR Measure remains that Measure; genuinely
+unknown Measure evidence is a different problem and must not be guessed.
+
+The production interaction is intentionally explicit:
+
+```text
+Record / Correction
+    -> calculate exact unresolved remainder
+    -> ordinary suspense Locus
+    -> normal Movement admission/publication
+
+suspense not yet admitted
+    -> explicit first-use LocusAdmission
+    -> canonical reload
+    -> no Actual publication during activation
+
+later classification
+    -> ordinary append-only Correction
+    -> original/intermediate Events remain history
+```
+
+Current owners are `Loam/Tui/Record.lean`,
+`Loam/Tui/UnresolvedActivation.lean`, `Loam/MovementPublisher.lean`, and
+`Loam/CorrectionPublisher.lean`. Production regression coverage lives in
+`Loam/Tests/TuiRecord.lean` and `Loam/Tests/CorrectionPublisher.lean`.
+
+The live bounded witness
+`experiments/269_suspense_known_unknown.als` continues to protect the more
+general rule that valid unknown/partial classification can coexist with exact
+conservation while imbalance remains invalid.
+
+This source-side household convention is distinct from Beancount/Fava
+`--suspense`, where unresolved AccountingRole is projected to the disposable
+target account `Equity:Loam-Unresolved`. Export scaffolding does not assign an
+AccountingRole to the canonical `suspense` Locus.
+
+Do not add guessed classification, a suspense Measure, a Core Suspense type,
+automatic AccountingRole, duplicate Attention state, tax decomposition, or
+cross-Measure coercion merely to record a known physical fact.
+
 ## HRA is historical reference, not LOAM ontology
 
 HRA may still supply historical evidence, comparison answers, or useful interaction ideas. It is not a schema that LOAM must reproduce.
