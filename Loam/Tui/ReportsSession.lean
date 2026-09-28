@@ -124,10 +124,15 @@ partial def run (bounds : Bounds)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
-  let wasTrend := state.mode == .locusTrend || state.mode == .locusTrendCompare
-  let isTrend := next.mode == .locusTrend || next.mode == .locusTrendCompare
-  if wasTrend != isTrend then
-    Loam.Tui.Terminal.setPointerMotion isTrend
+  /-
+  Only the single-Locus Trend keeps hover-style all-pointer-motion reporting.
+  Trend Compare uses ordinary button reporting from Terminal.enter, so a click
+  selects one period without the cursor continuing to chase later mouse motion.
+  -/
+  let hadPointerMotion := state.mode == .locusTrend
+  let wantsPointerMotion := next.mode == .locusTrend
+  if hadPointerMotion != wantsPointerMotion then
+    Loam.Tui.Terminal.setPointerMotion wantsPointerMotion
   let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds activeBounds next)
   if resized then
     Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
