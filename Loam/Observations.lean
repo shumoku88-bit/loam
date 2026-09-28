@@ -89,7 +89,6 @@ import Loam.Observations.Observation349
 import Loam.Observations.Observation350
 import Loam.Observations.Observation351
 import Loam.Observations.Observation352
-import Loam.Observations.Observation353
 import Loam.Observations.Observation354
 import Loam.Observations.Observation355
 import Loam.Observations.Observation356
@@ -142,6 +141,10 @@ Research compaction notes:
   scan was promoted by #1323 and later narrowed by #1399: current Stock-Flow
   keeps one fail-closed window scan while historical start reconstruction is
   owned separately by `HistoricalBalanceReview`.
+- 2026-09-28: Observation 353 retired after its provisional-date refinement
+  specimen became ordinary production behavior: `ActualValidityPublisher`
+  appends date-revision evidence while preserving the Event/Effects, and focused
+  tests pin repeated correction and current-truth `ActualReview` placement.
 
 Retired source remains available in Git history.
 -/
