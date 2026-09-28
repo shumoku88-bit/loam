@@ -61,13 +61,16 @@ def main : IO Unit := do
   expect (brailleText.toList.any fun ch => ch = '◆')
     "portable chart renderer lost the selected crosshair intersection"
 
+  let gridRows :=
+    overviewScale.ticks.map fun tick =>
+      Loam.Tui.Chart.rowForValue 10 overviewScale.range tick
   let marked :=
     Loam.Tui.Chart.renderInRange .braille 36 10
       [464, 508, 500] 0 overviewScale.range
       [ { index := 0, kind := .observed }
       , { index := 1, kind := .observed }
       , { index := 2, kind := .incomplete }
-      ]
+      ] gridRows
   let markedText := text marked
   expect (markedText.toList.any fun ch => ch = '◆')
     "selected observed chart point lost its explicit marker"
@@ -78,6 +81,8 @@ def main : IO Unit := do
   let horizontalGuides := (markedText.toList.filter fun ch => ch = '─').length
   expect (horizontalGuides <= 4)
     "selected crosshair expanded back into a distracting full-width ruler"
+  expect (markedText.toList.any fun ch => ch = '┄')
+    "nice-tick chart lost its subtle horizontal grid"
 
   expect (Loam.Tui.Chart.Renderer.next .braille == .block)
     "renderer fallback order lost Braille to block transition"
