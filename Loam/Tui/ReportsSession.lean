@@ -34,13 +34,13 @@ query meaning, and report rendering remain in their existing owners.
 /-- Reports session; q/Esc moves back one level and eventually returns Home. -/
 partial def run (bounds : Bounds)
     (dataDir root : System.FilePath)
-    (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Unit := do
+    (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
   let activeBounds ←
     if key = .other then pure bounds else Loam.Tui.Terminal.currentBounds
   let resized := activeBounds != bounds
   let step := Loam.Tui.Reports.updateForBounds activeBounds state key
-  if step.back then return ()
+  if step.back then return activeBounds
   let next ←
     match step.query with
     | none => pure step.state
