@@ -1,6 +1,6 @@
 # Semantic audit SA-008 - Scheduled semantic amplification
 
-Status: **AUDIT VERDICT COMPLETE - implementation intentionally deferred**
+Status: **CURRENT PRODUCTION BOUNDARY / AUDIT VERDICT COMPLETE**
 
 Parent ledger: `docs/research/SEMANTIC_AUDIT_LEDGER.md`
 
@@ -178,9 +178,9 @@ The existing typed Application result is already the important shared boundary.
 
 Decision: **KEEP local translation for now. Reopen only if a structured non-string error type earns multiple independent consumers and produces a net-negative adapter surface.**
 
-## 7. Strong residual candidate: Creation / Replacement occurrence construction
+## 7. Graduated residual: Creation / Replacement occurrence construction
 
-The clearest Scheduled duplication is not semantic meaning. It is pure publication plumbing shared by creation and replacement.
+The clearest Scheduled duplication was not semantic meaning. It was pure publication plumbing shared by creation and replacement.
 
 Both publishers independently define near-identical mechanics for:
 
@@ -210,7 +210,7 @@ Replacement
 
 Therefore the correct candidate is **not** one generic Scheduled publisher.
 
-The candidate is a small presentation-neutral helper for creating one admitted fresh Scheduled occurrence from common draft fields, while leaving source selection, terminal provenance, transition checks, publication error wording, and operation-specific receipts local.
+The selected production helper is `Loam.ScheduledOccurrenceConstruction`. It owns the shared fresh-id and balanced-occurrence mechanics while source selection, terminal provenance, transition checks, publication error wording, and operation-specific receipts remain local to Creation and Replacement.
 
 ## 8. Positive precedent: ScheduledContinuationRouting
 
@@ -227,11 +227,11 @@ share pure mechanics
 keep semantic operation ownership explicit
 ```
 
-## 9. Formal promotion gate for Creation / Replacement extraction
+## 9. Qualified production state for Creation / Replacement extraction
 
-This candidate is mechanical equivalence, so Lean is the preferred instrument. A new Alloy model is unnecessary unless the proposed refactor changes admission semantics.
+The extraction was treated as mechanical equivalence, so Lean and executable regression coverage were the appropriate instruments. No new Alloy model was needed because admission semantics did not change.
 
-Before implementation, prove or regression-lock at least:
+The production split preserves the originally required obligations:
 
 1. identical fresh-id choice for the same ScheduledMemory;
 2. identical BalancedMovement reconstructed from the same draft Effects;
@@ -242,7 +242,7 @@ Before implementation, prove or regression-lock at least:
 7. lifecycle wire bytes are unchanged for accepted operations;
 8. writer ownership order and publication order are unchanged.
 
-If extraction requires a callback-heavy generic publisher, a new public ontology, or more adapter code than it removes, reject it.
+The implemented helper remained narrow enough to avoid the rejected callback-heavy generic publisher or new public ontology.
 
 ## 10. Rejected abstractions
 
@@ -289,8 +289,25 @@ The repeated current-open refusal-to-string mapping is observable code duplicati
 
 ### Promotion state
 
-SA-008 is **audit-complete** at this checkpoint.
+SA-008 is **audit-complete and production-current** at this checkpoint.
 
-No production implementation is authorized by this file alone.
+The narrow Creation / Replacement mechanics extraction is implemented through
+`Loam.ScheduledOccurrenceConstruction`, while the explicit publishers and their
+distinct semantics remain separate.
 
-If implementation is batched later, first attempt the smallest Creation / Replacement pure-mechanics extraction with Lean equivalence and unchanged lifecycle bytes/protocol. If that is not net-negative, keep the current explicit publishers.
+Observation 226's Scheduled authority-topology model/prose and Observation 227's
+Capacity-pressure model/prose have graduated to Git history. Their durable
+conclusions are now owned directly by current production:
+
+- one complete Scheduled lifecycle authority image with independent
+  ScheduledRouting;
+- current-open lifecycle interpretation centralized in Application;
+- Capacity pressure derived from explicit ScheduledRouting first, then partial
+  AccountingRole fallback;
+- positive Expense/Liability as default pressure, positive Asset/Income/Equity
+  as resolved non-pressure when unrouted, and missing role as explicit
+  unresolved eligibility;
+- no stored Commitment, Headroom, FixedCost, or CommitmentEligibility authority.
+
+The exact bounded models remain recoverable from Git history, but they are no
+longer live CI owners or unique working-tree evidence.
