@@ -9,8 +9,10 @@ set_option autoImplicit false
 /-!
 # Observation 277 — Event identity uniqueness is not payment idempotency
 
-Observation 276 established the first conservation law over sequences of
-proof-carrying `BalancedMovement` values.
+Historical Observation 276 established the first conservation scaffold over
+sequences of proof-carrying `BalancedMovement` values. That scaffold has since
+graduated because `BalancedMovement` itself now owns the retained zero-total
+proof directly.
 
 This observation asks a separate, narrower question already suggested by the
 existing `EventMemory.idNodup` field:

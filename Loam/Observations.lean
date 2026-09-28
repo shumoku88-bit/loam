@@ -28,9 +28,7 @@ import Loam.Observations.Observation261
 import Loam.Observations.Observation262
 import Loam.Observations.Observation270
 import Loam.Observations.Observation275
-import Loam.Observations.Observation276
 import Loam.Observations.Observation277
-import Loam.Observations.Observation278
 import Loam.Observations.Observation279
 import Loam.Observations.Observation280
 import Loam.Observations.Observation281
@@ -126,6 +124,11 @@ Research compaction notes:
   promoted to `AdmittedActualImage`; its current Event / validity correspondence
   obligations now live directly in production proof fields and qualification
   tests.
+- 2026-09-28: Observations 276 and 278 retired after their conservation
+  scaffolds became direct production laws. `BalancedMovement` carries exact
+  zero-total proof with the value, while `ActualReversal.coordinateNetZero_of_exactPhysicalInverse`
+  and `ActualReversalBalance` own the stronger Event/Effect and per-Measure
+  reversal cancellation results.
 
 Retired source remains available in Git history.
 -/

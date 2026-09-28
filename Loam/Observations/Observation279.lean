@@ -13,8 +13,10 @@ Observation 277 showed that unique EventId storage is not enough to prevent the
 same semantic payment or command from being represented twice under different
 EventIds.
 
-Observation 278 then showed that conservation across correction and exact
-reversal needs no new retained accounting evidence.
+Historical Observation 278 then showed that conservation across correction
+and exact reversal needs no new retained accounting evidence. Its research
+wrapper has since graduated because production `ActualReversal` and
+`ActualReversalBalance` own stronger exact coordinate and per-Measure laws.
 
 This observation asks the next minimal question:
 
