@@ -327,13 +327,6 @@ def renderWithPresentation?
             [String.intercalate "\n\n" transactions])
       pure (String.intercalate "\n" body ++ "\n")
 
-/-- Scale-0 compatibility renderer. -/
-def render?
-    (roles : AccountingRoleMap)
-    (entries : List Loam.ActualJournalProjection.Entry) :
-    Except String String :=
-  renderWithPresentation? [] roles entries
-
 structure SkippedEvent where
   eventId : EventId
   validOn : String
@@ -446,13 +439,6 @@ def renderPartialWithPresentation?
     skippedCount := skippedEvents.length
     skippedEvents := skippedEvents
   }
-
-/-- Scale-0 compatibility partial renderer. -/
-def renderPartial?
-    (roles : AccountingRoleMap)
-    (entries : List Loam.ActualJournalProjection.Entry) :
-    Except String PartialExportResult :=
-  renderPartialWithPresentation? [] roles entries
 
 def suspenseAccountName : String := "Equity:Loam-Unresolved"
 
@@ -620,13 +606,6 @@ def renderSuspenseWithPresentation?
     unresolvedEffectCount := unresolvedEffects.length
     unresolvedLoci := unresolvedCounts
   }
-
-/-- Scale-0 compatibility suspense renderer. -/
-def renderSuspense?
-    (roles : AccountingRoleMap)
-    (entries : List Loam.ActualJournalProjection.Entry) :
-    Except String SuspenseExportResult :=
-  renderSuspenseWithPresentation? [] roles entries
 
 end Loam.BeancountExport
 
