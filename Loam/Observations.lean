@@ -21,7 +21,6 @@ import Loam.Observations.Observation260
 import Loam.Observations.Observation261
 import Loam.Observations.Observation262
 import Loam.Observations.Observation270
-import Loam.Observations.Observation282
 import Loam.Observations.Observation283
 import Loam.Observations.StructuralS003
 import Loam.Observations.StructuralS008
@@ -172,6 +171,13 @@ Research compaction notes:
   publication under one Actual writer ownership, returning the original EventId
   on replay without treating draft equality as identity. The finite precursor
   models and duplicate-draft pressure remain in Git history.
+- 2026-09-28: Observation 282 retired after cross-Measure exchange
+  became a production boundary. `ExchangeEvidence` now selects exact source and
+  destination Effects, `ExchangeEvidenceFrontier` admits fee-bearing
+  occurrences without inventing fee meaning, and `ExchangePublisher` publishes
+  Event plus exchange evidence atomically. Observation 283 remains live only for
+  the narrower unresolved distinction that fee semantics are independent
+  evidence.
 - 2026-09-28: Observations 359 and 360 retired after the settlement family
   reached production. Their delayed cross-Measure commitment, exact later-Effect
   correspondence, and "keep OpenRelation source-bounded" conclusions are now
