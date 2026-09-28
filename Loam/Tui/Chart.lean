@@ -63,7 +63,7 @@ structure Scale where
 
 inductive MarkerKind where
   | observed
-  | partial
+  | incomplete
   deriving Repr, DecidableEq
 
 structure Marker where
@@ -261,7 +261,7 @@ private def markerAt?
 private def markerGlyph
     (marker : Marker) (selected : Nat) : Char :=
   match marker.kind with
-  | .partial => '◇'
+  | .incomplete => '◇'
   | .observed => if marker.index = selected then '◆' else '●'
 
 /--
