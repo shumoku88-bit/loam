@@ -32,7 +32,7 @@ The production TUI owns default household authority selection. `LOAM_DATA_DIR` m
 
 Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume this authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
 
-Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Lower-level commands that accept an Actual path or data root fail closed on missing or malformed evidence rather than manufacturing an alternate authority. The historical shell-menu manifest cutover is retained as provenance in [`docs/movement_manifest_menu_cutover.md`](docs/movement_manifest_menu_cutover.md); it is not current entrance guidance.
+Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Lower-level commands that accept an Actual path or data root fail closed on missing or malformed evidence rather than manufacturing an alternate authority. Earlier manifest/sidecar authority cutovers are historical and remain available in Git history; current entrance guidance lives here and in [`docs/TUI.md`](docs/TUI.md).
 
 ### Development checkout
 
