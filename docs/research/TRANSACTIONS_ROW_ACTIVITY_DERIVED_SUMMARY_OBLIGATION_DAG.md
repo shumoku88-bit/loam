@@ -199,6 +199,26 @@ The existing Transactions-Flow regression was not rewritten for this change and 
 
 The DRAKON builder is committed audit instrumentation but was not independently executed during this qualification.
 
+## Follow-up ownership compression
+
+Historical Observation 321 additionally proved, for arbitrary Snapshots, that
+the separately implemented scalar `rowTotal` fold was extensionally equal to
+`rowActivity.net`. Production now removes that duplicated arithmetic owner:
+
+```text
+selected columns
+    -> rowActivity
+    -> net
+    -> rowTotal
+```
+
+The Observation 321 executable wrapper has therefore graduated to Git history.
+Its second theorem family, Event-local coordinate fold = `Event.quantityAt`, is
+subsumed by the stronger live sparse-HashMap correspondence in Observation 325.
+
+This changes no Transactions Flow answer. It only makes the already-qualified
+derivation explicit in production and prevents two implementations from drifting.
+
 ## Verdict
 
 **G2-023: SIMPLIFY QUALIFIED — Transactions RowActivity retains only positive, negative and activeEvents; net and gross are derived exact consequences of the signed partitions.**

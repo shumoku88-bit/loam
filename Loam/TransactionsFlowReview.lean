@@ -241,15 +241,6 @@ def cellAt
     decide (candidate.event.id = eventId)
   some (Event.quantityAt column.event coordinate.locus coordinate.measure)
 
-/-- Exact selected-period net change at one coordinate. -/
-def rowTotal (snapshot : Snapshot) (coordinate : EffectCoordinate) : Quantity :=
-  Quantity.ofQuanta <|
-    snapshot.columns.foldl
-      (fun total column =>
-        total +
-          (Event.quantityAt column.event coordinate.locus coordinate.measure).quanta)
-      0
-
 /--
 Expose two-sided coordinate activity that a small net value can otherwise hide.
 
@@ -276,6 +267,16 @@ def rowActivity
     negative := Quantity.ofQuanta accumulated.2.1
     activeEvents := accumulated.2.2
   }
+
+/--
+Exact selected-period net change at one coordinate.
+
+The net is an exact consequence of the same signed activity partition used by
+`rowActivity`; keeping a second independent fold would duplicate one numeric
+meaning.
+-/
+def rowTotal (snapshot : Snapshot) (coordinate : EffectCoordinate) : Quantity :=
+  (rowActivity snapshot coordinate).net
 
 /--
 Observed residual of one selected Event inside one Measure.
