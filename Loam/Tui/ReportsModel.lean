@@ -614,6 +614,10 @@ private def updateLocusTrend
       { state := { state with
           trend := Loam.Tui.LocusTrendPane.moveSelection state.trend false
           notice := "" } }
+  | .input 'r' | .input 'R' =>
+      { state := { state with
+          trend := Loam.Tui.LocusTrendPane.cycleRenderer state.trend
+          notice := "" } }
   | .enter =>
       if Loam.Tui.LocusTrendPane.isOverview state.trend then
         match Loam.Tui.LocusTrendPane.selectedOverviewPoint? state.trend with

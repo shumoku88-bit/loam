@@ -137,6 +137,20 @@ def main : IO Unit := do
     "Locus Trend did not render the full-screen long-history overview"
   expect ((Loam.Tui.Reports.viewForBounds trendBounds trendPointer).lines.length <= trendBounds.height)
     "full-screen Locus Trend exceeded the terminal height"
+  expect (contains "renderer braille" trendText)
+    "Locus Trend did not default to the high-resolution portable renderer"
+
+  let trendBlock := (Loam.Tui.Reports.update trendPointer (.input 'r')).state
+  expect (trendBlock.trend.renderer == .block)
+    "Locus Trend renderer fallback did not move from Braille to block"
+  let trendBlockText := widgetText
+    (Loam.Tui.Reports.viewForBounds trendBounds trendBlock)
+  expect (contains "renderer block" trendBlockText)
+    "Locus Trend did not surface the active fallback renderer"
+
+  let trendAscii := (Loam.Tui.Reports.update trendBlock (.input 'r')).state
+  expect (trendAscii.trend.renderer == .ascii)
+    "Locus Trend renderer fallback did not move from block to ASCII"
 
   match (Loam.Tui.Reports.update trendPointer .enter).query with
   | some (.locusTrend start endExclusive coordinate) =>

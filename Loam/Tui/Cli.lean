@@ -563,11 +563,12 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             notice := "Boundary preset config malformed; named presets unavailable." }
     let reportsFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds reports)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame reportsFrame
-    Loam.Tui.ReportsSession.run bounds dataDir root reports reportsFrame
+    let nextBounds ←
+      Loam.Tui.ReportsSession.run bounds dataDir root reports reportsFrame
     let home := { state with notice := "" }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    let nextFrame := compiledFrameFor nextBounds snapshot home
+    Loam.Tui.Terminal.redrawFromBlank nextBounds nextFrame
+    loop nextBounds dataDir root snapshot home nextFrame
   else if (key = .input 't' || key = .input 'T') then
     let home :=
       { state with selectedDate := snapshot.actual.today, notice := "", detailScroll := 0 }

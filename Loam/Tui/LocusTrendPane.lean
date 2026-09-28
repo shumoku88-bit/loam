@@ -1,4 +1,5 @@
 import Loam.LocusTrendReview
+import Loam.Tui.Chart
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 
@@ -33,6 +34,7 @@ structure State where
   snapshot : Option Loam.LocusTrendReview.Snapshot := none
   selected : Nat := 0
   overviewSelected : Nat := 0
+  renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
 def initial : State := {}
@@ -65,6 +67,10 @@ def backToOverview (state : State) : State :=
 
 def isOverview (state : State) : Bool :=
   state.view == .overview
+
+def cycleRenderer (state : State) : State :=
+  { state with renderer := state.renderer.next }
+
 
 private def pointCount (state : State) : Nat :=
   match state.view with
@@ -105,17 +111,6 @@ def plotWidth (bounds : Bounds) : Nat :=
 def plotHeight (bounds : Bounds) : Nat :=
   if bounds.height > 11 then bounds.height - 11 else 3
 
-private def xForIndex (width count index : Nat) : Nat :=
-  if width <= 1 || count <= 1 then 0
-  else min (width - 1) (index * (width - 1) / (count - 1))
-
-private def nearestIndex (width count column : Nat) : Nat :=
-  if width <= 1 || count <= 1 then 0
-  else
-    let x := min (width - 1) column
-    min (count - 1)
-      ((x * (count - 1) + (width - 1) / 2) / (width - 1))
-
 /--
 Select the chart point nearest one physical pointer column.
 
@@ -128,7 +123,8 @@ def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
     let count := pointCount state
     if count = 0 then state
     else
-      let next := nearestIndex (plotWidth bounds) count (column - plotLeft)
+      let next := Loam.Tui.Chart.nearestIndex
+        (plotWidth bounds) count (column - plotLeft)
       match state.view with
       | .overview =>
           { state with selected := next, overviewSelected := next }
@@ -153,73 +149,33 @@ private def values (state : State) : List Int :=
       state.snapshot.map (fun snapshot =>
         snapshot.points.map (·.daily.quanta)) |>.getD []
 
-private def extrema (values : List Int) : Int × Int :=
-  values.foldl
-    (fun (low, high) value => (min low value, max high value))
-    (0, 0)
-
-private def interpolate (left right : Int) (numerator denominator : Nat) : Int :=
-  if denominator = 0 then left
-  else
-    left +
-      (right - left) * Int.ofNat numerator / Int.ofNat denominator
-
-private def sampleAt (values : List Int) (width x : Nat) : Int :=
-  let count := values.length
-  if count = 0 then 0
-  else if count = 1 || width <= 1 then values.head?.getD 0
-  else if x + 1 >= width then values.getLast?.getD 0
-  else
-    let denominator := width - 1
-    let scaled := x * (count - 1)
-    let segment := scaled / denominator
-    let remainder := scaled % denominator
-    let left := values[segment]?.getD 0
-    let right := values[segment + 1]?.getD left
-    interpolate left right remainder denominator
-
-private def rowForValue
-    (height : Nat) (low high value : Int) : Nat :=
-  if height <= 1 || high <= low then 0
-  else
-    let offset :=
-      (value - low) * Int.ofNat (height - 1) / (high - low)
-    (height - 1) - min (height - 1) offset.natAbs
-
-private def valueForRow (height row : Nat) (low high : Int) : Int :=
-  if height <= 1 || high <= low then high
-  else
-    high -
-      (high - low) * Int.ofNat row / Int.ofNat (height - 1)
-
-private def axisText (height row : Nat) (low high : Int) : String :=
+private def axisText
+    (height row : Nat) (range : Loam.Tui.Chart.Range) : String :=
   if row = 0 || row = height / 2 || row + 1 = height then
-    Loam.Tui.Layout.padLeft 8 (toString (valueForRow height row low high)) ++ " ┤ "
+    Loam.Tui.Layout.padLeft 8
+      (toString (Loam.Tui.Chart.valueForRow height row range)) ++ " ┤ "
   else
     "         │ "
 
-private def chartRow
-    (bounds : Bounds) (state : State)
-    (row : Nat) : Widget :=
+private def chartRows
+    (bounds : Bounds) (state : State) : List Widget :=
   let width := plotWidth bounds
   let height := plotHeight bounds
   let series := values state
-  let (low, high) := extrema series
-  let selectedX := xForIndex width series.length state.selected
-  let plotSpans :=
-    (List.range width).map fun x =>
-      let value := sampleAt series width x
-      let valueRow := rowForValue height low high value
-      if x = selectedX then
-        if row = valueRow then span "◆" .selected
-        else span "│" .muted
-      else if row = valueRow then
-        span "•"
-      else if valueForRow height row low high = 0 then
-        span "─" .muted
-      else
-        span " "
-  .row ([span (axisText height row low high)] ++ plotSpans)
+  let range := Loam.Tui.Chart.rangeFor series
+  let rendered :=
+    Loam.Tui.Chart.render state.renderer width height series state.selected
+  (List.range height).map fun row =>
+    match rendered[row]? with
+    | some widget =>
+        match widget with
+        | Widget.row spans =>
+            Widget.row ([span (axisText height row range)] ++ spans)
+        | Widget.column _ =>
+            Widget.row [span (axisText height row range)]
+    | none =>
+        Widget.row [span (axisText height row range)]
+
 
 private def overviewAxis
     (bounds : Bounds) (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : Widget :=
@@ -259,7 +215,8 @@ private def header (state : State) : List Widget :=
                 " boundaries through " ++ snapshot.observedAt ++ ".")
           , line
               ("Coordinate " ++ snapshot.coordinate.locus.token ++
-                " / " ++ snapshot.coordinate.measure.token)
+                " / " ++ snapshot.coordinate.measure.token ++
+                "   renderer " ++ state.renderer.label)
           , line
               ("Selected [" ++ point.start ++ ", " ++ observedEnd ++
                 (if point.complete then ")" else ")  partial"))
@@ -284,7 +241,8 @@ private def header (state : State) : List Widget :=
                 snapshot.endExclusive ++ ")")
           , line
               ("Coordinate " ++ snapshot.coordinate.locus.token ++
-                " / " ++ snapshot.coordinate.measure.token)
+                " / " ++ snapshot.coordinate.measure.token ++
+                "   renderer " ++ state.renderer.label)
           , line
               ("Selected " ++ point.date ++
                 "   day " ++ signed point.daily.quanta ++ " " ++
@@ -305,12 +263,12 @@ private def header (state : State) : List Widget :=
 private def footer (state : State) : List Widget :=
   match state.view with
   | .overview =>
-      [ muted "←/→ or h/l select cycle   Enter daily detail   mouse selects nearest cycle"
-      , muted "q / Esc Reports menu"
+      [ muted "←/→ or h/l select cycle   Enter daily detail   mouse hover selects cycle"
+      , muted "r renderer fallback   q / Esc Reports menu"
       ]
   | .detail =>
-      [ muted "←/→ or h/l select day   mouse selects nearest day"
-      , muted "q / Esc long history"
+      [ muted "←/→ or h/l select day   mouse hover selects day"
+      , muted "r renderer fallback   q / Esc long history"
       ]
 
 /--
@@ -319,9 +277,7 @@ scrolling body. The chart consumes every row left after its fixed context and
 navigation lines.
 -/
 def viewFullScreen (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
-  let chart :=
-    (List.range (plotHeight bounds)).map fun row =>
-      chartRow bounds state row
+  let chart := chartRows bounds state
   let axis :=
     match state.view with
     | .overview =>

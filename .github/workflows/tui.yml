@@ -20,8 +20,7 @@ on:
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
       - 'Loam/LocusTrendReview.lean'
       - 'Loam/Tests/LocusTrendReview.lean'
-      - 'Loam/LocusTrendReview.lean'
-      - 'Loam/Tests/LocusTrendReview.lean'
+      - 'Loam/Tests/TuiChart.lean'
       - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/LocusCoherenceReview.lean'
@@ -161,6 +160,7 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
+      - 'Loam/Tests/TuiChart.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/LocusCoherenceReview.lean'
       - 'Loam/Tests/LocusCoherenceReview.lean'
@@ -636,6 +636,9 @@ jobs:
 
       - name: Verify current cycle Daily Pace review boundary
         run: lake env lean --run Loam/Tests/CycleSpendingPaceReview.lean
+
+      - name: Verify portable terminal chart foundation
+        run: lake env lean --run Loam/Tests/TuiChart.lean
 
       - name: Build exact Locus Trend review boundary
         run: lake build Loam.LocusTrendReview
