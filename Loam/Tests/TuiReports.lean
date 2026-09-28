@@ -37,6 +37,11 @@ private def isLocusTrend (state : Loam.Tui.Reports.State) : Bool :=
   | .locusTrend => true
   | _ => false
 
+private def isLocusTrendCompare (state : Loam.Tui.Reports.State) : Bool :=
+  match state.mode with
+  | .locusTrendCompare => true
+  | _ => false
+
 private def reportEffect
     (key locus measure : String) (quanta : Int) : Effect :=
   Effect.ofQuantity
@@ -54,6 +59,7 @@ def main : IO Unit := do
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
   expect (contains "Multicurrency Spend" menuText) "Reports menu lost Multicurrency Spend"
+  expect (contains "Trend Compare" menuText) "Reports menu lost Trend Compare"
   expect (contains "Locus Trend" menuText) "Reports menu lost Locus Trend"
   expect (contains "Fava Projection" menuText) "Reports menu lost Fava Projection"
   let favaStep := Loam.Tui.Reports.update initial (.input 'f')
@@ -72,6 +78,105 @@ def main : IO Unit := do
     "Reports menu q did not return Home"
   expect (!(Loam.Tui.Reports.update initial (.input 'b')).back)
     "retired Reports b Home alias survived"
+
+  let compareStep := Loam.Tui.Reports.update initial (.input 'v')
+  expect (isLocusTrendCompare compareStep.state)
+    "Reports direct Trend Compare key did not enter the comparison surface"
+  match compareStep.query with
+  | some (.locusTrendCompare observedAt series) =>
+      expect (observedAt == "2026-09-07")
+        "Trend Compare lost the selected Home observation date"
+      expect (series.map (·.label) == ["Tobacco", "Coffee", "Food"])
+        "Trend Compare default series labels changed"
+      expect
+        (series.map (fun item => item.coordinate.locus.token) ==
+          ["tobacco", "coffee", "food"])
+        "Trend Compare stopped using exact Locus identities"
+  | _ => throw (IO.userError "Trend Compare did not emit its multi-series query")
+
+  let tobaccoPoints : List Loam.LocusTrendReview.OverviewPoint :=
+    [ { start := "2026-04-15", endExclusive := "2026-06-15",
+        throughExclusive := "2026-06-15", total := Quantity.ofQuanta 28304,
+        observedDays := 61, dailyAverageQuanta := 464, complete := true }
+    , { start := "2026-06-15", endExclusive := "2026-08-14",
+        throughExclusive := "2026-08-14", total := Quantity.ofQuanta 30480,
+        observedDays := 60, dailyAverageQuanta := 508, complete := true }
+    , { start := "2026-08-14", endExclusive := "2026-10-15",
+        throughExclusive := "2026-09-08", total := Quantity.ofQuanta 12500,
+        observedDays := 25, dailyAverageQuanta := 500, complete := false }
+    ]
+  let coffeePoints : List Loam.LocusTrendReview.OverviewPoint :=
+    [ { start := "2026-04-15", endExclusive := "2026-06-15",
+        throughExclusive := "2026-06-15", total := Quantity.ofQuanta 7991,
+        observedDays := 61, dailyAverageQuanta := 131, complete := true }
+    , { start := "2026-06-15", endExclusive := "2026-08-14",
+        throughExclusive := "2026-08-14", total := Quantity.ofQuanta 9480,
+        observedDays := 60, dailyAverageQuanta := 158, complete := true }
+    , { start := "2026-08-14", endExclusive := "2026-10-15",
+        throughExclusive := "2026-09-08", total := Quantity.ofQuanta 6100,
+        observedDays := 25, dailyAverageQuanta := 244, complete := false }
+    ]
+  let foodPoints : List Loam.LocusTrendReview.OverviewPoint :=
+    [ { start := "2026-04-15", endExclusive := "2026-06-15",
+        throughExclusive := "2026-06-15", total := Quantity.ofQuanta 29097,
+        observedDays := 61, dailyAverageQuanta := 477, complete := true }
+    , { start := "2026-06-15", endExclusive := "2026-08-14",
+        throughExclusive := "2026-08-14", total := Quantity.ofQuanta 31440,
+        observedDays := 60, dailyAverageQuanta := 524, complete := true }
+    , { start := "2026-08-14", endExclusive := "2026-10-15",
+        throughExclusive := "2026-09-08", total := Quantity.ofQuanta 15700,
+        observedDays := 25, dailyAverageQuanta := 628, complete := false }
+    ]
+  let compareReport :=
+    Loam.Tui.Reports.withLocusTrendCompareSnapshot compareStep.state {
+      source := "Pension"
+      observedAt := "2026-09-07"
+      series :=
+        [ { spec := { label := "Tobacco",
+              coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ },
+            points := tobaccoPoints, undatedMatchingCurrentRecords := 0 }
+        , { spec := { label := "Coffee",
+              coordinate := ⟨⟨"coffee"⟩, ⟨"jpy"⟩⟩ },
+            points := coffeePoints, undatedMatchingCurrentRecords := 0 }
+        , { spec := { label := "Food",
+              coordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩ },
+            points := foodPoints, undatedMatchingCurrentRecords := 0 }
+        ]
+    }
+  expect (compareReport.trendCompare.selected == 2)
+    "Trend Compare did not select the current cycle initially"
+
+  let compareLeft := (Loam.Tui.Reports.update compareReport .left).state
+  expect (compareLeft.trendCompare.selected == 1)
+    "Trend Compare left arrow did not move one shared cycle"
+
+  let compareBounds : Bounds := { width := 100, height := 30 }
+  let comparePointer :=
+    (Loam.Tui.Reports.updateForBounds compareBounds compareLeft
+      (.pointer Loam.Tui.LocusTrendComparePane.plotLeft
+        (Loam.Tui.LocusTrendComparePane.plotTop compareLeft.trendCompare + 1))).state
+  expect (comparePointer.trendCompare.selected == 0)
+    "Trend Compare pointer did not select the nearest shared cycle"
+
+  let compareText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds comparePointer)
+  expect (contains "Trend Compare   cycle average / day" compareText &&
+      contains "Selected   Apr 15 → Jun 15" compareText &&
+      contains "Tobacco" compareText && contains "¥464/day" compareText &&
+      contains "Coffee" compareText && contains "¥131/day" compareText &&
+      contains "Food" compareText && contains "¥477/day" compareText)
+    "Trend Compare did not show all selected-cycle series values together"
+  expect (contains "Exact Locus series" compareText)
+    "Trend Compare lost its no-reclassification boundary"
+  expect ((Loam.Tui.Reports.viewForBounds compareBounds comparePointer).lines.length <=
+      compareBounds.height)
+    "Trend Compare exceeded the terminal height"
+
+  let compareBlock := (Loam.Tui.Reports.update comparePointer (.input 'r')).state
+  expect (compareBlock.trendCompare.renderer == .block)
+    "Trend Compare renderer fallback did not move from Braille to block"
+  expect (isMenu (Loam.Tui.Reports.update comparePointer .escape).state)
+    "Trend Compare escape did not return to Reports menu"
 
   let trendStep := Loam.Tui.Reports.update initial (.input 'g')
   expect (isLocusTrend trendStep.state)
