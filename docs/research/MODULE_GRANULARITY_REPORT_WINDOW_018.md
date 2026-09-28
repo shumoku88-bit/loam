@@ -1,6 +1,6 @@
 # MGA-018 — Canonical ReportWindow state owner
 
-Status: **KEEP_BOUNDARY / SPLIT_QUALIFIED — focused + DRAKON qualification complete; full PR suite pending**
+Status: **CURRENT PRODUCTION BOUNDARY / KEEP_BOUNDARY / SPLIT_QUALIFIED**
 
 Baseline:
 
@@ -246,6 +246,44 @@ window state.
 
 If ReportWindow had merely moved helper functions while the real state remained
 flat in Reports, MGA-018 would reject it. That is not the resulting topology.
+
+## Observation 228/230 graduation
+
+The detailed Observation 228 and 230 Alloy models/prose have graduated to Git
+history.
+
+Their durable conclusions are now owned by current production:
+
+- `Loam.BoundaryPresetConfig` keeps report-boundary presets as replaceable
+  application/query configuration rather than canonical household fact history;
+- preset rows retain explicit known boundary dates, not cadence arithmetic;
+- adjacent windows are resolved only when both explicit boundaries are present;
+- multiple matching presets remain an explicit ambiguity instead of gaining an
+  inferred priority;
+- Calendar Month and Custom remain presentation/query choices rather than
+  retained Cycle identities;
+- `Loam.Tui.ReportWindow` owns one canonical presentation state over Calendar
+  Month, named preset, and Custom coordinates;
+- downstream report reviews consume only the resolved half-open
+  `[start, end)` coordinates;
+- editing a preset changes future query selection, not retained household
+  history.
+
+The important authority rule remains:
+
+```text
+saved reusable query
+!=
+canonical household meaning
+```
+
+A stronger retained boundary-source identity/history should be reconsidered only
+if future household facts or policy explicitly refer to that identity in a way
+that equal resolved coordinates cannot replace. Explicit regime membership was
+the historical bounded stop-condition example.
+
+Cadence remains descriptive convenience only. It is not a production boundary
+generator, recurrence rule, or completeness claim.
 
 ## Stop point
 
