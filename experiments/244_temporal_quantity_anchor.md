@@ -306,11 +306,11 @@ rather than parallel current/origin quantity engines.
 
 ## Real-data reading
 
-The immediate household pressure remains `debt-friend-k`.
+The immediate household pressure remains `liability-opening`.
 
 Canonical Actual retains a reconstructed opening entry with a non-zero liability quantity. Treating that coordinate as exact-zero-origin would be false, but its evidence shape is compatible with a later temporal anchor **if** an independent production rule can admit the boundary and quantity as a qualified anchor.
 
-`debt-mother` remains the negative control. Visible borrow/repay activity with current net zero does not itself establish an anchor or a complete post-anchor stream. Observation 244 therefore gives no permission to mark it supported merely because its selected Effects cancel.
+`liability-zero-net` remains the negative control. Visible borrow/repay activity with current net zero does not itself establish an anchor or a complete post-anchor stream. Observation 244 therefore gives no permission to mark it supported merely because its selected Effects cancel.
 
 ## Production gate
 
@@ -318,7 +318,7 @@ Observation 244 does not immediately add a Core type or canonical file.
 
 The next production investigation is narrower:
 
-1. identify whether current production already has a trustworthy boundary from which `debt-friend-k`'s retained movement is complete;
+1. identify whether current production already has a trustworthy boundary from which `liability-opening`'s retained movement is complete;
 2. determine whether its non-zero opening quantity can be admitted without parsing human description text;
 3. test whether a tiny anchor relation can reuse `QuantityInspection` / correction-frontier arithmetic directly;
 4. preserve existing `StockFlowReview` behavior for zero-origin coordinates;
