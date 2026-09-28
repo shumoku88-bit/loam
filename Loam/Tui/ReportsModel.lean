@@ -656,9 +656,107 @@ private def rerunAfterWindowResult
   let next := applyWindowResult state result
   { state := next, query := queryForMode next }
 
-private def updateLocusTrendCompare
+private def trendSeriesMeasureForSlot
+    (state : State) (slot : Nat) : Loam.Core.MeasureId :=
+  match state.trendCompareSeries[slot]? with
+  | some spec => spec.coordinate.measure
+  | none =>
+      state.trendCompareSeries.head?.map (·.coordinate.measure) |>.getD ⟨"jpy"⟩
+
+private def replaceTrendSeries
+    (state : State) (entry : Loam.LocusCatalog.Entry) : Except String State := do
+  let count := state.trendCompareSeries.length
+  let slot := min state.trendCompare.pickerSlot count
+  if slot >= Loam.Tui.LocusTrendComparePane.maxSeries then
+    throw "Trend can display at most three series."
+  let measure := trendSeriesMeasureForSlot state slot
+  let spec : Loam.LocusTrendCompareReview.SeriesSpec := {
+    label := entry.label
+    coordinate := ⟨entry.locus, measure⟩
+  }
+  let duplicate :=
+    state.trendCompareSeries.zipIdx.any fun (current, index) =>
+      index != slot && current.coordinate == spec.coordinate
+  if duplicate then
+    throw "That exact Locus is already active in Trend."
+  let series :=
+    if slot < count then
+      state.trendCompareSeries.zipIdx.map fun (current, index) =>
+        if index == slot then spec else current
+    else if count < Loam.Tui.LocusTrendComparePane.maxSeries then
+      state.trendCompareSeries ++ [spec]
+    else
+      state.trendCompareSeries
+  return {
+    state with
+      trendCompareSeries := series
+      trendCompare := Loam.Tui.LocusTrendComparePane.closeSeriesPicker state.trendCompare
+      notice := ""
+  }
+
+private def removeTrendSeries (state : State) : Except String State := do
+  if state.trendCompareSeries.length <= 1 then
+    throw "Trend keeps at least one active series."
+  let slot := min state.trendCompare.pickerSlot (state.trendCompareSeries.length - 1)
+  let series :=
+    state.trendCompareSeries.zipIdx.filterMap fun (spec, index) =>
+      if index == slot then none else some spec
+  return {
+    state with
+      trendCompareSeries := series
+      trendCompare := Loam.Tui.LocusTrendComparePane.closeSeriesPicker state.trendCompare
+      notice := ""
+  }
+
+private def updateTrendSeriesPicker
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
+  | .escape | .input 'q' | .input 'Q' =>
+      { state := { state with
+          trendCompare :=
+            Loam.Tui.LocusTrendComparePane.closeSeriesPicker state.trendCompare
+          notice := "" } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.movePicker state.trendCompare true
+          notice := "" } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.movePicker state.trendCompare false
+          notice := "" } }
+  | .input '1' | .input '2' | .input '3' =>
+      let slot :=
+        match key with
+        | .input '1' => 0
+        | .input '2' => 1
+        | _ => 2
+      if slot < min Loam.Tui.LocusTrendComparePane.maxSeries
+          (state.trendCompareSeries.length + 1) then
+        { state := { state with
+            trendCompare :=
+              Loam.Tui.LocusTrendComparePane.selectPickerSlot state.trendCompare slot
+            notice := "" } }
+      else
+        { state := { state with notice := "Choose an occupied slot or the next empty slot." } }
+  | .input 'x' | .input 'X' =>
+      match removeTrendSeries state with
+      | .ok next => { state := next, query := queryForMode next }
+      | .error message => { state := { state with notice := message } }
+  | .enter =>
+      match Loam.Tui.LocusTrendComparePane.selectedPickerEntry? state.trendCompare with
+      | none => { state := { state with notice := "No admitted Locus is available." } }
+      | some entry =>
+          match replaceTrendSeries state entry with
+          | .ok next => { state := next, query := queryForMode next }
+          | .error message => { state := { state with notice := message } }
+  | _ => { state }
+
+private def updateLocusTrendCompare
+    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  if Loam.Tui.LocusTrendComparePane.isPickerOpen state.trendCompare then
+    updateTrendSeriesPicker state key
+  else
+    match key with
   | .escape | .input 'q' | .input 'Q' =>
       { state := { state with mode := .menu, notice := "", scroll := 0 } }
   | .left | .up | .input 'h' | .input 'H' =>
@@ -703,6 +801,12 @@ private def updateLocusTrendCompare
         { state := next }
       else
         { state := next, query := queryForMode next }
+  | .input 'a' | .input 'A' =>
+      { state := { state with
+          trendCompare :=
+            Loam.Tui.LocusTrendComparePane.openSeriesPicker
+              state.trendCompare state.trendCompareSeries.length
+          notice := "" } }
   | .input 'r' | .input 'R' =>
       { state := { state with
           trendCompare :=
