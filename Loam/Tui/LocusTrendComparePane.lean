@@ -24,14 +24,38 @@ the chart does not rely on color alone.
 structure State where
   snapshot : Option Loam.LocusTrendCompareReview.Snapshot := none
   selected : Nat := 0
+  /-- Presentation-only first point in the Day viewport. Cycle/Month always use zero. -/
+  viewportStart : Nat := 0
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
 def initial : State := {}
 
+/-- One calendar-month-ish inspection window without inventing aggregation semantics. -/
+def dayViewportSize : Nat := 31
+
 def clear (state : State) : State :=
-  { state with snapshot := none, selected := 0 }
+  { state with snapshot := none, selected := 0, viewportStart := 0 }
+
+private def maxDayViewportStart (count : Nat) : Nat :=
+  count - min dayViewportSize count
+
+private def viewportStartFor
+    (granularity : Loam.LocusTrendCompareReview.Granularity)
+    (count selected currentStart : Nat) : Nat :=
+  if granularity != .day || count == 0 then
+    0
+  else
+    let size := min dayViewportSize count
+    let maxStart := maxDayViewportStart count
+    let start := min currentStart maxStart
+    if selected < start then
+      selected
+    else if start + size <= selected then
+      min maxStart (selected + 1 - size)
+    else
+      start
 
 private def selectedAnchor? (state : State) : Option String := do
   let snapshot ← state.snapshot
@@ -57,17 +81,23 @@ def withSnapshot
     | some anchor, some first =>
         (indexContainingFrom? anchor first.points 0).getD fallback
     | _, _ => fallback
+  let viewportStart :=
+    viewportStartFor
+      snapshot.granularity snapshot.pointCount selected state.viewportStart
   {
     state with
       snapshot := some snapshot
       selected := selected
+      viewportStart := viewportStart
       granularity := snapshot.granularity
   }
 
 def changeGranularity (state : State) (finer : Bool) : State :=
   let granularity :=
     if finer then state.granularity.finer else state.granularity.coarser
-  { state with granularity := granularity }
+  { state with
+      granularity := granularity
+      viewportStart := if granularity == .day then state.viewportStart else 0 }
 
 def moveSelection (state : State) (back : Bool) : State :=
   match state.snapshot with
@@ -79,7 +109,9 @@ def moveSelection (state : State) (back : Bool) : State :=
         let last := count - 1
         let current := min state.selected last
         let next := if back then current - 1 else min last (current + 1)
-        { state with selected := next }
+        let viewportStart :=
+          viewportStartFor state.granularity count next state.viewportStart
+        { state with selected := next, viewportStart := viewportStart }
 
 def cycleRenderer (state : State) : State :=
   { state with renderer := state.renderer.next }
@@ -92,16 +124,35 @@ def plotWidth (bounds : Bounds) : Nat :=
 private def pointCount (state : State) : Nat :=
   state.snapshot.map (·.pointCount) |>.getD 0
 
+def visibleStart (state : State) : Nat :=
+  if state.granularity == .day then
+    min state.viewportStart (maxDayViewportStart (pointCount state))
+  else
+    0
+
+def visibleCount (state : State) : Nat :=
+  let count := pointCount state
+  if state.granularity == .day then min dayViewportSize count else count
+
+private def visiblePoints
+    (state : State)
+    (points : List Loam.LocusTrendReview.OverviewPoint) :
+    List Loam.LocusTrendReview.OverviewPoint :=
+  (points.drop (visibleStart state)).take (visibleCount state)
+
+private def localSelected (state : State) : Nat :=
+  state.selected - visibleStart state
+
 def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
   if column < plotLeft then state
   else
-    let count := pointCount state
+    let count := visibleCount state
     if count = 0 then state
     else
-      let selected :=
+      let local :=
         Loam.Tui.Chart.nearestIndex
           (plotWidth bounds) count (column - plotLeft)
-      { state with selected := selected }
+      { state with selected := visibleStart state + local }
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
@@ -200,6 +251,7 @@ private def heading :
   | .day => "Trend Compare   daily amount"
 
 private def sourceLine
+    (state : State)
     (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
   match snapshot.granularity with
   | .cycle =>
@@ -209,7 +261,8 @@ private def sourceLine
         longDate snapshot.observedAt
   | .day =>
       "Calendar days from " ++ snapshot.source ++ " history through " ++
-        longDate snapshot.observedAt
+        longDate snapshot.observedAt ++
+        "   ·   " ++ toString (visibleCount state) ++ "-day viewport"
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -230,7 +283,7 @@ private def header (state : State) : List Widget :=
   | some snapshot, some point =>
       [ line (heading snapshot.granularity)
       , muted
-          (sourceLine snapshot ++
+          (sourceLine state snapshot ++
             "   ·   jpy   ·   " ++ state.renderer.label ++
             "   ·   " ++ snapshot.granularity.label)
       , line (selectedLine snapshot point)
@@ -246,7 +299,7 @@ private def allValues (state : State) : List Int :=
   | none => []
   | some snapshot =>
       snapshot.series.flatMap fun series =>
-        series.points.map (·.dailyAverageQuanta)
+        (visiblePoints state series.points).map (·.dailyAverageQuanta)
 
 private def plotSeries (state : State) : List Loam.Tui.Chart.PlotSeries :=
   match state.snapshot with
@@ -254,7 +307,7 @@ private def plotSeries (state : State) : List Loam.Tui.Chart.PlotSeries :=
   | some snapshot =>
       snapshot.series.zipIdx.map fun (series, index) =>
         {
-          values := series.points.map (·.dailyAverageQuanta)
+          values := (visiblePoints state series.points).map (·.dailyAverageQuanta)
           style := seriesStyle index
           marker := seriesMarker index
         }
@@ -275,7 +328,7 @@ private def axisText
   | none => "         │ "
 
 private def footerTokens : List String :=
-  ["←/→ select period", "mouse hover select", "[ / ] granularity",
+  ["←/→ select period", "mouse click select", "[ / ] granularity",
    "r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) : List Widget :=
@@ -306,7 +359,7 @@ private def chartRows (bounds : Bounds) (state : State) : List Widget :=
       Loam.Tui.Chart.rowForValue height scale.range tick
   let rendered :=
     Loam.Tui.Chart.renderManyInRange
-      state.renderer width height (plotSeries state) state.selected
+      state.renderer width height (plotSeries state) (localSelected state)
       scale.range gridRows
   (List.range height).map fun row =>
     match rendered[row]? with
@@ -334,8 +387,9 @@ private def axisRow
       | none => muted ""
       | some first =>
           let width := plotWidth bounds
-          let count := first.points.length
-          match first.points.head?, first.points.getLast? with
+          let points := visiblePoints state first.points
+          let count := points.length
+          match points.head?, points.getLast? with
           | some firstPoint, some lastPoint =>
               if snapshot.granularity == .day ||
                   (count > 0 && width / count < 8) then
