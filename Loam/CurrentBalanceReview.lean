@@ -1,4 +1,5 @@
 import Loam.Application.CorrectionFrontier
+import Loam.Application.CurrentSupportRouting
 import Loam.BalanceReview
 import Loam.CurrentQuantityAnchor
 import Loam.CurrentQuantityPresence
@@ -11,6 +12,7 @@ namespace Loam.CurrentBalanceReview
 
 open Loam.Core
 open Loam.Persistence
+open Loam.Application.CurrentSupportRouting
 
 set_option autoImplicit false
 
@@ -38,31 +40,6 @@ structure Snapshot where
   knownPresent : List EffectCoordinate := []
   unsupported : List EffectCoordinate := []
   deriving Repr, DecidableEq
-
-private def eventCoordinates (events : EventMemory) : List EffectCoordinate :=
-  events.events.flatMap fun event => event.effects.map fun effect => effect.coordinate
-
-private def hasOpeningSupport
-    (supportMap : OpeningSupportMap) (coordinate : EffectCoordinate) : Bool :=
-  (supportMap.supportFor? coordinate).isSome
-
-private def hasCurrentAnchor
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate) : Bool :=
-  (currentAnchor.assertionFor? coordinate).isSome
-
-private def candidateCoordinates
-    (frontier : EventMemory)
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (currentPresence : Loam.CurrentQuantityPresence.Evidence) : List EffectCoordinate :=
-  (eventCoordinates frontier ++ coverage.coordinates ++ openingSupport.coordinates ++
-      currentAnchor.coordinates ++ currentPresence.coordinates).eraseDups
-
-private def eventContainsCoordinate
-    (event : Event) (coordinate : EffectCoordinate) : Bool :=
-  event.effects.any fun effect => decide (effect.coordinate = coordinate)
 
 private def validateOpeningSupport
     (frontier : EventMemory) (support : OpeningSupport) : Except String Unit :=
@@ -108,47 +85,6 @@ private def validateSupportSeparation
       throw
         ("loam: current balances unavailable: current presence overlaps exact support for " ++
           coordinate.locus.token ++ " / " ++ coordinate.measure.token)
-
-private inductive SupportRoute where
-  | zeroOrigin
-  | opening
-  | currentAnchor
-  | unsupported
-  deriving Repr, DecidableEq
-
-private def supportRoute
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate) : SupportRoute :=
-  if coverage.covers coordinate then
-    .zeroOrigin
-  else if hasOpeningSupport openingSupport coordinate then
-    .opening
-  else if hasCurrentAnchor currentAnchor coordinate then
-    .currentAnchor
-  else
-    .unsupported
-
-private structure SupportBuckets where
-  zeroOrigin : List EffectCoordinate := []
-  opening : List EffectCoordinate := []
-  currentAnchor : List EffectCoordinate := []
-  unsupported : List EffectCoordinate := []
-
-private def routeCandidates
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) :
-    List EffectCoordinate → SupportBuckets
-  | [] => {}
-  | coordinate :: rest =>
-      let later := routeCandidates coverage openingSupport currentAnchor rest
-      match supportRoute coverage openingSupport currentAnchor coordinate with
-      | .zeroOrigin => { later with zeroOrigin := coordinate :: later.zeroOrigin }
-      | .opening => { later with opening := coordinate :: later.opening }
-      | .currentAnchor => { later with currentAnchor := coordinate :: later.currentAnchor }
-      | .unsupported => { later with unsupported := coordinate :: later.unsupported }
 
 private def openingRows
     (frontier : EventMemory)
