@@ -27,7 +27,6 @@ import Loam.Observations.Observation260
 import Loam.Observations.Observation261
 import Loam.Observations.Observation262
 import Loam.Observations.Observation270
-import Loam.Observations.Observation275
 import Loam.Observations.Observation277
 import Loam.Observations.Observation279
 import Loam.Observations.Observation280
@@ -129,6 +128,10 @@ Research compaction notes:
   zero-total proof with the value, while `ActualReversal.coordinateNetZero_of_exactPhysicalInverse`
   and `ActualReversalBalance` own the stronger Event/Effect and per-Measure
   reversal cancellation results.
+- 2026-09-28: Observation 275 retired after its signed unrouted-Actual row
+  boundary was promoted into `ActualRoutingInspection.UnroutedActualRow` and
+  `CurrentCoverageReview.ActualRoutingFrontier`, with production regressions
+  covering temporal routing, Expense classification, and unresolved roles.
 
 Retired source remains available in Git history.
 -/

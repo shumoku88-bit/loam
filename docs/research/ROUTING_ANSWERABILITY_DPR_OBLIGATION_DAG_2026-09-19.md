@@ -426,3 +426,15 @@ Actual routing administration    KEEP
 Current Coverage visibility      QUALIFIED / PROMOTED
 canonical state                  NO CHANGE
 ```
+
+The Observation 275 executable specimen has since graduated to Git history.
+Its observable contract is now owned directly by
+`ActualRoutingInspection.UnroutedActualRow`,
+`ActualRoutingInspection.unroutedActualRows?`,
+`CurrentCoverageReview.ActualRoutingFrontier`, and focused production tests.
+
+Those owners preserve the same boundaries without a second research wrapper:
+signed Asset/Expense direction is retained, routing removes only the routed
+coordinate, missing AccountingRole stays explicit, known non-Expense rows remain
+outside the default frontier, and a later route does not rewrite an earlier
+Actual occurrence.

@@ -416,7 +416,7 @@ Those laws now have current production owners:
 - `Loam/Core/AccountingRole.lean` owns the partial `LocusId -> AccountingRole` relation and explicitly treats missing role evidence as unresolved;
 - `RoleFlowReview` preserves individual unresolved Effect witnesses so cancellation cannot masquerade as classification completeness;
 - `RoleBalanceReview` keeps quantity-supported unresolved-role coordinates and quantity-unsupported coordinates as separate frontiers;
-- Observation 275 proves that missing AccountingRole remains explicit unresolved metadata on a current routing answer;
+- `ActualRoutingInspection` and `CurrentCoverageReview` keep missing AccountingRole explicit as unresolved metadata on current routing answers;
 - Generation-2 closure explicitly keeps unresolved Effect witnesses and rejects stored role totals as an independent semantic owner;
 - current production tests exercise the unresolved-role and support-frontier behavior.
 
