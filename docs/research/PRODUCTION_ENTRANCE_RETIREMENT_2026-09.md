@@ -124,15 +124,22 @@ The two retired day adapters are not current household authority and are not sha
 
 Application 012-014 therefore graduate under the same research lifecycle already established by the compression audit:
 
-- preserve `experiments/application_012_shadow_day_reader.md`, `application_013_shadow_scheduled_day_reader.md`, and `application_014_shadow_home_day_composition.md` as research evidence;
-- preserve Git history for the exact executable implementations and synthetic qualification;
+- preserve Git history for the exact executable implementations, synthetic qualification, and detailed discovery prose;
 - retire `Loam/Cli/ShadowDayCli.lean` and `Loam/Cli/ShadowScheduledDayCli.lean`;
 - retire `tools/shadow-home-day`;
 - retire the three dedicated Application 012-014 workflows;
 - remove only the two corresponding Lake targets;
 - do not retire `loamShadowAudit` or `loamShadowQuantity`, whose external-snapshot questions remain distinct.
 
-Decision: **RETIRE historical journal day-view execution apparatus; KEEP the research result in prose and history.**
+At this earlier entrance-retirement checkpoint the three Markdown notes were retained
+as the convenient research summary. The later household distillation checkpoint now
+owns their surviving meaning beside current Product: `ActualReview` owns selected-day
+Actual projection, `ScheduledReview.dayEvidence` owns selected-day Scheduled evidence,
+and the production Selected-Day/Home presentation composes those independently owned
+answers. The detailed Application 012-014 prose has therefore graduated to Git history
+as well.
+
+Decision: **RETIRE historical journal day-view execution apparatus and graduate its detailed discovery prose after current-facing distillation.**
 
 This reduces executable count from 15 to 13 without collapsing CLI/TUI/possible future GUI boundaries or deleting a shared publisher/query semantic boundary.
 

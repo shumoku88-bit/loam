@@ -105,6 +105,13 @@ Source account-looking tokens could remain neutral Locus tokens, quantity-bearin
 
 These were bounded query results, not proof of lossless import or full semantic equivalence with HRA / h-kernel.
 
+The detailed Application 012-014 shadow-adapter prose has now graduated to Git
+history together with its already-retired executables. The surviving production
+owners are stronger and direct: `ActualReview.select (.day ...)` owns current
+selected-day Actual projection, `ScheduledReview.dayEvidence` owns current
+Scheduled day evidence, and `Tui.SelectedDay` / Home compose those answers
+without creating a retained Day or Home authority.
+
 ## What real-data dogfood established
 
 Private household data historically exercised:
