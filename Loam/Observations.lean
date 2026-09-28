@@ -62,7 +62,6 @@ import Loam.Observations.Observation315
 import Loam.Observations.Observation316
 import Loam.Observations.Observation317
 import Loam.Observations.Observation318
-import Loam.Observations.Observation319
 import Loam.Observations.Observation325
 import Loam.Observations.Observation331
 import Loam.Observations.Observation334
@@ -162,6 +161,12 @@ Research compaction notes:
   and `SettlementFrontier` enforces the current admission laws with a focused
   cross-Measure card regression. `RelationDischarge` remains intentionally
   narrower rather than carrying settlement meaning.
+- 2026-09-28: Observation 319 retired after its Locus-only
+  ZeroOriginCoverage counterexample became a direct production boundary.
+  `ZeroOriginCoverage` retains exact `EffectCoordinate` membership, preserving
+  the Locus × Measure distinction, while `ZeroOriginQuantity` owns the
+  covered/uncovered fail-closed inspection theorems. Product correctness no
+  longer depends on the historical finite JPY/USD witness.
 - 2026-09-28: Observations 359 and 360 retired after the settlement family
   reached production. Their delayed cross-Measure commitment, exact later-Effect
   correspondence, and "keep OpenRelation source-bounded" conclusions are now
