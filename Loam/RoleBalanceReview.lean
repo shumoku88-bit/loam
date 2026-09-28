@@ -1,4 +1,5 @@
 import Loam.Application.CorrectionFrontier
+import Loam.Application.CurrentSupportRouting
 import Loam.BalanceReview
 import Loam.CurrentQuantityAnchor
 import Loam.CurrentQuantityPresence
@@ -12,6 +13,7 @@ namespace Loam.RoleBalanceReview
 
 open Loam.Core
 open Loam.Persistence
+open Loam.Application.CurrentSupportRouting
 
 set_option autoImplicit false
 
@@ -94,22 +96,6 @@ structure Snapshot where
   unsupportedBalances : List UnsupportedBalance
   deriving Repr, DecidableEq
 
-private def eventCoordinates (events : EventMemory) : List EffectCoordinate :=
-  events.events.flatMap fun event => event.effects.map fun effect => effect.coordinate
-
-private def candidateCoordinates
-    (frontier : EventMemory)
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (currentPresence : Loam.CurrentQuantityPresence.Evidence) : List EffectCoordinate :=
-  (eventCoordinates frontier ++ coverage.coordinates ++ openingSupport.coordinates ++
-      currentAnchor.coordinates ++ currentPresence.coordinates).eraseDups
-
-private def eventContainsCoordinate
-    (event : Event) (coordinate : EffectCoordinate) : Bool :=
-  event.effects.any fun effect => decide (effect.coordinate = coordinate)
-
 private def validateOpeningSupport
     (frontier : EventMemory) (support : OpeningSupport) : Except String Unit :=
   match frontier.findById? support.openingEvent with
@@ -131,145 +117,6 @@ private def validateOpeningSupports
     (frontier : EventMemory) (supportMap : OpeningSupportMap) : Except String Unit := do
   for support in supportMap.supports do
     validateOpeningSupport frontier support
-
-private def hasOpeningSupport
-    (supportMap : OpeningSupportMap) (coordinate : EffectCoordinate) : Bool :=
-  (supportMap.supportFor? coordinate).isSome
-
-private def hasCurrentAnchor
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate) : Bool :=
-  (currentAnchor.assertionFor? coordinate).isSome
-
-private inductive SupportRoute where
-  | zeroOrigin
-  | opening
-  | currentAnchor
-  | unsupported
-  deriving Repr, DecidableEq
-
-/--
-The one production decision boundary for current-balance support routing.
-
-`project` calls `validateSupportSeparation` before using this function, so the
-branch order is not a precedence policy for conflicting evidence. It is only an
-exhaustive representation of the four admitted routing cases.
--/
-private def supportRoute
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate) : SupportRoute :=
-  if coverage.covers coordinate then
-    .zeroOrigin
-  else if hasOpeningSupport openingSupport coordinate then
-    .opening
-  else if hasCurrentAnchor currentAnchor coordinate then
-    .currentAnchor
-  else
-    .unsupported
-
-/-- DAG leaf Z: zero-origin evidence routes to the zero-origin bucket. -/
-private theorem zero_leaf
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate)
-    (hzero : coverage.covers coordinate = true) :
-    supportRoute coverage openingSupport currentAnchor coordinate = .zeroOrigin := by
-  simp [supportRoute, hzero]
-
-/-- DAG leaf O: absent zero-origin plus opening evidence routes to opening. -/
-private theorem opening_leaf
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate)
-    (hzero : coverage.covers coordinate = false)
-    (hopening : hasOpeningSupport openingSupport coordinate = true) :
-    supportRoute coverage openingSupport currentAnchor coordinate = .opening := by
-  simp [supportRoute, hzero, hopening]
-
-/-- DAG leaf A: absent earlier support plus an anchor routes to current-anchor. -/
-private theorem anchor_leaf
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate)
-    (hzero : coverage.covers coordinate = false)
-    (hopening : hasOpeningSupport openingSupport coordinate = false)
-    (hanchor : hasCurrentAnchor currentAnchor coordinate = true) :
-    supportRoute coverage openingSupport currentAnchor coordinate = .currentAnchor := by
-  simp [supportRoute, hzero, hopening, hanchor]
-
-/-- DAG leaf U: absence of all support routes to the unsupported bucket. -/
-private theorem unsupported_leaf
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate)
-    (hzero : coverage.covers coordinate = false)
-    (hopening : hasOpeningSupport openingSupport coordinate = false)
-    (hanchor : hasCurrentAnchor currentAnchor coordinate = false) :
-    supportRoute coverage openingSupport currentAnchor coordinate = .unsupported := by
-  simp [supportRoute, hzero, hopening, hanchor]
-
-/--
-DAG root: every coordinate reaches one constructor of the same production route.
-Constructor disjointness supplies exclusivity; the root adds no proof-only state.
--/
-private theorem support_partition_root
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence)
-    (coordinate : EffectCoordinate) :
-    supportRoute coverage openingSupport currentAnchor coordinate = .zeroOrigin ∨
-      supportRoute coverage openingSupport currentAnchor coordinate = .opening ∨
-      supportRoute coverage openingSupport currentAnchor coordinate = .currentAnchor ∨
-      supportRoute coverage openingSupport currentAnchor coordinate = .unsupported := by
-  cases hzero : coverage.covers coordinate with
-  | false =>
-      cases hopening : hasOpeningSupport openingSupport coordinate with
-      | false =>
-          cases hanchor : hasCurrentAnchor currentAnchor coordinate with
-          | false =>
-              exact Or.inr (Or.inr (Or.inr
-                (unsupported_leaf coverage openingSupport currentAnchor coordinate
-                  hzero hopening hanchor)))
-          | true =>
-              exact Or.inr (Or.inr (Or.inl
-                (anchor_leaf coverage openingSupport currentAnchor coordinate
-                  hzero hopening hanchor)))
-      | true =>
-          exact Or.inr (Or.inl
-            (opening_leaf coverage openingSupport currentAnchor coordinate hzero hopening))
-  | true =>
-      exact Or.inl (zero_leaf coverage openingSupport currentAnchor coordinate hzero)
-
-private structure SupportBuckets where
-  zeroOrigin : List EffectCoordinate := []
-  opening : List EffectCoordinate := []
-  currentAnchor : List EffectCoordinate := []
-  unsupported : List EffectCoordinate := []
-
-/--
-Apply the proved production routing decision exactly once per candidate coordinate.
-The recursive shape preserves candidate order inside each support family while
-making the runtime partition match the one-root/four-leaf obligation DAG.
--/
-private def routeCandidates
-    (coverage : ZeroOriginCoverage)
-    (openingSupport : OpeningSupportMap)
-    (currentAnchor : Loam.CurrentQuantityAnchor.Evidence) :
-    List EffectCoordinate → SupportBuckets
-  | [] => {}
-  | coordinate :: rest =>
-      let later := routeCandidates coverage openingSupport currentAnchor rest
-      match supportRoute coverage openingSupport currentAnchor coordinate with
-      | .zeroOrigin => { later with zeroOrigin := coordinate :: later.zeroOrigin }
-      | .opening => { later with opening := coordinate :: later.opening }
-      | .currentAnchor => { later with currentAnchor := coordinate :: later.currentAnchor }
-      | .unsupported => { later with unsupported := coordinate :: later.unsupported }
 
 private def validateSupportSeparation
     (coverage : ZeroOriginCoverage)
