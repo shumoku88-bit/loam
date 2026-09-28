@@ -224,6 +224,29 @@ def projectOverview
   }
 
 /--
+Project one calendar point per day from the first explicitly configured boundary
+through `observedAt`.
+
+This is the long daily-history companion to the cycle overview. It does not
+invent boundaries before the first configured coordinate, and it retains zero
+quantity days so pointer position remains calendar position.
+-/
+def projectConfiguredHistory
+    (records : List Loam.ActualReview.Record)
+    (preset : Loam.BoundaryPresetConfig.Preset)
+    (observedAt : String)
+    (coordinate : EffectCoordinate) : Except String Snapshot := do
+  if !Loam.ActualDate.validIsoDate observedAt then
+    throw "loam: Locus Trend daily history requires a real YYYY-MM-DD observation date"
+  let some start := preset.boundaries.head?
+    | throw "loam: Locus Trend daily history requires at least one configured boundary"
+  if observedAt < start then
+    throw "loam: Locus Trend daily history observation precedes its first configured boundary"
+  let some endExclusive := Loam.ActualDate.shiftDays? observedAt 1
+    | throw "loam: Locus Trend daily history could not construct the observation boundary"
+  project records start endExclusive coordinate
+
+/--
 Load the unique configured boundary preset containing `observedAt` and project
 its complete explicit history through that date.
 
@@ -248,6 +271,30 @@ def loadConfiguredOverview
               | .error message => return .error message
               | .ok records =>
                   return projectOverview records preset observedAt coordinate
+
+/--
+Load the configured preset containing `observedAt` and project daily history
+from its first explicit boundary through that date.
+-/
+def loadConfiguredHistory
+    (dataDir root : System.FilePath)
+    (observedAt : String)
+    (coordinate : EffectCoordinate) : IO (Except String Snapshot) := do
+  match ← Loam.BoundaryPresetConfig.load?
+      (Loam.HouseholdPaths.boundaryPresets dataDir) with
+  | none => return .error "loam: boundary preset config is malformed"
+  | some presets =>
+      match Loam.BoundaryPresetConfig.currentWindowFor? presets observedAt with
+      | .error message => return .error ("loam: " ++ message)
+      | .ok current =>
+          match presets.find? (fun preset => preset.name == current.source) with
+          | none => return .error "loam: selected boundary preset disappeared"
+          | some preset =>
+              match ← Loam.ActualReview.loadRecordsFromActual root with
+              | .error message => return .error message
+              | .ok records =>
+                  return projectConfiguredHistory
+                    records preset observedAt coordinate
 
 /-- Load admitted normalized Actual evidence and project one exact daily window. -/
 def loadSnapshot
