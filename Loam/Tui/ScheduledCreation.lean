@@ -209,7 +209,7 @@ def update
         | .shiftTab => { state := { state with form := moveFocus state.form true, candidateIndex := 0 } }
         | .backspace =>
             { state := { state with
-                form := editActive state.form (fun text => String.ofList text.toList.dropLast)
+                form := editActive state.form (fun text => Loam.Tui.Terminal.backspaceText text)
                 notice := "", candidateIndex := 0 } }
         | .input char =>
             { state := { state with
