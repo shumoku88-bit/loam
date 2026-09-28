@@ -10,6 +10,7 @@ import Loam.Tui.ScheduledCoveragePane
 import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
+import Loam.Tui.LocusTrendPane
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
 
@@ -119,9 +120,10 @@ private def menuView (state : State) : Widget :=
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
     , menuRow state 7 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
-    , menuRow state 8 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
+    , menuRow state 8 "Locus Trend" "interactive daily quantity history for one exact coordinate"
+    , menuRow state 9 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/f direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/g/f direct"
     , muted "q / Esc home"
     , line state.notice
     ]
@@ -557,6 +559,26 @@ private def multimeasureSpendView (state : State) : Widget :=
     , line state.notice
     ]
 
+private def locusTrendView
+    (state : State) (bounds : Option Bounds) : Widget :=
+  let terminal := bounds.getD { width := 80, height := 24 }
+  .column <|
+    [ line "Reports / Locus Trend"
+    , muted "How did one exact Locus / Measure quantity move across this explicit window?"
+    , line ("Window: " ++ windowSourceLabel state ++
+        "  [" ++ state.window.form.start ++ ", " ++
+        state.window.form.endExclusive ++ ")")
+    , muted "No spending/refund meaning is inferred from sign or description text."
+    , blank
+    ] ++
+    Loam.Tui.LocusTrendPane.lines terminal state.trend ++
+    [ blank
+    , muted "←/→ or h/l select day   [ / ] window source   m calendar month   Enter refresh"
+    , muted "Click a sparkline column to select that visible day."
+    , muted "q / Esc Reports menu"
+    , line state.notice
+    ]
+
 private def balancesResultLines (state : State) : List Widget :=
   match state.roleBalanceSnapshot with
   | none => [muted "Current RoleBalance answer unavailable; press Enter to retry."]
@@ -720,6 +742,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
   | .scheduledCoverage => scheduledCoverageView state
+  | .locusTrend => locusTrendView state bounds
 
 /-- Number of existing trailing notice/help rows kept outside the scrolling body. -/
 private def fixedFooterSize : Mode → Nat
@@ -734,6 +757,7 @@ private def fixedFooterSize : Mode → Nat
   | .liquidity => 3
   | .budgetWindow => 4
   | .scheduledCoverage => 4
+  | .locusTrend => 4
 
 private def viewParts (state : State) (bounds : Option Bounds := none) : List Widget × List Widget :=
   match fullView state bounds with
@@ -755,7 +779,10 @@ private def scrollPositionLine
     (mode : Mode) (offset page total : Nat) : Widget :=
   let first := if total = 0 then 0 else offset + 1
   let last := min total (offset + page)
-  let action := match mode with | .menu => "select" | .transactionsFlow => "navigate" | _ => "scroll"
+  let action := match mode with
+    | .menu => "select"
+    | .transactionsFlow | .locusTrend => "navigate"
+    | _ => "scroll"
   muted ("Lines " ++ toString first ++ "–" ++ toString last ++ "/" ++ toString total ++
     "   ↑/↓ or j/k " ++ action)
 
@@ -797,7 +824,23 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
 /-- Apply the existing interaction grammar, then clamp presentation-only scrolling. -/
 def updateForBounds
     (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  let step := update state key
+  let pointerAdjusted :=
+    match state.mode, key with
+    | .locusTrend, .pointer col row =>
+        -- Normal-height Trend keeps its sparkline at physical row 12. Tiny
+        -- scrolled terminals retain keyboard navigation and simply ignore
+        -- pointer selection rather than guessing transformed geometry.
+        if row = 12 then
+          { state with
+              trend := Loam.Tui.LocusTrendPane.selectColumn bounds state.trend col
+              notice := "" }
+        else
+          state
+    | _, _ => state
+  let step :=
+    match key with
+    | .pointer _ _ => { state := pointerAdjusted }
+    | _ => update pointerAdjusted key
   let parts := viewParts step.state (some bounds)
   let page := bodyPageSize bounds parts.2
   { step with state := { step.state with
