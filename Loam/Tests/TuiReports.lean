@@ -198,6 +198,11 @@ def main : IO Unit := do
           compareReport.trendCompare rackCatalog
   }
 
+  let rackFull := Loam.Tui.Reports.update rackBase (.input 'a')
+  expect (!rackFull.state.trendCompare.pickerOpen &&
+      contains "up to three" rackFull.state.notice)
+    "Trend rack exceeded its three-series presentation boundary"
+
   let rackTwo := Loam.Tui.Reports.update rackBase (.input 'x')
   match rackTwo.query with
   | some (.locusTrendCompare _ _ _ series) =>
@@ -221,8 +226,8 @@ def main : IO Unit := do
 
   let rackOpen := Loam.Tui.Reports.update rackOne.state (.input 'a')
   expect (rackOpen.state.trendCompare.pickerOpen &&
-      Loam.Tui.LocusTrendComparePane.pickerCandidates
-        rackOpen.state.trendCompare |>.map (·.locus.token) == ["books"])
+      (Loam.Tui.LocusTrendComparePane.pickerCandidates
+        rackOpen.state.trendCompare |>.map (·.locus.token)) == ["books"])
     "Trend Add Locus picker did not exclude the already-visible series"
   let rackAdded := Loam.Tui.Reports.update rackOpen.state .enter
   match rackAdded.query with
