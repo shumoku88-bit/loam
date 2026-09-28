@@ -186,13 +186,24 @@ def setTerminalMode (mode : String) : IO Unit := do
     { cmd := "sh"
       args := #["-c", "stty " ++ mode ++ " < /dev/tty"] }
 
+/--
+Enable or disable all-pointer-motion reporting while preserving SGR coordinates.
+
+Production uses this only for surfaces that explicitly benefit from hover-style
+selection. Ordinary TUI workspaces keep button-only reporting and therefore do
+not receive a stream of mouse-motion events.
+-/
+def setPointerMotion (enabled : Bool) : IO Unit := do
+  IO.print (if enabled then "\x1b[?1003h" else "\x1b[?1003l")
+  (← IO.getStdout).flush
+
 def enter : IO Unit := do
   setTerminalMode "-echo -icanon min 0 time 1"
   IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
 def leave : IO Unit := do
-  IO.print "\x1b[0m\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
+  IO.print "\x1b[0m\x1b[?1003l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"
 
