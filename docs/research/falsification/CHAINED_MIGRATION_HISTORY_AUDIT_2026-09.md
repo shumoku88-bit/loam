@@ -1,14 +1,13 @@
 # Chained migration history audit — 2026-09-20
 
-Status: **historical pressure audit / no production change**
+Status: **durable migration-preservation boundary / historical audit**
 
-Related executable observation:
-
-- `Loam/Observations/Observation285.lean`
+The finite Lean precursor that first isolated this pressure has graduated to Git
+history. This document now owns the live repository-facing migration discipline.
 
 ## Question
 
-Observation 285 shows that this migration check is too weak:
+This migration check is too weak:
 
 ```text
 current report before migration
@@ -61,7 +60,7 @@ The temporary generator refused publication unless it preserved:
 
 It also refused source/target co-occurrence inside one Event.
 
-### Observation 285 classification
+### Migration-discipline classification
 
 **Qualified semantic compression, not mere report parity.**
 
@@ -121,7 +120,7 @@ old evidence too lossy for stronger classification
     -> no invented AccountingRole
 ```
 
-### Observation 285 classification
+### Migration-discipline classification
 
 **Strong pass.**
 
@@ -130,7 +129,7 @@ forward independently retained identity, physical quantity, routing and role
 meaning while explicitly representing places where stronger historical meaning
 was unavailable.
 
-This is close to the long-horizon contract suggested by Observation 285:
+This is close to the long-horizon contract retained by this audit:
 
 ```text
 preserve
@@ -220,7 +219,7 @@ Erasing an unearned EffectKey preserves:
 
 It removes only the claim that one Effect is durably addressable by that key.
 
-### Observation 285 classification
+### Migration-discipline classification
 
 **Pass, with an important explicit limitation.**
 
@@ -304,7 +303,7 @@ It intentionally preserved:
 - effective date;
 - one-to-one movement/effective correspondence.
 
-### Observation 285 classification
+### Migration-discipline classification
 
 **Strong pass.**
 
@@ -339,7 +338,7 @@ The important preservation rule was instead:
 Git history remains archive; current production keeps the surviving law in the
 current Core / Application / persistence boundary.
 
-### Observation 285 classification
+### Migration-discipline classification
 
 **Compatible with the chained-migration rule.**
 
@@ -392,9 +391,9 @@ Measure with retained household quantities
 This is another example where a future representation edit becomes semantic
 once retained data depends on it.
 
-## 8. What the real history says about Observation 285
+## 8. What the real history says about migration preservation
 
-The real migration chain supports the observation, but sharpens it.
+The real migration chain sharpens the original synthetic pressure.
 
 The preservation contract is **not**:
 
@@ -444,8 +443,8 @@ The strongest examples are:
 - independent CapacityMovement / CapacityEffective preservation inside one
   normalized file.
 
-That is stronger evidence for long-term migration safety than the synthetic
-Observation 285 alone.
+That is stronger evidence for long-term migration safety than the retired
+synthetic precursor alone.
 
 ## 10. Remaining pressure
 
@@ -481,7 +480,7 @@ insufficient evidence -> refusal is an answer
 ## Verdict
 
 The historical chain is **consistent with the stronger migration discipline**
-suggested by Observation 285.
+retained by this audit.
 
 No current evidence from this audit requires:
 

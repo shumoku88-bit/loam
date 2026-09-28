@@ -25,7 +25,6 @@ import Loam.Observations.Observation283
 import Loam.Observations.StructuralS003
 import Loam.Observations.StructuralS008
 import Loam.Observations.Observation284
-import Loam.Observations.Observation285
 import Loam.Observations.Observation287
 import Loam.Observations.Observation288
 import Loam.Observations.Observation289
@@ -178,6 +177,13 @@ Research compaction notes:
   Event plus exchange evidence atomically. Observation 283 remains live only for
   the narrower unresolved distinction that fee semantics are independent
   evidence.
+- 2026-09-28: Observation 285 retired after its synthetic chained-
+  migration witness was overtaken by the durable real-history migration audit.
+  The live boundary now requires destructive representation changes to inventory
+  independently observable meaning, preserve or translate what remains live,
+  name intentional retirement, keep unresolved evidence unresolved, and qualify
+  the replacement authority before retiring its bridge. The finite re-key model
+  remains available in Git history.
 - 2026-09-28: Observations 359 and 360 retired after the settlement family
   reached production. Their delayed cross-Measure commitment, exact later-Effect
   correspondence, and "keep OpenRelation source-bounded" conclusions are now
