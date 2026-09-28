@@ -11,6 +11,7 @@ foundation_files=(
   "Loam/Tui/Runtime.lean"
   "Loam/Tui/Scroll.lean"
   "Loam/Tui/CyclicIndex.lean"
+  "Loam/Tui/Chart.lean"
   "Loam/Tui/Terminal.lean"
 )
 
@@ -21,6 +22,7 @@ done
 
 cp "$root/lean-toolchain" "$tmp/lean-toolchain"
 cp "$root/tests/tui_foundation_smoke.lean" "$tmp/FoundationSmoke.lean"
+cp "$root/Loam/Tests/TuiChart.lean" "$tmp/ChartSmoke.lean"
 
 cat > "$tmp/lakefile.lean" <<'EOF'
 import Lake
@@ -39,6 +41,8 @@ EOF
     Loam.Tui.Runtime \
     Loam.Tui.Scroll \
     Loam.Tui.CyclicIndex \
+    Loam.Tui.Chart \
     Loam.Tui.Terminal
   lake env lean --run FoundationSmoke.lean
+  lake env lean --run ChartSmoke.lean
 )
