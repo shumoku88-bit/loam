@@ -27,6 +27,7 @@ structure State where
   /-- Presentation-only first point in the Day viewport. Cycle/Month always use zero. -/
   viewportStart : Nat := 0
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
+  scope : Loam.LocusTrendCompareReview.Scope := .allHistory
   renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
@@ -41,10 +42,16 @@ def clear (state : State) : State :=
 private def maxDayViewportStart (count : Nat) : Nat :=
   count - min dayViewportSize count
 
+private def usesSlidingDayViewport
+    (granularity : Loam.LocusTrendCompareReview.Granularity)
+    (scope : Loam.LocusTrendCompareReview.Scope) : Bool :=
+  granularity == .day && scope == .allHistory
+
 private def viewportStartFor
     (granularity : Loam.LocusTrendCompareReview.Granularity)
+    (scope : Loam.LocusTrendCompareReview.Scope)
     (count selected currentStart : Nat) : Nat :=
-  if granularity != .day || count == 0 then
+  if !usesSlidingDayViewport granularity scope || count == 0 then
     0
   else
     let size := min dayViewportSize count
@@ -83,13 +90,15 @@ def withSnapshot
     | _, _ => fallback
   let viewportStart :=
     viewportStartFor
-      snapshot.granularity snapshot.pointCount selected state.viewportStart
+      snapshot.granularity snapshot.scope
+      snapshot.pointCount selected state.viewportStart
   {
     state with
       snapshot := some snapshot
       selected := selected
       viewportStart := viewportStart
       granularity := snapshot.granularity
+      scope := snapshot.scope
   }
 
 def changeGranularity (state : State) (finer : Bool) : State :=
@@ -97,7 +106,15 @@ def changeGranularity (state : State) (finer : Bool) : State :=
     if finer then state.granularity.finer else state.granularity.coarser
   { state with
       granularity := granularity
-      viewportStart := if granularity == .day then state.viewportStart else 0 }
+      viewportStart :=
+        if usesSlidingDayViewport granularity state.scope then
+          state.viewportStart
+        else 0 }
+
+def changeScope (state : State) (forward : Bool) : State :=
+  let scope :=
+    if forward then state.scope.next else state.scope.previous
+  { state with scope := scope, viewportStart := 0 }
 
 def moveSelection (state : State) (back : Bool) : State :=
   match state.snapshot with
@@ -110,7 +127,8 @@ def moveSelection (state : State) (back : Bool) : State :=
         let current := min state.selected last
         let next := if back then current - 1 else min last (current + 1)
         let viewportStart :=
-          viewportStartFor state.granularity count next state.viewportStart
+          viewportStartFor
+            state.granularity state.scope count next state.viewportStart
         { state with selected := next, viewportStart := viewportStart }
 
 def cycleRenderer (state : State) : State :=
@@ -125,14 +143,17 @@ private def pointCount (state : State) : Nat :=
   state.snapshot.map (·.pointCount) |>.getD 0
 
 def visibleStart (state : State) : Nat :=
-  if state.granularity == .day then
+  if usesSlidingDayViewport state.granularity state.scope then
     min state.viewportStart (maxDayViewportStart (pointCount state))
   else
     0
 
 def visibleCount (state : State) : Nat :=
   let count := pointCount state
-  if state.granularity == .day then min dayViewportSize count else count
+  if usesSlidingDayViewport state.granularity state.scope then
+    min dayViewportSize count
+  else
+    count
 
 private def visiblePoints
     (state : State)
@@ -250,19 +271,25 @@ private def heading :
   | .month => "Trend Compare   month average / day"
   | .day => "Trend Compare   daily amount"
 
+private def scopeEndLabel
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
+  match Loam.ActualDate.shiftDays? snapshot.scopeEndExclusive (-1) with
+  | some date => shortDate date
+  | none => shortDate snapshot.scopeEndExclusive
+
 private def sourceLine
     (state : State)
     (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
-  match snapshot.granularity with
-  | .cycle =>
-      snapshot.source ++ " cycles through " ++ longDate snapshot.observedAt
-  | .month =>
-      "Calendar months from " ++ snapshot.source ++ " history through " ++
-        longDate snapshot.observedAt
-  | .day =>
-      "Calendar days from " ++ snapshot.source ++ " history through " ++
-        longDate snapshot.observedAt ++
-        "   ·   " ++ toString (visibleCount state) ++ "-day viewport"
+  let viewport :=
+    if usesSlidingDayViewport snapshot.granularity snapshot.scope then
+      "   ·   " ++ toString (visibleCount state) ++ "-day viewport"
+    else
+      ""
+  snapshot.source ++
+    "   ·   Scope " ++ snapshot.scope.label ++
+    "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
+    "   ·   Grain " ++ snapshot.granularity.label ++
+    "   ·   jpy   ·   " ++ state.renderer.label ++ viewport
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -283,9 +310,7 @@ private def header (state : State) : List Widget :=
   | some snapshot, some point =>
       [ line (heading snapshot.granularity)
       , muted
-          (sourceLine state snapshot ++
-            "   ·   jpy   ·   " ++ state.renderer.label ++
-            "   ·   " ++ snapshot.granularity.label)
+          (sourceLine state snapshot)
       , line (selectedLine snapshot point)
       ] ++ selectedSeriesRows state ++
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ]
@@ -328,8 +353,8 @@ private def axisText
   | none => "         │ "
 
 private def footerTokens : List String :=
-  ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] granularity",
-   "r renderer", "q/Esc Reports"]
+  ["←/→ or wheel select period", "mouse click/drag scrub",
+   "[ / ] grain", "s/S scope", "r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) : List Widget :=
   (Loam.Tui.Layout.flowTokens
