@@ -276,7 +276,8 @@
         "Loam/LocusAdmissionAuthority.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/DeterministicMovementScenario.lean",
-        "experiments/381_deterministic_simulation_pilot.md"
+        "experiments/381_deterministic_simulation_pilot.md",
+        "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
         "Loam/Tests/DeterministicMovementScenario.lean"
@@ -301,7 +302,8 @@
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Persistence/ScheduledLifecyclePersistence.lean",
         "Loam/Tests/DeterministicActualMutationScenario.lean",
-        "experiments/382_deterministic_actual_mutation_composition.md"
+        "experiments/382_deterministic_actual_mutation_composition.md",
+        "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
         "Loam/Tests/DeterministicActualMutationScenario.lean"
@@ -327,7 +329,8 @@
         "Loam/Persistence/NormalizedActualAdmission.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/DeterministicSettlementScenario.lean",
-        "experiments/383_deterministic_settlement_lifecycle.md"
+        "experiments/383_deterministic_settlement_lifecycle.md",
+        "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
         "Loam/Tests/DeterministicSettlementScenario.lean"
