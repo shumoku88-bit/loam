@@ -22,7 +22,7 @@ private def fixture : Loam.CycleBudgetReview.Snapshot :=
       observedAt := "2026-09-08"
       endExclusive := "2026-10-15"
       rows := [{ purpose := ⟨"食費:ストック"⟩, entitlement := q 111, consumption := q 222, commitment := q 333 }]
-      scheduledFrontier := some { unmanaged := q 1234, unrouted := q 2345, unresolvedEligibility := q 4810 }
+      scheduledFrontier := some { unmanaged := q 1234, unrouted := q 2345, unresolvedEligibility := q 4000 }
       actualRoutingFrontier := {
         unroutedExpense := [
           { event := ⟨"actual-1"⟩
@@ -42,13 +42,13 @@ private def fixture : Loam.CycleBudgetReview.Snapshot :=
         ]
       } }
     physical := .ok { rows := [
-      { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, quantity := q 909 },
-      { coordinate := ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩, quantity := q 555 }] }
+      { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, quantity := q 1200 },
+      { coordinate := ⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩, quantity := q 3400 }] }
     selection := .ok [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]
     -- Coverage owns query-global future pressure; funding keeps only independent quantities.
     funding := .ok {
-      budgetableBacking := q 76389
-      remainingAssigned := q 47068 } }
+      budgetableBacking := q 90000
+      remainingAssigned := q 55000 } }
 
 def main : IO Unit := do
   let bounds : Bounds := { width := 100, height := 40 }
@@ -61,9 +61,9 @@ def main : IO Unit := do
       "~jpy/day", "After-known", "known managed plans only; not spending permission",
       "-111", "-444", "食費:ストック", "-12", "d details", "Other future pressure is not assigned",
       "Unrouted Actual interpretation is not included", "Funding / jpy (separate from Purpose totals)",
-      "Backing 76389   Remaining assigned 47068   Residual 29321"] do
+      "Backing 90000   Remaining assigned 55000   Residual 35000"] do
     expect (contains value rendered) ("missing compact answer: " ++ value)
-  expect (!(contains "Budgetable backing" rendered) && !(contains "cash: 909" rendered) &&
+  expect (!(contains "Budgetable backing" rendered) && !(contains "cash: 1200" rendered) &&
     !(contains "Details / Purpose components" rendered))
     "expanded accounting details displaced the Purpose overview"
   expect (!(contains "Daily pace:" rendered)) "Purpose guide copied the independent Home pool pace"
@@ -76,11 +76,11 @@ def main : IO Unit := do
   expect (detailIntent == .stay && expanded.details && expanded.scroll == 0)
     "d did not open detail mode"
   let detailsText := text (Loam.Tui.CycleBudget.view bounds expanded)
-  for value in ["111", "222", "333", "76389", "47068", "29321", "4810", "1234", "2345",
+  for value in ["111", "222", "333", "90000", "55000", "35000", "4000", "1234", "2345",
       "Residual before unresolved", "Unresolved future pressure", "Unrouted future pressure",
       "Unmanaged future pressure", "Actual routing frontier", "Unrouted Actual Expense rows: 1",
       "Role-unresolved Actual rows: 1", "Purpose coverage excludes still-unresolved",
-      "cash: 909 jpy  [budget backing]", "yucho: 555 jpy  [outside budget backing]",
+      "cash: 1200 jpy  [budget backing]", "yucho: 3400 jpy  [outside budget backing]",
       "Cap", "Spent", "Known future"] do
     expect (contains value detailsText) ("details lost supplied evidence: " ++ value)
   let (collapsed, _) := Loam.Tui.CycleBudget.update bounds expanded (.input 'D')
@@ -108,8 +108,8 @@ def main : IO Unit := do
     contains "Funding unavailable: not configured" missingText)
     "independent funding failure hid Purpose totals or guide"
   let missingDetails := text (Loam.Tui.CycleBudget.view bounds { missing with details := true })
-  for value in ["Funding unavailable: not configured", "-111", "cash: 909 jpy",
-      "backing selection unavailable", "4810"] do
+  for value in ["Funding unavailable: not configured", "-111", "cash: 1200 jpy",
+      "backing selection unavailable", "4000"] do
     expect (contains value missingDetails) ("optional failure hid detail evidence: " ++ value)
   expect (!(contains "[outside budget backing]" missingDetails)) "missing selection inferred outside"
   let .ok originalCoverage := fixture.coverage
@@ -144,7 +144,7 @@ def main : IO Unit := do
   expect (contains "CurrentCoverage unavailable" failedText &&
     contains "Funding unavailable: bad evidence" failedText)
     "independent coverage or funding failure was hidden"
-  expect (!(contains "cash: 909" failedText)) "detail balances leaked into compact view"
+  expect (!(contains "cash: 1200" failedText)) "detail balances leaked into compact view"
   expect (!(contains "~jpy/day" failedText) && !(contains "Purpose totals / jpy" failedText))
     "missing coverage invented totals or a daily guide"
   expect (Loam.Tui.CycleBudget.isHomeEntrance (.input 'c')) "Home c entrance missing"
@@ -172,7 +172,7 @@ def main : IO Unit := do
             { subject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"wifi"⟩ }
               scheduledOn := "2026-10-08"
               measure := ⟨"jpy"⟩
-              quantity := q 4810 } ] }
+              quantity := q 4000 } ] }
         { snapshot := { fixture with coverage := .ok cov' } }
   let (nextUnresolved, intentUnresolved) := Loam.Tui.CycleBudget.update bounds withUnresolved (.input 'u')
   expect (intentUnresolved == .unresolved) "u key failed to enter unresolved"
@@ -221,7 +221,7 @@ def main : IO Unit := do
     currentWindowStart := "2026-08-14"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
-    rows := [{ purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, commitment := q 12558 }]
+    rows := [{ purpose := ⟨"固定費予定"⟩, entitlement := q 12000, consumption := q 5000, commitment := q 9000 }]
     scheduledFrontier := none
   }
   let stateNowPos : Loam.Tui.CycleBudget.State := { snapshot := { fixture with coverage := .ok nowPosHeadroomNegCoverage } }
@@ -229,7 +229,7 @@ def main : IO Unit := do
   match intentNowPos with
   | .grant row =>
       expect (row.purpose.token == "固定費予定") "purpose token mismatch"
-      expect (row.headroom.quanta == -3828) "headroom mismatch"
+      expect (row.headroom.quanta == -2000) "headroom mismatch"
   | _ => throw (IO.userError "expected grant intent for After-known negative")
 
   -- 4. Multiple shortages -> human selection required in picker
@@ -238,7 +238,7 @@ def main : IO Unit := do
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
     rows :=
-      [ { purpose := ⟨"固定費予定"⟩, entitlement := q 17108, consumption := q 8378, commitment := q 12558 }
+      [ { purpose := ⟨"固定費予定"⟩, entitlement := q 12000, consumption := q 5000, commitment := q 9000 }
       , { purpose := ⟨"タバコ"⟩, entitlement := q 10000, consumption := q 8000, commitment := q 5000 }
       , { purpose := ⟨"食費"⟩, entitlement := q 30000, consumption := q 10000, commitment := q 0 }
       ]
@@ -254,7 +254,7 @@ def main : IO Unit := do
   | _ => throw (IO.userError "expected grantPicker submode")
   let pickerView := text (Loam.Tui.CycleBudget.view bounds statePicker)
   expect (contains "Cycle Grant / Select Purpose" pickerView) "picker title"
-  expect (contains "固定費予定" pickerView && contains "-3828" pickerView) "first candidate"
+  expect (contains "固定費予定" pickerView && contains "-2000" pickerView) "first candidate"
   expect (contains "タバコ" pickerView && contains "-3000" pickerView) "second candidate"
   expect (!(contains "食費" pickerView)) "non-shortage must not appear in picker"
 
