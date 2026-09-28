@@ -125,6 +125,56 @@ Verdict: **KEEP SEPARATE**.
 
 The simplification is only about repeated evaluation of one already-loaded AccountingRole map over one already-loaded admitted-Locus list.
 
+## Durable migration boundary inherited from Observations 214–215
+
+Observations 214 and 215 qualified the historical migration pressure that led to
+the current production `LocusId -> lone AccountingRole` boundary.
+
+Their detailed Alloy models and prose have graduated to Git history. The durable
+result is:
+
+```text
+Locus spelling
+    != AccountingRole evidence
+
+one-to-one Locus re-key
++ explicit role transport
+    -> selected role-aware report classification can be preserved
+
+many-to-one Locus merge
+    -> separate semantic decision
+    -> accounting parity alone is insufficient evidence
+```
+
+A legacy source coordinate may also be semantically mixed. That does not force
+ordinary production AccountingRole down to permanent Effect granularity:
+
+```text
+mixed legacy Locus
+    -> migration-time reviewed Effect split
+    -> clean new Loci
+    -> stable Locus-level AccountingRole
+```
+
+The dirty imported/source granularity therefore does not dictate the clean
+runtime granularity.
+
+This does **not** authorize automatic canonical renaming or merging. A future
+migration must still preserve every retained Locus reference and provenance
+surface, and any merge or split requires evidence beyond matching names or role
+parity.
+
+Production now directly owns the selected runtime boundary through:
+
+- `Loam/Core/AccountingRole.lean`;
+- explicit AccountingRole persistence;
+- `AccountingRolePublisher`'s virgin-only initial assignment;
+- role-aware report and routing consumers.
+
+Observation 213 remains in the working tree because friendly alias/display input
+is still an unimplemented research boundary. Alias spelling must not be confused
+with canonical Locus identity or AccountingRole.
+
 ## 6. Qualification result
 
 PR #924 qualified the factorization with all relevant workflows green:
