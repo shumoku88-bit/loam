@@ -1,7 +1,6 @@
 import Loam.ActualAuthority
 import Loam.HouseholdCommand
 import Loam.LocusAdmissionAuthority
-import Loam.Persistence.NormalizedActualPersistence
 import Loam.Tests.DeterministicScenarioSupport
 import Loam.Persistence.ScheduledLifecyclePersistence
 
