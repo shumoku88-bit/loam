@@ -223,6 +223,32 @@ def projectOverview
     undatedMatchingCurrentRecords := undatedMatchingCount records coordinate
   }
 
+/--
+Load the unique configured boundary preset containing `observedAt` and project
+its complete explicit history through that date.
+
+This uses the same fail-closed preset selection as current cycle consumers. It
+does not guess a preferred preset or extrapolate another boundary.
+-/
+def loadConfiguredOverview
+    (dataDir root : System.FilePath)
+    (observedAt : String)
+    (coordinate : EffectCoordinate) : IO (Except String OverviewSnapshot) := do
+  match ← Loam.BoundaryPresetConfig.load?
+      (Loam.HouseholdPaths.boundaryPresets dataDir) with
+  | none => return .error "loam: boundary preset config is malformed"
+  | some presets =>
+      match Loam.BoundaryPresetConfig.currentWindowFor? presets observedAt with
+      | .error message => return .error ("loam: " ++ message)
+      | .ok current =>
+          match presets.find? (fun preset => preset.name == current.source) with
+          | none => return .error "loam: selected boundary preset disappeared"
+          | some preset =>
+              match ← Loam.ActualReview.loadRecordsFromActual root with
+              | .error message => return .error message
+              | .ok records =>
+                  return projectOverview records preset observedAt coordinate
+
 /-- Load admitted normalized Actual evidence and project one exact daily window. -/
 def loadSnapshot
     (root : System.FilePath)
