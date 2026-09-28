@@ -277,7 +277,8 @@ def renderInRange
     (values : List Int)
     (selected : Nat)
     (range : Range)
-    (markers : List Marker := []) : List Widget :=
+    (markers : List Marker := [])
+    (gridRows : List Nat := []) : List Widget :=
   let actualWidth := max 1 width
   let actualHeight := max 1 height
   let selectedX :=
@@ -301,6 +302,8 @@ def renderInRange
             else if row = selectedY && distance col selectedX <= 2 then
               if base = ' ' then span "─" .muted
               else span (String.ofList [base])
+            else if row ∈ gridRows && base = ' ' then
+              span "┄" .muted
             else
               span (String.ofList [base])
     .row spans
