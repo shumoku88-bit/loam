@@ -71,6 +71,13 @@ The surviving rules are owned near current Product:
 - missing origin evidence remains different from a known zero quantity;
 - `BalanceReview` composes the current evidence without falling back to retired sidecar or QuantityBasis authority.
 
+The detailed discovery prose for Observations 102 and 103 has graduated to Git
+history. Their surviving conclusion is now direct production structure:
+`BalanceViewConfig` is replaceable application/query configuration rather than
+canonical household history, and `BalanceReview` applies that selection to
+already-qualified quantity evidence without introducing Account machinery or a
+second policy-history authority.
+
 This is an intentional semantic change from the old starting-basis path, not merely a rename.
 
 ## Read-only household-day findings
