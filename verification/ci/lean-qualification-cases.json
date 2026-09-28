@@ -335,6 +335,33 @@
       "tests": [
         "Loam/Tests/DeterministicSettlementScenario.lean"
       ]
+    },
+    {
+      "id": "deterministic-scheduled-recovery-scenario",
+      "workflowName": "Deterministic Scheduled Recovery Scenario",
+      "jobName": "Replay deterministic Scheduled relation-first recovery",
+      "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
+      "pushBranches": [
+        "main",
+        "experiment/384-deterministic-scheduled-recovery"
+      ],
+      "buildArgs": "Loam.HouseholdCommand Loam.ScheduledReview Loam.Persistence.ScheduledLifecyclePersistence Loam.Tests.DeterministicScenarioSupport",
+      "paths": [
+        "Loam/Core/ScheduledTerminal.lean",
+        "Loam/Application/ScheduledInspection.lean",
+        "Loam/ScheduledTerminalPublisher.lean",
+        "Loam/ScheduledReview.lean",
+        "Loam/HouseholdCommand.lean",
+        "Loam/ActualAuthority.lean",
+        "Loam/LocusAdmissionAuthority.lean",
+        "Loam/Persistence/ScheduledLifecyclePersistence.lean",
+        "Loam/Tests/DeterministicScenarioSupport.lean",
+        "Loam/Tests/DeterministicScheduledRecoveryScenario.lean",
+        "experiments/384_deterministic_scheduled_recovery.md"
+      ],
+      "tests": [
+        "Loam/Tests/DeterministicScheduledRecoveryScenario.lean"
+      ]
     }
   ]
 }
