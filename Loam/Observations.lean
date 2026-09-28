@@ -37,7 +37,6 @@ import Loam.Observations.StructuralS003
 import Loam.Observations.StructuralS008
 import Loam.Observations.Observation284
 import Loam.Observations.Observation285
-import Loam.Observations.Observation286
 import Loam.Observations.Observation287
 import Loam.Observations.Observation288
 import Loam.Observations.Observation289
@@ -132,6 +131,11 @@ Research compaction notes:
   boundary was promoted into `ActualRoutingInspection.UnroutedActualRow` and
   `CurrentCoverageReview.ActualRoutingFrontier`, with production regressions
   covering temporal routing, Expense classification, and unresolved roles.
+- 2026-09-28: Observation 286 retired after its midpoint-adoption specimen
+  became a direct composition of production quantity-support laws:
+  `CurrentQuantityAnchor` owns the observed-current cut, `RoleBalanceReview`
+  keeps support coordinate-local, and zero-origin / bounded-history evidence
+  remain separate completeness claims.
 
 Retired source remains available in Git history.
 -/

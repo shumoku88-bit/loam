@@ -329,6 +329,39 @@ ActualValidity.
 The complete-since claim remains explicit household evidence that can be set,
 moved, or removed through its publisher/TUI.
 
+### Midpoint adoption does not require invented opening history
+
+Historical Observation 286 exercised these production laws on one practical
+"start using LOAM midway through an account's life" specimen. That executable
+wrapper has graduated to Git history because the general obligations now live in
+the production owners and their focused tests.
+
+The durable operational rule is:
+
+```text
+partial retained history
++
+explicit current quantity observation
++
+explicit reflected-root cut
+    -> justified current quantity from that boundary onward
+
+partial retained history
++
+no zero-origin / bounded-history evidence
+    -> earlier origin history remains unavailable
+```
+
+A current observation may therefore anchor, for example, a bank balance and add
+later retained deltas without fabricating a synthetic opening Event or pretending
+the first retained Event started the account at zero. Support remains
+coordinate-local: another coordinate without its own support stays unresolved.
+
+This is current answerability, not historical completeness. Historical as-of
+queries before the earned support boundary still require their own explicit
+evidence.
+
+
 ### Live bounded research retained
 
 The following models remain active in Alloy CI:
