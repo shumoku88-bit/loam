@@ -1,6 +1,6 @@
 # D3 Measure scale stability audit — 2026-09-24
 
-Status: **STRUCTURAL + TEMPORAL + PRODUCTION QUALIFICATION COMPLETE / D3 REMEDIATION READY**
+Status: **CURRENT PRODUCTION BOUNDARY / D3 CLOSED**
 
 Audit source: post-Generation-2 development delta finding D3.
 
@@ -221,10 +221,10 @@ type, or adding a new lock to every quantity writer.
 Explicit migration remains a separate future operation if a used Measure ever
 really needs a scale change.
 
-### Production source correspondence candidate
+### Current production source correspondence
 
-The production implementation is deliberately one narrow administration
-boundary: `Loam.MeasurePresentationAuthority.setScale`.
+The production implementation is one narrow administration boundary:
+`Loam.MeasurePresentationAuthority.setScale`.
 
 It acquires existing ownership scopes in this fixed order:
 
@@ -317,6 +317,23 @@ a first-use Actual writer acquires Actual before scale administration, publishes
 while the administration process is blocked, then the administration process
 acquires Actual and re-reads the newly-used Measure before deciding.
 
+## Observation 328/329 graduation
+
+The detailed Observation 328 Alloy prose and Observation 329 TLA+ prose have
+graduated to Git history.
+
+Their executable formal instruments remain live:
+
+- `experiments/328_measure_scale_history.als` continues to test the structural
+  distinguishability of historical scale convention from a current snapshot;
+- `tla/MeasureScalePublicationOrder.tla` and its four configuration files
+  continue to test the first-use / scale-change publication ordering protocol.
+
+This audit now owns the durable interpretation of those models together with the
+current production correspondence. The formal models remain independent
+falsification/qualification instruments; retiring their duplicate prose does not
+turn production code into proof of the model assumptions.
+
 ## Current stop point
 
 The production boundary is now qualified against the selected protocol. The
@@ -338,5 +355,6 @@ before writer ownership is an unretained presentation intent rather than retaine
 historical convention; stale editor-session presentation consistency is a
 separate surface question and is not silently promoted into D3 semantics here.
 
-PR #1239 carries the production remediation. The living post-G2 audit PR #1230
-remains open for the other audit findings.
+PR #1239 merged the production remediation on 2026-09-24. The earlier post-G2
+umbrella audit PR #1230 was later closed without merge; this durable D3 audit
+remains the current Measure-scale boundary.
