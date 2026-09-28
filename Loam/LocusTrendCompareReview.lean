@@ -351,12 +351,12 @@ private def projectScopedSeries
   let history ←
     Loam.LocusTrendReview.projectConfiguredHistory
       records preset observedAt spec.coordinate
-  let scoped := scopedDailyPoints start endExclusive history.points
+  let scopedPoints := scopedDailyPoints start endExclusive history.points
   let points ←
     match granularity with
-    | .cycle => pure (cyclePoints preset start endExclusive scoped)
-    | .month => monthlyPoints scoped
-    | .day => dailyPoints observedAt scoped
+    | .cycle => pure (cyclePoints preset start endExclusive scopedPoints)
+    | .month => monthlyPoints scopedPoints
+    | .day => dailyPoints observedAt scopedPoints
   return {
     spec := spec
     points := points
