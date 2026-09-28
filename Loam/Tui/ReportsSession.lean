@@ -100,9 +100,9 @@ partial def run (bounds : Bounds)
             dataDir root observedAt with
         | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
-    | some (.locusTrendCompare observedAt series) =>
-        match ← Loam.LocusTrendCompareReview.loadConfigured
-            dataDir root observedAt series with
+    | some (.locusTrendCompare observedAt granularity series) =>
+        match ← Loam.LocusTrendCompareReview.loadConfiguredAtGranularity
+            dataDir root observedAt granularity series with
         | .ok snapshot =>
             pure (Loam.Tui.Reports.withLocusTrendCompareSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
