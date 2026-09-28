@@ -154,7 +154,7 @@ def main : IO Unit := do
   | _ => throw (IO.userError "Reports Balances surface did not request the shared RoleBalance answer")
 
   let cashCoordinate : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
-  let unsupportedDebt : EffectCoordinate := ⟨⟨"debt-mother-wifi"⟩, ⟨"jpy"⟩⟩
+  let unsupportedDebt : EffectCoordinate := ⟨⟨"liability-unsupported"⟩, ⟨"jpy"⟩⟩
   let balancesReport := Loam.Tui.Reports.withRoleBalanceSnapshot balancesStep.state {
     rows :=
       [ { coordinate := cashCoordinate
@@ -173,7 +173,7 @@ def main : IO Unit := do
     "Balances surface lost the supported Asset subtotal"
   expect (contains "Qualified Net Worth: UNKNOWN" balancesText)
     "Balances surface promoted an incomplete Net Worth to knowledge"
-  expect (contains "debt-mother-wifi" balancesText && contains "balance unsupported" balancesText)
+  expect (contains "liability-unsupported" balancesText && contains "balance unsupported" balancesText)
     "Balances surface hid the unsupported liability witness"
   expect (contains "Trial Balance-shaped frontier" balancesText)
     "Balances surface did not preserve the coordinate-wide Trial Balance projection"
@@ -461,7 +461,7 @@ def main : IO Unit := do
       rows :=
         [ { coordinate := pensionCoordinate
           , role := .income
-          , quantity := Quantity.ofQuanta (-225276) }
+          , quantity := Quantity.ofQuanta (-240000) }
         , { coordinate := foodCoordinate
           , role := .expense
           , quantity := Quantity.ofQuanta 50000 }
@@ -486,11 +486,11 @@ def main : IO Unit := do
     }
   }
   let incomeExpenseReportText := widgetText (Loam.Tui.Reports.view incomeExpenseReport)
-  expect (contains "Income:" incomeExpenseReportText && contains "225276 jpy" incomeExpenseReportText)
+  expect (contains "Income:" incomeExpenseReportText && contains "240000 jpy" incomeExpenseReportText)
     "Income & Expense view did not present credit-normal Income"
   expect (contains "Expense:" incomeExpenseReportText && contains "50000 jpy" incomeExpenseReportText)
     "Income & Expense view did not present debit-normal Expense"
-  expect (contains "Result:" incomeExpenseReportText && contains "175276 jpy" incomeExpenseReportText)
+  expect (contains "Result:" incomeExpenseReportText && contains "190000 jpy" incomeExpenseReportText)
     "Income & Expense view did not derive the occurrence-time result"
   expect (contains "20 usd" incomeExpenseReportText && contains "consulting" incomeExpenseReportText)
     "Income & Expense view did not preserve the shared multi-Measure summary"
