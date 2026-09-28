@@ -3,6 +3,7 @@ import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
+import Loam.LocusTrendReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
 import Loam.PeriodComparisonReview
@@ -13,6 +14,7 @@ import Loam.RoleBalanceReview
 import Loam.ScheduledCoverageReview
 import Loam.Tui.ReportComparison
 import Loam.Tui.ReportWindow
+import Loam.Tui.LocusTrendPane
 import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Calendar
 import Loam.Tui.Terminal
@@ -47,6 +49,7 @@ inductive Mode where
   | liquidity
   | budgetWindow
   | scheduledCoverage
+  | locusTrend
   deriving Repr, DecidableEq
 
 structure LiquidityForm where
@@ -67,12 +70,15 @@ inductive Query where
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
   | scheduledCoverage (observedAt : String)
+  | locusTrend
+      (start endExclusive : String)
+      (coordinate : Loam.Core.EffectCoordinate)
   | favaProjection
   deriving Repr, DecidableEq
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 9 := ⟨0, by decide⟩
+  menuIndex : Fin 10 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
   comparison : Loam.Tui.ReportComparison.State := {}
   liquidityForm : LiquidityForm := {}
@@ -89,6 +95,9 @@ structure State where
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
   scheduledCoverageSnapshot : Option Loam.ScheduledCoverageReview.Snapshot := none
+  trendCoordinate : Loam.Core.EffectCoordinate :=
+    ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
+  trend : Loam.Tui.LocusTrendPane.State := {}
   notice : String := ""
   scroll : Nat := 0
 
@@ -191,6 +200,14 @@ def withScheduledCoverageSnapshot
   { state with scheduledCoverageSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
+def withLocusTrendSnapshot
+    (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
+  { state with
+      trend := Loam.Tui.LocusTrendPane.withSnapshot state.trend snapshot
+      notice := ""
+      scroll := 0 }
+
+
 def withError (state : State) (message : String) : State :=
   { state with
       stockFlowSnapshot := none
@@ -203,6 +220,7 @@ def withError (state : State) (message : String) : State :=
       liquiditySnapshot := none
       budgetSnapshot := none
       scheduledCoverageSnapshot := none
+      trend := Loam.Tui.LocusTrendPane.clear state.trend
       notice := message
       scroll := 0 }
 
@@ -218,6 +236,7 @@ private def clearResults (state : State) : State :=
       liquiditySnapshot := none
       budgetSnapshot := none
       scheduledCoverageSnapshot := none
+      trend := Loam.Tui.LocusTrendPane.clear state.trend
       scroll := 0 }
 
 
@@ -273,7 +292,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 8) % 9 else (state.menuIndex.val + 1) % 9
+  let next := if back then (state.menuIndex.val + 9) % 10 else (state.menuIndex.val + 1) % 10
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -337,11 +356,13 @@ private def selectMenuMode (state : State) : State :=
     | 4 => Mode.liquidity
     | 5 => Mode.budgetWindow
     | 6 => Mode.scheduledCoverage
-    | _ => Mode.multimeasureSpend
+    | 7 => Mode.multimeasureSpend
+    | 8 => Mode.locusTrend
+    | _ => Mode.stockFlow
   { state with mode := mode, notice := "", scroll := 0 }
 
 private def selectMenuStep (state : State) : Step :=
-  if state.menuIndex.val == 8 then
+  if state.menuIndex.val == 9 then
     { state, query := some .favaProjection }
   else
     let next := selectMenuMode state
@@ -349,6 +370,10 @@ private def selectMenuStep (state : State) : Step :=
     | .balances => { state := next, query := some .roleBalances }
     | .scheduledCoverage =>
         { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
+    | .locusTrend =>
+        { state := next,
+          query := some (.locusTrend
+            next.window.form.start next.window.form.endExclusive next.trendCoordinate) }
     | _ => { state := next }
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
@@ -375,6 +400,11 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
   | .input 'x' | .input 'X' =>
       { state := { state with mode := .multimeasureSpend, notice := "", scroll := 0 } }
+  | .input 'g' | .input 'G' =>
+      let next := { state with mode := .locusTrend, notice := "", scroll := 0 }
+      { state := next,
+        query := some (.locusTrend
+          next.window.form.start next.window.form.endExclusive next.trendCoordinate) }
   | .input 'f' | .input 'F' =>
       { state, query := some .favaProjection }
   | _ => { state }
@@ -386,6 +416,9 @@ private def queryForMode (state : State) : Option Query :=
   | .incomeExpense => some (.incomeExpenseFlow state.window.form.start state.window.form.endExclusive)
   | .multimeasureSpend => some (.multimeasureSpend state.window.form.start state.window.form.endExclusive)
   | .budgetWindow => some (.budgetWindow state.window.form.start state.window.form.endExclusive)
+  | .locusTrend =>
+      some (.locusTrend
+        state.window.form.start state.window.form.endExclusive state.trendCoordinate)
   | _ => none
 
 private def comparisonQueryForMode (state : State) : Option Query :=
@@ -535,6 +568,41 @@ private def updateTransactionsFlow
               notice := "" } }
     | _ => { state }
 
+private def rerunAfterWindowResult
+    (state : State) (result : Loam.Tui.ReportWindow.Result) : Step :=
+  let next := applyWindowResult state result
+  { state := next, query := queryForMode next }
+
+private def updateLocusTrend
+    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  match key with
+  | .escape | .input 'q' | .input 'Q' =>
+      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+  | .left | .input 'h' | .input 'H' =>
+      { state := { state with
+          trend := Loam.Tui.LocusTrendPane.moveSelection state.trend true
+          notice := "" } }
+  | .right | .input 'l' | .input 'L' =>
+      { state := { state with
+          trend := Loam.Tui.LocusTrendPane.moveSelection state.trend false
+          notice := "" } }
+  | .up | .input 'k' | .input 'K' =>
+      { state := { state with scroll := state.scroll - 1 } }
+  | .down | .input 'j' | .input 'J' =>
+      { state := { state with scroll := state.scroll + 1 } }
+  | .input '[' =>
+      rerunAfterWindowResult state
+        (Loam.Tui.ReportWindow.cycleSource state.window false)
+  | .input ']' =>
+      rerunAfterWindowResult state
+        (Loam.Tui.ReportWindow.cycleSource state.window true)
+  | .input 'm' | .input 'M' =>
+      rerunAfterWindowResult state
+        (Loam.Tui.ReportWindow.resetCalendarMonth state.window)
+  | .enter => { state, query := queryForMode state }
+  | _ => { state }
+
+
 private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
@@ -612,5 +680,6 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .balances => updateBalances state key
   | .liquidity => updateLiquidity state key
   | .scheduledCoverage => updateScheduledCoverage state key
+  | .locusTrend => updateLocusTrend state key
 
 end Loam.Tui.Reports
