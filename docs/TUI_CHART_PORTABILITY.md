@@ -51,7 +51,7 @@ maps to Up/Down; horizontal wheel input maps to Left/Right.
 Unified Trend uses button-motion reporting only. Click and primary-button
 drag scrub the nearest visible period, and wheel motion moves one active period
 at a time. Passive hover is inert, so the shared Trend cursor does not keep
-following the mouse after release. One, two, or three exact Locus series use the
+following the mouse after release. One through five exact Locus series use the
 same pointer contract.
 
 ## Resize contract
