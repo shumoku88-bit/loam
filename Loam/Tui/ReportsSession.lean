@@ -1,6 +1,9 @@
+import Loam.ActualAuthority
 import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
+import Loam.LocusAdmissionAuthority
+import Loam.LocusCatalog
 import Loam.LocusTrendReview
 import Loam.LocusTrendCompareReview
 import Loam.MultimeasureSpendReview
@@ -31,6 +34,24 @@ Owns only the TUI orchestration that turns a Reports query into an existing
 shared Review answer and redraws the Reports workspace. Household semantics,
 query meaning, and report rendering remain in their existing owners.
 -/
+
+private def currentTrendCatalog
+    (dataDir root : System.FilePath) : IO Loam.LocusCatalog.Catalog := do
+  let admitted ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? dataDir with
+    | .ok vocabulary => pure vocabulary.approved
+    | .error _ => pure []
+  let historical ←
+    match ← Loam.ActualAuthority.loadImage? root with
+    | .ok image =>
+        pure <| image.evidence.events.events.flatMap fun event =>
+          event.effects.map fun effect => effect.coordinate.locus
+    | .error _ => pure []
+  let metadata ←
+    match ← Loam.LocusCatalog.loadMetadata dataDir with
+    | .ok metadata => pure metadata
+    | .error _ => pure []
+  pure <| Loam.LocusCatalog.forLoci (admitted ++ historical) metadata
 
 /-- Reports session; q/Esc moves back one level and eventually returns Home. -/
 partial def run (bounds : Bounds)
@@ -124,6 +145,16 @@ partial def run (bounds : Bounds)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
+  let next ←
+    if state.mode != .locusTrendCompare && next.mode == .locusTrendCompare then
+      let catalog ← currentTrendCatalog dataDir root
+      pure {
+        next with
+          trendCompare :=
+            Loam.Tui.LocusTrendComparePane.withCatalog next.trendCompare catalog
+      }
+    else
+      pure next
   /-
   Single-Locus Trend keeps hover-style all-pointer-motion reporting.
   Trend Compare uses button-motion reporting: click and drag can scrub periods,
