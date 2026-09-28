@@ -2,13 +2,13 @@
 
 ## Question
 
-The household capability inventory puts scheduled occurrence lifecycle before recurrence, Envelope, Issue, and report work.
+The then-current household capability inventory placed scheduled occurrence lifecycle before recurrence, Envelope, Issue, and report work.
 
 LOAM already has several pieces of evidence around this boundary:
 
 - Observation 063 showed that scheduled/Plan content and Actual/Event content do not determine which Actual realizes which expectation. Explicit realization linkage carries independent information.
 - Observation 064 showed that recurrence fields do not determine Series grouping.
-- Application 013 showed that a selected-day scheduled view can stay much smaller than a full planning subsystem: stable scheduled identity + day + neutral Effects + explicit completion/retirement evidence + a known-through horizon are enough for the question it asks.
+- Historical Application 013 showed that a selected-day scheduled view can stay much smaller than a full planning subsystem: stable scheduled identity + day + neutral Effects + explicit completion/retirement evidence + a known-through horizon are enough for the question it asks.
 
 The next compression question is therefore not whether LOAM should copy a `Plan` object or mutable `Plan.status`.
 
