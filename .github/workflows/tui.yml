@@ -20,6 +20,10 @@ on:
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
       - 'Loam/LocusTrendReview.lean'
       - 'Loam/Tests/LocusTrendReview.lean'
+      - 'Loam/LocusTrendCompareReview.lean'
+      - 'Loam/Tests/LocusTrendCompareReview.lean'
+      - 'Loam/LocusTrendCompareReview.lean'
+      - 'Loam/Tests/LocusTrendCompareReview.lean'
       - 'Loam/Tests/TuiChart.lean'
       - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/LocusCatalog.lean'
@@ -645,6 +649,12 @@ jobs:
 
       - name: Verify correction-aware Locus Trend daily series
         run: lake env lean --run Loam/Tests/LocusTrendReview.lean
+
+      - name: Build aligned Trend Compare review boundary
+        run: lake build Loam.LocusTrendCompareReview
+
+      - name: Verify exact-Locus multi-series Trend Compare
+        run: lake env lean --run Loam/Tests/LocusTrendCompareReview.lean
 
       - name: Verify Home same-Actual-generation composition
         run: lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean

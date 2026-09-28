@@ -91,6 +91,37 @@ def main : IO Unit := do
   expect (Loam.Tui.Chart.Renderer.next .ascii == .braille)
     "renderer fallback order lost ASCII to Braille transition"
 
+  let separatedValues := [200, 500, 800]
+  let separatedScale := Loam.Tui.Chart.scaleFor separatedValues
+  let multi :=
+    Loam.Tui.Chart.renderManyInRange .braille 36 12
+      [ { values := [180, 200, 220], style := .series1, marker := '●' }
+      , { values := [480, 500, 520], style := .series2, marker := '◆' }
+      , { values := [780, 800, 820], style := .series3, marker := '▲' }
+      ]
+      1 separatedScale.range
+  let multiCells := multi.flatMap Widget.lines |>.flatten
+  expect (multiCells.any fun cell => cell.glyph == '●' && cell.style == .series1)
+    "multi-series chart lost the first series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '◆' && cell.style == .series2)
+    "multi-series chart lost the second series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '▲' && cell.style == .series3)
+    "multi-series chart lost the third series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '│' && cell.style == .muted)
+    "multi-series chart lost the shared selected-period crosshair"
+
+  let overlapping :=
+    Loam.Tui.Chart.renderManyInRange .block 36 10
+      [ { values := [464, 508, 500], style := .series1, marker := '●' }
+      , { values := [131, 158, 244], style := .series2, marker := '◆' }
+      , { values := [477, 524, 628], style := .series3, marker := '▲' }
+      ]
+      1 (Loam.Tui.Chart.scaleFor
+        [464, 508, 500, 131, 158, 244, 477, 524, 628]).range
+  let overlappingCells := overlapping.flatMap Widget.lines |>.flatten
+  expect (overlappingCells.any fun cell => cell.glyph == '◎')
+    "multi-series chart hid a quantized selected-period overlap instead of marking it"
+
   let narrow := Loam.Tui.Chart.render .braille 12 4 [459, 508, 500] 1
   let wide := Loam.Tui.Chart.render .braille 48 12 [459, 508, 500] 1
   expect (narrow.all fun row => row.width == 12)

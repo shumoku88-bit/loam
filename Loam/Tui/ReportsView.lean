@@ -11,6 +11,7 @@ import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.LocusTrendPane
+import Loam.Tui.LocusTrendComparePane
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
 
@@ -120,10 +121,11 @@ private def menuView (state : State) : Widget :=
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
     , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
     , menuRow state 7 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
-    , menuRow state 8 "Locus Trend" "interactive daily quantity history for one exact coordinate"
-    , menuRow state 9 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
+    , menuRow state 8 "Trend Compare" "compare several exact Loci across long household cycles"
+    , menuRow state 9 "Locus Trend" "interactive daily quantity history for one exact coordinate"
+    , menuRow state 10 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/g/f direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/v/g/f direct"
     , muted "q / Esc home"
     , line state.notice
     ]
@@ -727,6 +729,9 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
   | .scheduledCoverage => scheduledCoverageView state
+  | .locusTrendCompare =>
+      Loam.Tui.LocusTrendComparePane.viewFullScreen
+        (bounds.getD { width := 80, height := 24 }) state.trendCompare state.notice
   | .locusTrend => locusTrendView state bounds
 
 /-- Number of existing trailing notice/help rows kept outside the scrolling body. -/
@@ -742,6 +747,7 @@ private def fixedFooterSize : Mode → Nat
   | .liquidity => 3
   | .budgetWindow => 4
   | .scheduledCoverage => 4
+  | .locusTrendCompare => 4
   | .locusTrend => 4
 
 private def viewParts (state : State) (bounds : Option Bounds := none) : List Widget × List Widget :=
@@ -766,7 +772,7 @@ private def scrollPositionLine
   let last := min total (offset + page)
   let action := match mode with
     | .menu => "select"
-    | .transactionsFlow | .locusTrend => "navigate"
+    | .transactionsFlow | .locusTrendCompare | .locusTrend => "navigate"
     | _ => "scroll"
   muted ("Lines " ++ toString first ++ "–" ++ toString last ++ "/" ++ toString total ++
     "   ↑/↓ or j/k " ++ action)
@@ -789,7 +795,10 @@ private def requestedOffset (state : State) (page : Nat) : Nat :=
 
 /-- Bound only presentation rows; report answers and query coordinates are unchanged. -/
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
-  if state.mode = .locusTrend then
+  if state.mode = .locusTrendCompare then
+    Loam.Tui.LocusTrendComparePane.viewFullScreen
+      bounds state.trendCompare state.notice
+  else if state.mode = .locusTrend then
     Loam.Tui.LocusTrendPane.viewFullScreen bounds state.trend state.notice
   else
     let parts := viewParts state (some bounds)
@@ -814,6 +823,16 @@ def updateForBounds
     (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   let pointerAdjusted :=
     match state.mode, key with
+    | .locusTrendCompare, .pointer col row =>
+        if Loam.Tui.LocusTrendComparePane.pointerInPlot
+            bounds state.trendCompare row then
+          { state with
+              trendCompare :=
+                Loam.Tui.LocusTrendComparePane.selectColumn
+                  bounds state.trendCompare col
+              notice := "" }
+        else
+          state
     | .locusTrend, .pointer col row =>
         if Loam.Tui.LocusTrendPane.pointerInPlot bounds state.trend row then
           { state with
@@ -826,7 +845,7 @@ def updateForBounds
     match key with
     | .pointer _ _ => { state := pointerAdjusted }
     | _ => update pointerAdjusted key
-  if step.state.mode = .locusTrend then
+  if step.state.mode = .locusTrendCompare || step.state.mode = .locusTrend then
     { step with state := { step.state with scroll := 0 } }
   else
     let parts := viewParts step.state (some bounds)

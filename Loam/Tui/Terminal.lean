@@ -33,6 +33,9 @@ def ansiStyle : Style → String
   | .muted => "\x1b[0;2m"
   | .underlined => "\x1b[0;4;36m"
   | .selectedUnderlined => "\x1b[0;4;30;46m"
+  | .series1 => "\x1b[0;36m"
+  | .series2 => "\x1b[0;33m"
+  | .series3 => "\x1b[0;35m"
 
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"

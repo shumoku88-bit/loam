@@ -2,6 +2,7 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.LocusTrendReview
+import Loam.LocusTrendCompareReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
 import Loam.PeriodComparisonReview
@@ -99,6 +100,12 @@ partial def run (bounds : Bounds)
             dataDir root observedAt with
         | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.locusTrendCompare observedAt series) =>
+        match ← Loam.LocusTrendCompareReview.loadConfigured
+            dataDir root observedAt series with
+        | .ok snapshot =>
+            pure (Loam.Tui.Reports.withLocusTrendCompareSnapshot step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
     | some (.locusTrendOverview observedAt coordinate) =>
         match ← Loam.LocusTrendReview.loadConfiguredOverview
             dataDir root observedAt coordinate with
@@ -117,8 +124,8 @@ partial def run (bounds : Bounds)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
-  let wasTrend := state.mode == .locusTrend
-  let isTrend := next.mode == .locusTrend
+  let wasTrend := state.mode == .locusTrend || state.mode == .locusTrendCompare
+  let isTrend := next.mode == .locusTrend || next.mode == .locusTrendCompare
   if wasTrend != isTrend then
     Loam.Tui.Terminal.setPointerMotion isTrend
   let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds activeBounds next)

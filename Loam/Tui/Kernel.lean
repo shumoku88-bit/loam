@@ -10,6 +10,9 @@ inductive Style where
   | muted
   | underlined
   | selectedUnderlined
+  | series1
+  | series2
+  | series3
   deriving Repr, DecidableEq, BEq
 
 structure Cell where
