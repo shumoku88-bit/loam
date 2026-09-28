@@ -143,10 +143,7 @@ private def visibleRows (bounds : Bounds) (state : State) :
     List (Nat × Loam.BoundedHistorySupportReview.Row) :=
   let maxVisible := if bounds.height > 16 then min 10 (bounds.height - 14) else 4
   let selected := if state.rows.isEmpty then 0 else min state.cursor (state.rows.length - 1)
-  let start :=
-    if state.rows.length <= maxVisible then 0
-    else if selected + 1 <= maxVisible then 0
-    else min (selected + 1 - maxVisible) (state.rows.length - maxVisible)
+  let start := Loam.Tui.Layout.trailingWindowStart selected maxVisible
   (state.rows.drop start |>.take maxVisible).zipIdx.map fun (row, index) =>
     (start + index, row)
 
