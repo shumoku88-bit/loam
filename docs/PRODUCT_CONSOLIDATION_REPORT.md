@@ -288,21 +288,17 @@ DESIGN_PHILOSOPHY.md
 OBSERVATION_MAP.md
 ```
 
-一方、現在も root に次の大きな audit 文書が残る。
+targeted documentation cleanup は owner ごとに進める。
 
-- `RAW_ADMITTED_AUDIT.md`
-- `SEMANTIC_GAP_AUDIT.md`
-
-`SEMANTIC_GAP_AUDIT.md` 自身は
-「historical audit evidence, not a current verdict sheet」と明記しており、
-後続 production qualification によって複数の旧結論が supersede されている。
-
-`RAW_ADMITTED_AUDIT.md` は current-status note で falsification evidence としての
-価値を主張しているが、翌日の
-`docs/research/ADMITTED_TYPE_INTEGRITY_AUDIT_2026-09-19.md` が
-production reachability を再監査し、
-`no confirmed production semantic bypass` という後続 verdict を保持している。
-したがって root に残す理由は再評価対象である。
+- `SEMANTIC_GAP_AUDIT.md` は、自身が historical audit evidence と明記し、
+  current reference を持たず、surviving meaning が production code・regression・
+  後続 audit に吸収されたため、ownership retirement PR #1540 を切った。
+- `RAW_ADMITTED_AUDIT.md` は current-status note で falsification evidence としての
+  価値を主張しているが、翌日の
+  `docs/research/ADMITTED_TYPE_INTEGRITY_AUDIT_2026-09-19.md` が
+  production reachability を再監査し、
+  `no confirmed production semantic bypass` という後続 verdict を保持している。
+  したがって root に残す理由は次の targeted re-audit 対象である。
 
 `docs/movement_manifest_menu_cutover.md` は明示的な historical cutover note だが、
 現在の `README.md` が provenance として直接リンクしている。
