@@ -3,8 +3,6 @@ import Loam.Observations.Observation011
 import Loam.Observations.Observation029
 import Loam.Observations.Observation078
 import Loam.Observations.Observation159
-import Loam.Observations.Observation179
-import Loam.Observations.Observation180
 import Loam.Observations.Observation183
 import Loam.Observations.Observation184
 import Loam.Observations.Observation186
@@ -151,6 +149,11 @@ Research compaction notes:
   snapshot-archive candidates never became current authority. Normalized
   `actual.loam` now publishes one fully admitted image through staged typed
   re-decode and a single atomic rename; migration provenance remains Git history.
+- 2026-09-28: Observations 179 and 180 retired after Observation 191 generalized
+  their finite wallet/food preservation-polarity and double-closure fixtures into
+  the current observation-independent quotient/factorization theorem. The live
+  downstream users depend only on Observation 191's generic machinery; the
+  representative normalization and minimal-basis field trials remain in Git history.
 
 Retired source remains available in Git history.
 -/
