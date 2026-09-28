@@ -231,8 +231,7 @@ def validateDraft (draft : Draft) : Except String Unit := do
     throw "loam: movement requires valid effect tokens, one valid Measure token, and nonzero quantities"
   if (Loam.PracticalMovement.ofSingleMeasureEffects? draft.effects).isNone then
     throw "loam: movement must be one balanced nonzero Measure"
-  let positive := draft.effects.foldl
-    (fun total effect => total + max 0 effect.quantity.quanta) 0
+  let positive := Loam.Core.Effect.positiveQuantaTotal draft.effects
   if positive <= 0 || draft.total != positive then
     throw "loam: movement requires positive FROM / TO totals matching the draft total"
 
