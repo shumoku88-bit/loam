@@ -469,10 +469,12 @@ def main : IO Unit := do
   expect (contains "31-day viewport" viewportText &&
       contains "Range All history" viewportText &&
       contains "s/S range" viewportText &&
-      contains "wheel select period" viewportText &&
-      contains "mouse click/drag scrub" viewportText &&
+      contains "wheel period" viewportText &&
+      contains "mouse click/drag" viewportText &&
+      contains "Tab series" viewportText &&
+      contains "a add" viewportText && contains "x remove" viewportText &&
       contains "Aug 10" viewportText && contains "Sep 9" viewportText)
-    "Trend Compare Day did not expose the visible 31-day window and mouse controls"
+    "Unified Trend Day did not expose its viewport, rack, and mouse controls"
   expect (!(contains "¥8,000" viewportText))
     "Trend Compare Day scale still included an outlier outside the visible viewport"
 
