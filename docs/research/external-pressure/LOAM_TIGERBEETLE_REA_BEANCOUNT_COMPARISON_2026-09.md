@@ -202,12 +202,12 @@ atomic linkage
 
 rather than one cross-ledger Transfer.
 
-LOAM Observation 282 independently arrived near:
+LOAM's promoted exchange boundary now uses:
 
 ```text
 cross-Measure exact Event facts
         +
-explicit ExchangeEvidence(EventId)
+effect-selected ExchangeEvidence(EventId, source EffectKey, destination EffectKey)
 ```
 
 The implementations need not converge. The shared design lesson is:

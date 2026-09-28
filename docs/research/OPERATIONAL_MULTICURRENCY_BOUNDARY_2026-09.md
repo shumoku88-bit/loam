@@ -150,15 +150,18 @@ cash-usd    +100 usd
 
 because unlike Measures do not arithmetically cancel.
 
-Observation 282 records the current candidate direction:
+The promoted production direction is now:
 
 ```text
 cross-Measure Event
-+ explicit ExchangeEvidence(EventId)
++ effect-selected ExchangeEvidence(EventId, source EffectKey, destination EffectKey)
 ```
 
-without making an observed quantity ratio into a market rate, current
-valuation, acquisition basis, or tax basis.
+The selected source/destination Measures remain distinct, while additional
+Effects in either selected Measure may coexist in the same observed occurrence.
+That is enough to preserve a fee-bearing exchange Event without assigning fee
+semantics to any extra Effect. Market rate, current valuation, acquisition basis,
+tax basis, and fee meaning remain separate evidence questions.
 
 ## Stop point
 

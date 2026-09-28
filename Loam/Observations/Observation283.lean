@@ -1,5 +1,4 @@
-import Loam.Core.EventMemory
-import Loam.Observations.Observation282
+import Loam.Application.ExchangeEvidenceFrontier
 
 namespace Loam.Observation283
 
@@ -8,191 +7,82 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Observation 283 — fee-bearing cross-Measure exchange pressure
+# Observation 283 — fee meaning remains independent of exchange evidence
 
-Observation 282 qualified the smallest no-fee specimen:
+Production now admits fee-bearing cross-Measure occurrences directly:
 
-    cash-jpy  -15000 jpy
-    cash-usd     +100 usd
-      + ExchangeEvidence(EventId)
+    selected source Effect       jpy  negative
+    additional Effect           jpy  positive
+    selected destination Effect usd  positive
+      + effect-selected ExchangeEvidence
 
-That candidate deliberately named only the Event because the selected specimen
-contained exactly the two unlike quantities being exchanged.
+The additional same-Measure Effect can therefore stay inside the one observed
+Event. No split Event is required merely to satisfy exchange admission.
 
-This observation adds one independently observable fee while preserving one
-external occurrence:
+The remaining question is narrower:
 
-    cash-jpy  -15100 jpy
-    fee          +100 jpy
-    cash-usd     +100 usd
+> Does production ExchangeEvidence determine that the additional Effect is a fee?
 
-The question is whether the event-level exchange claim from Observation 282 is
-still sufficient, or whether fee-bearing exchange forces finer evidence.
-
-The test also compares a tempting workaround: split the source occurrence into a
-no-fee exchange Event plus an ordinary fee Event. That decomposition preserves
-the selected quantity projection, but it does not preserve occurrence identity.
+It deliberately does not. This witness keeps the Event and production exchange
+claim fixed while varying only explicit fee evidence. The resulting fee answer
+changes, so fee meaning remains independently retained information if a future
+household question ever requires it.
 -/
 
-private def yen : MeasureId := ⟨"jpy"⟩
-private def dollar : MeasureId := ⟨"usd"⟩
+private def jpy : MeasureId := ⟨"jpy"⟩
+private def usd : MeasureId := ⟨"usd"⟩
 
 private def cashJpy : LocusId := ⟨"cash-jpy"⟩
 private def cashUsd : LocusId := ⟨"cash-usd"⟩
 private def feeLocus : LocusId := ⟨"exchange-fee"⟩
 
-private def providerEventId : EventId := ⟨"provider-exchange-with-fee"⟩
+private def sourceKey : EffectKey := ⟨"jpy-source"⟩
 private def feeKey : EffectKey := ⟨"fee-effect"⟩
+private def destinationKey : EffectKey := ⟨"usd-destination"⟩
+private def providerEventId : EventId := ⟨"provider-exchange-with-fee"⟩
 
-/--
-One provider-observed occurrence.
-
-Only the fee Effect receives stable local identity in this bounded observation.
-The physical Core still does not infer that the Locus is an expense or that the
-Effect is a fee.
--/
 private def providerEvent : Event := {
   id := providerEventId
   effects := [
-    Effect.ofAnonymousQuantity cashJpy yen (Quantity.ofQuanta (-15100)),
-    Effect.ofQuantity feeKey feeLocus yen (Quantity.ofQuanta 100),
-    Effect.ofAnonymousQuantity cashUsd dollar (Quantity.ofQuanta 100)
+    Effect.ofQuantity sourceKey cashJpy jpy (Quantity.ofQuanta (-15100)),
+    Effect.ofQuantity feeKey feeLocus jpy (Quantity.ofQuanta 100),
+    Effect.ofQuantity destinationKey cashUsd usd (Quantity.ofQuanta 100)
   ]
-  keyNodup := by
-    simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
+  keyNodup := by native_decide
 }
 
 private def providerMemory : EventMemory := {
   events := [providerEvent]
+  idNodup := by native_decide
+}
+
+private def noCorrections : EventCorrectionMemory := {
+  corrections := []
   idNodup := by simp
 }
 
-/-- The neutral Core retains all three exact physical quantities directly. -/
-theorem core_retains_fee_bearing_exchange_facts :
-    providerEvent.quantityAt cashJpy yen = Quantity.ofQuanta (-15100) ∧
-    providerEvent.quantityAt feeLocus yen = Quantity.ofQuanta 100 ∧
-    providerEvent.quantityAt cashUsd dollar = Quantity.ofQuanta 100 := by
-  native_decide
-
-/--
-The event-level candidate from Observation 282 is intentionally too narrow for
-this specimen: it recognizes exactly two unlike Effects and therefore refuses
-the three-Effect fee-bearing occurrence.
--/
-private def providerExchangeEvidence : Loam.Observation282.ExchangeEvidence := {
+private def providerExchange : ExchangeEvidence := {
   event := providerEventId
+  source := sourceKey
+  destination := destinationKey
 }
-
-theorem observation282_event_level_exchange_claim_is_not_fee_complete :
-    Loam.Observation282.exchangeEvidenceAdmitted?
-      providerMemory providerExchangeEvidence = false := by
-  native_decide
-
-/-!
-## Tempting decomposition
-
-A caller can make today's qualified pieces fit by inventing two Events:
-
-    split-exchange
-      cash-jpy  -15000 jpy
-      cash-usd     +100 usd
-
-    split-fee
-      cash-jpy    -100 jpy
-      fee         +100 jpy
-
-This is arithmetically convenient, but the provider supplied one occurrence.
-The next theorems make the trade-off explicit.
--/
-
-private def splitExchangeId : EventId := ⟨"split-exchange"⟩
-private def splitFeeId : EventId := ⟨"split-fee"⟩
-
-private def splitExchangeEvent : Event := {
-  id := splitExchangeId
-  effects := [
-    Effect.ofAnonymousQuantity cashJpy yen (Quantity.ofQuanta (-15000)),
-    Effect.ofAnonymousQuantity cashUsd dollar (Quantity.ofQuanta 100)
-  ]
-  keyNodup := by simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
-}
-
-private def splitFeeEvent : Event := {
-  id := splitFeeId
-  effects := [
-    Effect.ofAnonymousQuantity cashJpy yen (Quantity.ofQuanta (-100)),
-    Effect.ofAnonymousQuantity feeLocus yen (Quantity.ofQuanta 100)
-  ]
-  keyNodup := by simp [retainedEffectKeys, Effect.ofAnonymousQuantity]
-}
-
-private def splitMemory : EventMemory := {
-  events := [splitExchangeEvent, splitFeeEvent]
-  idNodup := by
-    simp [splitExchangeEvent, splitFeeEvent, splitExchangeId, splitFeeId]
-}
-
-private def splitExchangeMemory : EventMemory := {
-  events := [splitExchangeEvent]
-  idNodup := by simp
-}
-
-private def splitExchangeEvidence : Loam.Observation282.ExchangeEvidence := {
-  event := splitExchangeId
-}
-
-/-- The old no-fee exchange candidate accepts the manufactured exchange half. -/
-theorem observation282_candidate_accepts_split_exchange_half :
-    Loam.Observation282.exchangeEvidenceAdmitted?
-      splitExchangeMemory splitExchangeEvidence = true := by
-  native_decide
 
 /--
-The one-Event source observation and the two-Event decomposition have identical
-selected recorded quantities.
+The current production boundary accepts the complete fee-bearing occurrence
+without assigning semantic meaning to the additional JPY Effect.
 -/
-theorem split_preserves_selected_quantity_projection :
-    EventMemory.quantityAtRecorded providerMemory cashJpy yen =
-      EventMemory.quantityAtRecorded splitMemory cashJpy yen ∧
-    EventMemory.quantityAtRecorded providerMemory feeLocus yen =
-      EventMemory.quantityAtRecorded splitMemory feeLocus yen ∧
-    EventMemory.quantityAtRecorded providerMemory cashUsd dollar =
-      EventMemory.quantityAtRecorded splitMemory cashUsd dollar := by
+theorem production_exchange_admits_fee_bearing_occurrence :
+    Loam.Application.exchangeEvidenceAdmitted?
+      providerMemory noCorrections providerExchange = true := by
   native_decide
 
-/--
-But the decomposition does not preserve occurrence identity.
-
-This matters because Event identity is observable to correction, provenance and
-later evidence. Equal quantity projections therefore do not justify replacing
-one observed occurrence with two invented occurrences.
--/
-theorem split_does_not_preserve_provider_occurrence_identity :
-    (providerMemory.findById? providerEventId).isSome = true ∧
-    (splitMemory.findById? providerEventId).isNone = true ∧
-    providerMemory.events.length = 1 ∧
-    splitMemory.events.length = 2 := by
-  native_decide
-
-/-!
-## Minimal additive pressure
-
-The physical event alone still does not say which positive JPY Effect is the
-fee. A small observation-local evidence family can state that meaning without
-turning Locus names, signs or Measures into fee semantics.
-
-This is not a production proposal. It tests only whether finer evidence can
-preserve the original Event instead of manufacturing a split.
--/
-
-/-- Observation-local claim that one retained Effect is the fee-bearing Effect. -/
+/-- Observation-local candidate for a future explicit fee claim. -/
 structure FeeEvidence where
   event : EventId
   effect : EffectKey
 deriving Repr, DecidableEq
 
-/-- A fee claim is structurally admissible only when its named Effect exists. -/
-def feeEvidenceAdmitted?
+private def feeEvidenceAdmitted?
     (events : EventMemory)
     (evidence : FeeEvidence) : Bool :=
   match events.findById? evidence.event with
@@ -201,8 +91,7 @@ def feeEvidenceAdmitted?
       event.effects.any fun effect =>
         decide (effect.key = some evidence.effect)
 
-/-- Selected query: is there admitted fee evidence for this Event? -/
-def feeKnown
+private def feeKnown
     (events : EventMemory)
     (evidence : List FeeEvidence)
     (event : EventId) : Bool :=
@@ -215,12 +104,10 @@ private def providerFeeEvidence : FeeEvidence := {
 }
 
 /--
-The complete physical Event can remain fixed while the fee answer changes.
-
-Therefore fee meaning is not determined by Event geometry, Measure identity,
-quantity sign, or the event-level exchange claim alone.
+The same admitted Event and the same production ExchangeEvidence support two
+different fee answers depending only on whether explicit fee evidence exists.
 -/
-theorem same_event_different_fee_evidence_changes_fee_answer :
+theorem same_exchange_different_fee_evidence_changes_fee_answer :
     feeKnown providerMemory [] providerEventId = false ∧
     feeKnown providerMemory [providerFeeEvidence] providerEventId = true := by
   native_decide
@@ -228,36 +115,31 @@ theorem same_event_different_fee_evidence_changes_fee_answer :
 /-!
 ## Finding
 
-The fee-bearing specimen breaks the Observation-282 candidate in a useful way.
+Production has already absorbed the earlier exchange-shape pressure:
 
-What survives:
+    one Event
+    + exact selected source/destination Effects
+    + additional same-Measure Effects
+    + ExchangeEvidence
+        -> qualified cross-Measure exchange occurrence
 
-- neutral Core can retain the exact JPY outflow, JPY fee Effect and USD inflow;
-- unlike Measures still must not be arithmetically cancelled;
-- valuation/rate authority still need not enter Event Core.
+What remains unresolved is semantic attribution of an additional Effect:
 
-What fails:
+    same Event
+    + same ExchangeEvidence
+    + no fee evidence
+        !=
+    same Event
+    + same ExchangeEvidence
+    + explicit fee evidence
 
-- `ExchangeEvidence(EventId)` plus an exactly-two-Effect shape is not sufficient
-  for a fee-bearing exchange;
-- splitting one externally observed occurrence into exchange + fee Events can
-  preserve selected balances while destroying occurrence identity.
+Therefore fee meaning is not derivable from Locus spelling, sign, Measure, or the
+production exchange claim itself.
 
-The bounded pressure favors keeping one observed Event and adding independently
-qualified finer evidence when the semantics truly require it. In particular, a
-future exchange publisher may need to be an independent reason to retain stable
-Effect identity, rather than relying on the ordinary Movement canonicalization
-rule that currently keeps keys only when another relation earns them.
-
-Not earned here:
-
-- a production `FeeEvidence` type or wire row;
-- a final Exchange evidence schema;
-- exchange-rate, market-price, acquisition-basis, or tax semantics;
-- multi-fee, fee-in-destination-currency, rebate, or net-settlement policy;
-- correction and reversal laws for fee-bearing exchange.
-
-Those remain separate falsification targets.
+This observation does not earn a production FeeEvidence family. It preserves the
+information distinction until a concrete household query needs fee semantics.
+Rate, valuation, acquisition basis, tax basis, rebate policy, and multi-fee
+semantics remain separate questions.
 -/
 
 end Loam.Observation283
