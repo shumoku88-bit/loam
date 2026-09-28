@@ -43,7 +43,7 @@ This is an interaction requirement, not a reason to add an Account primitive or 
 | Route an Expense or other admitted Locus to a Purpose | ActualRouting | shared publisher / household entrance | Home `p` | **Covered** |
 | Include a coordinate in ordinary balance presentation | `config/balance-view.tsv` | no normal household editor | read-only Balances only | **Gap** |
 | Observe exact current quantities | CurrentQuantityAnchor | HouseholdCommand.observeCurrentQuantities | Home `o` | **Covered incrementally by anonymous reconciliation groups (#1386/#1389)** |
-| State bounded historical completeness after a start boundary | BoundedHistorySupport | HouseholdCommand.updateBoundedHistorySupport | Home `m` -> Shift-Tab | **Promotion includes writer + TUI; report consumption follows separately** |
+| State bounded historical completeness after a start boundary | BoundedHistorySupport | HouseholdCommand.updateBoundedHistorySupport | Home `m` -> Shift-Tab | **Covered: writer, TUI, review, and historical report consumption** |
 | Establish zero-origin historical support | ZeroOriginCoverage | reconstruction/cutover-only | none | **Acceptable as exceptional evidence** |
 | Establish OpeningSupport | OpeningSupport | no ordinary production caller | none | **Keep special until an ordinary workflow earns it** |
 | Add/change a Measure decimal scale | MeasurePresentationAuthority | HouseholdCommand.setMeasureScale | CLI only | **Gap for ordinary multi-currency setup** |
@@ -89,7 +89,7 @@ Anonymous groups only factor coordinates that genuinely share one cut. They do n
 
 ## Historical support consequence
 
-The proposed bounded historical support from #1372 must obey the same product rule.
+The bounded historical support promoted from #1372 obeys the same product rule.
 
 If the surviving semantic fact is approximately:
 
@@ -151,15 +151,19 @@ Observation 246's follow-up / PR #1386 qualified anonymous reconciliation groups
 
 The remaining onboarding gaps no longer require re-observing every previously anchored account merely to add one later account.
 
-### In promotion — bounded historical support writer + TUI
+### Graduated — bounded historical support writer + TUI + historical readers
 
-The first production slice follows completed #1372 and Observations 345/346 with one narrow replaceable authority:
+Observations 345/346 now have one narrow replaceable production authority:
 
 ```text
 coordinate + complete-since start day
 ```
 
-It includes the shared HouseholdCommand writer and Home `m` -> Shift-Tab administration surface in the same change. Report readers are deliberately left for the next slice so write semantics can be qualified independently.
+The shared HouseholdCommand writer and Home `m` -> Shift-Tab administration
+surface are implemented. `HistoricalBalanceReview` consumes this evidence with
+an exact CurrentQuantityAnchor for backward reconstruction; Stock–Flow,
+Cycle/Daily Pace, and period-comparison paths can reuse that shared historical
+boundary without weakening ZeroOriginCoverage.
 
 ### P1 — balance-view administration
 
@@ -203,13 +207,15 @@ This checkpoint does not authorize:
 
 ## Next implementation order
 
-1. Qualify bounded historical-support persistence, writer, TUI administration, and CurrentQuantityAnchor interaction.
-2. Connect bounded support to historical Balance / Stock-Flow / recent Daily Pace readers without weakening ZeroOriginCoverage.
-3. Run one TUI recovery pass over Balances, Daily Pace, Recent Pace, Reports, Stock-Flow, Transactions-Flow, and period comparison.
-4. Add the small replaceable balance-view editor.
-5. Add friendly Locus-label administration.
-6. Expose existing Measure-scale administration in the TUI.
-7. Treat first-run household bootstrap as its own later slice.
+The bounded-history persistence/writer/TUI/read-path work is complete.
+
+Remaining setup work from this checkpoint is:
+
+1. Run one TUI recovery pass over Balances, Daily Pace, Recent Pace, Reports, Stock-Flow, Transactions-Flow, and period comparison as those surfaces evolve.
+2. Add the small replaceable balance-view editor.
+3. Add friendly Locus-label administration.
+4. Expose existing Measure-scale administration in the TUI.
+5. Treat first-run household bootstrap as its own later slice.
 
 The desired end state is simple:
 

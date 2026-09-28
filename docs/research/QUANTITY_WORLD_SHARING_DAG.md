@@ -1,6 +1,6 @@
 # Quantity-world sharing obligation DAG — G2-006
 
-Status: **Generation-2 audit evidence**
+Status: **CURRENT PRODUCTION BOUNDARY / Generation-2 audit evidence**
 
 Primary instruments: **DRAKONview + proof-obligation DAG**.
 
@@ -198,6 +198,132 @@ reconciliation image now derives one delta frontier per projection rather than
 one per coordinate.
 
 Verdict: **SIMPLIFY**.
+
+## Durable quantity-support boundary from Observations 243/244/246/345/346
+
+The detailed prose for Observations 243, 244, 246, 345, and 346 has graduated
+to Git history. Their five Alloy models remain live independent witnesses.
+
+The current production boundary preserves three distinct questions.
+
+### Current quantity support is not origin completeness
+
+Observation 243 established that an exact current/as-of quantity can be justified
+without claiming exact history from zero.
+
+Production therefore keeps these authorities separate:
+
+- `ZeroOriginCoverage` for the strong zero-origin route;
+- `OpeningSupport` for a narrow current opening witness;
+- `CurrentQuantityAnchor` for independently observed current quantity;
+- `BoundedHistorySupport` for an explicit complete-since historical interval.
+
+A supported current quantity never implies zero-origin completeness.
+
+### CurrentQuantityAnchor owns the observed-present cut
+
+Observations 244 and 246 earned the minimum information required for a later
+exact observation without resurrecting the retired QuantityBasis/BasisCut
+subsystem.
+
+Current production retains:
+
+```text
+anonymous reconciliation group
+  shared reflected Event correction roots
+  one or more exact Locus × Measure assertions
+```
+
+Every coordinate belongs to at most one current group. Re-observing a coordinate
+may move only that coordinate into a new anonymous group while unrelated groups
+remain intact.
+
+The reflected-root cut is independent evidence. It is not inferred from date,
+file order, Event order, or Git history. Corrections to reflected roots remain
+absorbed by the observation; roots outside the cut remain deltas.
+
+The group has no stable semantic identity, correction graph, or chronology.
+
+### Bounded historical support owns explicit complete-since evidence
+
+Observations 345 and 346 later earned a second, independently stated fact:
+
+```text
+coordinate + complete-since start day
+```
+
+Current production owners are:
+
+- `Loam/BoundedHistorySupport.lean`;
+- `Loam/Persistence/BoundedHistorySupportPersistence.lean`;
+- `Loam/BoundedHistorySupportPublisher.lean`;
+- `Loam/BoundedHistorySupportReview.lean`;
+- `Loam/HistoricalBalanceReview.lean`;
+- `Loam/Tui/BoundedHistorySupportAdministration.lean`.
+
+The claim says that every real quantity change from the start of the stated day
+onward is represented by dated, correction-aware Actual evidence for that
+coordinate.
+
+It does **not** store an opening quantity. Exact quantity at an earlier boundary
+inside the supported interval is reconstructed backwards:
+
+```text
+exact current CurrentQuantityAnchor
+-
+current-truth dated Actual delta after requested boundary
+=
+historical quantity at requested boundary
+```
+
+The current Event world and dates come from one admitted `ActualAuthority.Image`.
+
+A bounded claim is admitted only with a usable exact current anchor. A query
+before the coordinate's start day fails closed. OpeningSupport alone does not
+authorize historical reconstruction, and overlapping support families are
+refused rather than assigned precedence.
+
+### Reconciliation does not certify unknown earlier history
+
+Numeric endpoint agreement never creates bounded-history evidence.
+
+An unexplained correction/adjustment may establish a later observed quantity
+boundary, but it does not retroactively prove the categories, causes, or detailed
+completeness of an earlier interval. Production need not introduce an
+`Adjustment` Core primitive for this result: unexplained exact movements remain
+ordinary Actual evidence, with occurrence-date refinement owned separately by
+ActualValidity.
+
+The complete-since claim remains explicit household evidence that can be set,
+moved, or removed through its publisher/TUI.
+
+### Live bounded research retained
+
+The following models remain active in Alloy CI:
+
+- Observation 243 — current versus historical balance support;
+- Observation 244 — temporal quantity-anchor compression;
+- Observation 246 — shared current-anchor root cut;
+- Observation 345 — reconciled interval boundary;
+- Observation 346 — backward anchor reconstruction.
+
+The working tree no longer needs their long historical prose beside current
+production code and this durable boundary description.
+
+### Durable non-goals
+
+Do not use quantity-support compression to:
+
+- weaken `ZeroOriginCoverage`;
+- infer completeness from matching endpoints;
+- treat missing support as numeric zero;
+- reinterpret `OpeningSupport` as historical completeness;
+- infer reflected roots from chronology;
+- merge independent reconciliation groups;
+- restore the retired generic QuantityBasis/BasisCut subsystem;
+- persist derived opening quantities merely for historical reconstruction;
+- invent hidden historical Events;
+- make adjustment/reconciliation evidence certify prior detailed history.
 
 ## Qualification obligations
 
