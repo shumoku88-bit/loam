@@ -4,6 +4,7 @@ import Loam.PracticalMovement
 import Loam.Tui.Main
 import Loam.Tui.Record
 import Lean.Elab.Tactic.Omega
+import Loam.Tui.Layout
 
 namespace Loam.Tui.Correction
 
@@ -138,7 +139,7 @@ def view (_known : List String) (state : State) : Widget :=
       let options := Loam.Tui.Record.catalogCandidates state.editor
       let selectedIndex :=
         if options.isEmpty then 0 else state.editor.candidateIndex % options.length
-      let candidateStart := if selectedIndex < 5 then 0 else selectedIndex - 4
+      let candidateStart := Loam.Tui.Layout.trailingWindowStart selectedIndex 5
       let visible := (options.drop candidateStart).take 5
       let candidateLines :=
         match Loam.Tui.Record.activeLocus? state.editor.form with
