@@ -437,7 +437,7 @@
       "model": "experiments/269_suspense_known_unknown.als",
       "paths": [
         "experiments/269_suspense_known_unknown.als",
-        "experiments/269_suspense_known_unknown.md"
+        "docs/HOUSEHOLD_OPERATING_MODE.md"
       ],
       "expected": {
         "validUnknownExists": true,
