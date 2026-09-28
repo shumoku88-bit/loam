@@ -11,6 +11,12 @@ LOAM main
 
 HRA remains an interaction and household-pressure comparator, not an ontology or compatibility target.
 
+The earlier `HOUSEHOLD_CAPABILITY_INVENTORY.md` was a pre-observation roadmap built
+while QuantityBasis, external shadow-day adapters, and the line-menu interaction
+surface were still current. Its detailed table and chapter ordering have now
+graduated to Git history. This composition matrix and the household checkpoint
+carry the surviving research method and current-facing capability boundaries.
+
 ## Question
 
 The target is not minimum source lines and not a port of HRA's domain model.
