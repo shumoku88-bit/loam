@@ -4,6 +4,38 @@ Baseline: `331f3f3f3de107f7de3e1e07d4effdc47c607d2f`
 
 This checkpoint freezes the result of the first connection study before the next question moves from balance semantics to history semantics.
 
+
+## Current status and research-history graduation
+
+The first connection study is now a durable research boundary rather than an
+active sequence of prose experiments. The detailed narrative files for
+Observations 250–252 have graduated to Git history.
+
+The formal witnesses remain live:
+
+- `Loam/Observations/Observation250.lean` keeps the direct LOAM-to-Ledger
+  additive denotation laws;
+- `experiments/251_loam_rea_interpretation.als` keeps the bounded
+  non-derivability counterexamples for Resource, Agent, and duality;
+- `experiments/252_rea_ledger_commutation.als` keeps the bounded accounting-view
+  policy and commutation counterexamples/positive controls;
+- `Loam/Observations/Observation253.lean` keeps the generic positive commuting
+  theorem for compatible observed coordinates.
+
+This checkpoint is the current-facing semantic record for that sequence. Exact
+qualification runs, intermediate hypotheses, external-version notes, and the
+full historical argument remain available in Git history.
+
+The graduation does not turn REA or Ledger vocabulary into LOAM Core ontology.
+It preserves the opposite conclusion: neutral retained evidence, economic
+interpretation, accounting-view policy, and additive Ledger denotation are
+distinct layers. Equal Ledger balance images need not imply equal retained LOAM
+evidence or equal REA interpretation.
+
+Observation 254 and the later history/register study are not graduated by this
+change. They ask a different question about information lost by balance
+projection and remain separate research pressure.
+
 ## Qualified connection
 
 Observation 250 establishes a direct additive projection from a qualified LOAM `BalancedMovement` into a Ledger/Pacioli-shaped balance image without adding Account, debit/credit, or transaction-kind meaning to LOAM Core.

@@ -231,7 +231,7 @@
       "model": "experiments/251_loam_rea_interpretation.als",
       "paths": [
         "experiments/251_loam_rea_interpretation.als",
-        "experiments/251_loam_rea_interpretation.md"
+        "docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md"
       ],
       "expected": {
         "reaInterpretationExists": true,
@@ -256,7 +256,7 @@
       "model": "experiments/252_rea_ledger_commutation.als",
       "paths": [
         "experiments/252_rea_ledger_commutation.als",
-        "experiments/252_rea_ledger_commutation.md"
+        "docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md"
       ],
       "expected": {
         "compatibleTriangleExists": true,
