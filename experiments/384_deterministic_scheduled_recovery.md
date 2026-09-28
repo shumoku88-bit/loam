@@ -1,6 +1,6 @@
 # Observation 384 — deterministic Scheduled relation-first recovery
 
-Status: **EXECUTABLE PILOT — cross-authority recovery replay; no production architecture change**
+Status: **QUALIFIED EXECUTABLE PILOT — cross-authority recovery replay succeeded; no production architecture change**
 
 Baseline:
 
@@ -191,6 +191,36 @@ interrupted claim      1
 policy-blocked retry   1
 recovered completion   1
 refusals               3
+```
+
+## Executed result
+
+The shared Lean qualification completed successfully:
+
+```text
+workflow: Lean Application Qualifications
+run:      36372273569
+job:      Replay deterministic Scheduled relation-first recovery
+result:   SUCCESS
+
+freshCompletions:      1
+cancellations:         1
+interruptedClaims:     1
+blockedRetries:        1
+recoveredCompletions:  1
+refusals:              3
+```
+
+The same history was replayed in two isolated household roots and ended with identical Actual, Scheduled, and Locus-policy bytes.
+
+The interrupted claim remained current-open while its Actual endpoint was absent. Cancellation refused to compete with it. A retry under closed Locus policy failed without changing either Actual or Scheduled authority. After restoring policy, retry published the missing Event at the exact retained `recovered-actual-3` endpoint without rewriting or duplicating the Scheduled completion claim.
+
+All three repository workflows on the code head also completed successfully:
+
+```text
+Compression Audit              SUCCESS
+Lean Application Qualifications SUCCESS
+Lean Proof Surfaces             SUCCESS
 ```
 
 ## Boundary significance
