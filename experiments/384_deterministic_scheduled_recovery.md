@@ -16,6 +16,8 @@ shared deterministic support merged as #1453
 
 Previous deterministic scenarios exercised one canonical Actual authority at a time.
 
+This remains part of LOAM's **deterministic production-history testing** layer: an explicit recovery history with exact replay, not a claim of TigerBeetle-style DST or exhaustive fault-space exploration.
+
 Scheduled completion has a different recovery law because it spans two authorities in a fixed order:
 
 ```text
@@ -242,6 +244,6 @@ Settlement lifecycle
 Scheduled cross-authority recovery
 ```
 
-At that point the next research question should be fault injection only if a small seam can be introduced without production IO abstraction or simulator-framework growth.
+At that point the next research question should be fault injection only if a small seam can be introduced without production IO abstraction or generic scenario-runner growth.
 
 Otherwise stop here and retain the four scenario families as the durable deterministic layer.
