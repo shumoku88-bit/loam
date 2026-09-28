@@ -164,7 +164,7 @@ A useful sharper statement is therefore:
 
 This does **not** prove that `set Unit` is the unique or globally minimal representation of commitment information.
 
-Observation 008 already showed that sufficient representations can use different coordinate systems. Another encoding could preserve the same collision classes without literally storing a Unit set.
+The general recovery law now owned by Observation 029 shows that sufficient representations can use different coordinate systems. Another encoding could preserve the same summary fibers without literally storing a Unit set.
 
 The result is also conditional on the current commitment law. If a future vocabulary allows a commitment to name a Purpose different from current placement, records provenance independently, permits partially honored commitments, or asks about why/by whom a commitment was made, then Unit identity plus placement may no longer be sufficient.
 
