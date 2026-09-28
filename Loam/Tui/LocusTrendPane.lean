@@ -167,10 +167,14 @@ private def chartRows
     Loam.Tui.Chart.render state.renderer width height series state.selected
   (List.range height).map fun row =>
     match rendered[row]? with
-    | some (.row spans) =>
-        .row ([span (axisText height row range)] ++ spans)
-    | _ =>
-        .row [span (axisText height row range)]
+    | some widget =>
+        match widget with
+        | Widget.row spans =>
+            Widget.row ([span (axisText height row range)] ++ spans)
+        | Widget.column _ =>
+            Widget.row [span (axisText height row range)]
+    | none =>
+        Widget.row [span (axisText height row range)]
 
 
 private def overviewAxis
