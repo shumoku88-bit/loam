@@ -78,7 +78,7 @@ def main : IO Unit := do
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
   expect (contains "Multicurrency Spend" menuText) "Reports menu lost Multicurrency Spend"
-  expect (contains "Trend Compare" menuText) "Reports menu lost Trend Compare"
+  expect (contains "Trend" menuText) "Reports menu lost unified Trend"
   expect (contains "Locus Trend" menuText) "Reports menu lost Locus Trend"
   expect (contains "Fava Projection" menuText) "Reports menu lost Fava Projection"
   let favaStep := Loam.Tui.Reports.update initial (.input 'f')
@@ -187,6 +187,69 @@ def main : IO Unit := do
   expect (compareReport.trendCompare.selected == 2)
     "Trend Compare did not select the current cycle initially"
 
+  let rackCatalog : Loam.LocusCatalog.Catalog :=
+    [ { locus := ⟨"food"⟩, label := "Food", help := "Food spending" }
+    , { locus := ⟨"books"⟩, label := "Books", help := "Books and reading" }
+    ]
+  let rackBase : Loam.Tui.Reports.State := {
+    compareReport with
+      trendCompare :=
+        Loam.Tui.LocusTrendComparePane.withCatalog
+          compareReport.trendCompare rackCatalog
+  }
+
+  let rackTwo := Loam.Tui.Reports.update rackBase (.input 'x')
+  match rackTwo.query with
+  | some (.locusTrendCompare _ _ _ series) =>
+      expect
+        (series.map (fun item => item.coordinate.locus.token) == ["coffee", "food"])
+        "Trend rack did not remove the focused first series"
+  | _ => throw (IO.userError "Trend rack removal did not rerun the query")
+
+  let rackOne := Loam.Tui.Reports.update rackTwo.state (.input 'x')
+  match rackOne.query with
+  | some (.locusTrendCompare _ _ _ series) =>
+      expect (series.map (fun item => item.coordinate.locus.token) == ["food"])
+        "Trend rack did not support a one-series Trend"
+  | _ => throw (IO.userError "Trend rack second removal did not rerun the query")
+
+  let rackFloor := Loam.Tui.Reports.update rackOne.state (.input 'x')
+  expect (rackFloor.query.isNone &&
+      rackFloor.state.trendCompare.series.length == 1 &&
+      contains "at least one" rackFloor.state.notice)
+    "Trend rack allowed the final visible series to disappear"
+
+  let rackOpen := Loam.Tui.Reports.update rackOne.state (.input 'a')
+  expect (rackOpen.state.trendCompare.pickerOpen &&
+      Loam.Tui.LocusTrendComparePane.pickerCandidates
+        rackOpen.state.trendCompare |>.map (·.locus.token) == ["books"])
+    "Trend Add Locus picker did not exclude the already-visible series"
+  let rackAdded := Loam.Tui.Reports.update rackOpen.state .enter
+  match rackAdded.query with
+  | some (.locusTrendCompare _ _ _ series) =>
+      expect
+        (series.map (fun item => item.coordinate.locus.token) == ["food", "books"] &&
+          series.map (·.label) == ["Food", "Books"])
+        "Trend Add Locus picker did not append the exact selected Locus"
+  | _ => throw (IO.userError "Trend Add Locus did not rerun the query")
+
+  let oneSeriesSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
+    compareSnapshot with series := [foodSeries]
+  }
+  let oneSeriesState : Loam.Tui.Reports.State := {
+    rackOne.state with
+      trendCompare :=
+        Loam.Tui.LocusTrendComparePane.withSnapshot
+          rackOne.state.trendCompare oneSeriesSnapshot
+  }
+  let oneSeriesText := widgetText
+    (Loam.Tui.Reports.viewForBounds { width := 100, height := 30 } oneSeriesState)
+  expect (contains "Series" oneSeriesText &&
+      contains "[● Food]" oneSeriesText &&
+      contains "[+ Add Locus]" oneSeriesText &&
+      contains "Trend   cycle average / day" oneSeriesText)
+    "One-series Trend did not render through the shared series rack"
+
   let monthRequest := Loam.Tui.Reports.update compareReport (.input ']')
   match monthRequest.query with
   | some (.locusTrendCompare observedAt granularity scope series) =>
@@ -240,7 +303,7 @@ def main : IO Unit := do
     "Trend Compare did not preserve the selected Aug 14 period when zooming to months"
   let monthText := widgetText
     (Loam.Tui.Reports.viewForBounds { width := 100, height := 30 } monthReport)
-  expect (contains "Trend Compare   month average / day" monthText &&
+  expect (contains "Trend   month average / day" monthText &&
       contains "Aug 1 → Sep 1" monthText &&
       contains "Grain Month" monthText &&
       contains "[ / ] grain" monthText &&
@@ -440,7 +503,7 @@ def main : IO Unit := do
 
   let compareText := widgetText
     (Loam.Tui.Reports.viewForBounds compareBounds comparePointer)
-  expect (contains "Trend Compare   cycle average / day" compareText &&
+  expect (contains "Trend   cycle average / day" compareText &&
       contains "Selected   Apr 15 → Jun 15" compareText &&
       contains "Tobacco" compareText && contains "¥464/day" compareText &&
       contains "Coffee" compareText && contains "¥131/day" compareText &&
