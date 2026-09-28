@@ -61,10 +61,9 @@ private def moveCursor (state : State) (back : Bool) : State :=
     { state with cursor := 0 }
   else
     let count := items.length
-    let next :=
-      if back then Loam.Tui.CyclicIndex.backward count state.cursor
-      else Loam.Tui.CyclicIndex.forward count state.cursor
-    { state with cursor := next, notice := "" }
+    { state with
+        cursor := Loam.Tui.CyclicIndex.move count state.cursor back
+        notice := "" }
 
 private def emitAdd
     (state : State) (context : String) (due : AttentionDue String) : Step :=
