@@ -94,11 +94,16 @@ partial def run (bounds : Bounds)
             dataDir root observedAt with
         | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withError step.state message)
+    | some (.locusTrendOverview observedAt coordinate) =>
+        match ← Loam.LocusTrendReview.loadConfiguredOverview
+            dataDir root observedAt coordinate with
+        | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendOverview step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
     | some (.locusTrend start endExclusive coordinate) =>
         match ← Loam.LocusTrendReview.loadSnapshot
             root start endExclusive coordinate with
         | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withError step.state message)
+        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
