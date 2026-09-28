@@ -88,46 +88,74 @@ private def startsCalendarMonth (date : String) : Bool :=
   | [_, _, day] => day == "01"
   | _ => false
 
-private def takeSameMonth
-    (key : String) :
-    List Loam.LocusTrendReview.Point →
-      List Loam.LocusTrendReview.Point × List Loam.LocusTrendReview.Point
-  | [] => ([], [])
-  | point :: rest =>
-      if monthKey point.date == key then
-        let (same, remaining) := takeSameMonth key rest
-        (point :: same, remaining)
-      else
-        ([], point :: rest)
+structure MonthBucket where
+  start : String
+  lastDate : String
+  totalQuanta : Int
+  observedDays : Nat
 
-private def monthlyPoints :
+private def MonthBucket.ofPoint
+    (point : Loam.LocusTrendReview.Point) : MonthBucket := {
+  start := point.date
+  lastDate := point.date
+  totalQuanta := point.daily.quanta
+  observedDays := 1
+}
+
+private def MonthBucket.push
+    (bucket : MonthBucket)
+    (point : Loam.LocusTrendReview.Point) : MonthBucket := {
+  bucket with
+    lastDate := point.date
+    totalQuanta := bucket.totalQuanta + point.daily.quanta
+    observedDays := bucket.observedDays + 1
+}
+
+private def MonthBucket.toPoint
+    (bucket : MonthBucket) :
+    Except String Loam.LocusTrendReview.OverviewPoint := do
+  let some throughExclusive := Loam.ActualDate.shiftDays? bucket.lastDate 1
+    | throw "loam: Trend Compare could not construct a calendar-month boundary"
+  let complete :=
+    startsCalendarMonth bucket.start &&
+      monthKey throughExclusive != monthKey bucket.start
+  return {
+    start := bucket.start
+    endExclusive := throughExclusive
+    throughExclusive := throughExclusive
+    total := Quantity.ofQuanta bucket.totalQuanta
+    observedDays := bucket.observedDays
+    dailyAverageQuanta :=
+      bucket.totalQuanta / Int.ofNat bucket.observedDays
+    complete := complete
+  }
+
+private def monthlyPointsAux
+    (current : Option MonthBucket)
+    (completed : List Loam.LocusTrendReview.OverviewPoint) :
     List Loam.LocusTrendReview.Point →
       Except String (List Loam.LocusTrendReview.OverviewPoint)
-  | [] => pure []
-  | first :: rest => do
-      let key := monthKey first.date
-      let (same, remaining) := takeSameMonth key rest
-      let group := first :: same
-      let some last := group.getLast?
-        | throw "loam: Trend Compare lost a nonempty calendar-month group"
-      let some throughExclusive := Loam.ActualDate.shiftDays? last.date 1
-        | throw "loam: Trend Compare could not construct a calendar-month boundary"
-      let days := group.length
-      let totalQuanta :=
-        group.foldl (fun total point => total + point.daily.quanta) 0
-      let complete :=
-        startsCalendarMonth first.date &&
-          monthKey throughExclusive != key
-      let later ← monthlyPoints remaining
-      return {
-        start := first.date
-        endExclusive := throughExclusive
-        throughExclusive := throughExclusive
-        total := Quantity.ofQuanta totalQuanta
-        observedDays := days
-        dailyAverageQuanta := totalQuanta / Int.ofNat days
-        complete := complete
-      } :: later
+  | [] => do
+      match current with
+      | none => pure completed.reverse
+      | some bucket =>
+          let point ← bucket.toPoint
+          pure (point :: completed).reverse
+  | point :: rest => do
+      match current with
+      | none =>
+          monthlyPointsAux (some (.ofPoint point)) completed rest
+      | some bucket =>
+          if monthKey point.date == monthKey bucket.start then
+            monthlyPointsAux (some (bucket.push point)) completed rest
+          else
+            let period ← bucket.toPoint
+            monthlyPointsAux (some (.ofPoint point)) (period :: completed) rest
+
+private def monthlyPoints
+    (points : List Loam.LocusTrendReview.Point) :
+    Except String (List Loam.LocusTrendReview.OverviewPoint) :=
+  monthlyPointsAux none [] points
 
 private def dailyPoints
     (observedAt : String)
