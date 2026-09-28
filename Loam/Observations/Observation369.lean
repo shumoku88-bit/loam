@@ -497,9 +497,9 @@ without promoting any of them into neutral Core merely for convenience.
 
 The next useful move is not another identity type by default.
 
-It should be a consolidation pass over Observations 359-369 to ask which pieces
-are now sufficiently repeated and independent to justify a production settlement
-family, and which should remain research-only extensions.
+It should be a consolidation pass over the settlement sequence through this
+observation to ask which pieces are sufficiently repeated and independent for
+production, and which should remain research-only extensions.
 -/
 
 end Loam.Observation369

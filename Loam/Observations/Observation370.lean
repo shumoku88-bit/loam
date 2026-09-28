@@ -10,7 +10,8 @@ set_option autoImplicit false
 /-!
 # Observation 370 — direct and net settlement need one composed conservation boundary
 
-Observations 359-369 qualified the settlement pieces separately:
+The settlement research sequence leading to this observation qualified the
+pieces separately:
 
 - cross-Measure SettlementCommitment;
 - exact direct Effect correspondence;

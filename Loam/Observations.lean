@@ -84,8 +84,6 @@ import Loam.Observations.Observation355
 import Loam.Observations.Observation356
 import Loam.Observations.Observation357
 import Loam.Observations.Observation358
-import Loam.Observations.Observation359
-import Loam.Observations.Observation360
 import Loam.Observations.Observation361
 import Loam.Observations.Observation362
 import Loam.Observations.Observation363
@@ -165,6 +163,11 @@ Research compaction notes:
   duplicate/positivity, correction, reversal, and wire-roundtrip behavior.
   Observation 343 remains live against those production APIs as the independent
   Measure-symmetry witness.
+- 2026-09-28: Observations 359 and 360 retired after the settlement family
+  reached production. Their delayed cross-Measure commitment, exact later-Effect
+  correspondence, and "keep OpenRelation source-bounded" conclusions are now
+  owned by Core.Settlement, Application.SettlementFrontier, the durable
+  settlement boundary note, and focused production regressions.
 
 Retired source remains available in Git history.
 -/
