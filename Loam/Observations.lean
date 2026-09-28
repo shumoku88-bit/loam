@@ -92,6 +92,11 @@ Research compaction notes:
   promoted to `AdmittedActualImage`; its current Event / validity correspondence
   obligations now live directly in production proof fields and qualification
   tests.
+- 2026-09-28: The discovery prose for Observations 183–184 retired
+  after their exact same-day and multi-day conservative-funding boundaries were
+  fully carried by the live Lean witnesses themselves. The formal minimality,
+  date-boundary, and net-insufficiency theorems remain compiled; Git history
+  retains the longer experimental narrative.
 - 2026-09-28: Observations 276 and 278 retired after their conservation
   scaffolds became direct production laws. `BalancedMovement` carries exact
   zero-total proof with the value, while `ActualReversal.coordinateNetZero_of_exactPhysicalInverse`
