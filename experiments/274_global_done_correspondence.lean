@@ -10,11 +10,14 @@ open Loam.Application.ReplacementFrontier
 /-!
 # Observation 274 — global-done replacement correspondence
 
-Observation 273 showed that a list-only global-done traversal can avoid repeated
-suffix walks while keeping the existing `[DecidableEq Id]` boundary.
+Historical Observation 273 showed that a list-only global-done traversal can
+avoid repeated suffix walks while keeping the existing `[DecidableEq Id]`
+boundary. That exploratory cost fixture has since graduated to Git history;
+production now has stronger indexed performance qualification.
 
-This experiment closes the semantic promotion obligation for a slightly simpler
-candidate: cycle detection is still bounded by the finite source count, but a
+This experiment remains live because it closes the semantic promotion obligation
+for the list-level global-done decision: cycle detection is still bounded by the
+finite source count, but a
 successful walk memoizes its suffix while unwinding. A represented cycle
 therefore exhausts the bound; an acyclic path reaches either a terminal or an
 already-qualified suffix.

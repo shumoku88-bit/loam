@@ -21,14 +21,17 @@ filtering outside the source domain.
 
 Production originally used a bounded whole-domain start-return traversal. That
 algorithm was semantically sound, but repeated a known suffix from every
-represented source. Observation 273 isolated that repeated-work pressure and
-showed a list-only global-done traversal can reuse already-qualified suffixes
-without adding a `Hashable` requirement.
+represented source. Historical Observation 273 isolated that repeated-work
+pressure and motivated a list-only global-done traversal that reuses
+already-qualified suffixes without adding a `Hashable` requirement.
 
-Observation 274 then proved the general promotion obligation: for every finite
+Observation 274 remains the live general promotion proof: for every finite
 replacement relation admitted by `endpointUnique`, the fuel-bounded global-done
 decision is exactly the bounded start-return decision. The proof reuses the
 finite partial-injection argument historically qualified by Observation 218.
+Later production indexing strengthens the performance implementation again:
+`acyclicIndexedBy_eq_acyclic` proves the hash-backed decision exactly equivalent
+to this public semantic result.
 
 Current production therefore uses global-done after endpoint uniqueness is
 known. The public standalone `acyclic` function retains the old start-return
