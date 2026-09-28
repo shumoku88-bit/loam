@@ -127,22 +127,40 @@ def main : IO Unit := do
         throughExclusive := "2026-09-08", total := Quantity.ofQuanta 15700,
         observedDays := 25, dailyAverageQuanta := 628, complete := false }
     ]
+  let tobaccoSpec : Loam.LocusTrendCompareReview.SeriesSpec := {
+    label := "Tobacco"
+    coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
+  }
+  let coffeeSpec : Loam.LocusTrendCompareReview.SeriesSpec := {
+    label := "Coffee"
+    coordinate := ⟨⟨"coffee"⟩, ⟨"jpy"⟩⟩
+  }
+  let foodSpec : Loam.LocusTrendCompareReview.SeriesSpec := {
+    label := "Food"
+    coordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
+  }
+  let tobaccoSeries : Loam.LocusTrendCompareReview.Series := {
+    spec := tobaccoSpec
+    points := tobaccoPoints
+    undatedMatchingCurrentRecords := 0
+  }
+  let coffeeSeries : Loam.LocusTrendCompareReview.Series := {
+    spec := coffeeSpec
+    points := coffeePoints
+    undatedMatchingCurrentRecords := 0
+  }
+  let foodSeries : Loam.LocusTrendCompareReview.Series := {
+    spec := foodSpec
+    points := foodPoints
+    undatedMatchingCurrentRecords := 0
+  }
+  let compareSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
+    source := "Pension"
+    observedAt := "2026-09-07"
+    series := [tobaccoSeries, coffeeSeries, foodSeries]
+  }
   let compareReport :=
-    Loam.Tui.Reports.withLocusTrendCompareSnapshot compareStep.state {
-      source := "Pension"
-      observedAt := "2026-09-07"
-      series :=
-        [ { spec := { label := "Tobacco",
-              coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ },
-            points := tobaccoPoints, undatedMatchingCurrentRecords := 0 }
-        , { spec := { label := "Coffee",
-              coordinate := ⟨⟨"coffee"⟩, ⟨"jpy"⟩⟩ },
-            points := coffeePoints, undatedMatchingCurrentRecords := 0 }
-        , { spec := { label := "Food",
-              coordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩ },
-            points := foodPoints, undatedMatchingCurrentRecords := 0 }
-        ]
-    }
+    Loam.Tui.Reports.withLocusTrendCompareSnapshot compareStep.state compareSnapshot
   expect (compareReport.trendCompare.selected == 2)
     "Trend Compare did not select the current cycle initially"
 
