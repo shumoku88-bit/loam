@@ -1,6 +1,18 @@
 # Observation 373 — settlement commitment lifecycle distinguishability
 
-Status: **BOUNDED RESULT — plain untyped cancel collapse falsified; no production representation selected**
+Status: **LIVE INDEPENDENT BOUNDED WITNESS — plain untyped cancel collapse falsified**
+
+Current production note (2026-09-28): later promotion added explicit
+`SettlementCommitmentRevision` and `SettlementCommitmentExtinguishment`
+families. This file remains live because its Alloy matrix independently
+falsifies, within the bounded model, collapsing evidence correction/retraction,
+physical settlement, and non-settlement extinguishment into one untyped
+terminal cancel operation.
+Historical "keep production unchanged" language below records this experiment's
+original stop condition, not the current production boundary. Current authority
+lives in `Loam/Core/Settlement.lean`,
+`Loam/Application/SettlementFrontier.lean`, and the durable settlement
+production-boundary note.
 
 Baseline:
 
@@ -15,14 +27,12 @@ main         d5990cad2570fa0d301be2491fb40882582292c6
 The first production settlement family deliberately promoted
 `SettlementCommitment` without a commitment-revision vocabulary.
 
-Observation 371 said this explicitly:
+At that historical cut, the raw commitment identifier explicitly did not
+imply revision semantics, and correction of a mis-recorded commitment had not
+yet been separately qualified.
 
-> stable commitment identity was earned, but correction semantics for a
-> mis-recorded commitment itself had not yet been separately qualified.
-
-That stop condition is now operationally relevant because the explicit writer
-exists and a future ordinary TUI/AI input flow will make commitment mistakes
-possible.
+That stop condition became operationally relevant once the explicit writer
+existed and ordinary input flows could make commitment mistakes possible.
 
 The tempting repair is small:
 

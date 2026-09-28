@@ -195,6 +195,14 @@ concrete unsupported workflow.
 The exact Observation 371 and 372 checkpoint prose remains available in Git
 history.
 
+Observation 341 has now graduated as well. Its falsification of
+`RelationDischarge` as cross-Measure physical-settlement authority remains a
+narrower-boundary lesson: `RelationDischarge` stays source-bounded, while
+`SettlementCommitment` carries independent settlement Measure/Quantity and
+`SettlementEffectCorrespondence` names the exact later Event/Effect/quantity.
+The focused cross-Measure card regression in `SettlementFrontier` now owns the
+selected executable behavior.
+
 The original Lean precursors for Observations 359 and 360 have also graduated
 from the working tree. Their durable conclusions are now direct production
 contracts: independently measured settlement commitments remain additive beside
