@@ -92,13 +92,15 @@ def withSnapshot
     viewportStartFor
       snapshot.granularity snapshot.scope
       snapshot.pointCount selected state.viewportStart
+  let rememberedScope :=
+    if snapshot.granularity == .day then snapshot.scope else state.scope
   {
     state with
       snapshot := some snapshot
       selected := selected
       viewportStart := viewportStart
       granularity := snapshot.granularity
-      scope := snapshot.scope
+      scope := rememberedScope
   }
 
 def changeGranularity (state : State) (finer : Bool) : State :=
@@ -111,10 +113,17 @@ def changeGranularity (state : State) (finer : Bool) : State :=
           state.viewportStart
         else 0 }
 
+/-- The chosen Range is a Day-view preference. Cycle and Month stay all-history. -/
+def effectiveScope (state : State) : Loam.LocusTrendCompareReview.Scope :=
+  if state.granularity == .day then state.scope else .allHistory
+
 def changeScope (state : State) (forward : Bool) : State :=
-  let scope :=
-    if forward then state.scope.next else state.scope.previous
-  { state with scope := scope, viewportStart := 0 }
+  if state.granularity != .day then
+    state
+  else
+    let scope :=
+      if forward then state.scope.next else state.scope.previous
+    { state with scope := scope, viewportStart := 0 }
 
 def moveSelection (state : State) (back : Bool) : State :=
   match state.snapshot with
@@ -280,16 +289,21 @@ private def scopeEndLabel
 private def sourceLine
     (state : State)
     (snapshot : Loam.LocusTrendCompareReview.Snapshot) : String :=
-  let viewport :=
-    if usesSlidingDayViewport snapshot.granularity snapshot.scope then
-      "   ·   " ++ toString (visibleCount state) ++ "-day viewport"
-    else
-      ""
-  snapshot.source ++
-    "   ·   Scope " ++ snapshot.scope.label ++
-    "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
-    "   ·   Grain " ++ snapshot.granularity.label ++
-    "   ·   jpy   ·   " ++ state.renderer.label ++ viewport
+  match snapshot.granularity with
+  | .day =>
+      let viewport :=
+        if usesSlidingDayViewport snapshot.granularity snapshot.scope then
+          "   ·   " ++ toString (visibleCount state) ++ "-day viewport"
+        else
+          ""
+      snapshot.source ++
+        "   ·   Range " ++ snapshot.scope.label ++
+        "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
+        "   ·   Grain Day   ·   jpy   ·   " ++ state.renderer.label ++ viewport
+  | granularity =>
+      snapshot.source ++
+        "   ·   Grain " ++ granularity.label ++
+        "   ·   jpy   ·   " ++ state.renderer.label
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -352,13 +366,16 @@ private def axisText
       Loam.Tui.Layout.padLeft 8 (amountText tick) ++ " ┤ "
   | none => "         │ "
 
-private def footerTokens : List String :=
-  ["←/→ or wheel select period", "mouse click/drag scrub",
-   "[ / ] grain", "s/S scope", "r renderer", "q/Esc Reports"]
+private def footerTokens (state : State) : List String :=
+  let common :=
+    ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] grain"]
+  let range :=
+    if state.granularity == .day then ["s/S range"] else []
+  common ++ range ++ ["r renderer", "q/Esc Reports"]
 
-private def footer (bounds : Bounds) : List Widget :=
+private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
-      (Loam.Tui.Layout.contentWidth bounds) "   " footerTokens).map muted
+      (Loam.Tui.Layout.contentWidth bounds) "   " (footerTokens state)).map muted
 
 private def headerLineCount (state : State) : Nat :=
   (header state).length
@@ -369,7 +386,7 @@ def plotTop (state : State) : Nat :=
   headerLineCount state
 
 def plotHeight (bounds : Bounds) (state : State) : Nat :=
-  let fixedRows := headerLineCount state + axisLineCount + (footer bounds).length
+  let fixedRows := headerLineCount state + axisLineCount + (footer bounds state).length
   if bounds.height > fixedRows then bounds.height - fixedRows else 1
 
 def pointerInPlot (bounds : Bounds) (state : State) (row : Nat) : Bool :=
@@ -434,7 +451,7 @@ def viewFullScreen
     (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
   let rows :=
     header state ++ chartRows bounds state ++ [axisRow bounds state] ++
-      footer bounds ++ (if notice.isEmpty then [] else [line notice])
+      footer bounds state ++ (if notice.isEmpty then [] else [line notice])
   .column (rows.take bounds.height)
 
 end Loam.Tui.LocusTrendComparePane
