@@ -137,20 +137,16 @@ The selected executable boundaries already live in current code:
 
 ## What remains live after this graduation
 
-This graduation does not close the later correction-diff research.
+The later correction-diff sequence has its own durable current-facing record:
 
-Observations 257–262 remain live because they study a different sequence:
+`docs/research/CORRECTION_DIFF_COMPOSITION_BOUNDARY.md`
 
-```text
-coordinate-level correction delta
--> exact finite changed support
--> human added / removed / changed explanation
--> two-step composition
--> arbitrary finite composition
--> extraction from admitted EventCorrection topology
-```
+Observations 257–262 remain live Lean witnesses, while their detailed prose
+narratives have graduated to Git history. The sequence establishes derivable
+coordinate deltas, exact finite support, safe human labels, finite composition,
+and a research-only bridge from admitted EventCorrection topology.
 
-Those results are not silently promoted into production here. In particular,
+Those results are not silently promoted into production. In particular,
 Observation 262's explicit intermediate-chain reader remains research-only.
 
 ## Stop rule
