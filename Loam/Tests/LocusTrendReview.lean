@@ -78,6 +78,19 @@ def main : IO Unit := do
   expect (overview.points[1]?.map (·.throughExclusive) == some "2026-09-04")
     "Locus Trend overview did not truncate the current window at observedAt + 1"
 
+  let history ←
+    match Loam.LocusTrendReview.projectConfiguredHistory
+        records preset "2026-09-03" coordinate with
+    | .ok snapshot => pure snapshot
+    | .error message => throw (IO.userError message)
+  expect (history.start == "2026-09-01" && history.endExclusive == "2026-09-04")
+    "Locus Trend daily history did not use first configured boundary through observedAt"
+  expect (history.points.map (·.date) ==
+      ["2026-09-01", "2026-09-02", "2026-09-03"])
+    "Locus Trend daily history did not preserve one point per calendar day"
+  expect (history.points.map (·.daily.quanta) == [500, 600, 0])
+    "Locus Trend daily history changed correction-aware daily quantities"
+
   match Loam.LocusTrendReview.project
       records "2026-09-05" "2026-09-01" coordinate with
   | .error _ => pure ()

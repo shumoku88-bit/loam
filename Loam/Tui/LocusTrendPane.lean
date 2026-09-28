@@ -13,10 +13,11 @@ set_option autoImplicit false
 /-!
 # Full-screen Locus Trend presentation
 
-The Trend surface has two presentation levels:
+The Trend surface has three presentation levels:
 
 * `overview`: configured adjacent household windows across long history;
-* `detail`: one selected window at daily granularity.
+* `history`: one calendar point per day from the first configured boundary;
+* `detail`: one selected cycle at daily granularity.
 
 Both keyboard and pointer selection update one presentation cursor. The renderer
 owns only terminal geometry and never changes household authority or trend
@@ -25,15 +26,18 @@ semantics.
 
 inductive View where
   | overview
+  | history
   | detail
   deriving Repr, DecidableEq
 
 structure State where
   view : View := .overview
   overview : Option Loam.LocusTrendReview.OverviewSnapshot := none
+  history : Option Loam.LocusTrendReview.Snapshot := none
   snapshot : Option Loam.LocusTrendReview.Snapshot := none
   selected : Nat := 0
   overviewSelected : Nat := 0
+  historySelected : Nat := 0
   renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
@@ -43,9 +47,11 @@ def clear (state : State) : State :=
   { state with
       view := .overview
       overview := none
+      history := none
       snapshot := none
       selected := 0
-      overviewSelected := 0 }
+      overviewSelected := 0
+      historySelected := 0 }
 
 def withOverview
     (state : State) (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : State :=
@@ -56,6 +62,15 @@ def withOverview
       snapshot := none
       selected := selected
       overviewSelected := selected }
+
+def withHistory
+    (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
+  let selected := if snapshot.points.isEmpty then 0 else snapshot.points.length - 1
+  { state with
+      view := .history
+      history := some snapshot
+      selected := selected
+      historySelected := selected }
 
 def withSnapshot
     (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
@@ -68,6 +83,12 @@ def backToOverview (state : State) : State :=
 def isOverview (state : State) : Bool :=
   state.view == .overview
 
+def isHistory (state : State) : Bool :=
+  state.view == .history
+
+def backToHistory (state : State) : State :=
+  { state with view := .history, selected := state.historySelected }
+
 def cycleRenderer (state : State) : State :=
   { state with renderer := state.renderer.next }
 
@@ -75,6 +96,7 @@ def cycleRenderer (state : State) : State :=
 private def pointCount (state : State) : Nat :=
   match state.view with
   | .overview => state.overview.map (·.points.length) |>.getD 0
+  | .history => state.history.map (·.points.length) |>.getD 0
   | .detail => state.snapshot.map (·.points.length) |>.getD 0
 
 def moveSelection (state : State) (back : Bool) : State :=
@@ -88,6 +110,8 @@ def moveSelection (state : State) (back : Bool) : State :=
     match state.view with
     | .overview =>
         { state with selected := next, overviewSelected := next }
+    | .history =>
+        { state with selected := next, historySelected := next }
     | .detail => { state with selected := next }
 
 def selectedOverviewPoint?
@@ -95,9 +119,19 @@ def selectedOverviewPoint?
   let snapshot ← state.overview
   snapshot.points[state.selected]?
 
+def selectedHistoryPoint? (state : State) : Option Loam.LocusTrendReview.Point := do
+  let snapshot ← state.history
+  snapshot.points[state.selected]?
+
 def selectedPoint? (state : State) : Option Loam.LocusTrendReview.Point := do
   let snapshot ← state.snapshot
   snapshot.points[state.selected]?
+
+private def selectedDailyPoint? (state : State) : Option Loam.LocusTrendReview.Point :=
+  match state.view with
+  | .history => selectedHistoryPoint? state
+  | .detail => selectedPoint? state
+  | .overview => none
 
 /-- Fixed terminal column where chart data begins after the amount axis. -/
 def plotLeft : Nat := 11
@@ -108,8 +142,33 @@ def plotTop : Nat := 5
 def plotWidth (bounds : Bounds) : Nat :=
   max 1 (Loam.Tui.Layout.contentWidth bounds - plotLeft)
 
-def plotHeight (bounds : Bounds) : Nat :=
-  if bounds.height > 9 then bounds.height - 9 else 3
+private def navigationTokens (state : State) : List String :=
+  match state.view with
+  | .overview =>
+      ["←/→ select cycle", "Enter cycle daily", "d all-days", "mouse hover select",
+        "r renderer", "q/Esc reports"]
+  | .history =>
+      ["←/→ select day", "d cycle overview", "mouse hover select",
+        "r renderer", "q/Esc overview"]
+  | .detail =>
+      ["←/→ select day", "d all-days", "mouse hover select",
+        "r renderer", "q/Esc overview"]
+
+private def navigationLineCount (bounds : Bounds) (state : State) : Nat :=
+  (Loam.Tui.Layout.flowTokens
+      (Loam.Tui.Layout.contentWidth bounds) "   "
+      (navigationTokens state)).length
+
+/--
+Give the chart all remaining rows after the fixed five-line header, two axis
+rows, and the *actual wrapped* navigation footer.
+
+This keeps back navigation visible when a narrow terminal wraps one more footer
+line after new Trend actions are added.
+-/
+def plotHeight (bounds : Bounds) (state : State) : Nat :=
+  let fixedRows := plotTop + 2 + navigationLineCount bounds state
+  if bounds.height > fixedRows then bounds.height - fixedRows else 1
 
 /--
 Select the chart point nearest one physical pointer column.
@@ -128,10 +187,12 @@ def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
       match state.view with
       | .overview =>
           { state with selected := next, overviewSelected := next }
+      | .history =>
+          { state with selected := next, historySelected := next }
       | .detail => { state with selected := next }
 
-def pointerInPlot (bounds : Bounds) (row : Nat) : Bool :=
-  decide (plotTop <= row && row < plotTop + plotHeight bounds)
+def pointerInPlot (bounds : Bounds) (state : State) (row : Nat) : Bool :=
+  decide (plotTop <= row && row < plotTop + plotHeight bounds state)
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
@@ -158,6 +219,8 @@ private def measureToken (state : State) : String :=
   match state.view with
   | .overview =>
       state.overview.map (·.coordinate.measure.token) |>.getD ""
+  | .history =>
+      state.history.map (·.coordinate.measure.token) |>.getD ""
   | .detail =>
       state.snapshot.map (·.coordinate.measure.token) |>.getD ""
 
@@ -212,6 +275,9 @@ private def values (state : State) : List Int :=
   | .overview =>
       state.overview.map (fun snapshot =>
         snapshot.points.map (·.dailyAverageQuanta)) |>.getD []
+  | .history =>
+      state.history.map (fun snapshot =>
+        snapshot.points.map (·.daily.quanta)) |>.getD []
   | .detail =>
       state.snapshot.map (fun snapshot =>
         snapshot.points.map (·.daily.quanta)) |>.getD []
@@ -245,12 +311,12 @@ private def observedMarkers (state : State) : List Loam.Tui.Chart.Marker :=
             else
               Loam.Tui.Chart.MarkerKind.incomplete
           }) |>.getD []
-  | .detail => []
+  | .history | .detail => []
 
 private def chartRows
     (bounds : Bounds) (state : State) : List Widget :=
   let width := plotWidth bounds
-  let height := plotHeight bounds
+  let height := plotHeight bounds state
   let series := values state
   let scale := chartScale state
   let gridRows :=
@@ -292,18 +358,21 @@ private def overviewAxisRows
   ]
 
 
-private def detailAxis
+private def dailyAxis
     (bounds : Bounds) (state : State)
     (snapshot : Loam.LocusTrendReview.Snapshot) : Widget :=
-  let selected := (selectedPoint? state).map (·.date) |>.getD snapshot.start
+  let selected := (selectedDailyPoint? state).map (·.date) |>.getD snapshot.start
   let last :=
     snapshot.points.getLast?.map (·.date) |>.getD snapshot.start
-  let text :=
-    shortDate snapshot.start ++ "    " ++ shortDate selected ++
-      "    " ++ shortDate last
+  let width := plotWidth bounds
+  let third := max 1 (width / 3)
   .row
-    [ span (String.ofList (List.replicate plotLeft ' '))
-    , span (Loam.Tui.Layout.clip (plotWidth bounds) text) .muted
+    [ span (spaces plotLeft)
+    , span (Loam.Tui.Layout.padRight third (shortDate snapshot.start)) .muted
+    , span (centered third (shortDate selected)) .selected
+    , span
+        (Loam.Tui.Layout.padLeft
+          (width - min width (third * 2)) (shortDate last)) .muted
     ]
 
 private def header (state : State) : List Widget :=
@@ -334,6 +403,32 @@ private def header (state : State) : List Widget :=
           , muted "Long-history overview unavailable."
           , blank, blank, blank
           ]
+  | .history =>
+      match state.history, selectedHistoryPoint? state with
+      | some snapshot, some point =>
+          let last :=
+            snapshot.points.getLast?.map (·.date) |>.getD snapshot.start
+          [ line
+              ("Locus Trend / Daily History   " ++ snapshot.coordinate.locus.token ++
+                " / " ++ snapshot.coordinate.measure.token)
+          , muted
+              (shortDate snapshot.start ++ " → " ++ shortDate last ++
+                "   ·   " ++ state.renderer.label)
+          , line
+              ("Selected   " ++ shortDate point.date ++
+                "   ·   " ++ amountText state point.daily.quanta)
+          , line
+              ("Since " ++ shortDate snapshot.start ++ "   ·   " ++
+                amountText state point.cumulative.quanta ++
+                " cumulative   ·   " ++
+                amountText state point.runningDailyAverageQuanta ++ "/day avg")
+          , muted "One point per calendar day   ·   zero-quantity days retained"
+          ]
+      | _, _ =>
+          [ line "Locus Trend / Daily History"
+          , muted "Long daily history unavailable."
+          , blank, blank, blank
+          ]
   | .detail =>
       match state.snapshot, selectedPoint? state with
       | some snapshot, some point =>
@@ -359,14 +454,9 @@ private def header (state : State) : List Widget :=
           ]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
-  let tokens :=
-    match state.view with
-    | .overview =>
-        ["←/→ select cycle", "Enter daily", "mouse hover select", "r renderer", "q/Esc reports"]
-    | .detail =>
-        ["←/→ select day", "mouse hover select", "r renderer", "q/Esc overview"]
   (Loam.Tui.Layout.flowTokens
-      (Loam.Tui.Layout.contentWidth bounds) "   " tokens).map muted
+      (Loam.Tui.Layout.contentWidth bounds) "   "
+      (navigationTokens state)).map muted
 
 /--
 Render Trend as a dedicated full-screen chart instead of the ordinary Reports
@@ -381,9 +471,13 @@ def viewFullScreen (bounds : Bounds) (state : State) (notice : String := "") : W
         match state.overview with
         | some snapshot => overviewAxisRows bounds state snapshot
         | none => [muted "", muted ""]
+    | .history =>
+        match state.history with
+        | some snapshot => [dailyAxis bounds state snapshot, muted ""]
+        | none => [muted "", muted ""]
     | .detail =>
         match state.snapshot with
-        | some snapshot => [detailAxis bounds state snapshot, muted ""]
+        | some snapshot => [dailyAxis bounds state snapshot, muted ""]
         | none => [muted "", muted ""]
   let all :=
     header state ++ chart ++ axisRows ++ footer bounds state ++

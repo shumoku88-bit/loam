@@ -164,6 +164,71 @@ def main : IO Unit := do
   expect (trendAscii.trend.renderer == .ascii)
     "Locus Trend renderer fallback did not move from block to ASCII"
 
+  let historyRequest := Loam.Tui.Reports.update trendPointer (.input 'd')
+  match historyRequest.query with
+  | some (.locusTrendHistory observedAt coordinate) =>
+      expect (observedAt == "2026-09-07")
+        "Locus Trend daily history changed the selected observation date"
+      expect (coordinate == (⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ : EffectCoordinate))
+        "Locus Trend daily history changed the exact coordinate"
+  | _ =>
+      throw (IO.userError "Locus Trend d did not request configured all-days history")
+
+  let trendHistory :=
+    Loam.Tui.Reports.withLocusTrendHistory historyRequest.state {
+      start := "2026-04-15"
+      endExclusive := "2026-09-08"
+      coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
+      points :=
+        [ { date := "2026-04-15"
+          , daily := Quantity.ofQuanta 500
+          , cumulative := Quantity.ofQuanta 500
+          , runningDailyAverageQuanta := 500 }
+        , { date := "2026-04-16"
+          , daily := Quantity.ofQuanta 0
+          , cumulative := Quantity.ofQuanta 500
+          , runningDailyAverageQuanta := 250 }
+        , { date := "2026-04-17"
+          , daily := Quantity.ofQuanta 500
+          , cumulative := Quantity.ofQuanta 1000
+          , runningDailyAverageQuanta := 333 }
+        , { date := "2026-04-18"
+          , daily := Quantity.ofQuanta 500
+          , cumulative := Quantity.ofQuanta 1500
+          , runningDailyAverageQuanta := 375 }
+        ]
+      undatedMatchingCurrentRecords := 0
+    }
+  expect (Loam.Tui.LocusTrendPane.isHistory trendHistory.trend &&
+      trendHistory.trend.selected == 3)
+    "all-days Trend did not open on its latest calendar day"
+
+  let historyLeft := (Loam.Tui.Reports.update trendHistory .left).state
+  expect (historyLeft.trend.selected == 2)
+    "all-days Trend left arrow did not move exactly one calendar day"
+  let historyText := widgetText
+    (Loam.Tui.Reports.viewForBounds trendBounds historyLeft)
+  expect (contains "Locus Trend / Daily History   tobacco / jpy" historyText &&
+      contains "Selected   Apr 17" historyText &&
+      contains "One point per calendar day" historyText)
+    "all-days Trend did not render its selected calendar-day evidence"
+
+  let historyPointer :=
+    (Loam.Tui.Reports.updateForBounds trendBounds historyLeft
+      (.pointer Loam.Tui.LocusTrendPane.plotLeft
+        (Loam.Tui.LocusTrendPane.plotTop + 1))).state
+  expect (historyPointer.trend.selected == 0)
+    "all-days Trend pointer did not select the nearest calendar day"
+
+  let overviewAgain := (Loam.Tui.Reports.update historyLeft (.input 'd')).state
+  expect (Loam.Tui.LocusTrendPane.isOverview overviewAgain.trend)
+    "d did not return all-days history to cycle overview"
+  let cachedHistory := Loam.Tui.Reports.update overviewAgain (.input 'd')
+  expect (cachedHistory.query.isNone &&
+      Loam.Tui.LocusTrendPane.isHistory cachedHistory.state.trend &&
+      cachedHistory.state.trend.selected == 2)
+    "d did not reuse the cached daily history and prior selected day"
+
   match (Loam.Tui.Reports.update trendPointer .enter).query with
   | some (.locusTrend start endExclusive coordinate) =>
       expect (start == "2026-04-15" && endExclusive == "2026-06-15")

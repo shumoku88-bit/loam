@@ -104,6 +104,11 @@ partial def run (bounds : Bounds)
             dataDir root observedAt coordinate with
         | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendOverview step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
+    | some (.locusTrendHistory observedAt coordinate) =>
+        match ← Loam.LocusTrendReview.loadConfiguredHistory
+            dataDir root observedAt coordinate with
+        | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendHistory step.state snapshot)
+        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
     | some (.locusTrend start endExclusive coordinate) =>
         match ← Loam.LocusTrendReview.loadSnapshot
             root start endExclusive coordinate with

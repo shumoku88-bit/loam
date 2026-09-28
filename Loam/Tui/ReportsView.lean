@@ -815,7 +815,7 @@ def updateForBounds
   let pointerAdjusted :=
     match state.mode, key with
     | .locusTrend, .pointer col row =>
-        if Loam.Tui.LocusTrendPane.pointerInPlot bounds row then
+        if Loam.Tui.LocusTrendPane.pointerInPlot bounds state.trend row then
           { state with
               trend := Loam.Tui.LocusTrendPane.selectColumn bounds state.trend col
               notice := "" }
