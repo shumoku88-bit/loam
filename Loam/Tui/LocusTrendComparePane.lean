@@ -1,6 +1,7 @@
 import Loam.LocusTrendCompareReview
 import Loam.LocusCatalog
 import Loam.Tui.Chart
+import Loam.Tui.CyclicIndex
 import Loam.Tui.LocusPicker
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
