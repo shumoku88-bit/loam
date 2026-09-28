@@ -66,7 +66,7 @@ def main : IO Unit := do
       [464, 508, 500] 0 overviewScale.range
       [ { index := 0, kind := .observed }
       , { index := 1, kind := .observed }
-      , { index := 2, kind := .partial }
+      , { index := 2, kind := .incomplete }
       ]
   let markedText := text marked
   expect (markedText.toList.any fun ch => ch = '◆')
