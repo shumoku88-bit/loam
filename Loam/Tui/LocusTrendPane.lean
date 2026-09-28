@@ -303,16 +303,19 @@ private def overviewAxisRows
   ]
 
 
-private def detailAxis
+private def dailyAxis
     (bounds : Bounds) (state : State)
     (snapshot : Loam.LocusTrendReview.Snapshot) : Widget :=
-  let selected := (selectedPoint? state).map (·.date) |>.getD snapshot.start
+  let selected := (selectedDailyPoint? state).map (·.date) |>.getD snapshot.start
   let last :=
     snapshot.points.getLast?.map (·.date) |>.getD snapshot.start
-  let text := snapshot.start ++ "    " ++ selected ++ "    " ++ last
+  let width := plotWidth bounds
+  let third := max 1 (width / 3)
   .row
-    [ span (String.ofList (List.replicate plotLeft ' '))
-    , span (Loam.Tui.Layout.clip (plotWidth bounds) text) .muted
+    [ span (spaces plotLeft)
+    , span (Loam.Tui.Layout.padRight third snapshot.start) .muted
+    , span (centered third selected) .selected
+    , span (Loam.Tui.Layout.padLeft (width - min width (third * 2)) last) .muted
     ]
 
 private def header (state : State) : List Widget :=
@@ -342,6 +345,34 @@ private def header (state : State) : List Widget :=
       | _, _ =>
           [ line "Reports / Locus Trend"
           , muted "Long-history overview unavailable."
+          , blank, blank, blank, blank, blank
+          ]
+  | .history =>
+      match state.history, selectedHistoryPoint? state with
+      | some snapshot, some point =>
+          let last :=
+            snapshot.points.getLast?.map (·.date) |>.getD snapshot.start
+          [ line "Reports / Locus Trend / Daily History"
+          , muted
+              ("Daily history " ++ snapshot.start ++ " → " ++ last ++
+                "   ·   " ++ snapshot.coordinate.locus.token ++
+                " / " ++ snapshot.coordinate.measure.token ++
+                "   ·   " ++ state.renderer.label)
+          , line
+              ("Selected " ++ point.date ++
+                "   ·   " ++ amountText state point.daily.quanta)
+          , line
+              ("Since " ++ snapshot.start ++ ": " ++
+                amountText state point.cumulative.quanta ++
+                "   ·   running avg " ++
+                amountText state point.runningDailyAverageQuanta ++ "/day")
+          , muted "One point per calendar day, including zero-quantity days."
+          , muted "Current admitted truth; corrected originals are excluded."
+          , blank
+          ]
+      | _, _ =>
+          [ line "Reports / Locus Trend / Daily History"
+          , muted "Long daily history unavailable."
           , blank, blank, blank, blank, blank
           ]
   | .detail =>
@@ -374,12 +405,16 @@ private def header (state : State) : List Widget :=
 private def footer (state : State) : List Widget :=
   match state.view with
   | .overview =>
-      [ muted "←/→ or h/l select cycle   Enter daily detail   mouse hover selects cycle"
-      , muted "r renderer fallback   q / Esc Reports menu"
+      [ muted "←/→ or h/l select cycle   Enter cycle detail   mouse hover selects cycle"
+      , muted "d all-days history   r renderer fallback   q / Esc Reports menu"
+      ]
+  | .history =>
+      [ muted "←/→ or h/l select day   mouse hover selects one calendar day"
+      , muted "d cycle overview   r renderer fallback   q / Esc cycle overview"
       ]
   | .detail =>
       [ muted "←/→ or h/l select day   mouse hover selects day"
-      , muted "r renderer fallback   q / Esc long history"
+      , muted "d all-days history   r renderer fallback   q / Esc cycle overview"
       ]
 
 /--
@@ -395,9 +430,13 @@ def viewFullScreen (bounds : Bounds) (state : State) (notice : String := "") : W
         match state.overview with
         | some snapshot => overviewAxisRows bounds state snapshot
         | none => [muted "", muted ""]
+    | .history =>
+        match state.history with
+        | some snapshot => [dailyAxis bounds state snapshot]
+        | none => [muted ""]
     | .detail =>
         match state.snapshot with
-        | some snapshot => [detailAxis bounds state snapshot]
+        | some snapshot => [dailyAxis bounds state snapshot]
         | none => [muted ""]
   let all :=
     header state ++ chart ++ axisRows ++ footer state ++
