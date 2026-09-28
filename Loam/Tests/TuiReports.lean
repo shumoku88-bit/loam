@@ -77,55 +77,105 @@ def main : IO Unit := do
   expect (isLocusTrend trendStep.state)
     "Reports direct Locus Trend key did not enter the trend surface"
   match trendStep.query with
-  | some (.locusTrend start endExclusive coordinate) =>
-      expect (start == "2026-09-01" && endExclusive == "2026-10-01")
-        "Locus Trend changed the explicit calendar window"
+  | some (.locusTrendOverview observedAt coordinate) =>
+      expect (observedAt == "2026-09-07")
+        "Locus Trend overview lost the selected Home observation date"
       expect (coordinate == (⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ : EffectCoordinate))
         "Locus Trend default did not preserve the exact tobacco/jpy coordinate"
-  | _ => throw (IO.userError "Locus Trend did not emit its explicit coordinate query")
+  | _ => throw (IO.userError "Locus Trend did not request its long-history overview")
 
-  let trendReport :=
-    Loam.Tui.Reports.withLocusTrendSnapshot trendStep.state {
-      start := "2026-09-01"
-      endExclusive := "2026-09-04"
+  let trendOverview :=
+    Loam.Tui.Reports.withLocusTrendOverview trendStep.state {
+      source := "Pension"
+      observedAt := "2026-09-07"
       coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
       points :=
-        [ { date := "2026-09-01"
+        [ { start := "2026-04-15"
+          , endExclusive := "2026-06-15"
+          , throughExclusive := "2026-06-15"
+          , total := Quantity.ofQuanta 28000
+          , observedDays := 61
+          , dailyAverageQuanta := 459
+          , complete := true }
+        , { start := "2026-06-15"
+          , endExclusive := "2026-08-14"
+          , throughExclusive := "2026-08-14"
+          , total := Quantity.ofQuanta 30500
+          , observedDays := 60
+          , dailyAverageQuanta := 508
+          , complete := true }
+        , { start := "2026-08-14"
+          , endExclusive := "2026-10-15"
+          , throughExclusive := "2026-09-08"
+          , total := Quantity.ofQuanta 12500
+          , observedDays := 25
+          , dailyAverageQuanta := 500
+          , complete := false }
+        ]
+      undatedMatchingCurrentRecords := 0
+    }
+  expect (trendOverview.trend.selected == 2)
+    "fresh Locus Trend overview did not select the latest configured cycle"
+
+  let trendLeft := (Loam.Tui.Reports.update trendOverview .left).state
+  expect (trendLeft.trend.selected == 1)
+    "Locus Trend left arrow did not move the overview cycle selection backward"
+
+  let trendBounds : Bounds := { width := 80, height := 24 }
+  let trendPointer :=
+    (Loam.Tui.Reports.updateForBounds trendBounds trendLeft
+      (.pointer Loam.Tui.LocusTrendPane.plotLeft
+        (Loam.Tui.LocusTrendPane.plotTop + 1))).state
+  expect (trendPointer.trend.selected == 0)
+    "Locus Trend pointer did not select the nearest overview cycle"
+
+  let trendText := widgetText
+    (Loam.Tui.Reports.viewForBounds trendBounds trendPointer)
+  expect (contains "Reports / Locus Trend" trendText &&
+      contains "Long history by configured Pension boundaries" trendText &&
+      contains "Average +459/day" trendText)
+    "Locus Trend did not render the full-screen long-history overview"
+  expect ((Loam.Tui.Reports.viewForBounds trendBounds trendPointer).lines.length <= trendBounds.height)
+    "full-screen Locus Trend exceeded the terminal height"
+
+  match (Loam.Tui.Reports.update trendPointer .enter).query with
+  | some (.locusTrend start endExclusive coordinate) =>
+      expect (start == "2026-04-15" && endExclusive == "2026-06-15")
+        "Locus Trend Enter did not drill into the selected configured cycle"
+      expect (coordinate == (⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ : EffectCoordinate))
+        "Locus Trend drill-down changed the exact coordinate"
+  | _ => throw (IO.userError "Locus Trend overview Enter did not request daily detail")
+
+  let trendDaily :=
+    Loam.Tui.Reports.withLocusTrendSnapshot trendPointer {
+      start := "2026-04-15"
+      endExclusive := "2026-04-18"
+      coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
+      points :=
+        [ { date := "2026-04-15"
           , daily := Quantity.ofQuanta 500
           , cumulative := Quantity.ofQuanta 500
           , runningDailyAverageQuanta := 500 }
-        , { date := "2026-09-02"
+        , { date := "2026-04-16"
           , daily := Quantity.ofQuanta 0
           , cumulative := Quantity.ofQuanta 500
           , runningDailyAverageQuanta := 250 }
-        , { date := "2026-09-03"
+        , { date := "2026-04-17"
           , daily := Quantity.ofQuanta 500
           , cumulative := Quantity.ofQuanta 1000
           , runningDailyAverageQuanta := 333 }
         ]
       undatedMatchingCurrentRecords := 0
     }
-  expect (trendReport.trend.selected == 2)
-    "fresh Locus Trend did not select the latest visible day"
-  let trendLeft := (Loam.Tui.Reports.update trendReport .left).state
-  expect (trendLeft.trend.selected == 1)
-    "Locus Trend left arrow did not move the shared point selection backward"
-  let trendRight := (Loam.Tui.Reports.update trendLeft .right).state
-  expect (trendRight.trend.selected == 2)
-    "Locus Trend right arrow did not move the shared point selection forward"
+  let trendDailyText := widgetText
+    (Loam.Tui.Reports.viewForBounds trendBounds trendDaily)
+  expect (contains "Reports / Locus Trend / Daily" trendDailyText &&
+      contains "Selected 2026-04-17" trendDailyText)
+    "Locus Trend daily drill-down did not render the selected day"
 
-  let trendBounds : Bounds := { width := 80, height := 24 }
-  let trendPointer :=
-    (Loam.Tui.Reports.updateForBounds trendBounds trendRight (.pointer 2 12)).state
-  expect (trendPointer.trend.selected == 0)
-    "Locus Trend pointer did not select the first visible sparkline day"
-  let trendText := widgetText (Loam.Tui.Reports.viewForBounds trendBounds trendPointer)
-  expect (contains "Reports / Locus Trend" trendText &&
-      contains "Selected 2026-09-01" trendText &&
-      contains "day +500 jpy" trendText)
-    "Locus Trend did not render selected-day quantity detail"
-  expect (contains "corrected originals are excluded" trendText)
-    "Locus Trend lost its correction-aware provenance boundary"
+  let trendBack := (Loam.Tui.Reports.update trendDaily (.input 'q')).state
+  expect (isLocusTrend trendBack && Loam.Tui.LocusTrendPane.isOverview trendBack.trend)
+    "Locus Trend q did not return from daily detail to long history"
 
   let multicurrencyStep := Loam.Tui.Reports.update initial (.input 'x')
   expect (isMultimeasureSpend multicurrencyStep.state)
