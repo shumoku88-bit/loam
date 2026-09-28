@@ -73,10 +73,6 @@ def initialWithPresentation?
     editor := { form := form, measurePresentation := metadata }
   }
 
-/-- Scale-0 compatibility entrance for callers without presentation metadata. -/
-def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State :=
-  initialWithPresentation? [] record
-
 /-- Date is a fixed coordinate for this editor, so cycling focus skips field 0. -/
 private def skipDateFocus
     (editor : Loam.Tui.Record.State) (back : Bool) : Loam.Tui.Record.State :=

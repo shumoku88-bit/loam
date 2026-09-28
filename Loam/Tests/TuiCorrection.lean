@@ -75,7 +75,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "load initial Actual review")
   let current := Loam.ActualReview.select records (.day "2026-09-07")
   let record ← requireSome current.head? "current Actual fixture disappeared"
-  let .ok editor := Loam.Tui.Correction.initial? record
+  let .ok editor := Loam.Tui.Correction.initialWithPresentation? [] record
     | throw (IO.userError "Correction editor did not accept current JPY Actual")
   expect (editor.target == recorded) "Correction editor lost selected target identity"
   expect (editor.editor.form.date == "2026-09-07") "Correction editor lost fixed occurrence date"
