@@ -57,6 +57,34 @@ qualification steps, but share one build-only composite action:
 This removes duplicated Lean setup without merging publisher, writer,
 persistence, review, UI/CLI, or read-only trust boundaries.
 
+## Pull-request fast lane and full qualification
+
+Repository-wide distillation creates many small production-code PRs. Those PRs
+still need a compile/regression barrier, but they do not all need release
+packaging or every durable/research witness on every head commit.
+
+The CI timing policy is therefore two-stage without changing the semantic
+ownership of the checks:
+
+- `tui.yml` keeps the existing `Production TUI / Build production household TUI`
+  check name. Pull requests build `loamTui` plus the shared Actual fixture and
+  run representative Record, Actual, Scheduled, Capacity, Settlement, Reports,
+  and HelpFooter interaction checks. Pushes to `main` and manual runs retain
+  the full production executable and TUI qualification suite.
+- `standalone-distribution.yml` keeps the repository-independent binary smoke
+  on pull requests. The four-platform packaging matrix and release-asset
+  collection run after merge on `main`, on tags, or by manual dispatch rather
+  than on every TUI edit.
+- `selected-lean-observations.yml` always retains the product `Loam` build on
+  relevant pull requests. The expensive durable-proof and live-observation
+  surfaces are skipped only for presentation-local `Loam/Tui/**`,
+  `Loam/Tests/**`, and `Loam/Presentation/**` changes; non-presentation
+  product changes, pushes to `main`, and manual runs retain them.
+
+This changes *when* expensive evidence is replayed, not which evidence owns a
+boundary. Specialized path-scoped publisher, persistence, UI, and formal-method
+workflows remain independently triggered.
+
 ## Live obligation families
 
 ### Product, durable proof, and live Lean research surfaces

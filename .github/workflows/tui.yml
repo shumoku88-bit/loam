@@ -150,6 +150,7 @@ on:
       - '.github/workflows/tui.yml'
   push:
     branches:
+      - main
       - 'feat/tui'
     paths:
       - 'Loam/HouseholdPaths.lean'
@@ -298,6 +299,41 @@ permissions:
 jobs:
   lean:
     name: Build production household TUI
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Build pull-request TUI surface
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: loamTui Loam.Tests.ActualWorldFixture
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Verify representative TUI mechanics
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
+          lake env lean --run Loam/Tests/TuiActual.lean
+          lake env lean --run Loam/Tests/TuiScheduledWorkspace.lean
+          lake env lean --run Loam/Tests/TuiCapacity.lean
+          lake env lean --run Loam/Tests/TuiSettlement.lean
+          lake env lean --run Loam/Tests/TuiReports.lean
+          lake env lean --run Loam/Tests/TuiHelpFooter.lean
+
+  full:
+    name: Full production household TUI qualification
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
