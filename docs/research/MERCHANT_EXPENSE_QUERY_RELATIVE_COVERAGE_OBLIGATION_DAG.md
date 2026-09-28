@@ -1,6 +1,6 @@
 # Merchant Expense — query-relative coverage obligation scaffold
 
-Status: **focused D/P/R audit — over-conservative refusal reduced**
+Status: **CURRENT PRODUCTION BOUNDARY / focused D/P/R audit**
 
 Date: 2026-09-19
 
@@ -54,6 +54,52 @@ Correction does not inherit Merchant evidence automatically. A corrected
 replacement Event may therefore become unresolved until explicitly classified.
 That remains a policy consequence of Event-scoped evidence, not a gap addressed
 here.
+
+## Durable Merchant boundary inherited from Observations 266–269
+
+The earlier Merchant sequence earned the production relation now carried by:
+
+- `Loam/Core/EventMerchantEvidence.lean`;
+- `Loam/EventMerchantPublisher.lean`;
+- normalized Actual Merchant rows/admission;
+- `Loam/MerchantExpenseReview.lean`;
+- focused publisher, persistence, review, and TUI tests.
+
+The retained meaning is intentionally narrow:
+
+```text
+EventMerchant
+  EventId -> lone ExternalPartyId
+
+meaning:
+  the retained external commercial provider from whom the household regards
+  this Event as acquiring goods or services
+```
+
+`ExternalPartyId` is shared role-free identity. Merchant meaning belongs to
+the EventMerchant relation, not to the identity token itself.
+
+Merchant therefore does **not** mean generic counterparty, payee/direct payment
+recipient, creditor, payment processor/acquirer, account provider/Locus, or legal
+merchant-of-record unless that is explicitly the identity the household chooses
+to retain.
+
+The current Event-scoped lone Merchant is the earned minimum for the ordinary
+single-provider Event shape. It has an explicit future break point: if one Event
+must be partitioned exactly across two genuine sellers/providers at Effect
+granularity, the current relation is insufficient and a finer relation must be
+earned then. That possibility does not justify Effect-level Merchant evidence
+today.
+
+Missing Merchant evidence remains unresolved. Explicit `nonmerchant` means only
+that the Event is outside this commercial-provider relation; it does not mean no
+external actor, no creditor, no recipient, or internal transfer.
+
+The live Observation 266 and 268 Alloy models remain independent falsification
+witnesses for the query boundary and completeness distinction. Their detailed
+historical prose, Observation 267 terminology review, and Observation 269
+promotion checkpoint have graduated to Git history because current production
+code plus this durable audit now own the practical conclusions.
 
 ## R / residual
 

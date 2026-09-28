@@ -385,7 +385,7 @@
       "model": "experiments/266_merchant_query_pressure.als",
       "paths": [
         "experiments/266_merchant_query_pressure.als",
-        "experiments/266_merchant_query_pressure.md"
+        "docs/research/MERCHANT_EXPENSE_QUERY_RELATIVE_COVERAGE_OBLIGATION_DAG.md"
       ],
       "expected": {
         "splitExpenseOneMerchantNeedsNoStoredMerchantAmount": true,
@@ -413,7 +413,7 @@
       "model": "experiments/268_merchant_coverage_completeness.als",
       "paths": [
         "experiments/268_merchant_coverage_completeness.als",
-        "experiments/268_merchant_coverage_completeness.md"
+        "docs/research/MERCHANT_EXPENSE_QUERY_RELATIVE_COVERAGE_OBLIGATION_DAG.md"
       ],
       "expected": {
         "positiveOnlyEvidenceCanHideAnotherMerchantEvent": true,
