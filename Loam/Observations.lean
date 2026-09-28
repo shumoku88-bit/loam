@@ -70,7 +70,6 @@ import Loam.Observations.Observation316
 import Loam.Observations.Observation317
 import Loam.Observations.Observation318
 import Loam.Observations.Observation319
-import Loam.Observations.Observation321
 import Loam.Observations.Observation325
 import Loam.Observations.Observation331
 import Loam.Observations.Observation333
@@ -136,6 +135,10 @@ Research compaction notes:
   `CurrentQuantityAnchor` owns the observed-current cut, `RoleBalanceReview`
   keeps support coordinate-local, and zero-origin / bounded-history evidence
   remain separate completeness claims.
+- 2026-09-28: Observation 321 retired after Transactions Flow made
+  `rowTotal` a direct derived view of `rowActivity.net`. Its Event-local
+  coordinate-fold correspondence is subsumed by the stronger live sparse
+  HashMap proof in Observation 325.
 
 Retired source remains available in Git history.
 -/
