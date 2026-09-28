@@ -141,7 +141,7 @@
         "Loam/Core/Settlement.lean",
         "Loam/Application/SettlementFrontier.lean",
         "Loam/Tests/SettlementFrontier.lean",
-        "experiments/371_settlement_production_promotion_checkpoint.md"
+        "docs/research/SETTLEMENT_PRODUCTION_BOUNDARY_2026-09.md"
       ],
       "tests": [
         "Loam/Tests/SettlementFrontier.lean"
@@ -163,7 +163,7 @@
         "Loam/Application/SettlementFrontier.lean",
         "Loam/Persistence/NormalizedActualAdmission.lean",
         "Loam/Tests/ActualSettlementAdmission.lean",
-        "experiments/372_settlement_persistence_topology_checkpoint.md"
+        "docs/research/SETTLEMENT_PRODUCTION_BOUNDARY_2026-09.md"
       ],
       "tests": [
         "Loam/Tests/ActualSettlementAdmission.lean"
@@ -186,7 +186,7 @@
         "Loam/Persistence/NormalizedActualAdmission.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/SettlementNormalizedActualV2.lean",
-        "experiments/372_settlement_persistence_topology_checkpoint.md"
+        "docs/research/SETTLEMENT_PRODUCTION_BOUNDARY_2026-09.md"
       ],
       "tests": [
         "Loam/Tests/SettlementNormalizedActualV2.lean"
@@ -208,7 +208,7 @@
         "Loam/EventMerchantPublisher.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/SettlementActualAuthorityPreservation.lean",
-        "experiments/372_settlement_persistence_topology_checkpoint.md"
+        "docs/research/SETTLEMENT_PRODUCTION_BOUNDARY_2026-09.md"
       ],
       "tests": [
         "Loam/Tests/SettlementActualAuthorityPreservation.lean"
@@ -231,7 +231,7 @@
         "Loam/Application/SettlementFrontier.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/SettlementPublisher.lean",
-        "experiments/372_settlement_persistence_topology_checkpoint.md"
+        "docs/research/SETTLEMENT_PRODUCTION_BOUNDARY_2026-09.md"
       ],
       "tests": [
         "Loam/Tests/SettlementPublisher.lean"
