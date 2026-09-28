@@ -289,7 +289,7 @@ def scheduledPressurePartitionFromOpen
 namespace ScheduledPressurePartition
 
 /-- Exact quantity carried by one pressure class in the transient partition. -/
-private def quantityForClass
+private abbrev quantityForClass
     (partition : ScheduledPressurePartition Time)
     (pressure : ScheduledPressureClass) : Quantity :=
   Quantity.ofQuanta <|
