@@ -1,6 +1,6 @@
-# Observation 381 — deterministic production-scenario pilot
+# Observation 381 — seeded deterministic production-history pilot
 
-Status: **QUALIFIED EXECUTABLE PILOT — deterministic production replay succeeded; no production architecture change**
+Status: **QUALIFIED EXECUTABLE PILOT — seeded generated production-history replay succeeded; no production architecture change**
 
 LOAM baseline:
 
@@ -16,6 +16,40 @@ External reference inspected:
 tigerbeetle/tigerbeetle
 main 47aeb2212a255273dda508288412e537d11e4b7c
 ```
+
+## Terminology boundary
+
+LOAM does **not** claim that this pilot, or the later Observations 382–384,
+implements TigerBeetle-style deterministic simulation testing (DST).
+
+In this repository the durable name for this layer is:
+
+```text
+deterministic production-history testing
+```
+
+The families have two shapes:
+
+```text
+Observation 381
+  seeded generative production-history scenario
+
+Observations 382–384
+  explicit ordered production-history scenarios
+```
+
+Their deterministic property is exact replay of the selected or generated
+history, production logic, checker results, and canonical retained bytes.
+
+They do not virtualize or control the full execution environment. In particular,
+this layer does not currently provide simulated clocks, scheduler interleavings,
+arbitrary process-death points, storage faults, networking faults, concurrent
+writer schedules, or broad seed exploration comparable to TigerBeetle VOPR.
+
+The filename of this observation is therefore also renamed away from
+`deterministic_simulation` terminology. References to TigerBeetle deterministic
+simulation below describe the external technique that motivated the narrower
+LOAM experiment, not a claim that LOAM already implements that technique.
 
 ## Trigger
 
@@ -90,7 +124,7 @@ writer ownership
 typed normalized-Actual admission
 ```
 
-No simulator interface is inserted into production code.
+No production simulator or nondeterminism-control interface is inserted into production code.
 
 ### Generated trace
 
@@ -276,7 +310,7 @@ Movement retry
 Each addition must reuse production logic and add a checker for the new semantic
 surface.
 
-Do not introduce a general simulator abstraction until at least two materially
+Do not introduce a general scenario-runner or simulator abstraction until at least two materially
 different operation families need the same mechanism.
 
 ## Stop condition

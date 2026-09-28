@@ -13,9 +13,9 @@ open Loam.Tests.DeterministicScenarioSupport
 set_option autoImplicit false
 
 /-!
-A small deterministic-simulation pilot over production Movement publication.
+A small seeded deterministic production-history pilot over production Movement publication.
 
-This is intentionally not a generic simulation framework. It runs the existing
+This is intentionally not a TigerBeetle-style DST or generic simulation framework. It runs the existing
 production publisher, writer ownership, normalized Actual persistence, and
 typed reload boundary against a reproducible generated operation trace.
 

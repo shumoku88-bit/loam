@@ -16,6 +16,8 @@ Observation 382 merged as #1451
 Observation 381 qualified deterministic replay for Movement/idempotency.
 Observation 382 qualified order-sensitive composition between Correction and Reversal.
 
+These observations are **deterministic production-history tests**. Observation 383 is an explicit ordered history, not TigerBeetle-style DST or randomized fault exploration.
+
 Settlement adds a different kind of stateful frontier:
 
 ```text
@@ -187,7 +189,7 @@ Observation 383 adds a different pressure:
 
 > all of those operations must coexist in one retained authority generation history, and later frontier arithmetic must continue to interpret earlier evidence correctly.
 
-## Simulator-abstraction checkpoint
+## Shared-runner abstraction checkpoint
 
 After Observations 381-383, three materially different production-history families now repeat the same test-only mechanics:
 
@@ -204,7 +206,7 @@ This is the first point where a tiny test-only helper module may be justified.
 
 However, O383 deliberately does not extract it yet. The explicit third example should qualify first. If it passes, a follow-up compression pass may extract only the mechanically identical helpers while keeping each scenario's semantic trace visible in its own test.
 
-Do not build a generic state-machine DSL, callback framework, property-testing library, or production simulator seam.
+Do not build a generic state-machine DSL, callback framework, property-testing library, or production fault-simulation seam.
 
 ## Stop / next gate
 

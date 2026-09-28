@@ -264,7 +264,7 @@
       "legacyWorkflow": ".github/workflows/lean-application-qualifications.yml",
       "pushBranches": [
         "main",
-        "experiment/381-deterministic-simulation-pilot"
+        "experiment/381-seeded-production-history"
       ],
       "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
@@ -276,7 +276,7 @@
         "Loam/LocusAdmissionAuthority.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/DeterministicMovementScenario.lean",
-        "experiments/381_deterministic_simulation_pilot.md",
+        "experiments/381_seeded_deterministic_production_history.md",
         "Loam/Tests/DeterministicScenarioSupport.lean"
       ],
       "tests": [
