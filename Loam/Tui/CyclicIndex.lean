@@ -20,6 +20,15 @@ def backward (count index : Nat) : Nat :=
 def forward (count index : Nat) : Nat :=
   if count = 0 then index else (index + 1) % count
 
+/-- Move one position in the requested cyclic direction. -/
+def move (count index : Nat) (back : Bool) : Nat :=
+  if back then backward count index else forward count index
+
+/-- Directional movement always returns a valid index when the space is nonempty. -/
+theorem move_lt (count index : Nat) (back : Bool) (h : 0 < count) :
+    move count index back < count := by
+  cases back <;> simp [move, backward_lt count index h, forward_lt count index h]
+
 /-- Empty cyclic spaces preserve the caller-owned index. -/
 theorem backward_eq_self_of_count_zero (index : Nat) :
     backward 0 index = index := by
