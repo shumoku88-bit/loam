@@ -394,8 +394,11 @@ def main : IO Unit := do
       Loam.Tui.LocusTrendComparePane.visibleStart scopedViewportState == 0 &&
       Loam.Tui.LocusTrendComparePane.visibleCount scopedViewportState == 40)
     "Trend Compare scoped Day view incorrectly retained the All-history 31-day viewport"
+  let scopedViewportReport : Loam.Tui.Reports.State := {
+    compareReport with trendCompare := scopedViewportState
+  }
   let scopedViewportText := widgetText
-    (Loam.Tui.LocusTrendComparePane.viewForBounds compareBounds scopedViewportState)
+    (Loam.Tui.Reports.viewForBounds compareBounds scopedViewportReport)
   expect (contains "Scope Current cycle" scopedViewportText &&
       !(contains "31-day viewport" scopedViewportText))
     "Trend Compare did not expose the scoped Day range as a whole"
