@@ -132,6 +132,14 @@ This audit reuses rather than reopens:
 - G2-018 routing append ownership;
 - G2-008 Actual routing administration partition.
 
+The detailed discovery prose for Observations 153 and 156 has now graduated to
+Git history. Their bounded Alloy witnesses remain live in
+`experiments/153_scheduled_routing_subject.als` and
+`experiments/156_initial_routing_coordinate.als`. Current production ownership
+is direct: `ScheduledRoutingSubject` retains the earned
+`ScheduledId × LocusId` subject boundary, while `RoutingEffective` retains the
+distinct pre-dated `initial | dated` coordinate without fabricating a date.
+
 In particular:
 
 ```text
