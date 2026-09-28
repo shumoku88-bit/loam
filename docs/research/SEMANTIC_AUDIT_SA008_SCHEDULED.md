@@ -125,6 +125,14 @@ Examples:
 - `ScheduledCommitmentInspection` combines current-open evidence with Scheduled routing and AccountingRole evidence;
 - `ScheduledBalanceHypothetical` applies one typed read-only suppression hypothesis to a qualified baseline.
 
+Observation 119's detailed discovery prose has graduated to Git history. Its
+bounded Alloy witness remains live because it still protects the negative
+boundary that BalanceView selection is not allocation Eligibility / Backing
+authority. The positive production owner is now
+`ScheduledBalanceInspection`: qualified current-open Scheduled evidence plus
+an explicit replaceable balance-coordinate selection determines the selected
+per-coordinate Scheduled effects without storing a holding classification.
+
 `ScheduledCommitmentInspection` is physically large, but it already shares its internal pressure classification and selected-coordinate enumeration and retains Lean evidence relating row and aggregate views.
 
 Verdict: **KEEP the query boundaries. Large module size alone does not show a second domain model.**
