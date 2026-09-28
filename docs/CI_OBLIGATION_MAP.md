@@ -37,8 +37,9 @@ A later graduation pass retired two additional standalone Lean workflows:
 - `application-006-conservative-fact-extension.yml`: the abstract conservative
   extension witness is now retained as research prose/Git history and is marked
   absorbed/redundant by the structural falsification ledger;
-- `opening-support-reuse-seam.yml`: Observation 245's seam has been promoted
-  into production OpeningSupport / RoleBalance behavior and production tests.
+- `opening-support-reuse-seam.yml`: Observation 245's seam was promoted
+  into production OpeningSupport / RoleBalance behavior and production tests;
+  its standalone witness and research prose now live only in Git history.
 
 The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
 frontend retirement brings the live workflow count to `47`, or 50 retired

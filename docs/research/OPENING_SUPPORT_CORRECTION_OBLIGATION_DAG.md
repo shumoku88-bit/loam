@@ -57,9 +57,14 @@ opening-supported current quantity may be projected
 
 If correction supersedes the named opening Event, the old support claim becomes stale and the read fails closed.
 
-This behavior is already executable in:
+Observation 245 originally qualified this seam. Its standalone research witness
+and prose have since graduated to Git history after production promotion.
 
-- Observation 245 (`experiments/245_opening_support_reuse_seam.*`);
+The current executable owners are:
+
+- `Loam/Core/OpeningSupport.lean`;
+- `Loam/Persistence/OpeningSupportPersistence.lean`;
+- `Loam/RoleBalanceReview.lean`;
 - `Loam/Tests/FourVoiceCompatibilityV6.lean`;
 - `Loam/Tests/CounterpointFiveWorlds.lean`.
 
