@@ -304,7 +304,7 @@
       "model": "experiments/263_external_party_identity_boundary.als",
       "paths": [
         "experiments/263_external_party_identity_boundary.als",
-        "experiments/263_external_party_identity_boundary.md"
+        "docs/research/MERCHANT_EXPENSE_QUERY_RELATIVE_COVERAGE_OBLIGATION_DAG.md"
       ],
       "expected": {
         "sameExternalIdentityAcrossEventAndRelation": true,
@@ -330,7 +330,7 @@
       "model": "experiments/264_event_party_granularity.als",
       "paths": [
         "experiments/264_event_party_granularity.als",
-        "experiments/264_event_party_granularity.md"
+        "docs/research/MERCHANT_EXPENSE_QUERY_RELATIVE_COVERAGE_OBLIGATION_DAG.md"
       ],
       "expected": {
         "currentAndArrearsShareCreditor": true,
@@ -358,7 +358,7 @@
       "model": "experiments/265_description_party_boundary.als",
       "paths": [
         "experiments/265_description_party_boundary.als",
-        "experiments/265_description_party_boundary.md"
+        "docs/research/MERCHANT_EXPENSE_QUERY_RELATIVE_COVERAGE_OBLIGATION_DAG.md"
       ],
       "expected": {
         "sameDescriptionCanCoverDifferentParties": true,

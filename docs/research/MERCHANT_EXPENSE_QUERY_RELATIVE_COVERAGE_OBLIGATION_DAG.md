@@ -55,6 +55,49 @@ replacement Event may therefore become unresolved until explicitly classified.
 That remains a policy consequence of Event-scoped evidence, not a gap addressed
 here.
 
+## Durable external-party boundary inherited from Observations 263–265
+
+The detailed prose for Observations 263–265 has graduated to Git history. Their
+three Alloy models remain live independent witnesses.
+
+Those observations earned the identity and interpretation boundary on which the
+later Merchant relation depends:
+
+- `ExternalPartyId` is shared role-free outside-actor identity;
+- debtor / creditor meaning belongs to each OpenRelation, not to the identity;
+- Merchant meaning belongs to EventMerchant, not to the identity;
+- external Party identity and Locus identity are orthogonal;
+- an OpenRelation endpoint does not determine an Event Merchant;
+- one Event may involve several semantically relevant outside actors, so one
+  Event-scoped Merchant is a query-specific relation rather than a universal
+  participation ontology;
+- creditor, direct payment recipient, commercial provider, and other outside
+  roles may differ and must not be collapsed merely because they sometimes name
+  the same actor;
+- EventDescription remains human recognition evidence, not stable Party
+  identity authority;
+- equal descriptions need not imply equal Parties, one Party may appear under
+  different descriptions, and description presence need not imply any external
+  Party at all;
+- AI/text parsing may propose an external identity, but proposal/inference is not
+  retained semantic authority.
+
+Production now reflects those boundaries directly through:
+
+- `Loam/Core/ExternalParty.lean`;
+- `RelationEndpoint.external : ExternalPartyId`;
+- `Loam/Core/EventMerchantEvidence.lean`;
+- explicit EventMerchant publication/admission.
+
+The Event-scoped lone Merchant relation is therefore deliberately narrow. If a
+future query needs creditor, direct recipient, multi-seller attribution, or a
+broader participation graph, that meaning must be earned as a separate relation
+rather than being smuggled into `ExternalPartyId` or EventDescription.
+
+The Observation 263–265 Alloy models stay live because they independently
+falsify the tempting collapses between identity, Locus, relation role,
+Event-party granularity, and description text.
+
 ## Durable Merchant boundary inherited from Observations 266–269
 
 The earlier Merchant sequence earned the production relation now carried by:
