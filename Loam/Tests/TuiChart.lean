@@ -91,6 +91,23 @@ def main : IO Unit := do
   expect (Loam.Tui.Chart.Renderer.next .ascii == .braille)
     "renderer fallback order lost ASCII to Braille transition"
 
+  let multi :=
+    Loam.Tui.Chart.renderManyInRange .braille 36 10
+      [ { values := [464, 508, 500], style := .series1, marker := '●' }
+      , { values := [131, 158, 244], style := .series2, marker := '◆' }
+      , { values := [477, 524, 628], style := .series3, marker := '▲' }
+      ]
+      1 (Loam.Tui.Chart.scaleFor [464, 508, 500, 131, 158, 244, 477, 524, 628]).range
+  let multiCells := multi.flatMap Widget.lines |>.flatten
+  expect (multiCells.any fun cell => cell.glyph == '●' && cell.style == .series1)
+    "multi-series chart lost the first series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '◆' && cell.style == .series2)
+    "multi-series chart lost the second series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '▲' && cell.style == .series3)
+    "multi-series chart lost the third series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '│' && cell.style == .muted)
+    "multi-series chart lost the shared selected-period crosshair"
+
   let narrow := Loam.Tui.Chart.render .braille 12 4 [459, 508, 500] 1
   let wide := Loam.Tui.Chart.render .braille 48 12 [459, 508, 500] 1
   expect (narrow.all fun row => row.width == 12)
