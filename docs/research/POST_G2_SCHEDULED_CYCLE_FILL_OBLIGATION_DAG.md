@@ -147,7 +147,7 @@ same positive Locus set + later explicit date
     -> never assert same series / recurrence / contract
 ```
 
-Observation 272 fixes a concrete overlap:
+A qualified Lean overlap witness historically recorded as Observation 272 fixed a concrete overlap:
 
 ```text
 source Scheduled:       2026-09-08, positive Locus = gpt-plus
@@ -290,6 +290,12 @@ workflows.
 ## Verdict
 
 **RESIDUAL AWARENESS PRESSURE CONFIRMED; MINIMAL FIX QUALIFIED.**
+
+The Observation 272 executable specimen has since graduated to Git history. Its
+observable obligation is now owned directly by production `ScheduledReview`, the
+generation/continuation TUI paths, and their focused regression tests. Keeping a
+second native-decide overlap fixture in `Loam.Observations` no longer adds an
+independent semantic check.
 
 The Trivet-style decomposition was useful: most apparent risk closed
 deterministically from existing code and types, leaving one narrow semantic
