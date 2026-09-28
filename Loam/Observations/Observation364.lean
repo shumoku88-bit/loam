@@ -29,11 +29,13 @@ correspondence studies, has refined a settlement family around:
 
 The selected physical examples so far were mostly outgoing cash payments.
 
-Observation 361 therefore used a local admission rule that required:
+The earliest outgoing-only correspondence precursor used a local admission rule
+that required:
 
     physical settlement Effect < 0
 
-That is too narrow for a reusable securities settlement family.
+Production now carries exact correspondence quantity and Effect anchoring, but
+that sign law is still too narrow for a reusable securities settlement family.
 
 A security purchase may produce a later cash debit.
 
@@ -304,7 +306,7 @@ theorem selected_net_amounts_remain_exact_positive_commitments :
 /-!
 ## Finding
 
-A reusable settlement family should not inherit Observation 361's temporary law:
+A reusable settlement family should not inherit the retired outgoing-only precursor's temporary law:
 
     physical settlement Effect < 0
 
@@ -383,7 +385,7 @@ Observation 364 therefore strengthens the minimum candidate to:
 
     endpoint-directed physical sign rule
 
-    dual aggregate bounds from Observation 361
+    dual aggregate target/physical bounds from the production settlement frontier
 
     generic ReplacementFrontier for revision
 
@@ -403,8 +405,9 @@ Still not earned:
 The next pressure should test netting directly.
 
 A single physical bank / broker cash movement can represent the net result of
-several buys, sells, fees, credits, or other obligations. Observation 361 already
-allows one Effect to cover several same-direction commitments.
+several buys, sells, fees, credits, or other obligations. The production direct
+settlement frontier already allows one Effect to cover several same-direction
+commitments within its aggregate physical bound.
 
 The harder remaining question is whether one physical **net** Effect may settle
 commitments in opposite directions without losing the gross obligations that

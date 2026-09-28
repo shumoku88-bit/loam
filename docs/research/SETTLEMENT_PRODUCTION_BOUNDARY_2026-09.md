@@ -201,5 +201,13 @@ contracts: independently measured settlement commitments remain additive beside
 source-bounded OpenRelation, and direct settlement names an exact later
 Event/Effect rather than relying on Event-level discharge alone.
 
+Observations 361 and 362 have likewise graduated. Production now directly owns
+exact per-correspondence quantity, partial and multi-target direct allocation,
+aggregate physical/target bounds, version-capable correspondence identity,
+generic replacement-frontier correction, conflict refusal, and atomic explicit
+batch publication. Observation 363 remains live because a workflow-level
+"complete allocation" promise is stronger than those incremental settlement
+laws and has not been promoted.
+
 The working tree now keeps the current owners, current qualification surfaces,
 live independent settlement research, and this compressed durable rationale.

@@ -135,10 +135,10 @@ deriving Repr, DecidableEq
 /--
 Version-capable identity for one retained direct settlement correspondence.
 
-Observation 362 showed that corrected rows may share the same semantic
-coordinate `target + event + effect` while differing in attributed Quantity.
-The retained row therefore needs identity distinct from that coordinate when
-append-only correction is promised.
+Retained correspondence correction permits old and replacement rows to share
+the same semantic coordinate `target + event + effect` while differing in
+attributed Quantity. The retained row therefore needs identity distinct from
+that coordinate when append-only correction is promised.
 -/
 structure SettlementCorrespondenceId where
   token : String
