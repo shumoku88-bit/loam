@@ -137,8 +137,46 @@ private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 private def blank : Widget := .row []
 
-private def signed (value : Int) : String :=
-  if value > 0 then "+" ++ toString value else toString value
+private def commaEveryThreeFromRight : List Char → Nat → List Char
+  | [], _ => []
+  | char :: rest, count =>
+      if count = 3 then
+        ',' :: char :: commaEveryThreeFromRight rest 1
+      else
+        char :: commaEveryThreeFromRight rest (count + 1)
+
+private def groupedNat (value : Nat) : String :=
+  let reversed :=
+    commaEveryThreeFromRight (toString value).toList.reverse 0
+  String.ofList reversed.reverse
+
+private def groupedInt (value : Int) : String :=
+  if value < 0 then "-" ++ groupedNat (-value).natAbs
+  else groupedNat value.natAbs
+
+private def measureToken (state : State) : String :=
+  match state.view with
+  | .overview =>
+      state.overview.map (·.coordinate.measure.token) |>.getD ""
+  | .detail =>
+      state.snapshot.map (·.coordinate.measure.token) |>.getD ""
+
+private def amountText (state : State) (value : Int) : String :=
+  let token := measureToken state
+  if token == "jpy" then
+    if value < 0 then "-¥" ++ groupedNat (-value).natAbs
+    else "¥" ++ groupedNat value.natAbs
+  else
+    groupedInt value ++ (if token.isEmpty then "" else " " ++ token)
+
+private def spaces (count : Nat) : String :=
+  String.ofList (List.replicate count ' ')
+
+private def centered (width : Nat) (text : String) : String :=
+  let clipped := Loam.Tui.Layout.clip width text
+  let remaining := width - Loam.Tui.Layout.displayWidth clipped
+  let left := remaining / 2
+  spaces left ++ clipped ++ spaces (remaining - left)
 
 private def values (state : State) : List Int :=
   match state.view with
@@ -149,46 +187,80 @@ private def values (state : State) : List Int :=
       state.snapshot.map (fun snapshot =>
         snapshot.points.map (·.daily.quanta)) |>.getD []
 
+private def chartScale (state : State) : Loam.Tui.Chart.Scale :=
+  Loam.Tui.Chart.scaleFor (values state)
+    (if state.view = .overview then 3 else 4)
+
+private def tickForRow?
+    (height row : Nat) (scale : Loam.Tui.Chart.Scale) : Option Int :=
+  scale.ticks.find? fun tick =>
+    Loam.Tui.Chart.rowForValue height scale.range tick = row
+
 private def axisText
-    (height row : Nat) (range : Loam.Tui.Chart.Range) : String :=
-  if row = 0 || row = height / 2 || row + 1 = height then
-    Loam.Tui.Layout.padLeft 8
-      (toString (Loam.Tui.Chart.valueForRow height row range)) ++ " ┤ "
-  else
-    "         │ "
+    (state : State) (height row : Nat)
+    (scale : Loam.Tui.Chart.Scale) : String :=
+  match tickForRow? height row scale with
+  | some tick =>
+      Loam.Tui.Layout.padLeft 8 (amountText state tick) ++ " ┤ "
+  | none => "         │ "
+
+private def observedMarkers (state : State) : List Loam.Tui.Chart.Marker :=
+  match state.view with
+  | .overview =>
+      state.overview.map (fun snapshot =>
+        snapshot.points.zipIdx.map fun (point, index) =>
+          {
+            index := index
+            kind := if point.complete then
+              Loam.Tui.Chart.MarkerKind.observed
+            else
+              Loam.Tui.Chart.MarkerKind.partial
+          }) |>.getD []
+  | .detail => []
 
 private def chartRows
     (bounds : Bounds) (state : State) : List Widget :=
   let width := plotWidth bounds
   let height := plotHeight bounds
   let series := values state
-  let range := Loam.Tui.Chart.rangeFor series
+  let scale := chartScale state
   let rendered :=
-    Loam.Tui.Chart.render state.renderer width height series state.selected
+    Loam.Tui.Chart.renderInRange
+      state.renderer width height series state.selected
+      scale.range (observedMarkers state)
   (List.range height).map fun row =>
     match rendered[row]? with
     | some widget =>
         match widget with
         | Widget.row spans =>
-            Widget.row ([span (axisText height row range)] ++ spans)
+            Widget.row ([span (axisText state height row scale)] ++ spans)
         | Widget.column _ =>
-            Widget.row [span (axisText height row range)]
+            Widget.row [span (axisText state height row scale)]
     | none =>
-        Widget.row [span (axisText height row range)]
+        Widget.row [span (axisText state height row scale)]
 
 
-private def overviewAxis
-    (bounds : Bounds) (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : Widget :=
+private def overviewAxisRows
+    (bounds : Bounds) (state : State)
+    (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : List Widget :=
   let count := snapshot.points.length
   let width := plotWidth bounds
   let chunk := if count = 0 then width else max 1 (width / count)
-  let labels := snapshot.points.map fun point =>
+  let dateLabels := snapshot.points.map fun point =>
     let endLabel :=
       if point.complete then point.endExclusive else point.throughExclusive
     let startShort := String.ofList (point.start.toList.drop 5)
     let endShort := String.ofList (endLabel.toList.drop 5)
-    Loam.Tui.Layout.padRight chunk (startShort ++ "→" ++ endShort)
-  .row ([span (String.ofList (List.replicate plotLeft ' '))] ++ labels.map span)
+    centered chunk (startShort ++ "→" ++ endShort)
+  let valueLabels := snapshot.points.map fun point =>
+    let marker := if point.complete then "● " else "◇ "
+    let partial := if point.complete then "" else " partial"
+    centered chunk
+      (marker ++ amountText state point.dailyAverageQuanta ++ "/day" ++ partial)
+  [ .row ([span (spaces plotLeft)] ++ dateLabels.map fun text => span text .muted)
+  , .row ([span (spaces plotLeft)] ++ valueLabels.map span)
+  ]
+
 
 private def detailAxis
     (bounds : Bounds) (state : State)
@@ -211,20 +283,19 @@ private def header (state : State) : List Widget :=
             if point.complete then point.endExclusive else point.throughExclusive
           [ line "Reports / Locus Trend"
           , muted
-              ("Long history by configured " ++ snapshot.source ++
-                " boundaries through " ++ snapshot.observedAt ++ ".")
-          , line
-              ("Coordinate " ++ snapshot.coordinate.locus.token ++
+              (snapshot.source ++ " cycles through " ++ snapshot.observedAt ++
+                "   ·   " ++ snapshot.coordinate.locus.token ++
                 " / " ++ snapshot.coordinate.measure.token ++
-                "   renderer " ++ state.renderer.label)
+                "   ·   " ++ state.renderer.label)
           , line
               ("Selected [" ++ point.start ++ ", " ++ observedEnd ++
                 (if point.complete then ")" else ")  partial"))
           , line
-              ("Average " ++ signed point.dailyAverageQuanta ++ "/day   total " ++
-                signed point.total.quanta ++ " " ++ snapshot.coordinate.measure.token ++
-                "   observed " ++ toString point.observedDays ++ " day(s)")
-          , muted "Current admitted truth; configured boundaries are query coordinates, not retained cycle facts."
+              (amountText state point.dailyAverageQuanta ++ "/day   ·   " ++
+                amountText state point.total.quanta ++ " total   ·   " ++
+                toString point.observedDays ++ " days")
+          , muted "● completed configured cycle   ◇ current partial cycle"
+          , muted "Line segments interpolate between the marked cycle observations."
           , blank
           ]
       | _, _ =>
@@ -240,17 +311,16 @@ private def header (state : State) : List Widget :=
               ("Daily detail [" ++ snapshot.start ++ ", " ++
                 snapshot.endExclusive ++ ")")
           , line
-              ("Coordinate " ++ snapshot.coordinate.locus.token ++
+              (snapshot.coordinate.locus.token ++
                 " / " ++ snapshot.coordinate.measure.token ++
-                "   renderer " ++ state.renderer.label)
+                "   ·   " ++ state.renderer.label)
           , line
               ("Selected " ++ point.date ++
-                "   day " ++ signed point.daily.quanta ++ " " ++
-                snapshot.coordinate.measure.token)
+                "   ·   " ++ amountText state point.daily.quanta)
           , line
-              ("Cumulative " ++ signed point.cumulative.quanta ++
-                "   running avg " ++
-                signed point.runningDailyAverageQuanta ++ "/day")
+              ("Cumulative " ++ amountText state point.cumulative.quanta ++
+                "   ·   running avg " ++
+                amountText state point.runningDailyAverageQuanta ++ "/day")
           , muted "Current admitted truth; corrected originals are excluded."
           , blank
           ]
@@ -278,18 +348,18 @@ navigation lines.
 -/
 def viewFullScreen (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
   let chart := chartRows bounds state
-  let axis :=
+  let axisRows :=
     match state.view with
     | .overview =>
         match state.overview with
-        | some snapshot => overviewAxis bounds snapshot
-        | none => muted ""
+        | some snapshot => overviewAxisRows bounds state snapshot
+        | none => [muted "", muted ""]
     | .detail =>
         match state.snapshot with
-        | some snapshot => detailAxis bounds state snapshot
-        | none => muted ""
+        | some snapshot => [detailAxis bounds state snapshot]
+        | none => [muted ""]
   let all :=
-    header state ++ chart ++ [axis] ++ footer state ++
+    header state ++ chart ++ axisRows ++ footer state ++
       (if notice.isEmpty then [] else [line notice])
   .column (all.take bounds.height)
 
