@@ -20,6 +20,9 @@
 * **当時の共有化後到達規模の仮説**: **約 120〜140 ファイル / 28,000〜30,000 行**
 
 これらは削減目標ではなく、最新 `main` で correspondence ごとに再検証する仮説である。
+Phase 2 の実地再検証（#1543 / #1545 / #1546）により、#1454 の削減量予測は
+**定量予測としては失効**した。以後は当時の数値を削減期待値として使用せず、
+候補発見のための historical baseline としてのみ扱う。
 
 ```
 【プロダクトコードの削減・共有化ポテンシャル】
@@ -387,7 +390,39 @@ TUI は最大の重複候補だが、**画面の意味を一つの巨大な汎�
 を既存 TUI テストで確認し、共通部品の利用側が元より説明しやすくなっていることを確認する。
 共通化によって引数・callback・型パラメータが増えすぎる場合は、その抽象は採用しない。
 
+### Phase 2 closure — 2026-09-29
+
+最新 `main` で TUI mechanical duplication を再監査し、Phase 2 は停止条件に到達した。
+
+採用した correspondence:
+
+- #1543: presentation-local Backspace 編集を既存 `Terminal` owner に集約（net -16 lines）
+- #1545: directional cyclic movement とその範囲証明を `CyclicIndex` に集約（net -19 lines）
+- #1546: trailing list-window arithmetic を既存 `Layout.trailingWindowStart` に戻す（net -7 lines）
+
+合計は **net -42 lines**。削減量自体より、三件とも domain state / authority /
+publication semantics を増やさず exact mechanical correspondence だけを移したことを成功条件とする。
+
+一方、`EditorSession` 周辺を広げる実験では、publisher refusal 後に同じ editor へ戻る
+session と canonical reload のため caller へ戻る session が分かれ、共通 helper を追加して
+5 session を移した時点でも **net +18 lines** だったため棄却した。
+`Record` / `Correction` / `ScheduledCompletion` には unresolved activation による
+world/catalog/editor の同時更新もあり、現行 generic contract へ押し込まない。
+
+最終横断監査では one-line input、selection clamp、centered viewport、preview/confirmation、
+reload-after-success を再確認したが、残候補は次のどちらかだった。
+
+```text
+既存 owner と exact correspondence がない
+OR
+新 helper / callback / state abstraction の追加が削減を上回る
+```
+
+したがって Phase 2 を閉じ、以後は mechanical TUI 抽象を増やすのではなく
+Phase 3 の adapter / scaffold retirement を correspondence 単位で調べる。
+
 ---
+
 
 ## 8. フェーズ 3：中間アダプターと探索用足場のバイパス
 
