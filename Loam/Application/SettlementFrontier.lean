@@ -12,11 +12,10 @@ set_option autoImplicit false
 /-!
 # Settlement admission and composed frontier
 
-Observation 371 promoted the raw settlement vocabulary while deliberately
-leaving semantic admission in the Application layer.
+`Loam.Core.Settlement` owns the raw settlement vocabulary while this module
+owns semantic admission in the Application layer.
 
-This module is the first executable production boundary over that raw
-provenance.
+This module is the executable production boundary over that raw provenance.
 
 It keeps three responsibilities separate:
 

@@ -69,7 +69,6 @@ import Loam.Observations.Observation334
 import Loam.Observations.Observation335
 import Loam.Observations.Observation336
 import Loam.Observations.Observation337
-import Loam.Observations.Observation341
 import Loam.Observations.Observation343
 import Loam.Observations.Observation345
 import Loam.Observations.Observation346
@@ -156,6 +155,13 @@ Research compaction notes:
   duplicate/positivity, correction, reversal, and wire-roundtrip behavior.
   Observation 343 remains live against those production APIs as the independent
   Measure-symmetry witness.
+- 2026-09-28: Observation 341 retired after its negative Relation/Discharge
+  cross-Measure card witness was overtaken by the promoted Settlement boundary.
+  `SettlementCommitment` now owns independent settlement Measure/Quantity,
+  `SettlementEffectCorrespondence` names the exact later Event/Effect/quantity,
+  and `SettlementFrontier` enforces the current admission laws with a focused
+  cross-Measure card regression. `RelationDischarge` remains intentionally
+  narrower rather than carrying settlement meaning.
 - 2026-09-28: Observations 359 and 360 retired after the settlement family
   reached production. Their delayed cross-Measure commitment, exact later-Effect
   correspondence, and "keep OpenRelation source-bounded" conclusions are now
