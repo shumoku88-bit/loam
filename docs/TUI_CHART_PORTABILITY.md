@@ -52,10 +52,11 @@ Single-Locus Trend enables all-pointer-motion reporting while that surface is
 active, so keyboard Left/Right, click, drag, and hover can converge on the same
 selection state.
 
-Trend Compare enables button-motion reporting only. Click and primary-button
+Unified Trend enables button-motion reporting only. Click and primary-button
 drag scrub the nearest visible period, and wheel motion moves one active period
-at a time. Passive hover is inert, so the shared comparison cursor does not keep
-following the mouse after release.
+at a time. Passive hover is inert, so the shared Trend cursor does not keep
+following the mouse after release. One to three exact Locus series share this
+same interaction boundary.
 
 ## Resize contract
 
