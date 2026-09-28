@@ -71,6 +71,18 @@ structure Marker where
   kind : MarkerKind
   deriving Repr, DecidableEq
 
+/--
+One logical series in a multi-series plot.
+
+The renderer style and marker are presentation metadata only. They do not alter
+the numerical series or pointer geometry.
+-/
+structure PlotSeries where
+  values : List Int
+  style : Style := .normal
+  marker : Char := '●'
+  deriving Repr, DecidableEq
+
 private def minMax? : List Int → Option (Int × Int)
   | [] => none
   | first :: rest =>
@@ -306,6 +318,69 @@ def renderInRange
               span "┄" .muted
             else
               span (String.ofList [base])
+    .row spans
+
+private def plotSeriesMarkerAt?
+    (series : List PlotSeries)
+    (range : Range)
+    (width height col row logicalIndex : Nat) : Option (Char × Style) :=
+  series.findSome? fun item =>
+    match item.values[logicalIndex]? with
+    | none => none
+    | some value =>
+        if xForIndex width item.values.length logicalIndex = col &&
+            rowForValue height range value = row then
+          some (item.marker, item.style)
+        else
+          none
+
+private def plotSeriesLineAt?
+    (renderer : Renderer)
+    (series : List PlotSeries)
+    (range : Range)
+    (width height col row : Nat) : Option (Char × Style) :=
+  series.findSome? fun item =>
+    let glyph := cellGlyph renderer item.values range width height col row
+    if glyph = ' ' then none else some (glyph, item.style)
+
+/--
+Render several aligned logical series in one plot rectangle.
+
+All series share one numerical range and one horizontal logical index. Their
+line style and marker glyph remain distinct, while one neutral vertical
+crosshair selects the same period across every series. This keeps time selection
+independent from series identity.
+-/
+def renderManyInRange
+    (renderer : Renderer)
+    (width height : Nat)
+    (series : List PlotSeries)
+    (selected : Nat)
+    (range : Range)
+    (gridRows : List Nat := []) : List Widget :=
+  let actualWidth := max 1 width
+  let actualHeight := max 1 height
+  let pointCount := series.head?.map (·.values.length) |>.getD 0
+  let selectedX := xForIndex actualWidth pointCount selected
+  (List.range actualHeight).map fun row =>
+    let spans :=
+      (List.range actualWidth).map fun col =>
+        match plotSeriesMarkerAt?
+            series range actualWidth actualHeight col row selected with
+        | some (glyph, style) =>
+            span (String.ofList [glyph]) style
+        | none =>
+            match plotSeriesLineAt?
+                renderer series range actualWidth actualHeight col row with
+            | some (glyph, style) =>
+                span (String.ofList [glyph]) style
+            | none =>
+                if col = selectedX then
+                  span "│" .muted
+                else if row ∈ gridRows then
+                  span "┄" .muted
+                else
+                  span " "
     .row spans
 
 /-- Render with the default nice range and no explicit observed markers. -/
