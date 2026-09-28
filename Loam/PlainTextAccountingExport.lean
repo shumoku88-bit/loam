@@ -141,10 +141,4 @@ def renderWithPresentation?
     else header ++ [""] ++ [String.intercalate "\n\n" transactions]
   pure (String.intercalate "\n" body ++ "\n")
 
-/-- Scale-0 compatibility renderer. -/
-def render?
-    (roles : AccountingRoleMap)
-    (entries : List Loam.ActualJournalProjection.Entry) : Except String String :=
-  renderWithPresentation? [] roles entries
-
 end Loam.PlainTextAccountingExport
