@@ -69,7 +69,7 @@
       "model": "experiments/243_current_vs_historical_balance_support.als",
       "paths": [
         "experiments/243_current_vs_historical_balance_support.als",
-        "experiments/243_current_vs_historical_balance_support.md"
+        "docs/research/QUANTITY_WORLD_SHARING_DAG.md"
       ],
       "expected": {
         "anchoredCurrentWithoutZeroOrigin": true,
@@ -93,7 +93,7 @@
       "model": "experiments/244_temporal_quantity_anchor.als",
       "paths": [
         "experiments/244_temporal_quantity_anchor.als",
-        "experiments/244_temporal_quantity_anchor.md"
+        "docs/research/QUANTITY_WORLD_SHARING_DAG.md"
       ],
       "expected": {
         "zeroOriginAsUnifiedAnchor": true,
@@ -122,7 +122,7 @@
       "model": "experiments/246_shared_current_anchor_cut.als",
       "paths": [
         "experiments/246_shared_current_anchor_cut.als",
-        "experiments/246_shared_current_anchor_cut.md"
+        "docs/research/QUANTITY_WORLD_SHARING_DAG.md"
       ],
       "expected": {
         "sharedCutSupportsMultipleCoordinates": true,
@@ -156,7 +156,7 @@
       "model": "experiments/345_reconciled_interval_boundary.als",
       "paths": [
         "experiments/345_reconciled_interval_boundary.als",
-        "experiments/345_reconciled_interval_boundary.md"
+        "docs/research/QUANTITY_WORLD_SHARING_DAG.md"
       ],
       "expected": {
         "qualifiedIntervalWithUnknownEarlierHistory": true,
@@ -184,7 +184,7 @@
       "model": "experiments/346_backward_anchor_reconstruction.als",
       "paths": [
         "experiments/346_backward_anchor_reconstruction.als",
-        "experiments/346_backward_anchor_reconstruction.md"
+        "docs/research/QUANTITY_WORLD_SHARING_DAG.md"
       ],
       "expected": {
         "backwardReconstructionWithoutStoredOpening": true,
