@@ -63,9 +63,6 @@ private def editActive (form : Form) (edit : String → String) : Form :=
   else if form.focus = 2 then { form with quantity := edit form.quantity }
   else form
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 /-- Parse only one human-entered row. Reconciliation laws remain below this adapter. -/
 def currentAssertion? (state : State) : Except String Loam.CurrentQuantityAnchor.Assertion := do
   if !Loam.Persistence.validToken state.form.locus then
@@ -126,7 +123,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           | .shiftTab => { state := { state with form := moveFocus state.form true } }
           | .backspace =>
               { state := { state with
-                  form := editActive state.form dropLast
+                  form := editActive state.form Loam.Tui.Terminal.backspaceText
                   notice := "" } }
           | .input char =>
               { state := { state with
