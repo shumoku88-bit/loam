@@ -36,7 +36,10 @@ partial def run (bounds : Bounds)
     (dataDir root : System.FilePath)
     (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  let step := Loam.Tui.Reports.updateForBounds bounds state key
+  let activeBounds ←
+    if key = .other then pure bounds else Loam.Tui.Terminal.currentBounds
+  let resized := activeBounds != bounds
+  let step := Loam.Tui.Reports.updateForBounds activeBounds state key
   if step.back then return ()
   let next ←
     match step.query with
@@ -111,9 +114,12 @@ partial def run (bounds : Bounds)
   let isTrend := next.mode == .locusTrend
   if wasTrend != isTrend then
     Loam.Tui.Terminal.setPointerMotion isTrend
-  let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds bounds next)
-  Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-  run bounds dataDir root next nextFrame
+  let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds activeBounds next)
+  if resized then
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+  else
+    Loam.Tui.Terminal.emitDirtyDiff activeBounds 0 0 frame nextFrame
+  run activeBounds dataDir root next nextFrame
 
 
 end Loam.Tui.ReportsSession
