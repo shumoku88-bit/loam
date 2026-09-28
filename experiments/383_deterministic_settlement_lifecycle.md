@@ -1,6 +1,6 @@
 # Observation 383 — deterministic Settlement lifecycle composition
 
-Status: **EXECUTABLE PILOT — Settlement frontier/revision composition; no production architecture change**
+Status: **QUALIFIED EXECUTABLE PILOT — Settlement frontier/revision composition replayed deterministically; no production architecture change**
 
 Baseline:
 
@@ -154,6 +154,30 @@ The complete scenario runs twice in distinct household roots.
 Both executions must produce identical counters and byte-for-byte identical final canonical actual.loam.
 
 A passing replay is not a proof of exhaustive behavior. It is an implementation-composition witness with exact reproducibility.
+
+## Executed result
+
+The shared Lean qualification completed successfully:
+
+```text
+workflow: Lean Application Qualifications
+run:      36371132050
+job:      Replay deterministic Settlement lifecycle composition
+result:   SUCCESS
+
+amountCorrections:      1
+reductions:             1
+reductionCorrections:   1
+reductionRetractions:   1
+commitmentRetractions:  1
+refusals:               5
+```
+
+The complete history was replayed in two isolated household roots and produced identical final canonical Actual bytes and identical counters.
+
+The final current corrected commitment retained 700 JPY of historical physical settlement through its correction lineage, retained no current extinguishment after reduction retraction, and reported 500 JPY outstanding.
+
+All refused operations preserved canonical Actual bytes exactly.
 
 ## Relationship to existing Settlement tests
 
