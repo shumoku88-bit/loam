@@ -661,12 +661,14 @@ private def updateTrendSeriesPicker
       { state := { state with
           trendCompare := Loam.Tui.LocusTrendComparePane.movePicker state.trendCompare false
           notice := "" } }
-  | .input '1' | .input '2' | .input '3' =>
+  | .input '1' | .input '2' | .input '3' | .input '4' | .input '5' =>
       let slot :=
         match key with
         | .input '1' => 0
         | .input '2' => 1
-        | _ => 2
+        | .input '3' => 2
+        | .input '4' => 3
+        | _ => 4
       if slot < min Loam.Tui.LocusTrendComparePane.maxSeries
           (state.trendCompareSeries.length + 1) then
         { state := { state with
