@@ -39,7 +39,7 @@ partial def run (bounds : Bounds)
   let key ← Loam.Tui.Terminal.readKey
   let activeBounds ←
     match key with
-    | .other | .pointer _ _ => pure bounds
+    | .other | .pointer _ _ | .pointerMotion _ _ => pure bounds
     | _ => Loam.Tui.Terminal.currentBounds
   let resized := activeBounds != bounds
   let step := Loam.Tui.Reports.updateForBounds activeBounds state key
