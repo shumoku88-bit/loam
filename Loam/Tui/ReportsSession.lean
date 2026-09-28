@@ -4,7 +4,6 @@ import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.LocusAdmissionAuthority
 import Loam.LocusCatalog
-import Loam.LocusTrendReview
 import Loam.LocusTrendCompareReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
@@ -127,21 +126,6 @@ partial def run (bounds : Bounds)
         | .ok snapshot =>
             pure (Loam.Tui.Reports.withLocusTrendCompareSnapshot step.state snapshot)
         | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
-    | some (.locusTrendOverview observedAt coordinate) =>
-        match ← Loam.LocusTrendReview.loadConfiguredOverview
-            dataDir root observedAt coordinate with
-        | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendOverview step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
-    | some (.locusTrendHistory observedAt coordinate) =>
-        match ← Loam.LocusTrendReview.loadConfiguredHistory
-            dataDir root observedAt coordinate with
-        | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendHistory step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
-    | some (.locusTrend start endExclusive coordinate) =>
-        match ← Loam.LocusTrendReview.loadSnapshot
-            root start endExclusive coordinate with
-        | .ok snapshot => pure (Loam.Tui.Reports.withLocusTrendSnapshot step.state snapshot)
-        | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
     | some .favaProjection =>
         let notice ← Loam.Tui.FavaLaunch.launch dataDir root
         pure { step.state with notice := notice }
@@ -156,18 +140,13 @@ partial def run (bounds : Bounds)
     else
       pure next
   /-
-  Single-Locus Trend keeps hover-style all-pointer-motion reporting.
-  Trend Compare uses button-motion reporting: click and drag can scrub periods,
+  Unified Trend uses button-motion reporting: click and drag can scrub periods,
   while passive hover remains inert.
   -/
   let hadButtonMotion := state.mode == .locusTrendCompare
   let wantsButtonMotion := next.mode == .locusTrendCompare
   if hadButtonMotion != wantsButtonMotion then
     Loam.Tui.Terminal.setButtonMotion wantsButtonMotion
-  let hadPointerMotion := state.mode == .locusTrend
-  let wantsPointerMotion := next.mode == .locusTrend
-  if hadPointerMotion != wantsPointerMotion then
-    Loam.Tui.Terminal.setPointerMotion wantsPointerMotion
   let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds activeBounds next)
   if resized then
     Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame

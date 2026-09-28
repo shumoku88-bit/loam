@@ -202,17 +202,6 @@ def setTerminalMode (mode : String) : IO Unit := do
       args := #["-c", "stty " ++ mode ++ " < /dev/tty"] }
 
 /--
-Enable or disable all-pointer-motion reporting while preserving SGR coordinates.
-
-Production uses this only for surfaces that explicitly benefit from hover-style
-selection. Ordinary TUI workspaces keep button-only reporting and therefore do
-not receive a stream of mouse-motion events.
--/
-def setPointerMotion (enabled : Bool) : IO Unit := do
-  IO.print (if enabled then "\x1b[?1003h" else "\x1b[?1003l")
-  (← IO.getStdout).flush
-
-/--
 Enable or disable button-motion reporting. Unlike all-pointer-motion, this emits
 motion only while a mouse button is held, which supports drag/scrub interaction
 without turning ordinary hover into selection.

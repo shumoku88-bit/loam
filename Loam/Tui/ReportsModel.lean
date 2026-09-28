@@ -4,7 +4,6 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.LocusCatalog
-import Loam.LocusTrendReview
 import Loam.LocusTrendCompareReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
@@ -16,7 +15,6 @@ import Loam.RoleBalanceReview
 import Loam.ScheduledCoverageReview
 import Loam.Tui.ReportComparison
 import Loam.Tui.ReportWindow
-import Loam.Tui.LocusTrendPane
 import Loam.Tui.LocusTrendComparePane
 import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Calendar
@@ -53,7 +51,6 @@ inductive Mode where
   | budgetWindow
   | scheduledCoverage
   | locusTrendCompare
-  | locusTrend
   deriving Repr, DecidableEq
 
 structure LiquidityForm where
@@ -79,15 +76,6 @@ inductive Query where
       (granularity : Loam.LocusTrendCompareReview.Granularity)
       (scope : Loam.LocusTrendCompareReview.Scope)
       (series : List Loam.LocusTrendCompareReview.SeriesSpec)
-  | locusTrendOverview
-      (observedAt : String)
-      (coordinate : Loam.Core.EffectCoordinate)
-  | locusTrendHistory
-      (observedAt : String)
-      (coordinate : Loam.Core.EffectCoordinate)
-  | locusTrend
-      (start endExclusive : String)
-      (coordinate : Loam.Core.EffectCoordinate)
   | favaProjection
   deriving Repr, DecidableEq
 
@@ -99,7 +87,7 @@ def defaultTrendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 11 := ⟨0, by decide⟩
+  menuIndex : Fin 10 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
   comparison : Loam.Tui.ReportComparison.State := {}
   liquidityForm : LiquidityForm := {}
@@ -119,9 +107,6 @@ structure State where
   trendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
     defaultTrendCompareSeries
   trendCompare : Loam.Tui.LocusTrendComparePane.State := {}
-  trendCoordinate : Loam.Core.EffectCoordinate :=
-    ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
-  trend : Loam.Tui.LocusTrendPane.State := {}
   notice : String := ""
   scroll : Nat := 0
 
@@ -233,30 +218,6 @@ def withLocusTrendCompareSnapshot
       scroll := 0 }
 
 
-def withLocusTrendOverview
-    (state : State) (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : State :=
-  { state with
-      trend := Loam.Tui.LocusTrendPane.withOverview state.trend snapshot
-      notice := ""
-      scroll := 0 }
-
-
-def withLocusTrendHistory
-    (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
-  { state with
-      trend := Loam.Tui.LocusTrendPane.withHistory state.trend snapshot
-      notice := ""
-      scroll := 0 }
-
-
-def withLocusTrendSnapshot
-    (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
-  { state with
-      trend := Loam.Tui.LocusTrendPane.withSnapshot state.trend snapshot
-      notice := ""
-      scroll := 0 }
-
-
 def withTrendError (state : State) (message : String) : State :=
   { state with notice := message, scroll := 0 }
 
@@ -274,7 +235,6 @@ def withError (state : State) (message : String) : State :=
       budgetSnapshot := none
       scheduledCoverageSnapshot := none
       trendCompare := Loam.Tui.LocusTrendComparePane.clear state.trendCompare
-      trend := Loam.Tui.LocusTrendPane.clear state.trend
       notice := message
       scroll := 0 }
 
@@ -291,7 +251,6 @@ private def clearResults (state : State) : State :=
       budgetSnapshot := none
       scheduledCoverageSnapshot := none
       trendCompare := Loam.Tui.LocusTrendComparePane.clear state.trendCompare
-      trend := Loam.Tui.LocusTrendPane.clear state.trend
       scroll := 0 }
 
 
@@ -347,7 +306,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 10) % 11 else (state.menuIndex.val + 1) % 11
+  let next := if back then (state.menuIndex.val + 9) % 10 else (state.menuIndex.val + 1) % 10
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -413,12 +372,11 @@ private def selectMenuMode (state : State) : State :=
     | 6 => Mode.scheduledCoverage
     | 7 => Mode.multimeasureSpend
     | 8 => Mode.locusTrendCompare
-    | 9 => Mode.locusTrend
     | _ => Mode.stockFlow
   { state with mode := mode, notice := "", scroll := 0 }
 
 private def selectMenuStep (state : State) : Step :=
-  if state.menuIndex.val == 10 then
+  if state.menuIndex.val == 9 then
     { state, query := some .favaProjection }
   else
     let next := selectMenuMode state
@@ -432,10 +390,6 @@ private def selectMenuStep (state : State) : Step :=
             next.window.calendarAnchor next.trendCompare.granularity
             (Loam.Tui.LocusTrendComparePane.effectiveScope next.trendCompare)
             next.trendCompareSeries) }
-    | .locusTrend =>
-        { state := next,
-          query := some (.locusTrendOverview
-            next.window.calendarAnchor next.trendCoordinate) }
     | _ => { state := next }
 
 private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
@@ -469,11 +423,6 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           next.window.calendarAnchor next.trendCompare.granularity
           (Loam.Tui.LocusTrendComparePane.effectiveScope next.trendCompare)
           next.trendCompareSeries) }
-  | .input 'g' | .input 'G' =>
-      let next := { state with mode := .locusTrend, notice := "", scroll := 0 }
-      { state := next,
-        query := some (.locusTrendOverview
-          next.window.calendarAnchor next.trendCoordinate) }
   | .input 'f' | .input 'F' =>
       { state, query := some .favaProjection }
   | _ => { state }
@@ -490,19 +439,6 @@ private def queryForMode (state : State) : Option Query :=
         state.window.calendarAnchor state.trendCompare.granularity
         (Loam.Tui.LocusTrendComparePane.effectiveScope state.trendCompare)
         state.trendCompareSeries)
-  | .locusTrend =>
-      if Loam.Tui.LocusTrendPane.isOverview state.trend then
-        some (.locusTrendOverview
-          state.window.calendarAnchor state.trendCoordinate)
-      else if Loam.Tui.LocusTrendPane.isHistory state.trend then
-        some (.locusTrendHistory
-          state.window.calendarAnchor state.trendCoordinate)
-      else
-        match state.trend.snapshot with
-        | some snapshot =>
-            some (.locusTrend
-              snapshot.start snapshot.endExclusive state.trendCoordinate)
-        | none => none
   | _ => none
 
 private def comparisonQueryForMode (state : State) : Option Query :=
@@ -818,59 +754,6 @@ private def updateLocusTrendCompare
     | _ => { state }
 
 
-private def updateLocusTrend
-    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  match key with
-  | .escape | .input 'q' | .input 'Q' =>
-      if Loam.Tui.LocusTrendPane.isOverview state.trend then
-        { state := { state with mode := .menu, notice := "", scroll := 0 } }
-      else
-        { state := { state with
-            trend := Loam.Tui.LocusTrendPane.backToOverview state.trend
-            notice := ""
-            scroll := 0 } }
-  | .left | .input 'h' | .input 'H' =>
-      { state := { state with
-          trend := Loam.Tui.LocusTrendPane.moveSelection state.trend true
-          notice := "" } }
-  | .right | .input 'l' | .input 'L' =>
-      { state := { state with
-          trend := Loam.Tui.LocusTrendPane.moveSelection state.trend false
-          notice := "" } }
-  | .input 'd' | .input 'D' =>
-      if Loam.Tui.LocusTrendPane.isHistory state.trend then
-        { state := { state with
-            trend := Loam.Tui.LocusTrendPane.backToOverview state.trend
-            notice := "" } }
-      else
-        match state.trend.history with
-        | some _ =>
-            { state := { state with
-                trend := Loam.Tui.LocusTrendPane.backToHistory state.trend
-                notice := "" } }
-        | none =>
-            { state,
-              query := some (.locusTrendHistory
-                state.window.calendarAnchor state.trendCoordinate) }
-  | .input 'r' | .input 'R' =>
-      { state := { state with
-          trend := Loam.Tui.LocusTrendPane.cycleRenderer state.trend
-          notice := "" } }
-  | .enter =>
-      if Loam.Tui.LocusTrendPane.isOverview state.trend then
-        match Loam.Tui.LocusTrendPane.selectedOverviewPoint? state.trend with
-        | none =>
-            { state := { state with notice := "No configured trend window is selected." } }
-        | some point =>
-            { state,
-              query := some (.locusTrend
-                point.start point.throughExclusive state.trendCoordinate) }
-      else if Loam.Tui.LocusTrendPane.isHistory state.trend then
-        { state }
-      else
-        { state, query := queryForMode state }
-  | _ => { state }
-
 private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
@@ -949,6 +832,5 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .liquidity => updateLiquidity state key
   | .scheduledCoverage => updateScheduledCoverage state key
   | .locusTrendCompare => updateLocusTrendCompare state key
-  | .locusTrend => updateLocusTrend state key
 
 end Loam.Tui.Reports
