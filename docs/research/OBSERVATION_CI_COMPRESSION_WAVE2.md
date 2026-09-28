@@ -180,6 +180,12 @@ The corresponding research notes retain those conclusions in prose, while
 Observation 186 remains live because it still provides concrete regression
 witnesses for the production Scheduled suppression comparison.
 
+Observation 186's separate discovery note has now graduated to Git history:
+its pressure, typed suppression boundary, lifecycle refusal behavior, and stop
+rules are already carried by the live Lean witness and the production
+`ScheduledBalanceHypothetical` boundary. The Lean module remains selected and
+compiled as the regression owner.
+
 The three intermediate Lean probes therefore graduate to Git history rather
 than remain compiled source.
 
