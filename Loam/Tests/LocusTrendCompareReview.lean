@@ -7,6 +7,12 @@ set_option autoImplicit false
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def requireSome {α : Type}
+    (value : Option α) (message : String) : IO α :=
+  match value with
+  | some result => pure result
+  | none => throw (IO.userError message)
+
 private def record
     (id date locus : String) (quanta : Int) :
     Loam.ActualReview.Record :=
@@ -54,9 +60,12 @@ def main : IO Unit := do
   expect (snapshot.pointCount == 2)
     "Trend Compare did not align every series on the same configured windows"
 
-  let tobacco := snapshot.series[0]!
-  let coffee := snapshot.series[1]!
-  let food := snapshot.series[2]!
+  let tobacco ← requireSome snapshot.series[0]?
+    "Trend Compare lost tobacco series"
+  let coffee ← requireSome snapshot.series[1]?
+    "Trend Compare lost coffee series"
+  let food ← requireSome snapshot.series[2]?
+    "Trend Compare lost food series"
   expect
     (tobacco.points.map (·.dailyAverageQuanta) == [500, 600])
     "Trend Compare changed tobacco cycle averages"
