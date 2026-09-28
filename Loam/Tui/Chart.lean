@@ -22,9 +22,12 @@ Three renderers share the same geometry:
 * `block`: one full-block sample per terminal cell;
 * `ascii`: one ASCII star sample per terminal cell.
 
-Selection and pointer hit-testing are renderer-independent. A crosshair is
-overlaid in ordinary single-cell Unicode so keyboard, click, and hover all
-address the same logical point.
+Logical observations can be overlaid as markers independently of the
+interpolated presentation line. This keeps sparse observed data visually honest:
+the line connects observations, while the markers show where observations
+actually exist.
+
+Selection and pointer hit-testing are renderer-independent.
 -/
 
 inductive Renderer where
@@ -52,6 +55,22 @@ structure Range where
   high : Int
   deriving Repr, DecidableEq
 
+structure Scale where
+  range : Range
+  step : Nat
+  ticks : List Int
+  deriving Repr, DecidableEq
+
+inductive MarkerKind where
+  | observed
+  | partial
+  deriving Repr, DecidableEq
+
+structure Marker where
+  index : Nat
+  kind : MarkerKind
+  deriving Repr, DecidableEq
+
 private def minMax? : List Int → Option (Int × Int)
   | [] => none
   | first :: rest =>
@@ -59,30 +78,75 @@ private def minMax? : List Int → Option (Int × Int)
         (fun (low, high) value => (min low value, max high value))
         (first, first)
 
-/--
-Choose a readable vertical range without forcing zero into an all-positive or
-all-negative series.
+private def magnitude10 (value : Nat) : Nat :=
+  (List.range 24).foldl
+    (fun power _ =>
+      if power * 10 <= max 1 value then power * 10 else power)
+    1
 
-A flat positive series around 500 therefore gets visible vertical breathing
-room instead of being crushed against a 0..500 axis. Crossing-zero data keeps
-zero naturally inside the range.
+private def niceStep (raw : Nat) : Nat :=
+  let wanted := max 1 raw
+  let base := magnitude10 wanted
+  if wanted <= base then base
+  else if wanted <= base * 2 then base * 2
+  else if wanted <= base * 5 then base * 5
+  else base * 10
+
+private def floorToStep (value : Int) (step : Nat) : Int :=
+  let size := Int.ofNat (max 1 step)
+  if value >= 0 then
+    (value / size) * size
+  else
+    - (((-value + size - 1) / size) * size)
+
+private def ceilToStep (value : Int) (step : Nat) : Int :=
+  let size := Int.ofNat (max 1 step)
+  if value >= 0 then
+    ((value + size - 1) / size) * size
+  else
+    - (((-value) / size) * size)
+
+private def ticksBetween (low high : Int) (step : Nat) : List Int :=
+  let size := Int.ofNat (max 1 step)
+  let count := ((high - low) / size).natAbs + 1
+  (List.range count).map fun index =>
+    low + Int.ofNat (index * max 1 step)
+
+/--
+Choose human-readable axis bounds and ticks.
+
+The requested interval count is a readability hint, not report semantics.
+Bounds are rounded outward to 1/2/5×10^n steps. Flat series receive breathing
+room first, so a stable quantity around 500 remains visible without forcing
+zero into the chart.
 -/
-def rangeFor (values : List Int) : Range :=
+def scaleFor (values : List Int) (desiredIntervals : Nat := 4) : Scale :=
   match minMax? values with
-  | none => { low := 0, high := 1 }
-  | some (low, high) =>
-      if low = high then
-        let pad := max 1 (low.natAbs / 10)
-        { low := low - Int.ofNat pad, high := high + Int.ofNat pad }
-      else
-        let spread := (high - low).natAbs
-        let pad := max 1 (spread / 5)
-        let paddedLow := low - Int.ofNat pad
-        let paddedHigh := high + Int.ofNat pad
-        {
-          low := if low >= 0 then max 0 paddedLow else paddedLow
-          high := if high <= 0 then min 0 paddedHigh else paddedHigh
-        }
+  | none =>
+      { range := { low := 0, high := 1 }, step := 1, ticks := [0, 1] }
+  | some (minimum, maximum) =>
+      let (seedLow, seedHigh) :=
+        if minimum = maximum then
+          let pad := max 1 (minimum.natAbs / 10)
+          (minimum - Int.ofNat pad, maximum + Int.ofNat pad)
+        else
+          (minimum, maximum)
+      let spread := max 1 (seedHigh - seedLow).natAbs
+      let intervals := max 1 desiredIntervals
+      let rawStep := max 1 ((spread + intervals - 1) / intervals)
+      let step := niceStep rawStep
+      let low := floorToStep seedLow step
+      let high0 := ceilToStep seedHigh step
+      let high := if high0 <= low then low + Int.ofNat step else high0
+      {
+        range := { low := low, high := high }
+        step := step
+        ticks := ticksBetween low high step
+      }
+
+/-- Compatibility range for callers that do not need explicit nice ticks. -/
+def rangeFor (values : List Int) : Range :=
+  (scaleFor values).range
 
 def xForIndex (width count index : Nat) : Nat :=
   if width <= 1 || count <= 1 then 0
@@ -180,22 +244,42 @@ private def selectedPoint
     (values : List Int) (selected : Nat) : Int :=
   values[selected]?.getD (values.getLast?.getD 0)
 
-/--
-Render only the rectangular plot body.
+private def distance (left right : Nat) : Nat :=
+  if left <= right then right - left else left - right
 
-The selected logical point is shown with a crosshair. The underlying series
-glyph is retained everywhere except the exact intersection, which becomes a
-single-cell diamond. This keeps the cursor visible in Braille, block, and ASCII
-modes without changing hit-testing geometry.
+private def markerAt?
+    (markers : List Marker)
+    (values : List Int) (range : Range)
+    (width height col row : Nat) : Option Marker :=
+  markers.find? fun marker =>
+    match values[marker.index]? with
+    | none => false
+    | some value =>
+        xForIndex width values.length marker.index = col &&
+        rowForValue height range value = row
+
+private def markerGlyph
+    (marker : Marker) (selected : Nat) : Char :=
+  match marker.kind with
+  | .partial => '◇'
+  | .observed => if marker.index = selected then '◆' else '●'
+
+/--
+Render one rectangular plot body in an explicit range.
+
+Observed markers are independent from the interpolated line. The selected point
+gets a quiet vertical guide plus a short local horizontal guide rather than a
+full-width horizontal ruler.
 -/
-def render
+def renderInRange
     (renderer : Renderer)
     (width height : Nat)
     (values : List Int)
-    (selected : Nat) : List Widget :=
+    (selected : Nat)
+    (range : Range)
+    (markers : List Marker := []) : List Widget :=
   let actualWidth := max 1 width
   let actualHeight := max 1 height
-  let range := rangeFor values
   let selectedX :=
     xForIndex actualWidth values.length selected
   let selectedY :=
@@ -204,16 +288,29 @@ def render
     let spans :=
       (List.range actualWidth).map fun col =>
         let base := cellGlyph renderer values range actualWidth actualHeight col row
-        if col = selectedX && row = selectedY then
-          span "◆" .selected
-        else if col = selectedX then
-          if base = ' ' then span "│" .muted
-          else span (String.ofList [base]) .selected
-        else if row = selectedY then
-          if base = ' ' then span "─" .muted
-          else span (String.ofList [base]) .selected
-        else
-          span (String.ofList [base])
+        match markerAt? markers values range actualWidth actualHeight col row with
+        | some marker =>
+            span (String.ofList [markerGlyph marker selected])
+              (if marker.index = selected then .selected else .normal)
+        | none =>
+            if col = selectedX && row = selectedY then
+              span "◆" .selected
+            else if col = selectedX then
+              if base = ' ' then span "│" .muted
+              else span (String.ofList [base])
+            else if row = selectedY && distance col selectedX <= 2 then
+              if base = ' ' then span "─" .muted
+              else span (String.ofList [base])
+            else
+              span (String.ofList [base])
     .row spans
+
+/-- Render with the default nice range and no explicit observed markers. -/
+def render
+    (renderer : Renderer)
+    (width height : Nat)
+    (values : List Int)
+    (selected : Nat) : List Widget :=
+  renderInRange renderer width height values selected (rangeFor values)
 
 end Loam.Tui.Chart
