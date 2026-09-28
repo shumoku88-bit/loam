@@ -214,7 +214,7 @@ private def observedMarkers (state : State) : List Loam.Tui.Chart.Marker :=
             kind := if point.complete then
               Loam.Tui.Chart.MarkerKind.observed
             else
-              Loam.Tui.Chart.MarkerKind.partial
+              Loam.Tui.Chart.MarkerKind.incomplete
           }) |>.getD []
   | .detail => []
 
