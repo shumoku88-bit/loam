@@ -14,6 +14,8 @@ Observation 381 merged as #1450
 
 Observation 381 established a small deterministic production-replay layer for Movement publication and idempotent retry.
 
+This belongs to LOAM's **deterministic production-history testing** layer. It is an ordered replay scenario, not a claim of TigerBeetle-style DST, randomized state-space exploration, or a simulated execution environment.
+
 The next question is not merely whether more writers can be called from the same test.
 
 Correction and Actual Reversal have an order-sensitive shared boundary:
@@ -145,7 +147,7 @@ Observation 382 asks a different question:
 
 > Does a sequence of successful and refused writes preserve all prior evidence when the admissibility of the next writer depends on what an earlier writer retained?
 
-That is the niche deterministic scenario testing adds beside isolated regressions.
+That is the niche deterministic production-history testing adds beside isolated regressions.
 
 ## Expansion gate
 
@@ -157,6 +159,6 @@ commitment
 -> revision / retraction
 ```
 
-Do not add a generic simulator framework yet. Two Actual mutation writers can still be expressed clearly with an explicit scenario.
+Do not add a generic scenario-runner or simulator framework yet. Two Actual mutation writers can still be expressed clearly with an explicit scenario.
 
-A shared simulator abstraction is earned only if adding Settlement or Scheduled recovery reveals genuinely repeated scenario machinery rather than merely repeated test assertions.
+A shared scenario-runner abstraction is earned only if adding Settlement or Scheduled recovery reveals genuinely repeated scenario machinery rather than merely repeated test assertions.
