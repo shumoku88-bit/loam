@@ -429,7 +429,8 @@ private def selectMenuStep (state : State) : Step :=
         { state := next,
           query := some (.locusTrendCompare
             next.window.calendarAnchor next.trendCompare.granularity
-            next.trendCompare.scope next.trendCompareSeries) }
+            (Loam.Tui.LocusTrendComparePane.effectiveScope next.trendCompare)
+            next.trendCompareSeries) }
     | .locusTrend =>
         { state := next,
           query := some (.locusTrendOverview
@@ -465,7 +466,8 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       { state := next,
         query := some (.locusTrendCompare
           next.window.calendarAnchor next.trendCompare.granularity
-          next.trendCompare.scope next.trendCompareSeries) }
+          (Loam.Tui.LocusTrendComparePane.effectiveScope next.trendCompare)
+          next.trendCompareSeries) }
   | .input 'g' | .input 'G' =>
       let next := { state with mode := .locusTrend, notice := "", scroll := 0 }
       { state := next,
@@ -485,7 +487,8 @@ private def queryForMode (state : State) : Option Query :=
   | .locusTrendCompare =>
       some (.locusTrendCompare
         state.window.calendarAnchor state.trendCompare.granularity
-        state.trendCompare.scope state.trendCompareSeries)
+        (Loam.Tui.LocusTrendComparePane.effectiveScope state.trendCompare)
+        state.trendCompareSeries)
   | .locusTrend =>
       if Loam.Tui.LocusTrendPane.isOverview state.trend then
         some (.locusTrendOverview
@@ -688,12 +691,18 @@ private def updateLocusTrendCompare
       let trendCompare :=
         Loam.Tui.LocusTrendComparePane.changeScope state.trendCompare true
       let next := { state with trendCompare := trendCompare, notice := "" }
-      { state := next, query := queryForMode next }
+      if trendCompare.scope == state.trendCompare.scope then
+        { state := next }
+      else
+        { state := next, query := queryForMode next }
   | .input 'S' =>
       let trendCompare :=
         Loam.Tui.LocusTrendComparePane.changeScope state.trendCompare false
       let next := { state with trendCompare := trendCompare, notice := "" }
-      { state := next, query := queryForMode next }
+      if trendCompare.scope == state.trendCompare.scope then
+        { state := next }
+      else
+        { state := next, query := queryForMode next }
   | .input 'r' | .input 'R' =>
       { state := { state with
           trendCompare :=
