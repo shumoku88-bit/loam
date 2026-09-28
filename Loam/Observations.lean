@@ -21,10 +21,6 @@ import Loam.Observations.Observation260
 import Loam.Observations.Observation261
 import Loam.Observations.Observation262
 import Loam.Observations.Observation270
-import Loam.Observations.Observation277
-import Loam.Observations.Observation279
-import Loam.Observations.Observation280
-import Loam.Observations.Observation281
 import Loam.Observations.Observation282
 import Loam.Observations.Observation283
 import Loam.Observations.StructuralS003
@@ -167,6 +163,15 @@ Research compaction notes:
   the Locus × Measure distinction, while `ZeroOriginQuantity` owns the
   covered/uncovered fail-closed inspection theorems. Product correctness no
   longer depends on the historical finite JPY/USD witness.
+- 2026-09-28: Observations 277 and 279–281 retired after the
+  Movement idempotency research sequence became direct production behavior.
+  `EventMemory` keeps structural EventId uniqueness separate from semantic retry
+  identity; `MovementOperationEvidenceMemory` retains a one-to-one
+  `MovementOperationId -> EventId` relation; and
+  `MovementPublisher.publishDraftIdempotent` performs lookup and first
+  publication under one Actual writer ownership, returning the original EventId
+  on replay without treating draft equality as identity. The finite precursor
+  models and duplicate-draft pressure remain in Git history.
 - 2026-09-28: Observations 359 and 360 retired after the settlement family
   reached production. Their delayed cross-Measure commitment, exact later-Effect
   correspondence, and "keep OpenRelation source-bounded" conclusions are now
