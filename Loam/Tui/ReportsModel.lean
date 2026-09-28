@@ -657,12 +657,12 @@ private def updateLocusTrendCompare
   match key with
   | .escape | .input 'q' | .input 'Q' =>
       { state := { state with mode := .menu, notice := "", scroll := 0 } }
-  | .left | .input 'h' | .input 'H' =>
+  | .left | .up | .input 'h' | .input 'H' =>
       { state := { state with
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.moveSelection state.trendCompare true
           notice := "" } }
-  | .right | .input 'l' | .input 'L' =>
+  | .right | .down | .input 'l' | .input 'L' =>
       { state := { state with
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.moveSelection state.trendCompare false
