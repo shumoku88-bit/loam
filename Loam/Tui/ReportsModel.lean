@@ -673,7 +673,7 @@ private def updateLocusTrendCompare
         let changed := trendCompare.series != state.trendCompare.series
         let next := { state with trendCompare := trendCompare, notice := "" }
         if changed then { state := next, query := queryForMode next }
-        else { state := next, notice := "No additional Locus selected." }
+        else { state := { next with notice := "No additional Locus selected." } }
     | _ => { state }
   else
     match key with
@@ -710,7 +710,7 @@ private def updateLocusTrendCompare
         if changed then
           { state := next, query := queryForMode next }
         else
-          { state := next, notice := "Trend keeps at least one visible Locus." }
+          { state := { next with notice := "Trend keeps at least one visible Locus." } }
     | .left | .up | .input 'h' | .input 'H' =>
         { state := { state with
             trendCompare :=
