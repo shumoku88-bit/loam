@@ -195,5 +195,11 @@ concrete unsupported workflow.
 The exact Observation 371 and 372 checkpoint prose remains available in Git
 history.
 
+The original Lean precursors for Observations 359 and 360 have also graduated
+from the working tree. Their durable conclusions are now direct production
+contracts: independently measured settlement commitments remain additive beside
+source-bounded OpenRelation, and direct settlement names an exact later
+Event/Effect rather than relying on Event-level discharge alone.
+
 The working tree now keeps the current owners, current qualification surfaces,
 live independent settlement research, and this compressed durable rationale.

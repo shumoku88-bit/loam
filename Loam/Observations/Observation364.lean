@@ -10,7 +10,8 @@ set_option autoImplicit false
 /-!
 # Observation 364 — settlement direction belongs to obligation endpoints, not quantity sign
 
-Observations 359-363 refined a settlement family around:
+The production settlement boundary, together with the remaining live
+correspondence studies, has refined a settlement family around:
 
     SettlementCommitment
       source provenance

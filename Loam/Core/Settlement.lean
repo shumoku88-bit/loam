@@ -7,8 +7,9 @@ set_option autoImplicit false
 /-!
 # Settlement vocabulary
 
-Observations 359–378 qualified a settlement family that remains additive beside
-`OpenRelation`.
+The settlement research sequence beginning with Observations 359–360 and
+continuing through later lifecycle probes qualified a family that remains
+additive beside `OpenRelation`.
 
 The distinction is intentional:
 

@@ -9,7 +9,8 @@ set_option autoImplicit false
 /-!
 # Observation 361 — settlement correspondence needs its own exact quantity
 
-Observation 360 selected the cleaner current architecture:
+The production settlement boundary now owns the architectural split first
+selected by the retired Observation 360 precursor:
 
     source-bounded OpenRelation
         !=
@@ -17,7 +18,8 @@ Observation 360 selected the cleaner current architecture:
         +
     later SettlementEffectCorrespondence
 
-The remaining question is correspondence granularity.
+This live observation keeps the next independent question: correspondence
+granularity.
 
 If every physical settlement Effect belongs wholly to one commitment, this shape
 can appear sufficient:
@@ -531,8 +533,8 @@ Repeated pressure now exists across:
 - partial multi-Event settlement;
 - one-Effect-to-many-commitment allocation.
 
-That is substantially stronger evidence for a reusable settlement family than
-Observation 359 alone.
+That is substantially stronger evidence than the retired first
+delayed-settlement precursor alone.
 
 Still not earned:
 
