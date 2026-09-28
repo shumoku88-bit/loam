@@ -84,8 +84,6 @@ import Loam.Observations.Observation355
 import Loam.Observations.Observation356
 import Loam.Observations.Observation357
 import Loam.Observations.Observation358
-import Loam.Observations.Observation361
-import Loam.Observations.Observation362
 import Loam.Observations.Observation363
 import Loam.Observations.Observation364
 import Loam.Observations.Observation365
@@ -168,6 +166,12 @@ Research compaction notes:
   correspondence, and "keep OpenRelation source-bounded" conclusions are now
   owned by Core.Settlement, Application.SettlementFrontier, the durable
   settlement boundary note, and focused production regressions.
+- 2026-09-28: Observations 361 and 362 retired after exact correspondence
+  quantity, partial/multi-target allocation, aggregate safety, retained
+  correspondence version identity, generic replacement-frontier correction, and
+  atomic settlement batch publication became production behavior. Observation
+  363 remains live because complete-allocation publication is still an optional
+  semantic promise distinct from incremental reconciliation.
 
 Retired source remains available in Git history.
 -/

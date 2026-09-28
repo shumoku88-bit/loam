@@ -495,7 +495,7 @@ Old and corrected membership rows deliberately share:
 
 while differing in Quantity.
 
-So, exactly as with settlement-correspondence correction in Observation 362,
+So, exactly as production settlement correspondence correction now does,
 append-only one-to-one replacement needs a version identity distinct from the
 semantic member coordinate.
 

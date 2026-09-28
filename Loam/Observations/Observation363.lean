@@ -5,10 +5,15 @@ set_option autoImplicit false
 /-!
 # Observation 363 — real workflows separate incremental reconciliation from complete allocation publication
 
-Observation 362 left one practical question open:
+Production now owns row-wise settlement correspondence correction with retained
+version identity, generic replacement-frontier mechanics, and atomic publication
+of each explicit settlement batch.
 
-> Does a real settlement workflow require several correspondence revisions to
-> become current together, or is row-by-row correction sufficient?
+One independent question remains live here:
+
+> Does a real settlement workflow require a *complete allocation* semantic
+> publication promise, or is incrementally admitted row-wise reconciliation
+> sufficient?
 
 External workflow research gives evidence in both directions.
 
@@ -75,7 +80,7 @@ private def attributedTotal (rows : List AllocationRow) : Nat :=
   rows.foldl (fun total row => total + row.quantity) 0
 
 /--
-The weak settlement/reconciliation law from Observations 361-362.
+The production settlement frontier's weak incremental reconciliation law.
 
 Rows must be positive and may not collectively consume more than the physical
 movement. Under-attribution is allowed because it represents an open remainder.
@@ -150,7 +155,7 @@ and other workflows where a physical movement may remain partly unattributed:
     sum(current correspondence quantities)
       <= physical Effect magnitude
 
-A partial current frontier is meaningful. Observation 362's 600/300 state is
+A partial current frontier is meaningful. The selected 600/300 state is
 therefore not, by itself, a semantic failure.
 
 ### Authority B — complete allocation publication
