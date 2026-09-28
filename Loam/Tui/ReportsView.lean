@@ -561,23 +561,8 @@ private def multimeasureSpendView (state : State) : Widget :=
 
 private def locusTrendView
     (state : State) (bounds : Option Bounds) : Widget :=
-  let terminal := bounds.getD { width := 80, height := 24 }
-  .column <|
-    [ line "Reports / Locus Trend"
-    , muted "How did one exact Locus / Measure quantity move across this explicit window?"
-    , line ("Window: " ++ windowSourceLabel state ++
-        "  [" ++ state.window.form.start ++ ", " ++
-        state.window.form.endExclusive ++ ")")
-    , muted "No spending/refund meaning is inferred from sign or description text."
-    , blank
-    ] ++
-    Loam.Tui.LocusTrendPane.lines terminal state.trend ++
-    [ blank
-    , muted "←/→ or h/l select day   [ / ] window source   m calendar month   Enter refresh"
-    , muted "Click a sparkline column to select that visible day."
-    , muted "q / Esc Reports menu"
-    , line state.notice
-    ]
+  Loam.Tui.LocusTrendPane.viewFullScreen
+    (bounds.getD { width := 80, height := 24 }) state.trend state.notice
 
 private def balancesResultLines (state : State) : List Widget :=
   match state.roleBalanceSnapshot with
@@ -804,22 +789,25 @@ private def requestedOffset (state : State) (page : Nat) : Nat :=
 
 /-- Bound only presentation rows; report answers and query coordinates are unchanged. -/
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
-  let parts := viewParts state (some bounds)
-  let page := bodyPageSize bounds parts.2
-  let offset := Loam.Tui.Scroll.clamp parts.1.length page (requestedOffset state page)
-  let position := scrollPositionLine state.mode offset page parts.1.length
-  if bounds.height < parts.2.length + 1 then
-    -- In a tiny terminal, retain as much navigation as possible. Existing views
-    -- put their notice last and their most essential back/quit row immediately
-    -- before it, so reverse the navigation rows and omit body before overflowing.
-    let navigation := parts.2.dropLast.reverse
-    let notice := parts.2.getLast?.toList
-    .column <| (navigation ++ [position] ++ notice).take bounds.height
+  if state.mode = .locusTrend then
+    Loam.Tui.LocusTrendPane.viewFullScreen bounds state.trend state.notice
   else
-    .column <|
-      (parts.1.drop offset).take page ++
-      [position] ++
-      parts.2
+    let parts := viewParts state (some bounds)
+    let page := bodyPageSize bounds parts.2
+    let offset := Loam.Tui.Scroll.clamp parts.1.length page (requestedOffset state page)
+    let position := scrollPositionLine state.mode offset page parts.1.length
+    if bounds.height < parts.2.length + 1 then
+      -- In a tiny terminal, retain as much navigation as possible. Existing views
+      -- put their notice last and their most essential back/quit row immediately
+      -- before it, so reverse the navigation rows and omit body before overflowing.
+      let navigation := parts.2.dropLast.reverse
+      let notice := parts.2.getLast?.toList
+      .column <| (navigation ++ [position] ++ notice).take bounds.height
+    else
+      .column <|
+        (parts.1.drop offset).take page ++
+        [position] ++
+        parts.2
 
 /-- Apply the existing interaction grammar, then clamp presentation-only scrolling. -/
 def updateForBounds
@@ -827,10 +815,7 @@ def updateForBounds
   let pointerAdjusted :=
     match state.mode, key with
     | .locusTrend, .pointer col row =>
-        -- Normal-height Trend keeps its sparkline at physical row 12. Tiny
-        -- scrolled terminals retain keyboard navigation and simply ignore
-        -- pointer selection rather than guessing transformed geometry.
-        if row = 12 then
+        if Loam.Tui.LocusTrendPane.pointerInPlot bounds row then
           { state with
               trend := Loam.Tui.LocusTrendPane.selectColumn bounds state.trend col
               notice := "" }
@@ -841,10 +826,13 @@ def updateForBounds
     match key with
     | .pointer _ _ => { state := pointerAdjusted }
     | _ => update pointerAdjusted key
-  let parts := viewParts step.state (some bounds)
-  let page := bodyPageSize bounds parts.2
-  { step with state := { step.state with
-      scroll := Loam.Tui.Scroll.clamp parts.1.length page step.state.scroll } }
+  if step.state.mode = .locusTrend then
+    { step with state := { step.state with scroll := 0 } }
+  else
+    let parts := viewParts step.state (some bounds)
+    let page := bodyPageSize bounds parts.2
+    { step with state := { step.state with
+        scroll := Loam.Tui.Scroll.clamp parts.1.length page step.state.scroll } }
 
 /-- Unbounded compatibility view used by existing pure presentation tests. -/
 def view (state : State) : Widget := fullView state none
