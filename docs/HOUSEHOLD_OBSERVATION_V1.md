@@ -2,7 +2,9 @@
 
 `HOBS1` is a read-only comparison surface for household projections. It is not
 canonical household data, a persistence format, or a new semantic authority.
-Its first concrete use is differential observation between LOAM and HRA-N.
+Its first concrete use is differential observation between LOAM and HRA-N, and
+it may carry optional implementation-specific diagnostics for household
+consultation without promoting those diagnostics into canonical state.
 
 The v1 slice exposes three already-demonstrated query families:
 
@@ -85,8 +87,31 @@ HOBS1  scalar  NAMESPACE  NAME  UNIT  VALUE
 ```
 
 Scalars preserve useful implementation-specific diagnostics without widening
-the comparison core. Current examples include Budget totals, unallocated funds,
+the comparison core. Current examples include Budget totals, funding residuals,
 conservation delta, evidence completeness, and counts.
+
+LOAM optionally emits current-cycle funding diagnostics when the caller supplies
+an explicit `OBSERVED_AT` argument:
+
+```text
+HOBS1  meta    funding_observed_at  YYYY-MM-DD
+HOBS1  scalar  funding  budgetable_backing          jpy  AMOUNT
+HOBS1  scalar  funding  remaining_assigned          jpy  AMOUNT
+HOBS1  scalar  funding  residual_before_unresolved  jpy  AMOUNT
+```
+
+These values come from the existing `CycleFundingInspection` composition.
+`budgetable_backing` is the exact current balance selection configured by the
+household's cycle-funding policy. `remaining_assigned` sums only positive
+current Remaining across Purpose rows. `residual_before_unresolved` is their
+difference.
+
+The residual is deliberately **not** named `unallocated` and is not a
+`CapacityCoordinate.unallocated` projection. The latter is an outside
+balancing boundary, not a finite wallet of spendable money. The funding residual
+also remains explicitly "before unresolved": it is decision-support evidence,
+not a `SafeToSpend` permission or a guarantee that no unresolved future
+pressure exists.
 
 ## Comparison rule
 
