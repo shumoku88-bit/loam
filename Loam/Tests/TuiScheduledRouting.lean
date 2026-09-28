@@ -40,12 +40,12 @@ private def sampleCoverage : Loam.CurrentCoverageReview.Snapshot :=
     scheduledFrontier := some
       { unmanaged := Quantity.ofQuanta 0
         unrouted := Quantity.ofQuanta 0
-        unresolvedEligibility := Quantity.ofQuanta 4810 }
+        unresolvedEligibility := Quantity.ofQuanta 4000 }
     unresolvedScheduled :=
-      [ { subject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"wifi"⟩ }
+      [ { subject := { scheduled := ⟨"scheduled-1"⟩, locus := ⟨"service"⟩ }
           scheduledOn := "2026-10-08"
           measure := ⟨"jpy"⟩
-          quantity := Quantity.ofQuanta 4810 }
+          quantity := Quantity.ofQuanta 4000 }
       , { subject := { scheduled := ⟨"scheduled-2"⟩, locus := ⟨"gas"⟩ }
           scheduledOn := "2026-09-25"
           measure := ⟨"jpy"⟩
@@ -67,7 +67,7 @@ def main (args : List String) : IO Unit := do
   -- 2. View of selectSubject
   let v0 := text (Loam.Tui.ScheduledRouting.view bounds s0)
   expect (contains "Scheduled Routing / Select Subject" v0) "view title"
-  expect (contains "scheduled-1" v0 && contains "wifi" v0 && contains "4810 jpy" v0) "row 0 visible"
+  expect (contains "scheduled-1" v0 && contains "service" v0 && contains "4000 jpy" v0) "row 0 visible"
   expect (contains "scheduled-2" v0 && contains "gas" v0 && contains "3000 jpy" v0) "row 1 visible"
 
   -- 3. Cursor movement in selectSubject
@@ -98,7 +98,7 @@ def main (args : List String) : IO Unit := do
   -- 6. Toggle target choice
   let vTarget := text (Loam.Tui.ScheduledRouting.view bounds sTarget)
   expect (contains "Scheduled Routing / Select Route Type" vTarget) "target view title"
-  expect (contains "Subject: scheduled-1 / wifi" vTarget) "target subject shown"
+  expect (contains "Subject: scheduled-1 / service" vTarget) "target subject shown"
   let stepToggle := Loam.Tui.ScheduledRouting.update bounds sTarget .down
   expect (stepToggle.state.targetChoice == .unmanaged) "down toggled to unmanaged"
   let stepToggle2 := Loam.Tui.ScheduledRouting.update bounds stepToggle.state .tab
@@ -120,7 +120,7 @@ def main (args : List String) : IO Unit := do
   -- 9. In preview for unmanaged: check draft and Enter publish
   let draftUnmanaged ← requireSome (Loam.Tui.ScheduledRouting.draft? stepUnmanagedEnter.state) "draft unmanaged"
   expect (draftUnmanaged.subject.scheduled.token == "scheduled-1") "draft scheduled"
-  expect (draftUnmanaged.subject.locus.token == "wifi") "draft locus"
+  expect (draftUnmanaged.subject.locus.token == "service") "draft locus"
   expect (draftUnmanaged.effectiveOn == "2026-09-08") "draft effectiveOn == observedAt"
   expect (draftUnmanaged.target == .unmanaged) "draft target == unmanaged"
 
@@ -159,7 +159,7 @@ def main (args : List String) : IO Unit := do
   -- 14. In preview for managed: check draft
   let draftManaged ← requireSome (Loam.Tui.ScheduledRouting.draft? sManagedPreview) "draft managed"
   expect (draftManaged.subject.scheduled.token == "scheduled-1") "draft scheduled"
-  expect (draftManaged.subject.locus.token == "wifi") "draft locus"
+  expect (draftManaged.subject.locus.token == "service") "draft locus"
   expect (draftManaged.effectiveOn == "2026-09-08") "draft effectiveOn is observedAt, not scheduledOn"
   expect (draftManaged.effectiveOn != "2026-10-08") "draft effectiveOn never scheduledOn"
   expect (draftManaged.target == .managed ⟨"fixed-cost"⟩) "draft target managed fixed-cost"
@@ -199,8 +199,8 @@ def main (args : List String) : IO Unit := do
        "BEGIN\tScheduled\n" ++
        "LOAM-SCHEDULED-MEMORY\t1\n" ++
        "SCHEDULED\tscheduled-1\t2026-10-08\tjpy\n" ++
-       "CHANGE\tpaypay\t-4810\n" ++
-       "CHANGE\twifi\t4810\n" ++
+       "CHANGE\twallet\t-4000\n" ++
+       "CHANGE\tservice\t4000\n" ++
        "END\tScheduled\n" ++
        "BEGIN\tCompletion\nLOAM-SCHEDULED-COMPLETION-MEMORY\t1\nEND\tCompletion\n" ++
        "BEGIN\tRetirement\nLOAM-SCHEDULED-RETIREMENT-MEMORY\t1\nEND\tRetirement\n" ++
@@ -217,7 +217,7 @@ def main (args : List String) : IO Unit := do
     expect (history.entries.length == 1) "1 entry in history"
     let some entry := history.entries.head? | throw (IO.userError "missing entry")
     expect (entry.subject.scheduled.token == "scheduled-1") "persisted subject scheduled"
-    expect (entry.subject.locus.token == "wifi") "persisted subject locus"
+    expect (entry.subject.locus.token == "service") "persisted subject locus"
     expect (entry.effectiveOn == "2026-09-08") "persisted effectiveOn"
     expect (entry.purpose == some ⟨"fixed-cost"⟩) "persisted purpose"
 
