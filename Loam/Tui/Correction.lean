@@ -120,11 +120,6 @@ def update
 def withPublishError (state : State) (message : String) : State :=
   { state with editor := { state.editor with mode := .editing, notice := message } }
 
-private def replacementTotal (draft : Loam.MovementAdmission.Draft) : Int :=
-  draft.effects.foldl
-    (fun total effect => if effect.quantity.quanta > 0 then total + effect.quantity.quanta else total)
-    0
-
 /-- User-facing correction editor. Date remains visible but never focusable/editable. -/
 def view (_known : List String) (state : State) : Widget :=
   match state.editor.mode with
@@ -195,7 +190,7 @@ def view (_known : List String) (state : State) : Widget :=
         [ Loam.Tui.Record.line
             ("Replacement positive total: " ++
               Loam.MeasurePresentation.formatQuanta
-                state.editor.measurePresentation measure (replacementTotal draft) ++
+                state.editor.measurePresentation measure (Effect.positiveQuantaTotal draft.effects) ++
               " " ++ measure.token)
         , Loam.Tui.Record.line
             "Publish appends an explicit Correction and replacement Event; it does not rewrite the original."
