@@ -54,9 +54,11 @@ state. Dragging is never required.
 
 ## Resize contract
 
-Reports re-read terminal geometry after the next non-idle input. When geometry
-changes, the current report is re-rendered from a blank frame using the new
-bounds. No household data is reclassified or mutated.
+Reports re-read terminal geometry after the next keyboard input. Pointer-motion
+events deliberately do not spawn a tty-size subprocess, so hover remains a cheap
+pure selection path. When keyboard interaction observes changed geometry, the
+current report is re-rendered from a blank frame using the new bounds. No
+household data is reclassified or mutated.
 
 The chart renderer itself is a pure width/height projection and is qualified at
 multiple geometries.
