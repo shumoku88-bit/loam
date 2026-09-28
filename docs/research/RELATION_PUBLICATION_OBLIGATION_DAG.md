@@ -143,6 +143,27 @@ newRelations.all relationSourcePositive?
 
 No generic Relation publisher, no merged opening/discharge frontier, no new Core vocabulary, and no new persistence authority is introduced.
 
+## Historical Observation 177 graduation
+
+Observation 177's explanatory prose has graduated to Git history, but its three
+SPIN interleaving models remain live independent witnesses:
+
+- `177_movement_relation_publication_safe.pml`;
+- `177_movement_relation_publication_unsafe_writer.pml`;
+- `177_movement_relation_publication_unsafe_reader.pml`.
+
+They continue to protect the publication-order result:
+
+```text
+required Relation evidence before Event authority
+reader acquires Event before Relation
+```
+
+for the historical split-publication shape. Current normalized Actual production
+no longer depends on that prose as an authority; the models remain useful as an
+independent concurrency witness for why authority/publication order must not
+manufacture false known-none.
+
 ## Qualification
 
 Head qualified before this status update: `9f29d8105741decab65675acea9719fa9ea87977`.

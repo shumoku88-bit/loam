@@ -111,7 +111,7 @@
         "experiments/177_movement_relation_publication_safe.pml",
         "experiments/177_movement_relation_publication_unsafe_writer.pml",
         "experiments/177_movement_relation_publication_unsafe_reader.pml",
-        "experiments/177_movement_relation_publication.md"
+        "docs/research/RELATION_PUBLICATION_OBLIGATION_DAG.md"
       ],
       "variants": [
         {
