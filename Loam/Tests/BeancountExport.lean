@@ -41,7 +41,7 @@ def main : IO Unit := do
     description := some "Food \"and\" book\nsplit"
   }
 
-  let .ok rendered := Loam.BeancountExport.render? roles [entry]
+  let .ok rendered := Loam.BeancountExport.renderWithPresentation? [] roles [entry]
     | throw (IO.userError "balanced Beancount export refused")
 
   expect (contains "option \"operating_currency\" \"JPY\"" rendered)
@@ -79,7 +79,7 @@ def main : IO Unit := do
     validOn := "2026-09-16"
     description := none
   }
-  match Loam.BeancountExport.render? roles [unresolvedEntry] with
+  match Loam.BeancountExport.renderWithPresentation? [] roles [unresolvedEntry] with
   | .ok _ =>
       throw (IO.userError "unresolved AccountingRole was silently exported")
   | .error message =>
@@ -97,7 +97,7 @@ def main : IO Unit := do
     validOn := "2026-09-17"
     description := none
   }
-  match Loam.BeancountExport.render? roles [unbalancedEntry] with
+  match Loam.BeancountExport.renderWithPresentation? [] roles [unbalancedEntry] with
   | .ok _ =>
       throw (IO.userError "unbalanced Event was exported")
   | .error message =>
@@ -121,7 +121,7 @@ def main : IO Unit := do
     validOn := "2026-09-18"
     description := none
   }
-  match Loam.BeancountExport.render? collisionRoles [collisionEntry] with
+  match Loam.BeancountExport.renderWithPresentation? [] collisionRoles [collisionEntry] with
   | .ok _ =>
       throw (IO.userError "target account-name collision was exported")
   | .error message =>
@@ -144,7 +144,7 @@ def main : IO Unit := do
   }
 
   let partialEntries := [entry, unresolvedEntry, multiUnresolvedEntry]
-  let .ok partialRes := Loam.BeancountExport.renderPartial? roles partialEntries
+  let .ok partialRes := Loam.BeancountExport.renderPartialWithPresentation? [] roles partialEntries
     | throw (IO.userError "partial export failed")
 
   expect (partialRes.exportedCount == 1)
@@ -192,7 +192,7 @@ def main : IO Unit := do
   | _ => throw (IO.userError "expected 2 skipped events in result")
 
   -- Partial mode must still reject unbalanced events
-  match Loam.BeancountExport.renderPartial? roles [unbalancedEntry] with
+  match Loam.BeancountExport.renderPartialWithPresentation? [] roles [unbalancedEntry] with
   | .ok _ =>
       throw (IO.userError "partial mode silently accepted unbalanced Event")
   | .error message =>
@@ -200,7 +200,7 @@ def main : IO Unit := do
         "partial mode must enforce balance"
 
   -- Partial mode must still reject target account collisions for exported events
-  match Loam.BeancountExport.renderPartial? collisionRoles [collisionEntry] with
+  match Loam.BeancountExport.renderPartialWithPresentation? [] collisionRoles [collisionEntry] with
   | .ok _ =>
       throw (IO.userError "partial mode silently accepted collision")
   | .error message =>
@@ -246,7 +246,7 @@ def main : IO Unit := do
     "shared food Locus lost exact USD presentation"
 
   -- Suspense mode tests
-  let .ok suspenseRes := Loam.BeancountExport.renderSuspense? roles partialEntries
+  let .ok suspenseRes := Loam.BeancountExport.renderSuspenseWithPresentation? [] roles partialEntries
     | throw (IO.userError "suspense export failed")
 
   expect (suspenseRes.exportedCount == 3)
@@ -307,7 +307,7 @@ def main : IO Unit := do
     "suspense report must not leak transaction identifier/amount"
 
   -- Suspense mode must still reject unbalanced events
-  match Loam.BeancountExport.renderSuspense? roles [unbalancedEntry] with
+  match Loam.BeancountExport.renderSuspenseWithPresentation? [] roles [unbalancedEntry] with
   | .ok _ =>
       throw (IO.userError "suspense mode silently accepted unbalanced Event")
   | .error message =>
@@ -332,7 +332,7 @@ def main : IO Unit := do
     validOn := "2026-09-18"
     description := none
   }
-  match Loam.BeancountExport.renderSuspense? collisionSuspenseRoles [collisionSuspenseEntry] with
+  match Loam.BeancountExport.renderSuspenseWithPresentation? [] collisionSuspenseRoles [collisionSuspenseEntry] with
   | .ok _ =>
       throw (IO.userError "suspense collision was silently accepted")
   | .error message =>
