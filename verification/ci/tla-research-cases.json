@@ -697,7 +697,7 @@
         "tla/MeasureScalePublicationOrderLocked.cfg",
         "tla/MeasureScalePublicationOrderLockedScaleReachable.cfg",
         "tla/MeasureScalePublicationOrderLockedUseReachable.cfg",
-        "experiments/329_measure_scale_publication_order.md"
+        "docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md"
       ],
       "variants": [
         {

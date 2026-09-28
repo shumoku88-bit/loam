@@ -649,9 +649,8 @@
       "model": "experiments/328_measure_scale_history.als",
       "paths": [
         "experiments/328_measure_scale_history.als",
-        "experiments/328_measure_scale_history.md",
-        "docs/d2/measure_scale_stability_audit.d2",
-        "docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md"
+        "docs/research/AUDIT_MEASURE_SCALE_STABILITY_2026-09-24.md",
+        "docs/d2/measure_scale_stability_audit.d2"
       ],
       "expected": {
         "ambiguousCurrentSnapshot": true,
