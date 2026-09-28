@@ -360,6 +360,25 @@ experiments/154_production_fixture_parity.md
 
 Observation 153 is deliberately excluded because Scheduled routing subject semantics are a different research thread and were not part of the closed Actual identity/wire-shape retirement finding.
 
+## Follow-up graduation - Observation 145 destructive cutover prose
+
+Observation 145 modeled the one-time destructive migration from the former
+multi-file Actual sidecars into a new authority generation. Its executable Lean
+protocol witness has already graduated to Git history, and the remaining
+Markdown no longer owns a live runtime boundary.
+
+Current production has a strictly smaller authority topology:
+`ActualAuthority` publishes one complete normalized `actual.loam` generation
+by staging, typed re-decoding, and one atomic rename. There is no steady-state
+need to preserve the historical V/D/B/E/C/K multi-file cutover phase machine or
+its restart planner in the working tree.
+
+The historical result remains useful provenance for why the migration was
+fail-closed, but Git history is now the correct owner of that one-shot protocol.
+Observation 146 is intentionally retained separately because its bounded Alloy
+identity analysis still protects live Event / Effect / temporal-revision
+distinctions.
+
 ## Follow-up graduation - Observation 218 migration prose
 
 Observation 218's theorem-heavy executable migration proof had already graduated to Git history after `ReplacementFrontier` became current production mathematics. The remaining Markdown record explicitly described itself as promoted historical evidence and pointed to current ownership beside the implementation.
