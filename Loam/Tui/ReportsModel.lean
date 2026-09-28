@@ -745,7 +745,7 @@ private def updateTrendSeriesPicker
       | .error message => { state := { state with notice := message } }
   | .enter =>
       match Loam.Tui.LocusTrendComparePane.selectedPickerEntry? state.trendCompare with
-      | none => { state := { state with notice := "No admitted Locus is available." } }
+      | none => { state := { state with notice := "No Trend Locus is available." } }
       | some entry =>
           match replaceTrendSeries state entry with
           | .ok next => { state := next, query := queryForMode next }
