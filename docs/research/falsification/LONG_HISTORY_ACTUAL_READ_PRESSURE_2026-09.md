@@ -192,6 +192,12 @@ The old 10k correction-heavy result was 4.436 s. The measured quadratic bend
 was therefore removed without turning the transient index into household
 authority. Issue #1134 was closed after this qualification.
 
+The earlier Observation 273 list-only cost comparison has therefore graduated to
+Git history. Its role was to expose repeated suffix work and motivate the first
+global-done cutover. Current performance ownership is stronger and closer to
+production: hash-backed `acyclicIndexedBy`, its general equivalence theorem and
+focused tests, plus the end-to-end correction-heavy measurements below.
+
 ## Million-event long-horizon probe — 2026-09-25
 
 PR #1317 ran a measurement-only probe on one `ubuntu-24.04` GitHub-hosted
