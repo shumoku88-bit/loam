@@ -837,7 +837,7 @@ def updateForBounds
         else
           state
     | _, _ => state
-  let step :=
+  let step : Step :=
     match key with
     | .pointer _ _ => { state := pointerAdjusted }
     | _ => update pointerAdjusted key
