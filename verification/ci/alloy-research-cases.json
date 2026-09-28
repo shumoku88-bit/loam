@@ -280,7 +280,7 @@
       "model": "experiments/254_balance_history_boundary.als",
       "paths": [
         "experiments/254_balance_history_boundary.als",
-        "experiments/254_balance_history_boundary.md",
+        "docs/research/HISTORY_REGISTER_IDENTITY_BOUNDARY.md",
         "docs/research/LOAM_REA_LEDGER_CONNECTION_CHECKPOINT_250_253.md"
       ],
       "expected": {

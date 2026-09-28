@@ -105,8 +105,12 @@ This boundary matters because Ledger's current public semantics explicitly disti
 
 ## Next pressure
 
-Observation 254 starts the second connection study:
+Observation 254 started the second connection study. Observations 254–256
+have now graduated to the durable current-facing boundary:
 
-> Can two distinct LOAM event histories have the same balance image, and what is the smallest event/register evidence required to distinguish them again?
+`docs/research/HISTORY_REGISTER_IDENTITY_BOUNDARY.md`
 
-The expected answer is not assumed. The first task is to construct or reject a counterexample rather than to add a production register abstraction.
+That checkpoint preserves the result that balance images, Event-indexed quantity
+views, exact Effect identity, cross-correction lineage, and chronology are
+different information levels. Later correction-diff work begins at Observation
+257 and remains live research.
