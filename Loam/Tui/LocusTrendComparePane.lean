@@ -67,8 +67,10 @@ def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
     let count := pointCount state
     if count = 0 then state
     else
-      { state with selected := Loam.Tui.Chart.nearestIndex
-          (plotWidth bounds) count (column - plotLeft) }
+      let selected :=
+        Loam.Tui.Chart.nearestIndex
+          (plotWidth bounds) count (column - plotLeft)
+      { state with selected := selected }
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
