@@ -67,6 +67,19 @@ def forVocabulary
     | some row => { locus := locus, label := row.label, help := row.help }
     | none => { locus := locus, label := locus.token, help := "" }
 
+/--
+Overlay display metadata onto an explicit read-only set of stable Locus identities.
+
+Unlike `forVocabulary`, this does not imply current write admission. It is for
+surfaces such as historical Trend that must keep retired/read-only Loci visible.
+Input order is preserved after duplicate removal.
+-/
+def forLoci (loci : List LocusId) (metadata : List Metadata) : Catalog :=
+  loci.eraseDups.map fun locus =>
+    match metadataForToken? metadata locus.token with
+    | some row => { locus := locus, label := row.label, help := row.help }
+    | none => { locus := locus, label := locus.token, help := "" }
+
 /-- Token-only fallback for absent/unusable presentation metadata. -/
 def fallback (vocabulary : LocusAdmissionVocabulary) : Catalog :=
   forVocabulary vocabulary []
