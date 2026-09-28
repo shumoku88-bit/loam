@@ -73,6 +73,9 @@ inductive Query where
   | locusTrendOverview
       (observedAt : String)
       (coordinate : Loam.Core.EffectCoordinate)
+  | locusTrendHistory
+      (observedAt : String)
+      (coordinate : Loam.Core.EffectCoordinate)
   | locusTrend
       (start endExclusive : String)
       (coordinate : Loam.Core.EffectCoordinate)
@@ -207,6 +210,14 @@ def withLocusTrendOverview
     (state : State) (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : State :=
   { state with
       trend := Loam.Tui.LocusTrendPane.withOverview state.trend snapshot
+      notice := ""
+      scroll := 0 }
+
+
+def withLocusTrendHistory
+    (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
+  { state with
+      trend := Loam.Tui.LocusTrendPane.withHistory state.trend snapshot
       notice := ""
       scroll := 0 }
 
@@ -435,6 +446,9 @@ private def queryForMode (state : State) : Option Query :=
       if Loam.Tui.LocusTrendPane.isOverview state.trend then
         some (.locusTrendOverview
           state.window.calendarAnchor state.trendCoordinate)
+      else if Loam.Tui.LocusTrendPane.isHistory state.trend then
+        some (.locusTrendHistory
+          state.window.calendarAnchor state.trendCoordinate)
       else
         match state.trend.snapshot with
         | some snapshot =>
@@ -614,6 +628,21 @@ private def updateLocusTrend
       { state := { state with
           trend := Loam.Tui.LocusTrendPane.moveSelection state.trend false
           notice := "" } }
+  | .input 'd' | .input 'D' =>
+      if Loam.Tui.LocusTrendPane.isHistory state.trend then
+        { state := { state with
+            trend := Loam.Tui.LocusTrendPane.backToOverview state.trend
+            notice := "" } }
+      else
+        match state.trend.history with
+        | some _ =>
+            { state := { state with
+                trend := Loam.Tui.LocusTrendPane.backToHistory state.trend
+                notice := "" } }
+        | none =>
+            { state,
+              query := some (.locusTrendHistory
+                state.window.calendarAnchor state.trendCoordinate) }
   | .input 'r' | .input 'R' =>
       { state := { state with
           trend := Loam.Tui.LocusTrendPane.cycleRenderer state.trend
@@ -627,6 +656,8 @@ private def updateLocusTrend
             { state,
               query := some (.locusTrend
                 point.start point.throughExclusive state.trendCoordinate) }
+      else if Loam.Tui.LocusTrendPane.isHistory state.trend then
+        { state }
       else
         { state, query := queryForMode state }
   | _ => { state }
