@@ -229,8 +229,8 @@ private def overviewAxis
   let labels := snapshot.points.map fun point =>
     let endLabel :=
       if point.complete then point.endExclusive else point.throughExclusive
-    let startShort := String.ofList point.start.toList.drop 5
-    let endShort := String.ofList endLabel.toList.drop 5
+    let startShort := String.ofList (point.start.toList.drop 5)
+    let endShort := String.ofList (endLabel.toList.drop 5)
     Loam.Tui.Layout.padRight chunk (startShort ++ "→" ++ endShort)
   .row ([span (String.ofList (List.replicate plotLeft ' '))] ++ labels.map span)
 
