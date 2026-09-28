@@ -12,8 +12,8 @@ set_option autoImplicit false
 /-!
 # Observation 368 — settlement finality earns an as-finalized publication layer
 
-Observation 367 left the aggregate net amount derived from the current member
-frontier.
+The production settlement frontier leaves aggregate net amount derived from the
+current netting-member frontier.
 
 That is correct for a live / restated view.
 

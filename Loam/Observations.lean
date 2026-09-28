@@ -85,13 +85,8 @@ import Loam.Observations.Observation356
 import Loam.Observations.Observation357
 import Loam.Observations.Observation358
 import Loam.Observations.Observation363
-import Loam.Observations.Observation364
-import Loam.Observations.Observation365
-import Loam.Observations.Observation366
-import Loam.Observations.Observation367
 import Loam.Observations.Observation368
 import Loam.Observations.Observation369
-import Loam.Observations.Observation370
 import Loam.Observations.Observation380
 
 /-!
@@ -172,6 +167,12 @@ Research compaction notes:
   atomic settlement batch publication became production behavior. Observation
   363 remains live because complete-allocation publication is still an optional
   semantic promise distinct from incremental reconciliation.
+- 2026-09-28: Observations 364–367 and 370 retired after bidirectional endpoint
+  sign admission, explicit netting contexts/members, zero-net outcomes without
+  synthetic Effects, member-row revision, and composed direct/net conservation
+  became production settlement laws with focused regressions. Observations 368
+  and 369 remain live because as-finalized publication and correction of finality
+  evidence are intentionally outside the current production family.
 
 Retired source remains available in Git history.
 -/

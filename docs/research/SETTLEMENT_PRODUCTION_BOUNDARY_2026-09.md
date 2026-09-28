@@ -209,5 +209,14 @@ batch publication. Observation 363 remains live because a workflow-level
 "complete allocation" promise is stronger than those incremental settlement
 laws and has not been promoted.
 
+Observations 364–367 and 370 have now graduated as well. Production directly owns
+endpoint-directed physical sign admission, opposite-direction netting with
+explicit gross membership, zero-net outcome without synthetic movement,
+version-capable netting-member correction through the generic replacement
+frontier, and one composed conservation boundary across direct and net modes.
+Observations 368 and 369 remain live because the current base family still does
+not promise an as-finalized publication layer or append-only correction of that
+finality evidence.
+
 The working tree now keeps the current owners, current qualification surfaces,
 live independent settlement research, and this compressed durable rationale.

@@ -212,8 +212,8 @@ deriving Repr, DecidableEq
 /--
 Version-capable identity for one retained netting-member row.
 
-Observation 367 showed that old and corrected rows may keep the same semantic
-coordinate `context + target` while differing in Quantity.
+Retained netting-member correction permits old and replacement rows to keep the
+same semantic coordinate `context + target` while differing in Quantity.
 -/
 structure SettlementNettingMemberId where
   token : String
