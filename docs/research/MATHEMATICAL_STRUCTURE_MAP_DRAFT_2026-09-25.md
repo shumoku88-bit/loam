@@ -900,11 +900,12 @@ This is repository compaction, not evidence erasure. The working documents remai
 recoverable from Git history, while the live repository keeps the conclusions
 that still guide implementation or future research.
 
-Observation 332 is likewise retired as an intermediate Stock-Flow support-index
+Observation 332 is retired as an intermediate Stock-Flow support-index
 experiment. Production adopted the one-scan Record fusion but not a retained or
-mandatory selected-coordinate HashMap. Observation 333 remains the terminal
-Stock-Flow proof witness and now carries its simple List-membership quantity
-helper directly.
+mandatory selected-coordinate HashMap. Historical Observation 333 later
+graduated as well after #1323 promoted its one-quantity-per-current-Event rule
+and #1399 moved historical-start reconstruction behind the separately qualified
+HistoricalBalanceReview boundary.
 
 
 ## Second-pass measurement appendix

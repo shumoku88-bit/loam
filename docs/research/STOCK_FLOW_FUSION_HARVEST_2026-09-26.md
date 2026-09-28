@@ -1,6 +1,6 @@
 # Stock-Flow Fusion Harvest — 2026-09-26
 
-Status: **research-qualified production candidate**
+Status: **PRODUCTION PROMOTED / historical witness graduated**
 
 This note records the second concrete harvest from the repository-wide
 mathematical compression survey.
@@ -74,23 +74,31 @@ meaning at the inner Stock-Flow membership boundary.
 
 ## Observation 333 — one selected quantity per current Event
 
-Observation 323's fused traversal still had a research-local duplication:
-validation computed selected Event quantity and the numeric update computed it
-again.
+Historical Observation 333 closed the last research-local duplication in the
+original fused Stock-Flow candidate: validation and numeric accumulation no
+longer needed separate selected-quantity computations for the same current
+Record.
 
-Observation 333 removes that duplication.
+That result was promoted by PR #1323. Production moved to one left-to-right
+fail-closed Record scan in which the exact selected Event quantity is computed
+once and then drives date admission and window activity.
 
-For every coordinate selection, Record stream, window and initial accumulator,
-one exact selected Event quantity per current Record can simultaneously decide:
+The later bounded-history promotion in PR #1399 changed the surrounding
+Stock-Flow decomposition again. Historical start quantity is now justified by
+`HistoricalBalanceReview` rather than reconstructed as another accumulator of
+the same window scan. The remaining production rule is therefore smaller:
 
-1. whether a date is required;
-2. whether that date is valid;
-3. opening-boundary contribution;
-4. closing-boundary contribution;
-5. positive / negative window contribution.
+```text
+current selected Record
+    -> selected Event quantity once
+    -> date admission when quantity != 0
+    -> signed window activity
+```
 
-The resulting one-quantity fused traversal is extensionally equal to the
-validation-then-numeric reference, including exact first-failure text.
+Observation 333's executable reference-vs-candidate wrapper has consequently
+graduated to Git history. Current ownership is the production
+`StockFlowReview.scanWindow` path plus its focused refusal and arithmetic
+regression tests.
 
 ## Paired measurement
 
@@ -198,35 +206,35 @@ cardinality creates pressure.
 
 ## Production decision boundary
 
-The earned next production change is therefore intentionally narrow:
+PR #1323 promoted the measured one-scan candidate. PR #1399 later separated
+historical-start reconstruction from window-flow accumulation, so the current
+production decomposition is:
 
 ```text
-StockFlowReview.project
+HistoricalBalanceReview
+    -> justified start quantity
 
-endpoint validation
+StockFlowReview.scanWindow
     -> selected coordinates
-    -> ONE fail-closed Record scan
+    -> ONE fail-closed current-Record scan
        - compute tracked Event quantity once
-       - validate its date when quantity != 0
-       - update start boundary
-       - update end boundary
+       - require/validate occurrence date only when quantity != 0
        - update signed window partitions
-    -> parity gate
-    -> same Snapshot
+
+CurrentBalanceReview
+    -> independently justified current tracked quantity
 ```
 
 Keep:
 
-- BalanceReview as the selected-balance authority;
+- exact support ownership for historical and current balances;
 - selected coordinate List representation;
-- exact first refusal wording and ordering;
-- endpoint refusal priority;
+- exact endpoint/refusal ordering;
 - zero-quantity undated acceptance;
 - superseded Record inertness;
-- final parity failure;
 - public Snapshot shape and presentation.
 
-Do not yet add:
+Do not add merely for this optimization:
 
 - persistent summary state;
 - retained indexes;
@@ -234,14 +242,13 @@ Do not yet add:
 - generic aggregation machinery;
 - a new Stock-Flow authority.
 
-This is a computation compression candidate, not an ontology change.
+The transient support-index variant remains mathematically qualified and
+measurably valuable only under larger coordinate-cardinality pressure. It is
+still research-only.
 
 ## Verdict
 
-**Harvest #2 candidate qualified: Stock-Flow's four-pass selected-record
-construction can be reduced to one fail-closed scan with one selected Event
-quantity computation per current Record.**
-
-The transient support-index variant is also mathematically qualified and
-measurably valuable at larger coordinate cardinalities, but should remain
-research-only until that scaling pressure is observed in production use.
+**Harvest #2 promoted and subsequently simplified: Stock-Flow performs one
+fail-closed selected-record window scan with one selected Event quantity
+computation per current Record, while historical boundary reconstruction now
+belongs to its separately qualified support boundary.**

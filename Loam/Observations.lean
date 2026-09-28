@@ -72,7 +72,6 @@ import Loam.Observations.Observation318
 import Loam.Observations.Observation319
 import Loam.Observations.Observation325
 import Loam.Observations.Observation331
-import Loam.Observations.Observation333
 import Loam.Observations.Observation334
 import Loam.Observations.Observation335
 import Loam.Observations.Observation336
@@ -139,6 +138,10 @@ Research compaction notes:
   `rowTotal` a direct derived view of `rowActivity.net`. Its Event-local
   coordinate-fold correspondence is subsumed by the stronger live sparse
   HashMap proof in Observation 325.
+- 2026-09-28: Observation 333 retired after its one-quantity-per-current-Event
+  scan was promoted by #1323 and later narrowed by #1399: current Stock-Flow
+  keeps one fail-closed window scan while historical start reconstruction is
+  owned separately by `HistoricalBalanceReview`.
 
 Retired source remains available in Git history.
 -/
