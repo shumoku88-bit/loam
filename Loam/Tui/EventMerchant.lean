@@ -42,9 +42,6 @@ def initial (record : Loam.Tui.Main.ReviewRecord) : State :=
     description := record.description
   }
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 private def nextChoice : Choice → Choice
   | .merchant => .nonmerchant
   | .nonmerchant => .merchant
@@ -84,7 +81,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .backspace =>
           match state.choice with
           | .merchant =>
-              { state := { state with partyInput := dropLast state.partyInput, notice := "" } }
+              { state := { state with partyInput := Loam.Tui.Terminal.backspaceText state.partyInput, notice := "" } }
           | .nonmerchant => { state }
       | .input char =>
           match state.choice with
