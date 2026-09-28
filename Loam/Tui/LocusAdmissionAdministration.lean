@@ -112,10 +112,7 @@ private def displayEntry (entry : Loam.LocusCatalog.Entry) : String :=
 private def visibleEntries (bounds : Bounds) (state : State) : List (Nat × Loam.LocusCatalog.Entry) :=
   let maxVisible := if bounds.height > 14 then min 12 (bounds.height - 12) else 5
   let selected := clampScroll state
-  let start :=
-    if state.catalog.length <= maxVisible then 0
-    else if selected + 1 <= maxVisible then 0
-    else min (selected + 1 - maxVisible) (state.catalog.length - maxVisible)
+  let start := Loam.Tui.Layout.trailingWindowStart selected maxVisible
   (state.catalog.drop start |>.take maxVisible).zipIdx.map fun (entry, index) =>
     (start + index, entry)
 
