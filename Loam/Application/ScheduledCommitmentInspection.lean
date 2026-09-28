@@ -288,34 +288,27 @@ def scheduledPressurePartitionFromOpen
 
 namespace ScheduledPressurePartition
 
+/-- Exact quantity carried by one pressure class in the transient partition. -/
+private def quantityForClass
+    (partition : ScheduledPressurePartition Time)
+    (pressure : ScheduledPressureClass) : Quantity :=
+  Quantity.ofQuanta <|
+    (partition.filterMap fun row =>
+      if row.pressure = pressure then some row.quantity.quanta else none).sum
+
 /-- Managed Commitment belonging to one Purpose. -/
 def managedFor
     (partition : ScheduledPressurePartition Time)
     (purpose : PurposeId) : Quantity :=
-  Quantity.ofQuanta <| partition.foldl
-    (fun total row =>
-      match row.pressure with
-      | .managed routedPurpose =>
-          if routedPurpose = purpose then total + row.quantity.quanta else total
-      | _ => total)
-    0
+  quantityForClass partition (.managed purpose)
 
 /-- Query-global pressure explicitly marked unmanaged. -/
 def unmanaged (partition : ScheduledPressurePartition Time) : Quantity :=
-  Quantity.ofQuanta <| partition.foldl
-    (fun total row =>
-      match row.pressure with
-      | .unmanaged => total + row.quantity.quanta
-      | _ => total)
-    0
+  quantityForClass partition .unmanaged
 
 /-- Query-global unrouted pressure justified by AccountingRole. -/
 def unrouted (partition : ScheduledPressurePartition Time) : Quantity :=
-  Quantity.ofQuanta <|
-    (partition.filterMap fun row =>
-      match row.pressure with
-      | .unroutedPressure => some row.quantity.quanta
-      | _ => none).sum
+  quantityForClass partition .unroutedPressure
 
 /-- Keep exactly the unresolved-eligibility subjects, preserving partition order. -/
 def unresolvedRows
@@ -333,8 +326,7 @@ def unresolvedRows
 
 /-- Query-global unrouted pressure whose AccountingRole is still unknown. -/
 def unresolvedEligibility (partition : ScheduledPressurePartition Time) : Quantity :=
-  Quantity.ofQuanta <|
-    (partition.unresolvedRows.map (fun row => row.quantity.quanta)).sum
+  quantityForClass partition .unresolvedEligibility
 
 /-- Actionable unrouted or unresolved subjects derived from the same partition. -/
 def actionableRows
