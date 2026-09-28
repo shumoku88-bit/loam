@@ -39,7 +39,9 @@ def main : IO Unit := do
   expect
     (Loam.Tui.Layout.displayWidth (String.ofList [Char.ofNat 0x28ff]) == 1 &&
       Loam.Tui.Layout.displayWidth "█" == 1 &&
-      Loam.Tui.Layout.displayWidth "◆" == 1)
+      Loam.Tui.Layout.displayWidth "◆" == 1 &&
+      Loam.Tui.Layout.displayWidth "■" == 1 &&
+      Loam.Tui.Layout.displayWidth "□" == 1)
     "portable chart glyphs stopped occupying one terminal column"
 
   let braille := Loam.Tui.Chart.render .braille 24 8 [459, 508, 500] 2
@@ -91,13 +93,15 @@ def main : IO Unit := do
   expect (Loam.Tui.Chart.Renderer.next .ascii == .braille)
     "renderer fallback order lost ASCII to Braille transition"
 
-  let separatedValues := [200, 500, 800]
+  let separatedValues := [200, 500, 800, 1100, 1400]
   let separatedScale := Loam.Tui.Chart.scaleFor separatedValues
   let multi :=
     Loam.Tui.Chart.renderManyInRange .braille 36 12
       [ { values := [180, 200, 220], style := .series1, marker := '●' }
       , { values := [480, 500, 520], style := .series2, marker := '◆' }
       , { values := [780, 800, 820], style := .series3, marker := '▲' }
+      , { values := [1080, 1100, 1120], style := .series4, marker := '■' }
+      , { values := [1380, 1400, 1420], style := .series5, marker := '□' }
       ]
       1 separatedScale.range
   let multiCells := multi.flatMap Widget.lines |>.flatten
@@ -107,6 +111,10 @@ def main : IO Unit := do
     "multi-series chart lost the second series marker/style identity"
   expect (multiCells.any fun cell => cell.glyph == '▲' && cell.style == .series3)
     "multi-series chart lost the third series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '■' && cell.style == .series4)
+    "multi-series chart lost the fourth series marker/style identity"
+  expect (multiCells.any fun cell => cell.glyph == '□' && cell.style == .series5)
+    "multi-series chart lost the fifth series marker/style identity"
   expect (multiCells.any fun cell => cell.glyph == '│' && cell.style == .muted)
     "multi-series chart lost the shared selected-period crosshair"
 

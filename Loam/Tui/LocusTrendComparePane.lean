@@ -40,7 +40,7 @@ structure State where
 
 def initial : State := {}
 
-def maxSeries : Nat := 3
+def maxSeries : Nat := 5
 
 def withCatalog
     (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
@@ -232,16 +232,20 @@ private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 
 private def seriesStyle (index : Nat) : Style :=
-  match index % 3 with
+  match index % 5 with
   | 0 => .series1
   | 1 => .series2
-  | _ => .series3
+  | 2 => .series3
+  | 3 => .series4
+  | _ => .series5
 
 private def seriesMarker (index : Nat) : Char :=
-  match index % 3 with
+  match index % 5 with
   | 0 => '●'
   | 1 => '◆'
-  | _ => '▲'
+  | 2 => '▲'
+  | 3 => '■'
+  | _ => '□'
 
 private def commaEveryThreeFromRight : List Char → Nat → List Char
   | [], _ => []
@@ -293,18 +297,30 @@ private def selectedWindow?
   let snapshot ← state.snapshot
   snapshot.selectedWindow? state.selected
 
+private def rackLabel (label : String) : String :=
+  Loam.Tui.Layout.clip 14 label
+
+private def seriesSlot
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (index : Nat) : Span :=
+  match snapshot.series[index]? with
+  | some series =>
+      span
+        ("[" ++ toString (index + 1) ++ " " ++
+          String.ofList [seriesMarker index] ++ " " ++ rackLabel series.spec.label ++ "] ")
+        (seriesStyle index)
+  | none =>
+      span ("[" ++ toString (index + 1) ++ " + Add] ") .muted
+
 private def seriesRack
-    (snapshot : Loam.LocusTrendCompareReview.Snapshot) : Widget :=
-  let slots := (List.range maxSeries).flatMap fun index =>
-    match snapshot.series[index]? with
-    | some series =>
-        [ span
-            ("[" ++ toString (index + 1) ++ " " ++
-              String.ofList [seriesMarker index] ++ " " ++ series.spec.label ++ "] ")
-            (seriesStyle index) ]
-    | none =>
-        [ span ("[" ++ toString (index + 1) ++ " + Add] ") .muted ]
-  .row ([span "Series  " .muted] ++ slots)
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot) : List Widget :=
+  [ .row
+      ([span "Series  " .muted] ++
+        (List.range 3).map (seriesSlot snapshot))
+  , .row
+      ([span "        " .muted] ++
+        (List.range 2).map fun offset => seriesSlot snapshot (offset + 3))
+  ]
 
 private def pickerRows (state : State) : List Widget :=
   if !state.pickerOpen then []
@@ -400,9 +416,9 @@ private def selectedLine
 private def header (state : State) : List Widget :=
   match state.snapshot, selectedWindow? state with
   | some snapshot, some point =>
-      [ line (heading snapshot.granularity)
-      , seriesRack snapshot
-      , muted (sourceLine state snapshot)
+      [ line (heading snapshot.granularity) ] ++
+      seriesRack snapshot ++
+      [ muted (sourceLine state snapshot)
       , line (selectedLine snapshot point)
       ] ++ selectedSeriesRows state ++
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ] ++
@@ -447,7 +463,7 @@ private def axisText
 
 private def footerTokens (state : State) : List String :=
   if state.pickerOpen then
-    ["↑/↓ choose Locus", "1/2/3 slot", "Enter apply", "x remove", "Esc cancel"]
+    ["↑/↓ choose Locus", "1-5 slot", "Enter apply", "x remove", "Esc cancel"]
   else
     let common :=
       ["←/→ or wheel select period", "mouse click/drag scrub", "[ / ] grain",

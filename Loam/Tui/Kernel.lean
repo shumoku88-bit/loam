@@ -13,6 +13,8 @@ inductive Style where
   | series1
   | series2
   | series3
+  | series4
+  | series5
   deriving Repr, DecidableEq, BEq
 
 structure Cell where

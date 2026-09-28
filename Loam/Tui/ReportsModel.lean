@@ -605,7 +605,7 @@ private def replaceTrendSeries
   let count := state.trendCompareSeries.length
   let slot := min state.trendCompare.pickerSlot count
   if slot >= Loam.Tui.LocusTrendComparePane.maxSeries then
-    throw "Trend can display at most three series."
+    throw "Trend can display at most five series."
   let measure := trendSeriesMeasureForSlot state slot
   let spec : Loam.LocusTrendCompareReview.SeriesSpec := {
     label := entry.label
@@ -661,12 +661,14 @@ private def updateTrendSeriesPicker
       { state := { state with
           trendCompare := Loam.Tui.LocusTrendComparePane.movePicker state.trendCompare false
           notice := "" } }
-  | .input '1' | .input '2' | .input '3' =>
+  | .input '1' | .input '2' | .input '3' | .input '4' | .input '5' =>
       let slot :=
         match key with
         | .input '1' => 0
         | .input '2' => 1
-        | _ => 2
+        | .input '3' => 2
+        | .input '4' => 3
+        | _ => 4
       if slot < min Loam.Tui.LocusTrendComparePane.maxSeries
           (state.trendCompareSeries.length + 1) then
         { state := { state with

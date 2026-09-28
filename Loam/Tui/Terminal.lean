@@ -40,6 +40,8 @@ def ansiStyle : Style → String
   | .series1 => "\x1b[0;36m"
   | .series2 => "\x1b[0;33m"
   | .series3 => "\x1b[0;35m"
+  | .series4 => "\x1b[0;32m"
+  | .series5 => "\x1b[0;31m"
 
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"
