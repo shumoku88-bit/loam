@@ -266,7 +266,7 @@
         "main",
         "experiment/381-deterministic-simulation-pilot"
       ],
-      "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence",
+      "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/Core/LocusAdmission.lean",
         "Loam/Core/MovementOperationEvidence.lean",
@@ -292,7 +292,7 @@
         "main",
         "experiment/382-deterministic-actual-mutation-scenario"
       ],
-      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence",
+      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/CorrectionPublisher.lean",
         "Loam/ActualReversalPublisher.lean",
@@ -318,7 +318,7 @@
         "main",
         "experiment/383-deterministic-settlement-scenario"
       ],
-      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence",
+      "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/Core/Settlement.lean",
         "Loam/Application/SettlementFrontier.lean",
