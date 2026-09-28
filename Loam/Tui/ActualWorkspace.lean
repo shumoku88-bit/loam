@@ -211,7 +211,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .searchBackspace =>
       if state.searchEditing then
         { state := editSearch snapshot state
-            (fun text => String.ofList text.toList.dropLast) }
+            (fun text => Loam.Tui.Terminal.backspaceText text) }
       else
         { state }
   | .acceptSearch =>
