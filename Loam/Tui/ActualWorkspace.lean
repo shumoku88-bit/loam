@@ -1,6 +1,7 @@
 import Loam.LocusCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Main
+import Loam.Tui.Terminal
 
 namespace Loam.Tui.ActualWorkspace
 
