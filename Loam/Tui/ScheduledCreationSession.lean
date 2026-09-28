@@ -1,5 +1,6 @@
 import Loam.HouseholdCommand
 import Loam.ScheduledCreationPublisher
+import Loam.Tui.EditorSession
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
 import Loam.Tui.ScheduledCreation
@@ -39,28 +40,27 @@ partial def collectDraft
 /--
 Run one presentation-only Scheduled creation editor session, returning the created Scheduled identity if published.
 -/
-partial def runWithScheduledId
+def runWithScheduledId
     (bounds : Bounds) (root : System.FilePath)
     (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
-    IO (Option ScheduledId × String) := do
-  let step := Loam.Tui.ScheduledCreation.update known state
-    (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return (none, "Scheduled creation cancelled.")
-  match step.publish with
-  | some draft =>
+    IO (Option ScheduledId × String) :=
+  Loam.Tui.EditorSession.runUntilPublished bounds
+    (fun current key =>
+      let step := Loam.Tui.ScheduledCreation.update known current key
+      { state := step.state, cancel := step.cancel, publish := step.publish })
+    (Loam.Tui.ScheduledCreation.view known)
+    Loam.Tui.ScheduledCreation.withPublishError
+    (none, "Scheduled creation cancelled.")
+    (fun draft => do
       match ← Loam.HouseholdCommand.createScheduled root draft with
       | .ok scheduledId =>
-          return (some scheduledId, "Scheduled " ++ scheduledId.token ++ " for " ++ draft.scheduledOn ++ ".")
+          return .ok
+            (some scheduledId,
+              "Scheduled " ++ scheduledId.token ++ " for " ++ draft.scheduledOn ++ ".")
       | .error message =>
-          let next := Loam.Tui.ScheduledCreation.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          runWithScheduledId bounds root known next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      runWithScheduledId bounds root known step.state nextFrame
+          return .error message)
+    state frame
 
 /--
 Run one presentation-only Scheduled creation editor session.
