@@ -32,9 +32,6 @@ def normalizedActualHeaderV3 : String := "LOAM-NORMALIZED-ACTUAL\t3"
 /-- Version-4 header adding quantity-bearing non-settlement extinguishment evidence. -/
 def normalizedActualHeaderV4 : String := "LOAM-NORMALIZED-ACTUAL\t4"
 
-/-- Compatibility name for the original normalized Actual header. -/
-def normalizedActualHeader : String := normalizedActualHeaderV1
-
 private inductive NormalizedActualWireVersion where
   | v1
   | v2
