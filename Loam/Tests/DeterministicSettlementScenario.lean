@@ -1,6 +1,5 @@
 import Loam.ActualAuthority
 import Loam.HouseholdCommand
-import Loam.Persistence.NormalizedActualPersistence
 import Loam.Tests.DeterministicScenarioSupport
 
 namespace Loam.Tests.DeterministicSettlementScenario
