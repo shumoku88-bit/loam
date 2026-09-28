@@ -80,7 +80,7 @@ private def correctionDraft
 private def authorityBytes (root : System.FilePath) : IO String :=
   IO.FS.readFile (Loam.ActualAuthority.actualPath root)
 
-private def loadEvidence (root : System.FilePath) (context : String) : IO ActualEvidence :=
+private def loadEvidence (root : System.FilePath) (context : String) : IO ActualEvidence := do
   requireOk (← Loam.ActualAuthority.loadActual? root)
     s!"{context}: typed Actual reload failed"
 
