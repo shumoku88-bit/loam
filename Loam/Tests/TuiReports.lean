@@ -32,6 +32,11 @@ private def isMultimeasureSpend (state : Loam.Tui.Reports.State) : Bool :=
   | .multimeasureSpend => true
   | _ => false
 
+private def isLocusTrend (state : Loam.Tui.Reports.State) : Bool :=
+  match state.mode with
+  | .locusTrend => true
+  | _ => false
+
 private def reportEffect
     (key locus measure : String) (quanta : Int) : Effect :=
   Effect.ofQuantity
@@ -49,6 +54,7 @@ def main : IO Unit := do
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
   expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
   expect (contains "Multicurrency Spend" menuText) "Reports menu lost Multicurrency Spend"
+  expect (contains "Locus Trend" menuText) "Reports menu lost Locus Trend"
   expect (contains "Fava Projection" menuText) "Reports menu lost Fava Projection"
   let favaStep := Loam.Tui.Reports.update initial (.input 'f')
   expect (favaStep.query == some .favaProjection)
@@ -66,6 +72,60 @@ def main : IO Unit := do
     "Reports menu q did not return Home"
   expect (!(Loam.Tui.Reports.update initial (.input 'b')).back)
     "retired Reports b Home alias survived"
+
+  let trendStep := Loam.Tui.Reports.update initial (.input 'g')
+  expect (isLocusTrend trendStep.state)
+    "Reports direct Locus Trend key did not enter the trend surface"
+  match trendStep.query with
+  | some (.locusTrend start endExclusive coordinate) =>
+      expect (start == "2026-09-01" && endExclusive == "2026-10-01")
+        "Locus Trend changed the explicit calendar window"
+      expect (coordinate == (⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ : EffectCoordinate))
+        "Locus Trend default did not preserve the exact tobacco/jpy coordinate"
+  | _ => throw (IO.userError "Locus Trend did not emit its explicit coordinate query")
+
+  let trendReport :=
+    Loam.Tui.Reports.withLocusTrendSnapshot trendStep.state {
+      start := "2026-09-01"
+      endExclusive := "2026-09-04"
+      coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩
+      points :=
+        [ { date := "2026-09-01"
+          , daily := Quantity.ofQuanta 500
+          , cumulative := Quantity.ofQuanta 500
+          , runningDailyAverageQuanta := 500 }
+        , { date := "2026-09-02"
+          , daily := Quantity.ofQuanta 0
+          , cumulative := Quantity.ofQuanta 500
+          , runningDailyAverageQuanta := 250 }
+        , { date := "2026-09-03"
+          , daily := Quantity.ofQuanta 500
+          , cumulative := Quantity.ofQuanta 1000
+          , runningDailyAverageQuanta := 333 }
+        ]
+      undatedMatchingCurrentRecords := 0
+    }
+  expect (trendReport.trend.selected == 2)
+    "fresh Locus Trend did not select the latest visible day"
+  let trendLeft := (Loam.Tui.Reports.update trendReport .left).state
+  expect (trendLeft.trend.selected == 1)
+    "Locus Trend left arrow did not move the shared point selection backward"
+  let trendRight := (Loam.Tui.Reports.update trendLeft .right).state
+  expect (trendRight.trend.selected == 2)
+    "Locus Trend right arrow did not move the shared point selection forward"
+
+  let trendBounds : Bounds := { width := 80, height := 24 }
+  let trendPointer :=
+    (Loam.Tui.Reports.updateForBounds trendBounds trendRight (.pointer 2 12)).state
+  expect (trendPointer.trend.selected == 0)
+    "Locus Trend pointer did not select the first visible sparkline day"
+  let trendText := widgetText (Loam.Tui.Reports.viewForBounds trendBounds trendPointer)
+  expect (contains "Reports / Locus Trend" trendText &&
+      contains "Selected 2026-09-01" trendText &&
+      contains "day +500 jpy" trendText)
+    "Locus Trend did not render selected-day quantity detail"
+  expect (contains "corrected originals are excluded" trendText)
+    "Locus Trend lost its correction-aware provenance boundary"
 
   let multicurrencyStep := Loam.Tui.Reports.update initial (.input 'x')
   expect (isMultimeasureSpend multicurrencyStep.state)
