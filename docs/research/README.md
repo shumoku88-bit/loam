@@ -11,6 +11,59 @@ The root stays intentionally small:
 
 Research documents are grouped by the semantic question they serve.
 
+
+## Research/history distillation Phase 1 closure
+
+Status: **CLOSED — reopen only on concrete ownership evidence**
+
+Closure baseline:
+
+```text
+8b54581b7320f03d621c6ee05304d37099cb6f24
+research: graduate normalized Capacity cutover history (#1538)
+```
+
+The repository-wide research/history distillation pass is complete.
+
+The stop condition is not "nothing old remains". It is that the remaining research
+surface is now dominated by material with a current reason to exist:
+
+- current production/design boundaries whose distinctions are still operationally meaningful;
+- executable proof, model, CI, regression, or counterexample evidence;
+- external/literature comparison that is not reproduced by production source;
+- future-semantic pressure for behavior that production does not yet implement;
+- compact audit/navigation records that explain why a broader campaign stopped.
+
+Detailed campaign-local discovery prose may graduate once production, proofs/tests,
+or a later synthesis owns its surviving meaning more strongly. Git history is the
+archive for that retired exploration; creating an `archive/` directory is not the
+default retention strategy.
+
+The closure-first scan found that further broad deletion mining would now mostly
+remove guardrails rather than obsolete scaffolding. Recent graduations include
+completed Generation-2 implementation-detail notes and the finished normalized
+Capacity migration/cutover history, while boundaries such as current-write
+admission versus historical readability, open-world `Unknown`, recovery
+asymmetry, and explicit KEEP/DO-NOT-COUPLE stop points remain live.
+
+Reopen this distillation only when there is concrete evidence such as:
+
+```text
+production/proof/test now subsumes a retained research note
+or
+an executable witness retires with no independent current role
+or
+a later synthesis makes an older navigation/detail record redundant
+or
+a supposedly current boundary becomes unreachable or ownerless
+```
+
+The next repository-compression phase must start from the then-current `main`,
+not from historical line-count estimates. Its default unit remains one semantic
+correspondence per PR: preserve meaning, canonical data, user-visible behavior,
+refusal/recovery semantics, and safety before removing mechanics.
+
+
 ## Household
 
 `household/` contains household capability, evidence, vocabulary, compression, and dogfood checkpoints.
