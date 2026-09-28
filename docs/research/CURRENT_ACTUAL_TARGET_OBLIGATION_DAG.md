@@ -106,6 +106,38 @@ Date correction uses the same T1/T2 semantic root, but does **not** consume the 
 
 Production tests deliberately qualify date correction of both sides of an existing `ActualReversal`. Date correction therefore must not inherit Correction/Reversal's provenance restrictions merely because the first two boxes look the same.
 
+
+### Provisional placement refinement is now production-owned
+
+Historical Observation 353 exercised one practical instance of this same
+boundary: an exact quantity Event was first given a reconciliation-day
+occurrence date and later moved to an earlier discovered occurrence day by
+append-only validity revision.
+
+That executable specimen has graduated to Git history. The production publisher
+and focused regression now own the stronger operational contract:
+
+```text
+retained Event / Effects
+        stay unchanged
+
+current ActualValidity fact
+        -> append revision
+        -> append validity correction
+        -> new current occurrence date
+
+ActualReview
+        -> same Event appears at the refined current-truth day
+```
+
+Repeated date correction is supported, same-date publication is a no-op, stale
+correction-superseded targets fail closed, and a replacement Event may receive
+its own later date revision. Old validity claims remain retained provenance.
+
+This earns no `UnknownTime` scalar, Adjustment Core primitive, learned-time
+history, or retroactive claim that an earlier interval was known exactly before
+the improved date evidence arrived.
+
 ## Sharing candidates
 
 ### A. Shared `Option Event`
