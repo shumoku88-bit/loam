@@ -216,3 +216,10 @@ One historical CSLib shadow experiment that had imported Observation 163 only
 for transitive access to Observation 159 now imports Observation 159 directly.
 No production theorem, production module, verification fixture, or household
 behavior is removed by this graduation.
+
+The detailed discovery prose for Observations 161–163 has also graduated to Git
+history. This checkpoint is the current-facing owner of the reviewed-proposition
+alignment result, the shared-definition drift counterexample, and the resulting
+need for an independent semantic statement surface. Observation 164's unrelated
+obligation-settlement research is outside this verification sequence and remains
+untouched.
