@@ -37,7 +37,9 @@ partial def run (bounds : Bounds)
     (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
   let activeBounds ←
-    if key = .other then pure bounds else Loam.Tui.Terminal.currentBounds
+    match key with
+    | .other | .pointer _ _ => pure bounds
+    | _ => Loam.Tui.Terminal.currentBounds
   let resized := activeBounds != bounds
   let step := Loam.Tui.Reports.updateForBounds activeBounds state key
   if step.back then return activeBounds
