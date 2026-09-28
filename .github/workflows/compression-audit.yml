@@ -3,6 +3,7 @@ name: Compression Audit
 on:
   pull_request:
     paths:
+      - 'tools/audit-working-tree-surface'
       - 'tools/audit-production-surface'
       - 'tools/audit-production-reachability'
       - 'tools/audit-semantic-candidates'
@@ -48,6 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - name: Inventory complete working-tree surface
+        shell: bash
+        run: python3 tools/audit-working-tree-surface
       - name: Inventory production source surface
         shell: bash
         run: bash tools/audit-production-surface
