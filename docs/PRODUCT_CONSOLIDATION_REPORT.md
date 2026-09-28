@@ -468,6 +468,57 @@ old(input) == new(input)
 
 #1454 時点の推定削減量は優先順位付けの参考には使うが、実装の正当化には使わない。
 
+### Phase 3 closure — 2026-09-29
+
+最新 `main` で compatibility / adapter / loader / executable / stable-import /
+legacy-reference surface を横断し、Phase 3 は停止条件に到達した。
+
+退役した scaffold:
+
+- #1548: Beancount / Plain Text Accounting の scale-0 compatibility renderer 4本
+  を presentation-aware API の `[]` 呼び出しへ畳んだ（net -27 lines）
+- #1549: Correction / ScheduledCompletion の scale-0 TUI initializer 2本を退役
+  （net -10 lines）
+- #1550: `MovementWorldAdapter.movementWorld` と無印
+  `normalizedActualHeader` の 0-caller compatibility name を退役（net -6 lines）
+
+Phase 3 の合計は **net -43 lines**。いずれも新しい abstraction を追加せず、
+current owner へ直接寄せるか、definition-only compatibility surface を削除した。
+
+一方、再監査で残したものは意図的 KEEP である。
+
+- `ActualAuthority` の root/file 選択と legacy-formatted error wrapper:
+  caller-visible authority selection / failure contract を持つ。
+- `admitActualEvidence?`: normalized Actual writer / encoder が raw aggregate を
+  再資格化する current production entrance。
+- `MeasurePresentation.loadMetadata` の missing-config scale-0 behavior:
+  現在の optional presentation semantics。
+- `CurrentQuantityAnchor.Evidence.ofLists?`: publisher / persistence が使う
+  one-group construction contract。
+- `Record.draft?`: independently validated constructor contract として既存監査が KEEP。
+- Correction legacy/reference frontier implementation:
+  indexed production implementationとの correspondence proof / benchmark witness。
+- `Reports` / `CorrectionFrontier` の薄い module:
+  stable public import entrance。
+- `*Executable.lean`, `AttentionMain`, `ScheduledSuppressionCli`:
+  現役 Lake executable root、したがって user-visible operation。
+- `Chart.rangeFor`: current `Chart.render` が使う小さな convenience API。
+  数行のために public API churn を起こさない。
+
+Publishers の staging も再監査したが、Actual / Capacity / Scheduled などは
+stage write 後に typed decode / admission を再確認してから rename しており、
+単純な atomic-write wrapper より強い failure semantics を持つため統合しない。
+
+Replacement / Correction / Settlement frontier も #1454 以降にかなり蒸留済みで、
+Correction は indexed shared frontier operation、Settlement は複数 revision family で
+`ReplacementFrontier.structurallyAdmissible` / `frontier` を既に再利用している。
+古い「Application / Publisher を数千行単位で一括圧縮できる」という予測は
+current `main` の実装状態を表さない。
+
+したがって Phase 3 を閉じる。以後は wrapper 数を減らすことを目的化せず、
+Phase 4 で **複数 domain に残る同じ法則そのもの** が code / proof / explanation の
+総量を本当に減らせる場合だけ共通化する。
+
 ---
 
 ## 9. フェーズ 4：ドメイン概念ではなく「共通法則」を代数的に統合する
