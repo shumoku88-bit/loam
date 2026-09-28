@@ -2,6 +2,7 @@ import Loam.BalanceReview
 import Loam.BalanceViewConfig
 import Loam.BudgetWindowReview
 import Loam.CapacityReview
+import Loam.CycleBudgetReview
 import Loam.HouseholdPaths
 import Loam.RoleBalanceReview
 
@@ -12,11 +13,13 @@ open Loam.Core
 set_option autoImplicit false
 
 private def usage : String :=
-  "Usage: loamHouseholdObservation DATA_ROOT START END\n" ++
+  "Usage: loamHouseholdObservation DATA_ROOT START END [OBSERVED_AT]\n" ++
   "\n" ++
   "Emits Household Observation v1 (HOBS1) records for Balance, Budget, and\n" ++
-  "Capacity over the explicit half-open budget window [START, END). The output\n" ++
-  "is a read-only derived projection, never canonical household state."
+  "Capacity over the explicit half-open budget window [START, END). When\n" ++
+  "OBSERVED_AT is supplied, the existing CycleFunding read also emits exact\n" ++
+  "funding diagnostics for that current observation date. The output is a\n" ++
+  "read-only derived projection, never canonical household state."
 
 private def emitRecord (fields : List String) : IO Unit :=
   IO.println (String.intercalate "\t" ("HOBS1" :: fields))
@@ -130,13 +133,41 @@ private def printCapacity (snapshot : Loam.CapacityReview.Snapshot) : IO Unit :=
       toString row.entitlement.quanta
     ]
 
+
+private def loadFunding
+    (root : System.FilePath)
+    (start observedAt end_ : String) :
+    IO (Except String Loam.CycleFundingInspection.Summary) := do
+  let snapshot ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
+  let window ←
+    match snapshot.window with
+    | .error message => return .error message
+    | .ok window => pure window
+  if window.start != start || window.endExclusive != end_ then
+    return .error
+      ("loam: household observation funding window mismatch: requested [" ++
+        start ++ ", " ++ end_ ++ "), resolved [" ++ window.start ++ ", " ++
+        window.endExclusive ++ ")")
+  return snapshot.funding
+
+private def printFunding
+    (observedAt : String)
+    (summary : Loam.CycleFundingInspection.Summary) : IO Unit := do
+  emitMeta "funding_observed_at" observedAt
+  emitScalar "funding" "budgetable_backing" "jpy"
+    (toString summary.budgetableBacking.quanta)
+  emitScalar "funding" "remaining_assigned" "jpy"
+    (toString summary.remainingAssigned.quanta)
+  emitScalar "funding" "residual_before_unresolved" "jpy"
+    (toString summary.residualBeforeUnresolved.quanta)
+
 /--
 Emit one complete HOBS1 document. All three shared production queries are loaded
 before stdout is touched, so a semantic or persistence refusal cannot masquerade
 as a complete observation document. Consumers should additionally require the
 terminal `meta status complete` record to detect stream truncation.
 -/
-def report (rootPath start end_ : String) : IO UInt32 := do
+def report (rootPath start end_ : String) (observedAt? : Option String := none) : IO UInt32 := do
   let root := System.FilePath.mk rootPath
 
   let balances ←
@@ -160,6 +191,16 @@ def report (rootPath start end_ : String) : IO UInt32 := do
         return 2
     | .ok snapshot => pure snapshot
 
+  let funding? ←
+    match observedAt? with
+    | none => pure none
+    | some observedAt =>
+        match ← loadFunding root start observedAt end_ with
+        | .error message =>
+            IO.eprintln message
+            return 2
+        | .ok summary => pure (some (observedAt, summary))
+
   emitMeta "schema" "1"
   emitMeta "implementation" "loam"
   emitMeta "snapshot_kind" "composed-current-read"
@@ -171,6 +212,9 @@ def report (rootPath start end_ : String) : IO UInt32 := do
   printBalance balances
   printBudget budget
   printCapacity capacity
+  match funding? with
+  | none => pure ()
+  | some (observedAt, summary) => printFunding observedAt summary
 
   emitMeta "status" "complete"
   return 0
@@ -181,6 +225,8 @@ def main (args : List String) : IO UInt32 :=
   match args with
   | [rootPath, start, end_] =>
       Loam.HouseholdObservationCli.report rootPath start end_
+  | [rootPath, start, end_, observedAt] =>
+      Loam.HouseholdObservationCli.report rootPath start end_ (some observedAt)
   | _ => do
       IO.eprintln Loam.HouseholdObservationCli.usage
       return 2
