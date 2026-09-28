@@ -14,6 +14,10 @@ recognizer text (e.g. merchant, item, channel, transfer memo, or opening asserti
 It is retained evidence for human recognition and presentation, kept separate
 from Core quantity-placement facts.
 
+The text is intentionally Event-scoped and semantically unqualified. Presence of
+a description does not by itself establish Merchant, Purpose, Item, counterparty,
+or other structured meaning, and no Effect-scoped description family is implied.
+
 Invariants:
 - One `Event` may have zero or one `EventDescription`.
 - Core balance and quantity projections do not observe or require description evidence.
