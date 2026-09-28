@@ -22,6 +22,8 @@ inductive Key where
   | escape
   | ctrl (char : Char)
   | input (char : Char)
+  /-- Zero-based terminal pointer coordinate. Surfaces decide whether it is actionable. -/
+  | pointer (col row : Nat)
   | other
   deriving Repr, DecidableEq
 
@@ -72,19 +74,36 @@ Plain wheel motion becomes the same directional input as keyboard Up/Down so
 surface-specific scrolling and selection policy remains caller-owned.
 -/
 def decodeSgrMousePayload (payload : String) : Key :=
-  match (payload.splitOn ";").head?.bind String.toNat? with
-  | some 64 => .up
-  | some 65 => .down
+  match payload.splitOn ";" with
+  | [buttonText, colText, rowText] =>
+      match buttonText.toNat?, colText.toNat?, rowText.toNat? with
+      | some 64, _, _ => .up
+      | some 65, _, _ => .down
+      | some button, some col, some row =>
+          if (button = 0 || button = 32 || button = 35) && col > 0 && row > 0 then
+            .pointer (col - 1) (row - 1)
+          else
+            .other
+      | _, _, _ => .other
   | _ => .other
 
-private def readSgrMousePayload : Nat → String → IO String
-  | 0, acc => pure acc
+/--
+Read one SGR mouse packet body and retain whether the terminal marked it as a
+press/motion (`M`) rather than a release (`m`).
+-/
+private def readSgrMousePayload : Nat → String → IO (String × Bool)
+  | 0, acc => pure (acc, false)
   | Nat.succ fuel, acc => do
       let byte ← readByte
       let value := byte.toNat
-      if value = 0 ∨ value = 77 ∨ value = 109 then
-        return acc
-      readSgrMousePayload fuel (acc.push (Char.ofNat value))
+      if value = 0 then
+        return (acc, false)
+      else if value = 77 then
+        return (acc, true)
+      else if value = 109 then
+        return (acc, false)
+      else
+        readSgrMousePayload fuel (acc.push (Char.ofNat value))
 
 /-- Small input decoder shared by all production TUI surfaces. -/
 def readKey : IO Key := do
@@ -102,8 +121,11 @@ def readKey : IO Key := do
     | 68 => return .left
     | 90 => return .shiftTab
     | 60 =>
-        let payload ← readSgrMousePayload 32 ""
-        return decodeSgrMousePayload payload
+        let (payload, active) ← readSgrMousePayload 32 ""
+        if active then
+          return decodeSgrMousePayload payload
+        else
+          return .other
     | _ => return .other
   else if value = 9 then
     return .tab

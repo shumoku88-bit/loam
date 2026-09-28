@@ -18,6 +18,10 @@ on:
       - 'Loam/DailyPaceConfig.lean'
       - 'Loam/CycleSpendingPaceReview.lean'
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
+      - 'Loam/LocusTrendReview.lean'
+      - 'Loam/Tests/LocusTrendReview.lean'
+      - 'Loam/LocusTrendReview.lean'
+      - 'Loam/Tests/LocusTrendReview.lean'
       - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/LocusCatalog.lean'
       - 'Loam/LocusCoherenceReview.lean'
@@ -633,6 +637,12 @@ jobs:
       - name: Verify current cycle Daily Pace review boundary
         run: lake env lean --run Loam/Tests/CycleSpendingPaceReview.lean
 
+      - name: Build exact Locus Trend review boundary
+        run: lake build Loam.LocusTrendReview
+
+      - name: Verify correction-aware Locus Trend daily series
+        run: lake env lean --run Loam/Tests/LocusTrendReview.lean
+
       - name: Verify Home same-Actual-generation composition
         run: lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
 
@@ -689,7 +699,7 @@ jobs:
       - name: Verify Scheduled monthly and multi-month coverage projection
         run: lake env lean --run Loam/Tests/ScheduledCoverageReview.lean
 
-      - name: Verify Reports menu, flow, multicurrency, liquidity, budget and coverage surfaces
+      - name: Verify Reports menu, trend, flow, multicurrency, liquidity, budget and coverage surfaces
         run: lake env lean --run Loam/Tests/TuiReports.lean
 
       - name: Verify TUI owned Fava server lifecycle and shutdown
