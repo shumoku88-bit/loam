@@ -299,10 +299,11 @@ targeted documentation cleanup は owner ごとに進める。
   `docs/research/ADMITTED_TYPE_INTEGRITY_AUDIT_2026-09-19.md` に移ったため、
   ownership retirement の対象とした。
 
-`docs/movement_manifest_menu_cutover.md` は明示的な historical cutover note だが、
-現在の `README.md` が provenance として直接リンクしている。
-これは「historical だから即削除」ではなく、
-README に残すべき durable provenance があるかを先に決める対象である。
+`docs/movement_manifest_menu_cutover.md` は旧 no-argument shell-menu / manifest authority
+cutover の historical note であり、旧 manifest 識別子には current code owner が残っていなかった。
+current entrance semantics は `README.md` / `docs/TUI.md` が所有し、cutover provenance は
+Git history で十分なため、README の durable provenance を短く蒸留した上で ownership retirement
+の対象とした。
 
 ### CI / tools / visual assets の census 結論
 
