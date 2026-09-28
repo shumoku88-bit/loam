@@ -42,7 +42,11 @@ That path established two durable distinctions:
 
 QuantityBasis, QuantityBasisCorrection, BasisCut, and their current-quantity production path have since retired. Observation 104's executable occurrence-root-cut probe was migration-era evidence for that retired design and no longer owns a current Product contract.
 
-The exact old source remains in Git history. Application 010/011 material may still be consulted as historical context while it remains in the tree, but it must not be read as current household authority.
+The exact old source remains in Git history. The detailed Application 010/011
+dogfood notes have now graduated from the working tree as well: Application 010's
+surviving balance-view boundary is owned by `BalanceViewConfig` /
+`BalanceReview`, while Application 011's BasisCut path belongs entirely to the
+retired QuantityBasis era.
 
 ## Current quantity path
 
