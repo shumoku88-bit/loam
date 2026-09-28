@@ -39,7 +39,7 @@ def main : IO Unit := do
     validOn := "2026-09-15"
     description := some "ChatGPT Plus; monthly\ncharge"
   }
-  let .ok rendered := Loam.PlainTextAccountingExport.render? roles [entry]
+  let .ok rendered := Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [entry]
     | throw (IO.userError "balanced PTA export refused")
 
   expect (contains "2026-09-15 ChatGPT Plus, monthly charge" rendered)
@@ -57,7 +57,7 @@ def main : IO Unit := do
     validOn := "2026-09-15"
     description := some "income"
   }
-  let .ok incomeRendered := Loam.PlainTextAccountingExport.render? roles [incomeEntry]
+  let .ok incomeRendered := Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [incomeEntry]
     | throw (IO.userError "income PTA export refused")
   expect (contains "    income:pension  -1000 jpy" incomeRendered)
     "Income sign was rewritten instead of preserving LOAM quantity"
@@ -71,7 +71,7 @@ def main : IO Unit := do
     description := some "repayment"
   }
   let .ok liabilityRendered :=
-      Loam.PlainTextAccountingExport.render? roles [liabilityEntry]
+      Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [liabilityEntry]
     | throw (IO.userError "liability PTA export refused")
   expect (contains "    liabilities:personal-loan  500 jpy" liabilityRendered)
     "Liability sign was rewritten instead of preserving LOAM quantity"
@@ -84,7 +84,7 @@ def main : IO Unit := do
     description := some "opening"
   }
   let .ok openingRendered :=
-      Loam.PlainTextAccountingExport.render? roles [openingEntry]
+      Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [openingEntry]
     | throw (IO.userError "opening PTA export refused")
   expect (contains "    equity:opening-balances  -100 jpy" openingRendered)
     "already role-prefixed Locus was prefixed twice"
@@ -114,7 +114,7 @@ def main : IO Unit := do
     description := none
   }
   let .ok unresolvedRendered :=
-      Loam.PlainTextAccountingExport.render? roles [unresolvedEntry]
+      Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [unresolvedEntry]
     | throw (IO.userError "unresolved role should remain exportable")
   expect (contains "    unclassified:legacy-bucket  500 jpy" unresolvedRendered)
     "unresolved AccountingRole was not kept visibly unclassified"
@@ -128,7 +128,7 @@ def main : IO Unit := do
     validOn := "2026-09-17"
     description := some "not representable"
   }
-  match Loam.PlainTextAccountingExport.render? roles [unbalancedEntry] with
+  match Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [unbalancedEntry] with
   | .ok _ => throw (IO.userError "unbalanced Event was exported as ordinary PTA")
   | .error message =>
       expect (contains "per-Measure balance" message)
@@ -140,7 +140,7 @@ def main : IO Unit := do
     validOn := "2026-09-18"
     description := none
   }
-  match Loam.PlainTextAccountingExport.render? roles [emptyEntry] with
+  match Loam.PlainTextAccountingExport.renderWithPresentation? [] roles [emptyEntry] with
   | .ok _ => throw (IO.userError "effect-free Event was exported as ordinary PTA")
   | .error message =>
       expect (contains "effect-free Event" message)
