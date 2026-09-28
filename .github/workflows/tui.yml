@@ -150,6 +150,7 @@ on:
       - '.github/workflows/tui.yml'
   push:
     branches:
+      - main
       - 'feat/tui'
     paths:
       - 'Loam/HouseholdPaths.lean'
@@ -309,7 +310,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui Loam.Tests.ActualWorldFixture
+          build-args: ${{ github.event_name == 'pull_request' && 'loamTui Loam.Tests.ActualWorldFixture' || 'loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui Loam.Tests.ActualWorldFixture' }}
           test: false
           lint: false
           use-mathlib-cache: false
@@ -317,7 +318,21 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
+      - name: Verify PR TUI mechanics fast lane
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
+          lake env lean --run Loam/Tests/TuiActual.lean
+          lake env lean --run Loam/Tests/TuiScheduledWorkspace.lean
+          lake env lean --run Loam/Tests/TuiCapacity.lean
+          lake env lean --run Loam/Tests/TuiSettlement.lean
+          lake env lean --run Loam/Tests/TuiReports.lean
+          lake env lean --run Loam/Tests/TuiHelpFooter.lean
+
       - name: Verify unified loam command dispatch
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -387,56 +402,73 @@ jobs:
           compare_export_dispatch loamBeancountExport beancount
 
       - name: Verify display/history and admission-scoped Locus catalog
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/LocusCatalog.lean
 
       - name: Build and verify read-only Locus coherence review
+        if: github.event_name != 'pull_request'
         run: |
           lake build Loam.LocusCoherenceReview
           lake env lean --run Loam/Tests/LocusCoherenceReview.lean
 
       - name: Build shared Locus admission publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.LocusAdmissionPublisher
 
       - name: Verify add-only Locus admission publication
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/LocusAdmissionPublisher.lean "$(mktemp -d)/locus-admission"
 
       - name: Verify Locus admission administration interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiLocusAdmissionAdministration.lean
 
       - name: Build shared initial AccountingRole publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.AccountingRolePublisher
 
       - name: Verify virgin-Locus initial AccountingRole publication
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role"
 
       - name: Verify AccountingRole administration interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
 
       - name: Build bounded historical support administration boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.BoundedHistorySupportPublisher Loam.BoundedHistorySupportReview Loam.Tui.BoundedHistorySupportAdministration
 
       - name: Verify bounded historical support publication and anchor guard
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/BoundedHistorySupport.lean
 
       - name: Verify bounded historical support administration interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiBoundedHistorySupportAdministration.lean
 
       - name: Run shared Actual review checks
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/RecordReview.lean
 
       - name: Build presentation-neutral boundaries
+        if: github.event_name != 'pull_request'
         run: lake build Loam.Presentation.Home Loam.Presentation.Reports
 
       - name: Verify typed presentation read state
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/PresentationReadState.lean
 
       - name: Verify shared Home presentation
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/PresentationHome.lean
 
       - name: Verify shared Reports presentation
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/PresentationReports.lean
 
       - name: Verify admitted Actual journal export
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -469,6 +501,7 @@ jobs:
           fi
           cmp "$root/actual-before-alias-check.loam" "$root/actual.loam"
       - name: Verify Plain Text Accounting export
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -518,86 +551,114 @@ jobs:
           fi
 
       - name: Verify Record publication and fresh canonical review
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
       - name: Verify direct Exchange editor
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiExchange.lean
 
       - name: Build shared Correction publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.CorrectionPublisher
 
       - name: Verify normalized Actual correction publication
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/CorrectionPublisher.lean "$(mktemp -d)/correction-publisher"
 
       - name: Verify selected-day Correction editor and shared publication
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiCorrection.lean "$(mktemp -d)/tui-correction"
 
       - name: Build shared ActualValidity publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ActualValidityPublisher
 
       - name: Verify selected-day date editor and shared publication
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-correction"
 
       - name: Build shared Actual Reversal publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ActualReversalPublisher
 
       - name: Verify relation-first exact Actual reversal publication
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal"
 
       - name: Verify selected-day Actual reversal and fresh canonical review
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiActualReversal.lean "$(mktemp -d)/tui-actual-reversal"
 
       - name: Verify full-day Actual local window navigation
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiActual.lean
 
       - name: Verify Scheduled browse, detail, and open-world Unknown
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduled.lean
 
       - name: Verify Scheduled workspace mechanics
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduledWorkspace.lean
 
       - name: Build shared Scheduled creation publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ScheduledCreationPublisher
 
       - name: Build construction-only Scheduled generation
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ScheduledGeneration
 
       - name: Verify construction-only Scheduled generation
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/ScheduledGeneration.lean
 
       - name: Verify Scheduled generation interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduledGeneration.lean
 
       - name: Verify selected-day Scheduled creation and fresh canonical review
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create"
 
       - name: Build shared Scheduled terminal publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ScheduledTerminalPublisher
 
       - name: Verify selected-day Scheduled completion and cancellation
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal"
 
       - name: Verify post-completion Scheduled awareness
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduledContinuation.lean
 
       - name: Verify selected-day Actual and Scheduled composition
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiSelectedDay.lean
 
       - name: Build Attention review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.AttentionReview Loam.Tui.AttentionAdministration
 
       - name: Verify shared Attention persistence and review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
 
       - name: Verify Attention administration interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiAttentionAdministration.lean
 
       - name: Build Actual-backed Balance review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.BalanceReview
 
       - name: Verify Actual-backed Balance review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
 
       - name: Verify admitted Actual quantity CLI projections
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           set -euo pipefail
@@ -621,135 +682,178 @@ jobs:
           grep -Fq "wallet: -75 jpy" "$root/effective.txt"
           grep -Fq "food: 75 jpy" "$root/effective.txt"
       - name: Verify read-only Balances workspace
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiBalances.lean
 
       - name: Build shared Capacity publisher boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.CapacityPublisher
 
       - name: Verify Capacity transfer and fresh shared review
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-transfer"
 
       - name: Verify Capacity rebalance and fresh shared review
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiCapacityRebalance.lean "$(mktemp -d)/tui-capacity-rebalance"
 
       - name: Verify shared Capacity review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
 
       - name: Verify windowed Current Coverage review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/current-coverage-review"
 
       - name: Verify current cycle Daily Pace review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/CycleSpendingPaceReview.lean
 
       - name: Verify portable terminal chart foundation
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiChart.lean
 
       - name: Build exact Locus Trend review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.LocusTrendReview
 
       - name: Verify correction-aware Locus Trend daily series
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/LocusTrendReview.lean
 
       - name: Build aligned Trend Compare review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.LocusTrendCompareReview
 
       - name: Verify exact-Locus multi-series Trend Compare
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/LocusTrendCompareReview.lean
 
       - name: Verify Home same-Actual-generation composition
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
 
       - name: Verify Capacity workspace
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiCapacity.lean
 
       - name: Build shared Actual Purpose routing administration boundaries
+        if: github.event_name != 'pull_request'
         run: |
           lake build Loam.ActualRoutingPublisher
           lake build Loam.ActualRoutingReview
 
       - name: Verify current Expense Locus routing audit
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/ActualRoutingReview.lean "$(mktemp -d)/actual-routing-review"
 
       - name: Verify Actual Purpose routing administration interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiActualRoutingAdministration.lean "$(mktemp -d)/tui-actual-routing-administration"
 
       - name: Build Actual-backed Budget Window review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.BudgetWindowReview
 
       - name: Verify Actual-backed Budget Window review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
 
       - name: Build shared Stock-Flow review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.StockFlowReview
 
       - name: Verify Stock-Flow reconstruction and refusal boundaries
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/StockFlowReview.lean
 
       - name: Build shared Transactions-Flow review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.TransactionsFlowReview
 
       - name: Verify Transactions-Flow incidence, activity and refusal boundaries
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TransactionsFlowReview.lean
 
       - name: Build conditional selected-balance path review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ConditionalBalancePathReview
 
       - name: Verify conditional selected-balance path and refusal boundaries
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/ConditionalBalancePathReview.lean
 
       - name: Verify sparse Transactions-Flow Reports interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
 
       - name: Build Income Expense Scheduled provenance review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.IncomeExpenseProvenanceReview
 
       - name: Verify Income Expense Scheduled provenance projection
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/IncomeExpenseProvenanceReview.lean
 
       - name: Build Scheduled future coverage review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ScheduledCoverageReview
 
       - name: Verify Scheduled monthly and multi-month coverage projection
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/ScheduledCoverageReview.lean
 
       - name: Verify Reports menu, trend, flow, multicurrency, liquidity, budget and coverage surfaces
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiReports.lean
 
       - name: Verify TUI owned Fava server lifecycle and shutdown
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiFavaLifecycle.lean
 
       - name: Verify read-only Settlement workspace
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiSettlement.lean
 
       - name: Verify TUI help footer geometry and adaptive flow
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiHelpFooter.lean
 
       - name: Build shared CycleBudget review boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.CycleBudgetReview
 
       - name: Verify shared CycleBudget review boundary
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/CycleBudgetReview.lean "$(mktemp -d)/cycle-budget-review"
 
       - name: Verify Cycle Budget workspace
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiCycleBudget.lean
 
       - name: Verify Scheduled Routing TUI interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiScheduledRouting.lean "$(mktemp -d)/tui-scheduled-routing"
 
       - name: Build shared Scheduled continuation routing boundary
+        if: github.event_name != 'pull_request'
         run: lake build Loam.ScheduledContinuationRouting
 
       - name: Verify presentation-neutral Scheduled continuation routing inheritance
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/ScheduledContinuationRouting.lean "$(mktemp -d)/continuation-routing"
 
       - name: Verify Cycle Grant TUI interaction
+        if: github.event_name != 'pull_request'
         run: lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant"
 
       - name: Verify Cycle Budget TUI PTY interactions
+        if: github.event_name != 'pull_request'
         run: |
           FIXTURE_DIR="$(mktemp -d)/cycle-budget-pty"
           lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
           python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
+        if: github.event_name != 'pull_request'
         run: python3 tests/test_tui_fava_lifecycle_pty.py
