@@ -33,29 +33,16 @@ partial def run
   let step := Loam.Tui.Record.update world known state (← Loam.Tui.Terminal.readKey)
   if step.cancel then return "Record cancelled."
   if step.enableUnresolved then
-    match ← Loam.Tui.UnresolvedActivation.enable? root with
+    match ← Loam.Tui.UnresolvedActivation.enableEditor? root step.state with
     | .error message =>
-        let next := {
-          step.state with
-          mode := Loam.Tui.Record.Mode.editing
-          notice := "Unresolved recording was not enabled: " ++ message }
+        let next := Loam.Tui.UnresolvedActivation.withEnableError step.state message
         let nextFrame := compileWidget (Loam.Tui.Record.view known next)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         run bounds root world known next nextFrame
     | .ok enabled =>
-        let base := Loam.Tui.Record.withCatalog
-          { step.state with mode := Loam.Tui.Record.Mode.editing } enabled.catalog
-        let next :=
-          match Loam.Tui.Record.fillUnresolvedRemainder? enabled.world base with
-          | .ok filled =>
-              { filled with
-                notice := "Unresolved recording enabled; remainder filled." }
-          | .error message =>
-              { base with
-                notice := "Unresolved recording enabled. " ++ message }
-        let nextFrame := compileWidget (Loam.Tui.Record.view enabled.known next)
+        let nextFrame := compileWidget (Loam.Tui.Record.view enabled.known enabled.editor)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        run bounds root enabled.world enabled.known next nextFrame
+        run bounds root enabled.world enabled.known enabled.editor nextFrame
   else
     match step.publish with
     | some intent =>
