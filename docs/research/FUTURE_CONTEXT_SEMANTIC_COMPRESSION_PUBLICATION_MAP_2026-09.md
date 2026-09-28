@@ -9,6 +9,11 @@ Baseline:
 
 This note does not claim a new mathematical theorem and does not claim that LOAM has established a publication result. It records the strongest statement that the current proved observations appear to support, separates that statement from familiar mathematics, and identifies what still has to be shown before any paper claim is defensible.
 
+The detailed discovery prose for Observations 193–195 has graduated to Git history.
+Their Lean witnesses remain live, while this map is the current-facing synthesis
+for the real-Correction value distinction, fail-closed future definedness, and
+exact-result-versus-availability information order.
+
 ## 1. Candidate research question
 
 The strongest current question is not:
