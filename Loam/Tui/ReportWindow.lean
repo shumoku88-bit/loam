@@ -78,14 +78,9 @@ def initialForDateWithPresets
 
 /-- Move among Start, End, and Run without changing query coordinates. -/
 def moveFocus (state : State) (back : Bool) : State :=
-  let next :=
-    if back then Loam.Tui.CyclicIndex.backward 3 state.form.focus.val
-    else Loam.Tui.CyclicIndex.forward 3 state.form.focus.val
+  let next := Loam.Tui.CyclicIndex.move 3 state.form.focus.val back
   { state with form := { state.form with focus := ⟨next, by
-      dsimp [next]
-      split
-      · exact Loam.Tui.CyclicIndex.backward_lt 3 state.form.focus.val (by decide)
-      · exact Loam.Tui.CyclicIndex.forward_lt 3 state.form.focus.val (by decide)⟩ } }
+      exact Loam.Tui.CyclicIndex.move_lt 3 state.form.focus.val back (by decide)⟩ } }
 
 /-- Edit the active coordinate. Editing Start or End makes the source explicitly Custom. -/
 def editActive (state : State) (edit : String → String) : State :=
