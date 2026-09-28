@@ -142,8 +142,33 @@ def plotTop : Nat := 5
 def plotWidth (bounds : Bounds) : Nat :=
   max 1 (Loam.Tui.Layout.contentWidth bounds - plotLeft)
 
-def plotHeight (bounds : Bounds) : Nat :=
-  if bounds.height > 9 then bounds.height - 9 else 3
+private def navigationTokens (state : State) : List String :=
+  match state.view with
+  | .overview =>
+      ["←/→ select cycle", "Enter cycle daily", "d all-days", "mouse hover select",
+        "r renderer", "q/Esc reports"]
+  | .history =>
+      ["←/→ select day", "d cycle overview", "mouse hover select",
+        "r renderer", "q/Esc overview"]
+  | .detail =>
+      ["←/→ select day", "d all-days", "mouse hover select",
+        "r renderer", "q/Esc overview"]
+
+private def navigationLineCount (bounds : Bounds) (state : State) : Nat :=
+  (Loam.Tui.Layout.flowTokens
+      (Loam.Tui.Layout.contentWidth bounds) "   "
+      (navigationTokens state)).length
+
+/--
+Give the chart all remaining rows after the fixed five-line header, two axis
+rows, and the *actual wrapped* navigation footer.
+
+This keeps back navigation visible when a narrow terminal wraps one more footer
+line after new Trend actions are added.
+-/
+def plotHeight (bounds : Bounds) (state : State) : Nat :=
+  let fixedRows := plotTop + 2 + navigationLineCount bounds state
+  if bounds.height > fixedRows then bounds.height - fixedRows else 1
 
 /--
 Select the chart point nearest one physical pointer column.
@@ -166,8 +191,8 @@ def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
           { state with selected := next, historySelected := next }
       | .detail => { state with selected := next }
 
-def pointerInPlot (bounds : Bounds) (row : Nat) : Bool :=
-  decide (plotTop <= row && row < plotTop + plotHeight bounds)
+def pointerInPlot (bounds : Bounds) (state : State) (row : Nat) : Bool :=
+  decide (plotTop <= row && row < plotTop + plotHeight bounds state)
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
@@ -291,7 +316,7 @@ private def observedMarkers (state : State) : List Loam.Tui.Chart.Marker :=
 private def chartRows
     (bounds : Bounds) (state : State) : List Widget :=
   let width := plotWidth bounds
-  let height := plotHeight bounds
+  let height := plotHeight bounds state
   let series := values state
   let scale := chartScale state
   let gridRows :=
@@ -429,19 +454,9 @@ private def header (state : State) : List Widget :=
           ]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
-  let tokens :=
-    match state.view with
-    | .overview =>
-        ["←/→ select cycle", "Enter cycle daily", "d all-days", "mouse hover select",
-          "r renderer", "q/Esc reports"]
-    | .history =>
-        ["←/→ select day", "d cycle overview", "mouse hover select",
-          "r renderer", "q/Esc overview"]
-    | .detail =>
-        ["←/→ select day", "d all-days", "mouse hover select",
-          "r renderer", "q/Esc overview"]
   (Loam.Tui.Layout.flowTokens
-      (Loam.Tui.Layout.contentWidth bounds) "   " tokens).map muted
+      (Loam.Tui.Layout.contentWidth bounds) "   "
+      (navigationTokens state)).map muted
 
 /--
 Render Trend as a dedicated full-screen chart instead of the ordinary Reports
