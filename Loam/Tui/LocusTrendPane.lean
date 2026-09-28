@@ -16,7 +16,8 @@ set_option autoImplicit false
 The Trend surface has two presentation levels:
 
 * `overview`: configured adjacent household windows across long history;
-* `detail`: one selected window at daily granularity.
+* `history`: one calendar point per day from the first configured boundary;
+* `detail`: one selected cycle at daily granularity.
 
 Both keyboard and pointer selection update one presentation cursor. The renderer
 owns only terminal geometry and never changes household authority or trend
@@ -25,15 +26,18 @@ semantics.
 
 inductive View where
   | overview
+  | history
   | detail
   deriving Repr, DecidableEq
 
 structure State where
   view : View := .overview
   overview : Option Loam.LocusTrendReview.OverviewSnapshot := none
+  history : Option Loam.LocusTrendReview.Snapshot := none
   snapshot : Option Loam.LocusTrendReview.Snapshot := none
   selected : Nat := 0
   overviewSelected : Nat := 0
+  historySelected : Nat := 0
   renderer : Loam.Tui.Chart.Renderer := .braille
   deriving Repr, DecidableEq
 
@@ -43,9 +47,11 @@ def clear (state : State) : State :=
   { state with
       view := .overview
       overview := none
+      history := none
       snapshot := none
       selected := 0
-      overviewSelected := 0 }
+      overviewSelected := 0
+      historySelected := 0 }
 
 def withOverview
     (state : State) (snapshot : Loam.LocusTrendReview.OverviewSnapshot) : State :=
@@ -56,6 +62,15 @@ def withOverview
       snapshot := none
       selected := selected
       overviewSelected := selected }
+
+def withHistory
+    (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
+  let selected := if snapshot.points.isEmpty then 0 else snapshot.points.length - 1
+  { state with
+      view := .history
+      history := some snapshot
+      selected := selected
+      historySelected := selected }
 
 def withSnapshot
     (state : State) (snapshot : Loam.LocusTrendReview.Snapshot) : State :=
@@ -68,6 +83,12 @@ def backToOverview (state : State) : State :=
 def isOverview (state : State) : Bool :=
   state.view == .overview
 
+def isHistory (state : State) : Bool :=
+  state.view == .history
+
+def backToHistory (state : State) : State :=
+  { state with view := .history, selected := state.historySelected }
+
 def cycleRenderer (state : State) : State :=
   { state with renderer := state.renderer.next }
 
@@ -75,6 +96,7 @@ def cycleRenderer (state : State) : State :=
 private def pointCount (state : State) : Nat :=
   match state.view with
   | .overview => state.overview.map (·.points.length) |>.getD 0
+  | .history => state.history.map (·.points.length) |>.getD 0
   | .detail => state.snapshot.map (·.points.length) |>.getD 0
 
 def moveSelection (state : State) (back : Bool) : State :=
@@ -88,6 +110,8 @@ def moveSelection (state : State) (back : Bool) : State :=
     match state.view with
     | .overview =>
         { state with selected := next, overviewSelected := next }
+    | .history =>
+        { state with selected := next, historySelected := next }
     | .detail => { state with selected := next }
 
 def selectedOverviewPoint?
@@ -95,9 +119,19 @@ def selectedOverviewPoint?
   let snapshot ← state.overview
   snapshot.points[state.selected]?
 
+def selectedHistoryPoint? (state : State) : Option Loam.LocusTrendReview.Point := do
+  let snapshot ← state.history
+  snapshot.points[state.selected]?
+
 def selectedPoint? (state : State) : Option Loam.LocusTrendReview.Point := do
   let snapshot ← state.snapshot
   snapshot.points[state.selected]?
+
+private def selectedDailyPoint? (state : State) : Option Loam.LocusTrendReview.Point :=
+  match state.view with
+  | .history => selectedHistoryPoint? state
+  | .detail => selectedPoint? state
+  | .overview => none
 
 /-- Fixed terminal column where chart data begins after the amount axis. -/
 def plotLeft : Nat := 11
@@ -128,6 +162,8 @@ def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
       match state.view with
       | .overview =>
           { state with selected := next, overviewSelected := next }
+      | .history =>
+          { state with selected := next, historySelected := next }
       | .detail => { state with selected := next }
 
 def pointerInPlot (bounds : Bounds) (row : Nat) : Bool :=
@@ -158,6 +194,8 @@ private def measureToken (state : State) : String :=
   match state.view with
   | .overview =>
       state.overview.map (·.coordinate.measure.token) |>.getD ""
+  | .history =>
+      state.history.map (·.coordinate.measure.token) |>.getD ""
   | .detail =>
       state.snapshot.map (·.coordinate.measure.token) |>.getD ""
 
@@ -183,6 +221,9 @@ private def values (state : State) : List Int :=
   | .overview =>
       state.overview.map (fun snapshot =>
         snapshot.points.map (·.dailyAverageQuanta)) |>.getD []
+  | .history =>
+      state.history.map (fun snapshot =>
+        snapshot.points.map (·.daily.quanta)) |>.getD []
   | .detail =>
       state.snapshot.map (fun snapshot =>
         snapshot.points.map (·.daily.quanta)) |>.getD []
@@ -216,7 +257,7 @@ private def observedMarkers (state : State) : List Loam.Tui.Chart.Marker :=
             else
               Loam.Tui.Chart.MarkerKind.incomplete
           }) |>.getD []
-  | .detail => []
+  | .history | .detail => []
 
 private def chartRows
     (bounds : Bounds) (state : State) : List Widget :=
