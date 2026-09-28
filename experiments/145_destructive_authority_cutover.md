@@ -2,7 +2,7 @@
 
 ## Question
 
-Observation 129 qualified auxiliary-first publication when every candidate relation referred to a fresh `EventId`. Before `EventMemory` publication those facts were inert.
+Historical Observation 129 qualified auxiliary-first publication when every candidate relation referred to a fresh `EventId`. Before `EventMemory` publication those facts were inert. Its one-shot PREPARED/receipt model has since graduated to Git history.
 
 The historical Actual authority cut is stronger. It replaces existing `EventMemory`, `ActualValidity`, and `QuantityBasis` images, adds descriptions and a source snapshot, and retires two old relation files:
 
@@ -21,7 +21,7 @@ The question is therefore:
 
 This is a one-time protocol model, not a publisher implementation.
 
-Lean 4 is sufficient because the publication sequence is fixed and finite, while the important refusals must be checked against existing production functions. Unlike Observation 129, no scheduler or concurrent-writer interleaving is being introduced: the future operation will hold the existing `Loam.WriterOwnership.withOwnership` lock for its complete lifetime. TLA+ would duplicate the finite phase enumeration without adding a distinct answer.
+Lean 4 is sufficient because the publication sequence is fixed and finite, while the important refusals must be checked against existing production functions. Unlike the historical Observation 129 model, no scheduler or concurrent-writer interleaving is being introduced: the future operation will hold the existing `Loam.WriterOwnership.withOwnership` lock for its complete lifetime. TLA+ would duplicate the finite phase enumeration without adding a distinct answer.
 
 No production type, persistence function, CLI, lock, transaction layer, or canonical file changes in this observation.
 
@@ -76,7 +76,7 @@ The correction-aware Consumption boundary likewise requires an admitted closed c
 
 ### D1 with E0
 
-`EventDescriptionMemory.findText?` is keyed only by exact `EventId`. D1 has no E0 key, so it cannot attach candidate text to an old Event. The current review CLI does not consume descriptions. The snapshot is archive evidence and is not a canonical query input, as qualified by Observation 135.
+`EventDescriptionMemory.findText?` is keyed only by exact `EventId`. D1 has no E0 key, so it cannot attach candidate text to an old Event. The current review CLI does not consume descriptions. The snapshot is archive evidence and is not a canonical query input, matching the historical Observation 135 qualification now retained in Git history.
 
 ## Qualified publication order
 

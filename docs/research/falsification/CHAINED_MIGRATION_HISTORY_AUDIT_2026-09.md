@@ -349,6 +349,27 @@ one-shot migrator to remain executable forever.
 It requires the *meaning needed by current authority* to survive after the
 temporary bridge is retired.
 
+This now also applies to the historical-admission experiments previously kept as
+Observations 129 and 135. Their PREPARED / admission-receipt multi-stream
+protocol and sealed source-snapshot archive were one-shot migration candidates,
+not current household authorities. Neither shape survives in production.
+
+Current Actual publication has a smaller physical owner:
+
+```text
+complete ActualEvidence
+    -> encode normalized actual.loam
+    -> sibling stage
+    -> typed re-decode
+    -> one atomic rename
+```
+
+The old executable models and detailed migration notes have therefore graduated
+to Git history. The surviving law is the migration discipline stated here:
+preserve or explicitly retire independently observable meaning, qualify the new
+complete authority before deleting the bridge, and never turn archival
+provenance into ordinary query authority.
+
 ## 7. Measure presentation activation
 
 The current household presentation configuration includes fixed-point scales for
