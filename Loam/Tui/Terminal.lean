@@ -122,6 +122,10 @@ private def readSgrMousePayload : Nat → String → IO (String × Bool)
       else
         readSgrMousePayload fuel (acc.push (Char.ofNat value))
 
+/-- Apply one normalized Backspace edit to presentation-local text. -/
+def backspaceText (text : String) : String :=
+  String.ofList text.toList.dropLast
+
 /-- Small input decoder shared by all production TUI surfaces. -/
 def readKey : IO Key := do
   let first ← readByte

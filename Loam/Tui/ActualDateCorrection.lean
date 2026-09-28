@@ -44,9 +44,6 @@ def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
 private def allowedDateChar (char : Char) : Bool :=
   char.isDigit || char = '-'
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 /--
 Pure local interaction. Calendar validity is checked with the existing shared date
 utility for preview feedback, then checked again by ActualValidityPublisher under
@@ -58,7 +55,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       match key with
       | .escape | .input 'q' | .input 'Q' => { state, cancel := true }
       | .backspace =>
-          { state := { state with input := dropLast state.input, notice := "" } }
+          { state := { state with input := Loam.Tui.Terminal.backspaceText state.input, notice := "" } }
       | .input char =>
           if allowedDateChar char && state.input.length < 10 then
             { state := { state with input := state.input.push char, notice := "" } }

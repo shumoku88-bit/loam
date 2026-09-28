@@ -59,9 +59,6 @@ def initial?
 private def allowedDateChar (char : Char) : Bool :=
   char.isDigit || char = '-'
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 /-- Local preview-only inverse of the selected visible target. -/
 def inversePreview (state : State) : List (LocusId × Quantity × MeasureId) :=
   state.targetEffects.map fun effect =>
@@ -74,7 +71,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       match key with
       | .escape | .input 'q' | .input 'Q' => { state, cancel := true }
       | .backspace =>
-          { state := { state with inputDate := dropLast state.inputDate, notice := "" } }
+          { state := { state with inputDate := Loam.Tui.Terminal.backspaceText state.inputDate, notice := "" } }
       | .input char =>
           if allowedDateChar char && state.inputDate.length < 10 then
             { state := { state with inputDate := state.inputDate.push char, notice := "" } }

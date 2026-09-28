@@ -483,7 +483,7 @@ private def updateComparison
   | .backspace =>
       if state.comparison.focus.val < 4 then
         { state := editComparisonState state
-            (fun text => String.ofList text.toList.dropLast) }
+            (fun text => Loam.Tui.Terminal.backspaceText text) }
       else
         { state }
   | .input char =>
@@ -515,7 +515,7 @@ private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : S
   | .tab => { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window false, notice := "" } }
   | .shiftTab => { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window true, notice := "" } }
   | .backspace =>
-      { state := editWindowState state (fun text => String.ofList text.toList.dropLast) }
+      { state := editWindowState state (fun text => Loam.Tui.Terminal.backspaceText text) }
   | .input 'm' | .input 'M' => { state := resetCalendarMonth state }
   | .input char =>
       { state := editWindowState state (fun text => text.push char) }
@@ -567,7 +567,7 @@ private def updateTransactionsFlow
         { state := { state with window := Loam.Tui.ReportWindow.moveFocus state.window true, notice := "" } }
     | .backspace =>
         if state.window.form.focus.val < 2 then
-          { state := editWindowState state (fun text => String.ofList text.toList.dropLast) }
+          { state := editWindowState state (fun text => Loam.Tui.Terminal.backspaceText text) }
         else
           { state }
     | .input 'm' | .input 'M' => { state := resetCalendarMonth state }
@@ -795,7 +795,7 @@ private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step
   | .backspace =>
       { state := clearResults { state with
           liquidityForm := editLiquidityActive state.liquidityForm
-            (fun text => String.ofList text.toList.dropLast)
+            (fun text => Loam.Tui.Terminal.backspaceText text)
           notice := "" } }
   | .input 'm' | .input 'M' => { state := resetLiquidityHorizon state }
   | .input char =>

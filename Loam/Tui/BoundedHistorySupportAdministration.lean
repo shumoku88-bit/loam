@@ -94,9 +94,6 @@ private def moveDown (state : State) : State :=
   if state.cursor + 1 < state.rows.length then selectIndex state (state.cursor + 1)
   else state
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 private def editableChar (char : Char) : Bool :=
   char.isDigit || char = '-'
 
@@ -108,7 +105,7 @@ def update (state : State) (key : Key) : Step :=
       | .up => { state := moveUp state }
       | .down => { state := moveDown state }
       | .backspace =>
-          { state := { state with startDay := dropLast state.startDay, notice := "" } }
+          { state := { state with startDay := Loam.Tui.Terminal.backspaceText state.startDay, notice := "" } }
       | .input char =>
           if editableChar char then
             { state := { state with startDay := state.startDay.push char, notice := "" } }

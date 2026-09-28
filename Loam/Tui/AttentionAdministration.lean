@@ -66,9 +66,6 @@ private def moveCursor (state : State) (back : Bool) : State :=
       else Loam.Tui.CyclicIndex.forward count state.cursor
     { state with cursor := next, notice := "" }
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 private def emitAdd
     (state : State) (context : String) (due : AttentionDue String) : Step :=
   { state := { state with mode := .browse, notice := "" }
@@ -99,7 +96,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       match key with
       | .escape => { state := { state with mode := .browse, notice := "" } }
       | .backspace =>
-          { state := { state with mode := .newContext (dropLast text), notice := "" } }
+          { state := { state with mode := .newContext (Loam.Tui.Terminal.backspaceText text), notice := "" } }
       | .enter =>
           if text.isEmpty then
             { state := { state with notice := "Enter a short household matter before choosing due meaning." } }
@@ -120,7 +117,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       match key with
       | .escape => { state := { state with mode := .browse, notice := "" } }
       | .backspace =>
-          { state := { state with mode := .newDate context (dropLast date), notice := "" } }
+          { state := { state with mode := .newDate context (Loam.Tui.Terminal.backspaceText date), notice := "" } }
       | .enter =>
           if Loam.ActualDate.validIsoDate date then
             emitAdd state context (.dueOn date)

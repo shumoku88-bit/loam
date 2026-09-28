@@ -114,7 +114,7 @@ private def remainingAfterReductionRetraction
 
 private def editText (text : String) (key : Loam.Tui.Terminal.Key) : String :=
   match key with
-  | .backspace => String.ofList text.toList.dropLast
+  | .backspace => Loam.Tui.Terminal.backspaceText text
   | .input char => if char.isDigit then text.push char else text
   | _ => text
 
@@ -477,7 +477,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .backspace =>
           { state := {
               state with
-              mode := .reduceDate quantity (String.ofList input.toList.dropLast)
+              mode := .reduceDate quantity (Loam.Tui.Terminal.backspaceText input)
               notice := ""
             } }
       | .input char =>
@@ -537,7 +537,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .input 'q' | .input 'Q' => { state, cancel := true }
       | .enter => previewRepairDate state index quantity input
       | .backspace =>
-          { state := { state with mode := .repairDate index quantity (String.ofList input.toList.dropLast), notice := "" } }
+          { state := { state with mode := .repairDate index quantity (Loam.Tui.Terminal.backspaceText input), notice := "" } }
       | .input char =>
           if char.isDigit || char = '-' then
             { state := { state with mode := .repairDate index quantity (input.push char), notice := "" } }

@@ -63,9 +63,6 @@ private def moveFocus (form : Form) (back : Bool) : Form :=
     else Loam.Tui.CyclicIndex.forward focusCount form.focus
   { form with focus := next }
 
-private def dropLast (text : String) : String :=
-  String.ofList text.toList.dropLast
-
 private def editActive (form : Form) (edit : String → String) : Form :=
   if form.focus = 0 then { form with date := edit form.date }
   else if form.focus = 1 then { form with description := edit form.description }
@@ -170,7 +167,7 @@ def update
           | .tab => { state := { state with form := moveFocus state.form false } }
           | .shiftTab => { state := { state with form := moveFocus state.form true } }
           | .backspace =>
-              { state := { state with form := editActive state.form dropLast, notice := "" } }
+              { state := { state with form := editActive state.form Loam.Tui.Terminal.backspaceText, notice := "" } }
           | .input char =>
               { state := { state with
                   form := editActive state.form (fun text => text.push char)

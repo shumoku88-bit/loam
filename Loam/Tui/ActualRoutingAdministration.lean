@@ -207,7 +207,7 @@ def update (state : State) (key : Key) : Step :=
               else
                 { state := state }
           | .backspace =>
-              let next := String.ofList buffer.toList.dropLast
+              let next := Loam.Tui.Terminal.backspaceText buffer
               { state := { state with phase := .editEffective next, notice := "" } }
           | .enter =>
               let date := if buffer.isEmpty then state.snapshot.observedAt else buffer

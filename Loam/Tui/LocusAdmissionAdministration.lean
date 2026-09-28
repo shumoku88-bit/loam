@@ -82,7 +82,7 @@ def update (state : State) (key : Key) : Step :=
           { state := { state with scroll := next, notice := "" } }
       | .backspace =>
           { state := { state with
-              entered := String.ofList state.entered.toList.dropLast
+              entered := Loam.Tui.Terminal.backspaceText state.entered
               notice := "" } }
       | .enter =>
           match validation? state with

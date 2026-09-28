@@ -123,7 +123,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           { state := { state with mode := .horizon (customChoice state), notice := "" } }
       | .backspace =>
           { state := { state with
-              mode := .customDate (String.ofList value.toList.dropLast)
+              mode := .customDate (Loam.Tui.Terminal.backspaceText value)
               notice := "" } }
       | .input char =>
           { state := { state with mode := .customDate (value.push char), notice := "" } }
