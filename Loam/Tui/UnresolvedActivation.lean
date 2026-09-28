@@ -17,13 +17,18 @@ for `suspense`. No Core suspense type, authority, Measure, AccountingRole,
 Purpose, or Attention fact is created here.
 
 After that independent policy publication, the selected Movement world is
-reloaded before any Record or Correction draft is changed.
+reloaded before any Record-shaped draft is changed.
 -/
 
 structure Enabled where
   world : Loam.MovementAdmission.World
   known : List String
   catalog : Loam.LocusCatalog.Catalog
+
+structure EnabledEditor where
+  world : Loam.MovementAdmission.World
+  known : List String
+  editor : Loam.Tui.Record.State
 
 private def fromWorld
     (root : System.FilePath)
@@ -71,5 +76,26 @@ def enable?
             return .error admissionMessage
       | .error _ =>
           return .error admissionMessage
+
+def withEnableError
+    (editor : Loam.Tui.Record.State) (message : String) : Loam.Tui.Record.State :=
+  { editor with mode := .editing, notice := "Unresolved recording was not enabled: " ++ message }
+
+/-- Enable unresolved recording and rebuild one Record-shaped editor from the refreshed world. -/
+def enableEditor?
+    (root : System.FilePath)
+    (editor : Loam.Tui.Record.State) : IO (Except String EnabledEditor) := do
+  let enabled ← enable? root
+  match enabled with
+  | .error message => return .error message
+  | .ok enabled =>
+      let base := Loam.Tui.Record.withCatalog { editor with mode := .editing } enabled.catalog
+      let editor :=
+        match Loam.Tui.Record.fillUnresolvedRemainder? enabled.world base with
+        | .ok filled =>
+            { filled with notice := "Unresolved recording enabled; remainder filled." }
+        | .error message =>
+            { base with notice := "Unresolved recording enabled. " ++ message }
+      return .ok { world := enabled.world, known := enabled.known, editor := editor }
 
 end Loam.Tui.UnresolvedActivation
