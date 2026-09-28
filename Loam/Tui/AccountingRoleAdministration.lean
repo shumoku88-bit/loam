@@ -115,10 +115,7 @@ private def roleText (state : State) : String :=
 private def visibleCandidates (bounds : Bounds) (state : State) : List (Nat × LocusId) :=
   let maxVisible := if bounds.height > 14 then min 12 (bounds.height - 12) else 5
   let selected := if state.candidates.isEmpty then 0 else min state.cursor (state.candidates.length - 1)
-  let start :=
-    if state.candidates.length <= maxVisible then 0
-    else if selected + 1 <= maxVisible then 0
-    else min (selected + 1 - maxVisible) (state.candidates.length - maxVisible)
+  let start := Loam.Tui.Layout.trailingWindowStart selected maxVisible
   (state.candidates.drop start |>.take maxVisible).zipIdx.map fun (locus, index) =>
     (start + index, locus)
 
