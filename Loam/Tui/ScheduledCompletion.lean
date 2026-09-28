@@ -67,12 +67,6 @@ def initialWithPresentation?
     editor := { form := form, measurePresentation := metadata }
   }
 
-/-- Scale-0 compatibility entrance for callers without presentation metadata. -/
-def initial?
-    (record : Loam.Tui.Main.ScheduledRecord)
-    (actualDate : String) : Except String State :=
-  initialWithPresentation? [] record actualDate
-
 private def publisherDraft
     (target : ScheduledId)
     (movement : Loam.MovementAdmission.Draft) :
