@@ -293,12 +293,11 @@ targeted documentation cleanup は owner ごとに進める。
 - `SEMANTIC_GAP_AUDIT.md` は、自身が historical audit evidence と明記し、
   current reference を持たず、surviving meaning が production code・regression・
   後続 audit に吸収されたため、ownership retirement PR #1540 を切った。
-- `RAW_ADMITTED_AUDIT.md` は current-status note で falsification evidence としての
-  価値を主張しているが、翌日の
-  `docs/research/ADMITTED_TYPE_INTEGRITY_AUDIT_2026-09-19.md` が
-  production reachability を再監査し、
-  `no confirmed production semantic bypass` という後続 verdict を保持している。
-  したがって root に残す理由は次の targeted re-audit 対象である。
+- `RAW_ADMITTED_AUDIT.md` も current reference を持たず、旧 type inventory は
+  後続 hardening / read-image promotion より前のものだった。surviving responsibilities は
+  proof-carrying production types、current theorems、falsification assets、および
+  `docs/research/ADMITTED_TYPE_INTEGRITY_AUDIT_2026-09-19.md` に移ったため、
+  ownership retirement の対象とした。
 
 `docs/movement_manifest_menu_cutover.md` は明示的な historical cutover note だが、
 現在の `README.md` が provenance として直接リンクしている。
