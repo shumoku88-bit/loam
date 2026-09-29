@@ -20,9 +20,7 @@ def run
     (state : Loam.Tui.Exchange.State)
     (frame : Loam.Tui.Runtime.CompiledWidget) : IO String :=
   Loam.Tui.EditorSession.runUntilPublished bounds
-    (fun current key =>
-      let step := Loam.Tui.Exchange.update world current key
-      { state := step.state, cancel := step.cancel, publish := step.publish })
+    (Loam.Tui.Exchange.update world)
     Loam.Tui.Exchange.view
     Loam.Tui.Exchange.withPublishError
     "Exchange cancelled."
