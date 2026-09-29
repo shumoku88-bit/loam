@@ -323,6 +323,15 @@ partial def chooseCadence
               Loam.Tui.Terminal.redrawFromBlank bounds previewFrame
               reviewAndPublish bounds root preview previewFrame
 
+private def loadSuggestions
+    (dataDir : System.FilePath) (observedAt : String) :
+    IO (List Loam.BoundaryPresetConfig.HorizonSuggestion × String) := do
+  match ← Loam.BoundaryPresetConfig.loadHorizonSuggestions dataDir observedAt with
+  | .ok suggestions => pure (suggestions, "")
+  | .error message =>
+      pure ([], "Boundary suggestions unavailable: " ++ message ++
+        ". Custom date remains available.")
+
 def run
     (bounds : Bounds)
     (dataDir root : System.FilePath)
@@ -330,14 +339,27 @@ def run
     (catalog : Loam.LocusCatalog.Catalog)
     (source : Loam.Tui.Main.ScheduledRecord)
     (observedAt : String) : IO String := do
-  let (suggestions, notice) ←
-    match ← Loam.BoundaryPresetConfig.loadHorizonSuggestions dataDir observedAt with
-    | .ok suggestions => pure (suggestions, "")
-    | .error message =>
-        pure ([], "Boundary suggestions unavailable: " ++ message ++
-          ". Custom date remains available.")
+  let (suggestions, notice) ← loadSuggestions dataDir observedAt
   let state :=
     Loam.Tui.ScheduledGeneration.initial source suggestions observedAt
+      |> fun state => if notice.isEmpty then state else
+        Loam.Tui.ScheduledGeneration.withNotice state notice
+  let frame := compileWidget (Loam.Tui.ScheduledGeneration.view state)
+  Loam.Tui.Terminal.redrawFromBlank bounds frame
+  chooseCadence bounds root known catalog state frame
+
+def runWithCadence
+    (bounds : Bounds)
+    (dataDir root : System.FilePath)
+    (known : List String)
+    (catalog : Loam.LocusCatalog.Catalog)
+    (source : Loam.Tui.Main.ScheduledRecord)
+    (observedAt : String)
+    (cadence : Loam.ScheduledGeneration.GenerationCadence) : IO String := do
+  let (suggestions, notice) ← loadSuggestions dataDir observedAt
+  let state :=
+    Loam.Tui.ScheduledGeneration.initialWithCadence
+        source suggestions observedAt cadence
       |> fun state => if notice.isEmpty then state else
         Loam.Tui.ScheduledGeneration.withNotice state notice
   let frame := compileWidget (Loam.Tui.ScheduledGeneration.view state)
