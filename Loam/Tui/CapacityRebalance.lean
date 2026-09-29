@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.CapacityPublisher
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview
@@ -40,10 +41,8 @@ structure State where
   mode : Mode := .selecting
   notice : String := ""
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.CapacityPublisher.BalancedDraft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Loam.CapacityPublisher.BalancedDraft)
 
 private def stay (s : State) : Step := { state := s }
 private def cancelStep (s : State) : Step := { state := s, cancel := true }
