@@ -373,13 +373,3 @@ def runCurrentMachine (args : List String) : IO UInt32 := do
       return 2
 
 end Loam.HouseholdObservationCli
-
-def main (args : List String) : IO UInt32 :=
-  match args with
-  | [rootPath, start, end_] =>
-      Loam.HouseholdObservationCli.report rootPath start end_
-  | [rootPath, start, end_, observedAt] =>
-      Loam.HouseholdObservationCli.report rootPath start end_ (some observedAt)
-  | _ => do
-      IO.eprintln Loam.HouseholdObservationCli.usage
-      return 2
