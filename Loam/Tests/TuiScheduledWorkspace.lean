@@ -230,9 +230,16 @@ def main : IO Unit := do
     negativeLoci := ["paypay"]
     positiveLoci := ["food"]
   }
+  let paypayRule : Loam.ScheduledCoverageConfig.Rule := {
+    name := "paypay-transfer"
+    anchor := "2026-09-07"
+    everyMonths := 1
+    negativeLoci := ["smbc"]
+    positiveLoci := ["paypay"]
+  }
   let coverageSnapshot ←
     match Loam.ScheduledCoverageReview.projectRecords
-        [foodRule] (Loam.Tui.ScheduledWorkspace.recordsForScope snapshot coverage)
+        [foodRule, paypayRule] (Loam.Tui.ScheduledWorkspace.recordsForScope snapshot coverage)
         "2026-09-07" 4 with
     | .error message => throw (IO.userError message)
     | .ok result => pure result
@@ -240,17 +247,55 @@ def main : IO Unit := do
     (Loam.Tui.ScheduledWorkspace.viewWithCoverage
       { width := 120, height := 30 } snapshot coverage (.ok coverageSnapshot))
   expect (contains "Scheduled" coverageText &&
-    contains "food" coverageText && contains "Next needed" coverageText &&
-    contains "Filled through" coverageText)
-    "Scheduled overview did not render the simple future-plan answer"
-  expect (!(contains "●" coverageText) && contains "Use Months for exact dates" coverageText)
-    "Scheduled overview still exposed the old symbol matrix instead of the simple answer"
-  let coverageFill := Loam.Tui.ScheduledWorkspace.update snapshot coverage .fillCurrentCycle
-  expect (coverageFill.command == .stay &&
-    contains "Choose an explicit plan in Months or List" coverageFill.state.notice)
-    "Scheduled Coverage overview allowed a hidden occurrence-specific fill action"
+    contains "food" coverageText && contains "paypay-transfer" coverageText &&
+    contains "Next needed" coverageText && contains "Filled through" coverageText)
+    "Scheduled overview did not render the recurring-plan management answer"
+  expect (contains "> food" coverageText &&
+    contains "[e] extend" coverageText && contains "[p] pace" coverageText)
+    "Scheduled overview did not expose its selected row and direct management actions"
 
-  let board := (Loam.Tui.ScheduledWorkspace.update snapshot coverage .toggleView).state
+  let coverageEvidence : Loam.Tui.ScheduledWorkspace.CoverageEvidence := .ok coverageSnapshot
+  let coverageExtend :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .extendPlan
+  expect (coverageExtend.command == .extendPlan)
+    "Scheduled overview could not extend its selected recurring plan directly"
+  let coveragePace :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .changePace
+  expect (coveragePace.command == .changePace)
+    "Scheduled overview could not change its selected recurring-plan pace directly"
+  let coverageStop :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .stopMonitoring
+  expect (coverageStop.command == .stopMonitoring)
+    "Scheduled overview could not mark its selected recurring plan undecided directly"
+
+  let coverageNext :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .next).state
+  expect (coverageNext.coverageRow == 1)
+    "Scheduled overview j/k selection did not move between recurring plans"
+  let selectedCoverage ← requireSome
+    (Loam.Tui.ScheduledWorkspace.selectedCoverageRow? coverageEvidence coverageNext)
+    "Scheduled overview selected recurring plan disappeared"
+  expect (selectedCoverage.rule.name == "paypay-transfer")
+    "Scheduled overview row selection diverged from displayed order"
+  let openExact :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      snapshot coverageEvidence coverageNext .openSelectedPlan).state
+  expect (openExact.viewMode == .futureBoard)
+    "Scheduled overview Enter action did not open exact Scheduled dates"
+  let exactRecord ← requireSome
+    (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot openExact)
+    "Scheduled overview exact-date transition lost its selected plan"
+  expect (exactRecord.id.token == "scheduled-1")
+    "Scheduled overview exact-date transition did not retain plan identity"
+
+  let coverageFill :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .fillCurrentCycle
+  expect (coverageFill.command == .stay && contains "Use e" coverageFill.state.notice)
+    "Scheduled overview compatibility fill action did not redirect to simple extension"
+
+  let board :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      snapshot coverageEvidence coverage .toggleView).state
   expect (board.viewMode == .futureBoard && board.scope == .allCurrent &&
     board.pane == .occurrences && board.locusRow == 0)
     "Scheduled Months view did not normalize into the all-current occurrence view"
@@ -308,6 +353,10 @@ def main : IO Unit := do
   let extendStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .extendPlan
   expect (extendStep.command == .extendPlan)
     "Scheduled workspace extendPlan event did not emit extendPlan command"
+
+  let paceStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .changePace
+  expect (paceStep.command == .changePace)
+    "Scheduled workspace changePace event did not emit changePace command"
 
   let stopMonitoringStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .stopMonitoring
   expect (stopMonitoringStep.command == .stopMonitoring)
@@ -368,6 +417,10 @@ def main : IO Unit := do
   expect (unavailableExtend.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableExtend.state.notice)
     "Scheduled workspace emitted extend intent while Scheduled evidence was unavailable"
+  let unavailablePace := Loam.Tui.ScheduledWorkspace.update unavailable start .changePace
+  expect (unavailablePace.command == .stay &&
+    contains "[Unavailable] Scheduled" unavailablePace.state.notice)
+    "Scheduled workspace emitted pace-change intent while Scheduled evidence was unavailable"
   let unavailableStop := Loam.Tui.ScheduledWorkspace.update unavailable start .stopMonitoring
   expect (unavailableStop.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableStop.state.notice)
