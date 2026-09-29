@@ -73,6 +73,33 @@ structure FillLimit where
   endExclusive : String
   deriving Repr, DecidableEq
 
+private def padded (width value : Nat) : String :=
+  let text := toString value
+  String.ofList (List.replicate (width - text.length) '0') ++ text
+
+/--
+Choose an exclusive calendar limit that includes exactly the requested number
+of cadence slots after one explicit anchor month.
+
+The returned limit is the first day of the month after the final requested
+slot, so it does not need to invent a due date when a nominal day (for example
+the 31st) is absent from an intermediate month.
+-/
+def fillLimitForOccurrences?
+    (anchor : String) (cadence : GenerationCadence) (count : Nat) : Option FillLimit := do
+  if count = 0 || !Loam.ActualDate.validIsoDate anchor then none else do
+    let [yearText, monthText, _] := anchor.splitOn "-" | none
+    let year ← yearText.toNat?
+    let month ← monthText.toNat?
+    let targetOffset := cadence.months * count
+    let zeroBased := (month - 1) + targetOffset + 1
+    let limitYear := year + zeroBased / 12
+    let limitMonth := zeroBased % 12 + 1
+    if limitYear > 9999 then none
+    else
+      pure { endExclusive :=
+        padded 4 limitYear ++ "-" ++ padded 2 limitMonth ++ "-01" }
+
 private def parseDateParts? (text : String) : Option (Nat × Nat × Nat) := do
   if !Loam.ActualDate.validIsoDate text then none else do
     let [yearText, monthText, dayText] := text.splitOn "-" | none
