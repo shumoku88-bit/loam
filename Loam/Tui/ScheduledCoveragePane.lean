@@ -53,9 +53,9 @@ private def tableRow
     match row.firstMissing with
     | some month => month ++ "  !"
     | none => "none in view"
-  let prefix := if selected then "> " else "  "
+  let marker := if selected then "> " else "  "
   let text :=
-    prefix ++
+    marker ++
     Loam.Tui.Layout.padRight 26 row.rule.name ++
     Loam.Tui.Layout.padRight 12 (cadenceLabel row.rule.everyMonths) ++
     Loam.Tui.Layout.padRight 15 through ++
