@@ -1,6 +1,6 @@
 # Observation 385 — Plain-text accounting migration admission matrix
 
-Status: **EXECUTABLE CLASSIFIER GATE — one-shot migration pressure only; no importer or production authority change**
+Status: **EXECUTABLE ADAPTER BOUNDARY — hledger-backed one-shot migration probe; no production importer or authority change**
 
 Baseline:
 
@@ -703,3 +703,104 @@ adapter. If it qualifies, the next question becomes operational:
 
 A production `loam import hledger` command is still not authorized by this
 gate alone.
+
+
+## hledger-backed adapter boundary
+
+The next executable probe now puts a real hledger process in front of the
+classifier instead of constructing every normalized transaction directly in
+Lean.
+
+The bounded path is:
+
+```text
+synthetic hledger journal
+        |
+        v
+hledger 1.52.3 print -x -O csv
+        |
+        +-- exact normalized posting amounts
+        |
+source-feature inventory
+        |
+        +-- omitted amount
+        +-- transaction status
+        +-- balance assertion
+        `-- virtual posting
+        |
+        v
+narrow TSV adapter wire
+        |
+        v
+existing Lean classifier
+        |
+        v
+Direct / Normalize / Review / Refuse
+        |
+        v
+production Movement/Exchange admission for Direct only
+```
+
+The source-feature pass is intentional. hledger's tabular `print` output is a
+useful exact-amount transport, but normalization can flatten distinctions that
+Observation 385 says must still block publication. The experiment therefore
+does not treat normalized CSV alone as semantic authority.
+
+The checked-in fixture contains five source transactions:
+
+```text
+1 explicit balanced expense        -> Direct
+2 omitted balancing amount         -> Normalize
+3 cleared transaction status       -> Review
+4 balance assertion                -> Review
+5 unbalanced virtual posting       -> Refuse
+```
+
+Transaction 2 specifically verifies the useful hledger boundary: the source has
+no amount on one posting, while `print -x` supplies an explicit amount. The
+adapter still retains `inferredAmount`, so the classifier sees Normalize
+rather than silently treating the source as originally explicit.
+
+The experiment also uses an explicit Measure-scale fixture. Decimal text is
+converted to LOAM quanta only when multiplication by that confirmed scale is
+exact. Any required rounding is refused.
+
+### Why CSV here
+
+Current hledger documents `print -O csv` as one row per posting with transaction
+index, dates, status, account, amount, and commodity. It also documents that
+`print -x` makes inferred amounts explicit.
+
+hledger JSON is richer, but current documentation notes that JSON numeric output
+is rounded to at most ten decimal places. That makes it unsuitable as the sole
+exact-quantity transport for LOAM's migration boundary.
+
+### CI scope
+
+This does not add another workflow file. The existing Lean Proof Surfaces scope
+detects changes to the adapter experiment and only then:
+
+1. installs the pinned official hledger 1.52.3 Linux binary;
+2. normalizes the synthetic journal;
+3. feeds the resulting wire image into the existing Lean classifier.
+
+Ordinary unrelated LOAM pull requests do not download or execute hledger because
+the adapter step is path-scoped inside the existing workflow.
+
+### Remaining gate
+
+This probe deliberately aligns normalized hledger transactions with the
+synthetic source transactions by finite fixture order. That is enough to test
+the parser/normalizer boundary, but it is not yet a production provenance
+protocol for arbitrary include trees, generated postings, reordering, or source
+editing.
+
+If this executable boundary qualifies, the next production-oriented question is
+smaller and clearer:
+
+> What preview/batch format should carry normalized transactions, source-feature
+> evidence, Locus/Measure mappings, and user review decisions into one fresh
+> migration household without relying on source order as identity?
+
+Until that is answered, this remains an adapter experiment rather than
+`loam import hledger`.

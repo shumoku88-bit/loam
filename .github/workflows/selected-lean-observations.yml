@@ -44,6 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       full: ${{ steps.scope.outputs.full }}
+      pta: ${{ steps.scope.outputs.pta }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -55,32 +56,47 @@ jobs:
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
-            echo "full=true" >> "$GITHUB_OUTPUT"
-            exit 0
+          changed="$RUNNER_TEMP/changed-paths.txt"
+          full=false
+          pta=false
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git diff --name-only \
+              "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+              > "$changed"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            full=true
+            pta=true
+            : > "$changed"
+          else
+            full=true
+            git diff-tree --no-commit-id --name-only -r HEAD > "$changed"
           fi
 
-          changed="$RUNNER_TEMP/changed-paths.txt"
-          git diff --name-only \
-            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
-            > "$changed"
-
-          full=false
           while IFS= read -r path; do
             case "$path" in
-              Loam/Tui/*|Loam/Tests/*|Loam/Presentation/*)
-                ;;
-              Loam/*|Loam.lean|tools/audit-production-reachability|lakefile.lean|lake-manifest.json|lean-toolchain|.github/workflows/selected-lean-observations.yml)
-                full=true
-                break
+              Loam/Tests/PtaMigrationClassifier.lean|tools/pta-hledger-adapter-experiment.py|tests/fixtures/pta-import/*|.github/workflows/selected-lean-observations.yml)
+                pta=true
                 ;;
             esac
+
+            if [[ "$full" != "true" ]]; then
+              case "$path" in
+                Loam/Tui/*|Loam/Tests/*|Loam/Presentation/*)
+                  ;;
+                Loam/*|Loam.lean|tools/audit-production-reachability|lakefile.lean|lake-manifest.json|lean-toolchain|.github/workflows/selected-lean-observations.yml)
+                  full=true
+                  ;;
+              esac
+            fi
           done < "$changed"
 
           echo "full=$full" >> "$GITHUB_OUTPUT"
+          echo "pta=$pta" >> "$GITHUB_OUTPUT"
 
   product:
     name: Build product Lean surface
+    needs: scope
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -103,6 +119,33 @@ jobs:
 
       - name: Exercise PTA migration classifier gate
         run: lake env lean --run Loam/Tests/PtaMigrationClassifier.lean
+
+      - name: Install pinned hledger for adapter boundary
+        if: needs.scope.outputs.pta == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hledger-bin"
+          curl -fL \
+            https://github.com/plaintextaccounting/hledger/releases/download/1.52.3/hledger-linux-x64.tar.gz \
+            | tar -xz -C "$RUNNER_TEMP/hledger-bin" hledger
+          echo "$RUNNER_TEMP/hledger-bin" >> "$GITHUB_PATH"
+
+      - name: Exercise hledger-normalized PTA adapter boundary
+        if: needs.scope.outputs.pta == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          hledger --version
+          normalized="$RUNNER_TEMP/pta-hledger-normalized.tsv"
+          python3 tools/pta-hledger-adapter-experiment.py \
+            hledger \
+            tests/fixtures/pta-import/hledger-boundary.journal \
+            tests/fixtures/pta-import/hledger-boundary.measure-scales.tsv \
+            "$normalized"
+          lake env lean --run Loam/Tests/PtaMigrationClassifier.lean \
+            adapter "$normalized" \
+            tests/fixtures/pta-import/hledger-boundary.expected.tsv
 
   durable:
     name: Check durable Lean proof surface
