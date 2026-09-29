@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.BoundedHistorySupportPublisher
 import Loam.BoundedHistorySupportReview
@@ -40,11 +41,8 @@ structure State where
   notice : String := ""
   deriving Repr
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.BoundedHistorySupportPublisher.Draft := none
-  deriving Repr
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Loam.BoundedHistorySupportPublisher.Draft)
 
 private def rowStart (row : Loam.BoundedHistorySupportReview.Row) : String :=
   row.startDay.getD ""
