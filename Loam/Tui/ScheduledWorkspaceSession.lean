@@ -86,7 +86,31 @@ private def cadenceForRule?
     Option Loam.ScheduledGeneration.GenerationCadence :=
   Loam.ScheduledGeneration.GenerationCadence.ofMonths? rule.everyMonths
 
+private def selectedActionRecord?
+    (snapshot : Snapshot)
+    (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
+    (state : Loam.Tui.ScheduledWorkspace.State) :
+    Option Loam.Tui.Main.ScheduledRecord :=
+  match state.viewMode with
+  | .coverage => Loam.Tui.ScheduledWorkspace.selectedCoverageRecord? snapshot coverage state
+  | .futureBoard | .list => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
+
+private def selectedMonitoringShape?
+    (snapshot : Snapshot)
+    (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
+    (state : Loam.Tui.ScheduledWorkspace.State) :
+    Option (List String × List String) :=
+  match state.viewMode with
+  | .coverage =>
+      (Loam.Tui.ScheduledWorkspace.selectedCoverageRow? coverage state).map fun row =>
+        (row.rule.negativeLoci, row.rule.positiveLoci)
+  | .futureBoard | .list =>
+      (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state).map fun record =>
+        let shape := Loam.ScheduledCoverageSelector.ofRecord record
+        (shape.negativeLoci, shape.positiveLoci)
+
 def eventOfKey
+    (viewMode : Loam.Tui.ScheduledWorkspace.ViewMode)
     (pane : Loam.Tui.ScheduledWorkspace.Pane) :
     Loam.Tui.Terminal.Key → Loam.Tui.ScheduledWorkspace.Event
   | .up | .input 'k' | .input 'K' => .previous
@@ -97,14 +121,18 @@ def eventOfKey
   | .input 'v' | .input 'V' => .toggleView
   | .input 'n' | .input 'N' => .createScheduled
   | .input 'e' | .input 'E' => .extendPlan
+  | .input 'p' | .input 'P' => .changePace
   | .input 's' | .input 'S' => .stopMonitoring
   | .input 'g' | .input 'G' => .fillCurrentCycle
   | .input 'm' | .input 'M' => .monitorCoverage
   | .input 'c' | .input 'C' => .completeScheduled
   | .enter =>
-      match pane with
-      | .loci => .other
-      | .occurrences => .completeScheduled
+      match viewMode with
+      | .coverage => .openSelectedPlan
+      | .futureBoard | .list =>
+          match pane with
+          | .loci => .other
+          | .occurrences => .completeScheduled
   | .input 'r' | .input 'R' => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .escape | .input 'q' | .input 'Q' => .back
@@ -118,8 +146,8 @@ partial def run
     (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
     (state : Loam.Tui.ScheduledWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
-  let step := Loam.Tui.ScheduledWorkspace.update snapshot state
-    (eventOfKey state.pane (← Loam.Tui.Terminal.readKey))
+  let step := Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverage state
+    (eventOfKey state.viewMode state.pane (← Loam.Tui.Terminal.readKey))
   match step.command with
   | .back => return snapshot
   | .createScheduled =>
@@ -143,7 +171,7 @@ partial def run
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .extendPlan =>
-      match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
+      match selectedActionRecord? snapshot coverage step.state with
       | none =>
           let next := { step.state with notice := "No Scheduled plan is selected to extend." }
           let nextFrame := workspaceFrame bounds snapshot coverage next
@@ -188,17 +216,16 @@ partial def run
                   Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
                   run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .stopMonitoring =>
-      match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
+      match selectedMonitoringShape? snapshot coverage step.state with
       | none =>
-          let next := { step.state with notice := "No Scheduled plan is selected." }
+          let next := { step.state with notice := "No recurring plan is selected." }
           let nextFrame := workspaceFrame bounds snapshot coverage next
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           run bounds dataDir root reload snapshot coverage next nextFrame
-      | some record =>
-          let shape := Loam.ScheduledCoverageSelector.ofRecord record
+      | some (negativeLoci, positiveLoci) =>
           let path := Loam.HouseholdPaths.scheduledCoverage dataDir
           match ← Loam.ScheduledCoverageConfig.removeShapeAt
-              path shape.negativeLoci shape.positiveLoci with
+              path negativeLoci positiveLoci with
           | .error message =>
               let next := { step.state with notice := message }
               let nextFrame := workspaceFrame bounds snapshot coverage next
@@ -211,6 +238,21 @@ partial def run
               let nextFrame := workspaceFrame bounds snapshot freshCoverage next
               Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               run bounds dataDir root reload snapshot freshCoverage next nextFrame
+  | .changePace =>
+      match selectedActionRecord? snapshot coverage step.state with
+      | none =>
+          let next := { step.state with notice :=
+            "No current-open Scheduled occurrence is available for the selected recurring plan." }
+          let nextFrame := workspaceFrame bounds snapshot coverage next
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          run bounds dataDir root reload snapshot coverage next nextFrame
+      | some record =>
+          let notice ← Loam.Tui.ScheduledCoverageSetupSession.run bounds dataDir record
+          let freshCoverage ← loadCoverage dataDir root snapshot.actual.today
+          let next := { step.state with notice := notice }
+          let nextFrame := workspaceFrame bounds snapshot freshCoverage next
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+          run bounds dataDir root reload snapshot freshCoverage next nextFrame
   | .fillCurrentCycle =>
       match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
       | none =>
