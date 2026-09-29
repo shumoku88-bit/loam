@@ -31,8 +31,7 @@ structure State where
   viewportStart : Nat := 0
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   scope : Loam.LocusTrendCompareReview.Scope := .allHistory
-  /-- Presentation-only switch between exact points and point-connected interpolation. -/
-  drawLines : Bool := false
+  renderer : Loam.Tui.Chart.Renderer := .braille
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   pickerOpen : Bool := false
   pickerSlot : Nat := 0
@@ -182,8 +181,8 @@ def moveSelection (state : State) (back : Bool) : State :=
             state.granularity state.scope count next state.viewportStart
         { state with selected := next, viewportStart := viewportStart }
 
-def toggleLines (state : State) : State :=
-  { state with drawLines := !state.drawLines }
+def cycleRenderer (state : State) : State :=
+  { state with renderer := state.renderer.next }
 
 def plotLeft : Nat := 11
 
@@ -222,22 +221,6 @@ private def indexWithStartFrom?
   | point :: rest, index =>
       if point.start == date then some index
       else indexWithStartFrom? date rest (index + 1)
-
-private def observedLocalIndex? (state : State) : Option Nat :=
-  if state.granularity != .day then none
-  else do
-    let snapshot ← state.snapshot
-    let first ← snapshot.series.head?
-    indexWithStartFrom?
-      snapshot.observedAt (visiblePoints state first.points) 0
-
-private def observationGuideColumns
-    (bounds : Bounds) (state : State) : List Nat :=
-  match observedLocalIndex? state with
-  | some index =>
-      [Loam.Tui.Chart.xForIndex
-        (plotWidth bounds) (visibleCount state) index]
-  | none => []
 
 def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
   if column < plotLeft then state
@@ -415,13 +398,11 @@ private def sourceLine
       snapshot.source ++
         "   ·   Range " ++ snapshot.scope.label ++
         "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
-        "   ·   Grain Day   ·   jpy   ·   Plot " ++
-        (if state.drawLines then "points + line" else "points") ++ viewport
+        "   ·   Grain Day   ·   jpy   ·   " ++ state.renderer.label ++ viewport
   | granularity =>
       snapshot.source ++
         "   ·   Grain " ++ granularity.label ++
-        "   ·   jpy   ·   Plot " ++
-        (if state.drawLines then "points + line" else "points")
+        "   ·   jpy   ·   " ++ state.renderer.label
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -494,7 +475,7 @@ private def footerTokens (state : State) : List String :=
        "a series"]
     let range :=
       if state.granularity == .day then ["s/S range"] else []
-    common ++ range ++ ["r points/line", "q/Esc Reports"]
+    common ++ range ++ ["r renderer", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
@@ -524,8 +505,8 @@ private def chartRows (bounds : Bounds) (state : State) : List Widget :=
       Loam.Tui.Chart.rowForValue height scale.range tick
   let rendered :=
     Loam.Tui.Chart.renderManyInRange
-      .braille width height (plotSeries state) (localSelected state)
-      scale.range gridRows state.drawLines (observationGuideColumns bounds state)
+      state.renderer width height (plotSeries state) (localSelected state)
+      scale.range gridRows
   (List.range height).map fun row =>
     match rendered[row]? with
     | some widget =>
