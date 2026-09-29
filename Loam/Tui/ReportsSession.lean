@@ -34,6 +34,20 @@ shared Review answer and redraws the Reports workspace. Household semantics,
 query meaning, and report rendering remain in their existing owners.
 -/
 
+/--
+High-frequency vertical navigation reuses the already observed terminal bounds.
+
+Mouse-wheel input is normalized to Up/Down before it reaches this session. Running
+`stty size` for every wheel notch can queue subprocess latency behind ordinary
+scrolling, especially on long report surfaces. Other actionable keys still
+refresh the terminal geometry, so a resize is picked up at the next non-scroll
+interaction.
+-/
+def refreshBoundsForKey : Loam.Tui.Terminal.Key → Bool
+  | .up | .down => false
+  | .other | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ => false
+  | _ => true
+
 private def currentTrendCatalog
     (dataDir root : System.FilePath) : IO Loam.LocusCatalog.Catalog := do
   let admitted ←
@@ -58,9 +72,10 @@ partial def run (bounds : Bounds)
     (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
   let activeBounds ←
-    match key with
-    | .other | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ => pure bounds
-    | _ => Loam.Tui.Terminal.currentBounds
+    if refreshBoundsForKey key then
+      Loam.Tui.Terminal.currentBounds
+    else
+      pure bounds
   let resized := activeBounds != bounds
   let step := Loam.Tui.Reports.updateForBounds activeBounds state key
   if step.back then return activeBounds
