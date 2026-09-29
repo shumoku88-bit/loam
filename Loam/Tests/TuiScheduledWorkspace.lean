@@ -171,6 +171,18 @@ def main : IO Unit := do
     contains "No next Scheduled row" longBlocked.notice)
     "Scheduled workspace end-of-list refusal moved selection or lost its notice"
 
+  -- Months uses spare terminal height instead of keeping every month at three rows.
+  let longAll := (Loam.Tui.ScheduledWorkspace.update longSnapshot longStart .cycleFilter).state
+  let longCoverage := (Loam.Tui.ScheduledWorkspace.update longSnapshot longAll .toggleView).state
+  let longBoard := (Loam.Tui.ScheduledWorkspace.update longSnapshot longCoverage .toggleView).state
+  let compactBoardText := widgetText
+    (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } longSnapshot longBoard)
+  let tallBoardText := widgetText
+    (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 50 } longSnapshot longBoard)
+  expect (!(contains "wallet -> food: 7 jpy" compactBoardText) &&
+    contains "wallet -> food: 7 jpy" tallBoardText)
+    "Scheduled Months did not expand month-card capacity with terminal height"
+
   -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
   expect (start.pane == .occurrences)
     "Scheduled workspace did not open on the Scheduled occurrences pane"
