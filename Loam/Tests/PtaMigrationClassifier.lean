@@ -473,7 +473,7 @@ private def fixtures : List Fixture := [
   }
 ]
 
-def main : IO Unit := do
+def run : IO Unit := do
   expect (fixtures.length == 20)
     "PTA migration matrix stopped containing exactly 20 representative fixtures"
 
@@ -535,3 +535,6 @@ def main : IO Unit := do
     "PTA migration classifier: 20 fixtures classified; Direct candidates reached production admission; blocked cases exposed no candidate."
 
 end Loam.Tests.PtaMigrationClassifier
+
+def main : IO Unit :=
+  Loam.Tests.PtaMigrationClassifier.run
