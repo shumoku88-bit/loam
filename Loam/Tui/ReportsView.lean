@@ -1322,6 +1322,38 @@ private def viewParts
 private def bodyPageSize (bounds : Bounds) (footer : List Widget) : Nat :=
   bounds.height - (footer.length + 1)
 
+/--
+Prepared presentation rows for one long, scroll-only report surface.
+
+This cache contains presentation Widgets only. It carries no household evidence,
+query authority, or persistence state. Daily Flow is the first user because real
+device wheel input showed that rebuilding its report body for every scroll packet
+can let terminal input outrun rendering.
+-/
+structure PreparedScrollView where
+  body : List Widget
+  footer : List Widget
+  page : Nat
+  extent : Nat
+
+/--
+Materialize the bounded Daily body once. Other report surfaces keep their
+existing direct path until they demonstrate the same need.
+-/
+def prepareScrollView?
+    (bounds : Bounds) (state : State) : Option PreparedScrollView :=
+  match state.mode, state.incomeExpenseDisplay with
+  | .incomeExpense, .daily =>
+      let parts := dailyIncomeExpenseViewParts state (some bounds)
+      let page := bodyPageSize bounds parts.footer
+      some {
+        body := parts.body.slice 0 parts.body.extent
+        footer := parts.footer
+        page
+        extent := parts.body.extent
+      }
+  | _, _ => none
+
 /-- Largest meaningful vertical offset for the current report and terminal height. -/
 def scrollLimit (bounds : Bounds) (state : State) : Nat :=
   let parts := viewParts state (some bounds)
@@ -1353,6 +1385,39 @@ private def requestedOffset (state : State) (page : Nat) : Nat :=
           let selectedLine := (transactionWindowLines state).length + selectedBodyLine
           (selectedLine + 1) - page
   | _ => state.scroll
+
+/--
+Render a scroll position from already prepared presentation rows.
+
+The visible result follows the same footer and position-line geometry as
+`viewForBounds`, but does not rebuild Daily projection presentation.
+-/
+def viewPreparedScroll
+    (bounds : Bounds) (state : State) (prepared : PreparedScrollView) : Widget :=
+  let offset :=
+    Loam.Tui.Scroll.clamp prepared.extent prepared.page state.scroll
+  let position :=
+    scrollPositionLine state.mode offset prepared.page prepared.extent
+  if bounds.height < prepared.footer.length + 1 then
+    let navigation := prepared.footer.dropLast.reverse
+    let notice := prepared.footer.getLast?.toList
+    .column <| (navigation ++ [position] ++ notice).take bounds.height
+  else
+    .column <|
+      (prepared.body.drop offset).take prepared.page ++
+      [position] ++
+      prepared.footer
+
+/--
+Clamp a pure vertical scroll move against a prepared body without rebuilding
+the report presentation.
+-/
+def scrollPrepared
+    (state : State) (prepared : PreparedScrollView) (forward : Bool) : State :=
+  let requested :=
+    if forward then state.scroll + 1 else state.scroll - 1
+  { state with
+      scroll := Loam.Tui.Scroll.clamp prepared.extent prepared.page requested }
 
 /-- Bound only presentation rows; report answers and query coordinates are unchanged. -/
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
