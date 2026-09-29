@@ -332,6 +332,22 @@ private def loadSuggestions
       pure ([], "Boundary suggestions unavailable: " ++ message ++
         ". Custom date remains available.")
 
+private def extensionSuggestions
+    (source : Loam.Tui.Main.ScheduledRecord)
+    (cadence : Loam.ScheduledGeneration.GenerationCadence) :
+    List Loam.BoundaryPresetConfig.HorizonSuggestion :=
+  [ (1, "Next occurrence")
+  , (3, "Next 3 occurrences")
+  , (6, "Next 6 occurrences")
+  ].filterMap fun (count, label) => do
+    let limit ← Loam.ScheduledGeneration.fillLimitForOccurrences?
+      source.scheduledOn cadence count
+    pure {
+      source := label
+      start := source.scheduledOn
+      endExclusive := limit.endExclusive
+    }
+
 def run
     (bounds : Bounds)
     (dataDir root : System.FilePath)
@@ -356,7 +372,12 @@ def runWithCadence
     (source : Loam.Tui.Main.ScheduledRecord)
     (observedAt : String)
     (cadence : Loam.ScheduledGeneration.GenerationCadence) : IO String := do
-  let (suggestions, notice) ← loadSuggestions dataDir observedAt
+  let suggestions := extensionSuggestions source cadence
+  let notice :=
+    if suggestions.isEmpty then
+      "Automatic extension horizons are unavailable. Custom date remains available."
+    else
+      ""
   let state :=
     Loam.Tui.ScheduledGeneration.initialWithCadence
         source suggestions observedAt cadence
