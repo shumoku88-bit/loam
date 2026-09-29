@@ -7,6 +7,7 @@ import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
 import Loam.Cli.DoctorCli
 import Loam.Cli.ExplainCli
+import Loam.Cli.HouseholdObservationCli
 import Loam.Cli.MovementCli
 import Loam.Cli.MovementProposalCli
 import Loam.Cli.MovementProposalRecordCli
@@ -40,8 +41,9 @@ private def practicalUsage : String :=
   "  loam movement [LOAM_DATA_DIR]\n\n" ++
   "Operational diagnosis:\n" ++
   "  loam doctor [LOAM_DATA_DIR]\n\n" ++
-  "Explain why a current accounting answer is or is not justified:\n" ++
-  "  loam explain balances [--machine] [LOAM_DATA_DIR]\n\n" ++
+  "Explain current household answers from shared read projections:\n" ++
+  "  loam explain balances [--machine] [LOAM_DATA_DIR]\n" ++
+  "  loam explain household --machine [--at YYYY-MM-DD] [LOAM_DATA_DIR]\n\n" ++
   "Explicit zero-origin quantity projections:\n" ++
   "  loam balances ACTUAL_FILE COVERAGE_FILE [BALANCE_VIEW]\n" ++
   "  loam current ACTUAL_FILE COVERAGE_FILE\n\n" ++
@@ -212,6 +214,8 @@ def run (args : List String) : IO UInt32 := do
   | "tui" :: tuiArgs => Loam.Tui.Cli.run tuiArgs
   | "doctor" :: doctorArgs => Loam.DoctorCli.run doctorArgs
   | "explain" :: "balances" :: explainArgs => Loam.ExplainCli.run explainArgs
+  | "explain" :: "household" :: explainArgs =>
+      Loam.HouseholdObservationCli.runCurrentMachine explainArgs
   | "movement" :: movementArgs => Loam.MovementCli.run movementArgs
   | "movement-proposal" :: proposalArgs =>
       Loam.MovementProposalCli.run proposalArgs
