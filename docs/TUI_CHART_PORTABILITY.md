@@ -34,17 +34,13 @@ independent of glyph choice.
 braille -> block -> ascii -> braille
 ```
 
-Braille remains the primary Trend renderer because one terminal cell can
-represent a 2×4 subpixel grid. The generic chart foundation still qualifies
-Braille, block, and ASCII against the same geometry, but Trend no longer spends
-an interaction key on renderer cycling.
+Braille is the default because one terminal cell can represent a 2×4 subpixel
+grid. If a font or terminal renders Braille poorly, the user can switch the
+Trend surface with `r` without changing the selected data point or report
+answer.
 
-On Trend, `r` now toggles exact points versus the same points with an
-interpolated presentation line. This changes only how the retained observations
-are drawn. It does not change the selected data point or report answer.
-
-Block and ASCII remain presentation fallbacks in the chart foundation rather
-than separate accounting views.
+Block and ASCII are not separate accounting views. They are presentation
+fallbacks for the same values.
 
 ## Pointer contract
 
