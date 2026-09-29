@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.ActualRoutingPublisher
 import Loam.ActualRoutingReview
@@ -59,11 +60,8 @@ structure State where
   notice : String := ""
   deriving Repr
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ActualRoutingPublisher.Draft := none
-  deriving Repr
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State Loam.ActualRoutingPublisher.Draft
 
 private def effectiveText : RoutingEffective String → String
   | .initial => "initial"
