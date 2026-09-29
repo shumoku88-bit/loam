@@ -58,7 +58,7 @@ lean_exe loamDoctor where
   root := `Loam.Cli.DoctorExecutable
 
 lean_exe loamHouseholdObservation where
-  root := `Loam.Cli.HouseholdObservationCli
+  root := `Loam.Cli.HouseholdObservationExecutable
 
 lean_exe loamTui where
   root := `Loam.Tui.Executable
