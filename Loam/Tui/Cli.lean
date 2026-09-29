@@ -35,6 +35,7 @@ import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
+import Loam.ScheduledCoverageReview
 import Loam.AttentionReview
 import Loam.BalanceViewConfig
 import Loam.CurrentBalanceReview
@@ -428,10 +429,13 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 's' || key = .input 'S') then
     let scheduled := Loam.Tui.ScheduledWorkspace.initial state.selectedDate
-    let scheduledFrame := compileWidget (Loam.Tui.ScheduledWorkspace.view bounds snapshot scheduled)
+    let coverage ← Loam.ScheduledCoverageReview.loadSnapshot
+      dataDir root snapshot.actual.today
+    let scheduledFrame := compileWidget
+      (Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds snapshot scheduled coverage)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame
     let fresh ← Loam.Tui.ScheduledWorkspaceSession.run
-      bounds dataDir root (loadSnapshot dataDir) snapshot scheduled scheduledFrame
+      bounds dataDir root (loadSnapshot dataDir) snapshot coverage scheduled scheduledFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
