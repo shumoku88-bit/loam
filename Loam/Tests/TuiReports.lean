@@ -1020,6 +1020,35 @@ def main : IO Unit := do
               ⟨"mystery"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 5) }
         ]
     }
+    daily := {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      dates := ["2026-09-01", "2026-09-02", "2026-09-03"]
+      rows :=
+        [ { coordinate := pensionCoordinate
+          , role := .income
+          , cells :=
+              [ { date := "2026-09-01", quantity := Quantity.ofQuanta (-240000) }
+              , { date := "2026-09-02", quantity := Quantity.ofQuanta 0 }
+              , { date := "2026-09-03", quantity := Quantity.ofQuanta 0 }
+              ] }
+        , { coordinate := foodCoordinate
+          , role := .expense
+          , cells :=
+              [ { date := "2026-09-01", quantity := Quantity.ofQuanta 20000 }
+              , { date := "2026-09-02", quantity := Quantity.ofQuanta 30000 }
+              , { date := "2026-09-03", quantity := Quantity.ofQuanta 0 }
+              ] }
+        , { coordinate := consultingCoordinate
+          , role := .income
+          , cells :=
+              [ { date := "2026-09-01", quantity := Quantity.ofQuanta 0 }
+              , { date := "2026-09-02", quantity := Quantity.ofQuanta 0 }
+              , { date := "2026-09-03", quantity := Quantity.ofQuanta (-20) }
+              ] }
+        ]
+      unresolvedEffects := []
+    }
     monthly := {
       start := "2026-09-01"
       endExclusive := "2026-10-01"
@@ -1166,10 +1195,42 @@ def main : IO Unit := do
     "80-column Monthly Accounts did not split five months into width-safe blocks"
   expect (contains "Window total" narrowMonthlyText)
     "split Monthly Accounts lost the whole-window total label"
-  let summaryAgain :=
+  let dailyIncomeExpense :=
     (Loam.Tui.Reports.update monthlyIncomeExpense (.input 'g')).state
+  expect (dailyIncomeExpense.incomeExpenseDisplay == .daily)
+    "Income & Expense g did not switch from Monthly Accounts to Daily Flow"
+  let dailyIncomeExpenseText :=
+    widgetText (Loam.Tui.Reports.view dailyIncomeExpense)
+  expect
+    (contains "View: Daily" dailyIncomeExpenseText &&
+      contains "Daily Flow" dailyIncomeExpenseText &&
+      contains "09-01" dailyIncomeExpenseText &&
+      contains "09-02" dailyIncomeExpenseText &&
+      contains "09-03" dailyIncomeExpenseText)
+    "Daily Flow view did not expose its sparse activity-date axis"
+  expect
+    (contains "Income" dailyIncomeExpenseText &&
+      contains "food" dailyIncomeExpenseText &&
+      contains "Net" dailyIncomeExpenseText &&
+      contains "240,000" dailyIncomeExpenseText &&
+      contains "50,000" dailyIncomeExpenseText &&
+      contains "190,000" dailyIncomeExpenseText)
+    "Daily Flow view lost aggregate Income, Expense detail, or Net totals"
+  expect (!(contains "pension" dailyIncomeExpenseText))
+    "Daily Flow expanded Income accounts instead of retaining the aggregate Income row"
+  expect
+    (contains "0.20" dailyIncomeExpenseText &&
+      contains "Window total" dailyIncomeExpenseText)
+    "Daily Flow bypassed Measure presentation or whole-window totals"
+  expect (contains "omitted dates are not asserted zero" dailyIncomeExpenseText)
+    "Daily Flow turned sparse date omission into a zero claim"
+  expect (contains "same occurrence-time flow" dailyIncomeExpenseText)
+    "Daily Flow promoted its projection into stored daily state"
+
+  let summaryAgain :=
+    (Loam.Tui.Reports.update dailyIncomeExpense (.input 'g')).state
   expect (summaryAgain.incomeExpenseDisplay == .summary)
-    "Income & Expense g did not return from Monthly to Summary"
+    "Income & Expense g did not return from Daily Flow to Summary"
 
   let incomeCompareBase := (Loam.Tui.Reports.update incomeExpense (.input 'c')).state
   let incomeCompare : Loam.Tui.Reports.State := {
