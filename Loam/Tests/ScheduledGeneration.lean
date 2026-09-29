@@ -32,6 +32,20 @@ def run : IO Unit := do
     "2026-08-14" "2026-08-14" "2026-10-15"
     .everyTwoMonths ["2026-10-14"]
 
+  expectPlan "three-month monitored cadence remains explicit"
+    "2026-09-01" "2026-09-15" "2027-04-01"
+    .everyThreeMonths ["2026-12-15", "2027-03-15"]
+
+  expectPlan "six-month monitored cadence remains explicit"
+    "2026-09-01" "2026-09-15" "2027-10-01"
+    .everySixMonths ["2027-03-15", "2027-09-15"]
+
+  expect (Loam.ScheduledGeneration.GenerationCadence.ofMonths? 3 ==
+      some .everyThreeMonths &&
+    Loam.ScheduledGeneration.GenerationCadence.ofMonths? 6 ==
+      some .everySixMonths)
+    "monitored cadence conversion lost supported extension steps"
+
   expectPlan "already-past candidates are not recreated"
     "2026-09-18" "2026-08-14" "2026-10-15"
     .monthly ["2026-10-14"]
