@@ -711,10 +711,39 @@ private def updateTrendSeriesPicker
           | .error message => { state := { state with notice := message } }
   | _ => { state }
 
+private def updateTrendOverlayEditor
+    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
+  match key with
+  | .escape =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.cancelOverlay state.trendCompare
+          notice := "" } }
+  | .tab | .shiftTab =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.toggleOverlayField state.trendCompare
+          notice := "" } }
+  | .backspace =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.backspaceOverlay state.trendCompare
+          notice := "" } }
+  | .input char =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.pushOverlayChar state.trendCompare char
+          notice := "" } }
+  | .enter =>
+      match Loam.Tui.LocusTrendComparePane.acceptOverlayDraft state.trendCompare with
+      | .ok trendCompare =>
+          { state := { state with trendCompare := trendCompare, notice := "" } }
+      | .error message =>
+          { state := { state with notice := message } }
+  | _ => { state }
+
 private def updateLocusTrendCompare
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   if Loam.Tui.LocusTrendComparePane.isPickerOpen state.trendCompare then
     updateTrendSeriesPicker state key
+  else if Loam.Tui.LocusTrendComparePane.isOverlayEditing state.trendCompare then
+    updateTrendOverlayEditor state key
   else
     match key with
     | .escape | .input 'q' | .input 'Q' =>
@@ -766,6 +795,16 @@ private def updateLocusTrendCompare
           trendCompare :=
             Loam.Tui.LocusTrendComparePane.openSeriesPicker
               state.trendCompare state.trendCompareSeries.length
+          notice := "" } }
+    | .input 'o' =>
+      match Loam.Tui.LocusTrendComparePane.beginOverlay state.trendCompare with
+      | .ok trendCompare =>
+          { state := { state with trendCompare := trendCompare, notice := "" } }
+      | .error message =>
+          { state := { state with notice := message } }
+    | .input 'O' =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.clearOverlays state.trendCompare
           notice := "" } }
     | .enter =>
       { state, query := queryForMode state }
