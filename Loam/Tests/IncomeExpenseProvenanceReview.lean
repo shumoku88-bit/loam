@@ -113,18 +113,18 @@ def main : IO Unit := do
 
   let .ok wide :=
       Loam.IncomeExpenseProvenanceReview.project
-        evidence "2026-08-15" "2026-11-01"
+        evidence "2026-07-15" "2026-10-01"
     | throw (IO.userError "wide monthly projection fixture refused")
-  expect (wide.monthly.months == ["2026-08", "2026-09", "2026-10"])
+  expect (wide.monthly.months == ["2026-07", "2026-08", "2026-09"])
     "Monthly Accounts did not retain the continuous observed month axis"
   let monthlyRent ← requireSome
     (wide.monthly.rows.find? fun row => row.coordinate.locus.token == "rent")
     "monthly rent row"
   expect
-    ((Loam.MonthlyRoleFlowReview.Row.quantityAt monthlyRent "2026-08").quanta == 0 &&
-      (Loam.MonthlyRoleFlowReview.Row.quantityAt monthlyRent "2026-09").quanta == 120 &&
-      (Loam.MonthlyRoleFlowReview.Row.quantityAt monthlyRent "2026-10").quanta == 0)
-    "Monthly Accounts did not preserve zero/activity/zero month cells"
+    ((Loam.MonthlyRoleFlowReview.Row.quantityAt monthlyRent "2026-07").quanta == 0 &&
+      (Loam.MonthlyRoleFlowReview.Row.quantityAt monthlyRent "2026-08").quanta == 0 &&
+      (Loam.MonthlyRoleFlowReview.Row.quantityAt monthlyRent "2026-09").quanta == 120)
+    "Monthly Accounts did not preserve zero/zero/activity month cells"
   expect ((Loam.MonthlyRoleFlowReview.Row.total monthlyRent).quanta == 120)
     "Monthly Accounts row total did not reconstruct the period quantity"
 
