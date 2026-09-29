@@ -767,11 +767,6 @@ private def updateLocusTrendCompare
             Loam.Tui.LocusTrendComparePane.openSeriesPicker
               state.trendCompare state.trendCompareSeries.length
           notice := "" } }
-    | .input 'r' | .input 'R' =>
-      { state := { state with
-          trendCompare :=
-            Loam.Tui.LocusTrendComparePane.cycleRenderer state.trendCompare
-          notice := "" } }
     | .enter =>
       { state, query := queryForMode state }
     | _ => { state }
