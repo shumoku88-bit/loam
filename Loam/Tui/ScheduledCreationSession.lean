@@ -46,9 +46,7 @@ def runWithScheduledId
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
     IO (Option ScheduledId × String) :=
   Loam.Tui.EditorSession.runUntilPublished bounds
-    (fun current key =>
-      let step := Loam.Tui.ScheduledCreation.update known current key
-      { state := step.state, cancel := step.cancel, publish := step.publish })
+    (Loam.Tui.ScheduledCreation.update known)
     (Loam.Tui.ScheduledCreation.view known)
     Loam.Tui.ScheduledCreation.withPublishError
     (none, "Scheduled creation cancelled.")

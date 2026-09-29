@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Persistence.TokenSyntax
 import Loam.ScheduledReplacementPublisher
+import Loam.Tui.EditorSession
 import Loam.Tui.Main
 import Loam.Tui.Record
 import Loam.Tui.Terminal
@@ -39,10 +40,8 @@ structure State where
   mode : Mode := .editing
   notice : String := ""
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ScheduledReplacementPublisher.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State Loam.ScheduledReplacementPublisher.Draft
 
 private def rowsFromScheduled
     (record : Loam.Tui.Main.ScheduledRecord) : Array Loam.Tui.Record.Row :=
