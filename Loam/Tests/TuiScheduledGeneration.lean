@@ -60,6 +60,8 @@ def main : IO Unit := do
   let cadenceText := widgetText (Loam.Tui.ScheduledGeneration.view selectedSuggestion.state)
   expect (contains "Monthly" cadenceText &&
       contains "Every 2 months" cadenceText &&
+      contains "Every 3 months" cadenceText &&
+      contains "Every 6 months" cadenceText &&
       contains "Yearly" cadenceText)
     "Scheduled generation cadence choices were not visible after suggestion selection"
   expect (contains "no recurrence authority is retained" cadenceText)
@@ -87,6 +89,17 @@ def main : IO Unit := do
   let customCadenceText := widgetText (Loam.Tui.ScheduledGeneration.view acceptedCustom.state)
   expect (contains "Fill through: 2027-01-20" customCadenceText)
     "Scheduled generation did not present the accepted custom fill limit"
+
+  let preset :=
+    Loam.Tui.ScheduledGeneration.initialWithCadence
+      source suggestions "2026-09-18" .everyTwoMonths
+  let presetText := widgetText (Loam.Tui.ScheduledGeneration.view preset)
+  expect (contains "Scheduled / Extend Plan" presetText &&
+    contains "Pattern: Every 2 months" presetText)
+    "Scheduled simple extension did not expose its monitored cadence"
+  let presetSuggestion := Loam.Tui.ScheduledGeneration.update preset .enter
+  expect (presetSuggestion.cadence == some .everyTwoMonths)
+    "Scheduled simple extension asked for cadence again instead of reusing monitoring"
 
   let noSuggestions := Loam.Tui.ScheduledGeneration.initial source [] "2026-09-18"
   let noSuggestionText := widgetText (Loam.Tui.ScheduledGeneration.view noSuggestions)
