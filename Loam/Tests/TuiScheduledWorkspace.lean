@@ -230,7 +230,7 @@ def main : IO Unit := do
   expect (contains "Scheduled / Coverage" coverageText &&
     contains "food" coverageText && contains "Next gap" coverageText)
     "Scheduled Coverage overview did not render the shared future-plan projection"
-  expect (contains "blank month cells" coverageText)
+  expect (contains "Blank month cells" coverageText)
     "Scheduled Coverage overview did not explain quiet non-expected months"
   let coverageFill := Loam.Tui.ScheduledWorkspace.update snapshot coverage .fillCurrentCycle
   expect (coverageFill.command == .stay &&
