@@ -92,6 +92,7 @@ def linesSelected
     [ line ""
     , muted "! = the next expected month has no explicit Scheduled plan yet."
     , muted "Select a row here to extend it or change its pace; use Exact dates only when needed."
+    , muted "Monitoring guides extension; it does not create recurrence authority."
     ]
 
 def lines (snapshot : Loam.ScheduledCoverageReview.Snapshot) : List Widget :=
