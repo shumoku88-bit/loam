@@ -357,7 +357,8 @@ def renderManyInRange
     (series : List PlotSeries)
     (selected : Nat)
     (range : Range)
-    (gridRows : List Nat := []) : List Widget :=
+    (gridRows : List Nat := [])
+    (guideColumns : List Nat := []) : List Widget :=
   let actualWidth := max 1 width
   let actualHeight := max 1 height
   let pointCount := series.head?.map (·.values.length) |>.getD 0
@@ -382,6 +383,8 @@ def renderManyInRange
             | none =>
                 if col = selectedX then
                   span "│" .muted
+                else if col ∈ guideColumns then
+                  span "┊" .muted
                 else if row ∈ gridRows then
                   span "┄" .muted
                 else
