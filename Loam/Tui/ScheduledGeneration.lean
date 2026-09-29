@@ -90,7 +90,9 @@ private def chooseHorizon (state : State) (choice : Nat) : State :=
     | some suggestion =>
         { state with
           limit := { endExclusive := suggestion.endExclusive }
-          limitLabel := "boundary suggestion " ++ suggestion.endExclusive
+          limitLabel :=
+            if state.presetCadence.isSome then suggestion.source
+            else "boundary suggestion " ++ suggestion.endExclusive
           mode := .cadence 0
           notice := "" }
     | none =>
@@ -194,10 +196,13 @@ private def horizonView (state : State) (choice : Nat) : Widget :=
   let count := choiceCount state
   let selected := choice % count
   let rows := state.suggestions.zipIdx.map fun (suggestion, index) =>
+    let label :=
+      if state.presetCadence.isSome then suggestion.source
+      else "through " ++ suggestionText suggestion
     .row
       [ span (if index = selected then " > " else "   ")
           (if index = selected then .selected else .normal)
-      , span ("through " ++ suggestionText suggestion)
+      , span label
       ]
   let customRow : Widget :=
     .row
@@ -217,9 +222,14 @@ private def horizonView (state : State) (choice : Nat) : Widget :=
     , line "Choose how far to extend:"
     ] ++ rows ++ [customRow] ++
     [ line ""
-    , line "Boundary dates are suggestions only. Custom dates use the same generator."
-    , line "No fill limit, cadence, cycle, or recurrence fact is stored."
-    , line "Arrows / Tab select   Enter continue   Esc cancel"
+    ] ++
+    (if state.presetCadence.isSome then
+      [ line "This one-time extension does not store a recurrence or fill horizon." ]
+     else
+      [ line "Boundary dates are suggestions only. Custom dates use the same generator."
+      , line "No fill limit, cadence, cycle, or recurrence fact is stored."
+      ]) ++
+    [ line "Arrows / Tab select   Enter continue   Esc cancel"
     , line state.notice
     ]
 

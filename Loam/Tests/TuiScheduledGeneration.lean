@@ -90,13 +90,22 @@ def main : IO Unit := do
   expect (contains "Fill through: 2027-01-20" customCadenceText)
     "Scheduled generation did not present the accepted custom fill limit"
 
+  let extensionSuggestions : List Loam.BoundaryPresetConfig.HorizonSuggestion :=
+    [ { source := "Next occurrence", start := source.scheduledOn, endExclusive := "2026-11-01" }
+    , { source := "Next 3 occurrences", start := source.scheduledOn, endExclusive := "2027-03-01" }
+    , { source := "Next 6 occurrences", start := source.scheduledOn, endExclusive := "2027-09-01" }
+    ]
   let preset :=
     Loam.Tui.ScheduledGeneration.initialWithCadence
-      source suggestions "2026-09-18" .everyTwoMonths
+      source extensionSuggestions "2026-09-18" .everyTwoMonths
   let presetText := widgetText (Loam.Tui.ScheduledGeneration.view preset)
   expect (contains "Scheduled / Extend Plan" presetText &&
-    contains "Pattern: Every 2 months" presetText)
-    "Scheduled simple extension did not expose its monitored cadence"
+    contains "Pattern: Every 2 months" presetText &&
+    contains "Next occurrence" presetText &&
+    contains "Next 3 occurrences" presetText &&
+    contains "Next 6 occurrences" presetText &&
+    !(contains "Boundary dates are suggestions only" presetText))
+    "Scheduled simple extension did not expose occurrence-count horizons"
   let presetSuggestion := Loam.Tui.ScheduledGeneration.update preset .enter
   expect (presetSuggestion.cadence == some .everyTwoMonths)
     "Scheduled simple extension asked for cadence again instead of reusing monitoring"
