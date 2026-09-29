@@ -15,6 +15,7 @@ import Loam.Tui.Layout
 import Loam.Tui.LocusTrendComparePane
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
+import Loam.Tui.Viewport
 
 namespace Loam.Tui.Reports
 
@@ -775,7 +776,8 @@ private def dailyMeasureBlockLines
     (snapshot : Loam.DailyRoleFlowReview.Snapshot)
     (measure : Loam.Core.MeasureId)
     (block : List String)
-    (blockIndex blockCount : Nat) : List Widget :=
+    (blockIndex blockCount : Nat)
+    (expenseRows : List Loam.DailyRoleFlowReview.Row) : List Widget :=
   let showBlockTotal := blockCount > 1
   let showWindowTotal := snapshot.dates.length > 1
   let heading :=
@@ -800,7 +802,6 @@ private def dailyMeasureBlockLines
   let headerWithWindow :=
     if showWindowTotal then headerWithBlock ++ Loam.Tui.Layout.padLeft 14 "Window total"
     else headerWithBlock
-  let expenseRows := dailyRows snapshot measure .expense
   [ line heading
   , muted dateRange
   , muted headerWithWindow
@@ -830,9 +831,10 @@ private def dailyFlowResultLines
         [muted "No classified Income or Expense activity appears in this window."]
        else
         measures.flatMap fun measure =>
+          let expenseRows := dailyRows snapshot measure .expense
           blocks.zipIdx.flatMap fun entry =>
             dailyMeasureBlockLines
-              state snapshot measure entry.1 entry.2 blocks.length ++ [blank]) ++
+              state snapshot measure entry.1 entry.2 blocks.length expenseRows ++ [blank]) ++
       [ line ("Unresolved role Effects: " ++ toString snapshot.unresolvedEffects.length)
       , muted
           (if snapshot.unresolvedEffects.isEmpty then
@@ -842,30 +844,93 @@ private def dailyFlowResultLines
       , muted "Daily Flow is a projection of the same occurrence-time flow, not stored daily state."
       ]
 
+private def dailyMeasureBlockSource
+    (state : State)
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (block : List String)
+    (blockIndex blockCount : Nat)
+    (expenseRows : List Loam.DailyRoleFlowReview.Row) :
+    Loam.Tui.Viewport.Source Widget :=
+  {
+    extent := expenseRows.length + 8
+    slice := fun offset count =>
+      List.take count <|
+        List.drop offset <|
+          (dailyMeasureBlockLines
+            state snapshot measure block blockIndex blockCount expenseRows) ++ [blank]
+  }
+
+private def dailyFlowSource
+    (state : State) (bounds : Option Bounds) :
+    Loam.Tui.Viewport.Source Widget :=
+  match state.incomeExpenseSnapshot with
+  | none =>
+      Loam.Tui.Viewport.ofList
+        [muted "No explicit Income & Expense window has been run yet."]
+  | some incomeExpense =>
+      let snapshot := incomeExpense.daily
+      let measures := dailyMeasures snapshot
+      let blocks := dailyBlocks (dailyBlockSize bounds snapshot.dates.length) snapshot.dates
+      let intro :=
+        Loam.Tui.Viewport.ofList
+          [ muted
+              "Daily axis shows classified activity dates only; omitted dates are not asserted zero or forecast."
+          , blank
+          ]
+      let body :=
+        if measures.isEmpty then
+          Loam.Tui.Viewport.ofList
+            [muted "No classified Income or Expense activity appears in this window."]
+        else
+          Loam.Tui.Viewport.concat <|
+            measures.flatMap fun measure =>
+              let expenseRows := dailyRows snapshot measure .expense
+              blocks.zipIdx.map fun entry =>
+                dailyMeasureBlockSource
+                  state snapshot measure entry.1 entry.2 blocks.length expenseRows
+      let tail :=
+        Loam.Tui.Viewport.ofList
+          [ line ("Unresolved role Effects: " ++ toString snapshot.unresolvedEffects.length)
+          , muted
+              (if snapshot.unresolvedEffects.isEmpty then
+                "Role classification is complete for selected quantity Effects."
+               else
+                "Daily totals are partial while unresolved role Effects remain.")
+          , muted
+              "Daily Flow is a projection of the same occurrence-time flow, not stored daily state."
+          ]
+      Loam.Tui.Viewport.concat [intro, body, tail]
+
+private def incomeExpenseHeaderLines (state : State) : List Widget :=
+  [ line "Reports / Income & Expense"
+  , muted "What Income / Expense role flow occurred inside this explicit window?"
+  , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
+  , line ("Window: " ++ windowSourceLabel state)
+  , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
+  , blank
+  , field state 0 "Start" state.window.form.start
+  , field state 1 "End (exclusive)" state.window.form.endExclusive
+  , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
+  , blank
+  ]
+
+private def incomeExpenseFooterLines (state : State) : List Widget :=
+  [ muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
+  , muted "g Summary/Monthly/Daily   Tab / Shift-Tab focus   Enter next/run"
+  , muted "c compare periods   q / Esc Reports menu"
+  , line state.notice
+  ]
+
 private def incomeExpenseView
     (state : State) (bounds : Option Bounds) : Widget :=
   .column <|
-    [ line "Reports / Income & Expense"
-    , muted "What Income / Expense role flow occurred inside this explicit window?"
-    , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
-    , line ("Window: " ++ windowSourceLabel state)
-    , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
-    , blank
-    , field state 0 "Start" state.window.form.start
-    , field state 1 "End (exclusive)" state.window.form.endExclusive
-    , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-    , blank
-    ] ++
+    incomeExpenseHeaderLines state ++
     (match state.incomeExpenseDisplay with
      | .summary => incomeExpenseResultLines state
      | .monthly => monthlyAccountsResultLines state bounds
      | .daily => dailyFlowResultLines state bounds) ++
-    [ blank
-    , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
-    , muted "g Summary/Monthly/Daily   Tab / Shift-Tab focus   Enter next/run"
-    , muted "c compare periods   q / Esc Reports menu"
-    , line state.notice
-    ]
+    [blank] ++ incomeExpenseFooterLines state
 
 private def incomeExpenseComparisonLines
     (state : State) (bounds : Option Bounds) : List Widget :=
@@ -1219,13 +1284,40 @@ private def fixedFooterSize : Mode → Nat
   | .scheduledCoverage => 4
   | .locusTrendCompare => 4
 
-private def viewParts (state : State) (bounds : Option Bounds := none) : List Widget × List Widget :=
+private structure ViewParts where
+  body : Loam.Tui.Viewport.Source Widget
+  footer : List Widget
+
+private def staticViewParts
+    (state : State) (bounds : Option Bounds) : ViewParts :=
   match fullView state bounds with
   | .column children =>
       let footerSize := min (fixedFooterSize state.mode) children.length
       let bodySize := children.length - footerSize
-      (children.take bodySize, children.drop bodySize)
-  | other => ([other], [])
+      {
+        body := Loam.Tui.Viewport.ofList (children.take bodySize)
+        footer := children.drop bodySize
+      }
+  | other =>
+      { body := Loam.Tui.Viewport.ofList [other], footer := [] }
+
+private def dailyIncomeExpenseViewParts
+    (state : State) (bounds : Option Bounds) : ViewParts :=
+  {
+    body :=
+      Loam.Tui.Viewport.concat
+        [ Loam.Tui.Viewport.ofList (incomeExpenseHeaderLines state)
+        , dailyFlowSource state bounds
+        , Loam.Tui.Viewport.ofList [blank]
+        ]
+    footer := incomeExpenseFooterLines state
+  }
+
+private def viewParts
+    (state : State) (bounds : Option Bounds := none) : ViewParts :=
+  match state.mode, state.incomeExpenseDisplay with
+  | .incomeExpense, .daily => dailyIncomeExpenseViewParts state bounds
+  | _, _ => staticViewParts state bounds
 
 private def bodyPageSize (bounds : Bounds) (footer : List Widget) : Nat :=
   bounds.height - (footer.length + 1)
@@ -1233,7 +1325,7 @@ private def bodyPageSize (bounds : Bounds) (footer : List Widget) : Nat :=
 /-- Largest meaningful vertical offset for the current report and terminal height. -/
 def scrollLimit (bounds : Bounds) (state : State) : Nat :=
   let parts := viewParts state (some bounds)
-  Loam.Tui.Scroll.maxOffset parts.1.length (bodyPageSize bounds parts.2)
+  Loam.Tui.Scroll.maxOffset parts.body.extent (bodyPageSize bounds parts.footer)
 
 private def scrollPositionLine
     (mode : Mode) (offset page total : Nat) : Widget :=
@@ -1269,21 +1361,21 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
       bounds state.trendCompare state.notice
   else
     let parts := viewParts state (some bounds)
-    let page := bodyPageSize bounds parts.2
-    let offset := Loam.Tui.Scroll.clamp parts.1.length page (requestedOffset state page)
-    let position := scrollPositionLine state.mode offset page parts.1.length
-    if bounds.height < parts.2.length + 1 then
+    let page := bodyPageSize bounds parts.footer
+    let offset := Loam.Tui.Scroll.clamp parts.body.extent page (requestedOffset state page)
+    let position := scrollPositionLine state.mode offset page parts.body.extent
+    if bounds.height < parts.footer.length + 1 then
       -- In a tiny terminal, retain as much navigation as possible. Existing views
       -- put their notice last and their most essential back/quit row immediately
       -- before it, so reverse the navigation rows and omit body before overflowing.
-      let navigation := parts.2.dropLast.reverse
-      let notice := parts.2.getLast?.toList
+      let navigation := parts.footer.dropLast.reverse
+      let notice := parts.footer.getLast?.toList
       .column <| (navigation ++ [position] ++ notice).take bounds.height
     else
       .column <|
-        (parts.1.drop offset).take page ++
+        parts.body.slice offset page ++
         [position] ++
-        parts.2
+        parts.footer
 
 /-- Apply the existing interaction grammar, then clamp presentation-only scrolling. -/
 def updateForBounds
@@ -1311,9 +1403,9 @@ def updateForBounds
     { step with state := { step.state with scroll := 0 } }
   else
     let parts := viewParts step.state (some bounds)
-    let page := bodyPageSize bounds parts.2
+    let page := bodyPageSize bounds parts.footer
     { step with state := { step.state with
-        scroll := Loam.Tui.Scroll.clamp parts.1.length page step.state.scroll } }
+        scroll := Loam.Tui.Scroll.clamp parts.body.extent page step.state.scroll } }
 
 /-- Unbounded compatibility view used by existing pure presentation tests. -/
 def view (state : State) : Widget := fullView state none

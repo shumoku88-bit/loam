@@ -10,6 +10,10 @@ private def widgetText (widget : Widget) : String :=
   String.intercalate "\n" <| widget.lines.map fun cells =>
     String.ofList (cells.map Cell.glyph)
 
+private def widgetLineTexts (widget : Widget) : List String :=
+  widget.lines.map fun cells =>
+    String.ofList (cells.map Cell.glyph)
+
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
@@ -69,6 +73,15 @@ def main : IO Unit := do
     "high-frequency report scrolling unexpectedly probes terminal bounds"
   expect (Loam.Tui.ReportsSession.refreshBoundsForKey .enter)
     "ordinary report interaction no longer refreshes terminal bounds"
+
+  let viewportSource :=
+    Loam.Tui.Viewport.concat
+      [ Loam.Tui.Viewport.ofList ([1, 2] : List Nat)
+      , Loam.Tui.Viewport.ofList [3, 4]
+      ]
+  expect
+    (viewportSource.extent == 4 && viewportSource.slice 1 2 == [2, 3])
+    "lazy viewport source did not preserve cross-source slicing"
 
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
   let menuText := widgetText (Loam.Tui.Reports.view initial)
@@ -1233,6 +1246,30 @@ def main : IO Unit := do
     "Daily Flow turned sparse date omission into a zero claim"
   expect (contains "same occurrence-time flow" dailyIncomeExpenseText)
     "Daily Flow promoted its projection into stored daily state"
+
+  let dailyBounds : Bounds := { width := 100, height := 16 }
+  let fullDailyLines := widgetLineTexts (Loam.Tui.Reports.view dailyIncomeExpense)
+  let dailyFooterSize := 4
+  let dailyBodySize := fullDailyLines.length - dailyFooterSize
+  let fullDailyBody := fullDailyLines.take dailyBodySize
+  let fullDailyFooter := fullDailyLines.drop dailyBodySize
+  let dailyPage := dailyBounds.height - (dailyFooterSize + 1)
+  expect
+    (Loam.Tui.Reports.scrollLimit dailyBounds dailyIncomeExpense ==
+      dailyBodySize - dailyPage)
+    "virtual Daily body extent diverged from the full compatibility view"
+  let topDailyLines :=
+    widgetLineTexts (Loam.Tui.Reports.viewForBounds dailyBounds dailyIncomeExpense)
+  expect
+    (topDailyLines.take dailyPage == fullDailyBody.take dailyPage &&
+      topDailyLines.drop (dailyPage + 1) == fullDailyFooter)
+    "virtual Daily top viewport diverged from the full report rows"
+  let scrolledDaily := { dailyIncomeExpense with scroll := 7 }
+  let scrolledDailyLines :=
+    widgetLineTexts (Loam.Tui.Reports.viewForBounds dailyBounds scrolledDaily)
+  expect
+    (scrolledDailyLines.take dailyPage == (fullDailyBody.drop 7).take dailyPage)
+    "virtual Daily scrolled viewport diverged from the full report rows"
 
   let summaryAgain :=
     (Loam.Tui.Reports.update dailyIncomeExpense (.input 'g')).state
