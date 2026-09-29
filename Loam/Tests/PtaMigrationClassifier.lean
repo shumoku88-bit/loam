@@ -473,6 +473,137 @@ private def fixtures : List Fixture := [
   }
 ]
 
+private structure AdapterHeader where
+  idx : String
+  validOn : String
+  features : List SourceFeature
+
+private structure AdapterPosting where
+  idx : String
+  posting : Posting
+
+private def sourceFeature? : String → Option SourceFeature
+  | "inferredAmount" => some .inferredAmount
+  | "sourceComposition" => some .sourceComposition
+  | "unconfirmedMeasureScale" => some .unconfirmedMeasureScale
+  | "cost" => some .cost
+  | "status" => some .status
+  | "metadata" => some .metadata
+  | "postingDate" => some .postingDate
+  | "balanceAssertion" => some .balanceAssertion
+  | "balanceAssignment" => some .balanceAssignment
+  | "virtualPosting" => some .virtualPosting
+  | "automatedRule" => some .automatedRule
+  | "periodicRule" => some .periodicRule
+  | "priceOrLot" => some .priceOrLot
+  | _ => none
+
+private def disposition? : String → Option Disposition
+  | "direct" => some .direct
+  | "normalize" => some .normalize
+  | "review" => some .review
+  | "refuse" => some .refuse
+  | _ => none
+
+private def parseFeatures? (text : String) : Option (List SourceFeature) :=
+  if text == "-" then
+    some []
+  else
+    (text.splitOn ",").mapM sourceFeature?
+
+private def parseAdapterHeader? (line : String) : Option AdapterHeader := do
+  match line.splitOn "\t" with
+  | ["T", idx, validOn, featuresText] =>
+      let features ← parseFeatures? featuresText
+      some { idx := idx, validOn := validOn, features := features }
+  | _ => none
+
+private def parseAdapterPosting? (line : String) : Option AdapterPosting := do
+  match line.splitOn "\t" with
+  | ["P", idx, account, measure, quantaText] =>
+      let quanta ← quantaText.toInt?
+      some {
+        idx := idx
+        posting := {
+          account := ⟨account⟩
+          measure := ⟨measure⟩
+          quanta := quanta
+        }
+      }
+  | _ => none
+
+private def dataLines (input : String) : List String :=
+  (input.splitOn "\n").filter fun line =>
+    !line.isEmpty && !line.startsWith "#"
+
+private def adapterTransactions?
+    (input : String) : Option (List (String × Transaction)) := do
+  let lines := dataLines input
+  let headerLines := lines.filter fun line => line.startsWith "T\t"
+  let postingLines := lines.filter fun line => line.startsWith "P\t"
+  if headerLines.length + postingLines.length != lines.length then
+    none
+  else
+    let headers ← headerLines.mapM parseAdapterHeader?
+    let postings ← postingLines.mapM parseAdapterPosting?
+    headers.mapM fun header => do
+      let selected :=
+        (postings.filter fun posting => posting.idx == header.idx).map
+          (fun posting => posting.posting)
+      some
+        (header.idx, {
+          validOn := header.validOn
+          description := none
+          postings := selected
+          sourceFeatures := header.features
+        })
+
+private def adapterExpected?
+    (input : String) : Option (List (String × Disposition)) := do
+  (dataLines input).mapM fun line => do
+    match line.splitOn "\t" with
+    | [idx, token] =>
+        let disposition ← disposition? token
+        some (idx, disposition)
+    | _ => none
+
+private def runAdapter
+    (normalizedPath expectedPath : String) : IO Unit := do
+  let normalizedInput ← IO.FS.readFile (System.FilePath.mk normalizedPath)
+  let expectedInput ← IO.FS.readFile (System.FilePath.mk expectedPath)
+  let some transactions := adapterTransactions? normalizedInput
+    | throw (IO.userError "PTA adapter wire is malformed")
+  let some expected := adapterExpected? expectedInput
+    | throw (IO.userError "PTA adapter expected-disposition fixture is malformed")
+
+  expect (transactions.length == expected.length)
+    "PTA adapter transaction count does not match expected-disposition fixture"
+
+  for pair in transactions do
+    let idx := pair.1
+    let tx := pair.2
+    let some expectedDisposition :=
+        ((expected.find? fun row => row.1 == idx).map Prod.snd)
+      | throw (IO.userError ("PTA adapter transaction " ++ idx ++ " has no expected disposition"))
+    let decision := classify tx
+    expect (decision.disposition == expectedDisposition)
+      ("PTA adapter transaction " ++ idx ++ ": expected " ++
+        reprStr expectedDisposition ++ ", got " ++ reprStr decision.disposition)
+
+    let shouldHaveCandidate := expectedDisposition == .direct
+    expect (decision.candidate.isSome == shouldHaveCandidate)
+      ("PTA adapter transaction " ++ idx ++
+        ": only Direct input may expose a publication candidate")
+
+    match decision.candidate with
+    | none => pure ()
+    | some candidate =>
+        directCandidateAdmits ("PTA adapter transaction " ++ idx) candidate
+
+  IO.println
+    ("PTA hledger adapter boundary: " ++ toString transactions.length ++
+      " normalized transactions classified through the existing gate.")
+
 def run : IO Unit := do
   expect (fixtures.length == 20)
     "PTA migration matrix stopped containing exactly 20 representative fixtures"
@@ -534,7 +665,16 @@ def run : IO Unit := do
   IO.println
     "PTA migration classifier: 20 fixtures classified; Direct candidates reached production admission; blocked cases exposed no candidate."
 
+def runArgs (args : List String) : IO Unit :=
+  match args with
+  | [] => run
+  | ["adapter", normalizedPath, expectedPath] =>
+      runAdapter normalizedPath expectedPath
+  | _ =>
+      throw (IO.userError
+        "usage: PtaMigrationClassifier.lean [adapter <normalized.tsv> <expected.tsv>]")
+
 end Loam.Tests.PtaMigrationClassifier
 
-def main : IO Unit :=
-  Loam.Tests.PtaMigrationClassifier.run
+def main (args : List String) : IO Unit :=
+  Loam.Tests.PtaMigrationClassifier.runArgs args
