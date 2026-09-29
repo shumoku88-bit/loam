@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.CurrentQuantityAnchor
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
@@ -40,10 +41,8 @@ structure State where
   notice : String := ""
   deriving Repr, DecidableEq
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option (List Loam.CurrentQuantityAnchor.Assertion) := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (List Loam.CurrentQuantityAnchor.Assertion)
 
 
 def initial : State := {}
