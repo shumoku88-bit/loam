@@ -237,7 +237,7 @@ private def printScheduledCoverage
       row.firstMissing.getD "-"
     ]
     for cell in row.cells do
-      if cell.expected || cell.explicitCount > 0 then
+      if cell.expected || !(cell.explicitCount == 0) then
         emitDiagnostic [
           "scheduled-cell",
           row.rule.name,
@@ -248,8 +248,8 @@ private def printScheduledCoverage
         ]
 
 /--
-Emit one complete HOBS1 document. All three shared production queries are loaded
-before stdout is touched, so a semantic or persistence refusal cannot masquerade
+Emit one complete HOBS1 document. All requested shared production queries are
+loaded before stdout is touched, so a semantic or persistence refusal cannot masquerade
 as a complete observation document. Consumers should additionally require the
 terminal `meta status complete` record to detect stream truncation.
 -/
