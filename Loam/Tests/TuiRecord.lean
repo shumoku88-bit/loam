@@ -105,6 +105,13 @@ def main (args : List String) : IO Unit := do
     (Loam.MeasurePresentation.formatQuanta decimalPresentation ⟨"usd"⟩ (-5) == "-0.05")
     "decimal USD formatting did not zero-pad exact quanta"
   expect
+    (Loam.MeasurePresentation.formatGroupedQuanta [] ⟨"jpy"⟩ (-240000) == "-240,000")
+    "grouped quantity formatting misplaced the sign"
+  expect
+    (Loam.MeasurePresentation.formatGroupedQuanta
+      decimalPresentation ⟨"usd"⟩ 123456 == "1,234.56")
+    "grouped quantity formatting lost the configured decimal scale"
+  expect
     ((draftWithPresentation? decimalPresentation
       { decimalUsdForm with rows := #[
           { locus := "paypay", amount := "-12.345" },
