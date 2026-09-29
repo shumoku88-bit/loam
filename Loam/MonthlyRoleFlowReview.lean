@@ -19,11 +19,14 @@ incidence image plus explicit AccountingRole evidence.
 This module does not read Actual independently, retain another accounting
 authority, infer roles from names or signs, or introduce an HRA Account model.
 It groups the same occurrence-time quantity evidence already used by
-RoleFlowReview onto a continuous observed month axis.
+RoleFlowReview onto a continuous calendar-month axis.
 
 The selected half-open window remains authoritative. Boundary months may
 therefore be partial, and every calendar month touched by the window is retained
-even when its classified flow is zero.
+even when its selected classified flow is zero. This projection does not invent
+a separate observation horizon: an empty future month means only that no
+currently admitted flow was selected there, not that future activity is known
+to be finally zero.
 -/
 
 structure Cell where
