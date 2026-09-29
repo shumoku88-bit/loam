@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.ActualReversalPublisher
 import Loam.Tui.Main
@@ -31,10 +32,8 @@ structure State where
   mode : Mode := .editing
   notice : String := ""
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ActualReversalPublisher.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Loam.ActualReversalPublisher.Draft)
 
 /--
 Seed the editable occurrence coordinate from today as a presentation convenience.
