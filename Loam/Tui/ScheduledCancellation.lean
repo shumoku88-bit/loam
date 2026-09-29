@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ScheduledTerminalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Terminal
@@ -24,10 +25,8 @@ structure State where
   -- 0 = Cancel Scheduled, 1 = Keep. Protective default is Keep.
   choice : Fin 2 := ⟨1, by omega⟩
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ScheduledTerminalPublisher.CancellationDraft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State Loam.ScheduledTerminalPublisher.CancellationDraft
 
 private def expectedLines (record : Loam.Tui.Main.ScheduledRecord) : List String :=
   record.movement.changes.map fun change =>
