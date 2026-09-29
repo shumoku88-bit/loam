@@ -32,14 +32,6 @@ def recordedCoordinates (memory : EventMemory) : List EffectCoordinate :=
   (memory.events.flatMap fun event =>
     event.effects.map fun effect => effect.coordinate).eraseDups
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 /--
 Admit a runtime Event collection only when Event identity is not repeated.
 Representation order is retained but does not become semantic history.
@@ -47,7 +39,7 @@ Representation order is retained but does not become semantic history.
 def ofEvents? (events : List Event) : Option EventMemory := do
   let h ← hashNodupBy?
     (fun id : EventId => id.token)
-    eventIdToken_injective
+    EventId.token_injective
     (events.map Event.id)
   some { events := events, idNodup := h.proof }
 
@@ -57,7 +49,7 @@ def ofEvents? (events : List Event) : Option EventMemory := do
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective []
+        (fun id : EventId => id.token) EventId.token_injective []
       some ({ events := [], idNodup := h.proof } : EventMemory)) =
     some ({ events := [], idNodup := by simp } : EventMemory)
   rw [hashNodupBy?_nil]
@@ -69,7 +61,7 @@ def ofEvents? (events : List Event) : Option EventMemory := do
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective [event.id]
+        (fun id : EventId => id.token) EventId.token_injective [event.id]
       some ({ events := [event], idNodup := h.proof } : EventMemory)) =
     some ({ events := [event], idNodup := by simp } : EventMemory)
   rw [hashNodupBy?_singleton]
@@ -90,7 +82,7 @@ theorem ofEvents?_some_events
   cases hAdmission :
       hashNodupBy?
         (fun id : EventId => id.token)
-        eventIdToken_injective
+        EventId.token_injective
         (events.map Event.id) with
   | none =>
       simp [hAdmission] at h
@@ -219,7 +211,7 @@ def add? (memory : EventMemory) (event : Event) : Option EventMemory :=
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective [event.id, event.id]
+        (fun id : EventId => id.token) EventId.token_injective [event.id, event.id]
       some ({ events := [event, event], idNodup := h.proof } : EventMemory)) = none
   rw [hashNodupBy?_repeat]
   rfl
@@ -230,18 +222,18 @@ theorem add?_singleton_distinct
       some { events := [existing, added], idNodup := by simp [h] } := by
   have hToken : existing.id.token ≠ added.id.token := by
     intro hEq
-    exact h (eventIdToken_injective hEq)
+    exact h (EventId.token_injective hEq)
   change ofEvents? [existing, added] =
     some ({ events := [existing, added], idNodup := by simp [h] } : EventMemory)
   unfold ofEvents?
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective [existing.id, added.id]
+        (fun id : EventId => id.token) EventId.token_injective [existing.id, added.id]
       some ({ events := [existing, added], idNodup := h.proof } : EventMemory)) =
     some ({ events := [existing, added], idNodup := by simp [h] } : EventMemory)
   rw [hashNodupBy?_pair_of_key_ne
-    (fun id : EventId => id.token) eventIdToken_injective existing.id added.id hToken]
+    (fun id : EventId => id.token) EventId.token_injective existing.id added.id hToken]
   rfl
 
 end EventMemory

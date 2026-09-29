@@ -19,14 +19,10 @@ Constructed once per admission / review pass from canonical `EventMemory` and
 `EventCorrectionMemory`. It is never serialized or treated as an independent authority.
 -/
 
-/-- EventId token projection is injective, enabling hash-indexed replacement cycle checks. -/
+/-- Compatibility name for the Core EventId stable-token law. -/
 theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
+    Function.Injective (fun id : EventId => id.token) :=
+  EventId.token_injective
 
 /--
 Transient scan state accumulated during the single pass over

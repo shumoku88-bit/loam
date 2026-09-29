@@ -14,6 +14,17 @@ structure EventId where
   token : String
 deriving Repr, DecidableEq
 
+namespace EventId
+
+/-- The stable-token projection preserves Event identity exactly. -/
+theorem token_injective :
+    Function.Injective (fun id : EventId => id.token) := by
+  intro ⟨left⟩ ⟨right⟩ h
+  cases h
+  rfl
+
+end EventId
+
 /-- The projection coordinate at which one event effect is observed. -/
 structure EffectCoordinate where
   locus : LocusId

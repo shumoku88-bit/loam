@@ -39,14 +39,6 @@ namespace ActualValidityMemory
 
 variable {Time : Type}
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 /--
 Admit a collection of validity evidence only when no EventId is repeated.
 Duplicate valid coordinates for the same EventId are rejected (fail closed).
@@ -55,7 +47,7 @@ def ofEntries?
     (entries : List (ActualValidity Time)) : Option (ActualValidityMemory Time) := do
   let h ← hashNodupBy?
     (fun id : EventId => id.token)
-    eventIdToken_injective
+    EventId.token_injective
     (entries.map ActualValidity.event)
   some { entries := entries, eventNodup := h.proof }
 
@@ -66,7 +58,7 @@ def ofEntries?
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective []
+        (fun id : EventId => id.token) EventId.token_injective []
       some ({ entries := [], eventNodup := h.proof } : ActualValidityMemory Time)) =
     some ({ entries := [], eventNodup := by simp } : ActualValidityMemory Time)
   rw [hashNodupBy?_nil]
@@ -78,7 +70,7 @@ def ofEntries?
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective [entry.event]
+        (fun id : EventId => id.token) EventId.token_injective [entry.event]
       some ({ entries := [entry], eventNodup := h.proof } : ActualValidityMemory Time)) =
     some ({ entries := [entry], eventNodup := by simp } : ActualValidityMemory Time)
   rw [hashNodupBy?_singleton]
