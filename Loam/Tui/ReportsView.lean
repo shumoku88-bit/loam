@@ -509,8 +509,8 @@ private def monthlyAccountsResultLines (state : State) : List Widget :=
       let measures := monthlyMeasures snapshot
       let blocks := monthlyBlocks snapshot.months
       [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
-      , muted "Monthly axis is continuous across every calendar month touched by the observed window."
-      , muted "Boundary months may be partial; no future coordinate is manufactured as zero."
+      , muted "Monthly axis keeps every calendar month touched by the explicit window."
+      , muted "Zero means no admitted current flow in that selected month; this is not a forecast."
       , blank
       ] ++
       (if measures.isEmpty then
