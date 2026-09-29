@@ -159,12 +159,15 @@ n         create one explicit Scheduled plan
 ```
 
 `e` automatically chooses the latest current-open occurrence matching the selected
-plan shape as its construction template, reuses the plan's current monitoring
-cadence, and asks only how far to extend. If extension starts from Months/List and
-the selected occurrence has no monitoring rule yet, LOAM asks for cadence once and
-continues the same flow. Every generated occurrence remains an ordinary explicit
-Scheduled occurrence and is individually reviewable before publication. The
-monitoring cadence itself never becomes Scheduled authority.
+plan shape as its construction template and reuses the plan's current monitoring
+cadence. Its normal horizon choices are **Next occurrence**, **Next 3 occurrences**,
+**Next 6 occurrences**, and **Custom date**. These extension horizons are derived
+from the selected cadence itself rather than household/report boundary presets, so
+the shortest choice always contains one later cadence slot. If extension starts
+from Months/List and the selected occurrence has no monitoring rule yet, LOAM asks
+for cadence once and continues the same flow. Every generated occurrence remains an
+ordinary explicit Scheduled occurrence and is individually reviewable before
+publication. The monitoring cadence itself never becomes Scheduled authority.
 
 `p` opens the existing plan-monitoring editor for the selected row and changes the
 replaceable expected cadence. `s` removes only that monitoring rule. Existing
