@@ -420,85 +420,127 @@ private def monthlyBlocks : List String → List (List String)
   | first :: [] => [[first]]
   | first :: second :: rest => [first, second] :: monthlyBlocks rest
 
+private def monthlyAmountText
+    (state : State)
+    (measure : Loam.Core.MeasureId)
+    (quanta : Int) : String :=
+  Loam.MeasurePresentation.formatGroupedQuanta
+    state.multimeasurePresentation measure quanta
+
 private def monthlyRowLine
+    (state : State)
     (row : Loam.MonthlyRoleFlowReview.Row)
-    (months : List String) : Widget :=
+    (months : List String)
+    (showPeriodTotal : Bool) : Widget :=
   let cells :=
     months.foldl
       (fun text month =>
         text ++
-          padNum 12
-            (toString
+          padNum 14
+            (monthlyAmountText state row.coordinate.measure
               (monthlyDisplayQuanta row.role
                 (Loam.MonthlyRoleFlowReview.Row.quantityAt row month))))
       ""
+  let period :=
+    if showPeriodTotal then
+      padNum 14
+        (monthlyAmountText state row.coordinate.measure
+          (monthlyDisplayQuanta row.role
+            (Loam.MonthlyRoleFlowReview.Row.total row)))
+    else
+      ""
   line
     ("  " ++ Loam.Tui.Layout.padRight 22 row.coordinate.locus.token ++
-      cells ++
-      padNum 14
-        (toString
-          (monthlyDisplayQuanta row.role
-            (Loam.MonthlyRoleFlowReview.Row.total row))))
+      cells ++ period)
 
 private def monthlyTotalLine
+    (state : State)
     (snapshot : Loam.MonthlyRoleFlowReview.Snapshot)
     (measure : Loam.Core.MeasureId)
     (role : Loam.Core.AccountingRole)
     (label : String)
-    (months : List String) : Widget :=
+    (months : List String)
+    (showPeriodTotal : Bool) : Widget :=
   let cells :=
     months.foldl
       (fun text month =>
         let raw := monthlyRoleQuanta snapshot measure role month
         let display := if role = .income then -raw else raw
-        text ++ padNum 12 (toString display))
+        text ++ padNum 14 (monthlyAmountText state measure display))
       ""
-  let rawPeriod := monthlyRolePeriodQuanta snapshot measure role
-  let displayPeriod := if role = .income then -rawPeriod else rawPeriod
+  let period :=
+    if showPeriodTotal then
+      let rawPeriod := monthlyRolePeriodQuanta snapshot measure role
+      let displayPeriod := if role = .income then -rawPeriod else rawPeriod
+      padNum 14 (monthlyAmountText state measure displayPeriod)
+    else
+      ""
   line
-    ("  " ++ Loam.Tui.Layout.padRight 22 label ++
-      cells ++ padNum 14 (toString displayPeriod))
+    ("  " ++ Loam.Tui.Layout.padRight 22 label ++ cells ++ period)
 
 private def monthlyNetLine
+    (state : State)
     (snapshot : Loam.MonthlyRoleFlowReview.Snapshot)
     (measure : Loam.Core.MeasureId)
-    (months : List String) : Widget :=
+    (months : List String)
+    (showPeriodTotal : Bool) : Widget :=
   let cells :=
     months.foldl
       (fun text month =>
         let income := -(monthlyRoleQuanta snapshot measure .income month)
         let expense := monthlyRoleQuanta snapshot measure .expense month
-        text ++ padNum 12 (toString (income - expense)))
+        text ++ padNum 14 (monthlyAmountText state measure (income - expense)))
       ""
-  let income := -(monthlyRolePeriodQuanta snapshot measure .income)
-  let expense := monthlyRolePeriodQuanta snapshot measure .expense
+  let period :=
+    if showPeriodTotal then
+      let income := -(monthlyRolePeriodQuanta snapshot measure .income)
+      let expense := monthlyRolePeriodQuanta snapshot measure .expense
+      padNum 14 (monthlyAmountText state measure (income - expense))
+    else
+      ""
   line
-    ("  " ++ Loam.Tui.Layout.padRight 22 "Net" ++
-      cells ++ padNum 14 (toString (income - expense)))
+    ("  " ++ Loam.Tui.Layout.padRight 22 "Net" ++ cells ++ period)
+
+private def monthlyDivider
+    (months : List String) (showPeriodTotal : Bool) : Widget :=
+  let width := 24 + months.length * 14 + (if showPeriodTotal then 14 else 0)
+  muted (String.ofList (List.replicate width '-'))
 
 private def monthlyMeasureBlockLines
+    (state : State)
     (snapshot : Loam.MonthlyRoleFlowReview.Snapshot)
     (measure : Loam.Core.MeasureId)
     (block : List String)
-    (blockIndex blockCount : Nat) : List Widget :=
+    (blockIndex blockCount : Nat)
+    (showPeriodTotal : Bool) : List Widget :=
   let header :=
-    block.foldl (fun text month => text ++ padNum 12 month)
+    block.foldl (fun text month => text ++ padNum 14 month)
       (Loam.Tui.Layout.padRight 24 "Account")
+  let heading :=
+    measure.token ++ "  Monthly Accounts" ++
+      (if blockCount > 1 then
+        "  block " ++ toString (blockIndex + 1) ++ "/" ++ toString blockCount
+       else
+        "")
+  let headerWithPeriod :=
+    if showPeriodTotal then header ++ Loam.Tui.Layout.padLeft 14 "Period total"
+    else header
   let incomeRows := monthlyRows snapshot measure .income
   let expenseRows := monthlyRows snapshot measure .expense
-  [ line
-      (measure.token ++ "  Monthly Accounts  block " ++
-        toString (blockIndex + 1) ++ "/" ++ toString blockCount)
-  , line (header ++ Loam.Tui.Layout.padLeft 14 "Period total")
+  [ line heading
+  , muted headerWithPeriod
+  , monthlyDivider block showPeriodTotal
   , muted "  Income"
   ] ++
-  (incomeRows.map fun row => monthlyRowLine row block) ++
-  [ monthlyTotalLine snapshot measure .income "Total Income" block
+  (incomeRows.map fun row => monthlyRowLine state row block showPeriodTotal) ++
+  [ monthlyTotalLine state snapshot measure .income "Total Income" block showPeriodTotal
+  , monthlyDivider block showPeriodTotal
   , muted "  Expense"
   ] ++
-  (expenseRows.map fun row => monthlyRowLine row block) ++
-  [ monthlyTotalLine snapshot measure .expense "Total Expense" block
-  , monthlyNetLine snapshot measure block
+  (expenseRows.map fun row => monthlyRowLine state row block showPeriodTotal) ++
+  [ monthlyTotalLine state snapshot measure .expense "Total Expense" block showPeriodTotal
+  , monthlyDivider block showPeriodTotal
+  , monthlyNetLine state snapshot measure block showPeriodTotal
   ]
 
 private def monthlyAccountsResultLines (state : State) : List Widget :=
@@ -508,18 +550,18 @@ private def monthlyAccountsResultLines (state : State) : List Widget :=
       let snapshot := incomeExpense.monthly
       let measures := monthlyMeasures snapshot
       let blocks := monthlyBlocks snapshot.months
-      [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
-      , muted "Monthly axis keeps every calendar month touched by the explicit window."
-      , muted "Zero means no admitted current flow in that selected month; this is not a forecast."
+      [ muted
+          "Every touched calendar month is shown; zero means no admitted current flow, not a forecast."
       , blank
       ] ++
       (if measures.isEmpty then
         [muted "No classified Income or Expense quantity appears in this window."]
        else
+        let showPeriodTotal := snapshot.months.length > 1
         measures.flatMap fun measure =>
           (blocks.zipIdx.flatMap fun entry =>
             monthlyMeasureBlockLines
-              snapshot measure entry.1 entry.2 blocks.length ++ [blank])) ++
+              state snapshot measure entry.1 entry.2 blocks.length showPeriodTotal ++ [blank])) ++
       [ line ("Unresolved role Effects: " ++ toString snapshot.unresolvedEffects.length)
       , muted
           (if snapshot.unresolvedEffects.isEmpty then
