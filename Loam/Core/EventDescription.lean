@@ -45,14 +45,6 @@ deriving Repr
 
 namespace EventDescriptionMemory
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 /--
 Admit a collection of Event descriptions only if no EventId is repeated.
 Duplicate descriptions for the same EventId are rejected (fail closed).
@@ -63,7 +55,7 @@ Core authority is still the same `List.Nodup` proof over Event identities.
 def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory := do
   let h ← hashNodupBy?
     (fun id : EventId => id.token)
-    eventIdToken_injective
+    EventId.token_injective
     (entries.map EventDescription.event)
   some { entries := entries, eventNodup := h.proof }
 
@@ -73,7 +65,7 @@ def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective []
+        (fun id : EventId => id.token) EventId.token_injective []
       some ({ entries := [], eventNodup := h.proof } : EventDescriptionMemory)) =
     some ({ entries := [], eventNodup := by simp } : EventDescriptionMemory)
   rw [hashNodupBy?_nil]
@@ -85,7 +77,7 @@ def ofEntries? (entries : List EventDescription) : Option EventDescriptionMemory
   change
     (do
       let h ← hashNodupBy?
-        (fun id : EventId => id.token) eventIdToken_injective [entry.event]
+        (fun id : EventId => id.token) EventId.token_injective [entry.event]
       some ({ entries := [entry], eventNodup := h.proof } : EventDescriptionMemory)) =
     some ({ entries := [entry], eventNodup := by simp } : EventDescriptionMemory)
   rw [hashNodupBy?_singleton]

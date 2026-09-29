@@ -35,19 +35,11 @@ def actualValidityFrontierFacts
   ReplacementFrontier.frontier
     ActualValidityFact.ref history.facts (correctionEdges history)
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 private def uniqueFrontierEvents
     (facts : List (ActualValidityFact Time)) : Bool :=
   (hashNodupBy?
     (fun id : EventId => id.token)
-    eventIdToken_injective
+    EventId.token_injective
     (facts.map ActualValidityFact.event)).isSome
 
 /--

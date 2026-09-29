@@ -80,14 +80,6 @@ def currentAdmittedRelationById?
   | .unknown => none
   | .knownNone => none
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 private theorem relationUnitIdToken_injective :
     Function.Injective (fun id : RelationUnitId => id.token) := by
   intro left right h
@@ -100,7 +92,7 @@ private def uniqueDischargeEvents
     (discharges : List RelationDischarge) : Bool :=
   (hashNodupBy?
     (fun id : EventId => id.token)
-    eventIdToken_injective
+    EventId.token_injective
     (discharges.map RelationDischarge.event)).isSome
 
 /--
@@ -125,7 +117,7 @@ theorem buildEventIndex_get?_eq_findById?
       EventMemory.findById? events id := by
   unfold buildEventIndex EventMemory.findById?
   exact FiniteKeyed.hashIndexBy_get?_eq_findBy?
-    Event.id EventId.token eventIdToken_injective events.events id
+    Event.id EventId.token EventId.token_injective events.events id
 
 /--
 Build a target-keyed bucket index from the raw discharge list.

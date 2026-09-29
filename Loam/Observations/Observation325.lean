@@ -52,14 +52,6 @@ theorem coordinateKey_injective :
                           subst rightMeasureToken
                           rfl
 
-private theorem eventIdToken_injective :
-    Function.Injective (fun id : EventId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 /--
 Build one Event-local sparse coordinate index.
 
@@ -215,7 +207,7 @@ theorem buildColumnIndex_get?_eq_direct
         simp
       · have hToken : column.event.id.token ≠ eventId.token := by
           intro h
-          exact hId (eventIdToken_injective h)
+          exact hId (EventId.token_injective h)
         simp [hToken, hId]
         exact ih
 
