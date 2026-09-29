@@ -1,4 +1,5 @@
 import Loam.ScheduledCoverageReview
+import Loam.ScheduledCoverageSelector
 import Loam.Tui.Calendar
 import Loam.Tui.Layout
 import Loam.Tui.Main
@@ -37,6 +38,7 @@ structure State where
   viewMode : ViewMode := .coverage
   locusRow : Nat := 0
   occurrenceRow : Nat := 0
+  coverageRow : Nat := 0
   notice : String := ""
   deriving Repr, DecidableEq
 
@@ -49,7 +51,9 @@ inductive Event where
   | toggleView
   | createScheduled
   | extendPlan
+  | changePace
   | stopMonitoring
+  | openSelectedPlan
   | fillCurrentCycle
   | monitorCoverage
   | completeScheduled
@@ -63,6 +67,7 @@ inductive Command where
   | stay
   | createScheduled
   | extendPlan
+  | changePace
   | stopMonitoring
   | fillCurrentCycle
   | monitorCoverage
@@ -138,6 +143,50 @@ def visibleRecords (snapshot : Snapshot) (state : State) : List Record :=
 def selectedRecord? (snapshot : Snapshot) (state : State) : Option Record :=
   (visibleRecords snapshot state)[state.occurrenceRow]?
 
+def coverageRows (coverage : CoverageEvidence) : List Loam.ScheduledCoverageReview.Row :=
+  match coverage with
+  | .error _ => []
+  | .ok snapshot => Loam.Tui.ScheduledCoveragePane.orderedRows snapshot
+
+def selectedCoverageRow?
+    (coverage : CoverageEvidence) (state : State) :
+    Option Loam.ScheduledCoverageReview.Row :=
+  (coverageRows coverage)[state.coverageRow]?
+
+private def recordBefore (left right : Record) : Bool :=
+  if left.scheduledOn = right.scheduledOn then
+    left.id.token <= right.id.token
+  else
+    left.scheduledOn <= right.scheduledOn
+
+def latestRecordForRule?
+    (snapshot : Snapshot)
+    (rule : Loam.ScheduledCoverageConfig.Rule) : Option Record :=
+  let allState : State := {
+    focusDate := snapshot.actual.today
+    scope := .allCurrent
+    pane := .occurrences
+    viewMode := .coverage
+  }
+  let matches :=
+    (recordsForScope snapshot allState).filter fun record =>
+      Loam.ScheduledCoverageSelector.matchesRule record rule
+  (matches.mergeSort recordBefore).getLast?
+
+def selectedCoverageRecord?
+    (snapshot : Snapshot) (coverage : CoverageEvidence) (state : State) : Option Record := do
+  let row ← selectedCoverageRow? coverage state
+  latestRecordForRule? snapshot row.rule
+
+private def findRecordRow? (records : List Record) (id : String) : Option Nat :=
+  let indexed := records.zipIdx
+  (indexed.find? fun (record, _) => record.id.token == id).map (·.2)
+
+private def clampCoverageState (coverage : CoverageEvidence) (state : State) : State :=
+  let count := (coverageRows coverage).length
+  let coverageRow := if count = 0 then 0 else min state.coverageRow (count - 1)
+  { state with coverageRow := coverageRow }
+
 private def clampState (snapshot : Snapshot) (state : State) : State :=
   let lociCount := (lociForScope snapshot state).length
   let locusRow := min state.locusRow lociCount
@@ -180,48 +229,48 @@ private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
     | .allCurrent => Scope.focusDay
   clampState snapshot { state with scope := scope, locusRow := 0, occurrenceRow := 0, notice := "" }
 
-def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
+def updateWithCoverage
+    (snapshot : Snapshot) (coverage : CoverageEvidence)
+    (rawState : State) (event : Event) : Step :=
+  let state := clampCoverageState coverage rawState
   match event with
   | .previous =>
       match state.viewMode with
       | .coverage =>
-          { state := { state with notice :=
-              "Coverage is the overview; press v for Months to select an explicit plan." } }
+          if state.coverageRow = 0 then
+            { state := { state with notice := "No previous recurring plan." } }
+          else
+            { state := { state with coverageRow := state.coverageRow - 1, notice := "" } }
       | .futureBoard => { state := movePrevious snapshot state }
       | .list => { state := movePrevious snapshot state }
   | .next =>
       match state.viewMode with
       | .coverage =>
-          { state := { state with notice :=
-              "Coverage is the overview; press v for Months to select an explicit plan." } }
+          let count := (coverageRows coverage).length
+          if state.coverageRow + 1 < count then
+            { state := { state with coverageRow := state.coverageRow + 1, notice := "" } }
+          else
+            { state := { state with notice := "No next recurring plan." } }
       | .futureBoard => { state := moveNext snapshot state }
       | .list => { state := moveNext snapshot state }
   | .focusLeft =>
       match state.viewMode with
-      | .coverage =>
-          { state := { state with notice :=
-              "Coverage has no Locus pane; press v twice for List." } }
+      | .coverage => { state := { state with notice := "The overview has one plan selection." } }
       | .futureBoard =>
-          { state := { state with notice :=
-              "Months uses one Scheduled selection; press v for List." } }
+          { state := { state with notice := "Months uses one Scheduled selection; press v for List." } }
       | .list => { state := { state with pane := .loci, notice := "" } }
   | .focusRight =>
       match state.viewMode with
-      | .coverage =>
-          { state := { state with notice :=
-              "Coverage has no Locus pane; press v twice for List." } }
+      | .coverage => { state := { state with notice := "The overview has one plan selection." } }
       | .futureBoard =>
-          { state := { state with notice :=
-              "Months uses one Scheduled selection; press v for List." } }
+          { state := { state with notice := "Months uses one Scheduled selection; press v for List." } }
       | .list => { state := { state with pane := .occurrences, notice := "" } }
   | .cycleFilter =>
       match state.viewMode with
       | .coverage =>
-          { state := { state with notice :=
-              "Coverage always uses the current-open frontier; press v twice for scoped List." } }
+          { state := { state with notice := "The overview always uses the current-open frontier." } }
       | .futureBoard =>
-          { state := { state with notice :=
-              "Months always uses the current-open frontier; press v for scoped List." } }
+          { state := { state with notice := "Months always uses the current-open frontier; press v for scoped List." } }
       | .list => { state := cycleFilter snapshot state }
   | .toggleView =>
       match state.viewMode with
@@ -237,7 +286,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | .futureBoard =>
           { state := { state with viewMode := .list, notice := "" } }
       | .list =>
-          { state := clampState snapshot
+          { state := clampCoverageState coverage <| clampState snapshot
               { state with
                 viewMode := .coverage
                 scope := .allCurrent
@@ -253,71 +302,110 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Press v for Months, select the plan you want to extend, then press e." } }
-          else match state.pane with
-          | .loci =>
-              { state := { state with notice := "Extend is available from the Scheduled plan pane." } }
-          | .occurrences =>
-              match selectedRecord? snapshot state with
-              | none =>
-                  { state := { state with notice := "No Scheduled plan is selected to extend." } }
+          match state.viewMode with
+          | .coverage =>
+              match selectedCoverageRecord? snapshot coverage state with
               | some _ => { state, command := .extendPlan }
+              | none =>
+                  { state := { state with notice :=
+                      "This recurring plan has no current-open Scheduled occurrence to use as an extension template." } }
+          | .futureBoard | .list =>
+              match state.pane with
+              | .loci =>
+                  { state := { state with notice := "Extend is available from the Scheduled plan pane." } }
+              | .occurrences =>
+                  match selectedRecord? snapshot state with
+                  | none => { state := { state with notice := "No Scheduled plan is selected to extend." } }
+                  | some _ => { state, command := .extendPlan }
+  | .changePace =>
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          match state.viewMode with
+          | .coverage =>
+              match selectedCoverageRecord? snapshot coverage state with
+              | some _ => { state, command := .changePace }
+              | none =>
+                  { state := { state with notice :=
+                      "This recurring plan has no current-open Scheduled occurrence from which to change its pace." } }
+          | .futureBoard | .list =>
+              match state.pane with
+              | .loci =>
+                  { state := { state with notice := "Pace editing is available from the Scheduled plan pane." } }
+              | .occurrences =>
+                  match selectedRecord? snapshot state with
+                  | none => { state := { state with notice := "No Scheduled plan is selected." } }
+                  | some _ => { state, command := .changePace }
   | .stopMonitoring =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Press v for Months, select the plan to mark undecided, then press s." } }
-          else match state.pane with
-          | .loci =>
-              { state := { state with notice := "Stop monitoring is available from the Scheduled plan pane." } }
-          | .occurrences =>
-              match selectedRecord? snapshot state with
-              | none =>
-                  { state := { state with notice := "No Scheduled plan is selected." } }
+          match state.viewMode with
+          | .coverage =>
+              match selectedCoverageRow? coverage state with
               | some _ => { state, command := .stopMonitoring }
+              | none => { state := { state with notice := "No recurring plan is selected." } }
+          | .futureBoard | .list =>
+              match state.pane with
+              | .loci =>
+                  { state := { state with notice := "Stop monitoring is available from the Scheduled plan pane." } }
+              | .occurrences =>
+                  match selectedRecord? snapshot state with
+                  | none => { state := { state with notice := "No Scheduled plan is selected." } }
+                  | some _ => { state, command := .stopMonitoring }
+  | .openSelectedPlan =>
+      match state.viewMode with
+      | .coverage =>
+          match selectedCoverageRecord? snapshot coverage state with
+          | none =>
+              { state := { state with notice := "This recurring plan has no current-open Scheduled date to inspect." } }
+          | some record =>
+              let nextBase := clampState snapshot {
+                state with
+                viewMode := .futureBoard
+                scope := .allCurrent
+                pane := .occurrences
+                locusRow := 0
+                notice := ""
+              }
+              let row := (findRecordRow? (visibleRecords snapshot nextBase) record.id.token).getD 0
+              { state := { nextBase with occurrenceRow := row } }
+      | .futureBoard | .list => { state }
   | .fillCurrentCycle =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
           if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Choose an explicit plan in Months or List before filling; press v." } }
+            { state := { state with notice := "Use e to extend the selected recurring plan." } }
           else match state.pane with
-          | .loci =>
-              { state := { state with notice := "Fill cycle is available from the Scheduled pane." } }
+          | .loci => { state := { state with notice := "Fill cycle is available from the Scheduled pane." } }
           | .occurrences =>
               match selectedRecord? snapshot state with
-              | none =>
-                  { state := { state with notice :=
-                      "No current-open Scheduled occurrence is selected as the cycle-fill source." } }
+              | none => { state := { state with notice :=
+                  "No current-open Scheduled occurrence is selected as the cycle-fill source." } }
               | some _ => { state, command := .fillCurrentCycle }
   | .monitorCoverage =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
           if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Choose an explicit plan in Months or List before changing its pattern; press v." } }
+            match selectedCoverageRecord? snapshot coverage state with
+            | some _ => { state, command := .changePace }
+            | none => { state := { state with notice :=
+                "This recurring plan has no current-open Scheduled occurrence from which to change its pace." } }
           else match state.pane with
-          | .loci =>
-              { state := { state with notice := "Plan monitoring is available from the Scheduled pane." } }
+          | .loci => { state := { state with notice := "Plan monitoring is available from the Scheduled pane." } }
           | .occurrences =>
               match selectedRecord? snapshot state with
-              | none =>
-                  { state := { state with notice :=
-                      "No current-open Scheduled occurrence is selected for monitoring." } }
+              | none => { state := { state with notice :=
+                  "No current-open Scheduled occurrence is selected for monitoring." } }
               | some _ => { state, command := .monitorCoverage }
   | .completeScheduled =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
           if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Choose an explicit plan in Months or List before completing it; press v." } }
+            { state := { state with notice := "Press Enter to inspect exact dates before completing one occurrence." } }
           else match state.pane with
           | .loci => { state := { state with notice := "Complete is available from the Scheduled pane." } }
           | .occurrences =>
@@ -329,8 +417,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | some notice => { state := { state with notice := notice } }
       | none =>
           if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Choose an explicit plan in Months or List before replacing it; press v." } }
+            { state := { state with notice := "Press Enter to inspect exact dates before replacing one occurrence." } }
           else match state.pane with
           | .loci => { state := { state with notice := "Replace is available from the Scheduled pane." } }
           | .occurrences =>
@@ -342,8 +429,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | some notice => { state := { state with notice := notice } }
       | none =>
           if state.viewMode == .coverage then
-            { state := { state with notice :=
-                "Choose an explicit plan in Months or List before cancelling it; press v." } }
+            { state := { state with notice := "Press Enter to inspect exact dates before cancelling one occurrence." } }
           else match state.pane with
           | .loci => { state := { state with notice := "Cancel is available from the Scheduled pane." } }
           | .occurrences =>
@@ -352,6 +438,9 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
               | some _ => { state, command := .cancelScheduled }
   | .back => { state, command := .back }
   | .other => { state }
+
+def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
+  updateWithCoverage snapshot (.error "coverage unavailable") state event
 
 private def repeatChar (count : Nat) (char : Char) : String :=
   String.ofList (List.replicate count char)
