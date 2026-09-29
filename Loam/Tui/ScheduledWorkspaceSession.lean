@@ -93,7 +93,8 @@ private def selectedActionRecord?
     Option Loam.Tui.Main.ScheduledRecord :=
   match state.viewMode with
   | .coverage => Loam.Tui.ScheduledWorkspace.selectedCoverageRecord? snapshot coverage state
-  | .futureBoard | .list => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
+  | .futureBoard => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
+  | .list => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
 
 private def selectedMonitoringShape?
     (snapshot : Snapshot)
@@ -104,7 +105,11 @@ private def selectedMonitoringShape?
   | .coverage =>
       (Loam.Tui.ScheduledWorkspace.selectedCoverageRow? coverage state).map fun row =>
         (row.rule.negativeLoci, row.rule.positiveLoci)
-  | .futureBoard | .list =>
+  | .futureBoard =>
+      (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state).map fun record =>
+        let shape := Loam.ScheduledCoverageSelector.ofRecord record
+        (shape.negativeLoci, shape.positiveLoci)
+  | .list =>
       (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state).map fun record =>
         let shape := Loam.ScheduledCoverageSelector.ofRecord record
         (shape.negativeLoci, shape.positiveLoci)
@@ -129,7 +134,11 @@ def eventOfKey
   | .enter =>
       match viewMode with
       | .coverage => .openSelectedPlan
-      | .futureBoard | .list =>
+      | .futureBoard =>
+          match pane with
+          | .loci => .other
+          | .occurrences => .completeScheduled
+      | .list =>
           match pane with
           | .loci => .other
           | .occurrences => .completeScheduled
