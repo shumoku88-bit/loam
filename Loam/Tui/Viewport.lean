@@ -23,16 +23,16 @@ structure Source (α : Type) where
   extent : Nat
   slice : Nat → Nat → List α
 
-def empty : Source α :=
+def empty {α : Type} : Source α :=
   { extent := 0, slice := fun _ _ => [] }
 
-def ofList (values : List α) : Source α :=
+def ofList {α : Type} (values : List α) : Source α :=
   {
     extent := values.length
     slice := fun offset count => (values.drop offset).take count
   }
 
-def append (left right : Source α) : Source α :=
+def append {α : Type} (left right : Source α) : Source α :=
   {
     extent := left.extent + right.extent
     slice := fun offset count =>
@@ -46,7 +46,7 @@ def append (left right : Source α) : Source α :=
         right.slice (offset - left.extent) count
   }
 
-def concat (sources : List (Source α)) : Source α :=
+def concat {α : Type} (sources : List (Source α)) : Source α :=
   sources.foldl append empty
 
 end Loam.Tui.Viewport
