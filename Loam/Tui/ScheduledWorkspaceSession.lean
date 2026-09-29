@@ -139,11 +139,13 @@ partial def run
           let notice ← Loam.Tui.ScheduledGenerationSession.run
             bounds dataDir root known catalog record snapshot.actual.today
           let fresh ← requireReload notice reload
+
+          let freshCoverage ← loadCoverage dataDir root fresh.actual.today
           let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
           let next := { refreshed with notice := notice }
-          let nextFrame := workspaceFrame bounds fresh coverage next
+          let nextFrame := workspaceFrame bounds fresh freshCoverage next
           Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-          run bounds dataDir root reload fresh coverage next nextFrame
+          run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .monitorCoverage =>
       match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
       | none =>
@@ -193,11 +195,13 @@ partial def run
                     bounds root known record snapshot.actual.today
                     (currentLocusCatalog dataDir world)
               let fresh ← requireReload notice reload
+
+              let freshCoverage ← loadCoverage dataDir root fresh.actual.today
               let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
               let next := { refreshed with notice := notice }
-              let nextFrame := workspaceFrame bounds fresh coverage next
+              let nextFrame := workspaceFrame bounds fresh freshCoverage next
               Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-              run bounds dataDir root reload fresh coverage next nextFrame
+              run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .cancelScheduled =>
       match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
       | none =>
@@ -212,11 +216,13 @@ partial def run
           let notice ← Loam.Tui.ScheduledCancellationSession.run
             bounds root confirmation confirmationFrame
           let fresh ← requireReload notice reload
+
+          let freshCoverage ← loadCoverage dataDir root fresh.actual.today
           let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
           let next := { refreshed with notice := notice }
-          let nextFrame := workspaceFrame bounds fresh coverage next
+          let nextFrame := workspaceFrame bounds fresh freshCoverage next
           Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-          run bounds dataDir root reload fresh coverage next nextFrame
+          run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .replaceScheduled =>
       match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
       | none =>
@@ -242,14 +248,16 @@ partial def run
               let notice ← Loam.Tui.ScheduledReplacementSession.run
                 bounds root known editor editorFrame
               let fresh ← requireReload notice reload
+
+              let freshCoverage ← loadCoverage dataDir root fresh.actual.today
               let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
               let next := { refreshed with notice := notice }
-              let nextFrame := workspaceFrame bounds fresh coverage next
+              let nextFrame := workspaceFrame bounds fresh freshCoverage next
               Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-              run bounds dataDir root reload fresh coverage next nextFrame
+              run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .stay =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledWorkspace.view bounds snapshot step.state)
+      let nextFrame := workspaceFrame bounds snapshot coverage step.state
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds dataDir root reload snapshot step.state nextFrame
+      run bounds dataDir root reload snapshot coverage step.state nextFrame
 
 end Loam.Tui.ScheduledWorkspaceSession
