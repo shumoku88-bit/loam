@@ -128,6 +128,25 @@ def main : IO Unit := do
   expect ((Loam.MonthlyRoleFlowReview.Row.total monthlyRent).quanta == 120)
     "Monthly Accounts row total did not reconstruct the period quantity"
 
+  expect (snapshot.daily.dates == ["2026-09-01", "2026-09-02"])
+    "Daily Flow did not retain sparse classified activity dates"
+  let dailyRent ← requireSome
+    (snapshot.daily.rows.find? fun row => row.coordinate.locus.token == "rent")
+    "daily rent row"
+  let dailyCoffee ← requireSome
+    (snapshot.daily.rows.find? fun row => row.coordinate.locus.token == "coffee")
+    "daily coffee row"
+  expect
+    ((Loam.DailyRoleFlowReview.Row.quantityAt dailyRent "2026-09-01").quanta == 120 &&
+      (Loam.DailyRoleFlowReview.Row.quantityAt dailyRent "2026-09-02").quanta == 0 &&
+      (Loam.DailyRoleFlowReview.Row.quantityAt dailyCoffee "2026-09-01").quanta == 0 &&
+      (Loam.DailyRoleFlowReview.Row.quantityAt dailyCoffee "2026-09-02").quanta == 30)
+    "Daily Flow did not preserve sparse per-date Expense cells"
+  expect
+    ((Loam.DailyRoleFlowReview.Row.total dailyRent).quanta == 120 &&
+      (Loam.DailyRoleFlowReview.Row.total dailyCoffee).quanta == 30)
+    "Daily Flow row totals did not reconstruct the selected-window quantities"
+
   let unknownEvidence : Loam.IncomeExpenseProvenanceReview.Evidence := {
     evidence with
       scheduledTerminals := .error "Scheduled lifecycle unavailable"
