@@ -44,7 +44,7 @@ abbrev Step :=
 
 /-- Seed a new Scheduled occurrence on the currently focused household date. -/
 def initial (date : String) : State :=
-  { form := { date := date } }
+  { form := { date := date, rows := #[{}, {}] } }
 
 /-- Attach display-only metadata to one Scheduled creation editor. -/
 def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
