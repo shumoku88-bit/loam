@@ -12,7 +12,6 @@ import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.RoleFlowReview
 import Loam.RoleBalanceReview
-import Loam.ScheduledCoverageReview
 import Loam.Tui.ReportComparison
 import Loam.Tui.ReportWindow
 import Loam.Tui.LocusTrendComparePane
@@ -49,7 +48,6 @@ inductive Mode where
   | balances
   | liquidity
   | budgetWindow
-  | scheduledCoverage
   | locusTrendCompare
   deriving Repr, DecidableEq
 
@@ -90,7 +88,6 @@ inductive Query where
   | roleBalances
   | conditionalLiquidity (assumedCompleteThrough : String)
   | budgetWindow (start endExclusive : String)
-  | scheduledCoverage (observedAt : String)
   | locusTrendCompare
       (observedAt : String)
       (granularity : Loam.LocusTrendCompareReview.Granularity)
@@ -107,7 +104,7 @@ def defaultTrendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
 
 structure State where
   mode : Mode := .menu
-  menuIndex : Fin 10 := ⟨0, by decide⟩
+  menuIndex : Fin 9 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
   comparison : Loam.Tui.ReportComparison.State := {}
   liquidityForm : LiquidityForm := {}
@@ -124,7 +121,6 @@ structure State where
   roleBalanceSnapshot : Option Loam.RoleBalanceReview.Snapshot := none
   liquiditySnapshot : Option Loam.ConditionalBalancePathReview.Snapshot := none
   budgetSnapshot : Option Loam.BudgetWindowReview.Snapshot := none
-  scheduledCoverageSnapshot : Option Loam.ScheduledCoverageReview.Snapshot := none
   trendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
     defaultTrendCompareSeries
   trendCompare : Loam.Tui.LocusTrendComparePane.State := {}
@@ -225,11 +221,6 @@ def withBudgetSnapshot
   { state with budgetSnapshot := some snapshot, notice := "", scroll := 0 }
 
 
-def withScheduledCoverageSnapshot
-    (state : State) (snapshot : Loam.ScheduledCoverageReview.Snapshot) : State :=
-  { state with scheduledCoverageSnapshot := some snapshot, notice := "", scroll := 0 }
-
-
 def withLocusTrendCompareSnapshot
     (state : State) (snapshot : Loam.LocusTrendCompareReview.Snapshot) : State :=
   { state with
@@ -254,7 +245,6 @@ def withError (state : State) (message : String) : State :=
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
-      scheduledCoverageSnapshot := none
       trendCompare := Loam.Tui.LocusTrendComparePane.clear state.trendCompare
       notice := message
       scroll := 0 }
@@ -270,7 +260,6 @@ private def clearResults (state : State) : State :=
       roleBalanceSnapshot := none
       liquiditySnapshot := none
       budgetSnapshot := none
-      scheduledCoverageSnapshot := none
       trendCompare := Loam.Tui.LocusTrendComparePane.clear state.trendCompare
       scroll := 0 }
 
@@ -327,7 +316,7 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       exact Nat.mod_lt _ (by decide)⟩ }
 
 private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 9) % 10 else (state.menuIndex.val + 1) % 10
+  let next := if back then (state.menuIndex.val + 8) % 9 else (state.menuIndex.val + 1) % 9
   { state with menuIndex := ⟨next, by
       dsimp [next]
       split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
@@ -390,21 +379,18 @@ private def selectMenuMode (state : State) : State :=
     | 3 => Mode.balances
     | 4 => Mode.liquidity
     | 5 => Mode.budgetWindow
-    | 6 => Mode.scheduledCoverage
-    | 7 => Mode.multimeasureSpend
-    | 8 => Mode.locusTrendCompare
+    | 6 => Mode.multimeasureSpend
+    | 7 => Mode.locusTrendCompare
     | _ => Mode.stockFlow
   { state with mode := mode, notice := "", scroll := 0 }
 
 private def selectMenuStep (state : State) : Step :=
-  if state.menuIndex.val == 9 then
+  if state.menuIndex.val == 8 then
     { state, query := some .favaProjection }
   else
     let next := selectMenuMode state
     match next.mode with
     | .balances => { state := next, query := some .roleBalances }
-    | .scheduledCoverage =>
-        { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
     | .locusTrendCompare =>
         { state := next,
           query := some (.locusTrendCompare
@@ -432,9 +418,6 @@ private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       { state := { state with mode := .liquidity, notice := "", scroll := 0 } }
   | .input 'w' | .input 'W' =>
       { state := { state with mode := .budgetWindow, notice := "", scroll := 0 } }
-  | .input 'c' | .input 'C' =>
-      let next := { state with mode := .scheduledCoverage, notice := "", scroll := 0 }
-      { state := next, query := some (.scheduledCoverage next.window.calendarAnchor) }
   | .input 'x' | .input 'X' =>
       { state := { state with mode := .multimeasureSpend, notice := "", scroll := 0 } }
   | .input 'v' | .input 'V' =>
@@ -826,19 +809,6 @@ private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step 
   | .enter => { state, query := some .roleBalances }
   | _ => { state }
 
-private def updateScheduledCoverage
-    (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  match key with
-  | .escape | .input 'q' | .input 'Q' =>
-      { state := { state with mode := .menu, notice := "", scroll := 0 } }
-  | .up | .input 'k' | .input 'K' =>
-      { state := { state with scroll := state.scroll - 1 } }
-  | .down | .input 'j' | .input 'J' =>
-      { state := { state with scroll := state.scroll + 1 } }
-  | .enter =>
-      { state, query := some (.scheduledCoverage state.window.calendarAnchor) }
-  | _ => { state }
-
 private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
@@ -896,7 +866,6 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .multimeasureSpend => updateWindowReport state key
   | .balances => updateBalances state key
   | .liquidity => updateLiquidity state key
-  | .scheduledCoverage => updateScheduledCoverage state key
   | .locusTrendCompare => updateLocusTrendCompare state key
 
 end Loam.Tui.Reports
