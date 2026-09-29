@@ -35,11 +35,6 @@ def Summary.residualBeforeUnresolved (summary : Summary) : Quantity :=
 @[simp] theorem Summary.residualBeforeUnresolved_eq_components (summary : Summary) :
     summary.residualBeforeUnresolved = summary.budgetableBacking - summary.remainingAssigned := rfl
 
-private def selectedRowsMatch
-    (selection : List EffectCoordinate)
-    (balances : Loam.BalanceReview.Snapshot) : Bool :=
-  balances.rows.map (·.coordinate) == selection
-
 /--
 Inspect exact current backing and already-projected CurrentCoverage.
 
@@ -58,7 +53,7 @@ def project
     throw "loam: cycle funding selection has a wrong measure"
   if !decide selection.Nodup then
     throw "loam: cycle funding selection contains duplicate coordinates"
-  if !selectedRowsMatch selection balances then
+  if !(balances.coordinates == selection) then
     throw "loam: cycle funding balance answer does not match the selected pool"
   if !decide (current.rows.map (·.purpose)).Nodup then
     throw "loam: cycle funding coverage contains duplicate Purpose rows"
