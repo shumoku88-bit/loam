@@ -20,6 +20,26 @@ private def expectPlan
         s!"{label}: expected {repr expected}, got {repr dates}"
 
 def run : IO Unit := do
+  let some nextMonthly :=
+      Loam.ScheduledGeneration.fillLimitForOccurrences?
+        "2026-09-29" .monthly 1
+    | throw (IO.userError "next Monthly extension horizon was unavailable")
+  expect (nextMonthly.endExclusive == "2026-11-01")
+    "next Monthly extension horizon did not include the October occurrence"
+  expectPlan "next Monthly extension includes one occurrence"
+    "2026-09-29" "2026-09-29" nextMonthly.endExclusive
+    .monthly ["2026-10-29"]
+
+  let some threeBimonthly :=
+      Loam.ScheduledGeneration.fillLimitForOccurrences?
+        "2026-12-15" .everyTwoMonths 3
+    | throw (IO.userError "three-slot bimonthly extension horizon was unavailable")
+  expect (threeBimonthly.endExclusive == "2027-07-01")
+    "three-slot bimonthly extension horizon did not end after the June slot"
+  expectPlan "three bimonthly extension slots are exact"
+    "2026-12-15" "2026-12-15" threeBimonthly.endExclusive
+    .everyTwoMonths ["2027-02-15", "2027-04-15", "2027-06-15"]
+
   expectPlan "monthly wifi before arbitrary limit"
     "2026-09-08" "2026-09-08" "2026-10-15"
     .monthly ["2026-10-08"]
