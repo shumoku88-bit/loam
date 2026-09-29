@@ -628,27 +628,39 @@ def main : IO Unit := do
   let overlayNamed := typeChars overlayStarted "Mother off"
   let overlayDaysFocus := (Loam.Tui.Reports.update overlayNamed .enter).state
   let overlayDaysTyped := typeChars overlayDaysFocus "3 4 6 8 9"
-  let overlayGuideFocus := (Loam.Tui.Reports.update overlayDaysTyped .enter).state
-  let overlayGuideText := widgetText
-    (Loam.Tui.Reports.viewForBounds compareBounds overlayGuideFocus)
-  expect (contains "Guide   [ ] vertical" overlayGuideText &&
-      contains "Space toggle guide" overlayGuideText)
-    "Trend overlay did not expose the optional vertical-guide control"
-  let overlayGuided := (Loam.Tui.Reports.update overlayGuideFocus (.input ' ')).state
-  let overlayApplied := (Loam.Tui.Reports.update overlayGuided .enter).state
+  let overlayApplied := (Loam.Tui.Reports.update overlayDaysTyped .enter).state
   expect (!Loam.Tui.LocusTrendComparePane.isOverlayEditing overlayApplied.trendCompare &&
       overlayApplied.trendCompare.overlays.length == 1 &&
-      (overlayApplied.trendCompare.overlays.head?.map (·.guide)).getD false)
-    "Trend overlay did not apply the custom month/day observation with its guide choice"
+      !overlayApplied.trendCompare.overlayGuides)
+    "Trend overlay did not apply the custom month/day observation with guides initially off"
   let overlayText := widgetText
     (Loam.Tui.Reports.viewForBounds compareBounds overlayApplied)
-  expect (contains "A Mother off (Sep 2026: 3 4 6 8 9) · guide" overlayText &&
-      contains "┊" overlayText &&
+  expect (contains "A Mother off (Sep 2026: 3 4 6 8 9)" overlayText &&
+      contains "guides off" overlayText &&
+      contains "v guides on" overlayText &&
+      !(contains "┊" overlayText) &&
       contains "O clear overlays" overlayText &&
       contains "not saved" overlayText)
-    "Trend overlay did not render its optional guide, marker legend, or session-only boundary"
+    "Trend overlay did not start with its quiet marker-only presentation"
 
-  let invalidStarted := (Loam.Tui.Reports.update overlayApplied (.input 'o')).state
+  let guidesOn := (Loam.Tui.Reports.update overlayApplied (.input 'v')).state
+  let guidesOnText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds guidesOn)
+  expect (guidesOn.trendCompare.overlayGuides &&
+      contains "guides on" guidesOnText &&
+      contains "v guides off" guidesOnText &&
+      contains "┊" guidesOnText)
+    "Trend overlay one-key guide toggle did not add vertical guides after observation"
+
+  let guidesOff := (Loam.Tui.Reports.update guidesOn (.input 'v')).state
+  let guidesOffText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds guidesOff)
+  expect (!guidesOff.trendCompare.overlayGuides &&
+      contains "guides off" guidesOffText &&
+      !(contains "┊" guidesOffText))
+    "Trend overlay one-key guide toggle did not remove vertical guides"
+
+  let invalidStarted := (Loam.Tui.Reports.update guidesOff (.input 'o')).state
   let invalidNamed := typeChars invalidStarted "Friend house"
   let invalidDaysFocus := (Loam.Tui.Reports.update invalidNamed .enter).state
   let invalidDaysTyped := typeChars invalidDaysFocus "31"
