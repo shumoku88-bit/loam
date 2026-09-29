@@ -309,7 +309,15 @@ def updateWithCoverage
               | none =>
                   { state := { state with notice :=
                       "This recurring plan has no current-open Scheduled occurrence to use as an extension template." } }
-          | .futureBoard | .list =>
+          | .futureBoard =>
+              match state.pane with
+              | .loci =>
+                  { state := { state with notice := "Extend is available from the Scheduled plan pane." } }
+              | .occurrences =>
+                  match selectedRecord? snapshot state with
+                  | none => { state := { state with notice := "No Scheduled plan is selected to extend." } }
+                  | some _ => { state, command := .extendPlan }
+          | .list =>
               match state.pane with
               | .loci =>
                   { state := { state with notice := "Extend is available from the Scheduled plan pane." } }
@@ -328,7 +336,15 @@ def updateWithCoverage
               | none =>
                   { state := { state with notice :=
                       "This recurring plan has no current-open Scheduled occurrence from which to change its pace." } }
-          | .futureBoard | .list =>
+          | .futureBoard =>
+              match state.pane with
+              | .loci =>
+                  { state := { state with notice := "Pace editing is available from the Scheduled plan pane." } }
+              | .occurrences =>
+                  match selectedRecord? snapshot state with
+                  | none => { state := { state with notice := "No Scheduled plan is selected." } }
+                  | some _ => { state, command := .changePace }
+          | .list =>
               match state.pane with
               | .loci =>
                   { state := { state with notice := "Pace editing is available from the Scheduled plan pane." } }
@@ -345,7 +361,15 @@ def updateWithCoverage
               match selectedCoverageRow? coverage state with
               | some _ => { state, command := .stopMonitoring }
               | none => { state := { state with notice := "No recurring plan is selected." } }
-          | .futureBoard | .list =>
+          | .futureBoard =>
+              match state.pane with
+              | .loci =>
+                  { state := { state with notice := "Stop monitoring is available from the Scheduled plan pane." } }
+              | .occurrences =>
+                  match selectedRecord? snapshot state with
+                  | none => { state := { state with notice := "No Scheduled plan is selected." } }
+                  | some _ => { state, command := .stopMonitoring }
+          | .list =>
               match state.pane with
               | .loci =>
                   { state := { state with notice := "Stop monitoring is available from the Scheduled plan pane." } }
@@ -370,7 +394,8 @@ def updateWithCoverage
               }
               let row := (findRecordRow? (visibleRecords snapshot nextBase) record.id.token).getD 0
               { state := { nextBase with occurrenceRow := row } }
-      | .futureBoard | .list => { state }
+      | .futureBoard => { state }
+      | .list => { state }
   | .fillCurrentCycle =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
