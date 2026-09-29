@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.LocusCatalog
 import Loam.Persistence.TokenSyntax
 import Loam.ScheduledCreationPublisher
+import Loam.Tui.EditorSession
 import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
 import Loam.Tui.Main
@@ -41,10 +42,8 @@ structure State where
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   candidateIndex : Nat := 0
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ScheduledCreationPublisher.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State Loam.ScheduledCreationPublisher.Draft
 
 /-- Seed a new Scheduled occurrence on the currently focused household date. -/
 def initial (date : String) : State :=
