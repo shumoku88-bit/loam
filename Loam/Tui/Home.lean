@@ -167,31 +167,11 @@ private def moneyDateSpan
   span (Loam.Tui.Layout.padRight cellWidth text)
     (moneyCellStyle today state date)
 
-private def commaEveryThreeFromRight : List Char → Nat → List Char
-  | [], _ => []
-  | char :: rest, count =>
-      if count = 3 then
-        ',' :: char :: commaEveryThreeFromRight rest 1
-      else
-        char :: commaEveryThreeFromRight rest (count + 1)
-
-private def groupThousands (text : String) : String :=
-  let reversed :=
-    commaEveryThreeFromRight text.toList.reverse 0
-  String.ofList reversed.reverse
-
-private def groupedAmountText (text : String) : String :=
-  match text.splitOn "." with
-  | [whole] => groupThousands whole
-  | [whole, fractional] => groupThousands whole ++ "." ++ fractional
-  | _ => text
-
 private def groupedQuantaText
     (money : MoneyCalendarSnapshot)
     (measure : Loam.Core.MeasureId)
     (quanta : Int) : String :=
-  groupedAmountText <|
-    Loam.MeasurePresentation.formatQuanta money.presentation measure quanta
+  Loam.MeasurePresentation.formatGroupedQuanta money.presentation measure quanta
 
 private def moneyMonthSummaryText
     (snapshot : Snapshot) (state : State) : String :=
@@ -226,7 +206,10 @@ private def moneyAmountSpan
           let rendered :=
             Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
           let plain := signText ++ rendered
-          let grouped := signText ++ groupedAmountText rendered
+          let grouped :=
+            signText ++
+              Loam.MeasurePresentation.formatGroupedQuanta
+                money.presentation row.measure amount
           if Loam.Tui.Layout.displayWidth grouped ≤ cellWidth then grouped else plain
     | _, _ => ""
   span (Loam.Tui.Layout.padLeft cellWidth text)

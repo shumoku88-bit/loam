@@ -1072,8 +1072,11 @@ def main : IO Unit := do
   expect (contains "not accrual recognition or period closing" incomeExpenseReportText)
     "Income & Expense view overstated occurrence-time flow as a closed P/L"
 
-  let monthlyIncomeExpense :=
-    (Loam.Tui.Reports.update incomeExpenseReport (.input 'g')).state
+  let monthlyIncomeExpense : Loam.Tui.Reports.State := {
+    (Loam.Tui.Reports.update incomeExpenseReport (.input 'g')).state with
+      multimeasurePresentation :=
+        [ { measure := ⟨"usd"⟩, scale := 2 } ]
+  }
   expect (monthlyIncomeExpense.incomeExpenseDisplay == .monthly)
     "Income & Expense g did not switch to Monthly Accounts"
   let monthlyIncomeExpenseText :=
@@ -1087,8 +1090,18 @@ def main : IO Unit := do
       contains "Total Income" monthlyIncomeExpenseText &&
       contains "Total Expense" monthlyIncomeExpenseText &&
       contains "Net" monthlyIncomeExpenseText &&
-      contains "190000" monthlyIncomeExpenseText)
-    "Monthly Accounts view lost account rows or Income/Expense/Net totals"
+      contains "240,000" monthlyIncomeExpenseText &&
+      contains "50,000" monthlyIncomeExpenseText &&
+      contains "190,000" monthlyIncomeExpenseText)
+    "Monthly Accounts view lost grouped account rows or Income/Expense/Net totals"
+  expect (contains "consulting" monthlyIncomeExpenseText &&
+      contains "0.20" monthlyIncomeExpenseText)
+    "Monthly Accounts view bypassed Measure decimal presentation"
+  expect (!(contains "block 1/1" monthlyIncomeExpenseText) &&
+      !(contains "Period total" monthlyIncomeExpenseText))
+    "single-month Monthly Accounts retained redundant block or period-total chrome"
+  expect (contains "not a forecast" monthlyIncomeExpenseText)
+    "Monthly Accounts view lost the explicit future-zero boundary"
   expect (contains "same occurrence-time flow" monthlyIncomeExpenseText)
     "Monthly Accounts view promoted its projection into stored monthly state"
   let summaryAgain :=

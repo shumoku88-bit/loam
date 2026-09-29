@@ -152,6 +152,35 @@ def formatQuanta (metadata : List Metadata) (measure : MeasureId) (quanta : Int)
     let sign := if quanta < 0 then "-" else ""
     sign ++ toString whole ++ "." ++ zeroPadLeft scale (toString fractional)
 
+private def commaEveryThreeFromRight : List Char → Nat → List Char
+  | [], _ => []
+  | char :: rest, count =>
+      if count = 3 then
+        ',' :: char :: commaEveryThreeFromRight rest 1
+      else
+        char :: commaEveryThreeFromRight rest (count + 1)
+
+private def groupUnsignedWhole (text : String) : String :=
+  String.ofList (commaEveryThreeFromRight text.toList.reverse 0).reverse
+
+private def groupWhole (text : String) : String :=
+  match text.toList with
+  | '-' :: rest => "-" ++ groupUnsignedWhole (String.ofList rest)
+  | '+' :: rest => "+" ++ groupUnsignedWhole (String.ofList rest)
+  | _ => groupUnsignedWhole text
+
+/-- Add thousands separators to one already formatted decimal amount. -/
+def groupDisplayedNumber (text : String) : String :=
+  match text.splitOn "." with
+  | [whole] => groupWhole whole
+  | [whole, fractional] => groupWhole whole ++ "." ++ fractional
+  | _ => text
+
+/-- Render exact quanta with the selected scale and human-facing thousands separators. -/
+def formatGroupedQuanta
+    (metadata : List Metadata) (measure : MeasureId) (quanta : Int) : String :=
+  groupDisplayedNumber (formatQuanta metadata measure quanta)
+
 /-- Canonical Measure presentation filename. -/
 def configFileName : String := Loam.HouseholdPaths.measurePresentationFileName
 
