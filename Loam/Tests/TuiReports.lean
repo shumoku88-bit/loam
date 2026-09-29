@@ -74,6 +74,25 @@ def main : IO Unit := do
   expect (Loam.Tui.ReportsSession.refreshBoundsForKey .enter)
     "ordinary report interaction no longer refreshes terminal bounds"
 
+  let styledCells : List Cell :=
+    [ { glyph := 'a', style := .normal }
+    , { glyph := 'b', style := .normal }
+    , { glyph := '日', style := .muted }
+    , { glyph := '本', style := .muted }
+    , { glyph := 'c', style := .normal }
+    ]
+  expect
+    (Loam.Tui.Terminal.cellsToStyleRuns styledCells ==
+      [ span "ab" .normal
+      , span "日本" .muted
+      , span "c" .normal
+      ])
+    "terminal style-run coalescing changed glyph order or style boundaries"
+  expect
+    (Loam.Tui.Terminal.renderCellsAnsi styledCells ==
+      "\x1b[0mab\x1b[0;2m日本\x1b[0mc")
+    "terminal style-run rendering emitted per-cell or reordered ANSI output"
+
   let viewportSource :=
     Loam.Tui.Viewport.concat
       [ Loam.Tui.Viewport.ofList ([1, 2] : List Nat)
