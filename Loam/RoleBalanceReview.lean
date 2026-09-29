@@ -2,13 +2,10 @@ import Loam.CurrentBalanceReview
 import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 
-
 namespace Loam.RoleBalanceReview
 
 open Loam.Core
 open Loam.Persistence
-open Loam.Application.CurrentSupportRouting
-
 set_option autoImplicit false
 
 /-!
@@ -91,17 +88,17 @@ structure Snapshot where
   deriving Repr, DecidableEq
 
 private def classifiedRows
-    (balances : Loam.BalanceReview.Snapshot)
+    (balances : List Loam.BalanceReview.Row)
     (roles : AccountingRoleMap) : List Row :=
-  balances.rows.filterMap fun row =>
+  balances.filterMap fun row =>
     match roles.roleOf? row.coordinate.locus with
     | none => none
     | some role => some { coordinate := row.coordinate, role := role, quantity := row.quantity }
 
 private def unresolvedSupported
-    (balances : Loam.BalanceReview.Snapshot)
+    (balances : List Loam.BalanceReview.Row)
     (roles : AccountingRoleMap) : List UnresolvedRole :=
-  balances.rows.filterMap fun row =>
+  balances.filterMap fun row =>
     match roles.roleOf? row.coordinate.locus with
     | some _ => none
     | none => some { coordinate := row.coordinate, quantity := row.quantity }
@@ -127,10 +124,9 @@ classifies that already-justified answer.
 private def classifyCurrent
     (current : Loam.CurrentBalanceReview.Snapshot)
     (roles : AccountingRoleMap) : Snapshot :=
-  let balances : Loam.BalanceReview.Snapshot := { rows := current.rows }
   {
-    rows := classifiedRows balances roles
-    unresolvedRoles := unresolvedSupported balances roles
+    rows := classifiedRows current.rows roles
+    unresolvedRoles := unresolvedSupported current.rows roles
     knownPresentBalances := knownPresentRows current.knownPresent roles
     unsupportedBalances := unsupportedRows current.unsupported roles
   }
@@ -197,7 +193,8 @@ generation. No presentation selection such as `balance-view.tsv` is used.
 -/
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
-    (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
+    (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
+  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
   if !(← rolesPath.pathExists) then
     return .error "loam: required AccountingRole evidence is missing"
 
