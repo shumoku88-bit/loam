@@ -101,6 +101,9 @@ jobs:
       - name: Verify product surface excludes research/test modules
         run: python3 tools/audit-production-reachability
 
+      - name: Exercise PTA migration classifier gate
+        run: lake env lean --run Loam/Tests/PtaMigrationClassifier.lean
+
   durable:
     name: Check durable Lean proof surface
     needs: scope
