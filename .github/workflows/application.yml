@@ -17,6 +17,7 @@ on:
       - 'Loam/Tests/MultimeasureRecordingPublishers.lean'
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
+      - 'Loam/Cli/HouseholdObservationExecutable.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
