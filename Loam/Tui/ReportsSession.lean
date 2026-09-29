@@ -47,6 +47,11 @@ def refreshBoundsForKey : Loam.Tui.Terminal.Key → Bool
   | .other | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ => false
   | _ => true
 
+private def scrollDirection? : Loam.Tui.Terminal.Key → Option Bool
+  | .up | .input 'k' | .input 'K' => some false
+  | .down | .input 'j' | .input 'J' => some true
+  | _ => none
+
 private def currentTrendCatalog
     (dataDir root : System.FilePath) : IO Loam.LocusCatalog.Catalog := do
   let admitted ←
@@ -65,12 +70,19 @@ private def currentTrendCatalog
     | .error _ => pure []
   pure <| Loam.LocusCatalog.forLoci (admitted ++ historical) metadata
 
-/-- Reports session; q/Esc moves back one level and eventually returns Home. -/
-partial def run (bounds : Bounds)
+private partial def loop (bounds : Bounds)
     (dataDir root : System.FilePath)
-    (state : Loam.Tui.Reports.State) : IO Bounds := do
+    (state : Loam.Tui.Reports.State)
+    (prepared : Option Loam.Tui.Reports.PreparedScrollView) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
-  let activeBounds ←
+  match prepared, scrollDirection? key with
+  | some cached, some forward =>
+      let next := Loam.Tui.Reports.scrollPrepared state cached forward
+      Loam.Tui.Terminal.redrawWidgetDirect
+        bounds (Loam.Tui.Reports.viewPreparedScroll bounds next cached)
+      loop bounds dataDir root next prepared
+  | _, _ =>
+    let activeBounds ←
     if refreshBoundsForKey key then
       Loam.Tui.Terminal.currentBounds
     else
