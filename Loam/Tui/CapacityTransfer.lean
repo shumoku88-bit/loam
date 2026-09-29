@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.CapacityPublisher
 import Loam.CapacityReview
 import Loam.CurrentCoverageReview
@@ -48,10 +49,8 @@ structure State where
   notice : String := ""
   grantContext : Option GrantContext := none
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.CapacityPublisher.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Loam.CapacityPublisher.Draft)
 
 private def knownEndpoints (snapshot : Loam.CapacityReview.Snapshot) : List String :=
   ("unallocated" :: snapshot.rows.map (fun row => row.purpose.token)).eraseDups
