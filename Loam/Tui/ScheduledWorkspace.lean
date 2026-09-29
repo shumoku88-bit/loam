@@ -714,17 +714,20 @@ private def futureBoardView
   .column (Loam.Tui.Layout.fitWithFooter bounds body (futureBoardFooter bounds))
 
 private def coverageFooter (bounds : Bounds) : List Widget :=
-  let detailed := "[v] plans  [n] new  [q] back"
+  let detailed :=
+    "[j/k] select  [e] extend  [p] pace  [s] undecided  [Enter] exact dates  [n] new  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [mutedLine detailed]
   else
-    [mutedLine "[v] plans [n] new [q] back"]
+    [ mutedLine "[j/k] select [e] extend [p] pace [s] undecided [Enter] exact dates"
+    , mutedLine "[n] new [v] all plans [q] back"
+    ]
 
 private def coverageView
     (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
   let coverageLines :=
     match coverage with
-    | .ok snapshot => Loam.Tui.ScheduledCoveragePane.lines snapshot
+    | .ok snapshot => Loam.Tui.ScheduledCoveragePane.linesSelected snapshot state.coverageRow
     | .error message =>
         [ plainLine (" [Coverage unavailable] " ++ message)
         , mutedLine " Months and List remain available with v."
@@ -732,8 +735,8 @@ private def coverageView
   let body :=
     [ rule bounds '='
     , plainLine " Scheduled"
-    , mutedLine " How far recurring plans are filled, and what needs a future plan next."
-    , mutedLine " Press v for exact scheduled dates."
+    , mutedLine " Select a recurring plan here; extend it, change its pace, or mark its future as undecided."
+    , mutedLine " Filled through and Next needed summarize explicit Scheduled dates."
     , rule bounds '='
     ] ++ coverageLines ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
