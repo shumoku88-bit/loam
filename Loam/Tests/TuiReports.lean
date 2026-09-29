@@ -93,6 +93,23 @@ def main : IO Unit := do
       "\x1b[0mab\x1b[0;2m日本\x1b[0mc")
     "terminal style-run rendering emitted per-cell or reordered ANSI output"
 
+  let directWidget : Widget :=
+    .column
+      [ .row [span "ab" .normal, span "日本" .muted]
+      , .row [span "tail" .normal]
+      ]
+  expect
+    (Loam.Tui.Terminal.widgetSpanLines directWidget ==
+      [ [span "ab" .normal, span "日本" .muted]
+      , [span "tail" .normal]
+      ])
+    "direct terminal renderer lowered Widget spans before row recovery"
+  expect
+    (Loam.Tui.Terminal.directFrameAnsi { width := 6, height := 2 } directWidget ==
+      "\x1b[1;1H\x1b[0mab\x1b[0;2m日\x1b[0m\x1b[K" ++
+      "\x1b[2;1H\x1b[0mtail\x1b[0m\x1b[K")
+    "direct terminal renderer changed row order, clipping, style, or clearing"
+
   let viewportSource :=
     Loam.Tui.Viewport.concat
       [ Loam.Tui.Viewport.ofList ([1, 2] : List Nat)

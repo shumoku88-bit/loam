@@ -22,7 +22,6 @@ import Loam.Tui.Terminal
 namespace Loam.Tui.ReportsSession
 
 open Loam.Tui.Kernel
-open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
@@ -69,14 +68,13 @@ private def currentTrendCatalog
 /-- Reports session; q/Esc moves back one level and eventually returns Home. -/
 partial def run (bounds : Bounds)
     (dataDir root : System.FilePath)
-    (state : Loam.Tui.Reports.State) (frame : CompiledWidget) : IO Bounds := do
+    (state : Loam.Tui.Reports.State) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
   let activeBounds ←
     if refreshBoundsForKey key then
       Loam.Tui.Terminal.currentBounds
     else
       pure bounds
-  let resized := activeBounds != bounds
   let step := Loam.Tui.Reports.updateForBounds activeBounds state key
   if step.back then return activeBounds
   let next ←
@@ -162,12 +160,9 @@ partial def run (bounds : Bounds)
   let wantsButtonMotion := next.mode == .locusTrendCompare
   if hadButtonMotion != wantsButtonMotion then
     Loam.Tui.Terminal.setButtonMotion wantsButtonMotion
-  let nextFrame := compileWidget (Loam.Tui.Reports.viewForBounds activeBounds next)
-  if resized then
-    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
-  else
-    Loam.Tui.Terminal.emitDirtyDiff activeBounds 0 0 frame nextFrame
-  run activeBounds dataDir root next nextFrame
+  Loam.Tui.Terminal.redrawWidgetDirect
+    activeBounds (Loam.Tui.Reports.viewForBounds activeBounds next)
+  run activeBounds dataDir root next
 
 
 end Loam.Tui.ReportsSession

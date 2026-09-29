@@ -77,6 +77,61 @@ def renderCellsAnsi (cells : List Cell) : String :=
       ansiStyle run.style ++ run.text
   String.intercalate "" chunks
 
+/--
+Recover Widget rows without lowering semantic spans to per-glyph Cells.
+
+This is the thin path used by the Reports direct renderer experiment.
+-/
+def widgetSpanLines : Widget → List (List Span)
+  | .row spans => [spans]
+  | .column children => children.flatMap widgetSpanLines
+
+private def clipSpanLine : List Span → Nat → List Span
+  | [], _ => []
+  | _, 0 => []
+  | run :: rest, remaining =>
+      let clipped := Loam.Tui.Layout.clip remaining run.text
+      let clippedWidth := Loam.Tui.Layout.displayWidth clipped
+      let fullWidth := Loam.Tui.Layout.displayWidth run.text
+      let current :=
+        if clipped.isEmpty then []
+        else [{ run with text := clipped }]
+      if clippedWidth < fullWidth then
+        current
+      else
+        current ++ clipSpanLine rest (remaining - clippedWidth)
+
+/-- Render one semantic Widget row directly from styled spans. -/
+def renderSpansAnsi (columns : Nat) (spans : List Span) : String :=
+  let chunks :=
+    (clipSpanLine spans columns).map fun run =>
+      ansiStyle run.style ++ run.text
+  String.intercalate "" chunks
+
+/--
+Build one complete visible terminal frame directly from Widget spans.
+
+Unlike the normal renderer this performs no Cell expansion, CompiledWidget
+construction, previous-frame comparison, or dirty-row discovery. Every physical
+row is overwritten and cleared, matching the deliberately simple full-redraw
+shape used for the Reports renderer experiment.
+-/
+def directFrameAnsi (bounds : Bounds) (widget : Widget) : String :=
+  let rows := widgetSpanLines widget
+  let available := Loam.Tui.Layout.contentWidth bounds
+  String.intercalate "" <|
+    (List.range bounds.height).map fun row =>
+      let content :=
+        match rows[row]? with
+        | none => ""
+        | some spans => renderSpansAnsi available spans
+      cursorTo row 0 ++ content ++ "\x1b[0m\x1b[K"
+
+/-- Overwrite the complete visible terminal from semantic Widget spans. -/
+def redrawWidgetDirect (bounds : Bounds) (widget : Widget) : IO Unit := do
+  IO.print (directFrameAnsi bounds widget)
+  (← IO.getStdout).flush
+
 private def dirtyRowAnsi
     (bounds : Bounds) (top left : Nat)
     (new : CompiledWidget) (row : Fin bounds.height) : String :=
