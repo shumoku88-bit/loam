@@ -80,14 +80,6 @@ def currentAdmittedRelationById?
   | .unknown => none
   | .knownNone => none
 
-private theorem relationUnitIdToken_injective :
-    Function.Injective (fun id : RelationUnitId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 private def uniqueDischargeEvents
     (discharges : List RelationDischarge) : Bool :=
   (hashNodupBy?
@@ -156,7 +148,7 @@ theorem buildDischargeBuckets_getD_eq_filter
         exact ih
       · have hToken : discharge.target.token ≠ target.token := by
           intro h
-          exact hTarget (relationUnitIdToken_injective h)
+          exact hTarget (RelationUnitId.token_injective h)
         simp [hToken, hTarget]
         change ((buildDischargeBuckets rest).get? target.token).getD [] =
           rest.filter (fun discharge_1 => discharge_1.target = target)

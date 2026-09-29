@@ -142,18 +142,10 @@ theorem admitRelationUnit?_eventMemory_perm
   unfold admitRelationUnit?
   rw [relationSourceEffect?_eventMemory_perm left right hPerm relation]
 
-private theorem relationUnitIdToken_injective :
-    Function.Injective (fun id : RelationUnitId => id.token) := by
-  intro left right h
-  cases left
-  cases right
-  cases h
-  rfl
-
 private def uniqueUnitIds (relations : List RelationUnit) : Bool :=
   (hashNodupBy?
     (fun id : RelationUnitId => id.token)
-    relationUnitIdToken_injective
+    RelationUnitId.token_injective
     (relations.map RelationUnit.id)).isSome
 
 private def admitAll?

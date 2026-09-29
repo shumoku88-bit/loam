@@ -50,6 +50,17 @@ structure RelationUnitId where
   token : String
 deriving Repr, DecidableEq
 
+namespace RelationUnitId
+
+/-- The stable-token projection preserves RelationUnit identity exactly. -/
+theorem token_injective :
+    Function.Injective (fun id : RelationUnitId => id.token) := by
+  intro ⟨left⟩ ⟨right⟩ h
+  cases h
+  rfl
+
+end RelationUnitId
+
 /--
 One raw directional open-relation candidate anchored to one observed Effect.
 
