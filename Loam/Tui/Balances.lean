@@ -41,18 +41,11 @@ inductive Step where
   | stay (state : State)
   | back
 
-private def exactQuantity?
-    (snapshot : Loam.CurrentBalanceReview.Snapshot)
-    (coordinate : EffectCoordinate) : Option Quantity :=
-  match snapshot.rows.find? fun row => decide (row.coordinate = coordinate) with
-  | some row => some row.quantity
-  | none => none
-
 private def rowFor
     (snapshot : Loam.CurrentBalanceReview.Snapshot)
     (coordinate : EffectCoordinate) : Row :=
-  match exactQuantity? snapshot coordinate with
-  | some quantity => .exact coordinate quantity
+  match snapshot.exactRowFor? coordinate with
+  | some row => .exact coordinate row.quantity
   | none =>
       if snapshot.knownPresent.contains coordinate then
         .knownPresent coordinate
