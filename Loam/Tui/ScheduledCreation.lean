@@ -7,6 +7,7 @@ import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
 import Loam.Tui.Main
 import Loam.Tui.Record
+import Loam.Tui.ScheduledPostingForm
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
 import Loam.Tui.Layout
@@ -25,11 +26,7 @@ postings. It carries no recurrence, continuation, replacement source, routing,
 or Actual evidence. Publication authority remains `ScheduledCreationPublisher`.
 -/
 
-structure Form where
-  date : String
-  rows : Array Loam.Tui.Record.Row := #[{}, {}]
-  focus : Nat := 0
-  deriving Repr, DecidableEq
+abbrev Form := Loam.Tui.ScheduledPostingForm.Form
 
 inductive Mode where
   | editing
@@ -83,62 +80,19 @@ def initialFromScheduled?
     notice := "Completion is already published. Enter the next due date, or Esc for completion only."
   }
 
-private def focusCount (form : Form) : Nat :=
-  1 + form.rows.size * 2 + 4
-
-private def firstAction (form : Form) : Nat :=
-  1 + form.rows.size * 2
-
-private def moveFocus (form : Form) (back : Bool) : Form :=
-  let count := focusCount form
-  let next := if back then (form.focus + count - 1) % count
-              else (form.focus + 1) % count
-  { form with focus := next }
-
-private def replaceRows (form : Form) (rows : Array Loam.Tui.Record.Row) : Form :=
-  { form with rows := rows, focus := 0 }
-
-private def appendRow (form : Form) : Form :=
-  let rows := form.rows.push {}
-  { form with rows := rows, focus := 1 + form.rows.size * 2 }
-
-private def dropRow (form : Form) : Form :=
-  if form.rows.size > 2 then replaceRows form form.rows.pop else form
-
-private def editActive (form : Form) (edit : String → String) : Form :=
-  if form.focus = 0 then
-    { form with date := edit form.date }
-  else
-    let offset := form.focus - 1
-    let index := offset / 2
-    if h : index < form.rows.size then
-      let row := form.rows[index]
-      let row := if offset % 2 = 0
-        then { row with locus := edit row.locus }
-        else { row with amount := edit row.amount }
-      { form with rows := form.rows.set index row }
-    else form
-
-private def activeLocus? (form : Form) : Option String := do
-  if form.focus = 0 then none else do
-    let offset := form.focus - 1
-    if offset % 2 != 0 then none else do
-      let row ← form.rows[offset / 2]?
-      some row.locus
-
 private def catalogCandidates (state : State) : Loam.LocusCatalog.Catalog :=
-  match activeLocus? state.form with
+  match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
   | none => []
   | some entered => Loam.Tui.LocusPicker.candidates state.candidateCatalog entered
 
 private def selectedCatalogCandidate? (state : State) : Option Loam.LocusCatalog.Entry :=
-  match activeLocus? state.form with
+  match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
   | none => none
   | some entered =>
       Loam.Tui.LocusPicker.selected? state.candidateCatalog entered state.candidateIndex
 
 private def moveCandidate (state : State) (back : Bool) : State :=
-  match activeLocus? state.form with
+  match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
   | none => { state with candidateIndex := 0 }
   | some entered =>
       { state with candidateIndex :=
@@ -149,7 +103,7 @@ private def acceptSelectedCandidate (state : State) : State :=
   | none => state
   | some entry =>
       { state with
-          form := editActive state.form (fun _ => entry.locus.token)
+          form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun _ => entry.locus.token)
           candidateIndex := 0 }
 
 /-- Pure advisory parsing before preview; the shared publisher re-validates under ownership. -/
@@ -205,32 +159,32 @@ def update
         | _ => { state }
     | .editing =>
         match key with
-        | .tab => { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
-        | .shiftTab => { state := { state with form := moveFocus state.form true, candidateIndex := 0 } }
+        | .tab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false, candidateIndex := 0 } }
+        | .shiftTab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form true, candidateIndex := 0 } }
         | .backspace =>
             { state := { state with
-                form := editActive state.form (fun text => Loam.Tui.Terminal.backspaceText text)
+                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => Loam.Tui.Terminal.backspaceText text)
                 notice := "", candidateIndex := 0 } }
         | .input char =>
             { state := { state with
-                form := editActive state.form (fun text => text.push char)
+                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => text.push char)
                 notice := "", candidateIndex := 0 } }
         | .up => { state := moveCandidate state true }
         | .down => { state := moveCandidate state false }
         | .right => { state := acceptSelectedCandidate state }
         | .enter =>
-            let action := firstAction state.form
+            let action := Loam.Tui.ScheduledPostingForm.firstAction state.form
             let focus := state.form.focus
             if focus + 1 = action then
               { state := preview state }
             else if focus < action then
-              { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
+              { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false, candidateIndex := 0 } }
             else if focus = action && state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six posting rows." } }
             else if focus = action then
-              { state := { state with form := appendRow state.form, candidateIndex := 0 } }
+              { state := { state with form := Loam.Tui.ScheduledPostingForm.appendRow state.form, candidateIndex := 0 } }
             else if focus = action + 1 then
-              { state := { state with form := dropRow state.form, candidateIndex := 0 } }
+              { state := { state with form := Loam.Tui.ScheduledPostingForm.dropRow state.form, candidateIndex := 0 } }
             else if focus = action + 2 then
               { state := preview state }
             else
@@ -278,7 +232,7 @@ def view (_known : List String) (state : State) : Widget :=
         ] ++ rowLines ++
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
-              (if form.focus = firstAction form + index then .selected else .normal))
+              (if form.focus = Loam.Tui.ScheduledPostingForm.firstAction form + index then .selected else .normal))
         , line "Locus catalog:"
         ] ++ candidateLines ++ helpLine ++
         [ line "Signed JPY postings describe one independent expected movement."
