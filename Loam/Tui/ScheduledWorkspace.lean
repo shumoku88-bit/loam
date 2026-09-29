@@ -1,3 +1,4 @@
+import Loam.Tui.Calendar
 import Loam.Tui.Layout
 import Loam.Tui.Main
 import Loam.ScheduledReview
@@ -20,11 +21,17 @@ inductive Pane where
   | occurrences
   deriving Repr, DecidableEq, BEq
 
+inductive ViewMode where
+  | list
+  | futureBoard
+  deriving Repr, DecidableEq, BEq
+
 structure State where
   focusDate : String
   scope : Scope := .focusDay
   /-- Scheduled occurrences are the primary browse target; Loci remain an explicit filter pane. -/
   pane : Pane := .occurrences
+  viewMode : ViewMode := .list
   locusRow : Nat := 0
   occurrenceRow : Nat := 0
   notice : String := ""
@@ -36,6 +43,7 @@ inductive Event where
   | focusLeft
   | focusRight
   | cycleFilter
+  | toggleView
   | createScheduled
   | fillCurrentCycle
   | monitorCoverage
@@ -164,9 +172,37 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
   | .previous => { state := movePrevious snapshot state }
   | .next => { state := moveNext snapshot state }
-  | .focusLeft => { state := { state with pane := .loci, notice := "" } }
-  | .focusRight => { state := { state with pane := .occurrences, notice := "" } }
-  | .cycleFilter => { state := cycleFilter snapshot state }
+  | .focusLeft =>
+      match state.viewMode with
+      | .futureBoard =>
+          { state := { state with notice :=
+              "Future Board uses one Scheduled selection; press v for list panes." } }
+      | .list => { state := { state with pane := .loci, notice := "" } }
+  | .focusRight =>
+      match state.viewMode with
+      | .futureBoard =>
+          { state := { state with notice :=
+              "Future Board uses one Scheduled selection; press v for list panes." } }
+      | .list => { state := { state with pane := .occurrences, notice := "" } }
+  | .cycleFilter =>
+      match state.viewMode with
+      | .futureBoard =>
+          { state := { state with notice :=
+              "Future Board always shows the current-open frontier; press v for scoped list view." } }
+      | .list => { state := cycleFilter snapshot state }
+  | .toggleView =>
+      match state.viewMode with
+      | .list =>
+          { state := clampState snapshot
+              { state with
+                viewMode := .futureBoard
+                scope := .allCurrent
+                pane := .occurrences
+                locusRow := 0
+                occurrenceRow := 0
+                notice := "" } }
+      | .futureBoard =>
+          { state := { state with viewMode := .list, notice := "" } }
   | .createScheduled =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
@@ -318,11 +354,11 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
         plainLine ("     " ++ fit 28 change.coordinate.token ++ " " ++ toString change.quantity.quanta ++ " " ++ record.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [n] new  [g] fill cycle  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] board  [n] new  [g] fill cycle  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] scope [n] new [g] fill cycle [m] monitor [q] back"
+    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] board [n] new [g] fill cycle [m] monitor [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
@@ -330,7 +366,7 @@ private def footer (bounds : Bounds) : List Widget :=
 Production Scheduled workspace over the shared ScheduledReview answer.
 Locus filtering, pane focus, windowing, and cursor coordinates are process-local presentation state.
 -/
-def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
+private def listView (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
   let writable := Loam.Tui.Layout.contentWidth bounds
   let leftWidth :=
@@ -362,5 +398,130 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     [rule bounds '-'] ++ detailLines snapshot state ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
   .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds))
+
+
+private def monthsFrom
+    (month : Loam.Tui.Calendar.Month) : Nat → List Loam.Tui.Calendar.Month
+  | 0 => []
+  | n + 1 => month :: monthsFrom (Loam.Tui.Calendar.nextMonth month) n
+
+private def futureBoardMonths (snapshot : Snapshot) : List Loam.Tui.Calendar.Month :=
+  let start :=
+    (Loam.Tui.Calendar.monthOf? snapshot.actual.today).getD { year := 1970, month := 1 }
+  monthsFrom start 6
+
+private def recordDay (record : Record) : String :=
+  match Loam.Tui.Calendar.parseDate? record.scheduledOn with
+  | some (_, _, day) => Loam.Tui.Calendar.padded 2 day
+  | none => "??"
+
+private def recordsInMonth
+    (snapshot : Snapshot) (state : State) (month : Loam.Tui.Calendar.Month) : List Record :=
+  (visibleRecords snapshot state).filter fun record =>
+    match Loam.Tui.Calendar.monthOf? record.scheduledOn with
+    | none => false
+    | some actual => decide (actual = month)
+
+private def findRecordIndex? (id : String) : List Record → Nat → Option Nat
+  | [], _ => none
+  | record :: rest, index =>
+      if record.id.token == id then some index
+      else findRecordIndex? id rest (index + 1)
+
+private def monthWindow
+    (records : List Record) (selectedId? : Option String) : List (Nat × Record) :=
+  let selectedIndex? := selectedId?.bind fun id => findRecordIndex? id records 0
+  match selectedIndex? with
+  | some selected => Loam.Tui.Layout.centeredListWindow records selected 3
+  | none => (records.take 3).zipIdx.map fun (record, index) => (index, record)
+
+private def monthCard
+    (width : Nat) (snapshot : Snapshot) (state : State)
+    (selectedId? : Option String) (month : Loam.Tui.Calendar.Month) : Widget :=
+  let records := recordsInMonth snapshot state month
+  let shown := monthWindow records selectedId?
+  let header :=
+    "[" ++ Loam.Tui.Calendar.monthLabel month ++ "]  " ++
+      toString records.length ++ " plan" ++ (if records.length = 1 then "" else "s")
+  let recordLines := shown.map fun (_, record) =>
+    let selected :=
+      match selectedId? with
+      | some id => id == record.id.token
+      | none => false
+    let marker := if selected then "> " else "  "
+    let text :=
+      marker ++ recordDay record ++ "  " ++ Loam.ScheduledReview.summary record
+    .row [span (Loam.Tui.Layout.clip width text)
+      (if selected then .selected else .normal)]
+  let padding := List.replicate (3 - recordLines.length) (.row [])
+  let footerText :=
+    if records.length > 3 then
+      "  " ++ toString records.length ++ " explicit plans; j/k moves the selection"
+    else if records.isEmpty then
+      "  (no explicit plan)"
+    else
+      ""
+  .column <|
+    [.row [span (Loam.Tui.Layout.clip width header) .muted]] ++
+    recordLines ++ padding ++
+    [.row [span (Loam.Tui.Layout.clip width footerText) .muted]]
+
+private def emptyMonthCard : Widget :=
+  .column (List.replicate 5 (.row []))
+
+private def futureBoardRows
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
+  let writable := Loam.Tui.Layout.contentWidth bounds
+  if writable < 80 then
+    [ mutedLine " Future Board needs at least 80 terminal columns; press v for list view." ]
+  else
+    let leftWidth := (writable - 3) / 2
+    let rightWidth := writable - leftWidth - 3
+    let months := futureBoardMonths snapshot
+    let selectedId? := (selectedRecord? snapshot state).map fun record => record.id.token
+    (List.range 3).flatMap fun row =>
+      let left :=
+        match months[row * 2]? with
+        | some month => monthCard leftWidth snapshot state selectedId? month
+        | none => emptyMonthCard
+      let right :=
+        match months[row * 2 + 1]? with
+        | some month => monthCard rightWidth snapshot state selectedId? month
+        | none => emptyMonthCard
+      Loam.Tui.Layout.sideBySide 5 leftWidth rightWidth left right
+
+private def futureBoardFooter (bounds : Bounds) : List Widget :=
+  let detailed :=
+    "[j/k] select  [v] list  [n] new  [g] fill  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
+    [mutedLine detailed]
+  else
+    [ mutedLine "[j/k] select [v] list [n] new [g] fill [m] monitor [q] back"
+    , mutedLine "[c/Enter] complete [r] replace [x] cancel"
+    ]
+
+private def futureBoardView
+    (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
+  let state := clampState snapshot rawState
+  let startMonth :=
+    (futureBoardMonths snapshot).head?.getD { year := 1970, month := 1 }
+  let body :=
+    [ rule bounds '='
+    , plainLine " Scheduled / Future Board"
+    , mutedLine (" Explicit current-open plans by calendar month, starting " ++
+        Loam.Tui.Calendar.monthLabel startMonth)
+    , mutedLine " Calendar grouping is presentation only; no recurrence or month authority is inferred."
+    , rule bounds '='
+    ] ++
+    futureBoardRows bounds snapshot state ++
+    [rule bounds '-'] ++
+    detailLines snapshot state ++
+    (if state.notice.isEmpty then [] else [plainLine state.notice])
+  .column (Loam.Tui.Layout.fitWithFooter bounds body (futureBoardFooter bounds))
+
+def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
+  match rawState.viewMode with
+  | .list => listView bounds snapshot rawState
+  | .futureBoard => futureBoardView bounds snapshot rawState
 
 end Loam.Tui.ScheduledWorkspace
