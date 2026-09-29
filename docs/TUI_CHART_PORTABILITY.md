@@ -34,13 +34,12 @@ independent of glyph choice.
 braille -> block -> ascii -> braille
 ```
 
-Braille is the default because one terminal cell can represent a 2×4 subpixel
-grid. If a font or terminal renders Braille poorly, the user can switch the
-Trend surface with `r` without changing the selected data point or report
-answer.
+Braille is the fixed Trend presentation because one terminal cell can represent
+a 2×4 subpixel grid and hands-on use preferred the finer dotted line. Trend no
+longer exposes a renderer-switch key.
 
-Block and ASCII are not separate accounting views. They are presentation
-fallbacks for the same values.
+Block and ASCII remain qualified by the generic chart foundation, but they are
+not separate accounting views and are not part of the ordinary Trend interaction.
 
 ## Pointer contract
 

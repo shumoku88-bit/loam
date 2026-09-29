@@ -31,7 +31,6 @@ structure State where
   viewportStart : Nat := 0
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   scope : Loam.LocusTrendCompareReview.Scope := .allHistory
-  renderer : Loam.Tui.Chart.Renderer := .braille
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   pickerOpen : Bool := false
   pickerSlot : Nat := 0
@@ -180,9 +179,6 @@ def moveSelection (state : State) (back : Bool) : State :=
           viewportStartFor
             state.granularity state.scope count next state.viewportStart
         { state with selected := next, viewportStart := viewportStart }
-
-def cycleRenderer (state : State) : State :=
-  { state with renderer := state.renderer.next }
 
 def plotLeft : Nat := 11
 
@@ -398,11 +394,11 @@ private def sourceLine
       snapshot.source ++
         "   ·   Range " ++ snapshot.scope.label ++
         "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
-        "   ·   Grain Day   ·   jpy   ·   " ++ state.renderer.label ++ viewport
+        "   ·   Grain Day   ·   jpy   ·   braille" ++ viewport
   | granularity =>
       snapshot.source ++
         "   ·   Grain " ++ granularity.label ++
-        "   ·   jpy   ·   " ++ state.renderer.label
+        "   ·   jpy   ·   braille"
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -475,7 +471,7 @@ private def footerTokens (state : State) : List String :=
        "a series"]
     let range :=
       if state.granularity == .day then ["s/S range"] else []
-    common ++ range ++ ["r renderer", "q/Esc Reports"]
+    common ++ range ++ ["q/Esc Reports"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
@@ -505,7 +501,7 @@ private def chartRows (bounds : Bounds) (state : State) : List Widget :=
       Loam.Tui.Chart.rowForValue height scale.range tick
   let rendered :=
     Loam.Tui.Chart.renderManyInRange
-      state.renderer width height (plotSeries state) (localSelected state)
+      .braille width height (plotSeries state) (localSelected state)
       scale.range gridRows
   (List.range height).map fun row =>
     match rendered[row]? with
