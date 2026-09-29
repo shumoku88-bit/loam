@@ -179,8 +179,8 @@ def main : IO Unit := do
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } longSnapshot longBoard)
   let tallBoardText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 50 } longSnapshot longBoard)
-  expect (!(contains "wallet -> food: 8 jpy" compactBoardText) &&
-    contains "wallet -> food: 8 jpy" tallBoardText)
+  expect (!(contains "wallet -> food: 7 jpy" compactBoardText) &&
+    contains "wallet -> food: 7 jpy" tallBoardText)
     "Scheduled Months did not expand month-card capacity with terminal height"
 
   -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
