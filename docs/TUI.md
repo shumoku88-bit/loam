@@ -146,28 +146,36 @@ Overview -> Months -> List -> Overview
 current-open occurrences. `j/k` selects one occurrence there. **List** retains the
 older Focus Day / All Current-Open scopes (`f`) and Locus filter pane.
 
-The ordinary future-plan workflow is intentionally small:
+The overview itself is the primary recurring-plan management surface. `j/k` selects
+one row, so the user does not have to hunt for a source occurrence in Months first:
 
 ```text
-e   extend the selected recurring plan
-s   stop monitoring the selected plan (future recurrence undecided)
-n   create one explicit Scheduled plan
+j/k       select recurring plan
+e         extend / replenish future explicit plans
+p         change expected pace
+s         future recurrence undecided; stop monitoring
+Enter     open that plan's exact Scheduled dates
+n         create one explicit Scheduled plan
 ```
 
-`e` reuses the plan's current monitoring cadence and asks only how far to extend.
-If the selected plan has no monitoring rule yet, LOAM asks for the cadence once and
-then continues the same extension flow. Every generated occurrence remains an
-ordinary explicit Scheduled occurrence and is individually reviewable before
-publication. The monitoring cadence itself never becomes Scheduled authority.
+`e` automatically chooses the latest current-open occurrence matching the selected
+plan shape as its construction template, reuses the plan's current monitoring
+cadence, and asks only how far to extend. If extension starts from Months/List and
+the selected occurrence has no monitoring rule yet, LOAM asks for cadence once and
+continues the same flow. Every generated occurrence remains an ordinary explicit
+Scheduled occurrence and is individually reviewable before publication. The
+monitoring cadence itself never becomes Scheduled authority.
 
-`s` removes only the replaceable monitoring rule. Existing explicit Scheduled
-occurrences are left untouched, so "I do not yet know whether this continues" does
-not masquerade as either a cancellation or a missing future payment.
+`p` opens the existing plan-monitoring editor for the selected row and changes the
+replaceable expected cadence. `s` removes only that monitoring rule. Existing
+explicit Scheduled occurrences are left untouched, so "I do not yet know whether
+this continues" does not masquerade as either cancellation or a missing payment.
 
-Completion (`c` / `Enter`), replacement (`r`), and cancellation (`x`) remain
-available for explicit occurrences. The older `g` generation and `m` monitoring
-keys remain compatibility/advanced paths but are no longer part of the ordinary
-footer grammar.
+`Enter` from the overview opens Months with the latest matching explicit occurrence
+selected. Completion (`c` / `Enter`), replacement (`r`), and cancellation
+(`x`) then operate on exact occurrences there. The older `g` generation and `m`
+monitoring keys remain compatibility/advanced paths but are no longer part of the
+ordinary footer grammar.
 
 The surface delegates execution to shared publishers and sessions
 (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
