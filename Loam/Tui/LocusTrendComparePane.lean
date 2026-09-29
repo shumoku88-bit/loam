@@ -29,17 +29,13 @@ structure Overlay where
   /-- Calendar month chosen from the selected Day point, in YYYY-MM form. -/
   month : String
   days : List Nat
-  /-- Presentation-only event guide. It never changes the observed series. -/
-  guide : Bool := false
   deriving Repr, DecidableEq
 
 structure OverlayDraft where
   month : String
   name : String := ""
   daysText : String := ""
-  /-- 0 = name, 1 = days, 2 = optional vertical guide. -/
-  focus : Nat := 0
-  guide : Bool := false
+  editingDays : Bool := false
   deriving Repr, DecidableEq
 
 structure State where
@@ -55,6 +51,8 @@ structure State where
   pickerIndex : Nat := 0
   /-- Session-only observation overlays. They are never loaded from or written to household data. -/
   overlays : List Overlay := []
+  /-- Presentation switch for thin vertical guides through every active overlay date. -/
+  overlayGuides : Bool := false
   overlayDraft : Option OverlayDraft := none
   deriving Repr, DecidableEq
 
@@ -379,14 +377,18 @@ def cancelOverlay (state : State) : State :=
   { state with overlayDraft := none }
 
 def clearOverlays (state : State) : State :=
-  { state with overlays := [], overlayDraft := none }
+  { state with overlays := [], overlayGuides := false, overlayDraft := none }
+
+def toggleOverlayGuides (state : State) : State :=
+  if state.overlays.isEmpty then state
+  else { state with overlayGuides := !state.overlayGuides }
 
 def toggleOverlayField (state : State) : State :=
   match state.overlayDraft with
   | none => state
   | some draft =>
       { state with
-          overlayDraft := some { draft with focus := (draft.focus + 1) % 3 } }
+          overlayDraft := some { draft with editingDays := !draft.editingDays } }
 
 private def dropLastChar (text : String) : String :=
   String.ofList text.toList.dropLast
@@ -396,33 +398,26 @@ def backspaceOverlay (state : State) : State :=
   | none => state
   | some draft =>
       let next :=
-        match draft.focus with
-        | 0 => { draft with name := dropLastChar draft.name }
-        | 1 => { draft with daysText := dropLastChar draft.daysText }
-        | _ => draft
+        if draft.editingDays then
+          { draft with daysText := dropLastChar draft.daysText }
+        else
+          { draft with name := dropLastChar draft.name }
       { state with overlayDraft := some next }
 
 def pushOverlayChar (state : State) (char : Char) : State :=
   match state.overlayDraft with
   | none => state
   | some draft =>
-      match draft.focus with
-      | 0 =>
-          if draft.name.length < 32 then
-            { state with overlayDraft := some { draft with name := draft.name.push char } }
-          else
-            state
-      | 1 =>
-          if (char.isDigit || char == ' ' || char == ',' || char == '.') &&
-              draft.daysText.length < 96 then
-            { state with overlayDraft := some { draft with daysText := draft.daysText.push char } }
-          else
-            state
-      | _ =>
-          if char == ' ' then
-            { state with overlayDraft := some { draft with guide := !draft.guide } }
-          else
-            state
+      if draft.editingDays then
+        if (char.isDigit || char == ' ' || char == ',' || char == '.') &&
+            draft.daysText.length < 96 then
+          { state with overlayDraft := some { draft with daysText := draft.daysText.push char } }
+        else
+          state
+      else if draft.name.length < 32 then
+        { state with overlayDraft := some { draft with name := draft.name.push char } }
+      else
+        state
 
 def acceptOverlayDraft (state : State) : Except String State := do
   match state.overlayDraft with
@@ -431,23 +426,16 @@ def acceptOverlayDraft (state : State) : Except String State := do
       let name := trimAscii draft.name
       if name.isEmpty then
         throw "Overlay name is required."
+      else if !draft.editingDays then
+        return { state with
+          overlayDraft := some { draft with name := name, editingDays := true } }
       else
-        match draft.focus with
-        | 0 =>
-            return { state with
-              overlayDraft := some { draft with name := name, focus := 1 } }
-        | 1 =>
-            let _ ← parseOverlayDays draft.month draft.daysText
-            return { state with
-              overlayDraft := some { draft with name := name, focus := 2 } }
-        | _ =>
-            let days ← parseOverlayDays draft.month draft.daysText
-            return {
-              state with
-                overlays := state.overlays ++
-                  [{ name := name, month := draft.month, days := days, guide := draft.guide }]
-                overlayDraft := none
-            }
+        let days ← parseOverlayDays draft.month draft.daysText
+        return {
+          state with
+            overlays := state.overlays ++ [{ name := name, month := draft.month, days := days }]
+            overlayDraft := none
+        }
 
 private def overlayContainsDate (overlay : Overlay) (date : String) : Bool :=
   match date.splitOn "-" with
@@ -514,20 +502,15 @@ private def overlayEditorRows (state : State) : List Widget :=
       , .row
           [ span "Name    " .muted
           , span (if draft.name.isEmpty then "_" else draft.name)
-              (if draft.focus == 0 then .selected else .normal)
+              (if draft.editingDays then .normal else .selected)
           ]
       , .row
           [ span "Days    " .muted
           , span (if draft.daysText.isEmpty then "_" else draft.daysText)
-              (if draft.focus == 1 then .selected else .normal)
-          ]
-      , .row
-          [ span "Guide   " .muted
-          , span (if draft.guide then "[x] vertical" else "[ ] vertical")
-              (if draft.focus == 2 then .selected else .normal)
+              (if draft.editingDays then .selected else .normal)
           ]
       , muted "Enter day numbers such as: 3 4 6 8 9   (spaces, commas, or periods)"
-      , muted "Tab field   Space toggle guide   Enter next/apply   Esc cancel"
+      , muted "Tab field   Enter next/apply   Esc cancel"
       ]
 
 private def pickerRows (state : State) : List Widget :=
@@ -670,7 +653,7 @@ private def axisText
   | none => "         │ "
 
 private def overlayGuideColumns (bounds : Bounds) (state : State) : List Nat :=
-  if state.granularity != .day then
+  if state.granularity != .day || !state.overlayGuides then
     []
   else
     match state.snapshot with
@@ -684,7 +667,7 @@ private def overlayGuideColumns (bounds : Bounds) (state : State) : List Nat :=
             let count := points.length
             points.zipIdx.filterMap fun (point, index) =>
               if state.overlays.any fun overlay =>
-                  overlay.guide && overlayContainsDate overlay point.start then
+                  overlayContainsDate overlay point.start then
                 some (Loam.Tui.Chart.xForIndex width count index)
               else
                 none
@@ -720,19 +703,19 @@ private def overlayRows (bounds : Bounds) (state : State) : List Widget :=
             let markerRow :=
               .row [span (spaces plotLeft), span markerText]
             let legendTokens :=
-              "Overlay session-only · not saved" ::
+              ("Overlay session-only · guides " ++
+                (if state.overlayGuides then "on" else "off") ++ " · not saved") ::
                 state.overlays.zipIdx.map fun (overlay, index) =>
                   String.ofList [overlayMarker index] ++ " " ++ overlay.name ++
                     " (" ++ overlayMonthLabel overlay.month ++ ": " ++
-                    overlayDaysText overlay ++ ")" ++
-                    (if overlay.guide then " · guide" else "")
+                    overlayDaysText overlay ++ ")"
             markerRow ::
               (Loam.Tui.Layout.flowTokens
                 (Loam.Tui.Layout.contentWidth bounds) "   " legendTokens).map muted
 
 private def footerTokens (state : State) : List String :=
   if isOverlayEditing state then
-    ["Type overlay", "Tab field", "Space guide", "Enter next/apply", "Esc cancel"]
+    ["Type overlay", "Tab field", "Enter next/apply", "Esc cancel"]
   else if state.pickerOpen then
     ["↑/↓ choose Locus", "1-5 slot", "Enter apply", "x remove", "Esc cancel"]
   else
@@ -744,7 +727,10 @@ private def footerTokens (state : State) : List String :=
     let overlay :=
       if state.granularity == .day then
         if state.overlays.isEmpty then ["o overlay"]
-        else ["o overlay", "O clear overlays"]
+        else
+          ["o overlay",
+           "v guides " ++ (if state.overlayGuides then "off" else "on"),
+           "O clear overlays"]
       else
         []
     common ++ range ++ overlay ++ ["q/Esc Reports"]
