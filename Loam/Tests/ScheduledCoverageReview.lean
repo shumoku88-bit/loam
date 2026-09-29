@@ -69,26 +69,20 @@ def main : IO Unit := do
     "bimonthly coverage did not preserve anchor parity"
 
   let rendered := widgetText (Loam.Tui.ScheduledCoveragePane.lines snapshot)
-  expect (contains "gpt-plus" rendered && contains "pension" rendered)
-    "Scheduled coverage pane did not render configured rules"
-  expect (contains "Attention" rendered &&
-    contains "utilities: no expected explicit plan in view; next gap 2026-10" rendered)
-    "Scheduled coverage pane did not surface an empty future monitor first-class"
-  expect (contains "gpt-plus: next gap 2026-12" rendered)
-    "Scheduled coverage pane did not surface the nearest monthly gap in Attention"
-  expect (contains "pension: next gap 2027-01; explicit off-pattern plan also exists" rendered)
-    "Scheduled coverage pane did not combine gap and off-pattern diagnostics"
-  expect (contains "Rule" rendered && contains "Pace" rendered &&
-    contains "Through" rendered && contains "Next gap" rendered &&
-    contains "Status" rendered)
-    "Scheduled coverage pane did not render the compact diagnostic table header"
-  expect (contains "2026-11" rendered && contains "2026-12" rendered &&
-    contains "gap" rendered)
-    "monthly Scheduled coverage table lost through/next-gap/status values"
-  expect (contains "utilities" rendered && contains "empty" rendered)
-    "Scheduled coverage table did not distinguish a monitor with no expected explicit plan in view"
-  expect (contains "gap+off" rendered && contains "explicit off-pattern" rendered)
-    "Scheduled coverage pane lost the explicit off-pattern distinction"
+  expect (contains "gpt-plus" rendered && contains "pension" rendered &&
+    contains "utilities" rendered)
+    "Scheduled coverage pane did not render configured plans"
+  expect (contains "Plan" rendered && contains "Pattern" rendered &&
+    contains "Through" rendered && contains "Next gap" rendered)
+    "Scheduled coverage pane did not render the compact coverage header"
+  expect (contains "2026-11" rendered && contains "2026-12" rendered)
+    "Scheduled coverage pane lost through/next-gap month values"
+  expect (contains "●" rendered && contains "!" rendered && contains "+" rendered)
+    "Scheduled coverage pane lost filled, missing, or off-pattern glyphs"
+  expect (!(contains "·" rendered))
+    "Scheduled coverage pane rendered noise for months where no plan is expected"
+  expect (contains "blank = not expected" rendered)
+    "Scheduled coverage pane did not explain intentional blank month cells"
   expect (contains "do not create recurrence authority" rendered)
     "Scheduled coverage pane overstated read-side monitoring rules"
 
