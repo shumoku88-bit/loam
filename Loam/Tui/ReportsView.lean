@@ -8,7 +8,6 @@ import Loam.MonthlyRoleFlowReview
 import Loam.RoleFlowReview
 import Loam.Presentation.Reports
 import Loam.Tui.RoleBalances
-import Loam.Tui.ScheduledCoveragePane
 import Loam.Tui.TransactionsFlowPane
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
@@ -121,12 +120,11 @@ private def menuView (state : State) : Widget :=
     , menuRow state 3 "Balances" "evidence-aware current accounting projections"
     , menuRow state 4 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
     , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
-    , menuRow state 6 "Scheduled Coverage" "future monthly / multi-month plan holes"
-    , menuRow state 7 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
-    , menuRow state 8 "Trend" "one to three exact Loci on one shared time axis"
-    , menuRow state 9 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
+    , menuRow state 6 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
+    , menuRow state 7 "Trend" "one to three exact Loci on one shared time axis"
+    , menuRow state 8 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
     , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/c/x/v/f direct"
+    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/x/v/f direct"
     , muted "q / Esc home"
     , line state.notice
     ]
@@ -1235,22 +1233,6 @@ private def budgetView (state : State) : Widget :=
     , line state.notice
     ]
 
-private def scheduledCoverageView (state : State) : Widget :=
-  .column <|
-    [ line "Reports / Scheduled Coverage"
-    , muted "Which monitored future months already have explicit current-open Scheduled evidence?"
-    , muted "The grid starts after the selected Home date; monitoring rules are replaceable read-side config."
-    , blank
-    ] ++
-    (match state.scheduledCoverageSnapshot with
-     | none => [muted "Coverage has not been loaded yet; press Enter to refresh."]
-     | some snapshot => Loam.Tui.ScheduledCoveragePane.lines snapshot) ++
-    [ blank
-    , muted "Enter refresh   ↑/↓ scroll"
-    , muted "q / Esc Reports menu"
-    , line state.notice
-    ]
-
 
 private def fullView (state : State) (bounds : Option Bounds := none) : Widget :=
   match state.mode with
@@ -1264,7 +1246,6 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .balances => balancesView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
-  | .scheduledCoverage => scheduledCoverageView state
   | .locusTrendCompare =>
       Loam.Tui.LocusTrendComparePane.viewFullScreen
         (bounds.getD { width := 80, height := 24 }) state.trendCompare state.notice
@@ -1281,7 +1262,6 @@ private def fixedFooterSize : Mode → Nat
   | .balances => 4
   | .liquidity => 3
   | .budgetWindow => 4
-  | .scheduledCoverage => 4
   | .locusTrendCompare => 4
 
 private structure ViewParts where

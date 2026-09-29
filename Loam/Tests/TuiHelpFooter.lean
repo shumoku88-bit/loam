@@ -304,7 +304,7 @@ def main : IO Unit := do
     "SelectedDay at 130 cols should expose detailed pane switch"
 
   -- 4. Test ScheduledWorkspace footer geometry
-  let schedState := Loam.Tui.ScheduledWorkspace.initial "2026-09-10"
+  let schedState := Loam.Tui.ScheduledWorkspace.initialList "2026-09-10"
   let schedBounds80 : Bounds := { width := 80, height := 24 }
   let schedView80 := Loam.Tui.ScheduledWorkspace.view schedBounds80 snapshot schedState
   let schedText80 := widgetText schedView80

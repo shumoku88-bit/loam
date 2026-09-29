@@ -118,26 +118,43 @@ evidence after durable writes.
 
 ## Scheduled workspace
 
-Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). It projects
-the current-open Scheduled frontier over neutral Loci coordinates, supporting
-Focus Day and All Current-Open scopes (`f`).
+Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). Its
+default surface is **Coverage**, a compact future-plan overview over the current-open
+Scheduled frontier and optional `config/scheduled-coverage.tsv` monitoring rules.
 
-Like the selected-day Scheduled pane, object-local actions include Scheduled
-creation (`n`), completion (`c` / `Enter`), supersede/replacement (`r`), and
-cancellation (`x`). Press `v` to switch from the list/pane view to **Future Board**:
-a presentation-only six-month view that groups the same current-open Scheduled
-occurrences into calendar-month cards. The board does not create Month or recurrence
-authority; `j/k` still selects one explicit occurrence and the existing `g`, `m`,
-`c`, `r`, and `x` actions operate on that selection. Press `v` again to return
-to the scoped list view.
+Coverage answers the practical question "what is filled, what is missing, and how far
+does each monitored plan currently reach?" One row is shown per monitored plan. The
+month cells deliberately stay quiet:
 
-The Scheduled workspace also exposes `m` for plan-monitoring setup. Monitoring starts
-from the selected current-open occurrence, derives its anchor and exact signed-Locus
-shape, and asks only for the expected month cadence. It updates replaceable read-side
-coverage configuration and never creates a Scheduled occurrence or retains recurrence
-authority. The surface collects intent and delegates execution to shared publishers
+- `●` = an expected month has explicit current-open Scheduled evidence;
+- `!` = the configured pattern expects a plan, but no matching explicit occurrence exists;
+- `+` = explicit matching evidence exists in a month the configured pattern did not expect;
+- blank = the pattern does not expect a plan in that month.
+
+The right side shows the last continuously filled expected month before the first gap
+and the next missing expected month. Amounts are not part of coverage matching;
+identity uses the exact negative- and positive-Locus sets. Monitoring rules remain
+replaceable read-side configuration. They do not create recurrence authority or turn
+absence into canonical `NotDue`.
+
+Press `v` to cycle the Scheduled projections:
+
+```text
+Coverage -> Months -> List -> Coverage
+```
+
+**Months** is the six-month, two-column calendar-board projection of the same explicit
+current-open occurrences. `j/k` selects one occurrence there. **List** retains the
+older Focus Day / All Current-Open scopes (`f`) and Locus filter pane. Occurrence-local
+actions are intentionally performed from Months or List, where the target is visible:
+`g` fills future explicit plans from the selected source, `m` creates or changes
+coverage monitoring, `c` / `Enter` completes, `r` replaces, and `x` cancels.
+Creation (`n`) is available from every Scheduled projection.
+
+The surface delegates execution to shared publishers and sessions
 (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
-`ScheduledReplacementPublisher`), reloading canonical evidence after any durable write.
+`ScheduledReplacementPublisher`), then reloads both canonical Scheduled evidence and
+the shared `ScheduledCoverageReview` projection after durable writes.
 
 ## Attention
 
@@ -236,35 +253,10 @@ Visible query coordinates are the coordinates sent to the shared Review boundary
 Calendar-month defaults are presentation conveniences only; they do not establish a
 retained Month, BudgetCycle, cadence, or canonical current window.
 
-Scheduled Coverage is a separate read-only future-plan lens. It compares current-open
-Scheduled evidence with optional `config/scheduled-coverage.tsv` monitoring rules.
-Users normally create or update those rules from the Scheduled workspace with `m`;
-direct file editing remains an implementation detail rather than the normal TUI path:
-
-
-
-```text
-<rule-token><TAB><anchor-date><TAB><every-months><TAB><negative-locus[,negative-locus...]><TAB><positive-locus[,positive-locus...]>
-```
-
-The report starts with a compact Attention summary and then renders one row per
-monitored plan. Each row keeps the user-facing answer together: Pace, continuously
-covered-through month, next expected gap, diagnostic Status, and an eight-month grid
-starting with the month after the selected Home date. Rows needing attention are
-shown first, ordered by the nearest missing expected month.
-
-`●` means an expected month has an explicit matching Scheduled occurrence, `!`
-means the configured expectation has no explicit matching occurrence, `·` means
-the rule does not expect that month, and `+` means explicit evidence exists outside
-the configured month pattern. `empty` means no expected explicit plan exists in the
-displayed future window; `gap` means an expected future month is missing;
-`gap+off` additionally records explicit off-pattern evidence.
-
-Matching uses the exact negative- and positive-Locus sets while deliberately ignoring
-amounts, so incoming plans such as pension and support remain distinguishable even
-when both land in the same asset. These are coverage diagnostics only. The rules do
-not create Scheduled occurrences, retain Series identity, or promote absence into a
-canonical NotDue claim.
+Scheduled future coverage is intentionally not duplicated in Reports. It lives with
+the Scheduled workspace, next to the creation, fill, monitoring, completion,
+replacement, and cancellation actions that change or explain the same future-plan
+evidence.
 
 ## Write boundary
 

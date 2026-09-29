@@ -1,3 +1,4 @@
+import Loam.ScheduledCoverageReview
 import Loam.ScheduledCoverageSelector
 import Loam.Tui.Main
 import Loam.Tui.ScheduledWorkspace
@@ -118,14 +119,18 @@ def main : IO Unit := do
   expect ((earliest.map (fun row => row.id.token)) == some "a-same-day")
     "earliest current-open Scheduled diverged from the shared ordered frontier"
 
-  let start := Loam.Tui.ScheduledWorkspace.initial "2026-09-07"
+  let overview := Loam.Tui.ScheduledWorkspace.initial "2026-09-07"
+  expect (overview.viewMode == .coverage && overview.scope == .allCurrent)
+    "Scheduled production initializer did not open on the all-current Coverage overview"
+
+  let start := Loam.Tui.ScheduledWorkspace.initialList "2026-09-07"
 
   -- 1. Focus Day scope shows only today's Scheduled occurrences
   expect ((Loam.Tui.ScheduledWorkspace.recordsForScope snapshot start).length == 2)
     "Scheduled workspace Focus Day did not return the two scheduled occurrences on 2026-09-07"
 
   -- Unknown day evidence stays distinct from an empty complete answer.
-  let unknownState := Loam.Tui.ScheduledWorkspace.initial "2026-09-09"
+  let unknownState := Loam.Tui.ScheduledWorkspace.initialList "2026-09-09"
   match Loam.Tui.ScheduledWorkspace.scopeEvidence snapshot unknownState with
   | .ok .unknown => pure ()
   | _ => throw (IO.userError "Scheduled workspace Focus Day did not preserve Unknown evidence")
@@ -140,7 +145,7 @@ def main : IO Unit := do
   -- Production Scheduled workspace owns its own eight-row viewport. Pin navigation beyond it
   -- before the older Main Scheduled cursor implementation is retired.
   let longSnapshot ← longScheduledWorkspaceSnapshot
-  let longStart := Loam.Tui.ScheduledWorkspace.initial "2026-09-07"
+  let longStart := Loam.Tui.ScheduledWorkspace.initialList "2026-09-07"
   let longShifted := (List.range 10).foldl
     (fun current _ => (Loam.Tui.ScheduledWorkspace.update longSnapshot current .next).state)
     longStart
@@ -202,31 +207,60 @@ def main : IO Unit := do
   expect (contains "All Current-Open" allCurrentText)
     "Scheduled workspace heading did not reflect All Current-Open scope"
 
-  -- Future Board is a presentation-only six-month view over the same current-open frontier.
-  let board := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .toggleView).state
+  -- Coverage is the Scheduled overview; Months and List are alternate projections.
+  let coverage := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .toggleView).state
+  expect (coverage.viewMode == .coverage && coverage.scope == .allCurrent)
+    "Scheduled list did not cycle into the Coverage overview"
+  let foodRule : Loam.ScheduledCoverageConfig.Rule := {
+    name := "food"
+    anchor := "2026-09-07"
+    everyMonths := 1
+    negativeLoci := ["paypay"]
+    positiveLoci := ["food"]
+  }
+  let coverageSnapshot ←
+    match Loam.ScheduledCoverageReview.projectRecords
+        [foodRule] (Loam.Tui.ScheduledWorkspace.recordsForScope snapshot coverage)
+        "2026-09-07" 4 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let coverageText := widgetText
+    (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+      { width := 120, height := 30 } snapshot coverage (.ok coverageSnapshot))
+  expect (contains "Scheduled / Coverage" coverageText &&
+    contains "food" coverageText && contains "Next gap" coverageText)
+    "Scheduled Coverage overview did not render the shared future-plan projection"
+  expect (contains "Blank month cells" coverageText)
+    "Scheduled Coverage overview did not explain quiet non-expected months"
+  let coverageFill := Loam.Tui.ScheduledWorkspace.update snapshot coverage .fillCurrentCycle
+  expect (coverageFill.command == .stay &&
+    contains "Choose an explicit plan in Months or List" coverageFill.state.notice)
+    "Scheduled Coverage overview allowed a hidden occurrence-specific fill action"
+
+  let board := (Loam.Tui.ScheduledWorkspace.update snapshot coverage .toggleView).state
   expect (board.viewMode == .futureBoard && board.scope == .allCurrent &&
     board.pane == .occurrences && board.locusRow == 0)
-    "Scheduled Future Board did not normalize into the all-current occurrence view"
+    "Scheduled Months view did not normalize into the all-current occurrence view"
   let boardText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } snapshot board)
-  expect (contains "Scheduled / Future Board" boardText &&
+  expect (contains "Scheduled / Months" boardText &&
     contains "[2026-09]" boardText && contains "[2026-10]" boardText)
-    "Scheduled Future Board did not render its six-month calendar blocks"
+    "Scheduled Months view did not render its six-month calendar blocks"
   expect (contains "Selected Scheduled Details:" boardText)
-    "Scheduled Future Board lost the shared selected-record details"
+    "Scheduled Months view lost the shared selected-record details"
   let boardLeft := (Loam.Tui.ScheduledWorkspace.update snapshot board .focusLeft).state
-  expect (boardLeft.pane == .occurrences && contains "Future Board uses one Scheduled selection" boardLeft.notice)
-    "Scheduled Future Board unexpectedly entered the Locus pane"
+  expect (boardLeft.pane == .occurrences && contains "Months uses one Scheduled selection" boardLeft.notice)
+    "Scheduled Months view unexpectedly entered the Locus pane"
   let boardFilter := (Loam.Tui.ScheduledWorkspace.update snapshot board .cycleFilter).state
   expect (boardFilter.scope == .allCurrent &&
-    contains "Future Board always shows the current-open frontier" boardFilter.notice)
-    "Scheduled Future Board unexpectedly changed its all-current scope"
+    contains "Months always uses the current-open frontier" boardFilter.notice)
+    "Scheduled Months view unexpectedly changed its all-current scope"
   let boardFill := Loam.Tui.ScheduledWorkspace.update snapshot board .fillCurrentCycle
   expect (boardFill.command == .fillCurrentCycle)
-    "Scheduled Future Board did not reuse the existing fill action for its selected record"
+    "Scheduled Months view did not reuse the existing fill action for its selected record"
   let listAgain := (Loam.Tui.ScheduledWorkspace.update snapshot board .toggleView).state
   expect (listAgain.viewMode == .list)
-    "Scheduled Future Board toggle did not return to list view"
+    "Scheduled Months toggle did not continue to List"
 
   -- 5. Loci navigation and filtering
   let toLoci := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .focusLeft).state

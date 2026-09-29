@@ -10,7 +10,6 @@ import Loam.MeasurePresentation
 import Loam.PeriodComparisonReview
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
-import Loam.ScheduledCoverageReview
 import Loam.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.Tui.FavaLaunch
@@ -139,11 +138,6 @@ private partial def loop (bounds : Bounds)
             match ← Loam.ConditionalBalancePathReview.loadSnapshot
                 dataDir root assumedCompleteThrough with
             | .ok snapshot => pure (Loam.Tui.Reports.withLiquiditySnapshot step.state snapshot)
-            | .error message => pure (Loam.Tui.Reports.withError step.state message)
-        | some (.scheduledCoverage observedAt) =>
-            match ← Loam.ScheduledCoverageReview.loadSnapshot
-                dataDir root observedAt with
-            | .ok snapshot => pure (Loam.Tui.Reports.withScheduledCoverageSnapshot step.state snapshot)
             | .error message => pure (Loam.Tui.Reports.withError step.state message)
         | some (.locusTrendCompare observedAt granularity scope series) =>
             match ← Loam.LocusTrendCompareReview.loadConfiguredAtScope

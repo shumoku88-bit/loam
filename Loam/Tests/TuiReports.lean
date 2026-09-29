@@ -127,7 +127,8 @@ def main : IO Unit := do
   expect (contains "Balances" menuText) "Reports menu lost evidence-aware Balances"
   expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
   expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
-  expect (contains "Scheduled Coverage" menuText) "Reports menu lost Scheduled Coverage"
+  expect (!(contains "Scheduled Coverage" menuText))
+    "Reports menu still exposed Scheduled Coverage after it moved to Scheduled"
   expect (contains "Multicurrency Spend" menuText) "Reports menu lost Multicurrency Spend"
   expect (contains "Trend" menuText) "Reports menu lost unified Trend"
   expect (!(contains "Locus Trend" menuText)) "Reports menu still exposed retired Locus Trend"
@@ -797,20 +798,6 @@ def main : IO Unit := do
   expect (!contains "3000 usd" multicurrencyReportText &&
       !contains "2500 usd" multicurrencyReportText)
     "Multicurrency Spend ignored configured Measure decimal presentation"
-
-  let coverageStep := Loam.Tui.Reports.update initial (.input 'c')
-  expect (match coverageStep.state.mode with | .scheduledCoverage => true | _ => false)
-    "Reports direct Scheduled Coverage key did not enter the coverage surface"
-  match coverageStep.query with
-  | some (.scheduledCoverage observedAt) =>
-      expect (observedAt == "2026-09-07")
-        "Scheduled Coverage query did not retain the selected Home date as its explicit observation coordinate"
-  | _ => throw (IO.userError "Scheduled Coverage surface did not request its shared read-side projection")
-  let coverageText := widgetText (Loam.Tui.Reports.view coverageStep.state)
-  expect (contains "Reports / Scheduled Coverage" coverageText)
-    "Scheduled Coverage heading was not rendered"
-  expect (contains "replaceable read-side config" coverageText)
-    "Scheduled Coverage surface promoted monitoring rules into Scheduled authority"
 
   let balancesStep := Loam.Tui.Reports.update initial (.input 'r')
   expect (match balancesStep.state.mode with | .balances => true | _ => false)
