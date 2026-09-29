@@ -118,6 +118,14 @@ def main : IO Unit := do
   expect (multiCells.any fun cell => cell.glyph == '│' && cell.style == .muted)
     "multi-series chart lost the shared selected-period crosshair"
 
+  let guided :=
+    Loam.Tui.Chart.renderManyInRange .block 12 6
+      [ { values := [200, 500, 800], style := .series1, marker := '●' } ]
+      1 (Loam.Tui.Chart.scaleFor [200, 500, 800]).range [] [2]
+  let guidedCells := guided.flatMap Widget.lines |>.flatten
+  expect (guidedCells.any fun cell => cell.glyph == '┊' && cell.style == .muted)
+    "multi-series chart lost an optional presentation-only vertical guide"
+
   let overlapping :=
     Loam.Tui.Chart.renderManyInRange .block 36 10
       [ { values := [464, 508, 500], style := .series1, marker := '●' }
