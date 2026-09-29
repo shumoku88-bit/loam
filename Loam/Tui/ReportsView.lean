@@ -3,6 +3,7 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
+import Loam.DailyRoleFlowReview
 import Loam.MonthlyRoleFlowReview
 import Loam.RoleFlowReview
 import Loam.Presentation.Reports
@@ -430,7 +431,7 @@ private def monthlyBlocks
   (List.range blockCount).map fun index =>
     (months.drop (index * size)).take size
 
-private def monthlyAmountText
+private def incomeExpenseAmountText
     (state : State)
     (measure : Loam.Core.MeasureId)
     (quanta : Int) : String :=
@@ -447,14 +448,14 @@ private def monthlyRowLine
       (fun text month =>
         text ++
           padNum 14
-            (monthlyAmountText state row.coordinate.measure
+            (incomeExpenseAmountText state row.coordinate.measure
               (monthlyDisplayQuanta row.role
                 (Loam.MonthlyRoleFlowReview.Row.quantityAt row month))))
       ""
   let period :=
     if showPeriodTotal then
       padNum 14
-        (monthlyAmountText state row.coordinate.measure
+        (incomeExpenseAmountText state row.coordinate.measure
           (monthlyDisplayQuanta row.role
             (Loam.MonthlyRoleFlowReview.Row.total row)))
     else
@@ -476,13 +477,13 @@ private def monthlyTotalLine
       (fun text month =>
         let raw := monthlyRoleQuanta snapshot measure role month
         let display := if role = .income then -raw else raw
-        text ++ padNum 14 (monthlyAmountText state measure display))
+        text ++ padNum 14 (incomeExpenseAmountText state measure display))
       ""
   let period :=
     if showPeriodTotal then
       let rawPeriod := monthlyRolePeriodQuanta snapshot measure role
       let displayPeriod := if role = .income then -rawPeriod else rawPeriod
-      padNum 14 (monthlyAmountText state measure displayPeriod)
+      padNum 14 (incomeExpenseAmountText state measure displayPeriod)
     else
       ""
   line
@@ -499,13 +500,13 @@ private def monthlyNetLine
       (fun text month =>
         let income := -(monthlyRoleQuanta snapshot measure .income month)
         let expense := monthlyRoleQuanta snapshot measure .expense month
-        text ++ padNum 14 (monthlyAmountText state measure (income - expense)))
+        text ++ padNum 14 (incomeExpenseAmountText state measure (income - expense)))
       ""
   let period :=
     if showPeriodTotal then
       let income := -(monthlyRolePeriodQuanta snapshot measure .income)
       let expense := monthlyRolePeriodQuanta snapshot measure .expense
-      padNum 14 (monthlyAmountText state measure (income - expense))
+      padNum 14 (incomeExpenseAmountText state measure (income - expense))
     else
       ""
   line
@@ -583,6 +584,264 @@ private def monthlyAccountsResultLines
       , muted "Monthly Accounts is a projection of the same occurrence-time flow, not stored monthly state."
       ]
 
+private def dailyMeasures
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot) : List Loam.Core.MeasureId :=
+  snapshot.rows.foldl
+    (fun measures row =>
+      if row.coordinate.measure ∈ measures then measures
+      else measures ++ [row.coordinate.measure])
+    []
+
+private def dailyRows
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (role : Loam.Core.AccountingRole) : List Loam.DailyRoleFlowReview.Row :=
+  (snapshot.rows.filter fun row =>
+    decide (row.coordinate.measure = measure ∧ row.role = role)).mergeSort fun a b =>
+      a.coordinate.locus.token <= b.coordinate.locus.token
+
+private def dailyRoleQuanta
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (role : Loam.Core.AccountingRole)
+    (date : String) : Int :=
+  snapshot.rows.foldl
+    (fun total row =>
+      if decide (row.coordinate.measure = measure ∧ row.role = role) then
+        total + (Loam.DailyRoleFlowReview.Row.quantityAt row date).quanta
+      else
+        total)
+    0
+
+private def dailyRoleWindowQuanta
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (role : Loam.Core.AccountingRole) : Int :=
+  snapshot.rows.foldl
+    (fun total row =>
+      if decide (row.coordinate.measure = measure ∧ row.role = role) then
+        total + (Loam.DailyRoleFlowReview.Row.total row).quanta
+      else
+        total)
+    0
+
+private def dailyShortDate (date : String) : String :=
+  match date.splitOn "-" with
+  | [_, month, day] => month ++ "-" ++ day
+  | _ => date
+
+private def dailyBlockSize
+    (bounds : Option Bounds) (dateCount : Nat) : Nat :=
+  let showWindowTotal := dateCount > 1
+  match bounds with
+  | none => min 7 (max 1 dateCount)
+  | some terminal =>
+      let content := Loam.Tui.Layout.contentWidth terminal
+      let withoutBlockTotal := 24 + (if showWindowTotal then 14 else 0)
+      let initial := min 7 (max 1 ((content - withoutBlockTotal) / 12))
+      if dateCount > initial then
+        min 7 (max 1 ((content - (withoutBlockTotal + 14)) / 12))
+      else
+        initial
+
+private def dailyBlocks
+    (blockSize : Nat) (dates : List String) : List (List String) :=
+  let size := max 1 blockSize
+  let blockCount := (dates.length + size - 1) / size
+  (List.range blockCount).map fun index =>
+    (dates.drop (index * size)).take size
+
+private def dailyRowQuanta
+    (row : Loam.DailyRoleFlowReview.Row) (date : String) : Int :=
+  let raw := (Loam.DailyRoleFlowReview.Row.quantityAt row date).quanta
+  if row.role = .income then -raw else raw
+
+private def dailyRowBlockTotal
+    (row : Loam.DailyRoleFlowReview.Row) (dates : List String) : Int :=
+  dates.foldl (fun total date => total + dailyRowQuanta row date) 0
+
+private def dailyRowWindowTotal
+    (row : Loam.DailyRoleFlowReview.Row) : Int :=
+  let raw := (Loam.DailyRoleFlowReview.Row.total row).quanta
+  if row.role = .income then -raw else raw
+
+private def dailyExpenseRowLine
+    (state : State)
+    (row : Loam.DailyRoleFlowReview.Row)
+    (dates : List String)
+    (showBlockTotal showWindowTotal : Bool) : Widget :=
+  let cells :=
+    dates.foldl
+      (fun text date =>
+        text ++
+          padNum 12
+            (incomeExpenseAmountText state row.coordinate.measure
+              (dailyRowQuanta row date)))
+      ""
+  let blockTotal :=
+    if showBlockTotal then
+      padNum 14
+        (incomeExpenseAmountText state row.coordinate.measure
+          (dailyRowBlockTotal row dates))
+    else
+      ""
+  let windowTotal :=
+    if showWindowTotal then
+      padNum 14
+        (incomeExpenseAmountText state row.coordinate.measure
+          (dailyRowWindowTotal row))
+    else
+      ""
+  line
+    ("  " ++ Loam.Tui.Layout.padRight 22 row.coordinate.locus.token ++
+      cells ++ blockTotal ++ windowTotal)
+
+private def dailyAggregateLine
+    (state : State)
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (role : Loam.Core.AccountingRole)
+    (label : String)
+    (dates : List String)
+    (showBlockTotal showWindowTotal : Bool) : Widget :=
+  let displayForDate := fun date =>
+    let raw := dailyRoleQuanta snapshot measure role date
+    if role = .income then -raw else raw
+  let cells :=
+    dates.foldl
+      (fun text date =>
+        text ++ padNum 12 (incomeExpenseAmountText state measure (displayForDate date)))
+      ""
+  let blockTotal :=
+    if showBlockTotal then
+      let value := dates.foldl (fun total date => total + displayForDate date) 0
+      padNum 14 (incomeExpenseAmountText state measure value)
+    else
+      ""
+  let windowTotal :=
+    if showWindowTotal then
+      let raw := dailyRoleWindowQuanta snapshot measure role
+      let display := if role = .income then -raw else raw
+      padNum 14 (incomeExpenseAmountText state measure display)
+    else
+      ""
+  line
+    ("  " ++ Loam.Tui.Layout.padRight 22 label ++
+      cells ++ blockTotal ++ windowTotal)
+
+private def dailyNetLine
+    (state : State)
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (dates : List String)
+    (showBlockTotal showWindowTotal : Bool) : Widget :=
+  let netForDate := fun date =>
+    let income := -(dailyRoleQuanta snapshot measure .income date)
+    let expense := dailyRoleQuanta snapshot measure .expense date
+    income - expense
+  let cells :=
+    dates.foldl
+      (fun text date =>
+        text ++ padNum 12 (incomeExpenseAmountText state measure (netForDate date)))
+      ""
+  let blockTotal :=
+    if showBlockTotal then
+      let value := dates.foldl (fun total date => total + netForDate date) 0
+      padNum 14 (incomeExpenseAmountText state measure value)
+    else
+      ""
+  let windowTotal :=
+    if showWindowTotal then
+      let income := -(dailyRoleWindowQuanta snapshot measure .income)
+      let expense := dailyRoleWindowQuanta snapshot measure .expense
+      padNum 14 (incomeExpenseAmountText state measure (income - expense))
+    else
+      ""
+  line
+    ("  " ++ Loam.Tui.Layout.padRight 22 "Net" ++
+      cells ++ blockTotal ++ windowTotal)
+
+private def dailyDivider
+    (dates : List String)
+    (showBlockTotal showWindowTotal : Bool) : Widget :=
+  let width :=
+    24 + dates.length * 12 +
+      (if showBlockTotal then 14 else 0) +
+      (if showWindowTotal then 14 else 0)
+  muted (String.ofList (List.replicate width '-'))
+
+private def dailyMeasureBlockLines
+    (state : State)
+    (snapshot : Loam.DailyRoleFlowReview.Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (block : List String)
+    (blockIndex blockCount : Nat) : List Widget :=
+  let showBlockTotal := blockCount > 1
+  let showWindowTotal := snapshot.dates.length > 1
+  let heading :=
+    measure.token ++ "  Daily Flow" ++
+      (if blockCount > 1 then
+        "  block " ++ toString (blockIndex + 1) ++ "/" ++ toString blockCount
+       else
+        "")
+  let dateRange :=
+    match block.head?, block.getLast? with
+    | some first, some last =>
+        if first == last then "Date: " ++ first
+        else "Dates: " ++ first ++ " .. " ++ last
+    | _, _ => ""
+  let header :=
+    block.foldl
+      (fun text date => text ++ padNum 12 (dailyShortDate date))
+      (Loam.Tui.Layout.padRight 24 "Flow / Expense account")
+  let headerWithBlock :=
+    if showBlockTotal then header ++ Loam.Tui.Layout.padLeft 14 "Block total"
+    else header
+  let headerWithWindow :=
+    if showWindowTotal then headerWithBlock ++ Loam.Tui.Layout.padLeft 14 "Window total"
+    else headerWithBlock
+  let expenseRows := dailyRows snapshot measure .expense
+  [ line heading
+  , muted dateRange
+  , muted headerWithWindow
+  , dailyDivider block showBlockTotal showWindowTotal
+  , dailyAggregateLine state snapshot measure .income "Income"
+      block showBlockTotal showWindowTotal
+  ] ++
+  (expenseRows.map fun row =>
+    dailyExpenseRowLine state row block showBlockTotal showWindowTotal) ++
+  [ dailyDivider block showBlockTotal showWindowTotal
+  , dailyNetLine state snapshot measure block showBlockTotal showWindowTotal
+  ]
+
+private def dailyFlowResultLines
+    (state : State) (bounds : Option Bounds) : List Widget :=
+  match state.incomeExpenseSnapshot with
+  | none => [muted "No explicit Income & Expense window has been run yet."]
+  | some incomeExpense =>
+      let snapshot := incomeExpense.daily
+      let measures := dailyMeasures snapshot
+      let blocks := dailyBlocks (dailyBlockSize bounds snapshot.dates.length) snapshot.dates
+      [ muted
+          "Daily axis shows classified activity dates only; omitted dates are not asserted zero or forecast."
+      , blank
+      ] ++
+      (if measures.isEmpty then
+        [muted "No classified Income or Expense activity appears in this window."]
+       else
+        measures.flatMap fun measure =>
+          blocks.zipIdx.flatMap fun entry =>
+            dailyMeasureBlockLines
+              state snapshot measure entry.1 entry.2 blocks.length ++ [blank]) ++
+      [ line ("Unresolved role Effects: " ++ toString snapshot.unresolvedEffects.length)
+      , muted
+          (if snapshot.unresolvedEffects.isEmpty then
+            "Role classification is complete for selected quantity Effects."
+           else
+            "Daily totals are partial while unresolved role Effects remain.")
+      , muted "Daily Flow is a projection of the same occurrence-time flow, not stored daily state."
+      ]
+
 private def incomeExpenseView
     (state : State) (bounds : Option Bounds) : Widget :=
   .column <|
@@ -599,10 +858,11 @@ private def incomeExpenseView
     ] ++
     (match state.incomeExpenseDisplay with
      | .summary => incomeExpenseResultLines state
-     | .monthly => monthlyAccountsResultLines state bounds) ++
+     | .monthly => monthlyAccountsResultLines state bounds
+     | .daily => dailyFlowResultLines state bounds) ++
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
-    , muted "g Summary/Monthly   Tab / Shift-Tab focus   Enter next/run"
+    , muted "g Summary/Monthly/Daily   Tab / Shift-Tab focus   Enter next/run"
     , muted "c compare periods   q / Esc Reports menu"
     , line state.notice
     ]
