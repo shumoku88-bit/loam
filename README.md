@@ -1,10 +1,10 @@
 # loam
 
-LOAM is a household system for day-to-day recording and review, with formal-modeling experiments used to test parts of its design.
+LOAM is a household money-recording and review program built in Lean 4.
 
-## Practical entrance
+It is designed for ordinary day-to-day use through one standalone terminal app. Formal methods are used to test parts of the design, but you do not need Lean, Alloy, TLA+, or a repository checkout to use LOAM.
 
-LOAM is published as one standalone `loam` executable for macOS and Linux. A normal user does not need Lean, Lake, or a repository checkout.
+## Quick start
 
 Download the archive for your platform from the [latest GitHub Release](https://github.com/shumoku88-bit/loam/releases/latest), extract it, then run:
 
@@ -12,200 +12,106 @@ Download the archive for your platform from the [latest GitHub Release](https://
 ./loam
 ```
 
-With no arguments, `loam` opens the production household TUI. The same binary also exposes explicit named commands for scriptable, diagnostic, and export use.
+With no arguments, `loam` opens the production terminal UI.
 
-The release workflow publishes native archives for macOS x86_64, macOS arm64, Linux x86_64, and Linux aarch64, together with SHA-256 checksums and platform portability notes.
+Release archives are published for macOS Intel, macOS Apple Silicon, Linux x86_64, and Linux aarch64, together with SHA-256 checksums.
 
-The TUI resolves `LOAM_DATA_DIR`, defaulting to `../loam-data`. That directory is the production Actual authority root; normalized Actual evidence is retained in `actual.loam`. Missing or malformed selected authority fails closed rather than falling back to retired sidecars.
+LOAM uses `LOAM_DATA_DIR` as its household data directory. If it is not set, the default is `../loam-data`.
 
-Household recording has one explicit line-CLI entrance:
+## What LOAM does
+
+LOAM currently supports everyday household work such as:
+
+- recording purchases, income, transfers, and split payments;
+- reviewing and correcting recorded Actual events;
+- tracking Scheduled payments and capacity;
+- inspecting balances, daily pace, trends, and household reports;
+- exporting a disposable Beancount view for Fava.
+
+The TUI is the main human interface. Named commands remain available for focused, scriptable, diagnostic, or export work.
+
+## Recording a movement
+
+LOAM records ordinary same-Measure value flow as one balanced movement.
+
+For example:
+
+```text
+paypay -> food
+smbc   -> paypay
+pension -> smbc
+```
+
+LOAM does not require a transaction kind such as “purchase”, “transfer”, or “income” before recording. The retained fact is the signed movement itself.
+
+The explicit line entrance is:
 
 ```text
 ./loam movement [LOAM_DATA_DIR]
 ```
 
-If the argument is omitted, the line CLI uses the `LOAM_DATA_DIR` environment variable and then `../loam-data`. Movement preflight and publication read the same normalized Actual authority used by the production TUI.
+A normal movement uses one Measure. Cross-Measure exchange, such as JPY → USD, is kept separate because exchange and valuation carry additional meaning.
 
-### Household Actual authority
+See [Adding a currency](docs/ADDING_CURRENCY.md) for Measure setup.
 
-The production TUI owns default household authority selection. `LOAM_DATA_DIR` may select the household data directory; otherwise it uses `../loam-data`. The selected directory is the Actual authority root, and `actual.loam` is the normalized production Actual file.
+## Household data
 
-Movement recording, correction, occurrence-date correction, Actual review, and other production TUI paths consume this authority through shared readers and publishers. The former sidecar-only `correct` and `correct-date` CLI entrances are retired rather than kept beside the current authority.
+The selected data directory is the household authority root. Normalized Actual evidence is stored in `actual.loam`.
 
-Explicit line commands remain available where their separate scriptable or diagnostic role is still useful. Lower-level commands that accept an Actual path or data root fail closed on missing or malformed evidence rather than manufacturing an alternate authority. Earlier manifest/sidecar authority cutovers are historical and remain available in Git history; current entrance guidance lives here and in [`docs/TUI.md`](docs/TUI.md).
+LOAM prefers explicit failure to silent fallback. If selected authority is missing or malformed, the program refuses the read or write instead of quietly switching to an older sidecar or inventing an empty world.
 
-### Development checkout
+Operational household facts live outside this repository. Changes that affect their representation need an explicit migration, reconstruction, or other qualified transition.
 
-For repository development, LOAM's practical Lean boundary is selected by `lean-toolchain`. Install Lean through `elan`, make sure `lake` is on `PATH`, then use the repository wrapper:
+See [Household operating mode](docs/HOUSEHOLD_OPERATING_MODE.md) for the current authority policy.
+
+## Development
+
+For repository development, install Lean through `elan` and make sure `lake` is on `PATH`.
+
+Run the checkout through:
 
 ```text
 ./tools/loam
 ```
 
-The wrapper delegates practical entrances to the same unified `loam` executable while lower-level development and research targets remain available separately.
-
-#### Lean build surfaces
-
-Repository qualification intentionally keeps three Lean surfaces distinct:
+The main product build is:
 
 ```text
-lake build                       # product/runtime library surface (Loam)
-lake build Loam.DurableProofs    # long-lived production-relevant proofs
-lake build Loam.Observations     # broader live research-regression witnesses
+lake build
 ```
 
-The default product library does not import the broad Observation umbrella merely to obtain repository-wide regression coverage. Durable proofs and selected research witnesses remain independently checked by CI, while executable targets continue to use their own practical roots.
-
-### Reviewer map
-
-The first repository path is intentionally split by role rather than by project history:
-
-- **Product/runtime:** [`Loam.lean`](Loam.lean) is the ordinary product library surface; the standalone `loam` executable is the user entrance.
-- **Durable production proofs:** [`Loam.DurableProofs`](Loam/DurableProofs.lean) is the small long-lived proof surface that current product boundaries rely on.
-- **Live research witnesses:** [`Loam.Observations`](Loam/Observations.lean) is checked independently from the product surface; broader historical experiments and checkpoints live under [`docs/research/`](docs/research/README.md), `experiments/`, and `observations/`.
-- **Current TUI contract:** [`docs/TUI.md`](docs/TUI.md) describes the production terminal surface without redefining household semantics.
-- **Semantic/authority map:** [`docs/SEMANTIC_BLUEPRINT.md`](docs/SEMANTIC_BLUEPRINT.md) is the compact map of meanings and trust boundaries intended to remain stable.
-- **CI trust map:** [`docs/CI_OBLIGATION_MAP.md`](docs/CI_OBLIGATION_MAP.md) maps product, durable-proof, research, publication, UI, and distribution obligations to their checks.
-- **AI-assisted repository work:** [`docs/AI_WORKBENCH.md`](docs/AI_WORKBENCH.md) is a menu of repository instruments, not a prerequisite for using or reviewing the product.
-
-### Recording movements
-
-Select one Measure for the movement (default `jpy`; scripted callers may set `LOAM_MEASURE`), enter one or more FROM loci and positive amounts, leave the next FROM locus blank, then enter one or more TO loci and amounts and leave the next TO locus blank. The two totals must match exactly in that same Measure before LOAM publishes one Event. The retained Core fact is only the resulting signed Effects: FROM contributes `-q`, TO contributes `+q`.
-
-Purchases, transfers, income, split payments, and other same-Measure value flows use this entrance. LOAM does not ask for a transaction kind at recording time. For example, `paypay -> food`, `smbc -> paypay`, and `pension -> smbc` are all the same movement shape. A cross-Measure exchange such as JPY -> USD is deliberately not inferred by this entrance; it requires separately qualified exchange / valuation semantics. The specialized `spend`, `income`, and `transfer` commands have been retired rather than kept as compatibility aliases.
-
-For adding another ordinary currency Measure, choosing its decimal scale, and understanding the boundary between currency setup and exchange semantics, see [`docs/ADDING_CURRENCY.md`](docs/ADDING_CURRENCY.md).
-
-### Focused record review
-
-The explicit `review` CLI remains available for scripted and focused record inspection even though the default interactive human entrance is now the production TUI.
+Two additional Lean surfaces are checked separately:
 
 ```text
-./tools/loam review ACTUAL_FILE
-./tools/loam review ACTUAL_FILE 2026-09-03
-./tools/loam review ACTUAL_FILE '/スーパー'
+lake build Loam.DurableProofs
+lake build Loam.Observations
 ```
 
-Review is intentionally **one-shot and bounded**. With no query, or with `t`, it prints at most ten summaries from the seven occurrence dates ending today together with a small date/count strip. It is **not** a most-recently-entered log. `YYYY-MM-DD` selects one occurrence date, `u` selects current records whose date is unknown, and `/text` searches all dates and **all recorded Events**, including clearly marked correction originals. Search uses literal, case-insensitive substrings over descriptions, loci, measures, quantity spellings, dates, and EventIds.
+The product, durable proofs, and broader research witnesses are intentionally not one giant build surface.
 
-Daily counts and lists reflect movement and date corrections retained inside normalized Actual evidence. Standard input is ignored and the command never opens a paging or prompt loop. Use the production TUI Actual workspace for interactive browsing and selected-record detail.
+## Documentation
 
-Long recognition text and additional Effects are explicitly elided only in the summary. Search examines the full retained text. Date-unknown counts remain visible. No match is not proof that something was never recorded. Invalid Actual evidence refuses the review instead of appearing as an empty list.
+Start with these documents when you need more detail:
 
-Unbounded raw inspection is deliberately lower-level:
+- [TUI guide](docs/TUI.md) — everyday terminal use;
+- [Semantic blueprint](docs/SEMANTIC_BLUEPRINT.md) — compact map of meanings and authority boundaries;
+- [Beancount / Fava](docs/BEANCOUNT_FAVA.md) — disposable accounting projection;
+- [CI obligation map](docs/CI_OBLIGATION_MAP.md) — what the repository checks and why;
+- [AI workbench](docs/AI_WORKBENCH.md) — tools for cross-cutting repository work;
+- [Research index](docs/research/README.md) — active and historical research material.
 
-```text
-./tools/loam event-memory review MEMORY_FILE
-```
+## Research
 
-See [Application 015](experiments/application_015_focused_record_review.md) for scope and local composition checks. Review adds no persistence or writer path.
+LOAM also serves as a small research laboratory.
 
-### Quantities and shadow readers
+The project asks how much useful household behavior can be derived from explicit facts, relations, and projections without forcing every familiar accounting or budgeting concept into the lowest-level data model.
 
-Current quantity and balance reads combine correction-aware Event effects with explicit `ZeroOriginCoverage`. A coordinate is answerable only when that independent coverage evidence states that its selected retained Event history is complete from zero. Event activity, Locus admission, and `config/balance-view.tsv` selection do not create coverage; an uncovered coordinate remains unavailable rather than becoming an implicit zero. The replaceable balance view selects presentation questions only and does not turn Locus into an Account primitive. Routine starting-quantity writers are retired; zero-origin coverage changes only through explicit reconstruction or cutover. Lower-level Event and EventMemory commands remain available for inspecting the neutral practical representation.
+Lean 4 hosts the practical core and retained proofs. Alloy, TLA+, and other tools are used only when they answer a distinct design question. The longer research history is indexed by [OBSERVATION_MAP.md](OBSERVATION_MAP.md).
 
-A separate stateless shadow entrance remains available for read-only research against historical or external journal snapshots. It does not participate in current household authority:
+None of that is required for ordinary household use.
 
-```text
-./tools/loam shadow-quantity PATH/TO/external.journal
-```
+## Status
 
-This entrance assigns fresh EventId / EffectKey values only for the lifetime of the process and uses them solely for the identity-renaming-invariant `EventMemory.quantityAtRecorded` projection established by Observation 078. It does not create a sidecar, retain a source mapping, or claim cross-run identity continuity. Header context, metadata, and include directives are counted as explicitly unprojected information rather than silently absorbed into the Practical Core.
+LOAM is used as the current day-to-day household system.
 
-The command prints source locus tokens and exact quantity results, so runs against private snapshots remain local research and their output should not be copied into public CI, issues, or pull requests.
-
-Historically, a private whole-file dogfood run crossed this boundary successfully: its non-zero locus × measure quantity projection matched the native h-kernel accounting projection for the same canonical snapshot. This remains a quantity-projection checkpoint only. The one-off private parity and source-shape wrappers used around that checkpoint have since been retired; descriptive header context, metadata, include semantics, persistent imported identity, correction attachment, and other continuity-sensitive questions remain outside the result.
-
-Generic read-only shadow tools remain only where they answer an independent research question. They are not operational bridges, migration authority, or compatibility layers for HRA / h-kernel.
-
-### Disposable Beancount / Fava projection
-
-LOAM provides an explicit, disposable projection into Beancount format for viewing transactions, balance sheets, and income statements in [Fava](https://beancount.github.io/fava/) without compromising LOAM's authority.
-
-See [`docs/BEANCOUNT_FAVA.md`](docs/BEANCOUNT_FAVA.md) for full documentation, mode comparison (`--suspense`, `--partial`, strict), and instructions for launching Fava.
-
-## Current household use
-
-LOAM is the current day-to-day household system. Ordinary real-life recording is now done in LOAM rather than in a parallel HRA workflow.
-
-Selected `loam-data` evidence and configuration carry current operational household meaning. The implementation can continue to change, but a representation change that affects operational data needs an explicit migration, reconstruction, or other qualified transition that preserves the household facts being carried forward.
-
-HRA remains useful as historical implementation, migration provenance, and comparison material. It is not a second operational authority and does not need to be kept structurally synchronized with LOAM.
-
-Historical research documents and experiments may still describe an earlier HRA-authority or parallel-dogfood phase. Those statements are part of the project history. The current policy is [`HOUSEHOLD_OPERATING_MODE.md`](docs/HOUSEHOLD_OPERATING_MODE.md).
-
-The one-time Historical Actual prepare / publish runtime has been retired from current LOAM after the cutover completed. The sealed source snapshot and admission receipt remain migration provenance for that historical cutover in `loam-data`; shadow and comparison adapters, where retained, are research instruments rather than current operational bridges or authority.
-
-There is no requirement to keep adding features when ordinary use does not expose a need. New work should come from concrete household use, a demonstrated simplification, or a clearly scoped research question.
-
-## Method
-
-Use the smallest set of tools that can answer the current question.
-
-For AI-assisted or cross-cutting repository work, [`docs/AI_WORKBENCH.md`](docs/AI_WORKBENCH.md) is the discovery index for LOAM's semantic maps, obligation DAGs, DRAKON/D2 views, repository audits, falsification catalogs, and formal/executable instruments. It is a menu rather than a required pipeline.
-
-The default core is:
-
-- **Alloy** explores possible structures and counterexamples.
-- **Lean 4** proves observed laws generally when they become worth keeping and hosts the practical core.
-
-Additional live tools are introduced only when they add a distinct kind of answer:
-
-- **TLA+ / TLC** for temporal behavior, operation order, and state-transition questions.
-- **Apalache** for symbolic checking of selected TLA+ transition systems and inductive invariants.
-- **SPIN / Promela** for explicit interleaving and protocol-order questions where concurrent process scheduling is the pressure point.
-
-Before adding an optional tool to a new observation, state what the current toolset cannot answer and what distinct result the extra tool is expected to produce.
-
-Past observations that used an optional tool remain part of the evidence. They show cases where that tool had a distinct role; they do not create a permanent dependency.
-
-J, miniKanren/Racket, and Dafny have all been used as bounded research instruments and are now historical-only: their results remain in the observation/experiment records and Git history, but no live source or CI toolchain is retained for them. Reintroduce one only when a new question earns a distinct answer that the current live toolset cannot provide clearly enough.
-
-Using every tool is not a goal. If two tools answer the same question in the same way, prefer the smaller combination.
-
-For non-trivial semantic changes and audits, LOAM first decomposes the question into deterministic, previously-earned, and genuinely residual obligations before adding proofs or asking AI to reason over the whole subsystem. See [`docs/OBLIGATION_SCAFFOLD_METHOD.md`](docs/OBLIGATION_SCAFFOLD_METHOD.md).
-
-For long-horizon AI-assisted development, [`docs/SEMANTIC_BLUEPRINT.md`](docs/SEMANTIC_BLUEPRINT.md) is a deliberately small shared map of the meaning that should remain stable across many work sessions and pull requests. Use it as an outer drift review around the local obligation scaffold; it is not a new persistence or proof authority.
-
-Repository-backed research surveys, checkpoints, and falsification catalogs are grouped under [`docs/research/`](docs/research/README.md). `OBSERVATION_MAP.md` remains the root-level map into numbered observation history.
-
-For a small public index connecting concrete production questions to the evidence used to answer them, see [`docs/EVIDENCE_ATLAS.md`](docs/EVIDENCE_ATLAS.md).
-
-## Research origin
-
-The research began with a deliberately narrow question:
-
-> If finite resources are distributed through time and purpose without assuming accounts, transactions, budgets, or envelopes, what structures appear on their own?
-
-## Current map
-
-Observations 001–061 build the neutral physical core and the bounded persistence/publication protocols around Event, Effect, Locus, Measure, exact Quantity, Correction, Resolution, and explicit relation admission.
-
-Observations 062–065 apply anonymized household pressure without forcing familiar product nouns back into that core. Plan realization, Series membership, and refund provenance become observable as explicit relations rather than properties recoverable from endpoint shape alone.
-
-Observations 066–071 apply external accounting pressure and then close with a Practical Core audit. Valuation, acquisition basis, disposal provenance, policy-selected attribution, retained historical attribution, policy provenance, and historical policy definition remain distinct when the question can observe them, but the checkpoint earns no new Practical Core, Persistence, CLI, or wire-format primitive.
-
-Observations 072–084 establish the first private real-data shadow boundary, run-local identity for identity-renaming-invariant queries, and the return of context-relative sufficiency in formal-result and privacy-safe observation work.
-
-The integrated [`OBSERVATION_MAP.md`](OBSERVATION_MAP.md) currently records that history through Observation 084 in detail.
-
-Observations 085–104 and Applications 010–014 then apply direct household dogfood pressure to query-relative basis evidence, balance selection, practical-core compression, replaceable balance configuration, basis-origin double counting, and read-only household day views. The compact checkpoint for that later arc is [`HOUSEHOLD_CHECKPOINT.md`](docs/research/household/HOUSEHOLD_CHECKPOINT.md).
-
-The latest practical result is not a claim that familiar household concepts are permanently unnecessary. It is evidence that several useful household questions can already be answered by small retained facts / relations, question-specific projections, and terminal composition without importing the source application's ontology wholesale.
-
-## Observation 001 — A World Before Envelopes
-
-Start without these concepts:
-
-- Account
-- Transaction
-- Budget
-- Envelope
-- Month
-- Report
-
-Begin only with finite resource units, time, purposes, and changing placement.
-
-The first question is whether something we would later call an envelope is primitive data, or merely a projection that emerges from stable placement through time.
-
-See `observations/001-a-world-before-envelopes.md` as the experiment develops.
+New work is driven by concrete household use, a demonstrated simplification, or a clearly scoped research question. There is no requirement to keep adding features simply because the architecture can support them.
