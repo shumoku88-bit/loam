@@ -19,6 +19,8 @@ facts are ordinary Scheduled occurrences with explicit dates.
 inductive GenerationCadence where
   | monthly
   | everyTwoMonths
+  | everyThreeMonths
+  | everySixMonths
   | yearly
   deriving Repr, DecidableEq
 
@@ -28,12 +30,24 @@ namespace GenerationCadence
 def months : GenerationCadence → Nat
   | .monthly => 1
   | .everyTwoMonths => 2
+  | .everyThreeMonths => 3
+  | .everySixMonths => 6
   | .yearly => 12
 
 def label : GenerationCadence → String
   | .monthly => "Monthly"
   | .everyTwoMonths => "Every 2 months"
+  | .everyThreeMonths => "Every 3 months"
+  | .everySixMonths => "Every 6 months"
   | .yearly => "Yearly"
+
+def ofMonths? : Nat → Option GenerationCadence
+  | 1 => some .monthly
+  | 2 => some .everyTwoMonths
+  | 3 => some .everyThreeMonths
+  | 6 => some .everySixMonths
+  | 12 => some .yearly
+  | _ => none
 
 end GenerationCadence
 
