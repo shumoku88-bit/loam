@@ -1,4 +1,5 @@
 import Loam.Tui.Reports
+import Loam.Tui.ReportsSession
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -63,6 +64,12 @@ private def dayPoints
 
 
 def main : IO Unit := do
+  expect (!Loam.Tui.ReportsSession.refreshBoundsForKey .up &&
+      !Loam.Tui.ReportsSession.refreshBoundsForKey .down)
+    "high-frequency report scrolling unexpectedly probes terminal bounds"
+  expect (Loam.Tui.ReportsSession.refreshBoundsForKey .enter)
+    "ordinary report interaction no longer refreshes terminal bounds"
+
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
   let menuText := widgetText (Loam.Tui.Reports.view initial)
   expect (contains "Reports" menuText) "Reports menu heading was not rendered"
