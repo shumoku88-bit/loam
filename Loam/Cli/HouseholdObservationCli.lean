@@ -372,4 +372,16 @@ def runCurrentMachine (args : List String) : IO UInt32 := do
         "Usage: loam explain household --machine [--at YYYY-MM-DD] [LOAM_DATA_DIR]"
       return 2
 
+
+/-- Command dispatcher for the standalone Household Observation executable. -/
+def run (args : List String) : IO UInt32 :=
+  match args with
+  | [rootPath, start, end_] =>
+      report rootPath start end_
+  | [rootPath, start, end_, observedAt] =>
+      report rootPath start end_ (some observedAt)
+  | _ => do
+      IO.eprintln usage
+      return 2
+
 end Loam.HouseholdObservationCli
