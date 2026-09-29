@@ -326,7 +326,8 @@ def unresolvedRows
 
 /-- Query-global unrouted pressure whose AccountingRole is still unknown. -/
 def unresolvedEligibility (partition : ScheduledPressurePartition Time) : Quantity :=
-  quantityForClass partition .unresolvedEligibility
+  Quantity.ofQuanta <|
+    (partition.unresolvedRows.map (fun row => row.quantity.quanta)).sum
 
 /-- Actionable unrouted or unresolved subjects derived from the same partition. -/
 def actionableRows
