@@ -58,6 +58,23 @@ structure LiquidityForm where
   focus : Fin 2 := ⟨0, by decide⟩
   deriving Repr, DecidableEq
 
+inductive IncomeExpenseDisplay where
+  | summary
+  | monthly
+  deriving Repr, DecidableEq
+
+namespace IncomeExpenseDisplay
+
+def next : IncomeExpenseDisplay → IncomeExpenseDisplay
+  | .summary => .monthly
+  | .monthly => .summary
+
+def label : IncomeExpenseDisplay → String
+  | .summary => "Summary"
+  | .monthly => "Monthly"
+
+end IncomeExpenseDisplay
+
 inductive Query where
   | stockFlow (start endExclusive : String)
   | stockFlowCompare
@@ -95,6 +112,7 @@ structure State where
   stockFlowComparison :
     Option (Loam.PeriodComparisonReview.Pair Loam.StockFlowReview.Snapshot) := none
   transactions : Loam.Tui.TransactionsFlowPane.State := {}
+  incomeExpenseDisplay : IncomeExpenseDisplay := .summary
   incomeExpenseSnapshot : Option Loam.IncomeExpenseProvenanceReview.Snapshot := none
   incomeExpenseComparison :
     Option (Loam.PeriodComparisonReview.Pair Loam.IncomeExpenseProvenanceReview.Snapshot) := none
@@ -827,6 +845,11 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       match key with
       | .input 'c' | .input 'C' =>
           { state := beginComparison state .incomeExpenseCompare }
+      | .input 'g' | .input 'G' =>
+          { state := { state with
+              incomeExpenseDisplay := state.incomeExpenseDisplay.next
+              notice := ""
+              scroll := 0 } }
       | _ => updateWindowReport state key
   | .incomeExpenseCompare => updateComparison state key
   | .multimeasureSpend => updateWindowReport state key

@@ -1020,6 +1020,26 @@ def main : IO Unit := do
               ⟨"mystery"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 5) }
         ]
     }
+    monthly := {
+      start := "2026-09-01"
+      endExclusive := "2026-10-01"
+      months := ["2026-09"]
+      rows :=
+        [ { coordinate := pensionCoordinate
+          , role := .income
+          , cells :=
+              [ { month := "2026-09", quantity := Quantity.ofQuanta (-240000) } ] }
+        , { coordinate := foodCoordinate
+          , role := .expense
+          , cells :=
+              [ { month := "2026-09", quantity := Quantity.ofQuanta 50000 } ] }
+        , { coordinate := consultingCoordinate
+          , role := .income
+          , cells :=
+              [ { month := "2026-09", quantity := Quantity.ofQuanta (-20) } ] }
+        ]
+      unresolvedEffects := []
+    }
     expenseProvenance := .available {
       scheduledLinked :=
         [ { coordinate := foodCoordinate, role := .expense
@@ -1051,6 +1071,30 @@ def main : IO Unit := do
     "Income & Expense view hid unresolved role evidence"
   expect (contains "not accrual recognition or period closing" incomeExpenseReportText)
     "Income & Expense view overstated occurrence-time flow as a closed P/L"
+
+  let monthlyIncomeExpense :=
+    (Loam.Tui.Reports.update incomeExpenseReport (.input 'g')).state
+  expect (monthlyIncomeExpense.incomeExpenseDisplay == .monthly)
+    "Income & Expense g did not switch to Monthly Accounts"
+  let monthlyIncomeExpenseText :=
+    widgetText (Loam.Tui.Reports.view monthlyIncomeExpense)
+  expect (contains "View: Monthly" monthlyIncomeExpenseText &&
+      contains "Monthly Accounts" monthlyIncomeExpenseText &&
+      contains "2026-09" monthlyIncomeExpenseText)
+    "Monthly Accounts view did not expose its month axis"
+  expect (contains "pension" monthlyIncomeExpenseText &&
+      contains "food" monthlyIncomeExpenseText &&
+      contains "Total Income" monthlyIncomeExpenseText &&
+      contains "Total Expense" monthlyIncomeExpenseText &&
+      contains "Net" monthlyIncomeExpenseText &&
+      contains "190000" monthlyIncomeExpenseText)
+    "Monthly Accounts view lost account rows or Income/Expense/Net totals"
+  expect (contains "same occurrence-time flow" monthlyIncomeExpenseText)
+    "Monthly Accounts view promoted its projection into stored monthly state"
+  let summaryAgain :=
+    (Loam.Tui.Reports.update monthlyIncomeExpense (.input 'g')).state
+  expect (summaryAgain.incomeExpenseDisplay == .summary)
+    "Income & Expense g did not return from Monthly to Summary"
 
   let incomeCompareBase := (Loam.Tui.Reports.update incomeExpense (.input 'c')).state
   let incomeCompare : Loam.Tui.Reports.State := {
