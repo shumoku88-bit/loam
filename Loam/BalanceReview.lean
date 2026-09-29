@@ -28,6 +28,10 @@ structure Snapshot where
   rows : List Row
   deriving Repr, DecidableEq
 
+/-- Coordinates represented by this balance answer, preserving row order. -/
+def Snapshot.coordinates (snapshot : Snapshot) : List EffectCoordinate :=
+  snapshot.rows.map (·.coordinate)
+
 private def coverageError (coordinate : EffectCoordinate) : String :=
   "loam: balances unavailable: zero-origin coverage missing for " ++
     coordinate.locus.token ++ " / " ++ coordinate.measure.token

@@ -91,11 +91,6 @@ private def deductionQuanta
     (record : Loam.ScheduledReview.Record) : Int :=
   max 0 (-eligiblePoolEffectQuanta selection record)
 
-private def selectedRowsMatch
-    (selection : List EffectCoordinate)
-    (balances : Loam.BalanceReview.Snapshot) : Bool :=
-  balances.rows.map (·.coordinate) == selection
-
 /--
 Compose already-admitted current balances and Scheduled lifecycle evidence.
 
@@ -120,7 +115,7 @@ def project
     throw "loam: Daily Pace pool contains duplicate coordinates"
   if !selection.all (fun coordinate => coordinate.measure.token == "jpy") then
     throw "loam: Daily Pace currently requires an explicit JPY pool"
-  if !selectedRowsMatch selection balances then
+  if balances.coordinates != selection then
     throw "loam: Daily Pace balance answer does not match the selected pool"
 
   let records ← Loam.ScheduledReview.currentOpenRecords scheduled

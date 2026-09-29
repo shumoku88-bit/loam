@@ -56,10 +56,6 @@ def lowWater (snapshot : Snapshot) : Quantity :=
 
 end Snapshot
 
-private def selectedCoordinates
-    (balances : Loam.BalanceReview.Snapshot) : List EffectCoordinate :=
-  balances.rows.map (fun row => row.coordinate)
-
 private def selectedMeasure
     (balances : Loam.BalanceReview.Snapshot) : Except String MeasureId :=
   match balances.rows with
@@ -171,7 +167,7 @@ def project
     throw "loam: conditional completeness horizon must not be earlier than today"
 
   let measure ← selectedMeasure balances
-  let coordinates := selectedCoordinates balances
+  let coordinates := balances.coordinates
   let occurrences ← currentOpenOccurrences scheduled
   let changes ← collectSelectedChanges coordinates asOf assumedCompleteThrough occurrences
   let buckets := sortBuckets (bucketChanges changes)

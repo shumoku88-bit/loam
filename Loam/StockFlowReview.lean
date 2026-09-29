@@ -55,10 +55,6 @@ def Snapshot.reconstructedEnd (snapshot : Snapshot) : Quantity :=
         (snapshot.increasesAcrossEvents + snapshot.decreasesAcrossEvents) :=
   rfl
 
-private def selectedCoordinates
-    (balances : Loam.BalanceReview.Snapshot) : List EffectCoordinate :=
-  balances.rows.map (fun row => row.coordinate)
-
 private def selectedMeasure?
     (balances : Loam.BalanceReview.Snapshot) : Except String (Option MeasureId) :=
   match balances.rows with
@@ -158,7 +154,7 @@ def project
     throw "loam: stock-flow start must be earlier than end"
   if historicalStart.startOfDay != start then
     throw "loam: stock-flow historical balance boundary does not match the requested start"
-  let coordinates := selectedCoordinates currentBalances
+  let coordinates := currentBalances.coordinates
   if historicalCoordinates historicalStart != coordinates then
     throw "loam: stock-flow historical and current balance selections differ"
   let measure ← selectedMeasure? currentBalances
@@ -224,7 +220,7 @@ def projectPrepared
     throw "loam: stock-flow endpoints must be real YYYY-MM-DD calendar dates"
   if !(decide (start < endExclusive)) then
     throw "loam: stock-flow start must be earlier than end"
-  let coordinates := selectedCoordinates prepared.currentBalances
+  let coordinates := prepared.currentBalances.coordinates
   let historicalStart ←
     Loam.HistoricalBalanceReview.projectStartOfDay
       prepared.image prepared.historicalEvidence start coordinates
