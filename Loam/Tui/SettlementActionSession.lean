@@ -20,9 +20,7 @@ def run
     (state : Loam.Tui.SettlementAction.State)
     (frame : Loam.Tui.Runtime.CompiledWidget) : IO String :=
   Loam.Tui.EditorSession.runUntilPublished bounds
-    (fun current key =>
-      let step := Loam.Tui.SettlementAction.update current key
-      { state := step.state, cancel := step.cancel, publish := step.publish })
+    (Loam.Tui.SettlementAction.update)
     Loam.Tui.SettlementAction.view
     Loam.Tui.SettlementAction.withPublishError
     "Settlement action cancelled."

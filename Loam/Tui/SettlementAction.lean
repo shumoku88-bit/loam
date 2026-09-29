@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.SettlementActionPublisher
 import Loam.SettlementReview
@@ -61,10 +62,8 @@ inductive Publish where
       (draft : Loam.SettlementActionPublisher.ReductionRetraction)
 deriving Repr, DecidableEq
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Publish := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Publish)
 
 def initial
     (today : String)

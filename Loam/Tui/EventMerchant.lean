@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.EventMerchantPublisher
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.Kernel
@@ -30,10 +31,8 @@ structure State where
   notice : String := ""
   deriving Repr, DecidableEq
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.EventMerchantPublisher.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Loam.EventMerchantPublisher.Draft)
 
 /-- Bind the editor to the selected Event identity without inferring Merchant from text. -/
 def initial (record : Loam.Tui.Main.ReviewRecord) : State :=
