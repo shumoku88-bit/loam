@@ -183,13 +183,15 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       | .coverage =>
           { state := { state with notice :=
               "Coverage is the overview; press v for Months to select an explicit plan." } }
-      | .futureBoard | .list => { state := movePrevious snapshot state }
+      | .futureBoard => { state := movePrevious snapshot state }
+      | .list => { state := movePrevious snapshot state }
   | .next =>
       match state.viewMode with
       | .coverage =>
           { state := { state with notice :=
               "Coverage is the overview; press v for Months to select an explicit plan." } }
-      | .futureBoard | .list => { state := moveNext snapshot state }
+      | .futureBoard => { state := moveNext snapshot state }
+      | .list => { state := moveNext snapshot state }
   | .focusLeft =>
       match state.viewMode with
       | .coverage =>
