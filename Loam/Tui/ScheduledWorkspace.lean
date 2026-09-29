@@ -482,17 +482,18 @@ private def findRecordIndex? (id : String) : List Record → Nat → Option Nat
       else findRecordIndex? id rest (index + 1)
 
 private def monthWindow
-    (records : List Record) (selectedId? : Option String) : List (Nat × Record) :=
+    (records : List Record) (selectedId? : Option String)
+    (maxVisible : Nat) : List (Nat × Record) :=
   let selectedIndex? := selectedId?.bind fun id => findRecordIndex? id records 0
   match selectedIndex? with
-  | some selected => Loam.Tui.Layout.centeredListWindow records selected 3
-  | none => (records.take 3).zipIdx.map fun (record, index) => (index, record)
+  | some selected => Loam.Tui.Layout.centeredListWindow records selected maxVisible
+  | none => (records.take maxVisible).zipIdx.map fun (record, index) => (index, record)
 
 private def monthCard
-    (width : Nat) (snapshot : Snapshot) (state : State)
+    (width maxVisible : Nat) (snapshot : Snapshot) (state : State)
     (selectedId? : Option String) (month : Loam.Tui.Calendar.Month) : Widget :=
   let records := recordsInMonth snapshot state month
-  let shown := monthWindow records selectedId?
+  let shown := monthWindow records selectedId? maxVisible
   let header :=
     "[" ++ Loam.Tui.Calendar.monthLabel month ++ "]  " ++
       toString records.length ++ " plan" ++ (if records.length = 1 then "" else "s")
@@ -506,9 +507,9 @@ private def monthCard
       marker ++ recordDay record ++ "  " ++ Loam.ScheduledReview.summary record
     .row [span (Loam.Tui.Layout.clip width text)
       (if selected then .selected else .normal)]
-  let padding := List.replicate (3 - recordLines.length) (.row [])
+  let padding := List.replicate (maxVisible - recordLines.length) (.row [])
   let footerText :=
-    if records.length > 3 then
+    if records.length > maxVisible then
       "  " ++ toString records.length ++ " explicit plans; j/k moves the selection"
     else if records.isEmpty then
       "  (no explicit plan)"
@@ -519,8 +520,25 @@ private def monthCard
     recordLines ++ padding ++
     [.row [span (Loam.Tui.Layout.clip width footerText) .muted]]
 
-private def emptyMonthCard : Widget :=
-  .column (List.replicate 5 (.row []))
+private def emptyMonthCard (height : Nat) : Widget :=
+  .column (List.replicate height (.row []))
+
+private def futureBoardDetailedHelp : String :=
+  "[j/k] select  [v] List  [n] new  [g] fill  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+
+private def futureBoardFooterRowCount (bounds : Bounds) : Nat :=
+  if Loam.Tui.Layout.displayWidth futureBoardDetailedHelp ≤
+      Loam.Tui.Layout.contentWidth bounds then 1 else 2
+
+private def futureBoardCardHeight
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) : Nat :=
+  let bodyCapacity :=
+    Loam.Tui.Layout.footerBodyCapacity bounds (futureBoardFooterRowCount bounds)
+  let fixedBodyRows :=
+    5 + 1 + (detailLines snapshot state).length +
+      (if state.notice.isEmpty then 0 else 1)
+  let available := bodyCapacity - fixedBodyRows
+  max 5 (available / 3)
 
 private def futureBoardRows
     (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -532,22 +550,22 @@ private def futureBoardRows
     let rightWidth := writable - leftWidth - 3
     let months := futureBoardMonths snapshot
     let selectedId? := (selectedRecord? snapshot state).map fun record => record.id.token
+    let cardHeight := futureBoardCardHeight bounds snapshot state
+    let maxVisible := cardHeight - 2
     (List.range 3).flatMap fun row =>
       let left :=
         match months[row * 2]? with
-        | some month => monthCard leftWidth snapshot state selectedId? month
-        | none => emptyMonthCard
+        | some month => monthCard leftWidth maxVisible snapshot state selectedId? month
+        | none => emptyMonthCard cardHeight
       let right :=
         match months[row * 2 + 1]? with
-        | some month => monthCard rightWidth snapshot state selectedId? month
-        | none => emptyMonthCard
-      Loam.Tui.Layout.sideBySide 5 leftWidth rightWidth left right
+        | some month => monthCard rightWidth maxVisible snapshot state selectedId? month
+        | none => emptyMonthCard cardHeight
+      Loam.Tui.Layout.sideBySide cardHeight leftWidth rightWidth left right
 
 private def futureBoardFooter (bounds : Bounds) : List Widget :=
-  let detailed :=
-    "[j/k] select  [v] List  [n] new  [g] fill  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
-  if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
-    [mutedLine detailed]
+  if futureBoardFooterRowCount bounds = 1 then
+    [mutedLine futureBoardDetailedHelp]
   else
     [ mutedLine "[j/k] select [v] List [n] new [g] fill [m] monitor [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
