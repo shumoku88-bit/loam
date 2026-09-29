@@ -1307,6 +1307,27 @@ def main : IO Unit := do
     (scrolledDailyLines.take dailyPage == (fullDailyBody.drop 7).take dailyPage)
     "virtual Daily scrolled viewport diverged from the full report rows"
 
+  let preparedDaily ←
+    match Loam.Tui.Reports.prepareScrollView? dailyBounds dailyIncomeExpense with
+    | some prepared => pure prepared
+    | none => throw (IO.userError "Daily Flow did not prepare its scroll cache")
+  expect
+    (widgetLineTexts
+        (Loam.Tui.Reports.viewPreparedScroll dailyBounds dailyIncomeExpense preparedDaily) ==
+      topDailyLines)
+    "prepared Daily top view diverged from the ordinary bounded view"
+  expect
+    (widgetLineTexts
+        (Loam.Tui.Reports.viewPreparedScroll dailyBounds scrolledDaily preparedDaily) ==
+      scrolledDailyLines)
+    "prepared Daily scrolled view diverged from the ordinary bounded view"
+  let preparedDown :=
+    Loam.Tui.Reports.scrollPrepared dailyIncomeExpense preparedDaily true
+  let preparedUp :=
+    Loam.Tui.Reports.scrollPrepared preparedDown preparedDaily false
+  expect (preparedDown.scroll == 1 && preparedUp.scroll == 0)
+    "prepared Daily scroll did not preserve one-line navigation semantics"
+
   let summaryAgain :=
     (Loam.Tui.Reports.update dailyIncomeExpense (.input 'g')).state
   expect (summaryAgain.incomeExpenseDisplay == .summary)
