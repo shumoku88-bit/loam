@@ -241,7 +241,8 @@ def loadSnapshot
     | .ok image => pure image
   loadSnapshotFromActualImage dataDir image
 
-private def exactRowFor?
+/-- Exact supported current-balance row for one coordinate, if present. -/
+def Snapshot.exactRowFor?
     (snapshot : Snapshot)
     (coordinate : EffectCoordinate) : Option Loam.BalanceReview.Row :=
   snapshot.rows.find? fun row => decide (row.coordinate = coordinate)
@@ -257,7 +258,7 @@ def selectExact
     (coordinates : List EffectCoordinate) :
     Except String Loam.BalanceReview.Snapshot := do
   let rows ← coordinates.mapM fun coordinate =>
-    match exactRowFor? snapshot coordinate with
+    match snapshot.exactRowFor? coordinate with
     | some row => pure row
     | none =>
         if snapshot.knownPresent.contains coordinate then
