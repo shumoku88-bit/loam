@@ -415,10 +415,20 @@ private def monthlyRolePeriodQuanta
         total)
     0
 
-private def monthlyBlocks : List String → List (List String)
-  | [] => []
-  | first :: [] => [[first]]
-  | first :: second :: rest => [first, second] :: monthlyBlocks rest
+private def monthlyBlockSize
+    (bounds : Option Bounds) (showWindowTotal : Bool) : Nat :=
+  match bounds with
+  | none => 2
+  | some terminal =>
+      let fixedWidth := 24 + (if showWindowTotal then 14 else 0)
+      max 1 ((Loam.Tui.Layout.contentWidth terminal - fixedWidth) / 14)
+
+private def monthlyBlocks
+    (blockSize : Nat) (months : List String) : List (List String) :=
+  let size := max 1 blockSize
+  let blockCount := (months.length + size - 1) / size
+  (List.range blockCount).map fun index =>
+    (months.drop (index * size)).take size
 
 private def monthlyAmountText
     (state : State)
@@ -523,7 +533,7 @@ private def monthlyMeasureBlockLines
        else
         "")
   let headerWithPeriod :=
-    if showPeriodTotal then header ++ Loam.Tui.Layout.padLeft 14 "Period total"
+    if showPeriodTotal then header ++ Loam.Tui.Layout.padLeft 14 "Window total"
     else header
   let incomeRows := monthlyRows snapshot measure .income
   let expenseRows := monthlyRows snapshot measure .expense
@@ -543,13 +553,16 @@ private def monthlyMeasureBlockLines
   , monthlyNetLine state snapshot measure block showPeriodTotal
   ]
 
-private def monthlyAccountsResultLines (state : State) : List Widget :=
+private def monthlyAccountsResultLines
+    (state : State) (bounds : Option Bounds) : List Widget :=
   match state.incomeExpenseSnapshot with
   | none => [muted "No explicit Income & Expense window has been run yet."]
   | some incomeExpense =>
       let snapshot := incomeExpense.monthly
       let measures := monthlyMeasures snapshot
-      let blocks := monthlyBlocks snapshot.months
+      let showPeriodTotal := snapshot.months.length > 1
+      let blocks :=
+        monthlyBlocks (monthlyBlockSize bounds showPeriodTotal) snapshot.months
       [ muted
           "Every touched calendar month is shown; zero means no admitted current flow, not a forecast."
       , blank
@@ -557,7 +570,6 @@ private def monthlyAccountsResultLines (state : State) : List Widget :=
       (if measures.isEmpty then
         [muted "No classified Income or Expense quantity appears in this window."]
        else
-        let showPeriodTotal := snapshot.months.length > 1
         measures.flatMap fun measure =>
           (blocks.zipIdx.flatMap fun entry =>
             monthlyMeasureBlockLines
@@ -571,7 +583,8 @@ private def monthlyAccountsResultLines (state : State) : List Widget :=
       , muted "Monthly Accounts is a projection of the same occurrence-time flow, not stored monthly state."
       ]
 
-private def incomeExpenseView (state : State) : Widget :=
+private def incomeExpenseView
+    (state : State) (bounds : Option Bounds) : Widget :=
   .column <|
     [ line "Reports / Income & Expense"
     , muted "What Income / Expense role flow occurred inside this explicit window?"
@@ -586,7 +599,7 @@ private def incomeExpenseView (state : State) : Widget :=
     ] ++
     (match state.incomeExpenseDisplay with
      | .summary => incomeExpenseResultLines state
-     | .monthly => monthlyAccountsResultLines state) ++
+     | .monthly => monthlyAccountsResultLines state bounds) ++
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "g Summary/Monthly   Tab / Shift-Tab focus   Enter next/run"
@@ -920,7 +933,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .stockFlow => stockFlowView state
   | .stockFlowCompare => stockFlowCompareView state bounds
   | .transactionsFlow => transactionsFlowView state bounds
-  | .incomeExpense => incomeExpenseView state
+  | .incomeExpense => incomeExpenseView state bounds
   | .incomeExpenseCompare => incomeExpenseCompareView state bounds
   | .multimeasureSpend => multimeasureSpendView state
   | .balances => balancesView state

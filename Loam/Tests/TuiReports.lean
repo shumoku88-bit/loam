@@ -1104,6 +1104,68 @@ def main : IO Unit := do
     "Monthly Accounts view lost the explicit future-zero boundary"
   expect (contains "same occurrence-time flow" monthlyIncomeExpenseText)
     "Monthly Accounts view promoted its projection into stored monthly state"
+
+  let multiMonthIncomeExpense ←
+    match monthlyIncomeExpense.incomeExpenseSnapshot with
+    | none => throw (IO.userError "Monthly Accounts fixture lost its loaded snapshot")
+    | some snapshot =>
+        let monthly : Loam.MonthlyRoleFlowReview.Snapshot := {
+          snapshot.monthly with
+            start := "2026-05-01"
+            endExclusive := "2026-10-01"
+            months := ["2026-05", "2026-06", "2026-07", "2026-08", "2026-09"]
+            rows :=
+              [ { coordinate := pensionCoordinate
+                , role := .income
+                , cells :=
+                    [ { month := "2026-05", quantity := Quantity.ofQuanta (-100000) }
+                    , { month := "2026-06", quantity := Quantity.ofQuanta 0 }
+                    , { month := "2026-07", quantity := Quantity.ofQuanta (-100000) }
+                    , { month := "2026-08", quantity := Quantity.ofQuanta 0 }
+                    , { month := "2026-09", quantity := Quantity.ofQuanta (-240000) }
+                    ] }
+              , { coordinate := foodCoordinate
+                , role := .expense
+                , cells :=
+                    [ { month := "2026-05", quantity := Quantity.ofQuanta 10000 }
+                    , { month := "2026-06", quantity := Quantity.ofQuanta 11000 }
+                    , { month := "2026-07", quantity := Quantity.ofQuanta 12000 }
+                    , { month := "2026-08", quantity := Quantity.ofQuanta 13000 }
+                    , { month := "2026-09", quantity := Quantity.ofQuanta 14000 }
+                    ] }
+              ]
+        }
+        pure {
+          monthlyIncomeExpense with
+            incomeExpenseSnapshot := some { snapshot with monthly := monthly }
+        }
+  let wideMonthlyText :=
+    widgetText
+      (Loam.Tui.Reports.viewForBounds
+        { width := 120, height := 200 } multiMonthIncomeExpense)
+  expect
+    (contains "2026-05" wideMonthlyText &&
+      contains "2026-06" wideMonthlyText &&
+      contains "2026-07" wideMonthlyText &&
+      contains "2026-08" wideMonthlyText &&
+      contains "2026-09" wideMonthlyText &&
+      !(contains "block 1/" wideMonthlyText))
+    "120-column Monthly Accounts did not keep five months in one table"
+  expect
+    (contains "Window total" wideMonthlyText && !(contains "Period total" wideMonthlyText))
+    "multi-month Monthly Accounts did not name the whole-window total precisely"
+
+  let narrowMonthlyText :=
+    widgetText
+      (Loam.Tui.Reports.viewForBounds
+        { width := 80, height := 200 } multiMonthIncomeExpense)
+  expect
+    (contains "block 1/3" narrowMonthlyText &&
+      contains "block 2/3" narrowMonthlyText &&
+      contains "block 3/3" narrowMonthlyText)
+    "80-column Monthly Accounts did not split five months into width-safe blocks"
+  expect (contains "Window total" narrowMonthlyText)
+    "split Monthly Accounts lost the whole-window total label"
   let summaryAgain :=
     (Loam.Tui.Reports.update monthlyIncomeExpense (.input 'g')).state
   expect (summaryAgain.incomeExpenseDisplay == .summary)
