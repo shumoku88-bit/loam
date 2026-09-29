@@ -7,7 +7,7 @@ import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
 import Loam.Cli.DoctorCli
 import Loam.Cli.ExplainCli
-import Loam.Cli.HouseholdObservationCli
+import Loam.Cli.HouseholdObservation
 import Loam.Cli.MovementCli
 import Loam.Cli.MovementProposalCli
 import Loam.Cli.MovementProposalRecordCli
