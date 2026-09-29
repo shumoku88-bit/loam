@@ -1,0 +1,20 @@
+2026-09-01 Coffee
+    Assets:Cash        -300 JPY
+    Expenses:Coffee     300 JPY
+
+2026-09-02 Lunch
+    Expenses:Food       850 JPY
+    Assets:Cash
+
+2026-09-03 * Cleared purchase
+    Assets:Cash        -500 JPY
+    Expenses:Food       500 JPY
+
+2026-09-04 ATM
+    Assets:Cash        1000 JPY = -650 JPY
+    Assets:Bank       -1000 JPY
+
+2026-09-05 Dinner
+    Assets:Cash        -900 JPY
+    Expenses:Food       900 JPY
+    (Budget:Food)      -900 JPY
