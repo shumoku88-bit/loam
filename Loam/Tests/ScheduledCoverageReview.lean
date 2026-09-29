@@ -81,8 +81,8 @@ def main : IO Unit := do
     "Scheduled coverage pane did not mark the next missing expected month"
   expect (!(contains "●" rendered) && !(contains "+" rendered) && !(contains "blank =" rendered))
     "Scheduled coverage overview still exposed the old month-symbol matrix"
-  expect (contains "Use Months for exact dates" rendered)
-    "Scheduled coverage pane did not route exact-date inspection to Months"
+  expect (contains "Select a row here to extend it or change its pace" rendered)
+    "Scheduled coverage pane did not expose direct recurring-plan management"
   expect (contains "does not create recurrence authority" rendered)
     "Scheduled coverage pane overstated read-side monitoring rules"
 
