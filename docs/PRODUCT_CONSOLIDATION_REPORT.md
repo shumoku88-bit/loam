@@ -574,6 +574,61 @@ domain-specific evidence
 
 目標は「名詞を一つにする」ことではなく、**同じ数学を一度だけ書くこと**である。
 
+### Phase 4 closure — 2026-09-29
+
+最新 `main` で stable identity、quantity projection、additive fold、frontier、
+selection / grouping、append-only correction 周辺を再監査し、Phase 4 は停止条件に到達した。
+
+採用した correspondence:
+
+- #1552: positive Effect quanta total を `Effect` owner に集約（net -9 lines）
+- #1553: current support routing law を Application owner に集約（net -35 lines）
+- #1554: Scheduled pressure の class total を一つの partition owner に集約（net -7 lines）
+- #1555: retained Event からの recorded Effect coordinates を `EventMemory` に集約（net -4 lines）
+- #1556: `EventId.token` injectivity を `EventId` 自身の law に集約（net -41 lines）
+- #1557: `RelationUnitId.token` injectivity を `RelationUnitId` 自身の law に集約（net -5 lines）
+- #1558: exact current-balance row lookup を `CurrentBalanceReview.Snapshot` に集約（net -6 lines）
+- #1559: current coverage Purpose lookup を `CurrentCoverageReview.Snapshot` に集約（net -5 lines）
+- #1560: balance snapshot の represented coordinate projection を `BalanceReview.Snapshot` に集約（net -14 lines）
+
+合計差分は **+285 / -411、net -126 lines**。
+削減量そのものより、9件すべてで既存 domain noun、authority、admission、persistence、
+provenance、refusal semantics を統合せず、exact law / query / projection だけを natural owner
+へ移したことを成功条件とする。
+
+停止監査では、次を意図的に KEEP した。
+
+- unlike-Measure addition を容易にする generic Balance total
+- CurrentQuantityAnchor / CurrentQuantityPresence の reflected-root frontier の型統合
+- Scheduled / Relation / Event などの domain identity を一つにする generic typed-id
+- Scheduled positive-Locus selector の sign-generic helper
+- HistoricalBalance snapshot coordinate helperのような net-zero API extraction
+- Scheduled terminal source の generic lookup。cross-kind conflict を representation order で隠し得るため追加しない
+- Current / Role Balance の opening-support validation。caller-specific refusal vocabulary を維持する
+- opening-support row projection を `BalanceReview` に公開する shortcut。zero-origin boundary を迂回できる API は作らない
+- Scheduled publisher の lifecycle result-to-string translation。typed semantic decision は
+  `Application.currentOpenScheduled` が所有し、adapter wording は caller に残す
+
+#1554 では `unresolvedEligibility` まで共通 total helper に寄せる案を一度試したが、
+既存 public theorem が raw unresolved-row representation を直接説明しており、共有化すると
+proof boundary が太くなったため、その部分だけ巻き戻した。これは Phase 4 の停止原則を示す
+代表例である。
+
+最終横断監査で残った候補は、概ね次のいずれかだった。
+
+```text
+law は似ているが同一ではない
+OR natural owner がない
+OR helper / bridge theorem / public API が削減以上に増える
+OR caller-owned authority / refusal / provenance を隠す
+OR production consumer が一つしかない
+```
+
+したがって Phase 4 を閉じる。
+以後は「共通化できそうだから探す」ことを目的化せず、日常利用で現れる具体的な
+friction、未完成 semantics、性能 pressure、新しい研究課題が同じ law を再び複数箇所に
+発生させた時だけ reopening する。
+
 ---
 
 ## 10. 実行単位：1 PR = 1 correspondence
