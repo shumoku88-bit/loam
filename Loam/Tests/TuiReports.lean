@@ -657,9 +657,11 @@ def main : IO Unit := do
       compareBounds.height)
     "Trend exceeded the terminal height"
 
-  let compareBlock := (Loam.Tui.Reports.update comparePointer (.input 'r')).state
-  expect (compareBlock.trendCompare.renderer == .block)
-    "Trend renderer fallback did not move from Braille to block"
+  let ignoredTrendRendererKey := Loam.Tui.Reports.update comparePointer (.input 'r')
+  expect (ignoredTrendRendererKey.query.isNone &&
+      ignoredTrendRendererKey.state.trendCompare.selected ==
+        comparePointer.trendCompare.selected)
+    "retired Trend renderer key still changed the Trend interaction state"
   expect (isMenu (Loam.Tui.Reports.update comparePointer .escape).state)
     "Trend escape did not return to Reports menu"
 
