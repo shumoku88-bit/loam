@@ -63,6 +63,7 @@ def eventOfKey
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'f' | .input 'F' => .cycleFilter
+  | .input 'v' | .input 'V' => .toggleView
   | .input 'n' | .input 'N' => .createScheduled
   | .input 'g' | .input 'G' => .fillCurrentCycle
   | .input 'm' | .input 'M' => .monitorCoverage
