@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.ActualValidityPublisher
 import Loam.Tui.Main
@@ -24,10 +25,8 @@ structure State where
   notice : String := ""
   deriving Repr, DecidableEq
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ActualValidityPublisher.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State (Loam.ActualValidityPublisher.Draft)
 
 /-- Prefill visible current date evidence. This is convenience, never publication authority. -/
 def initial? (record : Loam.Tui.Main.ReviewRecord) : Except String State := do
