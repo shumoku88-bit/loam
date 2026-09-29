@@ -855,10 +855,9 @@ private def dailyMeasureBlockSource
   {
     extent := expenseRows.length + 8
     slice := fun offset count =>
-      ((dailyMeasureBlockLines
+      (((dailyMeasureBlockLines
           state snapshot measure block blockIndex blockCount expenseRows) ++ [blank])
-        |>.drop offset
-        |>.take count
+        .drop offset).take count
   }
 
 private def dailyFlowSource
