@@ -46,6 +46,48 @@ def ansiStyle : Style → String
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"
 
+private def sameStyleRun
+    (style : Style) (chars : List Char) (remaining : List Cell)
+    (acc : List Span) : List Span :=
+  match remaining with
+  | [] =>
+      (span (String.ofList chars.reverse) style :: acc).reverse
+  | cell :: rest =>
+      if cell.style == style then
+        sameStyleRun style (cell.glyph :: chars) rest acc
+      else
+        sameStyleRun
+          cell.style [cell.glyph] rest
+          (span (String.ofList chars.reverse) style :: acc)
+
+/-- Coalesce adjacent cells that share one terminal style into semantic text runs. -/
+def cellsToStyleRuns (cells : List Cell) : List Span :=
+  match cells with
+  | [] => []
+  | first :: rest =>
+      sameStyleRun first.style [first.glyph] rest []
+
+/--
+Render one already-clipped terminal row with one ANSI style prefix per contiguous
+style run rather than one prefix per glyph.
+-/
+def renderCellsAnsi (cells : List Cell) : String :=
+  let chunks :=
+    (cellsToStyleRuns cells).map fun run =>
+      ansiStyle run.style ++ run.text
+  String.intercalate "" chunks
+
+private def dirtyRowAnsi
+    (bounds : Bounds) (top left : Nat)
+    (new : CompiledWidget) (row : Fin bounds.height) : String :=
+  let available := Loam.Tui.Layout.contentWidth bounds - left
+  let content :=
+    match new.rowAt top row.val with
+    | none => ""
+    | some cells =>
+        renderCellsAnsi <| Loam.Tui.Layout.clipCells available cells.toList
+  cursorTo row.val left ++ content ++ "\x1b[0m\x1b[K"
+
 /--
 Emit only structurally changed rows. The semantic reconstruction theorem remains
 in `Loam.Tui.Runtime`; ANSI and terminal glyph advance are the physical boundary.
@@ -54,16 +96,10 @@ line can never arm terminal auto-wrap and spill into the following TUI row.
 -/
 def emitDirtyDiff (bounds : Bounds) (top left : Nat)
     (old new : CompiledWidget) : IO Unit := do
-  let mut output := ""
-  let available := Loam.Tui.Layout.contentWidth bounds - left
-  for row in dirtyRows bounds top old new do
-    output := output ++ cursorTo row.val left
-    match new.rowAt top row.val with
-    | none => pure ()
-    | some cells =>
-        for cell in Loam.Tui.Layout.clipCells available cells.toList do
-          output := output ++ ansiStyle cell.style ++ toString cell.glyph
-    output := output ++ "\x1b[0m\x1b[K"
+  let output :=
+    String.intercalate "" <|
+      (dirtyRows bounds top old new).map fun row =>
+        dirtyRowAnsi bounds top left new row
   IO.print output
   (← IO.getStdout).flush
 
