@@ -13,11 +13,11 @@ publication stay in their owning editors.
 -/
 structure Form where
   date : String
-  rows : Array Loam.Tui.Record.Row := #[{}, {}]
+  rows : Array Loam.Tui.Record.Row
   focus : Nat := 0
   deriving Repr, DecidableEq
 
-def focusCount (form : Form) : Nat :=
+private def focusCount (form : Form) : Nat :=
   1 + form.rows.size * 2 + 4
 
 def firstAction (form : Form) : Nat :=
