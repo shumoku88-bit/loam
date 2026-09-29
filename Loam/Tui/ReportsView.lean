@@ -492,11 +492,11 @@ private def monthlyMeasureBlockLines
   , line (header ++ Loam.Tui.Layout.padLeft 14 "Period total")
   , muted "  Income"
   ] ++
-  incomeRows.map fun row => monthlyRowLine row block ++
+  (incomeRows.map fun row => monthlyRowLine row block) ++
   [ monthlyTotalLine snapshot measure .income "Total Income" block
   , muted "  Expense"
   ] ++
-  expenseRows.map fun row => monthlyRowLine row block ++
+  (expenseRows.map fun row => monthlyRowLine row block) ++
   [ monthlyTotalLine snapshot measure .expense "Total Expense" block
   , monthlyNetLine snapshot measure block
   ]
