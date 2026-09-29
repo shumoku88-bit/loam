@@ -806,6 +806,10 @@ private def updateLocusTrendCompare
       { state := { state with
           trendCompare := Loam.Tui.LocusTrendComparePane.clearOverlays state.trendCompare
           notice := "" } }
+    | .input 'v' | .input 'V' =>
+      { state := { state with
+          trendCompare := Loam.Tui.LocusTrendComparePane.toggleOverlayGuides state.trendCompare
+          notice := "" } }
     | .enter =>
       { state, query := queryForMode state }
     | _ => { state }
