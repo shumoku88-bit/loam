@@ -61,17 +61,20 @@ structure LiquidityForm where
 inductive IncomeExpenseDisplay where
   | summary
   | monthly
+  | daily
   deriving Repr, DecidableEq
 
 namespace IncomeExpenseDisplay
 
 def next : IncomeExpenseDisplay → IncomeExpenseDisplay
   | .summary => .monthly
-  | .monthly => .summary
+  | .monthly => .daily
+  | .daily => .summary
 
 def label : IncomeExpenseDisplay → String
   | .summary => "Summary"
   | .monthly => "Monthly"
+  | .daily => "Daily"
 
 end IncomeExpenseDisplay
 
