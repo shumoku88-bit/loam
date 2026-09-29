@@ -39,6 +39,7 @@ structure State where
   locusRow : Nat := 0
   occurrenceRow : Nat := 0
   coverageRow : Nat := 0
+  coverageMonthOffset : Nat := 0
   notice : String := ""
   deriving Repr, DecidableEq
 
@@ -153,6 +154,11 @@ def selectedCoverageRow?
     Option Loam.ScheduledCoverageReview.Row :=
   (coverageRows coverage)[state.coverageRow]?
 
+def coverageRowForRecord?
+    (coverage : CoverageEvidence) (record : Record) : Option Nat :=
+  ((coverageRows coverage).zipIdx.find? fun (row, _) =>
+    Loam.ScheduledCoverageSelector.matchesRule record row.rule).map (·.2)
+
 private def recordBefore (left right : Record) : Bool :=
   if left.scheduledOn = right.scheduledOn then
     left.id.token <= right.id.token
@@ -185,7 +191,15 @@ private def findRecordRow? (records : List Record) (id : String) : Option Nat :=
 private def clampCoverageState (coverage : CoverageEvidence) (state : State) : State :=
   let count := (coverageRows coverage).length
   let coverageRow := if count = 0 then 0 else min state.coverageRow (count - 1)
-  { state with coverageRow := coverageRow }
+  let monthCount :=
+    match coverage with
+    | .error _ => 0
+    | .ok snapshot => snapshot.months.length
+  let coverageMonthOffset :=
+    if monthCount = 0 then 0 else min state.coverageMonthOffset (monthCount - 1)
+  { state with
+    coverageRow := coverageRow
+    coverageMonthOffset := coverageMonthOffset }
 
 private def clampState (snapshot : Snapshot) (state : State) : State :=
   let lociCount := (lociForScope snapshot state).length
@@ -255,13 +269,29 @@ def updateWithCoverage
       | .list => { state := moveNext snapshot state }
   | .focusLeft =>
       match state.viewMode with
-      | .coverage => { state := { state with notice := "The overview has one plan selection." } }
+      | .coverage =>
+          if state.coverageMonthOffset = 0 then
+            { state := { state with notice := "Already at the first coverage month." } }
+          else
+            { state := { state with
+                coverageMonthOffset := state.coverageMonthOffset - 1
+                notice := "" } }
       | .futureBoard =>
           { state := { state with notice := "Months uses one Scheduled selection; press v for List." } }
       | .list => { state := { state with pane := .loci, notice := "" } }
   | .focusRight =>
       match state.viewMode with
-      | .coverage => { state := { state with notice := "The overview has one plan selection." } }
+      | .coverage =>
+          match coverage with
+          | .error _ =>
+              { state := { state with notice := "Coverage months are unavailable." } }
+          | .ok coverageSnapshot =>
+              if state.coverageMonthOffset + 1 < coverageSnapshot.months.length then
+                { state := { state with
+                    coverageMonthOffset := state.coverageMonthOffset + 1
+                    notice := "" } }
+              else
+                { state := { state with notice := "No later coverage month is loaded." } }
       | .futureBoard =>
           { state := { state with notice := "Months uses one Scheduled selection; press v for List." } }
       | .list => { state := { state with pane := .occurrences, notice := "" } }
@@ -740,19 +770,24 @@ private def futureBoardView
 
 private def coverageFooter (bounds : Bounds) : List Widget :=
   let detailed :=
-    "[j/k] select  [e] extend  [p] pace  [s] undecided  [Enter] exact dates  [n] new  [q] back"
+    "[j/k] select  [e] extend  [p] pace  [s] undecided  [Enter] exact dates  [h/l] months  [n] new  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [mutedLine detailed]
   else
     [ mutedLine "[j/k] select [e] extend [p] pace [s] undecided [Enter] exact dates"
-    , mutedLine "[n] new [v] all plans [q] back"
+    , mutedLine "[h/l] months [n] new [v] all plans [q] back"
     ]
 
 private def coverageView
     (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
   let coverageLines :=
     match coverage with
-    | .ok snapshot => Loam.Tui.ScheduledCoveragePane.linesSelected snapshot state.coverageRow
+    | .ok snapshot =>
+        let monthCount :=
+          Loam.Tui.ScheduledCoveragePane.monthWindowSize
+            (Loam.Tui.Layout.contentWidth bounds)
+        Loam.Tui.ScheduledCoveragePane.linesSelectedWindow
+          snapshot state.coverageRow state.coverageMonthOffset monthCount
     | .error message =>
         [ plainLine (" [Coverage unavailable] " ++ message)
         , mutedLine " Months and List remain available with v."
@@ -760,8 +795,8 @@ private def coverageView
   let body :=
     [ rule bounds '='
     , plainLine " Scheduled"
-    , mutedLine " Select a recurring plan here; extend it, change its pace, or mark its future as undecided."
-    , mutedLine " Filled through and Next needed summarize explicit Scheduled dates."
+    , mutedLine " Series Calendar: rows are plans; columns are months; cells show real explicit Scheduled days."
+    , mutedLine " ! marks an expected month with no explicit plan. Unscheduled months stay blank."
     , rule bounds '='
     ] ++ coverageLines ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
