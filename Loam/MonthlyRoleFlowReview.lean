@@ -46,7 +46,6 @@ structure Snapshot where
   months : List String := []
   rows : List Row := []
   unresolvedEffects : List Loam.RoleFlowReview.UnresolvedEffect := []
-  deriving Repr, DecidableEq
 
 private def padNat (width value : Nat) : String :=
   let text := toString value
