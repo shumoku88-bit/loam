@@ -94,5 +94,12 @@ Scheduled, retained household context, or configuration, and no file is read or
 written for them. `O` clears the temporary overlays.
 
 The chart renders A/B/C markers below the Day axis and a session-only legend.
+While entering an overlay, a third `Guide` field can optionally add a thin
+`┊` vertical guide through each matching Day column. Guides default off so
+dense repeated context such as days off does not turn the chart into a wall of
+lines; one-off boundaries such as a move, trip start, or other before/after
+event can opt in. Series glyphs and the selected-period crosshair take visual
+precedence over a guide where they share a terminal cell.
+
 Coincidence is intentionally only visual: an overlay sharing a date with a
 spending point does not claim that the context caused the spending.
