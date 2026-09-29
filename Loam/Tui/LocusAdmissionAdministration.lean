@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.LocusAdmissionPublisher
 import Loam.LocusCatalog
 import Loam.Persistence.TokenSyntax
@@ -40,11 +41,8 @@ structure State where
   notice : String := ""
   deriving Repr
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.LocusAdmissionPublisher.Draft := none
-  deriving Repr
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State Loam.LocusAdmissionPublisher.Draft
 
 
 def initial (catalog : Loam.LocusCatalog.Catalog) : State :=
