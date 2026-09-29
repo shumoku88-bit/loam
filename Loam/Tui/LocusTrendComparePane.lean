@@ -31,7 +31,8 @@ structure State where
   viewportStart : Nat := 0
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   scope : Loam.LocusTrendCompareReview.Scope := .allHistory
-  renderer : Loam.Tui.Chart.Renderer := .braille
+  /-- Presentation-only switch between exact points and point-connected interpolation. -/
+  drawLines : Bool := false
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   pickerOpen : Bool := false
   pickerSlot : Nat := 0
@@ -181,8 +182,8 @@ def moveSelection (state : State) (back : Bool) : State :=
             state.granularity state.scope count next state.viewportStart
         { state with selected := next, viewportStart := viewportStart }
 
-def cycleRenderer (state : State) : State :=
-  { state with renderer := state.renderer.next }
+def toggleLines (state : State) : State :=
+  { state with drawLines := !state.drawLines }
 
 def plotLeft : Nat := 11
 
@@ -213,6 +214,30 @@ private def visiblePoints
 
 private def localSelected (state : State) : Nat :=
   state.selected - visibleStart state
+
+private def indexWithStartFrom?
+    (date : String) :
+    List Loam.LocusTrendReview.OverviewPoint → Nat → Option Nat
+  | [], _ => none
+  | point :: rest, index =>
+      if point.start == date then some index
+      else indexWithStartFrom? date rest (index + 1)
+
+private def observedLocalIndex? (state : State) : Option Nat :=
+  if state.granularity != .day then none
+  else do
+    let snapshot ← state.snapshot
+    let first ← snapshot.series.head?
+    indexWithStartFrom?
+      snapshot.observedAt (visiblePoints state first.points) 0
+
+private def observationGuideColumns
+    (bounds : Bounds) (state : State) : List Nat :=
+  match observedLocalIndex? state with
+  | some index =>
+      [Loam.Tui.Chart.xForIndex
+        (plotWidth bounds) (visibleCount state) index]
+  | none => []
 
 def selectColumn (bounds : Bounds) (state : State) (column : Nat) : State :=
   if column < plotLeft then state
@@ -390,11 +415,13 @@ private def sourceLine
       snapshot.source ++
         "   ·   Range " ++ snapshot.scope.label ++
         "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
-        "   ·   Grain Day   ·   jpy   ·   " ++ state.renderer.label ++ viewport
+        "   ·   Grain Day   ·   jpy   ·   Plot " ++
+        (if state.drawLines then "points + line" else "points") ++ viewport
   | granularity =>
       snapshot.source ++
         "   ·   Grain " ++ granularity.label ++
-        "   ·   jpy   ·   " ++ state.renderer.label
+        "   ·   jpy   ·   Plot " ++
+        (if state.drawLines then "points + line" else "points")
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -467,7 +494,7 @@ private def footerTokens (state : State) : List String :=
        "a series"]
     let range :=
       if state.granularity == .day then ["s/S range"] else []
-    common ++ range ++ ["r renderer", "q/Esc Reports"]
+    common ++ range ++ ["r points/line", "q/Esc Reports"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
@@ -497,8 +524,8 @@ private def chartRows (bounds : Bounds) (state : State) : List Widget :=
       Loam.Tui.Chart.rowForValue height scale.range tick
   let rendered :=
     Loam.Tui.Chart.renderManyInRange
-      state.renderer width height (plotSeries state) (localSelected state)
-      scale.range gridRows
+      .braille width height (plotSeries state) (localSelected state)
+      scale.range gridRows state.drawLines (observationGuideColumns bounds state)
   (List.range height).map fun row =>
     match rendered[row]? with
     | some widget =>
@@ -516,6 +543,61 @@ private def compactAxisRow
   let text := shortDate first.start ++ "   …   " ++ shortDate last.start
   .row [span (spaces plotLeft), span (centered width text) .muted]
 
+private def placedLabel
+    (width center : Nat) (text : String) : Nat × String :=
+  let clipped := Loam.Tui.Layout.clip width text
+  let labelWidth := Loam.Tui.Layout.displayWidth clipped
+  let half := labelWidth / 2
+  let start := center - min center half
+  let maxStart := width - min width labelWidth
+  (min start maxStart, clipped)
+
+private def labelCharAt?
+    (column : Nat) (label : Nat × String) : Option Char :=
+  if label.1 <= column then
+    label.2.toList[column - label.1]?
+  else
+    none
+
+private def overlaidLabels
+    (width : Nat) (labels : List (Nat × String)) : String :=
+  String.ofList <|
+    (List.range width).map fun column =>
+      (labels.findSome? (labelCharAt? column)).getD ' '
+
+private def dayAxisRow
+    (bounds : Bounds) (state : State)
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (points : List Loam.LocusTrendReview.OverviewPoint)
+    (first last : Loam.LocusTrendReview.OverviewPoint) : Widget :=
+  let width := plotWidth bounds
+  let count := points.length
+  let firstLabel := placedLabel width 0 (shortDate first.start)
+  let rightLabel :=
+    match indexWithStartFrom? snapshot.observedAt points 0 with
+    | some index =>
+        placedLabel width
+          (Loam.Tui.Chart.xForIndex width count index)
+          ("As of " ++ shortDate snapshot.observedAt)
+    | none =>
+        placedLabel width (width - 1) (shortDate last.start)
+  let selectedLabel? :=
+    match points[localSelected state]? with
+    | some point =>
+        let text :=
+          if point.start == snapshot.observedAt then
+            "As of " ++ shortDate snapshot.observedAt
+          else
+            shortDate point.start
+        some <| placedLabel width
+          (Loam.Tui.Chart.xForIndex width count (localSelected state)) text
+    | none => none
+  let labels :=
+    match selectedLabel? with
+    | some selectedLabel => [selectedLabel, rightLabel, firstLabel]
+    | none => [rightLabel, firstLabel]
+  .row [span (spaces plotLeft), span (overlaidLabels width labels) .muted]
+
 private def axisRow
     (bounds : Bounds) (state : State) : Widget :=
   match state.snapshot with
@@ -529,8 +611,9 @@ private def axisRow
           let count := points.length
           match points.head?, points.getLast? with
           | some firstPoint, some lastPoint =>
-              if snapshot.granularity == .day ||
-                  (count > 0 && width / count < 8) then
+              if snapshot.granularity == .day then
+                dayAxisRow bounds state snapshot points firstPoint lastPoint
+              else if count > 0 && width / count < 8 then
                 compactAxisRow bounds firstPoint lastPoint
               else
                 let chunk := if count = 0 then width else max 1 (width / count)
