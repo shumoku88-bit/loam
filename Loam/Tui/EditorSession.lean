@@ -18,6 +18,7 @@ structure Step (State Draft : Type) where
   state : State
   cancel : Bool := false
   publish : Option Draft := none
+  deriving Repr
 
 partial def runUntilPublished
     {State Draft ResultType : Type}
