@@ -90,6 +90,38 @@ Scalars preserve useful implementation-specific diagnostics without widening
 the comparison core. Current examples include Budget totals, funding residuals,
 conservation delta, evidence completeness, and counts.
 
+Implementations may also emit optional structured diagnostics:
+
+```text
+HOBS1  diagnostic  KIND  ...
+```
+
+These records are outside the Balance / Budget / Capacity comparison core.
+Consumers that compare only the v1 core may ignore them. A diagnostic must still
+be derived from an existing shared read boundary; the adapter must not invent
+new accounting arithmetic or household authority.
+
+When `OBSERVED_AT` is supplied, LOAM currently emits Current Coverage rows:
+
+```text
+HOBS1  diagnostic  current-coverage  PURPOSE  jpy
+       ENTITLEMENT  CONSUMPTION  COMMITMENT  REMAINING  HEADROOM
+```
+
+and Scheduled Series diagnostics:
+
+```text
+HOBS1  diagnostic  scheduled-plan  NAME  ANCHOR  EVERY_MONTHS  FIRST_MISSING_OR_DASH
+HOBS1  diagnostic  scheduled-cell  NAME  YYYY-MM  EXPECTED_STATUS  EXPLICIT_COUNT  DAYS_OR_DASH
+```
+
+`EVERY_MONTHS=0` is LOAM's replaceable read-side `undecided` state and
+therefore creates no expected future month. Scheduled cells are emitted only
+when a month is expected by the current monitoring cadence or contains an
+explicit current-open Scheduled occurrence. The Scheduled diagnostics come
+directly from `ScheduledCoverageReview`; they do not retain recurrence or
+promote monitoring configuration into Scheduled authority.
+
 LOAM optionally emits current-cycle funding diagnostics when the caller supplies
 an explicit `OBSERVED_AT` argument:
 
@@ -112,6 +144,20 @@ balancing boundary, not a finite wallet of spendable money. The funding residual
 also remains explicitly "before unresolved": it is decision-support evidence,
 not a `SafeToSpend` permission or a guarantee that no unresolved future
 pressure exists.
+
+For current household consultation, the ordinary LOAM binary exposes the same
+read-only observation through:
+
+```sh
+loam explain household --machine [LOAM_DATA_DIR]
+loam explain household --machine --at YYYY-MM-DD [LOAM_DATA_DIR]
+```
+
+Without `--at`, LOAM resolves the local observation date and the existing
+current boundary preset, then emits one complete HOBS1 document. `--at` is a
+deterministic inspection entrance for a specified date; it does not replay a
+historical household state beyond what the underlying current read boundaries
+actually support.
 
 ## Comparison rule
 

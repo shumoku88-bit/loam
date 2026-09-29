@@ -17,6 +17,7 @@ on:
       - 'Loam/Tests/MultimeasureRecordingPublishers.lean'
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
+      - 'Loam/Cli/HouseholdObservation.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -37,6 +38,7 @@ on:
       - 'Loam/Tests/MultimeasureRecordingPublishers.lean'
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
+      - 'Loam/Cli/HouseholdObservation.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -85,6 +87,7 @@ jobs:
           set -euo pipefail
           fixture="$(mktemp -d)/hobs1-funding"
           lake env lean --run Loam/Tests/CycleBudgetReview.lean "$fixture"
+          printf 'food-plan\t2026-08-15\t1\tcash\tfood\n' > "$fixture/config/scheduled-coverage.tsv"
           output="$fixture/current.hobs1"
           .lake/build/bin/loamHouseholdObservation \
             "$fixture" 2026-08-14 2026-10-15 2026-09-08 > "$output"
@@ -92,4 +95,7 @@ jobs:
           grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy\t0')" "$output"
           grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tjpy\t100')" "$output"
           grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tjpy\t100\t0\t0\t100\t100')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-10')" "$output"
+          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-')" "$output"
           grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$output")

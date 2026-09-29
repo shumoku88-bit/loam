@@ -56,6 +56,20 @@ Before modifying production semantics, also read `DESIGN_PHILOSOPHY.md`,
 | What evidence supported earlier production decisions? | Evidence Atlas | `docs/EVIDENCE_ATLAS.md` | Public index from production question to evidence and KEEP / SIMPLIFY / REPAIR result |
 | What has LOAM learned over time? | Observation Map | `OBSERVATION_MAP.md` | Compressed map into observation history |
 | Where are current research checkpoints and catalogs? | Research index | `docs/research/README.md` | Navigation into household, external-pressure, falsification, interaction, audit, and checkpoint material |
+| What current household projections should an AI or comparison tool consume? | Household Observation v1 | `docs/HOUSEHOLD_OBSERVATION_V1.md` / `loam explain household --machine` | Read-only HOBS1 composition over existing shared reviews; never household authority |
+
+### Household Observation v1
+
+**Use when:** an AI, external checker, or human wants one machine-readable current
+household observation instead of independently rediscovering Balance, Budget,
+Capacity, Current Coverage, and Scheduled-series projections.
+
+**Entrance:** `loam explain household --machine [LOAM_DATA_DIR]`. Use `--at`
+only to make the observation coordinate explicit; it does not manufacture
+historical replay.
+
+**Boundary:** HOBS1 serializes existing shared read answers. It is a projection,
+not canonical state, write authority, or permission such as `SafeToSpend`.
 
 ### Semantic Blueprint
 
