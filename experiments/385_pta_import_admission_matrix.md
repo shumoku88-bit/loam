@@ -1,6 +1,6 @@
 # Observation 385 — Plain-text accounting migration admission matrix
 
-Status: **DESIGN MATRIX — one-shot migration pressure only; no importer or production authority change**
+Status: **EXECUTABLE CLASSIFIER GATE — one-shot migration pressure only; no importer or production authority change**
 
 Baseline:
 
@@ -649,3 +649,57 @@ The next gate should be executable, not another broad survey:
 3. prove/test that every Direct case reaches either Movement or Exchange;
 4. prove/test that every Review/Refuse feature cannot silently reach publication;
 5. only then decide whether a production `loam import hledger` command is earned.
+
+
+## Executable classifier gate
+
+The design matrix now has one deliberately test-only Lean instrument:
+
+```text
+Loam/Tests/PtaMigrationClassifier.lean
+```
+
+It does not parse Ledger syntax and it is not imported by the product library.
+Instead it represents the narrow boundary a future source adapter must reach:
+
+```text
+Transaction
+  validOn
+  description
+  exact mapped postings
+  retained sourceFeatures
+```
+
+The executable classifier enforces the disposition precedence:
+
+```text
+Refuse > Review > Normalize > Direct
+```
+
+so a transaction that is mechanically normalizable but also carries retained
+review/refusal semantics cannot expose a publication candidate.
+
+The 20 matrix fixtures are encoded directly. For every Direct fixture the test
+constructs either a current `MovementAdmission.Draft` or
+`ExchangeAdmission.Draft` and then exercises the corresponding production
+`admit?` boundary against an isolated admitted-Locus world.
+
+For every Normalize, Review, and Refuse fixture, the classifier must expose no
+Movement/Exchange candidate at all.
+
+Three extra guards cover pressure not represented by a single matrix row:
+
+- Review dominates Normalize when both source-feature classes are present;
+- Refuse dominates Review;
+- a fee-bearing/multi-posting two-Measure shape is Review until source and
+  destination selection is explicit, even though current LOAM Exchange can
+  represent such an occurrence once that selection is known.
+
+This is intentionally the last research-only shape before considering a real
+adapter. If it qualifies, the next question becomes operational:
+
+> Can a source-native hledger normalization step produce this small input image
+> while preserving enough feature metadata for the fail-closed classifier?
+
+A production `loam import hledger` command is still not authorized by this
+gate alone.
