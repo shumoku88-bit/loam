@@ -1,10 +1,13 @@
+import Loam.ActualDate
 import Loam.BalanceReview
 import Loam.BalanceViewConfig
+import Loam.BoundaryPresetConfig
 import Loam.BudgetWindowReview
 import Loam.CapacityReview
 import Loam.CycleBudgetReview
 import Loam.HouseholdPaths
 import Loam.RoleBalanceReview
+import Loam.ScheduledCoverageReview
 
 namespace Loam.HouseholdObservationCli
 
@@ -17,8 +20,9 @@ private def usage : String :=
   "\n" ++
   "Emits Household Observation v1 (HOBS1) records for Balance, Budget, and\n" ++
   "Capacity over the explicit half-open budget window [START, END). When\n" ++
-  "OBSERVED_AT is supplied, the existing CycleFunding read also emits exact\n" ++
-  "funding diagnostics for that current observation date. The output is a\n" ++
+  "OBSERVED_AT is supplied, existing CycleBudget and ScheduledCoverage reads\n" ++
+  "also emit LOAM-specific current-coverage, funding, and Scheduled-series\n" ++
+  "diagnostics. The output is a\n" ++
   "read-only derived projection, never canonical household state."
 
 private def emitRecord (fields : List String) : IO Unit :=
@@ -29,6 +33,9 @@ private def emitMeta (name value : String) : IO Unit :=
 
 private def emitScalar (scope name unit value : String) : IO Unit :=
   emitRecord ["scalar", scope, name, unit, value]
+
+private def emitDiagnostic (fields : List String) : IO Unit :=
+  emitRecord ("diagnostic" :: fields)
 
 private structure BalanceObservationRow where
   coordinate : EffectCoordinate
@@ -134,21 +141,35 @@ private def printCapacity (snapshot : Loam.CapacityReview.Snapshot) : IO Unit :=
     ]
 
 
-private def loadFunding
+private structure CurrentDiagnostics where
+  cycle : Loam.CycleBudgetReview.Snapshot
+  scheduled : Loam.ScheduledCoverageReview.Snapshot
+
+private def loadCurrentDiagnostics
     (root : System.FilePath)
     (start observedAt end_ : String) :
-    IO (Except String Loam.CycleFundingInspection.Summary) := do
-  let snapshot ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
+    IO (Except String CurrentDiagnostics) := do
+  let cycle ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
   let window ←
-    match snapshot.window with
+    match cycle.window with
     | .error message => return .error message
     | .ok window => pure window
   if window.start != start || window.endExclusive != end_ then
     return .error
-      ("loam: household observation funding window mismatch: requested [" ++
+      ("loam: household observation current window mismatch: requested [" ++
         start ++ ", " ++ end_ ++ "), resolved [" ++ window.start ++ ", " ++
         window.endExclusive ++ ")")
-  return snapshot.funding
+  match cycle.funding with
+  | .error message => return .error message
+  | .ok _ => pure ()
+  match cycle.coverage with
+  | .error message => return .error message
+  | .ok _ => pure ()
+  let scheduled ←
+    match ← Loam.ScheduledCoverageReview.loadSnapshot root root observedAt 18 with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
+  return .ok { cycle, scheduled }
 
 private def printFunding
     (observedAt : String)
@@ -160,6 +181,71 @@ private def printFunding
     (toString summary.remainingAssigned.quanta)
   emitScalar "funding" "residual_before_unresolved" "jpy"
     (toString summary.residualBeforeUnresolved.quanta)
+
+private def printCurrentCoverage
+    (snapshot : Loam.CurrentCoverageReview.Snapshot) : IO Unit := do
+  emitMeta "coverage_observed_at" snapshot.observedAt
+  emitMeta "coverage_window_start" snapshot.currentWindowStart
+  emitMeta "coverage_end_exclusive" snapshot.endExclusive
+  for row in snapshot.rows do
+    emitDiagnostic [
+      "current-coverage",
+      row.purpose.token,
+      "jpy",
+      toString row.entitlement.quanta,
+      toString row.consumption.quanta,
+      toString row.commitment.quanta,
+      toString row.remaining.quanta,
+      toString row.headroom.quanta
+    ]
+  match snapshot.scheduledFrontier with
+  | none =>
+      emitScalar "coverage" "scheduled_frontier_available" "bool" "0"
+  | some frontier =>
+      emitScalar "coverage" "scheduled_frontier_available" "bool" "1"
+      emitScalar "coverage" "scheduled_unmanaged" "jpy"
+        (toString frontier.unmanaged.quanta)
+      emitScalar "coverage" "scheduled_unrouted" "jpy"
+        (toString frontier.unrouted.quanta)
+      emitScalar "coverage" "scheduled_unresolved_eligibility" "jpy"
+        (toString frontier.unresolvedEligibility.quanta)
+  emitScalar "coverage" "unresolved_scheduled_rows" "count"
+    (toString snapshot.unresolvedScheduled.length)
+  emitScalar "coverage" "unrouted_actual_expense_rows" "count"
+    (toString snapshot.actualRoutingFrontier.unroutedExpense.length)
+  emitScalar "coverage" "unresolved_actual_role_rows" "count"
+    (toString snapshot.actualRoutingFrontier.unresolvedRole.length)
+
+private def scheduledDaysText (days : List String) : String :=
+  if days.isEmpty then "-" else String.intercalate "," days
+
+private def printScheduledCoverage
+    (snapshot : Loam.ScheduledCoverageReview.Snapshot) : IO Unit := do
+  emitMeta "scheduled_observed_at" snapshot.observedAt
+  emitScalar "scheduled" "loaded_months" "count" (toString snapshot.months.length)
+  match snapshot.months.head?, snapshot.months.getLast? with
+  | some first, some last =>
+      emitMeta "scheduled_window_first_month" first
+      emitMeta "scheduled_window_last_month" last
+  | _, _ => pure ()
+  for row in snapshot.rows do
+    emitDiagnostic [
+      "scheduled-plan",
+      row.rule.name,
+      row.rule.anchor,
+      toString row.rule.everyMonths,
+      row.firstMissing.getD "-"
+    ]
+    for cell in row.cells do
+      if cell.expected || cell.explicitCount > 0 then
+        emitDiagnostic [
+          "scheduled-cell",
+          row.rule.name,
+          cell.month,
+          if cell.expected then "expected" else "not-expected",
+          toString cell.explicitCount,
+          scheduledDaysText cell.explicitDays
+        ]
 
 /--
 Emit one complete HOBS1 document. All three shared production queries are loaded
@@ -191,15 +277,15 @@ def report (rootPath start end_ : String) (observedAt? : Option String := none) 
         return 2
     | .ok snapshot => pure snapshot
 
-  let funding? ←
+  let diagnostics? ←
     match observedAt? with
     | none => pure none
     | some observedAt =>
-        match ← loadFunding root start observedAt end_ with
+        match ← loadCurrentDiagnostics root start observedAt end_ with
         | .error message =>
             IO.eprintln message
             return 2
-        | .ok summary => pure (some (observedAt, summary))
+        | .ok diagnostics => pure (some diagnostics)
 
   emitMeta "schema" "1"
   emitMeta "implementation" "loam"
@@ -212,12 +298,75 @@ def report (rootPath start end_ : String) (observedAt? : Option String := none) 
   printBalance balances
   printBudget budget
   printCapacity capacity
-  match funding? with
+  match diagnostics? with
   | none => pure ()
-  | some (observedAt, summary) => printFunding observedAt summary
+  | some diagnostics =>
+      match diagnostics.cycle.funding, diagnostics.cycle.coverage with
+      | .ok funding, .ok coverage =>
+          printFunding diagnostics.cycle.observedAt funding
+          printCurrentCoverage coverage
+          printScheduledCoverage diagnostics.scheduled
+      | _, _ =>
+          IO.eprintln "loam: household observation diagnostics changed after qualification"
+          return 2
 
   emitMeta "status" "complete"
   return 0
+
+private def defaultDataRoot : IO (Except String String) := do
+  match ← IO.getEnv "LOAM_DATA_DIR" with
+  | some path =>
+      if path.isEmpty then return .error "loam: LOAM_DATA_DIR must not be empty"
+      return .ok path
+  | none => return .ok "../loam-data"
+
+def reportCurrentAt (rootPath observedAt : String) : IO UInt32 := do
+  if !Loam.ActualDate.validIsoDate observedAt then
+    IO.eprintln "loam: household explanation observation date must be a real YYYY-MM-DD calendar date"
+    return 2
+  let root := System.FilePath.mk rootPath
+  let window ←
+    match ← Loam.BoundaryPresetConfig.loadCurrentWindow root observedAt with
+    | .error message =>
+        IO.eprintln ("loam: household explanation current window unavailable: " ++ message)
+        return 2
+    | .ok window => pure window
+  report rootPath window.start window.endExclusive (some observedAt)
+
+def reportCurrent (rootPath : String) : IO UInt32 := do
+  let some observedAt ← Loam.ActualDate.todayIso?
+    | IO.eprintln "loam: could not determine the local household observation date"
+      return 2
+  reportCurrentAt rootPath observedAt
+
+def runCurrentMachine (args : List String) : IO UInt32 := do
+  match args with
+  | ["--machine"] =>
+      match ← defaultDataRoot with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok rootPath => reportCurrent rootPath
+  | ["--machine", rootPath] =>
+      if rootPath.isEmpty then
+        IO.eprintln "loam: data directory must not be empty"
+        return 2
+      reportCurrent rootPath
+  | ["--machine", "--at", observedAt] =>
+      match ← defaultDataRoot with
+      | .error message =>
+          IO.eprintln message
+          return 2
+      | .ok rootPath => reportCurrentAt rootPath observedAt
+  | ["--machine", "--at", observedAt, rootPath] =>
+      if rootPath.isEmpty then
+        IO.eprintln "loam: data directory must not be empty"
+        return 2
+      reportCurrentAt rootPath observedAt
+  | _ =>
+      IO.eprintln
+        "Usage: loam explain household --machine [--at YYYY-MM-DD] [LOAM_DATA_DIR]"
+      return 2
 
 end Loam.HouseholdObservationCli
 
