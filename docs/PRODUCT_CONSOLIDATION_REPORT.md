@@ -113,6 +113,13 @@ AccountingRole refinement に変更し、1ファイルで net -200 lines を実�
   * 「期間区間（当日、直近7日、前月同期間など）」でバケット分けして比較するロジックを汎用化。
   * **削減効果**: **約 570 行削減**。
 
+**2026-09-29 再監査結果**: この3重統合予測も採用しない。現在の `LocusTrendCompareReview` は
+`LocusTrendReview.projectOverview` / `projectConfiguredHistory` を既に再利用し、その上で
+multi-series、scope、cycle/month/day 再集約を所有している。`PeriodComparisonReview` は
+Stock-Flow / Income-Expense の既存 projection を同一 evidence cut で2回評価する別の composition boundary であり、
+Trend の bucket engine ではない。現時点では3者を汎用化するより、既存 owner 境界を保つ方が小さい。
+新しい exact correspondence が観測されない限り、約570行の削減見積もりは再開条件にしない。
+
 #### 3. フロー集計の 3 重重複（計 742 行 → 約 300 行へ統合）
 * [`StockFlowReview.lean`](file:///Users/user/Projects/moko/loam/Loam/StockFlowReview.lean) (273行)
 * [`RoleFlowReview.lean`](file:///Users/user/Projects/moko/loam/Loam/RoleFlowReview.lean) (146行)
