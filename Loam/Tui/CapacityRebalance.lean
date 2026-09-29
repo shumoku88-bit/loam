@@ -198,11 +198,6 @@ def visibleRows (state : State) : List (Nat × Loam.CapacityReview.Row) :=
     | none => none
     | some row => some (index, row)
 
-private def coverageRow?
-    (state : State) (purpose : PurposeId) : Option Loam.CurrentCoverageReview.Row := do
-  let coverage ← state.coverage
-  coverage.rows.find? fun row => row.purpose == purpose
-
 private def tableHeader : Widget :=
   let marker := "  "
   let purpose := padRight 18 "Purpose"
@@ -223,7 +218,7 @@ private def rowLine
   let purpose := padRight 18 (Loam.ActualReview.shortText 18 row.purpose.token)
   let cap := padLeft 9 (toString row.entitlement.quanta)
   let (now, afterKnown) :=
-    match coverageRow? state row.purpose with
+    match state.coverage.bind (fun coverage => coverage.rowFor? row.purpose) with
     | some cov => (padLeft 9 (toString cov.remaining.quanta), padLeft 13 (toString cov.headroom.quanta))
     | none => (padLeft 9 "-", padLeft 13 "-")
   let (deltaStr, isEditingThis) :=
@@ -293,7 +288,7 @@ def view (_bounds : Bounds) (state : State) : Widget :=
         | none => "coverage unavailable"
         | some _ =>
             let shortages := state.snapshot.rows.filterMap fun r =>
-              match coverageRow? state r.purpose with
+              match state.coverage.bind (fun coverage => coverage.rowFor? r.purpose) with
               | none => none
               | some cov =>
                   let proposedHeadroom := cov.headroom.quanta + state.proposal.delta r.purpose
