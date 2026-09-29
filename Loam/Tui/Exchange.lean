@@ -1,3 +1,4 @@
+import Loam.Tui.EditorSession
 import Loam.ExchangeAdmission
 import Loam.MeasurePresentation
 import Loam.Persistence.TokenSyntax
@@ -43,10 +44,8 @@ structure State where
   notice : String := ""
   measurePresentation : List Loam.MeasurePresentation.Metadata := []
 
-structure Step where
-  state : State
-  cancel : Bool := false
-  publish : Option Loam.ExchangeAdmission.Draft := none
+abbrev Step :=
+  Loam.Tui.EditorSession.Step State Loam.ExchangeAdmission.Draft
 
 def initial (date : String) : State := { form := { date := date } }
 
