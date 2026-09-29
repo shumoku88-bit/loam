@@ -520,7 +520,9 @@ def main : IO Unit := do
       feeBearingShape.candidate.isNone)
     "ambiguous multi-posting Exchange reached publication without source/destination review"
 
-  let basic := classify fixtures.head!.tx
+  let some firstFixture := fixtures.head?
+    | throw (IO.userError "PTA migration fixture list unexpectedly empty")
+  let basic := classify firstFixture.tx
   match basic.candidate with
   | some (.movement draft) =>
       expect
