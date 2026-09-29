@@ -430,7 +430,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   else if (key = .input 's' || key = .input 'S') then
     let scheduled := Loam.Tui.ScheduledWorkspace.initial state.selectedDate
     let coverage ← Loam.ScheduledCoverageReview.loadSnapshot
-      dataDir root snapshot.actual.today
+      dataDir root snapshot.actual.today 18
     let scheduledFrame := compileWidget
       (Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds snapshot scheduled coverage)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame

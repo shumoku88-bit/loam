@@ -17,10 +17,12 @@ Each TSV row declares one monitoring expectation:
 <rule-token><TAB><anchor-date><TAB><every-months><TAB><negative-locus[,negative-locus...]><TAB><positive-locus[,positive-locus...]>
 ```
 
-The rule says only which calendar months a coverage report should expect to find
+The row says only which calendar months a coverage report should expect to find
 an explicit current-open Scheduled occurrence matching the exact negative- and
-positive-Locus sets. It does not create occurrences, retain recurrence or Series identity, prove
-contract identity, or change Scheduled lifecycle semantics.
+positive-Locus sets. A cadence of zero is the explicit read-side "undecided"
+state: it retains the display row and selector but expects no future month.
+This configuration does not create occurrences, retain canonical recurrence or
+Series identity, prove contract identity, or change Scheduled lifecycle semantics.
 -/
 
 structure Rule where
@@ -47,7 +49,6 @@ private def decodeRow? (row : String) : Option Rule := do
   let positiveLoci := normalizedLoci positiveText
   if Loam.Persistence.validToken name &&
       Loam.ActualDate.validIsoDate anchor &&
-      decide (everyMonths > 0) &&
       !negativeLoci.isEmpty &&
       !positiveLoci.isEmpty &&
       negativeLoci.all Loam.Persistence.validToken &&

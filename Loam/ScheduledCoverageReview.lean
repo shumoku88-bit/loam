@@ -28,6 +28,7 @@ structure MonthCell where
   month : String
   expected : Bool
   explicitCount : Nat
+  explicitDays : List String
   deriving Repr, DecidableEq
 
 structure Row where
@@ -58,6 +59,11 @@ private def monthText (index : Nat) : String :=
   let month := index % 12 + 1
   padded 4 year ++ "-" ++ padded 2 month
 
+private def dayText? (date : String) : Option String := do
+  if !Loam.ActualDate.validIsoDate date then none else
+    let [_, _, dayText] := date.splitOn "-" | none
+    pure dayText
+
 private def expectedAt (rule : Rule) (target : Nat) : Bool :=
   if rule.everyMonths = 0 then
     false
@@ -67,21 +73,27 @@ private def expectedAt (rule : Rule) (target : Nat) : Bool :=
     | some anchor =>
         decide (anchor <= target) && ((target - anchor) % rule.everyMonths == 0)
 
-private def explicitCountAt
-    (rule : Rule) (records : List Record) (target : Nat) : Nat :=
-  (records.filter fun record =>
-    Loam.ScheduledCoverageSelector.matchesRule record rule &&
-      match monthIndex? record.scheduledOn with
-      | some index => index == target
-      | none => false).length
+private def explicitDaysAt
+    (rule : Rule) (records : List Record) (target : Nat) : List String :=
+  let matching :=
+    records.filter fun record =>
+      Loam.ScheduledCoverageSelector.matchesRule record rule &&
+        match monthIndex? record.scheduledOn with
+        | some index => index == target
+        | none => false
+  (matching.filterMap fun record => dayText? record.scheduledOn).mergeSort fun left right =>
+    left <= right
 
 private def rowFor
     (records : List Record) (indices : List Nat) (rule : Rule) : Row :=
-  let cells := indices.map fun index => {
-    month := monthText index
-    expected := expectedAt rule index
-    explicitCount := explicitCountAt rule records index
-  }
+  let cells := indices.map fun index =>
+    let explicitDays := explicitDaysAt rule records index
+    {
+      month := monthText index
+      expected := expectedAt rule index
+      explicitCount := explicitDays.length
+      explicitDays := explicitDays
+    }
   let firstMissing :=
     (cells.find? fun cell => cell.expected && cell.explicitCount == 0).map (·.month)
   { rule, cells, firstMissing }

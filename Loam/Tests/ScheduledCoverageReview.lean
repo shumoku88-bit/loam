@@ -44,6 +44,8 @@ def main : IO Unit := do
   }
   let some octGpt := occurrence? "scheduled-1" "2026-10-15" "cash" "gpt-plus"
     | throw (IO.userError "fixture oct gpt")
+  let some octGptLater := occurrence? "scheduled-1b" "2026-10-18" "cash" "gpt-plus"
+    | throw (IO.userError "fixture second oct gpt")
   let some novGpt := occurrence? "scheduled-2" "2026-11-15" "cash" "gpt-plus"
     | throw (IO.userError "fixture nov gpt")
   let some novPension := occurrence? "scheduled-3" "2026-11-15" "pension" "cash"
@@ -53,7 +55,8 @@ def main : IO Unit := do
 
   let snapshot ←
     match Loam.ScheduledCoverageReview.projectRecords
-        [monthly, bimonthly, emptyMonthly] [octGpt, novGpt, novPension, decPension]
+        [monthly, bimonthly, emptyMonthly]
+        [octGpt, octGptLater, novGpt, novPension, decPension]
         "2026-09-18" 4 with
     | .error message => throw (IO.userError message)
     | .ok snapshot => pure snapshot
@@ -67,24 +70,43 @@ def main : IO Unit := do
   let some pension := snapshot.rows[1]? | throw (IO.userError "missing bimonthly row")
   expect (pension.firstMissing == some "2027-01")
     "bimonthly coverage did not preserve anchor parity"
+  let some octCell := gpt.cells[0]? | throw (IO.userError "missing October gpt cell")
+  expect (octCell.explicitDays == ["15", "18"] && octCell.explicitCount == 2)
+    "Scheduled coverage did not retain every explicit day in a matching month"
+
+  let undecided := { monthly with everyMonths := 0 }
+  let undecidedSnapshot ←
+    match Loam.ScheduledCoverageReview.projectRecords
+        [undecided] [octGpt, octGptLater] "2026-09-18" 4 with
+    | .error message => throw (IO.userError message)
+    | .ok snapshot => pure snapshot
+  let some undecidedRow := undecidedSnapshot.rows[0]?
+    | throw (IO.userError "missing undecided row")
+  expect (undecidedRow.firstMissing.isNone &&
+    undecidedRow.cells.all fun cell => !cell.expected)
+    "undecided Scheduled row still created future coverage expectations"
 
   let rendered := widgetText (Loam.Tui.ScheduledCoveragePane.lines snapshot)
   expect (contains "gpt-plus" rendered && contains "pension" rendered &&
     contains "utilities" rendered)
     "Scheduled coverage pane did not render configured plans"
-  expect (contains "Plan" rendered && contains "Pattern" rendered &&
-    contains "Filled through" rendered && contains "Next needed" rendered)
-    "Scheduled coverage pane did not render the answer-first coverage header"
-  expect (contains "2026-11" rendered && contains "2026-12" rendered)
-    "Scheduled coverage pane lost filled-through/next-needed month values"
+  expect (contains "Plan" rendered && contains "Pace" rendered &&
+    contains "Oct" rendered && contains "Nov" rendered)
+    "Scheduled coverage pane did not render the Series Calendar header"
+  expect (contains "15,18" rendered)
+    "Scheduled coverage pane did not show multiple explicit days in one month"
   expect (contains "!" rendered)
-    "Scheduled coverage pane did not mark the next missing expected month"
-  expect (!(contains "●" rendered) && !(contains "+" rendered) && !(contains "blank =" rendered))
-    "Scheduled coverage overview still exposed the old month-symbol matrix"
-  expect (contains "Select a row here to extend it or change its pace" rendered)
-    "Scheduled coverage pane did not expose direct recurring-plan management"
+    "Scheduled coverage pane did not mark a missing expected month"
+  expect (!(contains "●" rendered) && !(contains "+" rendered))
+    "Scheduled coverage calendar revived retired symbol cells"
+  expect (contains "Empty cell = no occurrence expected" rendered)
+    "Scheduled coverage pane did not explain intentionally empty months"
   expect (contains "does not create recurrence authority" rendered)
     "Scheduled coverage pane overstated read-side monitoring rules"
+  let undecidedRendered :=
+    widgetText (Loam.Tui.ScheduledCoveragePane.lines undecidedSnapshot)
+  expect (contains "undecided" undecidedRendered && contains "15,18" undecidedRendered)
+    "undecided Scheduled row did not remain visible with its explicit dates"
 
   let goodConfig :=
     "gpt-plus\t2026-08-15\t1\tcash\tgpt-plus\n" ++
@@ -93,8 +115,8 @@ def main : IO Unit := do
   expect (Loam.ScheduledCoverageConfig.decode? goodConfig).isSome
     "Scheduled coverage config rejected valid monthly/bimonthly rules"
   expect (Loam.ScheduledCoverageConfig.decode?
-      "bad\t2026-09-15\t0\tpension\tcash\n").isNone
-    "Scheduled coverage config accepted zero month cadence"
+      "undecided\t2026-09-15\t0\tpension\tcash\n").isSome
+    "Scheduled coverage config rejected the explicit undecided read-side state"
   expect (Loam.ScheduledCoverageConfig.decode?
       "one\t2026-09-15\t1\tpension\tcash\ntwo\t2026-10-15\t2\tpension\tcash\n").isNone
     "Scheduled coverage config accepted an ambiguous duplicate signed-Locus selector"
@@ -130,4 +152,4 @@ def main : IO Unit := do
   | .ok _ => throw (IO.userError
       "Scheduled coverage upsert silently reused a display name for a different plan shape")
 
-  IO.println "Scheduled coverage: first-gap detection, simple overview, config update/removal, and TUI rendering passed."
+  IO.println "Scheduled coverage: explicit-day Series Calendar, undecided rows, config updates, and TUI rendering passed."

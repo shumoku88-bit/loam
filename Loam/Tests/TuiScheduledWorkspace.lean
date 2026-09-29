@@ -248,11 +248,12 @@ def main : IO Unit := do
       { width := 120, height := 30 } snapshot coverage (.ok coverageSnapshot))
   expect (contains "Scheduled" coverageText &&
     contains "food" coverageText && contains "paypay-transfer" coverageText &&
-    contains "Next needed" coverageText && contains "Filled through" coverageText)
-    "Scheduled overview did not render the recurring-plan management answer"
+    contains "Pace" coverageText && contains "Oct" coverageText)
+    "Scheduled overview did not render the recurring-plan Series Calendar"
   expect (contains "> food" coverageText &&
-    contains "[e] extend" coverageText && contains "[p] pace" coverageText)
-    "Scheduled overview did not expose its selected row and direct management actions"
+    contains "[e] extend" coverageText && contains "[p] pace" coverageText &&
+    contains "[h/l] months" coverageText)
+    "Scheduled overview did not expose selection, management, and month-window actions"
 
   let coverageEvidence : Loam.Tui.ScheduledWorkspace.CoverageEvidence := .ok coverageSnapshot
   let coverageExtend :=
@@ -272,6 +273,16 @@ def main : IO Unit := do
     (Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .next).state
   expect (coverageNext.coverageRow == 1)
     "Scheduled overview j/k selection did not move between recurring plans"
+  let coverageLaterMonth :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      snapshot coverageEvidence coverage .focusRight).state
+  expect (coverageLaterMonth.coverageMonthOffset == 1)
+    "Scheduled Series Calendar l did not move the month window"
+  let coverageEarlierMonth :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      snapshot coverageEvidence coverageLaterMonth .focusLeft).state
+  expect (coverageEarlierMonth.coverageMonthOffset == 0)
+    "Scheduled Series Calendar h did not move the month window back"
   let selectedCoverage ← requireSome
     (Loam.Tui.ScheduledWorkspace.selectedCoverageRow? coverageEvidence coverageNext)
     "Scheduled overview selected recurring plan disappeared"

@@ -73,7 +73,7 @@ Scheduled Coverage
 
 - rule name is a valid token;
 - anchor is a real ISO calendar date;
-- `everyMonths > 0`;
+- `everyMonths` is a natural number; zero is the explicit read-side `undecided` state;
 - negative and positive Locus lists are both non-empty;
 - every Locus token is valid;
 - neither signed list contains duplicates.
@@ -105,16 +105,18 @@ The displayed month indices are constructed as:
 observed month + 1 + finite List.range offset
 ```
 
-Expectation for a rule is:
+Expectation for an active rule is:
 
 ```text
+everyMonths > 0
+&&
 anchorMonth <= targetMonth
 &&
 (targetMonth - anchorMonth) % everyMonths == 0
 ```
 
-The zero-step case is rejected by configuration admission and also fails closed
-inside `expectedAt`.
+The zero-step case is the explicit read-side `undecided` state and returns
+`false` before the modulo branch, so it creates no expected future month.
 
 ### D4 — first-gap derivation: CLOSED
 
