@@ -105,8 +105,8 @@ def main : IO Unit := do
     "Scheduled coverage pane overstated read-side monitoring rules"
   let undecidedRendered :=
     widgetText (Loam.Tui.ScheduledCoveragePane.lines undecidedSnapshot)
-  expect (contains "undecided" undecidedRendered && !(contains "!" undecidedRendered))
-    "undecided Scheduled row did not remain visible without future gap markers"
+  expect (contains "undecided" undecidedRendered && contains "15,18" undecidedRendered)
+    "undecided Scheduled row did not remain visible with its explicit dates"
 
   let goodConfig :=
     "gpt-plus\t2026-08-15\t1\tcash\tgpt-plus\n" ++
