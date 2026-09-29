@@ -168,10 +168,10 @@ def latestRecordForRule?
     pane := .occurrences
     viewMode := .coverage
   }
-  let matches :=
+  let candidates :=
     (recordsForScope snapshot allState).filter fun record =>
       Loam.ScheduledCoverageSelector.matchesRule record rule
-  (matches.mergeSort recordBefore).getLast?
+  (candidates.mergeSort recordBefore).getLast?
 
 def selectedCoverageRecord?
     (snapshot : Snapshot) (coverage : CoverageEvidence) (state : State) : Option Record := do
