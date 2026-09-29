@@ -172,4 +172,30 @@ def upsertAt (path : System.FilePath) (rule : Rule) : IO (Except String Unit) :=
     catch error =>
       return .error ("loam: Scheduled coverage config update failed: " ++ error.toString)
 
+/-- Remove one monitoring rule by exact signed-Locus shape. Missing rules are a no-op. -/
+def removeShape
+    (rules : List Rule) (negativeLoci positiveLoci : List String) : List Rule :=
+  rules.filter fun rule =>
+    !(rule.negativeLoci == negativeLoci && rule.positiveLoci == positiveLoci)
+
+/--
+Safely remove one read-side monitoring rule by exact signed-Locus shape.
+
+This changes monitoring configuration only; explicit Scheduled evidence remains
+untouched.
+-/
+def removeShapeAt
+    (path : System.FilePath)
+    (negativeLoci positiveLoci : List String) : IO (Except String Unit) :=
+  Loam.WriterOwnership.withOwnership path <| do
+    try
+      let rules ←
+        match ← load? path with
+        | none => return .error "loam: Scheduled coverage config is malformed"
+        | some rules => pure rules
+      save path (removeShape rules negativeLoci positiveLoci)
+    catch error =>
+      return .error ("loam: Scheduled coverage config update failed: " ++ error.toString)
+
+
 end Loam.ScheduledCoverageConfig
