@@ -202,6 +202,32 @@ def main : IO Unit := do
   expect (contains "All Current-Open" allCurrentText)
     "Scheduled workspace heading did not reflect All Current-Open scope"
 
+  -- Future Board is a presentation-only six-month view over the same current-open frontier.
+  let board := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .toggleView).state
+  expect (board.viewMode == .futureBoard && board.scope == .allCurrent &&
+    board.pane == .occurrences && board.locusRow == 0)
+    "Scheduled Future Board did not normalize into the all-current occurrence view"
+  let boardText := widgetText
+    (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } snapshot board)
+  expect (contains "Scheduled / Future Board" boardText &&
+    contains "[2026-09]" boardText && contains "[2026-10]" boardText)
+    "Scheduled Future Board did not render its six-month calendar blocks"
+  expect (contains "Selected Scheduled Details:" boardText)
+    "Scheduled Future Board lost the shared selected-record details"
+  let boardLeft := (Loam.Tui.ScheduledWorkspace.update snapshot board .focusLeft).state
+  expect (boardLeft.pane == .occurrences && contains "Future Board uses one Scheduled selection" boardLeft.notice)
+    "Scheduled Future Board unexpectedly entered the Locus pane"
+  let boardFilter := (Loam.Tui.ScheduledWorkspace.update snapshot board .cycleFilter).state
+  expect (boardFilter.scope == .allCurrent &&
+    contains "Future Board always shows the current-open frontier" boardFilter.notice)
+    "Scheduled Future Board unexpectedly changed its all-current scope"
+  let boardFill := Loam.Tui.ScheduledWorkspace.update snapshot board .fillCurrentCycle
+  expect (boardFill.command == .fillCurrentCycle)
+    "Scheduled Future Board did not reuse the existing fill action for its selected record"
+  let listAgain := (Loam.Tui.ScheduledWorkspace.update snapshot board .toggleView).state
+  expect (listAgain.viewMode == .list)
+    "Scheduled Future Board toggle did not return to list view"
+
   -- 5. Loci navigation and filtering
   let toLoci := (Loam.Tui.ScheduledWorkspace.update snapshot allCurrent .focusLeft).state
   expect (toLoci.pane == .loci)

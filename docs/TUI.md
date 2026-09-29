@@ -124,12 +124,19 @@ Focus Day and All Current-Open scopes (`f`).
 
 Like the selected-day Scheduled pane, object-local actions include Scheduled
 creation (`n`), completion (`c` / `Enter`), supersede/replacement (`r`), and
-cancellation (`x`). The Scheduled workspace also exposes `m` for plan-monitoring
-setup. Monitoring starts from the selected current-open occurrence, derives its
-anchor and exact signed-Locus shape, and asks only for the expected month cadence.
-It updates replaceable read-side coverage configuration and never creates a
-Scheduled occurrence or retains recurrence authority. The surface collects intent and delegates execution to shared
-publishers (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
+cancellation (`x`). Press `v` to switch from the list/pane view to **Future Board**:
+a presentation-only six-month view that groups the same current-open Scheduled
+occurrences into calendar-month cards. The board does not create Month or recurrence
+authority; `j/k` still selects one explicit occurrence and the existing `g`, `m`,
+`c`, `r`, and `x` actions operate on that selection. Press `v` again to return
+to the scoped list view.
+
+The Scheduled workspace also exposes `m` for plan-monitoring setup. Monitoring starts
+from the selected current-open occurrence, derives its anchor and exact signed-Locus
+shape, and asks only for the expected month cadence. It updates replaceable read-side
+coverage configuration and never creates a Scheduled occurrence or retains recurrence
+authority. The surface collects intent and delegates execution to shared publishers
+(`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
 `ScheduledReplacementPublisher`), reloading canonical evidence after any durable write.
 
 ## Attention
