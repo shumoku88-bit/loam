@@ -98,6 +98,13 @@ Review（集計・照会・レポート）層には、明確な **「3大ファ�
   * 共通の集計エンジン `Loam.Review.BalanceEngine` を 1 つ作り、各ビューはフィルタ述語（Predicate）とグルーピング関数を渡す形に統合。
   * **削減効果**: **約 1,150 行削減**。
 
+**2026-09-29 再監査結果**: この5重統合予測は採用しない。最新 `main` で実物を比較した結果、
+`BalanceReview` / `HistoricalBalanceReview` / `ConditionalBalancePathReview` は異なる問いと証拠義務を持ち、
+一つの `BalanceEngine` へ畳む根拠は確認できなかった。一方、`RoleBalanceReview` が
+`CurrentBalanceReview` の current-support projection を重複していたため、#1585 で前者を後者の
+AccountingRole refinement に変更し、1ファイルで net -200 lines を実現した。
+以後は「5兄弟統合」を削減目標として再開せず、新しい exact correspondence が観測された場合だけ個別に圧縮する。
+
 #### 2. トレンド・期間比較の 3 重重複（計 873 行 → 約 300 行へ統合）
 * [`LocusTrendReview.lean`](file:///Users/user/Projects/moko/loam/Loam/LocusTrendReview.lean) (318行)
 * [`LocusTrendCompareReview.lean`](file:///Users/user/Projects/moko/loam/Loam/LocusTrendCompareReview.lean) (445行)
