@@ -75,7 +75,7 @@ jobs:
 
           while IFS= read -r path; do
             case "$path" in
-              Loam/Tests/PtaMigrationClassifier.lean|tools/pta-hledger-adapter-experiment.py|tests/fixtures/pta-import/*|.github/workflows/selected-lean-observations.yml)
+              Loam/PtaMigration.lean|Loam/Tests/PtaMigrationClassifier.lean|tools/pta-hledger-adapter-experiment.py|tests/fixtures/pta-import/*|.github/workflows/selected-lean-observations.yml)
                 pta=true
                 ;;
             esac

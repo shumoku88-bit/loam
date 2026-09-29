@@ -1,7 +1,7 @@
-import Loam.ExchangeAdmission
-import Loam.MovementAdmission
+import Loam.PtaMigration
 
 open Loam.Core
+open Loam.PtaMigration
 
 set_option autoImplicit false
 
@@ -10,203 +10,14 @@ namespace Loam.Tests.PtaMigrationClassifier
 /-!
 # Executable PTA migration classifier gate
 
-This is intentionally a research/test instrument, not a production importer.
+This research/test instrument exercises the production-facing read-only
+`Loam.PtaMigration` boundary against the Observation-385 fixtures and current
+Movement / Exchange admission.
 
-It exercises the Observation-385 admission matrix against current production
-Movement and Exchange admission. The source adapter is assumed to have parsed
-the external journal and exposed exact posting quantities plus any source
-features whose meaning must not disappear during normalization.
+The source adapter is assumed to have parsed the external journal and exposed
+exact posting quantities plus any source features whose meaning must not
+disappear during normalization.
 -/
-
-inductive Disposition where
-  | direct
-  | normalize
-  | review
-  | refuse
-  deriving Repr, DecidableEq, BEq
-
-inductive SourceFeature where
-  | inferredAmount
-  | sourceComposition
-  | unconfirmedMeasureScale
-  | cost
-  | status
-  | metadata
-  | postingDate
-  | balanceAssertion
-  | balanceAssignment
-  | virtualPosting
-  | automatedRule
-  | periodicRule
-  | priceOrLot
-  deriving Repr, DecidableEq, BEq
-
-structure Posting where
-  account : LocusId
-  measure : MeasureId
-  quanta : Int
-  deriving Repr, DecidableEq
-
-structure Transaction where
-  validOn : String
-  description : Option String := none
-  postings : List Posting
-  sourceFeatures : List SourceFeature := []
-  deriving Repr, DecidableEq
-
-inductive Candidate where
-  | movement (draft : Loam.MovementAdmission.Draft)
-  | exchange (draft : Loam.ExchangeAdmission.Draft)
-
-structure Decision where
-  disposition : Disposition
-  candidate : Option Candidate := none
-  sourceFeatures : List SourceFeature := []
-  explanation : String := ""
-
-private def featureDisposition : SourceFeature → Disposition
-  | .inferredAmount => .normalize
-  | .sourceComposition => .normalize
-  | .unconfirmedMeasureScale => .review
-  | .cost => .review
-  | .status => .review
-  | .metadata => .review
-  | .balanceAssertion => .review
-  | .balanceAssignment => .review
-  | .postingDate => .refuse
-  | .virtualPosting => .refuse
-  | .automatedRule => .refuse
-  | .periodicRule => .refuse
-  | .priceOrLot => .refuse
-
-private def dispositionRank : Disposition → Nat
-  | .direct => 0
-  | .normalize => 1
-  | .review => 2
-  | .refuse => 3
-
-private def stronger (left right : Disposition) : Disposition :=
-  if dispositionRank left >= dispositionRank right then left else right
-
-private def strongestFeatureDisposition
-    (features : List SourceFeature) : Disposition :=
-  features.foldl
-    (fun current feature => stronger current (featureDisposition feature))
-    .direct
-
-private def postingEffect (posting : Posting) : Effect :=
-  Effect.ofAnonymousQuantity
-    posting.account posting.measure (Quantity.ofQuanta posting.quanta)
-
-private def distinctMeasures (postings : List Posting) : List MeasureId :=
-  postings.foldl
-    (fun (kept : List MeasureId) posting =>
-      if kept.any fun measure => decide (measure = posting.measure) then
-        kept
-      else
-        kept ++ [posting.measure])
-    []
-
-private def blocked
-    (disposition : Disposition)
-    (tx : Transaction)
-    (explanation : String) : Decision :=
-  {
-    disposition := disposition
-    sourceFeatures := tx.sourceFeatures
-    explanation := explanation
-  }
-
-private def movementDecision (tx : Transaction) : Decision :=
-  let effects := tx.postings.map postingEffect
-  let draft : Loam.MovementAdmission.Draft := {
-    validOn := tx.validOn
-    description := tx.description
-    effects := effects
-    relations := []
-    discharges := []
-    total := Effect.positiveQuantaTotal effects
-  }
-  match Loam.MovementAdmission.validateDraft draft with
-  | .ok _ =>
-      {
-        disposition := .direct
-        candidate := some (.movement draft)
-        sourceFeatures := tx.sourceFeatures
-      }
-  | .error message =>
-      blocked .refuse tx message
-
-private def exchangeDecision
-    (tx : Transaction)
-    (source destination : Posting) : Decision :=
-  let sourceKey : EffectKey := ⟨"pta-import-source"⟩
-  let destinationKey : EffectKey := ⟨"pta-import-destination"⟩
-  let draft : Loam.ExchangeAdmission.Draft := {
-    validOn := tx.validOn
-    description := tx.description
-    effects := [
-      Effect.ofQuantity
-        sourceKey source.account source.measure (Quantity.ofQuanta source.quanta),
-      Effect.ofQuantity
-        destinationKey destination.account destination.measure
-        (Quantity.ofQuanta destination.quanta)
-    ]
-    source := sourceKey
-    destination := destinationKey
-  }
-  match Loam.ExchangeAdmission.validateDraft draft with
-  | .ok _ =>
-      {
-        disposition := .direct
-        candidate := some (.exchange draft)
-        sourceFeatures := tx.sourceFeatures
-      }
-  | .error message =>
-      blocked .refuse tx message
-
-private def classifyShape (tx : Transaction) : Decision :=
-  match distinctMeasures tx.postings with
-  | [] =>
-      blocked .refuse tx "transaction has no exact quantity postings"
-  | [_] =>
-      movementDecision tx
-  | [_, _] =>
-      match tx.postings with
-      | [left, right] =>
-          if left.measure = right.measure then
-            movementDecision tx
-          else if left.quanta < 0 then
-            if right.quanta > 0 then
-              exchangeDecision tx left right
-            else
-              blocked .refuse tx "two-Measure transaction has no positive exchange destination"
-          else if right.quanta < 0 then
-            if left.quanta > 0 then
-              exchangeDecision tx right left
-            else
-              blocked .refuse tx "two-Measure transaction has no positive exchange destination"
-          else
-            blocked .refuse tx "two-Measure transaction has no negative exchange source"
-      | _ =>
-          blocked .review tx
-            "multi-posting two-Measure transaction needs explicit exchange-side review"
-  | _ =>
-      blocked .refuse tx "transaction uses more than two Measures"
-
-def classify (tx : Transaction) : Decision :=
-  match strongestFeatureDisposition tx.sourceFeatures with
-  | .refuse =>
-      blocked .refuse tx
-        "source carries meaning outside the v1 migration boundary"
-  | .review =>
-      blocked .review tx
-        "source carries a distinction that requires explicit migration review"
-  | .normalize =>
-      blocked .normalize tx
-        "source-native normalization is required before admission"
-  | .direct =>
-      classifyShape tx
 
 private def posting (account measure : String) (quanta : Int) : Posting := {
   account := ⟨account⟩
@@ -600,6 +411,22 @@ private def runAdapter
     | some candidate =>
         directCandidateAdmits ("PTA adapter transaction " ++ idx) candidate
 
+  let migration :=
+    Loam.PtaMigration.plan normalizedPath (transactions.map fun pair => pair.2)
+  let summary := Loam.PtaMigration.preview migration
+  expect (summary.transactionsFound == 5)
+    "PTA adapter preview transaction count changed"
+  expect (summary.ready == 1)
+    "PTA adapter preview Direct count changed"
+  expect (summary.needsPreparation == 1)
+    "PTA adapter preview Normalize count changed"
+  expect (summary.needsDecision == 2)
+    "PTA adapter preview Review count changed"
+  expect (summary.cannotImportYet == 1)
+    "PTA adapter preview Refuse count changed"
+
+  IO.println (Loam.PtaMigration.renderPreview summary)
+
   IO.println
     ("PTA hledger adapter boundary: " ++ toString transactions.length ++
       " normalized transactions classified through the existing gate.")
@@ -622,6 +449,29 @@ def run : IO Unit := do
     | none => pure ()
     | some candidate =>
         directCandidateAdmits fixture.name candidate
+
+  let migration :=
+    Loam.PtaMigration.plan "fixture://pta-migration-matrix"
+      (fixtures.map fun fixture => fixture.tx)
+  let summary := Loam.PtaMigration.preview migration
+  expect (summary.transactionsFound == 20)
+    "PTA migration preview stopped seeing all 20 fixtures"
+  expect (summary.ready == 6)
+    "PTA migration preview Direct count changed"
+  expect (summary.needsPreparation == 2)
+    "PTA migration preview Normalize count changed"
+  expect (summary.needsDecision == 6)
+    "PTA migration preview Review count changed"
+  expect (summary.cannotImportYet == 6)
+    "PTA migration preview Refuse count changed"
+  expect (summary.measures.length == 3)
+    "PTA migration preview stopped collecting the three fixture Measures"
+  expect (!summary.loci.isEmpty)
+    "PTA migration preview stopped collecting source Locus candidates"
+  expect
+    (summary.blockedFeatures.any fun feature =>
+      feature.feature == .virtualPosting && feature.count == 2)
+    "PTA migration preview stopped grouping virtual-posting blockers"
 
   let reviewBeatsNormalize :=
     classify (ordinary "2026-09-20" "precedence" [
