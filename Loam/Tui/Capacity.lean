@@ -155,11 +155,6 @@ def visibleRows (state : State) : List (Nat × Loam.CapacityReview.Row) :=
     | none => none
     | some row => some (index, row)
 
-private def coverageRow?
-    (state : State) (purpose : PurposeId) : Option Loam.CurrentCoverageReview.Row := do
-  let coverage ← state.coverage
-  coverage.rows.find? fun row => row.purpose == purpose
-
 private def hasUnresolvedFrontier (state : State) : Bool :=
   match state.coverage.bind (fun snapshot => snapshot.scheduledFrontier) with
   | none => false
@@ -191,7 +186,7 @@ private def rowLine
     (Loam.ActualReview.shortText 22
       (Loam.PurposeCatalog.labelFor state.purposeMetadata row.purpose))
   let text :=
-    match coverageRow? state row.purpose with
+    match state.coverage.bind (fun coverage => coverage.rowFor? row.purpose) with
     | none =>
         marker ++ purpose ++
           padNum 8 (toString row.entitlement.quanta) ++
