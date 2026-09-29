@@ -142,7 +142,9 @@ private def printCapacity (snapshot : Loam.CapacityReview.Snapshot) : IO Unit :=
 
 
 private structure CurrentDiagnostics where
-  cycle : Loam.CycleBudgetReview.Snapshot
+  observedAt : String
+  funding : Loam.CycleFundingInspection.Summary
+  coverage : Loam.CurrentCoverageReview.Snapshot
   scheduled : Loam.ScheduledCoverageReview.Snapshot
 
 private def loadCurrentDiagnostics
@@ -159,17 +161,24 @@ private def loadCurrentDiagnostics
       ("loam: household observation current window mismatch: requested [" ++
         start ++ ", " ++ end_ ++ "), resolved [" ++ window.start ++ ", " ++
         window.endExclusive ++ ")")
-  match cycle.funding with
-  | .error message => return .error message
-  | .ok _ => pure ()
-  match cycle.coverage with
-  | .error message => return .error message
-  | .ok _ => pure ()
+  let funding ←
+    match cycle.funding with
+    | .error message => return .error message
+    | .ok summary => pure summary
+  let coverage ←
+    match cycle.coverage with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
   let scheduled ←
     match ← Loam.ScheduledCoverageReview.loadSnapshot root root observedAt 18 with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
-  return .ok { cycle, scheduled }
+  return .ok {
+    observedAt := cycle.observedAt
+    funding := funding
+    coverage := coverage
+    scheduled := scheduled
+  }
 
 private def printFunding
     (observedAt : String)
@@ -301,14 +310,9 @@ def report (rootPath start end_ : String) (observedAt? : Option String := none) 
   match diagnostics? with
   | none => pure ()
   | some diagnostics =>
-      match diagnostics.cycle.funding, diagnostics.cycle.coverage with
-      | .ok funding, .ok coverage =>
-          printFunding diagnostics.cycle.observedAt funding
-          printCurrentCoverage coverage
-          printScheduledCoverage diagnostics.scheduled
-      | _, _ =>
-          IO.eprintln "loam: household observation diagnostics changed after qualification"
-          return 2
+      printFunding diagnostics.observedAt diagnostics.funding
+      printCurrentCoverage diagnostics.coverage
+      printScheduledCoverage diagnostics.scheduled
 
   emitMeta "status" "complete"
   return 0
