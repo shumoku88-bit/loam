@@ -24,6 +24,20 @@ Series identity is expressed by both a standard ANSI style and a marker glyph so
 the chart does not rely on color alone.
 -/
 
+structure Overlay where
+  name : String
+  /-- Calendar month chosen from the selected Day point, in YYYY-MM form. -/
+  month : String
+  days : List Nat
+  deriving Repr, DecidableEq
+
+structure OverlayDraft where
+  month : String
+  name : String := ""
+  daysText : String := ""
+  editingDays : Bool := false
+  deriving Repr, DecidableEq
+
 structure State where
   snapshot : Option Loam.LocusTrendCompareReview.Snapshot := none
   selected : Nat := 0
@@ -35,11 +49,15 @@ structure State where
   pickerOpen : Bool := false
   pickerSlot : Nat := 0
   pickerIndex : Nat := 0
+  /-- Session-only observation overlays. They are never loaded from or written to household data. -/
+  overlays : List Overlay := []
+  overlayDraft : Option OverlayDraft := none
   deriving Repr, DecidableEq
 
 def initial : State := {}
 
 def maxSeries : Nat := 5
+def maxOverlays : Nat := 3
 
 def withCatalog
     (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
@@ -77,7 +95,8 @@ def clear (state : State) : State :=
       selected := 0
       viewportStart := 0
       pickerOpen := false
-      pickerIndex := 0 }
+      pickerIndex := 0
+      overlayDraft := none }
 
 private def maxDayViewportStart (count : Nat) : Nat :=
   count - min dayViewportSize count
@@ -298,6 +317,146 @@ private def selectedWindow?
   let snapshot ← state.snapshot
   snapshot.selectedWindow? state.selected
 
+private def monthOfDate? (date : String) : Option String :=
+  match date.splitOn "-" with
+  | [year, month, _] => some (year ++ "-" ++ month)
+  | _ => none
+
+private def trimAscii (text : String) : String :=
+  text.trimAsciiEnd.toString.trimAsciiStart.toString
+
+private def twoDigitDay (day : Nat) : String :=
+  if day < 10 then "0" ++ toString day else toString day
+
+private def normalizeDaySeparators (text : String) : String :=
+  String.ofList <| text.toList.map fun char =>
+    if char == ',' || char == '.' then ' ' else char
+
+private def parseOverlayDays
+    (month text : String) : Except String (List Nat) := do
+  let tokens :=
+    (normalizeDaySeparators text).splitOn " " |>.filter (fun token => !token.isEmpty)
+  if tokens.isEmpty then
+    throw "Enter at least one day number."
+  let rec parse : List String → Except String (List Nat)
+    | [] => pure []
+    | token :: rest => do
+        let some day := token.toNat?
+          | throw ("Day must be a number: " ++ token)
+        return day :: (← parse rest)
+  let parsed ← parse tokens
+  let days :=
+    parsed.foldl
+      (fun kept day => if kept.contains day then kept else kept ++ [day]) []
+  match days.find? fun day =>
+      day == 0 ||
+        !Loam.ActualDate.validIsoDate (month ++ "-" ++ twoDigitDay day) with
+  | some day =>
+      throw ("Day " ++ toString day ++ " is not in " ++ month ++ ".")
+  | none => return days
+
+def isOverlayEditing (state : State) : Bool :=
+  state.overlayDraft.isSome
+
+def beginOverlay (state : State) : Except String State := do
+  if state.granularity != .day then
+    throw "Trend overlays are available in Day grain."
+  if state.overlays.length >= maxOverlays then
+    throw ("Trend keeps at most " ++ toString maxOverlays ++ " session overlays.")
+  match selectedWindow? state with
+  | none => throw "Trend has no selected Day for an overlay."
+  | some point =>
+      match monthOfDate? point.start with
+      | none => throw "Selected Trend day has no calendar month."
+      | some month =>
+          return { state with overlayDraft := some { month := month } }
+
+def cancelOverlay (state : State) : State :=
+  { state with overlayDraft := none }
+
+def clearOverlays (state : State) : State :=
+  { state with overlays := [], overlayDraft := none }
+
+def toggleOverlayField (state : State) : State :=
+  match state.overlayDraft with
+  | none => state
+  | some draft =>
+      { state with
+          overlayDraft := some { draft with editingDays := !draft.editingDays } }
+
+private def dropLastChar (text : String) : String :=
+  String.ofList text.toList.dropLast
+
+def backspaceOverlay (state : State) : State :=
+  match state.overlayDraft with
+  | none => state
+  | some draft =>
+      let next :=
+        if draft.editingDays then
+          { draft with daysText := dropLastChar draft.daysText }
+        else
+          { draft with name := dropLastChar draft.name }
+      { state with overlayDraft := some next }
+
+def pushOverlayChar (state : State) (char : Char) : State :=
+  match state.overlayDraft with
+  | none => state
+  | some draft =>
+      if draft.editingDays then
+        if (char.isDigit || char == ' ' || char == ',' || char == '.') &&
+            draft.daysText.length < 96 then
+          { state with overlayDraft := some { draft with daysText := draft.daysText.push char } }
+        else
+          state
+      else if draft.name.length < 32 then
+        { state with overlayDraft := some { draft with name := draft.name.push char } }
+      else
+        state
+
+def acceptOverlayDraft (state : State) : Except String State := do
+  match state.overlayDraft with
+  | none => return state
+  | some draft =>
+      let name := trimAscii draft.name
+      if name.isEmpty then
+        throw "Overlay name is required."
+      else if !draft.editingDays then
+        return { state with
+          overlayDraft := some { draft with name := name, editingDays := true } }
+      else
+        let days ← parseOverlayDays draft.month draft.daysText
+        return {
+          state with
+            overlays := state.overlays ++ [{ name := name, month := draft.month, days := days }]
+            overlayDraft := none
+        }
+
+private def overlayContainsDate (overlay : Overlay) (date : String) : Bool :=
+  match date.splitOn "-" with
+  | [year, month, dayText] =>
+      overlay.month == year ++ "-" ++ month &&
+        match dayText.toNat? with
+        | some day => overlay.days.contains day
+        | none => false
+  | _ => false
+
+private def overlayMarker : Nat → Char
+  | 0 => 'A'
+  | 1 => 'B'
+  | _ => 'C'
+
+private def overlayMarkerForDate (state : State) (date : String) : Option Char :=
+  let matching :=
+    state.overlays.zipIdx.filterMap fun (overlay, index) =>
+      if overlayContainsDate overlay date then some index else none
+  match matching with
+  | [] => none
+  | [index] => some (overlayMarker index)
+  | _ => some '*'
+
+private def overlayDaysText (overlay : Overlay) : String :=
+  String.intercalate " " (overlay.days.map toString)
+
 private def rackLabel (label : String) : String :=
   Loam.Tui.Layout.clip 14 label
 
@@ -322,6 +481,31 @@ private def seriesRack
       ([span "        " .muted] ++
         (List.range 2).map fun offset => seriesSlot snapshot (offset + 3))
   ]
+
+private def overlayMonthLabel (month : String) : String :=
+  match month.splitOn "-" with
+  | [year, monthNumber] => monthLabel monthNumber ++ " " ++ year
+  | _ => month
+
+private def overlayEditorRows (state : State) : List Widget :=
+  match state.overlayDraft with
+  | none => []
+  | some draft =>
+      [ line "Overlay   session only · not saved"
+      , muted ("Month   " ++ overlayMonthLabel draft.month ++ "   ·   selected Day month")
+      , .row
+          [ span "Name    " .muted
+          , span (if draft.name.isEmpty then "_" else draft.name)
+              (if draft.editingDays then .normal else .selected)
+          ]
+      , .row
+          [ span "Days    " .muted
+          , span (if draft.daysText.isEmpty then "_" else draft.daysText)
+              (if draft.editingDays then .selected else .normal)
+          ]
+      , muted "Enter day numbers such as: 3 4 6 8 9   (spaces, commas, or periods)"
+      , muted "Tab field   Enter next/apply   Esc cancel"
+      ]
 
 private def pickerRows (state : State) : List Widget :=
   if !state.pickerOpen then []
@@ -423,11 +607,11 @@ private def header (state : State) : List Widget :=
       , line (selectedLine snapshot point)
       ] ++ selectedSeriesRows state ++
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ] ++
-      pickerRows state
+      pickerRows state ++ overlayEditorRows state
   | _, _ =>
       [ line ("Trend   " ++ state.granularity.label)
       , muted "Multi-series history unavailable."
-      ] ++ pickerRows state
+      ] ++ pickerRows state ++ overlayEditorRows state
 
 private def allValues (state : State) : List Int :=
   match state.snapshot with
@@ -462,8 +646,50 @@ private def axisText
       Loam.Tui.Layout.padLeft 8 (amountText tick) ++ " ┤ "
   | none => "         │ "
 
+private def overlayRows (bounds : Bounds) (state : State) : List Widget :=
+  if state.granularity != .day || state.overlays.isEmpty then
+    []
+  else
+    match state.snapshot with
+    | none => []
+    | some snapshot =>
+        match snapshot.series.head? with
+        | none => []
+        | some first =>
+            let width := plotWidth bounds
+            let points := visiblePoints state first.points
+            let count := points.length
+            let placements :=
+              points.zipIdx.filterMap fun (point, index) =>
+                match overlayMarkerForDate state point.start with
+                | none => none
+                | some marker =>
+                    some (Loam.Tui.Chart.xForIndex width count index, marker)
+            let markerText :=
+              String.ofList <| (List.range width).map fun column =>
+                let here :=
+                  placements.filterMap fun (x, marker) =>
+                    if x == column then some marker else none
+                match here with
+                | [] => ' '
+                | [marker] => marker
+                | _ => '*'
+            let markerRow :=
+              .row [span (spaces plotLeft), span markerText]
+            let legendTokens :=
+              "Overlay session-only · not saved" ::
+                state.overlays.zipIdx.map fun (overlay, index) =>
+                  String.ofList [overlayMarker index] ++ " " ++ overlay.name ++
+                    " (" ++ overlayMonthLabel overlay.month ++ ": " ++
+                    overlayDaysText overlay ++ ")"
+            markerRow ::
+              (Loam.Tui.Layout.flowTokens
+                (Loam.Tui.Layout.contentWidth bounds) "   " legendTokens).map muted
+
 private def footerTokens (state : State) : List String :=
-  if state.pickerOpen then
+  if isOverlayEditing state then
+    ["Type overlay", "Tab field", "Enter next/apply", "Esc cancel"]
+  else if state.pickerOpen then
     ["↑/↓ choose Locus", "1-5 slot", "Enter apply", "x remove", "Esc cancel"]
   else
     let common :=
@@ -471,7 +697,13 @@ private def footerTokens (state : State) : List String :=
        "a series"]
     let range :=
       if state.granularity == .day then ["s/S range"] else []
-    common ++ range ++ ["q/Esc Reports"]
+    let overlay :=
+      if state.granularity == .day then
+        if state.overlays.isEmpty then ["o overlay"]
+        else ["o overlay", "O clear overlays"]
+      else
+        []
+    common ++ range ++ overlay ++ ["q/Esc Reports"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
@@ -486,11 +718,14 @@ def plotTop (state : State) : Nat :=
   headerLineCount state
 
 def plotHeight (bounds : Bounds) (state : State) : Nat :=
-  let fixedRows := headerLineCount state + axisLineCount + (footer bounds state).length
+  let fixedRows :=
+    headerLineCount state + axisLineCount +
+      (overlayRows bounds state).length + (footer bounds state).length
   if bounds.height > fixedRows then bounds.height - fixedRows else 1
 
 def pointerInPlot (bounds : Bounds) (state : State) (row : Nat) : Bool :=
-  decide (plotTop state <= row && row < plotTop state + plotHeight bounds state)
+  !isOverlayEditing state &&
+    decide (plotTop state <= row && row < plotTop state + plotHeight bounds state)
 
 private def chartRows (bounds : Bounds) (state : State) : List Widget :=
   let width := plotWidth bounds
@@ -607,7 +842,8 @@ def viewFullScreen
     (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
   let rows :=
     header state ++ chartRows bounds state ++ [axisRow bounds state] ++
-      footer bounds state ++ (if notice.isEmpty then [] else [line notice])
+      overlayRows bounds state ++ footer bounds state ++
+      (if notice.isEmpty then [] else [line notice])
   .column (rows.take bounds.height)
 
 end Loam.Tui.LocusTrendComparePane

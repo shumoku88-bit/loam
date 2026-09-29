@@ -610,6 +610,49 @@ def main : IO Unit := do
     "Trend Day did not expose the visible 31-day window and mouse controls"
   expect (!(contains "¥8,000" viewportText))
     "Trend Day scale still included an outlier outside the visible viewport"
+  expect (contains "o overlay" viewportText)
+    "Trend Day did not expose the session-overlay entrance"
+
+  let overlayStarted := (Loam.Tui.Reports.update viewportReport (.input 'o')).state
+  let overlayStartText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds overlayStarted)
+  expect (Loam.Tui.LocusTrendComparePane.isOverlayEditing overlayStarted.trendCompare &&
+      contains "Overlay   session only" overlayStartText &&
+      contains "Sep 2026" overlayStartText)
+    "Trend overlay did not open on the selected Day month as session-only presentation"
+
+  let typeChars := fun (state : Loam.Tui.Reports.State) (text : String) =>
+    text.toList.foldl
+      (fun current char => (Loam.Tui.Reports.update current (.input char)).state)
+      state
+  let overlayNamed := typeChars overlayStarted "Mother off"
+  let overlayDaysFocus := (Loam.Tui.Reports.update overlayNamed .enter).state
+  let overlayDaysTyped := typeChars overlayDaysFocus "3 4 6 8 9"
+  let overlayApplied := (Loam.Tui.Reports.update overlayDaysTyped .enter).state
+  expect (!Loam.Tui.LocusTrendComparePane.isOverlayEditing overlayApplied.trendCompare &&
+      overlayApplied.trendCompare.overlays.length == 1)
+    "Trend overlay did not apply the custom month/day observation"
+  let overlayText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds overlayApplied)
+  expect (contains "A Mother off (Sep 2026: 3 4 6 8 9)" overlayText &&
+      contains "O clear overlays" overlayText &&
+      contains "not saved" overlayText)
+    "Trend overlay did not render its marker legend or session-only boundary"
+
+  let invalidStarted := (Loam.Tui.Reports.update overlayApplied (.input 'o')).state
+  let invalidNamed := typeChars invalidStarted "Friend house"
+  let invalidDaysFocus := (Loam.Tui.Reports.update invalidNamed .enter).state
+  let invalidDaysTyped := typeChars invalidDaysFocus "31"
+  let invalidApplied := Loam.Tui.Reports.update invalidDaysTyped .enter
+  expect (Loam.Tui.LocusTrendComparePane.isOverlayEditing invalidApplied.state.trendCompare &&
+      contains "Day 31 is not in 2026-09" invalidApplied.state.notice)
+    "Trend overlay accepted an impossible day for the selected month"
+  let invalidCancelled := (Loam.Tui.Reports.update invalidApplied.state .escape).state
+  let overlaysCleared := (Loam.Tui.Reports.update invalidCancelled (.input 'O')).state
+  expect (overlaysCleared.trendCompare.overlays.isEmpty &&
+      !(contains "Mother off"
+        (widgetText (Loam.Tui.Reports.viewForBounds compareBounds overlaysCleared))))
+    "Trend did not clear its session-only overlays"
 
   let scopedViewportSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
     viewportSnapshot with
