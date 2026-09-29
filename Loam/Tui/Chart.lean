@@ -320,12 +320,11 @@ def renderInRange
               span (String.ofList [base])
     .row spans
 
-private def plotSeriesPointsAt
+private def plotSeriesMarkersAt
     (series : List PlotSeries)
     (range : Range)
-    (width height col row : Nat) : List (Char × Style) :=
+    (width height col row logicalIndex : Nat) : List (Char × Style) :=
   series.filterMap fun item =>
-    let logicalIndex := nearestIndex width item.values.length col
     match item.values[logicalIndex]? with
     | none => none
     | some value =>
@@ -347,10 +346,10 @@ private def plotSeriesLineAt?
 /--
 Render several aligned logical series in one plot rectangle.
 
-All series share one numerical range and one horizontal logical index. Exact
-point markers remain visible in both modes; the interpolated line can be enabled
-or hidden independently. One neutral vertical crosshair selects the same period
-across every series, keeping time selection independent from series identity.
+All series share one numerical range and one horizontal logical index. Their
+line style and marker glyph remain distinct, while one neutral vertical
+crosshair selects the same period across every series. This keeps time selection
+independent from series identity.
 -/
 def renderManyInRange
     (renderer : Renderer)
@@ -358,9 +357,7 @@ def renderManyInRange
     (series : List PlotSeries)
     (selected : Nat)
     (range : Range)
-    (gridRows : List Nat := [])
-    (drawLines : Bool := true)
-    (referenceColumns : List Nat := []) : List Widget :=
+    (gridRows : List Nat := []) : List Widget :=
   let actualWidth := max 1 width
   let actualHeight := max 1 height
   let pointCount := series.head?.map (·.values.length) |>.getD 0
@@ -368,30 +365,23 @@ def renderManyInRange
   (List.range actualHeight).map fun row =>
     let spans :=
       (List.range actualWidth).map fun col =>
-        match plotSeriesPointsAt
-            series range actualWidth actualHeight col row with
+        match plotSeriesMarkersAt
+            series range actualWidth actualHeight col row selected with
         | (glyph, style) :: [] =>
             span (String.ofList [glyph]) style
         | _ :: _ :: _ =>
-            -- Two or more exact observations quantize to the same terminal
+            -- Two or more selected-period series quantize to the same terminal
             -- cell. Keep the shared coordinate honest instead of nudging one
             -- series sideways into a false time position.
             span "◎" .selected
         | [] =>
-            let line :=
-              if drawLines then
-                plotSeriesLineAt?
-                  renderer series range actualWidth actualHeight col row
-              else
-                none
-            match line with
+            match plotSeriesLineAt?
+                renderer series range actualWidth actualHeight col row with
             | some (glyph, style) =>
                 span (String.ofList [glyph]) style
             | none =>
                 if col = selectedX then
                   span "│" .muted
-                else if col ∈ referenceColumns then
-                  span "┊" .muted
                 else if row ∈ gridRows then
                   span "┄" .muted
                 else
