@@ -73,17 +73,17 @@ def main : IO Unit := do
     contains "utilities" rendered)
     "Scheduled coverage pane did not render configured plans"
   expect (contains "Plan" rendered && contains "Pattern" rendered &&
-    contains "Through" rendered && contains "Next gap" rendered)
-    "Scheduled coverage pane did not render the compact coverage header"
+    contains "Filled through" rendered && contains "Next needed" rendered)
+    "Scheduled coverage pane did not render the answer-first coverage header"
   expect (contains "2026-11" rendered && contains "2026-12" rendered)
-    "Scheduled coverage pane lost through/next-gap month values"
-  expect (contains "●" rendered && contains "!" rendered && contains "+" rendered)
-    "Scheduled coverage pane lost filled, missing, or off-pattern glyphs"
-  expect (!(contains "·" rendered))
-    "Scheduled coverage pane rendered noise for months where no plan is expected"
-  expect (contains "blank = not expected" rendered)
-    "Scheduled coverage pane did not explain intentional blank month cells"
-  expect (contains "do not create recurrence authority" rendered)
+    "Scheduled coverage pane lost filled-through/next-needed month values"
+  expect (contains "!" rendered)
+    "Scheduled coverage pane did not mark the next missing expected month"
+  expect (!(contains "●" rendered) && !(contains "+" rendered) && !(contains "blank =" rendered))
+    "Scheduled coverage overview still exposed the old month-symbol matrix"
+  expect (contains "Use Months for exact dates" rendered)
+    "Scheduled coverage pane did not route exact-date inspection to Months"
+  expect (contains "does not create recurrence authority" rendered)
     "Scheduled coverage pane overstated read-side monitoring rules"
 
   let goodConfig :=
@@ -112,6 +112,12 @@ def main : IO Unit := do
   expect (Loam.ScheduledCoverageConfig.encode? updated).isSome
     "Scheduled coverage writer could not encode its updated rule set"
 
+  let removed := Loam.ScheduledCoverageConfig.removeShape
+    updated changedMonthly.negativeLoci changedMonthly.positiveLoci
+  expect (removed.length == 1 &&
+    !(removed.any fun rule => rule.name == "gpt-plus"))
+    "Scheduled coverage monitoring removal did not remove only the matching plan shape"
+
   let conflictingName : Loam.ScheduledCoverageConfig.Rule := {
     name := "gpt-plus"
     anchor := "2026-10-15"
@@ -124,4 +130,4 @@ def main : IO Unit := do
   | .ok _ => throw (IO.userError
       "Scheduled coverage upsert silently reused a display name for a different plan shape")
 
-  IO.println "Scheduled coverage: monthly/bimonthly grid, first-gap detection, off-pattern evidence, config validation, and TUI rendering passed."
+  IO.println "Scheduled coverage: first-gap detection, simple overview, config update/removal, and TUI rendering passed."

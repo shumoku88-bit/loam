@@ -13,28 +13,8 @@ private def muted (text : String) : Widget := .row [span text .muted]
 
 private def cadenceLabel (months : Nat) : String :=
   if months = 1 then "monthly"
+  else if months = 12 then "yearly"
   else "every " ++ toString months ++ "m"
-
-private def cellGlyph (cell : Loam.ScheduledCoverageReview.MonthCell) : String :=
-  if cell.expected then
-    if cell.explicitCount = 0 then "!"
-    else if cell.explicitCount = 1 then "●"
-    else toString cell.explicitCount
-  else if cell.explicitCount = 0 then
-    ""
-  else
-    "+"
-
-private def shortMonth (month : String) : String :=
-  match month.splitOn "-" with
-  | [_, mm] => mm
-  | _ => month
-
-private def monthHeader (month : String) : String :=
-  Loam.Tui.Layout.padRight 4 (shortMonth month)
-
-private def coverageCell (cell : Loam.ScheduledCoverageReview.MonthCell) : String :=
-  Loam.Tui.Layout.padRight 4 (cellGlyph cell)
 
 private def coveredThrough? (row : Loam.ScheduledCoverageReview.Row) : Option String :=
   let beforeGap :=
@@ -44,72 +24,62 @@ private def coveredThrough? (row : Loam.ScheduledCoverageReview.Row) : Option St
   (beforeGap.reverse.find? fun cell =>
     cell.expected && !(cell.explicitCount == 0)).map (·.month)
 
-private def missingSortKey (row : Loam.ScheduledCoverageReview.Row) : String :=
-  match row.firstMissing with
-  | some month => month
-  | none => "9999-99"
-
 private def rowBefore
     (left right : Loam.ScheduledCoverageReview.Row) : Bool :=
-  let leftMissing := missingSortKey left
-  let rightMissing := missingSortKey right
-  if leftMissing = rightMissing then
+  if left.rule.everyMonths = right.rule.everyMonths then
     left.rule.name <= right.rule.name
   else
-    leftMissing <= rightMissing
+    left.rule.everyMonths < right.rule.everyMonths
 
-private def tableHeader (months : List String) : Widget :=
+private def tableHeader : Widget :=
   line <|
-    Loam.Tui.Layout.padRight 18 "Plan" ++
-    Loam.Tui.Layout.padRight 11 "Pattern" ++
-    String.intercalate "" (months.map monthHeader) ++
-    Loam.Tui.Layout.padRight 10 "Through" ++
-    "Next gap"
+    Loam.Tui.Layout.padRight 28 "Plan" ++
+    Loam.Tui.Layout.padRight 12 "Pattern" ++
+    Loam.Tui.Layout.padRight 15 "Filled through" ++
+    "Next needed"
 
 private def tableRow (row : Loam.ScheduledCoverageReview.Row) : Widget :=
   let through :=
     match coveredThrough? row with
     | some month => month
     | none => "—"
-  let gap :=
+  let nextNeeded :=
     match row.firstMissing with
-    | some month => month
-    | none => "—"
+    | some month => month ++ "  !"
+    | none => "none in view"
   line <|
-    Loam.Tui.Layout.padRight 18 row.rule.name ++
-    Loam.Tui.Layout.padRight 11 (cadenceLabel row.rule.everyMonths) ++
-    String.intercalate "" (row.cells.map coverageCell) ++
-    Loam.Tui.Layout.padRight 10 through ++
-    gap
+    Loam.Tui.Layout.padRight 28 row.rule.name ++
+    Loam.Tui.Layout.padRight 12 (cadenceLabel row.rule.everyMonths) ++
+    Loam.Tui.Layout.padRight 15 through ++
+    nextNeeded
 
 /--
-Compact future-plan coverage for the Scheduled workspace.
+Quiet Scheduled overview.
 
-Blank cells are intentionally silent: the monitoring pattern does not expect a
-plan in that month. Only explicit evidence, a configured missing month, or an
-off-pattern occurrence gets a glyph.
+The primary answer is how far each monitored plan is filled and which expected
+month needs attention next. Exact month-by-month evidence remains available in
+the Months projection instead of turning the overview into a symbol matrix.
 -/
 def lines (snapshot : Loam.ScheduledCoverageReview.Snapshot) : List Widget :=
   if snapshot.rows.isEmpty then
-    [ muted "No plan monitoring rules configured yet."
-    , muted "Select an explicit plan in Months/List and press m to monitor it."
-    , muted "No rule never means that an obligation is not due."
+    [ muted "No recurring plans are being monitored."
+    , muted "Select a plan in Months/List and press e to extend it; LOAM will ask for a pattern once if needed."
+    , muted "No monitoring rule never means that an obligation is not due."
     ]
   else
     let rows := snapshot.rows.mergeSort rowBefore
-    [ muted ("Future plan coverage after " ++ snapshot.observedAt)
+    [ muted ("Known through " ++ snapshot.observedAt)
     , muted <|
         match snapshot.months.head?, snapshot.months.getLast? with
-        | some first, some last => "Window: " ++ first ++ " .. " ++ last
-        | _, _ => "Window: (empty)"
+        | some first, some last => "Looking ahead: " ++ first ++ " .. " ++ last
+        | _, _ => "Looking ahead: (empty)"
     , line ""
-    , tableHeader snapshot.months
+    , tableHeader
     ] ++
     rows.map tableRow ++
     [ line ""
-    , muted "● filled   ! expected but missing   + explicit off-pattern   blank = not expected"
-    , muted "Through = last expected filled month before the first gap."
-    , muted "Patterns monitor coverage only; they do not create recurrence authority."
+    , muted "! = the next expected month has no explicit Scheduled plan yet."
+    , muted "Use Months for exact dates. Monitoring guides extension; it does not create recurrence authority."
     ]
 
 end Loam.Tui.ScheduledCoveragePane

@@ -48,6 +48,8 @@ inductive Event where
   | cycleFilter
   | toggleView
   | createScheduled
+  | extendPlan
+  | stopMonitoring
   | fillCurrentCycle
   | monitorCoverage
   | completeScheduled
@@ -60,6 +62,8 @@ inductive Event where
 inductive Command where
   | stay
   | createScheduled
+  | extendPlan
+  | stopMonitoring
   | fillCurrentCycle
   | monitorCoverage
   | completeScheduled
@@ -245,6 +249,36 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none => { state, command := .createScheduled }
+  | .extendPlan =>
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Press v for Months, select the plan you want to extend, then press e." } }
+          else match state.pane with
+          | .loci =>
+              { state := { state with notice := "Extend is available from the Scheduled plan pane." } }
+          | .occurrences =>
+              match selectedRecord? snapshot state with
+              | none =>
+                  { state := { state with notice := "No Scheduled plan is selected to extend." } }
+              | some _ => { state, command := .extendPlan }
+  | .stopMonitoring =>
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Press v for Months, select the plan to mark undecided, then press s." } }
+          else match state.pane with
+          | .loci =>
+              { state := { state with notice := "Stop monitoring is available from the Scheduled plan pane." } }
+          | .occurrences =>
+              match selectedRecord? snapshot state with
+              | none =>
+                  { state := { state with notice := "No Scheduled plan is selected." } }
+              | some _ => { state, command := .stopMonitoring }
   | .fillCurrentCycle =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
@@ -407,11 +441,11 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
         plainLine ("     " ++ fit 28 change.coordinate.token ++ " " ++ toString change.quantity.quanta ++ " " ++ record.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] coverage  [n] new  [g] fill cycle  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] overview  [e] extend  [s] undecided  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] coverage [n] new [g] fill cycle [m] monitor [q] back"
+    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] overview [e] extend [s] undecided [n] new [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
@@ -524,7 +558,7 @@ private def emptyMonthCard (height : Nat) : Widget :=
   .column (List.replicate height (.row []))
 
 private def futureBoardDetailedHelp : String :=
-  "[j/k] select  [v] List  [n] new  [g] fill  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  "[j/k] select  [e] extend  [s] undecided  [v] List  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
 
 private def futureBoardFooterRowCount (bounds : Bounds) : Nat :=
   if Loam.Tui.Layout.displayWidth futureBoardDetailedHelp ≤
@@ -567,7 +601,7 @@ private def futureBoardFooter (bounds : Bounds) : List Widget :=
   if futureBoardFooterRowCount bounds = 1 then
     [mutedLine futureBoardDetailedHelp]
   else
-    [ mutedLine "[j/k] select [v] List [n] new [g] fill [m] monitor [q] back"
+    [ mutedLine "[j/k] select [e] extend [s] undecided [v] List [n] new [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
@@ -591,11 +625,11 @@ private def futureBoardView
   .column (Loam.Tui.Layout.fitWithFooter bounds body (futureBoardFooter bounds))
 
 private def coverageFooter (bounds : Bounds) : List Widget :=
-  let detailed := "[v] Months  [n] new  [q] back"
+  let detailed := "[v] plans  [n] new  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [mutedLine detailed]
   else
-    [mutedLine "[v] Months [n] new [q] back"]
+    [mutedLine "[v] plans [n] new [q] back"]
 
 private def coverageView
     (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
@@ -608,9 +642,9 @@ private def coverageView
         ]
   let body :=
     [ rule bounds '='
-    , plainLine " Scheduled / Coverage"
-    , mutedLine " What is filled, what is missing, and how far each monitored plan currently reaches."
-    , mutedLine " Blank month cells mean the configured pattern does not expect a plan there."
+    , plainLine " Scheduled"
+    , mutedLine " How far recurring plans are filled, and what needs a future plan next."
+    , mutedLine " Press v for exact scheduled dates."
     , rule bounds '='
     ] ++ coverageLines ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])

@@ -37,6 +37,7 @@ structure State where
   limit : Loam.ScheduledGeneration.FillLimit
   limitLabel : String := ""
   observedAt : String
+  presetCadence : Option Loam.ScheduledGeneration.GenerationCadence := none
   mode : Mode
   notice : String := ""
 
@@ -59,10 +60,19 @@ def initial
     mode := .horizon 0
   }
 
+def initialWithCadence
+    (source : Loam.Tui.Main.ScheduledRecord)
+    (suggestions : List Suggestion)
+    (observedAt : String)
+    (cadence : Loam.ScheduledGeneration.GenerationCadence) : State :=
+  { initial source suggestions observedAt with presetCadence := some cadence }
+
 private def cadenceAt (choice : Nat) : Loam.ScheduledGeneration.GenerationCadence :=
-  match choice % 3 with
+  match choice % 5 with
   | 0 => .monthly
   | 1 => .everyTwoMonths
+  | 2 => .everyThreeMonths
+  | 3 => .everySixMonths
   | _ => .yearly
 
 private def choiceCount (state : State) : Nat :=
@@ -127,7 +137,11 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
               notice := "" } }
       | .input char =>
           { state := { state with mode := .customDate (value.push char), notice := "" } }
-      | .enter => { state := acceptCustomDate state value }
+      | .enter =>
+          let next := acceptCustomDate state value
+          match next.presetCadence, next.mode with
+          | some cadence, .cadence _ => { state := next, cadence := some cadence }
+          | _, _ => { state := next }
       | _ => { state }
   | .horizon choice =>
       match key with
@@ -137,15 +151,19 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           { state := { state with mode := .horizon ((choice + count - 1) % count), notice := "" } }
       | .right | .down | .tab =>
           { state := { state with mode := .horizon ((choice + 1) % choiceCount state), notice := "" } }
-      | .enter => { state := chooseHorizon state choice }
+      | .enter =>
+          let next := chooseHorizon state choice
+          match next.presetCadence, next.mode with
+          | some cadence, .cadence _ => { state := next, cadence := some cadence }
+          | _, _ => { state := next }
       | _ => { state }
   | .cadence choice =>
       match key with
       | .escape => { state := { state with mode := .horizon 0, notice := "" } }
       | .left | .up | .shiftTab =>
-          { state := { state with mode := .cadence ((choice + 2) % 3), notice := "" } }
+          { state := { state with mode := .cadence ((choice + 4) % 5), notice := "" } }
       | .right | .down | .tab =>
-          { state := { state with mode := .cadence ((choice + 1) % 3), notice := "" } }
+          { state := { state with mode := .cadence ((choice + 1) % 5), notice := "" } }
       | .enter => { state, cadence := some (cadenceAt choice) }
       | _ => { state }
   | .preview cadence drafts choice =>
@@ -168,6 +186,10 @@ private def suggestionText (suggestion : Suggestion) : String :=
   suggestion.endExclusive ++
     "   (" ++ suggestion.start ++ " <= boundary window < " ++ suggestion.endExclusive ++ ")"
 
+private def actionTitle (state : State) : String :=
+  if state.presetCadence.isSome then "Scheduled / Extend Plan"
+  else "Scheduled / Generate Plans"
+
 private def horizonView (state : State) (choice : Nat) : Widget :=
   let count := choiceCount state
   let selected := choice % count
@@ -184,11 +206,15 @@ private def horizonView (state : State) (choice : Nat) : Widget :=
       , span "Custom date…"
       ]
   .column <|
-    [ line "Scheduled / Generate Plans"
+    [ line (actionTitle state)
     , line ("Source: " ++ state.source.id.token ++ "  " ++ state.source.scheduledOn)
     , line ("Known through: " ++ state.observedAt)
-    , line ""
-    , line "Choose how far to generate:"
+    ] ++
+    (match state.presetCadence with
+     | some cadence => [line ("Pattern: " ++ cadence.label)]
+     | none => []) ++
+    [ line ""
+    , line "Choose how far to extend:"
     ] ++ rows ++ [customRow] ++
     [ line ""
     , line "Boundary dates are suggestions only. Custom dates use the same generator."
@@ -199,7 +225,10 @@ private def horizonView (state : State) (choice : Nat) : Widget :=
 
 private def customDateView (state : State) (value : String) : Widget :=
   .column
-    [ line "Scheduled / Generate Plans / Custom Fill Date"
+    [ line (if state.presetCadence.isSome then
+              "Scheduled / Extend Plan / Custom Fill Date"
+            else
+              "Scheduled / Generate Plans / Custom Fill Date")
     , line ("Source: " ++ state.source.id.token ++ "  " ++ state.source.scheduledOn)
     , line ("Known through: " ++ state.observedAt)
     , line ""
@@ -220,9 +249,11 @@ private def cadenceView (state : State) (choice : Nat) : Widget :=
     , line ""
     , line "Choose how this one construction action should step through calendar months:"
     , .row
-        [ option (choice % 3 = 0) "Monthly"
-        , option (choice % 3 = 1) "Every 2 months"
-        , option (choice % 3 = 2) "Yearly"
+        [ option (choice % 5 = 0) "Monthly"
+        , option (choice % 5 = 1) "Every 2 months"
+        , option (choice % 5 = 2) "Every 3 months"
+        , option (choice % 5 = 3) "Every 6 months"
+        , option (choice % 5 = 4) "Yearly"
         ]
     , line ""
     , line "Cadence is construction input only; no recurrence authority is retained."
@@ -244,7 +275,10 @@ private def previewView
     (drafts : List Draft)
     (choice : Nat) : Widget :=
   .column <|
-    [ line "Scheduled / Generate Plans / Final Review"
+    [ line (if state.presetCadence.isSome then
+              "Scheduled / Extend Plan / Final Review"
+            else
+              "Scheduled / Generate Plans / Final Review")
     , line ("Source: " ++ state.source.id.token)
     , line ("Fill through: " ++ state.limit.endExclusive)
     , line ("Cadence used for this creation: " ++ cadence.label)

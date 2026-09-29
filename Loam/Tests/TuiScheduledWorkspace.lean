@@ -239,11 +239,12 @@ def main : IO Unit := do
   let coverageText := widgetText
     (Loam.Tui.ScheduledWorkspace.viewWithCoverage
       { width := 120, height := 30 } snapshot coverage (.ok coverageSnapshot))
-  expect (contains "Scheduled / Coverage" coverageText &&
-    contains "food" coverageText && contains "Next gap" coverageText)
-    "Scheduled Coverage overview did not render the shared future-plan projection"
-  expect (contains "Blank month cells" coverageText)
-    "Scheduled Coverage overview did not explain quiet non-expected months"
+  expect (contains "Scheduled" coverageText &&
+    contains "food" coverageText && contains "Next needed" coverageText &&
+    contains "Filled through" coverageText)
+    "Scheduled overview did not render the simple future-plan answer"
+  expect (!(contains "●" coverageText) && contains "Use Months for exact dates" coverageText)
+    "Scheduled overview still exposed the old symbol matrix instead of the simple answer"
   let coverageFill := Loam.Tui.ScheduledWorkspace.update snapshot coverage .fillCurrentCycle
   expect (coverageFill.command == .stay &&
     contains "Choose an explicit plan in Months or List" coverageFill.state.notice)
@@ -267,9 +268,15 @@ def main : IO Unit := do
   expect (boardFilter.scope == .allCurrent &&
     contains "Months always uses the current-open frontier" boardFilter.notice)
     "Scheduled Months view unexpectedly changed its all-current scope"
+  let boardExtend := Loam.Tui.ScheduledWorkspace.update snapshot board .extendPlan
+  expect (boardExtend.command == .extendPlan)
+    "Scheduled Months view did not expose the simple extend action for its selected record"
+  let boardStop := Loam.Tui.ScheduledWorkspace.update snapshot board .stopMonitoring
+  expect (boardStop.command == .stopMonitoring)
+    "Scheduled Months view did not expose the simple undecided action for its selected record"
   let boardFill := Loam.Tui.ScheduledWorkspace.update snapshot board .fillCurrentCycle
   expect (boardFill.command == .fillCurrentCycle)
-    "Scheduled Months view did not reuse the existing fill action for its selected record"
+    "Scheduled Months lost the compatibility fill action"
   let listAgain := (Loam.Tui.ScheduledWorkspace.update snapshot board .toggleView).state
   expect (listAgain.viewMode == .list)
     "Scheduled Months toggle did not continue to List"
@@ -297,6 +304,14 @@ def main : IO Unit := do
   let createStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .createScheduled
   expect (createStep.command == .createScheduled)
     "Scheduled workspace createScheduled event did not emit createScheduled command"
+
+  let extendStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .extendPlan
+  expect (extendStep.command == .extendPlan)
+    "Scheduled workspace extendPlan event did not emit extendPlan command"
+
+  let stopMonitoringStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .stopMonitoring
+  expect (stopMonitoringStep.command == .stopMonitoring)
+    "Scheduled workspace stopMonitoring event did not emit stopMonitoring command"
 
   let fillStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .fillCurrentCycle
   expect (fillStep.command == .fillCurrentCycle)
@@ -349,6 +364,14 @@ def main : IO Unit := do
   expect (unavailableCreate.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableCreate.state.notice)
     "Scheduled workspace emitted a write intent while Scheduled evidence was unavailable"
+  let unavailableExtend := Loam.Tui.ScheduledWorkspace.update unavailable start .extendPlan
+  expect (unavailableExtend.command == .stay &&
+    contains "[Unavailable] Scheduled" unavailableExtend.state.notice)
+    "Scheduled workspace emitted extend intent while Scheduled evidence was unavailable"
+  let unavailableStop := Loam.Tui.ScheduledWorkspace.update unavailable start .stopMonitoring
+  expect (unavailableStop.command == .stay &&
+    contains "[Unavailable] Scheduled" unavailableStop.state.notice)
+    "Scheduled workspace emitted monitoring-removal intent while Scheduled evidence was unavailable"
   let unavailableFill := Loam.Tui.ScheduledWorkspace.update unavailable start .fillCurrentCycle
   expect (unavailableFill.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableFill.state.notice)

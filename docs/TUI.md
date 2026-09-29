@@ -119,37 +119,55 @@ evidence after durable writes.
 ## Scheduled workspace
 
 Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). Its
-default surface is **Coverage**, a compact future-plan overview over the current-open
-Scheduled frontier and optional `config/scheduled-coverage.tsv` monitoring rules.
+default surface is a quiet future-plan overview over the current-open Scheduled
+frontier and optional `config/scheduled-coverage.tsv` monitoring rules.
 
-Coverage answers the practical question "what is filled, what is missing, and how far
-does each monitored plan currently reach?" One row is shown per monitored plan. The
-month cells deliberately stay quiet:
+The overview answers the ordinary household questions directly:
 
-- `●` = an expected month has explicit current-open Scheduled evidence;
-- `!` = the configured pattern expects a plan, but no matching explicit occurrence exists;
-- `+` = explicit matching evidence exists in a month the configured pattern did not expect;
-- blank = the pattern does not expect a plan in that month.
+```text
+Plan                         Pattern      Filled through   Next needed
+wifi                         monthly      2027-02          2027-03 !
+rent                         every 2m     2027-02          2027-04 !
+```
 
-The right side shows the last continuously filled expected month before the first gap
-and the next missing expected month. Amounts are not part of coverage matching;
-identity uses the exact negative- and positive-Locus sets. Monitoring rules remain
-replaceable read-side configuration. They do not create recurrence authority or turn
-absence into canonical `NotDue`.
+It does not require reading a month-symbol matrix. `Filled through` is the last
+expected month continuously backed by an explicit current-open Scheduled occurrence
+before the first monitored gap. `Next needed` is that first gap. Exact dates remain
+visible in the Months projection. Amounts are deliberately absent from monitoring
+identity; matching uses the exact negative- and positive-Locus sets.
 
 Press `v` to cycle the Scheduled projections:
 
 ```text
-Coverage -> Months -> List -> Coverage
+Overview -> Months -> List -> Overview
 ```
 
-**Months** is the six-month, two-column calendar-board projection of the same explicit
+**Months** is the six-month, two-column calendar-board projection of explicit
 current-open occurrences. `j/k` selects one occurrence there. **List** retains the
-older Focus Day / All Current-Open scopes (`f`) and Locus filter pane. Occurrence-local
-actions are intentionally performed from Months or List, where the target is visible:
-`g` fills future explicit plans from the selected source, `m` creates or changes
-coverage monitoring, `c` / `Enter` completes, `r` replaces, and `x` cancels.
-Creation (`n`) is available from every Scheduled projection.
+older Focus Day / All Current-Open scopes (`f`) and Locus filter pane.
+
+The ordinary future-plan workflow is intentionally small:
+
+```text
+e   extend the selected recurring plan
+s   stop monitoring the selected plan (future recurrence undecided)
+n   create one explicit Scheduled plan
+```
+
+`e` reuses the plan's current monitoring cadence and asks only how far to extend.
+If the selected plan has no monitoring rule yet, LOAM asks for the cadence once and
+then continues the same extension flow. Every generated occurrence remains an
+ordinary explicit Scheduled occurrence and is individually reviewable before
+publication. The monitoring cadence itself never becomes Scheduled authority.
+
+`s` removes only the replaceable monitoring rule. Existing explicit Scheduled
+occurrences are left untouched, so "I do not yet know whether this continues" does
+not masquerade as either a cancellation or a missing future payment.
+
+Completion (`c` / `Enter`), replacement (`r`), and cancellation (`x`) remain
+available for explicit occurrences. The older `g` generation and `m` monitoring
+keys remain compatibility/advanced paths but are no longer part of the ordinary
+footer grammar.
 
 The surface delegates execution to shared publishers and sessions
 (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
