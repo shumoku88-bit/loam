@@ -1,6 +1,8 @@
+import Loam.ScheduledCoverageReview
 import Loam.Tui.Calendar
 import Loam.Tui.Layout
 import Loam.Tui.Main
+import Loam.Tui.ScheduledCoveragePane
 import Loam.ScheduledReview
 
 namespace Loam.Tui.ScheduledWorkspace
@@ -22,16 +24,17 @@ inductive Pane where
   deriving Repr, DecidableEq, BEq
 
 inductive ViewMode where
-  | list
+  | coverage
   | futureBoard
+  | list
   deriving Repr, DecidableEq, BEq
 
 structure State where
   focusDate : String
-  scope : Scope := .focusDay
+  scope : Scope := .allCurrent
   /-- Scheduled occurrences are the primary browse target; Loci remain an explicit filter pane. -/
   pane : Pane := .occurrences
-  viewMode : ViewMode := .list
+  viewMode : ViewMode := .coverage
   locusRow : Nat := 0
   occurrenceRow : Nat := 0
   notice : String := ""
@@ -73,7 +76,12 @@ structure Step where
 def initial (focusDate : String) : State :=
   { focusDate := focusDate }
 
+/-- Compatibility/list-focused initializer used by focused mechanics and tests. -/
+def initialList (focusDate : String) : State :=
+  { focusDate := focusDate, scope := .focusDay, viewMode := .list }
+
 abbrev Record := ScheduledOccurrence String
+abbrev CoverageEvidence := Except String Loam.ScheduledCoverageReview.Snapshot
 
 /-- Presentation result for one Scheduled workspace scope. Unknown is not an empty answer. -/
 inductive ScopeEvidence where
@@ -170,29 +178,48 @@ private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
-  | .previous => { state := movePrevious snapshot state }
-  | .next => { state := moveNext snapshot state }
+  | .previous =>
+      match state.viewMode with
+      | .coverage =>
+          { state := { state with notice :=
+              "Coverage is the overview; press v for Months to select an explicit plan." } }
+      | .futureBoard | .list => { state := movePrevious snapshot state }
+  | .next =>
+      match state.viewMode with
+      | .coverage =>
+          { state := { state with notice :=
+              "Coverage is the overview; press v for Months to select an explicit plan." } }
+      | .futureBoard | .list => { state := moveNext snapshot state }
   | .focusLeft =>
       match state.viewMode with
+      | .coverage =>
+          { state := { state with notice :=
+              "Coverage has no Locus pane; press v twice for List." } }
       | .futureBoard =>
           { state := { state with notice :=
-              "Future Board uses one Scheduled selection; press v for list panes." } }
+              "Months uses one Scheduled selection; press v for List." } }
       | .list => { state := { state with pane := .loci, notice := "" } }
   | .focusRight =>
       match state.viewMode with
+      | .coverage =>
+          { state := { state with notice :=
+              "Coverage has no Locus pane; press v twice for List." } }
       | .futureBoard =>
           { state := { state with notice :=
-              "Future Board uses one Scheduled selection; press v for list panes." } }
+              "Months uses one Scheduled selection; press v for List." } }
       | .list => { state := { state with pane := .occurrences, notice := "" } }
   | .cycleFilter =>
       match state.viewMode with
+      | .coverage =>
+          { state := { state with notice :=
+              "Coverage always uses the current-open frontier; press v twice for scoped List." } }
       | .futureBoard =>
           { state := { state with notice :=
-              "Future Board always shows the current-open frontier; press v for scoped list view." } }
+              "Months always uses the current-open frontier; press v for scoped List." } }
       | .list => { state := cycleFilter snapshot state }
   | .toggleView =>
       match state.viewMode with
-      | .list =>
+      | .coverage =>
           { state := clampState snapshot
               { state with
                 viewMode := .futureBoard
@@ -203,6 +230,15 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
                 notice := "" } }
       | .futureBoard =>
           { state := { state with viewMode := .list, notice := "" } }
+      | .list =>
+          { state := clampState snapshot
+              { state with
+                viewMode := .coverage
+                scope := .allCurrent
+                pane := .occurrences
+                locusRow := 0
+                occurrenceRow := 0
+                notice := "" } }
   | .createScheduled =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
@@ -211,7 +247,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          match state.pane with
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Choose an explicit plan in Months or List before filling; press v." } }
+          else match state.pane with
           | .loci =>
               { state := { state with notice := "Fill cycle is available from the Scheduled pane." } }
           | .occurrences =>
@@ -224,7 +263,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          match state.pane with
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Choose an explicit plan in Months or List before changing its pattern; press v." } }
+          else match state.pane with
           | .loci =>
               { state := { state with notice := "Plan monitoring is available from the Scheduled pane." } }
           | .occurrences =>
@@ -237,7 +279,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          match state.pane with
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Choose an explicit plan in Months or List before completing it; press v." } }
+          else match state.pane with
           | .loci => { state := { state with notice := "Complete is available from the Scheduled pane." } }
           | .occurrences =>
               match selectedRecord? snapshot state with
@@ -247,7 +292,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          match state.pane with
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Choose an explicit plan in Months or List before replacing it; press v." } }
+          else match state.pane with
           | .loci => { state := { state with notice := "Replace is available from the Scheduled pane." } }
           | .occurrences =>
               match selectedRecord? snapshot state with
@@ -257,7 +305,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
       | none =>
-          match state.pane with
+          if state.viewMode == .coverage then
+            { state := { state with notice :=
+                "Choose an explicit plan in Months or List before cancelling it; press v." } }
+          else match state.pane with
           | .loci => { state := { state with notice := "Cancel is available from the Scheduled pane." } }
           | .occurrences =>
               match selectedRecord? snapshot state with
@@ -354,11 +405,11 @@ private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
         plainLine ("     " ++ fit 28 change.coordinate.token ++ " " ++ toString change.quantity.quanta ++ " " ++ record.measure.token))
 
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] board  [n] new  [g] fill cycle  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] coverage  [n] new  [g] fill cycle  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] board [n] new [g] fill cycle [m] monitor [q] back"
+    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] coverage [n] new [g] fill cycle [m] monitor [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
@@ -473,7 +524,7 @@ private def futureBoardRows
     (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let writable := Loam.Tui.Layout.contentWidth bounds
   if writable < 80 then
-    [ mutedLine " Future Board needs at least 80 terminal columns; press v for list view." ]
+    [ mutedLine " Months needs at least 80 terminal columns; press v for List." ]
   else
     let leftWidth := (writable - 3) / 2
     let rightWidth := writable - leftWidth - 3
@@ -492,11 +543,11 @@ private def futureBoardRows
 
 private def futureBoardFooter (bounds : Bounds) : List Widget :=
   let detailed :=
-    "[j/k] select  [v] list  [n] new  [g] fill  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+    "[j/k] select  [v] List  [n] new  [g] fill  [m] monitor  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [mutedLine detailed]
   else
-    [ mutedLine "[j/k] select [v] list [n] new [g] fill [m] monitor [q] back"
+    [ mutedLine "[j/k] select [v] List [n] new [g] fill [m] monitor [q] back"
     , mutedLine "[c/Enter] complete [r] replace [x] cancel"
     ]
 
@@ -507,7 +558,7 @@ private def futureBoardView
     (futureBoardMonths snapshot).head?.getD { year := 1970, month := 1 }
   let body :=
     [ rule bounds '='
-    , plainLine " Scheduled / Future Board"
+    , plainLine " Scheduled / Months"
     , mutedLine (" Explicit current-open plans by calendar month, starting " ++
         Loam.Tui.Calendar.monthLabel startMonth)
     , mutedLine " Calendar grouping is presentation only; no recurrence or month authority is inferred."
@@ -519,9 +570,42 @@ private def futureBoardView
     (if state.notice.isEmpty then [] else [plainLine state.notice])
   .column (Loam.Tui.Layout.fitWithFooter bounds body (futureBoardFooter bounds))
 
-def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
+private def coverageFooter (bounds : Bounds) : List Widget :=
+  let detailed := "[v] Months  [n] new  [q] back"
+  if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
+    [mutedLine detailed]
+  else
+    [mutedLine "[v] Months [n] new [q] back"]
+
+private def coverageView
+    (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
+  let coverageLines :=
+    match coverage with
+    | .ok snapshot => Loam.Tui.ScheduledCoveragePane.lines snapshot
+    | .error message =>
+        [ plainLine (" [Coverage unavailable] " ++ message)
+        , mutedLine " Months and List remain available with v."
+        ]
+  let body :=
+    [ rule bounds '='
+    , plainLine " Scheduled / Coverage"
+    , mutedLine " What is filled, what is missing, and how far each monitored plan currently reaches."
+    , mutedLine " Blank month cells mean the configured pattern does not expect a plan there."
+    , rule bounds '='
+    ] ++ coverageLines ++
+    (if state.notice.isEmpty then [] else [plainLine state.notice])
+  .column (Loam.Tui.Layout.fitWithFooter bounds body (coverageFooter bounds))
+
+def viewWithCoverage
+    (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
+    (coverage : CoverageEvidence) : Widget :=
   match rawState.viewMode with
-  | .list => listView bounds snapshot rawState
+  | .coverage => coverageView bounds rawState coverage
   | .futureBoard => futureBoardView bounds snapshot rawState
+  | .list => listView bounds snapshot rawState
+
+/-- Compatibility rendering for callers that do not own the coverage read. -/
+def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
+  viewWithCoverage bounds snapshot rawState (.error "coverage not loaded in this surface")
 
 end Loam.Tui.ScheduledWorkspace
