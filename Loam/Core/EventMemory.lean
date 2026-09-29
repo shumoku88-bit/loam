@@ -22,6 +22,16 @@ structure EventMemory where
 
 namespace EventMemory
 
+/--
+Distinct locus/measure coordinates physically represented by remembered Events.
+
+First-occurrence order is retained only as deterministic presentation. It carries
+no temporal, causal, priority, or authority meaning.
+-/
+def recordedCoordinates (memory : EventMemory) : List EffectCoordinate :=
+  (memory.events.flatMap fun event =>
+    event.effects.map fun effect => effect.coordinate).eraseDups
+
 private theorem eventIdToken_injective :
     Function.Injective (fun id : EventId => id.token) := by
   intro left right h

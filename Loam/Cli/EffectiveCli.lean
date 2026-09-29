@@ -5,11 +5,6 @@ namespace Loam.EffectiveCli
 
 set_option autoImplicit false
 
-private def recordedCoordinates
-    (memory : Loam.Core.EventMemory) : List Loam.Core.EffectCoordinate :=
-  (memory.events.flatMap fun event =>
-    event.effects.map fun effect => effect.coordinate).eraseDups
-
 private def quantityLine
     (coordinate : Loam.Core.EffectCoordinate)
     (quantity : Loam.Core.Quantity) : String :=
@@ -47,7 +42,7 @@ def showEffectiveQuantities (actualPath : String) : IO UInt32 := do
         IO.eprintln err.message
         return 2
     | .ok image => pure image
-  let coordinates := recordedCoordinates image.currentEvents
+  let coordinates := Loam.Core.EventMemory.recordedCoordinates image.currentEvents
   if image.evidence.corrections.corrections.isEmpty then
     IO.println "Effective quantities (zero coordinates omitted):"
   else

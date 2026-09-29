@@ -162,10 +162,6 @@ private def scanLines
               let next := { state with errorLines := lineNo :: state.errorLines }
               scanLines rest (lineNo + 1) next
 
-private def recordedCoordinates (memory : EventMemory) : List EffectCoordinate :=
-  (memory.events.flatMap fun event =>
-    event.effects.map fun effect => effect.coordinate).eraseDups
-
 /--
 The stateless shadow has no retained correction facts. This value is application
 input, not a claim that the private source has globally solved correction
@@ -190,7 +186,7 @@ if the Application boundary unexpectedly refuses that admitted query.
 -/
 private def printQuantities (memory : EventMemory) : IO Bool := do
   IO.println "Recorded quantity projection (stateless shadow; run-local identity discarded on exit):"
-  let coordinates := recordedCoordinates memory
+  let coordinates := EventMemory.recordedCoordinates memory
   match coordinates with
   | [] => IO.println "  (no quantity coordinates)"
   | _ =>
