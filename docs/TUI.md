@@ -119,41 +119,49 @@ evidence after durable writes.
 ## Scheduled workspace
 
 Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). Its
-default surface is a quiet future-plan overview over the current-open Scheduled
-frontier and optional `config/scheduled-coverage.tsv` monitoring rules.
+default surface is the **Series Calendar** over the current-open Scheduled frontier
+and replaceable `config/scheduled-coverage.tsv` read-side rows.
 
-The overview answers the ordinary household questions directly:
+The ordinary question is visible directly across calendar months:
 
 ```text
-Plan                         Pattern      Filled through   Next needed
-wifi                         monthly      2027-02          2027-03 !
-rent                         every 2m     2027-02          2027-04 !
+Plan                        Pace       Oct     Nov     Dec     Jan     Feb
+wifi                        monthly    08      08      08      08      !
+pension                     every 2m   15              15              !
+gpt-plus                    undecided  15
 ```
 
-It does not require reading a month-symbol matrix. `Filled through` is the last
-expected month continuously backed by an explicit current-open Scheduled occurrence
-before the first monitored gap. `Next needed` is that first gap. Exact dates remain
-visible in the Months projection. Amounts are deliberately absent from monitoring
-identity; matching uses the exact negative- and positive-Locus sets.
+A number is the real day of an explicit current-open Scheduled occurrence. Multiple
+matching occurrences in one month remain visible, for example `08,18`; larger
+multiplicities are shown explicitly as a plan count. `!` means the current
+replaceable pace expects an occurrence in that month but no matching explicit
+Scheduled occurrence exists. A month that is not expected is rendered as a genuinely
+empty cell, not a dot or synthetic `NotDue` fact. Amounts are deliberately absent
+from series identity; matching uses the exact negative- and positive-Locus sets.
+
+`h/l` moves the finite month window without terminal-content scrolling. The TUI
+loads a wider finite coverage horizon and redraws only the visible columns, so this
+surface does not depend on a large horizontally scrolling widget.
 
 Press `v` to cycle the Scheduled projections:
 
 ```text
-Overview -> Months -> List -> Overview
+Series Calendar -> Months -> List -> Series Calendar
 ```
 
-**Months** is the six-month, two-column calendar-board projection of explicit
-current-open occurrences. `j/k` selects one occurrence there. **List** retains the
-older Focus Day / All Current-Open scopes (`f`) and Locus filter pane.
+**Months** remains the six-month, two-column calendar-board projection for answering
+"what exists in this month?" and for exact occurrence actions. `j/k` selects one
+occurrence there. **List** retains the older Focus Day / All Current-Open scopes
+(`f`) and Locus filter pane.
 
-The overview itself is the primary recurring-plan management surface. `j/k` selects
-one row, so the user does not have to hunt for a source occurrence in Months first:
+The Series Calendar is the primary recurring-plan management surface:
 
 ```text
 j/k       select recurring plan
+h/l       move the visible month window
 e         extend / replenish future explicit plans
 p         change expected pace
-s         future recurrence undecided; stop monitoring
+s         future pace undecided
 Enter     open that plan's exact Scheduled dates
 n         create one explicit Scheduled plan
 ```
@@ -164,26 +172,29 @@ cadence. Its normal horizon choices are **Next occurrence**, **Next 3 occurrence
 **Next 6 occurrences**, and **Custom date**. These extension horizons are derived
 from the selected cadence itself rather than household/report boundary presets, so
 the shortest choice always contains one later cadence slot. If extension starts
-from Months/List and the selected occurrence has no monitoring rule yet, LOAM asks
+from Months/List and the selected occurrence has no monitoring row yet, LOAM asks
 for cadence once and continues the same flow. Every generated occurrence remains an
 ordinary explicit Scheduled occurrence and is individually reviewable before
-publication. The monitoring cadence itself never becomes Scheduled authority.
+publication. The read-side cadence never becomes Scheduled authority.
 
-`p` opens the existing plan-monitoring editor for the selected row and changes the
-replaceable expected cadence. `s` removes only that monitoring rule. Existing
-explicit Scheduled occurrences are left untouched, so "I do not yet know whether
-this continues" does not masquerade as either cancellation or a missing payment.
+`p` opens the existing plan-monitoring editor and changes the replaceable expected
+cadence. `s` changes only that replaceable read-side row to `undecided`: its
+signed-Locus selector and display row remain available, but it expects no future
+month and therefore produces no future `!` markers. Existing explicit Scheduled
+occurrences are untouched. This keeps "I do not yet know whether this continues"
+distinct from both cancellation and a missing payment without introducing canonical
+recurrence identity.
 
-`Enter` from the overview opens Months with the latest matching explicit occurrence
-selected. Completion (`c` / `Enter`), replacement (`r`), and cancellation
-(`x`) then operate on exact occurrences there. The older `g` generation and `m`
-monitoring keys remain compatibility/advanced paths but are no longer part of the
-ordinary footer grammar.
+`Enter` from the Series Calendar opens Months with the latest matching explicit
+occurrence selected. Completion (`c` / `Enter`), replacement (`r`), and
+cancellation (`x`) then operate on exact occurrences there. The older `g`
+generation and `m` monitoring keys remain compatibility/advanced paths but are no
+longer part of the ordinary footer grammar.
 
 The surface delegates execution to shared publishers and sessions
 (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
-`ScheduledReplacementPublisher`), then reloads both canonical Scheduled evidence and
-the shared `ScheduledCoverageReview` projection after durable writes.
+`ScheduledReplacementPublisher`), then reloads both canonical Scheduled evidence
+and the shared `ScheduledCoverageReview` projection after durable writes.
 
 ## Attention
 
