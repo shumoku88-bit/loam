@@ -2,6 +2,7 @@ import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.Application.CorrectionFrontierIndexed
 import Loam.HouseholdPaths
+import Loam.MonthlyRoleFlowReview
 import Loam.RoleFlowReview
 import Loam.ScheduledActualOwnership
 import Loam.ScheduledReview
@@ -42,6 +43,7 @@ inductive ExpenseProvenance where
 
 structure Snapshot where
   roleFlow : Loam.RoleFlowReview.Snapshot
+  monthly : Loam.MonthlyRoleFlowReview.Snapshot := {}
   expenseProvenance : ExpenseProvenance
 
 /--
@@ -124,6 +126,7 @@ def project
   let flow ←
     Loam.TransactionsFlowReview.project evidence.records start endExclusive
   let roleFlow := Loam.RoleFlowReview.project flow evidence.roles
+  let monthly ← Loam.MonthlyRoleFlowReview.project flow evidence.roles
   let expenseProvenance :=
     match evidence.scheduledTerminals with
     | .error message =>
@@ -132,7 +135,7 @@ def project
         match expensePartition flow roleFlow evidence.rootedCurrent terminals with
         | .ok partition => ExpenseProvenance.available partition
         | .error message => ExpenseProvenance.unknown message
-  return { roleFlow, expenseProvenance }
+  return { roleFlow, monthly, expenseProvenance }
 
 private def loadEvidenceUnderOwnership
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
