@@ -67,11 +67,6 @@ private def practicalUsage : String :=
   "Show recorded quantities:\n" ++
   "  loam summary ACTUAL_FILE"
 
-private def recordedCoordinates
-    (memory : Loam.Core.EventMemory) : List Loam.Core.EffectCoordinate :=
-  (memory.events.flatMap fun event =>
-    event.effects.map fun effect => effect.coordinate).eraseDups
-
 private def resolveReportDataDir
     (path? : Option String) : IO (Except String System.FilePath) := do
   match path? with
@@ -195,7 +190,7 @@ def showRecordedQuantitySummary (path : String) : IO UInt32 := do
         return 2
     | .ok ev => pure ev
   let memory := evidence.events
-  match recordedCoordinates memory with
+  match Loam.Core.EventMemory.recordedCoordinates memory with
   | [] =>
       IO.println "No recorded quantities."
       return 0
