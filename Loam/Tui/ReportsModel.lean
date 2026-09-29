@@ -770,7 +770,7 @@ private def updateLocusTrendCompare
     | .input 'r' | .input 'R' =>
       { state := { state with
           trendCompare :=
-            Loam.Tui.LocusTrendComparePane.cycleRenderer state.trendCompare
+            Loam.Tui.LocusTrendComparePane.toggleLines state.trendCompare
           notice := "" } }
     | .enter =>
       { state, query := queryForMode state }

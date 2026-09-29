@@ -606,7 +606,8 @@ def main : IO Unit := do
       contains "s/S range" viewportText &&
       contains "wheel select period" viewportText &&
       contains "mouse click/drag scrub" viewportText &&
-      contains "Aug 10" viewportText && contains "Sep 9" viewportText)
+      contains "Plot points" viewportText &&
+      contains "Aug 10" viewportText && contains "As of Sep 9" viewportText)
     "Trend Day did not expose the visible 31-day window and mouse controls"
   expect (!(contains "¥8,000" viewportText))
     "Trend Day scale still included an outlier outside the visible viewport"
@@ -657,9 +658,14 @@ def main : IO Unit := do
       compareBounds.height)
     "Trend exceeded the terminal height"
 
-  let compareBlock := (Loam.Tui.Reports.update comparePointer (.input 'r')).state
-  expect (compareBlock.trendCompare.renderer == .block)
-    "Trend renderer fallback did not move from Braille to block"
+  let compareLines := (Loam.Tui.Reports.update comparePointer (.input 'r')).state
+  expect compareLines.trendCompare.drawLines
+    "Trend r did not connect exact points with the presentation line"
+  let compareLinesText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds compareLines)
+  expect (contains "Plot points + line" compareLinesText &&
+      contains "r points/line" compareLinesText)
+    "Trend line toggle did not expose its active presentation mode"
   expect (isMenu (Loam.Tui.Reports.update comparePointer .escape).state)
     "Trend escape did not return to Reports menu"
 
