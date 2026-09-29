@@ -53,7 +53,7 @@ def project
     throw "loam: cycle funding selection has a wrong measure"
   if !decide selection.Nodup then
     throw "loam: cycle funding selection contains duplicate coordinates"
-  if balances.coordinates != selection then
+  if !(balances.coordinates == selection) then
     throw "loam: cycle funding balance answer does not match the selected pool"
   if !decide (current.rows.map (·.purpose)).Nodup then
     throw "loam: cycle funding coverage contains duplicate Purpose rows"
