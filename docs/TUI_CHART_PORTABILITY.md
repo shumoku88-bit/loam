@@ -80,3 +80,19 @@ CI does **not** prove that a user's chosen font draws every Unicode glyph
 beautifully in every emulator. Manual visual checks remain useful on iTerm2,
 WezTerm, and Ghostty. A terminal-specific workaround should be added only when
 the generic fallback cannot solve a demonstrated problem.
+
+
+## Session observation overlays
+
+Day Trend can add up to three temporary observation overlays with `o`. Each
+overlay takes a short name plus day numbers for the calendar month containing
+the currently selected Day point. For example, a user can enter `Mother off`
+with `3 4 6 8 9`, or `Friend house` with another set of day numbers.
+
+These overlays live only in TUI presentation state. They are not Actual,
+Scheduled, retained household context, or configuration, and no file is read or
+written for them. `O` clears the temporary overlays.
+
+The chart renders A/B/C markers below the Day axis and a session-only legend.
+Coincidence is intentionally only visual: an overlay sharing a date with a
+spending point does not claim that the context caused the spending.
