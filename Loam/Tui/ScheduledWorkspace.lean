@@ -306,33 +306,12 @@ private def monthOrdinal (month : Loam.Tui.Calendar.Month) : Nat :=
 private def futureBoardBaseMonth (snapshot : Snapshot) : Loam.Tui.Calendar.Month :=
   (Loam.Tui.Calendar.monthOf? snapshot.actual.today).getD { year := 1970, month := 1 }
 
-private def futureBoardMaxOffset (snapshot : Snapshot) : Nat :=
-  let base := futureBoardBaseMonth snapshot
-  let baseOrdinal := monthOrdinal base
-  let allState : State := {
-    focusDate := snapshot.actual.today
-    scope := .allCurrent
-    pane := .occurrences
-    viewMode := .futureBoard
-  }
-  match (recordsForScope snapshot allState).getLast? with
-  | none => 0
-  | some record =>
-      match Loam.Tui.Calendar.monthOf? record.scheduledOn with
-      | none => 0
-      | some month =>
-          let target := monthOrdinal month
-          if target < baseOrdinal then 0 else target - baseOrdinal
-
-private def clampFutureBoardMonthOffset (snapshot : Snapshot) (state : State) : State :=
-  { state with futureBoardMonthOffset := min state.futureBoardMonthOffset (futureBoardMaxOffset snapshot) }
-
 private def followFutureBoardSelection (snapshot : Snapshot) (state : State) : State :=
   match selectedRecord? snapshot state with
-  | none => clampFutureBoardMonthOffset snapshot state
+  | none => state
   | some record =>
       match Loam.Tui.Calendar.monthOf? record.scheduledOn with
-      | none => clampFutureBoardMonthOffset snapshot state
+      | none => state
       | some selectedMonth =>
           let baseOrdinal := monthOrdinal (futureBoardBaseMonth snapshot)
           let selectedOrdinal := monthOrdinal selectedMonth
@@ -346,7 +325,7 @@ private def followFutureBoardSelection (snapshot : Snapshot) (state : State) : S
             else if start + 6 ≤ selectedOffset then
               { state with futureBoardMonthOffset := selectedOffset - 5 }
             else
-              clampFutureBoardMonthOffset snapshot state
+              state
 
 def refreshed (snapshot : Snapshot) (state : State) : State :=
   clampState snapshot { state with notice := "" }
@@ -454,13 +433,9 @@ def updateWithCoverage
       | .planDetail =>
           { state := { state with notice := "Plan Detail uses one vertical plan list; j/k moves the selection." } }
       | .futureBoard =>
-          let maxOffset := futureBoardMaxOffset snapshot
-          if state.futureBoardMonthOffset < maxOffset then
-            { state := { state with
-                futureBoardMonthOffset := state.futureBoardMonthOffset + 1
-                notice := "" } }
-          else
-            { state := { state with notice := "No later explicit Scheduled month is loaded." } }
+          { state := { state with
+              futureBoardMonthOffset := state.futureBoardMonthOffset + 1
+              notice := "" } }
       | .list => { state := { state with pane := .occurrences, notice := "" } }
   | .cycleFilter =>
       match state.viewMode with
@@ -937,7 +912,7 @@ private def futureBoardFooter (bounds : Bounds) : List Widget :=
 
 private def futureBoardView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
-  let state := clampFutureBoardMonthOffset snapshot <| clampState snapshot rawState
+  let state := clampState snapshot rawState
   let months := futureBoardMonths snapshot state
   let startMonth :=
     months.head?.getD { year := 1970, month := 1 }
@@ -949,7 +924,7 @@ private def futureBoardView
     , mutedLine (" Explicit current-open plans: " ++
         Loam.Tui.Calendar.monthLabel startMonth ++ " .. " ++
         Loam.Tui.Calendar.monthLabel endMonth)
-    , mutedLine " Wheel/j/k moves the selected plan; h/l or horizontal wheel shifts the six-month window."
+    , mutedLine " Wheel/j/k moves the selected plan; h/l or horizontal wheel freely shifts the six-month window."
     , rule bounds '='
     ] ++
     futureBoardRows bounds snapshot state ++
