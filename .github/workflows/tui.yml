@@ -751,7 +751,7 @@ jobs:
         run: lake env lean --run Loam/Tests/IncomeExpenseProvenanceReview.lean
 
       - name: Build Scheduled future coverage review boundary
-        run: lake build Loam.ScheduledCoverageReview
+        run: lake build Loam.Review.ScheduledCoverageReview
 
       - name: Verify Scheduled monthly and multi-month coverage projection
         run: lake env lean --run Loam/Tests/ScheduledCoverageReview.lean
