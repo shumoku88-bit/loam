@@ -1,4 +1,4 @@
-import Loam.ScheduledCreationPublisher
+import Loam.Publisher.ScheduledCreationPublisher
 import Loam.Review.ScheduledReview
 import Loam.Tui.ScheduledGeneration
 import Loam.Tui.ScheduledGenerationSession
