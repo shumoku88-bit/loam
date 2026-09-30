@@ -1,6 +1,6 @@
 # Let's Kakeibo — input mechanics deep dive
 
-Status: second-pass reconstruction from contemporary reviews and 2024 hands-on evidence.
+Status: contemporary-review reconstruction, now cross-checked against the bundled v5.93 primary help.
 
 ## 1. Entry is cell-first, not form-first
 
@@ -139,11 +139,13 @@ This is a strong example of keeping **future consequence attached to original ev
 
 ## 10. Autosave
 
-The current 窓の杜 library page states that household data is saved automatically whenever a change is made.
+The bundled v5.93 help resolves the earlier ambiguity.
 
-This complements the direct-edit model: the table behaves more like a continuously retained notebook than a modal form with a separate Save ceremony.
+Default behavior is automatic save when the household book/application closes, **not a documented durable write after each individual cell edit**.
 
-The exact write transaction boundaries still need primary/manual inspection.
+The user can disable automatic save. In that mode the File menu exposes explicit Save behavior and close-without-save / unsaved-change handling.
+
+Therefore direct cell editing and persistence ceremony are separate concepts in the final product.
 
 ## 11. Context help
 

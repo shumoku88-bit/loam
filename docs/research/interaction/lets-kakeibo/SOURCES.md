@@ -162,15 +162,27 @@ Use:
 
 Authority: **secondary user report; useful for observed final-release data-location behavior, not for guarantees about safety or supported synchronization**.
 
-## Binary-package access note
+## Source J — exact official v5.93 package and bundled HTML Help
 
-The official author page currently exposes `lets593.zip` and publishes MD5 `875b05ddc22e5992d06f4d0ca672a7d4`. 窓の杜 also exposes a v5.93 installer download.
+Artifact identity:
 
-This research environment can discover those binary URLs but cannot fetch the binary payload for offline extraction. Therefore the bundled v5.93 help/manual has **not** yet been inspected directly. Do not silently upgrade secondary evidence into primary-manual evidence.
+```text
+lets593.zip
+MD5 875b05ddc22e5992d06f4d0ca672a7d4
+```
 
+The hash exactly matches the author's published MD5.
+
+The Inno Setup payload was parsed/decompressed without executing Windows code. Six recovered files were verified against installer-internal SHA-1 values. The bundled `lets.chm` directory and key LZX-compressed page bodies were then decoded in a temporary local research workspace.
+
+Primary-help pages inspected include the main grid, key list, menus, entry fields, automatic entries, cards, accounts, classifications, holidays, future list, transfer, reconciliation, search, tags, reports, backup/restore, data folders, imports, options, FAQ, startup, reminder, and version history.
+
+No extracted binary, help HTML, screenshot, or other bundled copyrighted asset is committed or redistributed.
+
+Authority: **highest available for final-release behavior**, with one caveat: the final CHM visibly retains some older historical pages, so conflicting pages require version-history chronology.
 
 ## Source-quality notes
 
-No source discovered in this pass is a complete formal manual.
+The bundled v5.93 help is now the primary reference for final-release interaction. Contemporary reviews remain valuable for historical context and for identifying behavior that may have changed over time.
 
-The strongest next source would be the v5.93 bundled help/manual itself. Until that is inspected, exact shortcut tables and edge-case semantics should remain open questions.
+Where the final help conflicts with a secondary product description, prefer the bundled help for precise v5.93 semantics.

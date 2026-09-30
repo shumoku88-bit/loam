@@ -18,23 +18,27 @@ These features help explain why the program could remain useful without a cloud 
 
 ## 2. Automatic persistence
 
-The current 窓の杜 library page states that changes are automatically saved.
+The bundled v5.93 help gives the precise behavior: automatic saving is enabled by default and occurs when the household book/application closes.
 
-This reduces one class of loss caused by forgetting an explicit Save command.
+It can be disabled. When disabled, explicit Save and unsaved-close choices become part of the workflow.
 
-The exact atomicity and crash behavior remain unverified.
+This primary evidence corrects the earlier reading of a secondary product description as implying persistence after every edit. Crash atomicity still remains unverified.
 
 ## 3. Native backup data
 
-A 2024 long-term-user article documents an "自動バックアップ" folder and identifies backup files with the `.LBK` extension.
+The bundled v5.93 help confirms both automatic and manual backup.
 
-The same article demonstrates restoring a household book from such a backup on another PC.
+Automatic backup is normally produced on application exit, at most one backup per day, with same-day replacement and a default ten-day retention window.
 
-Evidence status: **secondary hands-on source**.
+Manual backup uses an `.LBK` file whose name includes date/time/book name. Restore replaces a same-named book completely or creates it when absent.
+
+A later long-term-user article independently demonstrates restoring such an `.LBK` backup on another PC.
 
 ## 4. Configurable data location
 
-The same user report shows that the data storage location can be changed from the program.
+The bundled help confirms that both the household-data folder and automatic-backup folder can be changed independently. It explicitly presents separate storage devices/locations as a resilience option.
+
+A later user report demonstrates the same setting in practice.
 
 This enabled a non-official Dropbox workflow:
 
