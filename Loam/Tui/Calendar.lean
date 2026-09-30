@@ -116,8 +116,8 @@ def monthLabel (month : Month) : String :=
 example : firstWeekdayMonday { year := 2026, month := 9 } = 1 := by rfl
 example : (slots { year := 2026, month := 9 })[1]? = some (some "2026-09-01") := by rfl
 example : (slots { year := 2026, month := 9 })[30]? = some (some "2026-09-30") := by rfl
-example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by rfl
+example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by native_decide
 example : shiftCalendarMonthWindow? "2026-12-01" "2027-01-01" true =
-    some ("2027-01-01", "2027-02-01") := by rfl
+    some ("2027-01-01", "2027-02-01") := by native_decide
 
 end Loam.Tui.Calendar
