@@ -345,12 +345,12 @@
         "main",
         "experiment/384-deterministic-scheduled-recovery"
       ],
-      "buildArgs": "Loam.HouseholdCommand Loam.ScheduledReview Loam.Persistence.ScheduledLifecyclePersistence Loam.Tests.DeterministicScenarioSupport",
+      "buildArgs": "Loam.HouseholdCommand Loam.Review.ScheduledReview Loam.Persistence.ScheduledLifecyclePersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/Core/ScheduledTerminal.lean",
         "Loam/Application/ScheduledInspection.lean",
         "Loam/ScheduledTerminalPublisher.lean",
-        "Loam/ScheduledReview.lean",
+        "Loam/Review/ScheduledReview.lean",
         "Loam/HouseholdCommand.lean",
         "Loam/ActualAuthority.lean",
         "Loam/LocusAdmissionAuthority.lean",
