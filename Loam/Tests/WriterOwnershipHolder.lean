@@ -1,4 +1,4 @@
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 import Std
 
 namespace Loam.Tests.WriterOwnershipHolder

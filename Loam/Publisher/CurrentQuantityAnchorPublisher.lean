@@ -8,7 +8,7 @@ import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.CurrentQuantityPresencePersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.CurrentQuantityAnchorPublisher
 

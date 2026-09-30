@@ -3,7 +3,7 @@ import Loam.Application.CapacityInspection
 import Loam.Authority.CapacityAuthority
 import Loam.FreshNumberedToken
 import Loam.Persistence.TokenSyntax
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.CapacityPublisher
 

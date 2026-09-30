@@ -3,7 +3,7 @@ import Loam.Core.ScheduledRouting
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.ScheduledRoutingPublisher
 
