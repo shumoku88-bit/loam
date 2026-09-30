@@ -1,4 +1,4 @@
-import Loam.ScheduledCoverageConfig
+import Loam.Config.ScheduledCoverageConfig
 import Loam.Review.ScheduledReview
 
 namespace Loam.ScheduledCoverageSelector

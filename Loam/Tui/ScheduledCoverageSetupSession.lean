@@ -1,5 +1,5 @@
 import Loam.HouseholdPaths
-import Loam.ScheduledCoverageConfig
+import Loam.Config.ScheduledCoverageConfig
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
 import Loam.Tui.ScheduledCoverageSetup
