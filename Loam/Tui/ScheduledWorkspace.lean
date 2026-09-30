@@ -165,24 +165,58 @@ private def recordBefore (left right : Record) : Bool :=
   else
     left.scheduledOn <= right.scheduledOn
 
-def latestRecordForRule?
+private def recordsForRule
     (snapshot : Snapshot)
-    (rule : Loam.ScheduledCoverageConfig.Rule) : Option Record :=
+    (rule : Loam.ScheduledCoverageConfig.Rule) : List Record :=
   let allState : State := {
     focusDate := snapshot.actual.today
     scope := .allCurrent
     pane := .occurrences
     viewMode := .coverage
   }
-  let candidates :=
-    (recordsForScope snapshot allState).filter fun record =>
-      Loam.ScheduledCoverageSelector.matchesRule record rule
-  (candidates.mergeSort recordBefore).getLast?
+  (recordsForScope snapshot allState).filter fun record =>
+    Loam.ScheduledCoverageSelector.matchesRule record rule
+
+def latestRecordForRule?
+    (snapshot : Snapshot)
+    (rule : Loam.ScheduledCoverageConfig.Rule) : Option Record :=
+  ((recordsForRule snapshot rule).mergeSort recordBefore).getLast?
+
+/--
+Choose the explicit Scheduled template that should replenish one monitored row.
+
+When the finite coverage projection exposes a gap, ignore later off-cadence
+occurrences and anchor construction at the latest explicit occurrence on the
+configured cadence before that first missing month. Repeated replenishment
+therefore fills gaps in calendar order instead of extending from an unrelated
+later explicit date.
+
+If the visible monitored horizon has no gap, preserve the older extension
+behavior by using the latest matching current-open occurrence.
+-/
+def replenishmentSourceForRow?
+    (snapshot : Snapshot)
+    (row : Loam.ScheduledCoverageReview.Row) : Option Record :=
+  match row.firstMissing with
+  | none => latestRecordForRule? snapshot row.rule
+  | some missingMonth =>
+      let missingStart := missingMonth ++ "-01"
+      let candidates :=
+        (recordsForRule snapshot row.rule).filter fun record =>
+          decide (record.scheduledOn < missingStart) &&
+            Loam.ScheduledCoverageReview.dateFallsOnExpectedMonth
+              row.rule record.scheduledOn
+      (candidates.mergeSort recordBefore).getLast?
 
 def selectedCoverageRecord?
     (snapshot : Snapshot) (coverage : CoverageEvidence) (state : State) : Option Record := do
   let row ← selectedCoverageRow? coverage state
   latestRecordForRule? snapshot row.rule
+
+def selectedCoverageReplenishmentRecord?
+    (snapshot : Snapshot) (coverage : CoverageEvidence) (state : State) : Option Record := do
+  let row ← selectedCoverageRow? coverage state
+  replenishmentSourceForRow? snapshot row
 
 private def findRecordRow? (records : List Record) (id : String) : Option Nat :=
   let indexed := records.zipIdx
