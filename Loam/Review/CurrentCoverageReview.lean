@@ -1,5 +1,5 @@
 import Loam.HouseholdPaths
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CurrentCoverageInspection
 import Loam.Authority.CapacityAuthority
