@@ -1,6 +1,6 @@
 import Loam.Publisher.CorrectionPublisher
 import Loam.MeasurePresentation
-import Loam.PracticalMovement
+import Loam.Application.PracticalMovement
 import Loam.Tui.Main
 import Loam.Tui.Record
 import Lean.Elab.Tactic.Omega

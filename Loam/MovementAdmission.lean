@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.PracticalMovement
+import Loam.Application.PracticalMovement
 import Loam.Core.OpenRelation
 import Loam.Application.OpenRelationFrontier
 import Loam.Application.RelationDischargeFrontier
