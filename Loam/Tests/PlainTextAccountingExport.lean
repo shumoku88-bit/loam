@@ -1,4 +1,4 @@
-import Loam.PlainTextAccountingExport
+import Loam.Export.PlainTextAccountingExport
 
 open Loam.Core
 
