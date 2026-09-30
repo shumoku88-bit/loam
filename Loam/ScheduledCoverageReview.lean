@@ -73,6 +73,17 @@ private def expectedAt (rule : Rule) (target : Nat) : Bool :=
     | some anchor =>
         decide (anchor <= target) && ((target - anchor) % rule.everyMonths == 0)
 
+/--
+Whether one explicit calendar date lies in a month expected by a monitoring rule.
+
+Only the month coordinate participates. The day remains explicit Scheduled
+evidence and is never inferred from the monitoring anchor.
+-/
+def dateFallsOnExpectedMonth (rule : Rule) (date : String) : Bool :=
+  match monthIndex? date with
+  | none => false
+  | some target => expectedAt rule target
+
 private def explicitDaysAt
     (rule : Rule) (records : List Record) (target : Nat) : List String :=
   let matching :=

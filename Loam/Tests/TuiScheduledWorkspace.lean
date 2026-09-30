@@ -288,6 +288,97 @@ def main : IO Unit := do
     "Scheduled overview selected recurring plan disappeared"
   expect (selectedCoverage.rule.name == "paypay-transfer")
     "Scheduled overview row selection diverged from displayed order"
+
+  -- Coverage replenishment starts before the first monitored gap, not at a later
+  -- off-cadence explicit occurrence. This mirrors the household support case
+  -- where extra Nov/Jan/Mar/May dates must not shift a bimonthly Oct/Dec/Feb/Apr pace.
+  let supportOct ← requireSome
+    (scheduledRecord? "support-oct" "2026-10-15" "support" "smbc" 11240)
+    "support October fixture was not admitted"
+  let supportNov ← requireSome
+    (scheduledRecord? "support-nov" "2026-11-15" "support" "smbc" 11240)
+    "support November fixture was not admitted"
+  let supportFeb ← requireSome
+    (scheduledRecord? "support-feb" "2027-02-15" "support" "smbc" 11240)
+    "support February fixture was not admitted"
+  let supportMar ← requireSome
+    (scheduledRecord? "support-mar" "2027-03-15" "support" "smbc" 11240)
+    "support March fixture was not admitted"
+  let supportMay ← requireSome
+    (scheduledRecord? "support-may" "2027-05-15" "support" "smbc" 11240)
+    "support May fixture was not admitted"
+  let supportRule : Loam.ScheduledCoverageConfig.Rule := {
+    name := "support"
+    anchor := "2026-10-15"
+    everyMonths := 2
+    negativeLoci := ["support"]
+    positiveLoci := ["smbc"]
+  }
+  let supportRecords := [supportOct, supportNov, supportFeb, supportMar, supportMay]
+  let supportScheduled ← requireSome (ScheduledMemory.ofOccurrences? supportRecords)
+    "support Scheduled memory fixture was not admitted"
+  let supportTerminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "support terminal memory fixture was not admitted"
+  let supportEvents ← requireSome (EventMemory.ofEvents? [])
+    "support Event memory fixture was not admitted"
+  let supportEvidence : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := supportScheduled
+    terminals := supportTerminals
+    events := supportEvents
+  }
+  let supportSnapshot : Loam.Tui.Main.Snapshot := {
+    actual := { today := "2026-09-30", allRecords := [] }
+    scheduled := .ok supportEvidence
+  }
+  let supportCoverageSnapshot ←
+    match Loam.ScheduledCoverageReview.projectRecords
+        [supportRule] supportRecords "2026-09-30" 8 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let some supportRow := supportCoverageSnapshot.rows[0]?
+    | throw (IO.userError "support coverage row disappeared")
+  expect (supportRow.firstMissing == some "2026-12")
+    "support coverage fixture did not expose December as its first gap"
+  let supportState := Loam.Tui.ScheduledWorkspace.initial "2026-09-30"
+  let supportSource ← requireSome
+    (Loam.Tui.ScheduledWorkspace.selectedCoverageReplenishmentRecord?
+      supportSnapshot (.ok supportCoverageSnapshot) supportState)
+    "support replenishment source disappeared"
+  expect (supportSource.id.token == "support-oct")
+    "Scheduled replenishment extended from a later off-cadence occurrence instead of the first gap"
+
+  let supportDec ← requireSome
+    (scheduledRecord? "support-dec" "2026-12-15" "support" "smbc" 11240)
+    "support December fixture was not admitted"
+  let supportFilledRecords := supportRecords ++ [supportDec]
+  let supportFilledScheduled ← requireSome
+    (ScheduledMemory.ofOccurrences? supportFilledRecords)
+    "filled support Scheduled memory fixture was not admitted"
+  let supportFilledEvidence : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := supportFilledScheduled
+    terminals := supportTerminals
+    events := supportEvents
+  }
+  let supportFilledSnapshot : Loam.Tui.Main.Snapshot := {
+    actual := { today := "2026-09-30", allRecords := [] }
+    scheduled := .ok supportFilledEvidence
+  }
+  let supportFilledCoverage ←
+    match Loam.ScheduledCoverageReview.projectRecords
+        [supportRule] supportFilledRecords "2026-09-30" 8 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let some supportFilledRow := supportFilledCoverage.rows[0]?
+    | throw (IO.userError "filled support coverage row disappeared")
+  expect (supportFilledRow.firstMissing == some "2027-04")
+    "support replenishment did not advance from the filled December gap to April"
+  let supportNextSource ← requireSome
+    (Loam.Tui.ScheduledWorkspace.selectedCoverageReplenishmentRecord?
+      supportFilledSnapshot (.ok supportFilledCoverage) supportState)
+    "second support replenishment source disappeared"
+  expect (supportNextSource.id.token == "support-feb")
+    "Scheduled replenishment did not resume from the latest on-cadence occurrence before the next gap"
+
   let openExact :=
     (Loam.Tui.ScheduledWorkspace.updateWithCoverage
       snapshot coverageEvidence coverageNext .openSelectedPlan).state

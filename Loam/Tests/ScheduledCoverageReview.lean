@@ -42,6 +42,12 @@ def main : IO Unit := do
     negativeLoci := ["cash"]
     positiveLoci := ["utilities"]
   }
+  expect (Loam.ScheduledCoverageReview.dateFallsOnExpectedMonth
+      bimonthly "2026-11-20")
+    "bimonthly monitoring did not recognize an expected calendar month"
+  expect (!Loam.ScheduledCoverageReview.dateFallsOnExpectedMonth
+      bimonthly "2026-12-15")
+    "bimonthly monitoring treated an off-cadence month as expected"
   let some octGpt := occurrence? "scheduled-1" "2026-10-15" "cash" "gpt-plus"
     | throw (IO.userError "fixture oct gpt")
   let some octGptLater := occurrence? "scheduled-1b" "2026-10-18" "cash" "gpt-plus"
