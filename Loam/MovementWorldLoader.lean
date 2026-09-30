@@ -1,6 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.Authority.LocusAdmissionAuthority
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 import Loam.MovementWorldAdapter
 
 namespace Loam.MovementWorldLoader

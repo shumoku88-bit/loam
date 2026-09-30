@@ -270,7 +270,7 @@
       "paths": [
         "Loam/Core/LocusAdmission.lean",
         "Loam/Core/MovementOperationEvidence.lean",
-        "Loam/MovementAdmission.lean",
+        "Loam/Application/MovementAdmission.lean",
         "Loam/Publisher/MovementPublisher.lean",
         "Loam/Authority/ActualAuthority.lean",
         "Loam/Authority/LocusAdmissionAuthority.lean",

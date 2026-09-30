@@ -1,5 +1,5 @@
 import Loam.ExchangeAdmission
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 
 open Loam.Core
 

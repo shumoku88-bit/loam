@@ -1,6 +1,6 @@
 import Loam.LocusCatalog
 import Loam.MeasurePresentation
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 import Loam.Persistence.TokenSyntax
 import Loam.Presentation.Record
 import Loam.Tui.CyclicIndex

@@ -153,7 +153,7 @@ FLOW_DIAGRAMS = {
     },
     "10.0 Record Movement": {
         "description": "End-to-end production path. Detailed diagrams split collection, pure admission, and atomic publication.",
-        "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/MovementAdmission.lean; Loam/Authority/ActualAuthority.lean",
+        "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/Application/MovementAdmission.lean; Loam/Authority/ActualAuthority.lean",
         "audit": "Preview may use an earlier world; publication never trusts it. Authoritative evidence is re-read under writer ownership.",
         "nodes": [
             ("insertion", "Collect presentation-neutral draft\nTUI or line CLI"),
@@ -202,7 +202,7 @@ FLOW_DIAGRAMS = {
     },
     "10.3 Movement Admission": {
         "description": "Pure semantic admission of one Movement draft against one typed world.",
-        "sources": "Loam/MovementAdmission.lean; Loam/Application/SparseEffectIdentity.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
+        "sources": "Loam/Application/MovementAdmission.lean; Loam/Application/SparseEffectIdentity.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
         "audit": "Collector-local Effect identity is canonicalized here through the shared sparse-identity law. Numbered identity allocation is total and RelationUnits are materialized structurally while traversing drafts. Event construction still rejects duplicate retained EffectKeys, while typed append guards remain deliberately fail-closed.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nretain only Relation sources"),
@@ -365,7 +365,7 @@ FLOW_DIAGRAMS = {
     },
     "12.2 Completion Actual Admission": {
         "description": "Construct one plain Actual candidate for a Scheduled completion using an externally chosen stable EventId.",
-        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/Application/SparseEffectIdentity.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Application/MovementAdmission.lean; Loam/Application/SparseEffectIdentity.lean",
         "audit": "Completion shares sparse Effect identity with Record and Correction. Because successful completion currently admits plain effects only, no collector key earns durability here and the keyless Event is constructed directly; stable EventId selection and the two-authority retry law remain completion-specific.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nplain completion earns no Effect identity"),

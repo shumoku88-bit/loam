@@ -7,7 +7,7 @@ on:
       - 'Loam/Cli/Movement/Proposal.lean'
       - 'Loam/Cli/MovementProposalCli.lean'
       - 'Loam/Review/MovementDraftReview.lean'
-      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Application/MovementAdmission.lean'
       - 'Loam/Cli/Movement/RelationEntry.lean'
       - 'Loam/Cli/Movement/DischargeEntry.lean'
       - 'Loam/Tests/MovementProposal.lean'

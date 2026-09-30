@@ -8,7 +8,7 @@ on:
       - 'Loam/Cli/MovementProposalRecordCli.lean'
       - 'Loam/HouseholdCommand.lean'
       - 'Loam/Publisher/MovementPublisher.lean'
-      - 'Loam/MovementAdmission.lean'
+      - 'Loam/Application/MovementAdmission.lean'
       - 'Loam/Tests/MovementProposalRecord.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'tools/loam'
