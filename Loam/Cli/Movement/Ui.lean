@@ -46,10 +46,10 @@ def obligationLabel : Obligation → String
   | .occurrenceDate => "occurrence date"
   | .balancedMovement => "balanced FROM / TO movement"
 
-example : obligations {} = [.occurrenceDate, .balancedMovement] := by native_decide
+example : obligations {} = [.occurrenceDate, .balancedMovement] := by rfl
 example : obligations { validOn := some "2026-09-03" } = [.balancedMovement] := by
-  native_decide
+  rfl
 example : obligations { validOn := some "2026-09-03", movementTotal := some 1000 } = [] := by
-  native_decide
+  rfl
 
 end Loam.MovementUi
