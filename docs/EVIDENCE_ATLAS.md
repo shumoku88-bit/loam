@@ -148,7 +148,7 @@ The initial writer supports only `Add`, `Resolve`, and `Drop`.
 
 The audit did not make the system smaller. It found that the smallest justified change was to add a missing connection.
 
-Evidence: [obligation DAG](research/ATTENTION_DELIVERY_OBLIGATION_DAG.md) · [production writer](../Loam/AttentionPublisher.lean) · [production change #927](https://github.com/shumoku88-bit/loam/pull/927) · [DRAKON source](drakon/build_attention_delivery_audit_map.py)
+Evidence: [obligation DAG](research/ATTENTION_DELIVERY_OBLIGATION_DAG.md) · [production writer](../Loam/Publisher/AttentionPublisher.lean) · [production change #927](https://github.com/shumoku88-bit/loam/pull/927) · [DRAKON source](drakon/build_attention_delivery_audit_map.py)
 
 ## Evidence labels
 
