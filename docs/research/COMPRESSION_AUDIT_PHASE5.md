@@ -503,7 +503,7 @@ The historical Alloy model `experiments/normalized_actual_effect_promotion.als` 
 
 That surviving law is now owned directly by current production:
 
-- `Loam/SparseEffectIdentity.lean` owns the shared canonicalization mechanism;
+- `Loam/Application/SparseEffectIdentity.lean` owns the shared canonicalization mechanism;
 - `MovementAdmission.canonicalizeDraft` derives the earned key set from Relation sources and erases collector-local keys not independently justified;
 - Correction and Scheduled Completion reuse the same key-erasure law when no new Relation source earns identity;
 - `Loam/Tests/SparseMovementPublication.lean` pins duplicate temporary-key canonicalization, relation-earned retained identity, missing-source refusal, and relation-only key promotion;

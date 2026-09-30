@@ -5,7 +5,7 @@ import Loam.FreshNumberedToken
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Application.PracticalMovement
-import Loam.SparseEffectIdentity
+import Loam.Application.SparseEffectIdentity
 
 namespace Loam.CorrectionPublisher
 

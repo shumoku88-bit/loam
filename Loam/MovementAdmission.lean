@@ -8,7 +8,7 @@ import Loam.Core.EventDescription
 import Loam.Core.LocusAdmission
 import Loam.FreshNumberedToken
 import Loam.Persistence.TokenSyntax
-import Loam.SparseEffectIdentity
+import Loam.Application.SparseEffectIdentity
 
 namespace Loam.MovementAdmission
 
