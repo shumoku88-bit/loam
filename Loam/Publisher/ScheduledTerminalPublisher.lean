@@ -3,7 +3,7 @@ import Loam.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Application.MovementAdmission
-import Loam.MovementWorldAdapter
+import Loam.Application.MovementWorldAdapter
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledActualOwnership
 import Loam.Application.SparseEffectIdentity
