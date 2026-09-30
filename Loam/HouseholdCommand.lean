@@ -2,7 +2,7 @@ import Loam.HouseholdPaths
 import Loam.MovementPublisher
 import Loam.Publisher.OriginalAmountMovementPublisher
 import Loam.Publisher.ExchangePublisher
-import Loam.CorrectionPublisher
+import Loam.Publisher.CorrectionPublisher
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Publisher.ActualReversalPublisher
 import Loam.Publisher.EventMerchantPublisher
