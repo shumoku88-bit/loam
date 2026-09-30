@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Std.Data.HashMap
 
 namespace Loam.TransactionsFlowReview
