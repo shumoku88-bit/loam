@@ -1,5 +1,5 @@
 import Loam.Tui.EditorSession
-import Loam.AccountingRolePublisher
+import Loam.Publisher.AccountingRolePublisher
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.Terminal
