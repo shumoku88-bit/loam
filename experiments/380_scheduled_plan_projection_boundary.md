@@ -1,6 +1,6 @@
 # Observation 380: Scheduled Plan projection boundary
 
-Status: **ACTIVE BOUNDED ALLOY OBSERVATION — NOT PRODUCTION AUTHORITY**
+Status: **QUALIFIED BOUNDED ALLOY OBSERVATION — NOT PRODUCTION AUTHORITY**
 
 ## Question
 
@@ -100,7 +100,42 @@ The bounded checks ask for counterexamples to these laws:
 For the checks, **UNSAT is the expected qualified result**. For the witness runs,
 **SAT is expected**.
 
-## Production interpretation if qualified
+## Observed Alloy result
+
+Alloy 6.2.0 + Sat4j, with exactly 2 Worlds, 2 Monitoring atoms, 6 Months,
+and up to 8 Occurrences, produced the expected boundary:
+
+```text
+sameLifecycleDifferentMonitoringChangesProjection     SAT
+sameRetainedDifferentTerminalChangesGap               SAT
+outsidePaceOccurrenceRemainsActionable                SAT
+terminalExpectedMonthBecomesGap                       SAT
+latestExplicitCanDifferFromReplenishmentSource        SAT
+replenishmentWitness                                  SAT
+monitoringOnlyChangeCanRelabelWithoutLifecycleMutation SAT
+
+SameOpenAndMonitoringDetermineProjection              UNSAT
+MissingMonthCannotSelectExplicitActionTarget           UNSAT
+TerminalOccurrenceIsNeverActionTarget                 UNSAT
+ReplenishmentSourceIsExpectedAndBeforeFirstGap        UNSAT
+ReplenishmentPreservesExistingLifecycleEvidence       UNSAT
+ReplenishmentFillsFirstGap                            UNSAT
+MonitoringOnlyChangePreservesLifecycleEvidence        UNSAT
+```
+
+The result qualifies the intended distinction in this bounded scope:
+
+- monitoring can change the labels without changing lifecycle evidence;
+- terminal lifecycle evidence can change the current-open gap even when retained
+  occurrences are identical;
+- outside-pace explicit evidence remains explicit and actionable;
+- “latest explicit occurrence” is not a sound substitute for “latest expected
+  open month before the first gap”;
+- missing rows remain projection-only and are not lifecycle action targets;
+- replenishment can be modeled as adding the first missing expected occurrence
+  while preserving existing lifecycle evidence.
+
+## Production interpretation
 
 A successful bounded result would support the current practical split:
 
