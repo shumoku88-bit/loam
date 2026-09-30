@@ -1,5 +1,5 @@
 import Loam.Publisher.CurrentQuantityAnchorPublisher
-import Loam.HistoricalBalanceReview
+import Loam.Review.HistoricalBalanceReview
 import Loam.Persistence.NormalizedActualPersistence
 
 open Loam.Core
