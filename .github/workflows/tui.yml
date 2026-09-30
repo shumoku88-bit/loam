@@ -52,7 +52,7 @@ on:
       - 'Loam/Publisher/ActualValidityPublisher.lean'
       - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
-      - 'Loam/ScheduledGeneration.lean'
+      - 'Loam/Application/ScheduledGeneration.lean'
       - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
       - 'Loam/Publisher/CapacityPublisher.lean'
@@ -192,7 +192,7 @@ on:
       - 'Loam/Publisher/ActualValidityPublisher.lean'
       - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
-      - 'Loam/ScheduledGeneration.lean'
+      - 'Loam/Application/ScheduledGeneration.lean'
       - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
       - 'Loam/Publisher/CapacityPublisher.lean'
@@ -603,7 +603,7 @@ jobs:
         run: lake build Loam.Publisher.ScheduledCreationPublisher
 
       - name: Build construction-only Scheduled generation
-        run: lake build Loam.ScheduledGeneration
+        run: lake build Loam.Application.ScheduledGeneration
 
       - name: Verify construction-only Scheduled generation
         run: lake env lean --run Loam/Tests/ScheduledGeneration.lean
