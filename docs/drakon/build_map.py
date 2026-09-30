@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -258,7 +258,7 @@ FLOW_DIAGRAMS = {
     },
     "11.0 Correct Actual": {
         "description": "End-to-end replacement correction of one selected current Actual Event.",
-        "sources": "Loam/Tui/Correction.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/CorrectionPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/Correction.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/ActualAuthority.lean",
         "audit": "The original Event stays retained. Correction appends a replacement Event plus explicit EventCorrection and reuses the target's current occurrence date.",
         "nodes": [
             ("action", "Select one visible current Actual"),
@@ -275,7 +275,7 @@ FLOW_DIAGRAMS = {
     },
     "11.1 Authoritative Correction Publish": {
         "description": "Writer-owned publication seam for one correction replacement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/CorrectionPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
         "audit": "This path shares one-Actual publication mechanics with Record but keeps correction currentness, target restrictions, and replacement identity local.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -293,7 +293,7 @@ FLOW_DIAGRAMS = {
     },
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
-        "sources": "Loam/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
+        "sources": "Loam/Publisher/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
         "audit": "Correction keeps its own target and lineage law, shares sparse Effect identity and measure-parametric practical Movement qualification, and allocates replacement EventIds through the total numbered allocator. Empty-earned canonicalization proves the replacement Event keyless, so construction is direct. Current production still passes JPY explicitly at this edge.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),

@@ -69,7 +69,7 @@ later classification
 
 Current owners are `Loam/Tui/Record.lean`,
 `Loam/Tui/UnresolvedActivation.lean`, `Loam/MovementPublisher.lean`, and
-`Loam/CorrectionPublisher.lean`. Production regression coverage lives in
+`Loam/Publisher/CorrectionPublisher.lean`. Production regression coverage lives in
 `Loam/Tests/TuiRecord.lean` and `Loam/Tests/CorrectionPublisher.lean`.
 
 The live bounded witness

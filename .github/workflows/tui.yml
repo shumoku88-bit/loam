@@ -48,7 +48,7 @@ on:
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
-      - 'Loam/CorrectionPublisher.lean'
+      - 'Loam/Publisher/CorrectionPublisher.lean'
       - 'Loam/Publisher/ActualValidityPublisher.lean'
       - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
@@ -188,7 +188,7 @@ on:
       - 'Loam/Tui/**'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
-      - 'Loam/CorrectionPublisher.lean'
+      - 'Loam/Publisher/CorrectionPublisher.lean'
       - 'Loam/Publisher/ActualValidityPublisher.lean'
       - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
@@ -567,7 +567,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiExchange.lean
 
       - name: Build shared Correction publisher boundary
-        run: lake build Loam.CorrectionPublisher
+        run: lake build Loam.Publisher.CorrectionPublisher
 
       - name: Verify normalized Actual correction publication
         run: lake env lean --run Loam/Tests/CorrectionPublisher.lean "$(mktemp -d)/correction-publisher"
