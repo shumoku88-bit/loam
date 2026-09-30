@@ -1,7 +1,7 @@
 import Loam.Core.LocusAdmission
 import Loam.HouseholdPaths
 import Loam.Persistence.LocusAdmissionPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.LocusAdmissionAuthority
 

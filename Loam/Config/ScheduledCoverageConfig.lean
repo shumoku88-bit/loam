@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Persistence.TokenSyntax
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.ScheduledCoverageConfig
 

@@ -1,7 +1,7 @@
 import Loam.ActualEvidence
 import Loam.HouseholdPaths
 import Loam.Persistence.NormalizedActualPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.ActualAuthority
 

@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Persistence.NormalizedActualPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.Tests.ActualAuthorityCrashTest
 

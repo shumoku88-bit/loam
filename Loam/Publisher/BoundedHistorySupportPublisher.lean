@@ -6,7 +6,7 @@ import Loam.HouseholdPaths
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.BoundedHistorySupportPublisher
 

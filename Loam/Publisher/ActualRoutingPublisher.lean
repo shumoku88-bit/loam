@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.Core.RoutingEffective
 import Loam.Persistence.ActualRoutingPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.ActualRoutingPublisher
 

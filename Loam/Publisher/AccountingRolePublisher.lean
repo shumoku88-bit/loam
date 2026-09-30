@@ -5,7 +5,7 @@ import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledActualOwnership
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.AccountingRolePublisher
 

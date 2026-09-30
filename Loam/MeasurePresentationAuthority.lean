@@ -4,7 +4,7 @@ import Loam.HouseholdPaths
 import Loam.MeasurePresentation
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.MeasurePresentationAuthority
 

@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualJournalProjection
 import Loam.Persistence.SiblingStage
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.JournalExportCli
 

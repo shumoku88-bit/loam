@@ -223,7 +223,7 @@ FLOW_DIAGRAMS = {
     },
     "10.4 Atomic Actual Publish": {
         "description": "Crash-resilient switch of one complete normalized Actual generation.",
-        "sources": "Loam/Authority/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/Authority/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/Persistence/WriterOwnership.lean",
         "audit": "The authoritative file is untouched until the final rename. Stage bytes are compared and typed-decoded before the switch.",
         "nodes": [
             ("insertion", "Encode complete ActualEvidence"),
@@ -335,7 +335,7 @@ FLOW_DIAGRAMS = {
     },
     "12.1 Dual-Authority Completion Publish": {
         "description": "Writer-owned two-authority protocol for fresh or resumed Scheduled completion.",
-        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/WriterOwnership.lean",
         "audit": "Lock order is Scheduled then Actual. Scheduled terminal evidence is published first; if Actual publication fails, the retained terminal remains inert and a later retry reuses the same Actual identity.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
@@ -417,7 +417,7 @@ FLOW_DIAGRAMS = {
     },
     "13.1 Authoritative Reversal Publish": {
         "description": "Writer-owned publication seam for one exact Actual reversal with a read-only Scheduled provenance dependency.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/WriterOwnership.lean",
         "audit": "Scheduled is locked and read, not written. Ownership prevents completion provenance from changing across the reversal-independence check. Actual is the only authority published; lock order remains Scheduled then Actual.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
