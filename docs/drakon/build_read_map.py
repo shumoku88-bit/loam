@@ -153,7 +153,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.8.1 Cycle Budget Read Boundary": {
         "description": "CycleBudgetReview.loadSnapshotAt composition after the one-Actual-observation refactor.",
-        "sources": "Loam/CycleBudgetReview.lean; Loam/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Config/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/Config/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Config/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
         "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. CurrentCoverage and Balance evidence reads now share one short Actual ownership interval, pinning one normalized Actual generation across both branches without adding a second evidence API. Balance evidence remains shared by physical and funding. Other authorities keep their existing independent reads and failure semantics; no cross-authority atomic snapshot is claimed.",
         "nodes": [
             ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),

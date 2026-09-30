@@ -1,4 +1,4 @@
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
