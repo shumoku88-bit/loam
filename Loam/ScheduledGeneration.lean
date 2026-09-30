@@ -189,7 +189,9 @@ def planCandidates
           if validResolvedDate limit observedAt date then
             candidates := candidates ++ [.dated date]
       | none =>
-          if targetMonth <= endMonth then
+          let targetMonthStart :=
+            padded 4 year ++ "-" ++ padded 2 month ++ "-01"
+          if targetMonthStart < limit.endExclusive then
             candidates := candidates ++ [.needsDate year month nominalDay]
   return candidates
 
