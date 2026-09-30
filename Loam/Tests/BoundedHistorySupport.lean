@@ -1,6 +1,6 @@
 import Loam.Publisher.BoundedHistorySupportPublisher
 import Loam.Review.BoundedHistorySupportReview
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.LocusAdmissionAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.NormalizedActualPersistence
