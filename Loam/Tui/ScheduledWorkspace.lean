@@ -300,6 +300,54 @@ private def clampState (snapshot : Snapshot) (state : State) : State :=
     if occCount = 0 then 0 else min withLocus.occurrenceRow (occCount - 1)
   { withLocus with occurrenceRow := occurrenceRow }
 
+private def monthOrdinal (month : Loam.Tui.Calendar.Month) : Nat :=
+  month.year * 12 + (month.month - 1)
+
+private def futureBoardBaseMonth (snapshot : Snapshot) : Loam.Tui.Calendar.Month :=
+  (Loam.Tui.Calendar.monthOf? snapshot.actual.today).getD { year := 1970, month := 1 }
+
+private def futureBoardMaxOffset (snapshot : Snapshot) : Nat :=
+  let base := futureBoardBaseMonth snapshot
+  let baseOrdinal := monthOrdinal base
+  let allState : State := {
+    focusDate := snapshot.actual.today
+    scope := .allCurrent
+    pane := .occurrences
+    viewMode := .futureBoard
+  }
+  match (recordsForScope snapshot allState).getLast? with
+  | none => 0
+  | some record =>
+      match Loam.Tui.Calendar.monthOf? record.scheduledOn with
+      | none => 0
+      | some month =>
+          let target := monthOrdinal month
+          if target < baseOrdinal then 0 else target - baseOrdinal
+
+private def clampFutureBoardMonthOffset (snapshot : Snapshot) (state : State) : State :=
+  { state with futureBoardMonthOffset := min state.futureBoardMonthOffset (futureBoardMaxOffset snapshot) }
+
+private def followFutureBoardSelection (snapshot : Snapshot) (state : State) : State :=
+  match selectedRecord? snapshot state with
+  | none => clampFutureBoardMonthOffset snapshot state
+  | some record =>
+      match Loam.Tui.Calendar.monthOf? record.scheduledOn with
+      | none => clampFutureBoardMonthOffset snapshot state
+      | some selectedMonth =>
+          let baseOrdinal := monthOrdinal (futureBoardBaseMonth snapshot)
+          let selectedOrdinal := monthOrdinal selectedMonth
+          if selectedOrdinal < baseOrdinal then
+            { state with futureBoardMonthOffset := 0 }
+          else
+            let selectedOffset := selectedOrdinal - baseOrdinal
+            let start := state.futureBoardMonthOffset
+            if selectedOffset < start then
+              { state with futureBoardMonthOffset := selectedOffset }
+            else if start + 6 ≤ selectedOffset then
+              { state with futureBoardMonthOffset := selectedOffset - 5 }
+            else
+              clampFutureBoardMonthOffset snapshot state
+
 def refreshed (snapshot : Snapshot) (state : State) : State :=
   clampState snapshot { state with notice := "" }
 
@@ -774,58 +822,10 @@ private def monthAfter
   | 0 => month
   | n + 1 => monthAfter (Loam.Tui.Calendar.nextMonth month) n
 
-private def monthOrdinal (month : Loam.Tui.Calendar.Month) : Nat :=
-  month.year * 12 + (month.month - 1)
-
-private def futureBoardBaseMonth (snapshot : Snapshot) : Loam.Tui.Calendar.Month :=
-  (Loam.Tui.Calendar.monthOf? snapshot.actual.today).getD { year := 1970, month := 1 }
-
-private def futureBoardMaxOffset (snapshot : Snapshot) : Nat :=
-  let base := futureBoardBaseMonth snapshot
-  let baseOrdinal := monthOrdinal base
-  let allState : State := {
-    focusDate := snapshot.actual.today
-    scope := .allCurrent
-    pane := .occurrences
-    viewMode := .futureBoard
-  }
-  match (recordsForScope snapshot allState).getLast? with
-  | none => 0
-  | some record =>
-      match Loam.Tui.Calendar.monthOf? record.scheduledOn with
-      | none => 0
-      | some month =>
-          let target := monthOrdinal month
-          if target < baseOrdinal then 0 else target - baseOrdinal
-
-private def clampFutureBoardMonthOffset (snapshot : Snapshot) (state : State) : State :=
-  { state with futureBoardMonthOffset := min state.futureBoardMonthOffset (futureBoardMaxOffset snapshot) }
-
 private def futureBoardMonths
     (snapshot : Snapshot) (state : State) : List Loam.Tui.Calendar.Month :=
   let start := monthAfter (futureBoardBaseMonth snapshot) state.futureBoardMonthOffset
   monthsFrom start 6
-
-private def followFutureBoardSelection (snapshot : Snapshot) (state : State) : State :=
-  match selectedRecord? snapshot state with
-  | none => clampFutureBoardMonthOffset snapshot state
-  | some record =>
-      match Loam.Tui.Calendar.monthOf? record.scheduledOn with
-      | none => clampFutureBoardMonthOffset snapshot state
-      | some selectedMonth =>
-          let baseOrdinal := monthOrdinal (futureBoardBaseMonth snapshot)
-          let selectedOrdinal := monthOrdinal selectedMonth
-          if selectedOrdinal < baseOrdinal then
-            { state with futureBoardMonthOffset := 0 }
-          else
-            let selectedOffset := selectedOrdinal - baseOrdinal
-            let start := state.futureBoardMonthOffset
-            if selectedOffset < start then
-              { state with futureBoardMonthOffset := selectedOffset }
-            else if start + 6 ≤ selectedOffset then
-              { state with futureBoardMonthOffset := selectedOffset - 5 }
-            else
-              clampFutureBoardMonthOffset snapshot state
 
 private def recordDay (record : Record) : String :=
   match Loam.Tui.Calendar.parseDate? record.scheduledOn with
