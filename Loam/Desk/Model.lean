@@ -51,7 +51,7 @@ private def recordMonth?
 def recordsForMonth (snapshot : Snapshot) (month : Loam.Tui.Calendar.Month) :
     List ReviewRecord :=
   (snapshot.records.filter fun record =>
-    record.isCurrent && recordMonth? record == some month).mergeSort fun a b =>
+    record.isCurrent && decide (recordMonth? record = some month)).mergeSort fun a b =>
       if a.date == b.date then a.event.id.token <= b.event.id.token
       else a.date.getD "" <= b.date.getD ""
 
