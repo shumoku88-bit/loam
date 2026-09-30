@@ -1,0 +1,128 @@
+name: Capacity Qualifications
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Authority/CapacityAuthority.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
+      - 'Loam/Review/CapacityReview.lean'
+      - 'Loam/Core/CapacityEvidence.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
+      - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Tests/CapacityPublisher.lean'
+      - 'Loam/Tests/NormalizedCapacityPersistence.lean'
+      - 'Loam/Tests/CapacityDogfood.lean'
+      - 'tools/loam'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/capacity.yml'
+  push:
+    branches:
+      - main
+      - feat/tui
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Authority/CapacityAuthority.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
+      - 'Loam/Review/CapacityReview.lean'
+      - 'Loam/Core/CapacityEvidence.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
+      - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Tests/CapacityPublisher.lean'
+      - 'Loam/Tests/NormalizedCapacityPersistence.lean'
+      - 'Loam/Tests/CapacityDogfood.lean'
+      - 'tools/loam'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/capacity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publisher:
+    name: Build and test shared Capacity publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build shared Capacity publisher
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Core.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.Authority.CapacityAuthority Loam.Publisher.CapacityPublisher Loam.Review.CapacityReview
+
+      - name: Verify shared Capacity publication
+        run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
+
+      - name: Verify normalized Capacity round trip
+        run: lake env lean --run Loam/Tests/NormalizedCapacityPersistence.lean
+
+  practical:
+    name: Build and exercise capacity entrance
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: practical-capacity-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Capacity executable
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: loamCapacity
+
+      - name: Run Capacity memory and persistence check
+        shell: bash
+        run: lake env lean --run Loam/Tests/CapacityDogfood.lean
+
+      - name: Exercise practical capacity entrance
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          capacity="$tmpdir/capacity.loam"
+          rejected="$tmpdir/rejected.log"
+
+          printf 'unallocated\nfood\n100\n' | .lake/build/bin/loamCapacity "$capacity"
+          printf 'food\ngroceries\n40\n' | .lake/build/bin/loamCapacity "$capacity"
+
+          if printf 'food\ngroceries\n61\n' | .lake/build/bin/loamCapacity "$capacity" >"$rejected" 2>&1; then
+            echo 'capacity entrance admitted a named-source overdraft' >&2
+            exit 1
+          fi
+          grep -F 'insufficient current entitlement' "$rejected"
+
+          output="$(.lake/build/bin/loamCapacity show "$capacity")"
+          printf '%s\n' "$output"
+          grep -F 'food: 60 jpy' <<<"$output"
+          grep -F 'groceries: 40 jpy' <<<"$output"
+          if grep -Fq 'unallocated:' <<<"$output"; then
+            echo 'internal unallocated boundary leaked into entitlement view' >&2
+            exit 1
+          fi
+
+          grep -F $'LOAM-NORMALIZED-CAPACITY\t1' "$capacity"
+          test ! -e "$capacity.effective"
+
+          window="$(.lake/build/bin/loamCapacity show-window "$capacity" 2026-01-01 2099-01-01)"
+          printf '%s\n' "$window"
+          grep -F 'food: 60 jpy' <<<"$window"
+          grep -F 'groceries: 40 jpy' <<<"$window"
