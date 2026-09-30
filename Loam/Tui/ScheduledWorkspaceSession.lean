@@ -2,7 +2,7 @@ import Loam.HouseholdPaths
 import Loam.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.ScheduledCoverageConfig
-import Loam.ScheduledCoverageReview
+import Loam.Review.ScheduledCoverageReview
 import Loam.ScheduledCoverageSelector
 import Loam.ScheduledGeneration
 import Loam.MovementWorldLoader
