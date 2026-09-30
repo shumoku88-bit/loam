@@ -3,7 +3,7 @@ import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.ActualDateCorrection
 import Loam.Review.ActualReview
-import Loam.CorrectionPublisher
+import Loam.Publisher.CorrectionPublisher
 import Loam.MovementPublisher
 
 open Loam.Core
