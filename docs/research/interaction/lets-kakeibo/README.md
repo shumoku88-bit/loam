@@ -30,6 +30,9 @@ The aim is not to clone Let's家計簿. The aim is to understand why a spreadshe
 - [PACKAGE_INSPECTION_5_93.md](PACKAGE_INSPECTION_5_93.md) — byte-identity verification and non-executing extraction of the official v5.93 ZIP/installer.
 - [IMPLEMENTATION_LINEAGE.md](IMPLEMENTATION_LINEAGE.md) — primary-package evidence for Delphi 2007 and the earlier Delphi toolchain lineage.
 - [HELP_CONTENT_INDEX.md](HELP_CONTENT_INDEX.md) — final-release CHM topic and UI-asset inventory without redistributing bundled help contents.
+- [FINAL_HELP_KEYBOARD_AND_ENTRY.md](FINAL_HELP_KEYBOARD_AND_ENTRY.md) — primary-help reconstruction of the v5.93 keyboard map, four-pane desk, direct cell entry, receipt flow, input assistance, and Undo.
+- [FINAL_HELP_SCHEDULED_AND_MOVEMENT.md](FINAL_HELP_SCHEDULED_AND_MOVEMENT.md) — primary-help reconstruction of future items, recurring rules, cards, transfer assistance, reconciliation, holidays, and currencies.
+- [FINAL_HELP_ANALYSIS_AND_DATA.md](FINAL_HELP_ANALYSIS_AND_DATA.md) — primary-help reconstruction of reports, search/batch editing, tags, save/backup, data location, multiple books, and import.
 - [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
 - [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
@@ -58,6 +61,8 @@ Input assistance was unusually deep for a desktop household program: history reu
 The reporting surface also supported a particularly valuable pattern: **summary -> originating detail**. Graph regions and report cells could lead back to the transactions that produced the number.
 
 A second-pass finding is especially relevant to longevity: the author reports that the Ver.3 line came from an almost complete internal rewrite after years of feature accretion, while deliberately keeping the visible appearance and behavior the same. The rewrite took more than three and a half years. This is direct historical evidence for treating interaction habits and implementation machinery as separate replacement boundaries.
+
+The exact v5.93 HTML Help has now also been safely decompressed and key page bodies inspected. It confirms the keyboard-first direct-entry model, real Undo, a combined future-obligations view, bidirectional credit-purchase/settlement navigation, aggregate-to-detail reports, search-driven batch editing, exit-time autosave, backup/restore, and broad local import support.
 
 ## Research rule
 

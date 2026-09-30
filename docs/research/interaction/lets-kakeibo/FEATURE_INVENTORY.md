@@ -22,7 +22,7 @@ This is a research census. "Observed" means supported by one or more sources in 
 | Receipt grouping / receipt total | observed | Multiple item lines can be grouped visually under a receipt total. |
 | Insert row at position | observed | 2024 hands-on walkthrough uses a context-menu row insertion. |
 | Memo / diary-related context | observed | Daily diary/list appears in version 5 side pane. |
-| Automatic save behavior | observed at product-description level | Current 窓の杜 library page says changes are automatically saved; exact write/crash semantics still need primary manual evidence. |
+| Automatic save behavior | observed in bundled v5.93 help | Default automatic persistence occurs when the book/application closes; the option can be disabled, exposing explicit Save/unsaved-close behavior. This corrects the earlier per-change interpretation of a secondary description. |
 
 ## B. Accounts and movement
 
@@ -32,7 +32,7 @@ This is a research census. "Observed" means supported by one or more sources in 
 | Cash and bank accounts in one ledger | observed | Core household overview behavior. |
 | Credit-card account handling | observed | Card can be selected as payment account. |
 | Running balance on each row | observed | Right side of row exposes account balance at that point. |
-| Account-to-account movement assistance | observed | 2008 review mentions support for withdrawal/movement between accounts. |
+| Account-to-account movement assistance | observed in bundled help | One assistant action writes two ledger rows using an income/expense-excluded classification; useful interaction, weaker semantics than LOAM Movement. |
 | Balance correction / 帳尻合わせ | observed | Current physical cash can be entered; discrepancy becomes an unknown-use adjustment. |
 | No first-class generic transfer in the modern accounting sense | observed by later analysis | Later researchers note transfer representation differs from systems with explicit transfer pairs. Treat this as a semantic limitation, not an interaction pattern to copy. |
 
@@ -45,13 +45,13 @@ This is a research census. "Observed" means supported by one or more sources in 
 | Revolving-payment configuration | observed | Version 5 review. |
 | Lump-sum / installment payment representation | observed | Payment method shown in ledger and editable. |
 | Generated settlement entry | observed | Withdrawal day shows クレジット清算 aggregate. |
-| Settlement -> underlying purchase detail | observed | Card payment detail can be opened from the ledger. |
+| Settlement -> underlying purchase detail | observed in bundled help | Purchase can jump to withdrawal; withdrawal aggregate exposes constituent purchases; selected purchases can be postponed one month/restored. |
 
 ## D. Scheduled / recurring activity
 
 | Feature | Evidence status | Notes |
 | --- | --- | --- |
-| Automatic recurring entry | observed | Monthly, weekly, half-yearly and other patterns are described. |
+| Automatic recurring entry | observed in bundled help | Monthly, every-N-months, every-N-weeks, fixed-date, and nth-weekday patterns; start/end applicability; variable amount; holiday shifting; future preview. |
 | Fixed-amount recurring item | observed | Rent, loan, saving examples. |
 | Variable-amount recurring skeleton | observed historically | Utility-like items can retain the recurring item while amount varies. |
 | Holiday shifting | observed historically | Earlier version can move scheduled day before/after holidays. |
@@ -67,19 +67,19 @@ This is a research census. "Observed" means supported by one or more sources in 
 | Line / area / bar / pie graphs | observed historically | 1999 review explicitly lists several graph forms. |
 | Account balance trend | observed | Graph and tabular views. |
 | Budget consumption indicator | observed | Later analysis reports heatmap/bar-like budget status in report table. |
-| Report-cell -> detail drill-down | observed | Context action exposes source transactions. |
-| Graph region -> detail drill-down | observed | Later hands-on analysis demonstrates this. |
+| Report-cell -> detail drill-down | observed in bundled help | Hover preview and right-click full contributing detail from report cells. |
+| Graph region -> detail drill-down | observed in bundled help | Graph segments/bars expose contributing detail; earlier secondary observation is now primary-help confirmed. |
 
 ## F. Data interchange and resilience
 
 | Feature | Evidence status | Notes |
 | --- | --- | --- |
 | Backup / restore | observed | Version 5 review; later user report demonstrates restore from .LBK auto-backup. |
-| Configurable data storage location | observed by later user report | Enables local-folder relocation; unofficial Dropbox use demonstrates portability but not supported concurrency. |
+| Configurable data storage location | observed in bundled help | Data and automatic-backup folders are independently configurable; FAQ also describes removable-media/multi-PC use. |
 | CSV export | observed | Version 5 review. |
 | Bank statement import | observed | Specific banks mentioned in 2008 review. |
 | Edy / Suica / PASMO history import | observed | Version 5 era, sometimes through FeliCa reader. |
-| Multiple household books | observed | Multiple files/books can be used, and 2008 review says several could be open. |
+| Multiple household books | observed in bundled help | Unlimited books, startup organizer, create/rename/delete/reorder/restore, and multiple-book operation in later releases. |
 | Password protection | observed | Version 5 review. |
 | Sample household data | observed | 2024 walkthrough notes 18 months of sample data for testing reports. |
 
@@ -93,17 +93,26 @@ This is a research census. "Observed" means supported by one or more sources in 
 | 三日坊主防止 reminder | observed | Reminds the user after several days without recording. |
 | Approximate reconciliation rather than demanding perfect memory | author-stated philosophy | Author explicitly describes long-term continuity as more important than perfect precision and recommends later correction if memory returns. |
 
-## H. Features not yet completely reconstructed
+## H. Additional final-help-confirmed capabilities
 
-Still missing or only partially understood:
+| Feature | Evidence status | Notes |
+| --- | --- | --- |
+| Keyboard navigation map | observed in bundled help | Date/shop-group/month navigation, search, graph, memo, transfer, future list, import, copy/paste, edit, etc. |
+| Undo | observed in bundled help | `Ctrl+Z`; later history notes additional credit/installment/revolving-aware Undo work. |
+| Search-result batch editing | observed in bundled help | Bulk shop/content/category/account/tag changes, delete, credit postponement/restoration, with Undo. |
+| Tags distinct from categories | observed in bundled help | Multiple free-form labels; searchable/batch-editable; can be attached to automatic entries. |
+| Combined future list | observed in bundled help | Credit settlements, automatic entries, and manually future-dated rows in one horizon view. |
+| Per-book holiday policy | observed in bundled help | Used by recurring/card date shifting; fixed/nth-weekday rules and applicability ranges. |
+| Multiple currencies by account | observed in bundled help | Account selects currency; reports aggregate per currency; no universal conversion total documented. |
+| Exit-time autosave | observed in bundled help | Default; can be disabled for explicit save workflow. |
+| Daily automatic backup | observed in bundled help | Usually at exit, one per day, default ten-day retention. |
 
-- exact search/filter UX;
-- exact navigation among multiple open household books;
-- tag/link semantics seen in sample data;
-- detailed import conflict handling;
-- exact card installment/revolving algorithms;
-- all recurring-entry rule types;
-- full diary behavior;
-- backup file format and migration behavior;
-- accessibility behavior;
-- performance on decades of data.
+## I. Still incomplete
+
+- exact native data-file format and migration compatibility;
+- exact binary `.LBK` backup structure;
+- full installment/revolving mathematical edge cases;
+- exact import-cancel mutation defect mechanism;
+- accessibility behavior beyond font-size configuration;
+- performance on decades of data;
+- which historically retained help pages are stale versus still reachable in v5.93.

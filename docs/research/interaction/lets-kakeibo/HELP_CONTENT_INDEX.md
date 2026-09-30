@@ -1,11 +1,11 @@
 # Let's Kakeibo v5.93 — bundled help content index
 
 Date: 2026-10-01  
-Status: **CHM directory/topic names statically observed; page bodies not yet fully decompressed**
+Status: **CHM directory parsed and key page bodies safely decompressed/read**
 
 The safely recovered `lets.chm` is a Microsoft HTML Help archive.
 
-Even without executing the application, the CHM directory exposes a surprisingly rich map of the final product's help topics and screenshot assets.
+Without executing the application, the CHM directory and LZX-compressed page bodies were safely decoded. The topic map below is now supplemented by primary-help reconstructions in the `FINAL_HELP_*` companion notes.
 
 No CHM file, HTML page body, image, or other copyrighted asset is committed to LOAM.
 
@@ -152,22 +152,33 @@ The help archive contains many product screenshots, including names correspondin
 
 These images are not copied into the research repository because the bundled license restricts reuse of documentation/help assets.
 
-## 11. Next safe research step
+## 11. Page-body extraction status
 
-The next useful operation is to decompress CHM page bodies into a temporary local research workspace, then summarize:
+The key bodies have now been decompressed/read in a temporary local research workspace, including:
 
 ```text
-KeyList
-MainGrid
-Menu_*
-Input*
-Config*
-Future
-moneytransfer
-AdjustBalance
-Backup
-Import
-Reports
+KeyList / MainGrid / Basics
+Menu_* / Input* / Options
+ConfigAccounts / ConfigAutowrite / ConfigCreditcard
+ConfigClassification / ConfigHoliday
+Future / moneytransfer / AdjustBalance
+BudgetScreen / SummaryTable / GraphTop / ExpenseAnalysis
+Search / tag
+AutoBackup / ManualBackup / Restore / ChangingDataFolders
+import / importfile / importfelica / importiphone
+StartupScreen / reminder / FAQ / NewFeatures
 ```
 
-The extracted HTML/image files should remain temporary evidence and must not be committed or redistributed.
+Derived findings are kept in:
+
+- `FINAL_HELP_KEYBOARD_AND_ENTRY.md`;
+- `FINAL_HELP_SCHEDULED_AND_MOVEMENT.md`;
+- `FINAL_HELP_ANALYSIS_AND_DATA.md`.
+
+The extracted HTML/image files remain temporary evidence and are not committed or redistributed.
+
+## 12. Version-layer caution
+
+The final CHM retains some historically older help pages alongside v5-era material. The separate `Calendar.html` behavior, for example, conflicts with the integrated v5 left-pane description in `MainGrid.html`.
+
+When pages conflict, research should prefer explicit v5-era pages plus `NewFeatures.html` chronology, and treat older-looking pages as historical residue rather than simultaneous final behavior.
