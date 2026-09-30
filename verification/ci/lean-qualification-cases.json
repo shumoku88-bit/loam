@@ -246,9 +246,9 @@
         "main",
         "feat/settlement-review"
       ],
-      "buildArgs": "Loam.SettlementReview",
+      "buildArgs": "Loam.Review.SettlementReview",
       "paths": [
-        "Loam/SettlementReview.lean",
+        "Loam/Review/SettlementReview.lean",
         "Loam/Application/SettlementFrontier.lean",
         "Loam/Persistence/NormalizedActualAdmission.lean",
         "Loam/Tests/SettlementReview.lean"

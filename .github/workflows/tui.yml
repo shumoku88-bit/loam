@@ -39,7 +39,7 @@ on:
       - 'Loam/Tests/AccountingRolePublisher.lean'
       - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
       - 'Loam/BoundedHistorySupport.lean'
-      - 'Loam/BoundedHistorySupportReview.lean'
+      - 'Loam/Review/BoundedHistorySupportReview.lean'
       - 'Loam/BoundedHistorySupportPublisher.lean'
       - 'Loam/Persistence/BoundedHistorySupportPersistence.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
@@ -179,7 +179,7 @@ on:
       - 'Loam/Tests/AccountingRolePublisher.lean'
       - 'Loam/Tests/TuiAccountingRoleAdministration.lean'
       - 'Loam/BoundedHistorySupport.lean'
-      - 'Loam/BoundedHistorySupportReview.lean'
+      - 'Loam/Review/BoundedHistorySupportReview.lean'
       - 'Loam/BoundedHistorySupportPublisher.lean'
       - 'Loam/Persistence/BoundedHistorySupportPersistence.lean'
       - 'Loam/CurrentQuantityAnchorPublisher.lean'
@@ -311,7 +311,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamTui Loam.Tests.ActualWorldFixture
+          build-args: loamTui Loam.Tests.ActualWorldFixture Loam.Review.MovementDraftReview
           test: false
           lint: false
           use-mathlib-cache: false

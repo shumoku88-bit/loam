@@ -6,7 +6,7 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/Cli/Movement/Proposal.lean'
       - 'Loam/Cli/MovementProposalCli.lean'
-      - 'Loam/MovementDraftReview.lean'
+      - 'Loam/Review/MovementDraftReview.lean'
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Cli/Movement/RelationEntry.lean'
       - 'Loam/Cli/Movement/DischargeEntry.lean'
