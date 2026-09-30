@@ -11,7 +11,7 @@ OUTPUT = HERE / "loam-scheduled-deferred-continuation-audit.drn"
 DIAGRAMS = {
     "S1053.1 Deferred Scheduled continuation": {
         "description": "Observe the post-completion no-candidate branch and the smallest explicit Defer path.",
-        "sources": "Loam/Tui/ScheduledContinuationSession.lean; Loam/HouseholdCommand.lean; Loam/AttentionPublisher.lean; Loam/Review/AttentionReview.lean; issue #1053",
+        "sources": "Loam/Tui/ScheduledContinuationSession.lean; Loam/HouseholdCommand.lean; Loam/Publisher/AttentionPublisher.lean; Loam/Review/AttentionReview.lean; issue #1053",
         "audit": "Completion remains authoritative before continuation begins. Existing later-plan awareness stays unchanged. Only the no-candidate branch gains an explicit Defer choice. Done writes nothing; Add uses ordinary Scheduled creation; Defer publishes one ordinary Attention item with dueUndetermined through HouseholdCommand.addAttention. No next date, cadence, recurrence, series identity, or second task authority is created.",
         "nodes": [
             ("action", "Scheduled completion already published"),
