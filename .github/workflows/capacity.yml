@@ -1,55 +1,85 @@
-name: Practical Capacity
+name: Capacity Qualifications
 
 on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/Core/Capacity.lean'
-      - 'Loam/Core/CapacityMemory.lean'
-      - 'Loam/Core.lean'
-      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Authority/CapacityAuthority.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
       - 'Loam/Review/CapacityReview.lean'
       - 'Loam/Core/CapacityEvidence.lean'
-      - 'Loam/Authority/CapacityAuthority.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core.lean'
       - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Tests/CapacityPublisher.lean'
+      - 'Loam/Tests/NormalizedCapacityPersistence.lean'
       - 'Loam/Tests/CapacityDogfood.lean'
       - 'tools/loam'
-      - 'lakefile.lean'
-      - '.github/workflows/practical-capacity.yml'
       - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/capacity.yml'
   push:
     branches:
       - main
+      - feat/tui
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/Core/Capacity.lean'
-      - 'Loam/Core/CapacityMemory.lean'
-      - 'Loam/Core.lean'
-      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Authority/CapacityAuthority.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
       - 'Loam/Review/CapacityReview.lean'
       - 'Loam/Core/CapacityEvidence.lean'
-      - 'Loam/Authority/CapacityAuthority.lean'
+      - 'Loam/Application/CapacityInspection.lean'
+      - 'Loam/Core/Capacity.lean'
+      - 'Loam/Core/CapacityEffective.lean'
+      - 'Loam/Core/CapacityMemory.lean'
+      - 'Loam/Core.lean'
       - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
       - 'Loam/Cli/CapacityCli.lean'
+      - 'Loam/Tests/CapacityPublisher.lean'
+      - 'Loam/Tests/NormalizedCapacityPersistence.lean'
       - 'Loam/Tests/CapacityDogfood.lean'
       - 'tools/loam'
-      - 'lakefile.lean'
-      - '.github/workflows/practical-capacity.yml'
       - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/capacity.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: practical-capacity-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  check:
+  publisher:
+    name: Build and test shared Capacity publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build shared Capacity publisher
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Core.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.Authority.CapacityAuthority Loam.Publisher.CapacityPublisher Loam.Review.CapacityReview
+
+      - name: Verify shared Capacity publication
+        run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
+
+      - name: Verify normalized Capacity round trip
+        run: lake env lean --run Loam/Tests/NormalizedCapacityPersistence.lean
+
+  practical:
     name: Build and exercise capacity entrance
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    concurrency:
+      group: practical-capacity-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v6
 
