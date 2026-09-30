@@ -1,6 +1,6 @@
 import Loam.Application.CorrectionFrontier
 import Loam.Application.CurrentSupportRouting
-import Loam.BalanceReview
+import Loam.Review.BalanceReview
 import Loam.CurrentQuantityAnchor
 import Loam.CurrentQuantityPresence
 import Loam.HouseholdPaths

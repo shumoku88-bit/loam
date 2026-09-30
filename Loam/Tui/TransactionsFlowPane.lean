@@ -1,4 +1,4 @@
-import Loam.TransactionsFlowReview
+import Loam.Review.TransactionsFlowReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 

@@ -5,7 +5,7 @@ import Loam.Review.MultimeasureSpendReview
 import Loam.MeasurePresentation
 import Loam.Review.DailyRoleFlowReview
 import Loam.Review.MonthlyRoleFlowReview
-import Loam.RoleFlowReview
+import Loam.Review.RoleFlowReview
 import Loam.Presentation.Reports
 import Loam.Tui.RoleBalances
 import Loam.Tui.TransactionsFlowPane

@@ -1,4 +1,4 @@
-import Loam.TransactionsFlowReview
+import Loam.Review.TransactionsFlowReview
 import Std.Data.HashMap
 import Std.Data.HashMap.Lemmas
 

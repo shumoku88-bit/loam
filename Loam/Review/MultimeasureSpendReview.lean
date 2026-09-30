@@ -2,8 +2,8 @@ import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Application.OriginalAmountFrontier
-import Loam.RoleFlowReview
-import Loam.TransactionsFlowReview
+import Loam.Review.RoleFlowReview
+import Loam.Review.TransactionsFlowReview
 
 namespace Loam.MultimeasureSpendReview
 

@@ -1,4 +1,4 @@
-import Loam.TransactionsFlowReview
+import Loam.Review.TransactionsFlowReview
 
 open Loam.Core
 

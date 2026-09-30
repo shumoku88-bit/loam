@@ -27,7 +27,7 @@ DIAGRAMS = {
     },
     "MGA.019.2 Candidate TransactionsFlowPane Seam": {
         "description": "Separate the proposed result-local pane owner from Reports-owned window, query, invalidation, and workspace paging policy.",
-        "sources": "Loam/Tui/Reports.lean; Loam/Tui/ReportWindow.lean; Loam/TransactionsFlowReview.lean; docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_019.md; docs/research/TRANSACTIONS_FLOW_PANE_OBLIGATION_DAG.md",
+        "sources": "Loam/Tui/Reports.lean; Loam/Tui/ReportWindow.lean; Loam/Review/TransactionsFlowReview.lean; docs/research/MODULE_GRANULARITY_TRANSACTIONS_FLOW_019.md; docs/research/TRANSACTIONS_FLOW_PANE_OBLIGATION_DAG.md",
         "audit": "The strongest experiment nests snapshot/index/detail in one TransactionsFlowPane.State. The pane may own snapshot adoption/reset, row/contribution derivation, selection, summary/detail local transitions, and responsive body rendering. Reports must retain ReportWindow, explicit Query.transactionsFlow emission, stale-result invalidation policy, Mode/menu/notice composition, scroll, body/footer paging and bounds clamping. Pane must not import Reports or ReportWindow and must not create a second movement semantic engine.",
         "nodes": [
             ("action", "Reports.State"),

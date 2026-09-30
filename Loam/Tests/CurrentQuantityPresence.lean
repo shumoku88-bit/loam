@@ -1,6 +1,6 @@
 import Loam.CurrentQuantityPresence
 import Loam.Persistence.CurrentQuantityPresencePersistence
-import Loam.RoleBalanceReview
+import Loam.Review.RoleBalanceReview
 
 open Loam.Core
 
