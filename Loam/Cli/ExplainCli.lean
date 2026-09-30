@@ -1,4 +1,4 @@
-import Loam.RoleBalanceAnswerability
+import Loam.Review.RoleBalanceAnswerability
 import Loam.Review.RoleBalanceReview
 import Loam.Persistence.TokenSyntax
 
