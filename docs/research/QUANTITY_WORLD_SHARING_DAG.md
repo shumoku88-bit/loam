@@ -288,7 +288,7 @@ Current production owners are:
 
 - `Loam/BoundedHistorySupport.lean`;
 - `Loam/Persistence/BoundedHistorySupportPersistence.lean`;
-- `Loam/BoundedHistorySupportPublisher.lean`;
+- `Loam/Publisher/BoundedHistorySupportPublisher.lean`;
 - `Loam/BoundedHistorySupportReview.lean`;
 - `Loam/HistoricalBalanceReview.lean`;
 - `Loam/Tui/BoundedHistorySupportAdministration.lean`.

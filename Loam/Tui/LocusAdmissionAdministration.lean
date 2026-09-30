@@ -1,5 +1,5 @@
 import Loam.Tui.EditorSession
-import Loam.LocusAdmissionPublisher
+import Loam.Publisher.LocusAdmissionPublisher
 import Loam.LocusCatalog
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.Kernel

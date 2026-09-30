@@ -12,14 +12,14 @@ import Loam.ScheduledCreationPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.ScheduledReplacementPublisher
 import Loam.ScheduledContinuationRouting
-import Loam.AttentionPublisher
+import Loam.Publisher.AttentionPublisher
 import Loam.CapacityPublisher
 import Loam.ActualRoutingPublisher
 import Loam.ScheduledRoutingPublisher
-import Loam.LocusAdmissionPublisher
-import Loam.AccountingRolePublisher
+import Loam.Publisher.LocusAdmissionPublisher
+import Loam.Publisher.AccountingRolePublisher
 import Loam.CurrentQuantityAnchorPublisher
-import Loam.BoundedHistorySupportPublisher
+import Loam.Publisher.BoundedHistorySupportPublisher
 import Loam.MeasurePresentationAuthority
 
 namespace Loam.HouseholdCommand

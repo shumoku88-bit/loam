@@ -1,4 +1,4 @@
-import Loam.BoundedHistorySupportPublisher
+import Loam.Publisher.BoundedHistorySupportPublisher
 import Loam.Review.BoundedHistorySupportReview
 import Loam.CurrentQuantityAnchorPublisher
 import Loam.LocusAdmissionAuthority

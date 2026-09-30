@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/AttentionPublisher.lean'
+      - 'Loam/Publisher/AttentionPublisher.lean'
       - 'Loam/Review/AttentionReview.lean'
       - 'Loam/HouseholdCommand.lean'
       - 'Loam/Persistence/AttentionPersistence.lean'

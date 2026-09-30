@@ -1,4 +1,4 @@
-import Loam.LocusAdmissionPublisher
+import Loam.Publisher.LocusAdmissionPublisher
 import Loam.Review.AccountingRoleReview
 import Loam.Review.BoundedHistorySupportReview
 import Loam.HouseholdCommand
