@@ -1,5 +1,5 @@
 import Loam.ActualReview
-import Loam.AttentionReview
+import Loam.Review.AttentionReview
 import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.Review.CycleSpendingPaceReview

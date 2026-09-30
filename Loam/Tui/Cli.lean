@@ -36,13 +36,13 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
 import Loam.ScheduledCoverageReview
-import Loam.AttentionReview
+import Loam.Review.AttentionReview
 import Loam.BalanceViewConfig
 import Loam.CurrentBalanceReview
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
 import Loam.Review.CapacityReview
-import Loam.ActualRoutingReview
+import Loam.Review.ActualRoutingReview
 import Loam.Tui.Main
 import Loam.Tui.Home
 import Loam.Tui.ActualWorkspace

@@ -18,7 +18,7 @@ OUTPUT = HERE / "loam-read-path-map.drn"
 READ_FLOW_DIAGRAMS = {
     "07.0 Read Path Comparison": {
         "description": "Read-side atlas: compare how production answers are derived without introducing report authority.",
-        "sources": "Loam/ActualReview.lean; Loam/BalanceReview.lean; Loam/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/TransactionsFlowReview.lean; Loam/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
+        "sources": "Loam/ActualReview.lean; Loam/BalanceReview.lean; Loam/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/TransactionsFlowReview.lean; Loam/Review/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
         "audit": "Read answers should expose dependency shape, refusal boundaries, repeated evidence selection, and accidental mixing of local and query-global work. Current Coverage remains the first detailed path because it composes Capacity, Actual, Scheduled, routing, and AccountingRole evidence.",
         "nodes": [
             ("action", "ACTUAL REVIEW\ncorrection-aware current records"),

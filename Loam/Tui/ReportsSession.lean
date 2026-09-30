@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
-import Loam.BudgetWindowReview
-import Loam.ConditionalBalancePathReview
+import Loam.Review.BudgetWindowReview
+import Loam.Review.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.LocusAdmissionAuthority
 import Loam.LocusCatalog

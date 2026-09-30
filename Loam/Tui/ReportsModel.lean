@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.BoundaryPresetConfig
-import Loam.BudgetWindowReview
-import Loam.ConditionalBalancePathReview
+import Loam.Review.BudgetWindowReview
+import Loam.Review.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.LocusCatalog
 import Loam.Review.LocusTrendCompareReview

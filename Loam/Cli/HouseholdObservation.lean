@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.BalanceReview
 import Loam.BalanceViewConfig
 import Loam.BoundaryPresetConfig
-import Loam.BudgetWindowReview
+import Loam.Review.BudgetWindowReview
 import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.HouseholdPaths

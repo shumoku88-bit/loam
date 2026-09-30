@@ -1,4 +1,4 @@
-import Loam.AttentionReview
+import Loam.Review.AttentionReview
 import Loam.HouseholdCommand
 import Loam.HouseholdPaths
 import Loam.Tui.AttentionAdministration
