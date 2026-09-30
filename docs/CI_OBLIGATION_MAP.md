@@ -9,7 +9,7 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46.
 
 The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
@@ -42,13 +42,15 @@ A later graduation pass retired two additional standalone Lean workflows:
   its standalone witness and research prose now live only in Git history.
 
 The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
-frontend retirement brings the live workflow count to `47`, or 50 retired
-workflow files in total. Presentation-neutral Home / Reports / ReadState checks
-remain qualified by `tui.yml`.
+frontend retirement brought the live workflow count to `47`. The Movement
+Proposal consolidation then reached `46`, or 51 retired workflow files in total.
+The surviving `movement-proposal.yml` retains separate read-only transport and
+explicit publication jobs under one shared path-trigger surface. Presentation-neutral
+Home / Reports / ReadState checks remain qualified by `tui.yml`.
 
 ## Shared Lean build mechanics
 
-Twenty-six surviving workflows retain their own workflow/job identity, runner,
+Twenty-five surviving workflows use the shared build-only composite action while retaining their relevant job identity, runner,
 checkout behavior, permissions, concurrency, triggers, build target, and later
 qualification steps, but share one build-only composite action:
 
@@ -83,7 +85,10 @@ ownership of the checks:
 
 This changes *when* expensive evidence is replayed, not which evidence owns a
 boundary. Specialized path-scoped publisher, persistence, UI, and formal-method
-workflows remain independently triggered.
+workflows remain independently triggered. The Movement Proposal read-only and
+publication obligations are the narrow exception: they now share one union path
+trigger because they consume the same proposal transport, while remaining separate
+named jobs.
 
 ## Live obligation families
 
@@ -137,8 +142,7 @@ operational or trust boundary:
 - `practical-slice-b.yml`
 - `measure-scale-stability.yml`
 - `attention-administration.yml`
-- `movement-proposal.yml`
-- `movement-proposal-record.yml`
+- `movement-proposal.yml` (separate read-only transport and explicit publication jobs)
 - `operational-continuity.yml`
 - `tui-event-merchant.yml`
 - `private-shadow-projection-observation.yml`
@@ -194,6 +198,7 @@ The original issue baseline was 97 workflows / 315035 workflow YAML bytes.
 The first instrumented measurement after adding the topology audit was
 97 / 315151. Subsequent feature/qualification work brought the pre-graduation
 live topology to 50 / 227627. Retiring the two graduated Lean witnesses produced
-the item-2 completion measurement above. The later native Web retirement reduces
-the live workflow-file count to 47; use `python3 tools/audit-ci-topology` for
-the current YAML byte measurement after subsequent feature changes.
+the item-2 completion measurement above. The later native Web retirement reduced
+the live workflow-file count to 47, and the Movement Proposal consolidation
+reduces it to 46; use `python3 tools/audit-ci-topology` for the current YAML byte
+measurement after subsequent feature changes.
