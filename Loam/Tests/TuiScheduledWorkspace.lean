@@ -251,7 +251,7 @@ def main : IO Unit := do
     contains "Pace" coverageText && contains "Oct" coverageText)
     "Scheduled overview did not render the recurring-plan Series Calendar"
   expect (contains "> food" coverageText &&
-    contains "[e] extend" coverageText && contains "[p] pace" coverageText &&
+    contains "[e] replenish" coverageText && contains "[p] pace" coverageText &&
     contains "[h/l] months" coverageText)
     "Scheduled overview did not expose selection, management, and month-window actions"
 
@@ -259,7 +259,7 @@ def main : IO Unit := do
   let coverageExtend :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .extendPlan
   expect (coverageExtend.command == .extendPlan)
-    "Scheduled overview could not extend its selected recurring plan directly"
+    "Scheduled overview could not replenish its selected recurring plan directly"
   let coveragePace :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .changePace
   expect (coveragePace.command == .changePace)
@@ -439,7 +439,7 @@ def main : IO Unit := do
   let coverageFill :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .fillCurrentCycle
   expect (coverageFill.command == .stay && contains "Use e" coverageFill.state.notice)
-    "Scheduled overview compatibility fill action did not redirect to simple extension"
+    "Scheduled overview compatibility fill action did not redirect to replenishment"
 
   let board :=
     (Loam.Tui.ScheduledWorkspace.updateWithCoverage
