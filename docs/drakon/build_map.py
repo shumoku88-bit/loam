@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -464,7 +464,7 @@ FLOW_DIAGRAMS = {
 
     "14.0 Correct Actual Date": {
         "description": "End-to-end occurrence-date correction that preserves the selected Event identity and physical Movement.",
-        "sources": "Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
         "audit": "The TUI edits one date string only. Preview calendar validation is convenience; publication re-reads admitted ActualEvidence under Actual ownership. Event, Effects, Measure, and Description remain untouched.",
         "nodes": [
             ("action", "Select one visible current Actual"),
@@ -483,7 +483,7 @@ FLOW_DIAGRAMS = {
     },
     "14.1 Authoritative Date Publish": {
         "description": "Writer-owned publication seam for one Actual occurrence-date reaffirmation or revision.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
         "audit": "ActualAuthority.loadActual? already decodes and admits normalized Actual evidence, including validity history. ActualValidityPublisher.admit? returns error, no update, or updated evidence; the two decisions below only unpack that one result. Same-date requests are successful no-ops.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -500,7 +500,7 @@ FLOW_DIAGRAMS = {
     },
     "14.2 Validity Revision": {
         "description": "Date-only semantic revision for one current EventId inside admitted ActualEvidence.",
-        "sources": "Loam/ActualValidityPublisher.lean; Loam/ActualDate.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/ActualValidity.lean; Loam/Core/EventCorrection.lean",
+        "sources": "Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualDate.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/ActualValidity.lean; Loam/Core/EventCorrection.lean",
         "audit": "This operation changes one time coordinate, not the Event. Currentness depends only on retained EventId plus raw Correction-target membership. Revision identity allocation is total; reversal provenance is independent because Effects do not change.",
         "nodes": [
             ("decision", "Requested date is a real YYYY-MM-DD date?", "Refuse\ninvalid calendar date"),
