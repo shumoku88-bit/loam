@@ -1,4 +1,4 @@
-import Loam.CorrectionPublisher
+import Loam.Publisher.CorrectionPublisher
 import Loam.MeasurePresentation
 import Loam.PracticalMovement
 import Loam.Tui.Main
