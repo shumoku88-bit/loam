@@ -1,4 +1,4 @@
-import Loam.ExchangeAdmission
+import Loam.Application.ExchangeAdmission
 import Loam.Application.MovementAdmission
 
 open Loam.Core

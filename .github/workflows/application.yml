@@ -10,7 +10,7 @@ on:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/Publisher/MovementPublisher.lean'
-      - 'Loam/ExchangeAdmission.lean'
+      - 'Loam/Application/ExchangeAdmission.lean'
       - 'Loam/Publisher/ExchangePublisher.lean'
       - 'Loam/Publisher/OriginalAmountMovementPublisher.lean'
       - 'Loam/HouseholdCommand.lean'
@@ -31,7 +31,7 @@ on:
       - 'Loam/Application/**'
       - 'Loam/Application.lean'
       - 'Loam/Publisher/MovementPublisher.lean'
-      - 'Loam/ExchangeAdmission.lean'
+      - 'Loam/Application/ExchangeAdmission.lean'
       - 'Loam/Publisher/ExchangePublisher.lean'
       - 'Loam/Publisher/OriginalAmountMovementPublisher.lean'
       - 'Loam/HouseholdCommand.lean'
@@ -62,7 +62,7 @@ jobs:
       - name: Build application, umbrella, observer, and Movement publisher
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Application Loam Loam.Publisher.MovementPublisher Loam.ExchangeAdmission Loam.Publisher.ExchangePublisher Loam.Publisher.OriginalAmountMovementPublisher Loam.HouseholdCommand loamHouseholdObservation Loam.Tests.ActualWorldFixture
+          build-args: Loam.Application Loam Loam.Publisher.MovementPublisher Loam.Application.ExchangeAdmission Loam.Publisher.ExchangePublisher Loam.Publisher.OriginalAmountMovementPublisher Loam.HouseholdCommand loamHouseholdObservation Loam.Tests.ActualWorldFixture
 
       - name: Qualify household path composition
         run: lake env lean --run Loam/Tests/HouseholdPaths.lean

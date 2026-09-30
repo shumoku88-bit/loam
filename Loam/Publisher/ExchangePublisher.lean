@@ -1,6 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualEvidence
-import Loam.ExchangeAdmission
+import Loam.Application.ExchangeAdmission
 import Loam.Authority.LocusAdmissionAuthority
 
 namespace Loam.ExchangePublisher
