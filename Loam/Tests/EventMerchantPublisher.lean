@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
-import Loam.EventMerchantPublisher
+import Loam.Publisher.EventMerchantPublisher
 import Loam.MovementPublisher
 
 open Loam.Core

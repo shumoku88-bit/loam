@@ -1,5 +1,5 @@
 import Loam.Tui.EditorSession
-import Loam.EventMerchantPublisher
+import Loam.Publisher.EventMerchantPublisher
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.Kernel
 import Loam.Tui.Main

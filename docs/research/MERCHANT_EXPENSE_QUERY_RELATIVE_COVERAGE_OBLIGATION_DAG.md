@@ -103,7 +103,7 @@ Event-party granularity, and description text.
 The earlier Merchant sequence earned the production relation now carried by:
 
 - `Loam/Core/EventMerchantEvidence.lean`;
-- `Loam/EventMerchantPublisher.lean`;
+- `Loam/Publisher/EventMerchantPublisher.lean`;
 - normalized Actual Merchant rows/admission;
 - `Loam/MerchantExpenseReview.lean`;
 - focused publisher, persistence, review, and TUI tests.

@@ -201,11 +201,11 @@
         "main",
         "test/settlement-actual-authority-preservation"
       ],
-      "buildArgs": "Loam.ActualAuthority Loam.EventMerchantPublisher Loam.ActualValidityPublisher",
+      "buildArgs": "Loam.ActualAuthority Loam.Publisher.EventMerchantPublisher Loam.ActualValidityPublisher",
       "paths": [
         "Loam/ActualAuthority.lean",
         "Loam/ActualValidityPublisher.lean",
-        "Loam/EventMerchantPublisher.lean",
+        "Loam/Publisher/EventMerchantPublisher.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/SettlementActualAuthorityPreservation.lean",
         "docs/research/SETTLEMENT_PRODUCTION_BOUNDARY_2026-09.md"

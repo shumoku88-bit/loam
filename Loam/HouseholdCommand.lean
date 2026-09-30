@@ -5,7 +5,7 @@ import Loam.Publisher.ExchangePublisher
 import Loam.CorrectionPublisher
 import Loam.ActualValidityPublisher
 import Loam.ActualReversalPublisher
-import Loam.EventMerchantPublisher
+import Loam.Publisher.EventMerchantPublisher
 import Loam.SettlementPublisher
 import Loam.SettlementActionPublisher
 import Loam.ScheduledCreationPublisher
