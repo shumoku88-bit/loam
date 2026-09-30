@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.MovementWorldLoader
 import Loam.Publisher.AccountingRolePublisher
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
