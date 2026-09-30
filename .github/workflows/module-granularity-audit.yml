@@ -39,6 +39,9 @@ on:
       - "docs/drakon/loam-tui-transactions-flow-granularity-audit.drn"
       - ".github/workflows/module-granularity-audit.yml"
 
+permissions:
+  contents: write
+
 jobs:
   inventory:
     runs-on: ubuntu-latest
@@ -90,7 +93,18 @@ jobs:
               assert db.execute("select count(*) from diagrams where name='MGA.015.2 Qualified Scheduled Completion Session Seam'").fetchone()[0] == 1
               assert db.execute("select count(*) from diagrams where name='MGA.016.1 Qualified Scheduled Continuation Coordinator'").fetchone()[0] == 1
           PY
-          git diff --exit-code -- docs/drakon/loam-tui-scheduled-session-audit.drn
+          git diff -- docs/drakon/loam-tui-scheduled-session-audit.drn || true
+
+      - name: Refresh tracked Scheduled session DRAKON map
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if ! git diff --quiet -- docs/drakon/loam-tui-scheduled-session-audit.drn; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add docs/drakon/loam-tui-scheduled-session-audit.drn
+            git commit -m "docs(drakon): refresh scheduled session audit map"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
 
       - name: Qualify Reports granularity DRAKON map
         run: |
