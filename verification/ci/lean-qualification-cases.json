@@ -349,7 +349,7 @@
       "paths": [
         "Loam/Core/ScheduledTerminal.lean",
         "Loam/Application/ScheduledInspection.lean",
-        "Loam/ScheduledTerminalPublisher.lean",
+        "Loam/Publisher/ScheduledTerminalPublisher.lean",
         "Loam/Review/ScheduledReview.lean",
         "Loam/HouseholdCommand.lean",
         "Loam/ActualAuthority.lean",
