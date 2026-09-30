@@ -3,7 +3,7 @@ import Loam.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.Config.ScheduledCoverageConfig
 import Loam.Review.ScheduledCoverageReview
-import Loam.ScheduledCoverageSelector
+import Loam.Review.ScheduledCoverageSelector
 import Loam.Application.ScheduledGeneration
 import Loam.MovementWorldLoader
 import Loam.Tui.ScheduledWorkspace

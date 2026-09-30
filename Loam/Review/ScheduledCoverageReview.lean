@@ -1,7 +1,7 @@
 import Loam.ActualDate
 import Loam.HouseholdPaths
 import Loam.Config.ScheduledCoverageConfig
-import Loam.ScheduledCoverageSelector
+import Loam.Review.ScheduledCoverageSelector
 import Loam.Review.ScheduledReview
 
 namespace Loam.ScheduledCoverageReview
