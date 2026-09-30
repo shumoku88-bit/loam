@@ -1,4 +1,4 @@
-import Loam.ScheduledCoverageReview
+import Loam.Review.ScheduledCoverageReview
 import Loam.ScheduledCoverageSelector
 import Loam.Tui.Calendar
 import Loam.Tui.Layout
