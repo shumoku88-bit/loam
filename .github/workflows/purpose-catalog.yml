@@ -3,7 +3,7 @@ name: Purpose Catalog Boundary
 on:
   pull_request:
     paths:
-      - 'Loam/PresentationMetadata.lean'
+      - 'Loam/Presentation/PresentationMetadata.lean'
       - 'Loam/PurposeCatalog.lean'
       - 'Loam/Tui/Capacity.lean'
       - 'Loam/Tui/CycleBudget.lean'
@@ -16,7 +16,7 @@ on:
       - 'lake-manifest.json'
   push:
     paths:
-      - 'Loam/PresentationMetadata.lean'
+      - 'Loam/Presentation/PresentationMetadata.lean'
       - 'Loam/PurposeCatalog.lean'
       - 'Loam/Tui/Capacity.lean'
       - 'Loam/Tui/CycleBudget.lean'
