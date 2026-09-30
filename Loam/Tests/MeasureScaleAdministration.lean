@@ -1,4 +1,4 @@
-import Loam.MeasurePresentationAuthority
+import Loam.Authority.MeasurePresentationAuthority
 import Loam.Authority.CapacityAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.ActualWorldFixture
