@@ -32,7 +32,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.1.1 Actual Review Read Boundary": {
         "description": "Production ActualReview.loadRecordsFromActual from one fully admitted ActualAuthority.Image; raw recordsFromActualEvidence? remains an independent in-memory entrance.",
-        "sources": "Loam/Review/ActualReview.lean; Loam/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
+        "sources": "Loam/Review/ActualReview.lean; Loam/Authority/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
         "audit": "Normalized Actual admission now carries the accepted current Event frontier and current validity memory once. Canonical Actual Review reuses that admission but still iterates every retained historical Event, so corrected originals remain inspectable. Raw in-memory review keeps its own admission boundary.",
         "nodes": [
             ("insertion", "Load admitted ActualAuthority.Image ONCE\nactual.loam"),
@@ -48,7 +48,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.3.1 Role Balance Read Boundary": {
         "description": "Production RoleBalanceReview.loadSnapshot after admitted Actual read-image migration; raw RoleBalanceReview.project remains the arbitrary in-memory entrance.",
-        "sources": "Loam/Review/RoleBalanceReview.lean; Loam/Review/BalanceReview.lean; Loam/ActualAuthority.lean; Loam/CurrentQuantityAnchor.lean; Loam/Persistence/OpeningSupportPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
+        "sources": "Loam/Review/RoleBalanceReview.lean; Loam/Review/BalanceReview.lean; Loam/Authority/ActualAuthority.lean; Loam/CurrentQuantityAnchor.lean; Loam/Persistence/OpeningSupportPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
         "audit": "Canonical Role Balance reuses ActualAuthority.Image.currentEvents for its ordinary current world and for BalanceReview zero-origin projection. Opening support remains independent evidence. CurrentQuantityAnchor deliberately keeps retained raw Events + Corrections because its reflected-root delta frontier is a different semantic world. No canonical RoleBalance correction-frontier re-admission remains.",
         "nodes": [
             ("insertion", "Load admitted ActualAuthority.Image ONCE\ncurrentEvents + retained raw evidence"),
@@ -67,7 +67,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.7.1 Current Coverage Read Boundary": {
         "description": "Production CurrentCoverageReview.loadSnapshotAt after admitted Actual read-image migration.",
-        "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/ActualAuthority.lean; Loam/Authority/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
+        "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
         "audit": "Scheduled lifecycle selection and routing/role classification happen once per snapshot. Actual quantity/date projection reuses the current Event frontier and current validity memory carried by ActualAuthority.Image, while Scheduled reference closure deliberately sees the retained raw Event identity set. No report-local Correction/ActualValidity re-admission or per-Purpose Scheduled frontier copies remain.",
         "nodes": [
             ("decision", "Current window coordinates are valid and ordered?", "Refuse\ninvalid current coverage coordinates"),
@@ -153,7 +153,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.8.1 Cycle Budget Read Boundary": {
         "description": "CycleBudgetReview.loadSnapshotAt composition after the one-Actual-observation refactor.",
-        "sources": "Loam/CycleBudgetReview.lean; Loam/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/Config/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Config/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/Authority/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/Config/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Config/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
         "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. CurrentCoverage and Balance evidence reads now share one short Actual ownership interval, pinning one normalized Actual generation across both branches without adding a second evidence API. Balance evidence remains shared by physical and funding. Other authorities keep their existing independent reads and failure semantics; no cross-authority atomic snapshot is claimed.",
         "nodes": [
             ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),
