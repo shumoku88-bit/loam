@@ -7,7 +7,7 @@ import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.HouseholdPaths
 import Loam.Review.RoleBalanceReview
-import Loam.ScheduledCoverageReview
+import Loam.Review.ScheduledCoverageReview
 
 namespace Loam.HouseholdObservationCli
 
