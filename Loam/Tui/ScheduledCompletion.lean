@@ -1,5 +1,5 @@
 import Loam.MeasurePresentation
-import Loam.ScheduledTerminalPublisher
+import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Record
 import Lean.Elab.Tactic.Omega
