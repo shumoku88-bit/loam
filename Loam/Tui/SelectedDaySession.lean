@@ -1,6 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.HouseholdCommand
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.MovementWorldLoader
 import Loam.Tui.ActualDateCorrection

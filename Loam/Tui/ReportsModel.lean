@@ -3,7 +3,7 @@ import Loam.Config.BoundaryPresetConfig
 import Loam.Review.BudgetWindowReview
 import Loam.Review.ConditionalBalancePathReview
 import Loam.Review.IncomeExpenseProvenanceReview
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.Review.LocusTrendCompareReview
 import Loam.Review.MultimeasureSpendReview
 import Loam.MeasurePresentation

@@ -1,5 +1,5 @@
 import Loam.HouseholdPaths
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.Authority.ActualAuthority
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
