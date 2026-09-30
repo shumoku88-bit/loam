@@ -1,7 +1,7 @@
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
 import Loam.Review.ActualReview
-import Loam.PurposeCatalog
+import Loam.Presentation.PurposeCatalog
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Lean.Elab.Tactic.Omega

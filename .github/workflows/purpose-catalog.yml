@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Presentation/PresentationMetadata.lean'
-      - 'Loam/PurposeCatalog.lean'
+      - 'Loam/Presentation/PurposeCatalog.lean'
       - 'Loam/Tui/Capacity.lean'
       - 'Loam/Tui/CycleBudget.lean'
       - 'Loam/Tui/Cli.lean'
@@ -17,7 +17,7 @@ on:
   push:
     paths:
       - 'Loam/Presentation/PresentationMetadata.lean'
-      - 'Loam/PurposeCatalog.lean'
+      - 'Loam/Presentation/PurposeCatalog.lean'
       - 'Loam/Tui/Capacity.lean'
       - 'Loam/Tui/CycleBudget.lean'
       - 'Loam/Tui/Cli.lean'

@@ -1,6 +1,6 @@
 import Loam.Review.CurrentCoverageReview
 import Loam.Review.CycleBudgetReview
-import Loam.PurposeCatalog
+import Loam.Presentation.PurposeCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
