@@ -1,4 +1,4 @@
-import Loam.SettlementReview
+import Loam.Review.SettlementReview
 import Loam.Persistence.NormalizedActualAdmission
 
 namespace Loam.Tests.SettlementReview

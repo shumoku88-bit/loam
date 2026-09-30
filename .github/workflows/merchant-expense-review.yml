@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/MerchantExpenseReview.lean'
+      - 'Loam/Review/MerchantExpenseReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
@@ -21,7 +21,7 @@ on:
       - main
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/MerchantExpenseReview.lean'
+      - 'Loam/Review/MerchantExpenseReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
@@ -49,6 +49,6 @@ jobs:
       - name: Install Lean and build Merchant Expense review
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.MerchantExpenseReview
+          build-args: Loam.Review.MerchantExpenseReview
       - name: Verify exact Merchant Expense projection
         run: lake env lean --run Loam/Tests/MerchantExpenseReview.lean

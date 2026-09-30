@@ -2,8 +2,8 @@ import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.Application.CorrectionFrontierIndexed
 import Loam.HouseholdPaths
-import Loam.DailyRoleFlowReview
-import Loam.MonthlyRoleFlowReview
+import Loam.Review.DailyRoleFlowReview
+import Loam.Review.MonthlyRoleFlowReview
 import Loam.RoleFlowReview
 import Loam.ScheduledActualOwnership
 import Loam.ScheduledReview

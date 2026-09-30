@@ -1,4 +1,4 @@
-import Loam.MerchantExpenseReview
+import Loam.Review.MerchantExpenseReview
 import Loam.Observations.Observation191
 
 namespace Loam.Observation336

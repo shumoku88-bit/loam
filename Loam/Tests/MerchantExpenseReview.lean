@@ -1,4 +1,4 @@
-import Loam.MerchantExpenseReview
+import Loam.Review.MerchantExpenseReview
 
 open Loam.Core
 

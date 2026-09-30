@@ -1,6 +1,6 @@
 import Loam.LocusAdmissionPublisher
-import Loam.AccountingRoleReview
-import Loam.BoundedHistorySupportReview
+import Loam.Review.AccountingRoleReview
+import Loam.Review.BoundedHistorySupportReview
 import Loam.HouseholdCommand
 import Loam.Tui.AccountingRoleAdministration
 import Loam.Tui.BoundedHistorySupportAdministration

@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Tui.Record
 import Loam.Tui.UnresolvedActivation
-import Loam.MovementDraftReview
+import Loam.Review.MovementDraftReview
 import Loam.MovementPublisher
 import Loam.ActualReview
 

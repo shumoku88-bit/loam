@@ -1,7 +1,7 @@
 import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.SettlementActionPublisher
-import Loam.SettlementReview
+import Loam.Review.SettlementReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.Terminal

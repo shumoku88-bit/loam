@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Cli.Movement.Proposal
-import Loam.MovementDraftReview
+import Loam.Review.MovementDraftReview
 
 open Loam.Core
 

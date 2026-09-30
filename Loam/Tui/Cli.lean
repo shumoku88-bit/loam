@@ -18,7 +18,7 @@ import Loam.Tui.Balances
 import Loam.Tui.SettlementWorkspace
 import Loam.Tui.SettlementAction
 import Loam.Tui.SettlementActionSession
-import Loam.SettlementReview
+import Loam.Review.SettlementReview
 import Loam.Tui.Capacity
 import Loam.Tui.CapacitySession
 import Loam.Tui.CycleBudget
