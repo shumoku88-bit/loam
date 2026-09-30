@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.LocusAdmissionAuthority

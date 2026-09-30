@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.BoundedHistorySupport
 import Loam.CurrentQuantityAnchor
 import Loam.LocusAdmissionAuthority
