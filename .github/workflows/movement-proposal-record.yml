@@ -7,7 +7,7 @@ on:
       - 'Loam/Cli/Movement/Proposal.lean'
       - 'Loam/Cli/MovementProposalRecordCli.lean'
       - 'Loam/HouseholdCommand.lean'
-      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Publisher/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
       - 'Loam/Tests/MovementProposalRecord.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'

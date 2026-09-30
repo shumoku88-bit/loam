@@ -266,12 +266,12 @@
         "main",
         "experiment/381-seeded-production-history"
       ],
-      "buildArgs": "Loam.MovementPublisher Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
+      "buildArgs": "Loam.Publisher.MovementPublisher Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/Core/LocusAdmission.lean",
         "Loam/Core/MovementOperationEvidence.lean",
         "Loam/MovementAdmission.lean",
-        "Loam/MovementPublisher.lean",
+        "Loam/Publisher/MovementPublisher.lean",
         "Loam/ActualAuthority.lean",
         "Loam/LocusAdmissionAuthority.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",

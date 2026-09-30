@@ -10,7 +10,7 @@ on:
       - 'Loam/Core/EventMerchantEvidence.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
       - 'Loam/Persistence/TokenSyntax.lean'
-      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Publisher/MovementPublisher.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/EventMerchantPublisher.lean'
       - '.github/workflows/event-merchant-publisher.yml'
@@ -28,7 +28,7 @@ on:
       - 'Loam/Core/EventMerchantEvidence.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
       - 'Loam/Persistence/TokenSyntax.lean'
-      - 'Loam/MovementPublisher.lean'
+      - 'Loam/Publisher/MovementPublisher.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/EventMerchantPublisher.lean'
       - '.github/workflows/event-merchant-publisher.yml'
@@ -51,6 +51,6 @@ jobs:
       - name: Install Lean and build Merchant publisher dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Publisher.EventMerchantPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.Publisher.EventMerchantPublisher Loam.Publisher.MovementPublisher Loam.Tests.ActualWorldFixture
       - name: Verify Event Merchant publication
         run: lake env lean --run Loam/Tests/EventMerchantPublisher.lean "$(mktemp -d)/event-merchant-publisher"
