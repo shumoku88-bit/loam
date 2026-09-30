@@ -1,7 +1,7 @@
 # Let's Kakeibo v5.93 package inspection
 
 Date: 2026-10-01  
-Status: **exact official ZIP verified; static inspection only; installer not executed**
+Status: **exact official ZIP verified; payload safely extracted without executing installer**
 
 ## Input package
 
@@ -71,11 +71,22 @@ SHA-256 f91f6adee9c572551fd99dd202abe5208b7f2707311bc59c170ad57e2ad938e3
 
 The Windows installer was **not executed**.
 
-Only the ZIP container, PE metadata, printable installer markers, and cryptographic hashes were inspected.
+The installer was parsed directly as Inno Setup 5.5.0 data without launching Windows code. The setup metadata blocks and one solid LZMA data chunk were decompressed, and Inno's executable instruction filter was reversed for the two executable payloads.
 
-The current analysis environment does not include an Inno Setup extraction utility such as `innoextract`. Attempts to obtain one through the isolated environment were unsuccessful, so the embedded application files and bundled help/manual have not yet been extracted.
+Six embedded payloads were recovered and verified against the SHA-1 digests stored in the installer metadata:
 
-This is preferable to running the installer merely to obtain documentation.
+```text
+License.txt                 2,520 bytes
+ReadMe.txt                 44,635 bytes
+Lets.exe                5,319,168 bytes
+lets.chm                4,060,908 bytes
+Thanks.txt                  1,435 bytes
+LetsKakeiboReminder.exe    147,456 bytes
+```
+
+All six recovered payload SHA-1 values exactly match the installer metadata.
+
+The extracted files remain temporary local research evidence and are not committed or redistributed.
 
 ## What this resolves
 
@@ -91,19 +102,15 @@ uploaded ZIP MD5
 exact published v5.93 archive obtained for research
 ```
 
-It does **not** yet upgrade claims about undocumented keyboard shortcuts, menu commands, internal data formats, or help topics. Those still require safe extraction or direct inspection of the bundled documentation.
+It now upgrades claims about the final package's implementation language, file inventory, and CHM topic inventory. Exact keyboard-command semantics and help-page body details still require page-body decompression and reading.
 
-## Next safe extraction target
+## Extraction result
 
-Use a non-executing Inno Setup extractor capable of version 5.5.0.
+The package has now been safely extracted without execution. See:
 
-Expected research sequence after extraction:
+- [IMPLEMENTATION_LINEAGE.md](IMPLEMENTATION_LINEAGE.md)
+- [HELP_CONTENT_INDEX.md](HELP_CONTENT_INDEX.md)
 
-1. enumerate installed files;
-2. identify CHM/HLP/HTML/TXT/manual assets;
-3. hash and catalog those files;
-4. inspect documentation without launching the application;
-5. reconstruct menu, shortcut, entry, card, recurring, import, backup, and correction behavior;
-6. keep primary-help evidence separate from earlier review-based reconstruction.
+The next frontier is page-level CHM help analysis, followed by reconstruction of the full command/shortcut model.
 
 No binary from this package should be committed to the LOAM repository. Only derived research notes and hashes belong here.

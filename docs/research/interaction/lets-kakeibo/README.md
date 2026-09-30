@@ -27,7 +27,9 @@ The aim is not to clone Let's家計簿. The aim is to understand why a spreadshe
 - [LONGEVITY.md](LONGEVITY.md) — product history, durable interaction ideas, and technology-aging lessons.
 - [EVOLUTION_AND_REWRITE.md](EVOLUTION_AND_REWRITE.md) — the multi-year Ver.3 internal rewrite that intentionally preserved visible behavior, plus architectural lessons.
 - [DATA_PORTABILITY_AND_RECOVERY.md](DATA_PORTABILITY_AND_RECOVERY.md) — backup, restore, CSV, data location, import behavior, and multiple household books.
-- [PACKAGE_INSPECTION_5_93.md](PACKAGE_INSPECTION_5_93.md) — byte-identity verification and non-executing static inspection of the official v5.93 ZIP/installer.
+- [PACKAGE_INSPECTION_5_93.md](PACKAGE_INSPECTION_5_93.md) — byte-identity verification and non-executing extraction of the official v5.93 ZIP/installer.
+- [IMPLEMENTATION_LINEAGE.md](IMPLEMENTATION_LINEAGE.md) — primary-package evidence for Delphi 2007 and the earlier Delphi toolchain lineage.
+- [HELP_CONTENT_INDEX.md](HELP_CONTENT_INDEX.md) — final-release CHM topic and UI-asset inventory without redistributing bundled help contents.
 - [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
 - [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
