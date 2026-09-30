@@ -1,5 +1,5 @@
 import Loam.Config.ScheduledCoverageConfig
-import Loam.ScheduledCoverageSelector
+import Loam.Review.ScheduledCoverageSelector
 import Loam.Review.ScheduledReview
 import Loam.Tui.Kernel
 import Loam.Tui.Main
