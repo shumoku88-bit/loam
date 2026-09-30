@@ -2,8 +2,8 @@ import Loam.Tests.ActualWorldFixture
 import Loam.Review.ActualReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Review.ScheduledReview
-import Loam.ScheduledReplacementPublisher
-import Loam.ScheduledTerminalPublisher
+import Loam.Publisher.ScheduledReplacementPublisher
+import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.SelectedDay
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledCompletion
