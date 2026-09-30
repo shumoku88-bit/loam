@@ -1,4 +1,4 @@
-import Loam.ActualRoutingPublisher
+import Loam.Publisher.ActualRoutingPublisher
 import Loam.Review.ActualRoutingReview
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Tui.ActualRoutingAdministration
