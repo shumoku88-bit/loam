@@ -154,7 +154,17 @@ def main : IO Unit := do
     scheduledOn := draft2.scheduledOn
     movement := raisedMovement
   }
-  let some scheduled := ScheduledMemory.ofOccurrences? [existing]
+  let some sameDestinationDifferentSourceMovement := BalancedMovement.ofChanges? ⟨"jpy"⟩
+      [ { coordinate := ⟨"smbc"⟩, quantity := Quantity.ofQuanta (-6000) }
+      , { coordinate := ⟨"gpt-plus"⟩, quantity := Quantity.ofQuanta 6000 } ]
+    | throw (IO.userError "Scheduled generation same-destination fixture")
+  let sameDestinationDifferentSource : ScheduledOccurrence String := {
+    id := ⟨"different-source"⟩
+    scheduledOn := draft2.scheduledOn
+    movement := sameDestinationDifferentSourceMovement
+  }
+  let some scheduled := ScheduledMemory.ofOccurrences?
+      [existing, sameDestinationDifferentSource]
     | throw (IO.userError "Scheduled generation awareness Scheduled memory")
   let some terminals := ScheduledTerminalMemory.ofTerminals? []
     | throw (IO.userError "Scheduled generation awareness terminal memory")
@@ -169,7 +179,7 @@ def main : IO Unit := do
         snapshot draft2.scheduledOn draft2.movement
     | throw (IO.userError "Scheduled generation exact-date awareness refused")
   expect (overlaps.map (fun record => record.id.token) == ["already-planned"])
-    "Scheduled generation awareness did not surface retained same-date plan"
+    "Scheduled generation awareness confused a same-destination plan with a different signed Locus shape"
   let some overlap := overlaps.head?
     | throw (IO.userError "Scheduled generation awareness overlap unexpectedly missing")
   expect (overlap.movement.changes.any fun change =>
@@ -203,6 +213,8 @@ def main : IO Unit := do
       contains "Keep existing" awarenessText &&
       contains "Add another" awarenessText)
     "Scheduled generation awareness prompt did not expose evidence and explicit choice"
+  expect (contains "same signed Locus shape" awarenessText)
+    "Scheduled generation awareness prompt did not explain its signed-Locus match"
   expect (contains "does not claim this is the same series, contract, or obligation" awarenessText)
     "Scheduled generation awareness prompt overstated the advisory match"
 
