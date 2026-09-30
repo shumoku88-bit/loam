@@ -1,4 +1,4 @@
-import Loam.CurrentBalanceReview
+import Loam.Review.CurrentBalanceReview
 
 open Loam.Core
 

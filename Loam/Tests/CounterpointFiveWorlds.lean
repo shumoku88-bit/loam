@@ -1,6 +1,6 @@
 import Loam.Application.CurrentCoverageInspection
 import Loam.CurrentQuantityAnchor
-import Loam.RoleBalanceReview
+import Loam.Review.RoleBalanceReview
 
 open Loam.Core
 open Loam.Application

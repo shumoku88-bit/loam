@@ -100,15 +100,15 @@ on:
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/Review/AttentionReview.lean'
-      - 'Loam/BalanceReview.lean'
+      - 'Loam/Review/BalanceReview.lean'
       - 'Loam/Review/CapacityReview.lean'
       - 'Loam/Review/BudgetWindowReview.lean'
       - 'Loam/Review/PeriodComparisonReview.lean'
-      - 'Loam/IncomeExpenseProvenanceReview.lean'
+      - 'Loam/Review/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/StockFlowReview.lean'
-      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/Review/TransactionsFlowReview.lean'
       - 'Loam/Review/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
@@ -240,15 +240,15 @@ on:
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
       - 'Loam/Review/AttentionReview.lean'
-      - 'Loam/BalanceReview.lean'
+      - 'Loam/Review/BalanceReview.lean'
       - 'Loam/Review/CapacityReview.lean'
       - 'Loam/Review/BudgetWindowReview.lean'
       - 'Loam/Review/PeriodComparisonReview.lean'
-      - 'Loam/IncomeExpenseProvenanceReview.lean'
+      - 'Loam/Review/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/StockFlowReview.lean'
-      - 'Loam/TransactionsFlowReview.lean'
+      - 'Loam/Review/TransactionsFlowReview.lean'
       - 'Loam/Review/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
@@ -636,7 +636,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiAttentionAdministration.lean
 
       - name: Build Actual-backed Balance review boundary
-        run: lake build Loam.BalanceReview
+        run: lake build Loam.Review.BalanceReview
 
       - name: Verify Actual-backed Balance review boundary
         run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
@@ -730,7 +730,7 @@ jobs:
         run: lake env lean --run Loam/Tests/StockFlowReview.lean
 
       - name: Build shared Transactions-Flow review boundary
-        run: lake build Loam.TransactionsFlowReview
+        run: lake build Loam.Review.TransactionsFlowReview
 
       - name: Verify Transactions-Flow incidence, activity and refusal boundaries
         run: lake env lean --run Loam/Tests/TransactionsFlowReview.lean
@@ -745,7 +745,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiTransactionsFlow.lean
 
       - name: Build Income Expense Scheduled provenance review boundary
-        run: lake build Loam.IncomeExpenseProvenanceReview
+        run: lake build Loam.Review.IncomeExpenseProvenanceReview
 
       - name: Verify Income Expense Scheduled provenance projection
         run: lake env lean --run Loam/Tests/IncomeExpenseProvenanceReview.lean

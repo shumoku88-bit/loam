@@ -1,4 +1,4 @@
-import Loam.CurrentBalanceReview
+import Loam.Review.CurrentBalanceReview
 import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 

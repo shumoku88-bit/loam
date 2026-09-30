@@ -1,5 +1,5 @@
-import Loam.RoleFlowReview
-import Loam.TransactionsFlowReview
+import Loam.Review.RoleFlowReview
+import Loam.Review.TransactionsFlowReview
 import Loam.Persistence.AccountingRolePersistence
 
 namespace Loam.DailyRoleFlowReview

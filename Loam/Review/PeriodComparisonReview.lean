@@ -1,12 +1,12 @@
 import Loam.ActualAuthority
 import Loam.ActualReview
-import Loam.BalanceReview
+import Loam.Review.BalanceReview
 import Loam.HouseholdPaths
-import Loam.IncomeExpenseProvenanceReview
+import Loam.Review.IncomeExpenseProvenanceReview
 import Loam.Persistence.AccountingRolePersistence
-import Loam.RoleFlowReview
+import Loam.Review.RoleFlowReview
 import Loam.Review.StockFlowReview
-import Loam.TransactionsFlowReview
+import Loam.Review.TransactionsFlowReview
 
 namespace Loam.PeriodComparisonReview
 

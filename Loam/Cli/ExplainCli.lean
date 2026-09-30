@@ -1,5 +1,5 @@
 import Loam.RoleBalanceAnswerability
-import Loam.RoleBalanceReview
+import Loam.Review.RoleBalanceReview
 import Loam.Persistence.TokenSyntax
 
 namespace Loam.ExplainCli

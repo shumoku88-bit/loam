@@ -5,11 +5,11 @@ import Loam.Review.CycleBudgetReview
 import Loam.Review.CycleSpendingPaceReview
 import Loam.PurposeCatalog
 import Loam.Presentation.ReadState
-import Loam.RoleBalanceReview
-import Loam.RoleFlowReview
+import Loam.Review.RoleBalanceReview
+import Loam.Review.RoleFlowReview
 import Loam.ScheduledReview
 import Loam.Review.StockFlowReview
-import Loam.TransactionsFlowReview
+import Loam.Review.TransactionsFlowReview
 
 namespace Loam.Presentation
 

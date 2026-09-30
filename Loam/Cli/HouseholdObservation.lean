@@ -1,12 +1,12 @@
 import Loam.ActualDate
-import Loam.BalanceReview
+import Loam.Review.BalanceReview
 import Loam.BalanceViewConfig
 import Loam.BoundaryPresetConfig
 import Loam.Review.BudgetWindowReview
 import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.HouseholdPaths
-import Loam.RoleBalanceReview
+import Loam.Review.RoleBalanceReview
 import Loam.ScheduledCoverageReview
 
 namespace Loam.HouseholdObservationCli

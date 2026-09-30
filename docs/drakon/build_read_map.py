@@ -18,7 +18,7 @@ OUTPUT = HERE / "loam-read-path-map.drn"
 READ_FLOW_DIAGRAMS = {
     "07.0 Read Path Comparison": {
         "description": "Read-side atlas: compare how production answers are derived without introducing report authority.",
-        "sources": "Loam/ActualReview.lean; Loam/BalanceReview.lean; Loam/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/TransactionsFlowReview.lean; Loam/Review/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
+        "sources": "Loam/ActualReview.lean; Loam/Review/BalanceReview.lean; Loam/Review/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/Review/TransactionsFlowReview.lean; Loam/Review/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
         "audit": "Read answers should expose dependency shape, refusal boundaries, repeated evidence selection, and accidental mixing of local and query-global work. Current Coverage remains the first detailed path because it composes Capacity, Actual, Scheduled, routing, and AccountingRole evidence.",
         "nodes": [
             ("action", "ACTUAL REVIEW\ncorrection-aware current records"),
@@ -48,7 +48,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.3.1 Role Balance Read Boundary": {
         "description": "Production RoleBalanceReview.loadSnapshot after admitted Actual read-image migration; raw RoleBalanceReview.project remains the arbitrary in-memory entrance.",
-        "sources": "Loam/RoleBalanceReview.lean; Loam/BalanceReview.lean; Loam/ActualAuthority.lean; Loam/CurrentQuantityAnchor.lean; Loam/Persistence/OpeningSupportPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
+        "sources": "Loam/Review/RoleBalanceReview.lean; Loam/Review/BalanceReview.lean; Loam/ActualAuthority.lean; Loam/CurrentQuantityAnchor.lean; Loam/Persistence/OpeningSupportPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
         "audit": "Canonical Role Balance reuses ActualAuthority.Image.currentEvents for its ordinary current world and for BalanceReview zero-origin projection. Opening support remains independent evidence. CurrentQuantityAnchor deliberately keeps retained raw Events + Corrections because its reflected-root delta frontier is a different semantic world. No canonical RoleBalance correction-frontier re-admission remains.",
         "nodes": [
             ("insertion", "Load admitted ActualAuthority.Image ONCE\ncurrentEvents + retained raw evidence"),
@@ -153,7 +153,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.8.1 Cycle Budget Read Boundary": {
         "description": "CycleBudgetReview.loadSnapshotAt composition after the one-Actual-observation refactor.",
-        "sources": "Loam/CycleBudgetReview.lean; Loam/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
         "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. CurrentCoverage and Balance evidence reads now share one short Actual ownership interval, pinning one normalized Actual generation across both branches without adding a second evidence API. Balance evidence remains shared by physical and funding. Other authorities keep their existing independent reads and failure semantics; no cross-authority atomic snapshot is claimed.",
         "nodes": [
             ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),
@@ -175,7 +175,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.8.2 Cycle Funding Composition": {
         "description": "Pure CycleFundingInspection.project composition after derived-summary compression.",
-        "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
+        "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
         "audit": "Summary retains only budgetable backing and remaining assigned. JPY is fixed by admission and residualBeforeUnresolved is derived from the retained pair. CurrentCoverage keeps ownership of the three query-global Scheduled frontier quantities; CycleBudget reads them from the sibling coverage snapshot instead of a funding copy. Parent CycleBudget composition now pins the CurrentCoverage and Balance Actual reads to one normalized Actual generation before this pure funding projection runs.",
         "nodes": [
             ("action", "Inputs\nBalance evidence + selection + CurrentCoverage"),

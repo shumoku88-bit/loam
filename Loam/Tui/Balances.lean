@@ -1,4 +1,4 @@
-import Loam.CurrentBalanceReview
+import Loam.Review.CurrentBalanceReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 

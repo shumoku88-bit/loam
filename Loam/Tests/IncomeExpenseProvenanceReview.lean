@@ -1,4 +1,4 @@
-import Loam.IncomeExpenseProvenanceReview
+import Loam.Review.IncomeExpenseProvenanceReview
 
 open Loam.Core
 

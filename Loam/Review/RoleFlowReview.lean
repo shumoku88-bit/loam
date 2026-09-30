@@ -1,7 +1,7 @@
 import Loam.ActualAuthority
 import Loam.ActualReview
 import Loam.HouseholdPaths
-import Loam.TransactionsFlowReview
+import Loam.Review.TransactionsFlowReview
 import Loam.Persistence.AccountingRolePersistence
 
 namespace Loam.RoleFlowReview

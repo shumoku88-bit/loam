@@ -1,4 +1,4 @@
-import Loam.RoleFlowReview
+import Loam.Review.RoleFlowReview
 
 open Loam.Core
 

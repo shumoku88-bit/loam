@@ -22,7 +22,7 @@ import Loam.Cli.PlainTextAccountingExportCli
 import Loam.Cli.BeancountExportCli
 import Loam.Cli.MeasureScaleCli
 import Loam.Tui.Cli
-import Loam.RoleBalanceReview
+import Loam.Review.RoleBalanceReview
 import Loam.Review.LocusCoherenceReview
 import Loam.Tui.Kernel
 import Loam.Tui.RoleBalances

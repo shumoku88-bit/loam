@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
-import Loam.BalanceReview
+import Loam.Review.BalanceReview
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
 open Loam.Core

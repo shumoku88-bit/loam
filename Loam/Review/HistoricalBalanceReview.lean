@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
-import Loam.BalanceReview
+import Loam.Review.BalanceReview
 import Loam.BoundedHistorySupport
 import Loam.CurrentQuantityAnchor
 import Loam.HouseholdPaths

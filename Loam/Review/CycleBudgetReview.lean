@@ -1,5 +1,5 @@
 import Loam.ActualAuthority
-import Loam.CurrentBalanceReview
+import Loam.Review.CurrentBalanceReview
 import Loam.CycleFundingConfig
 import Loam.CycleFundingInspection
 import Loam.HouseholdPaths

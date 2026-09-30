@@ -1,4 +1,4 @@
-import Loam.RoleBalanceReview
+import Loam.Review.RoleBalanceReview
 
 namespace Loam.RoleBalanceAnswerability
 
