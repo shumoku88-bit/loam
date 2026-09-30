@@ -1,4 +1,4 @@
-import Loam.BeancountExportPipeline
+import Loam.Export.BeancountExportPipeline
 import Loam.HouseholdPaths
 import Loam.WriterOwnership
 
