@@ -1,5 +1,5 @@
 import Loam.Tui.EditorSession
-import Loam.ExchangeAdmission
+import Loam.Application.ExchangeAdmission
 import Loam.MeasurePresentation
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
