@@ -5,7 +5,7 @@ import Loam.Authority.LocusAdmissionAuthority
 import Loam.MovementAdmission
 import Loam.MovementWorldAdapter
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.ScheduledActualOwnership
+import Loam.Persistence.ScheduledActualOwnership
 import Loam.SparseEffectIdentity
 
 namespace Loam.ScheduledTerminalPublisher
