@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Persistence.NormalizedActualPersistence
 
 namespace Loam.Tests.DeterministicScenarioSupport

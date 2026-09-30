@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Review.ActualReview
 import Loam.Publisher.CorrectionPublisher

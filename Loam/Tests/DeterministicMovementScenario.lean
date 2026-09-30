@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.LocusAdmissionAuthority
 import Loam.Publisher.MovementPublisher
 import Loam.Tests.DeterministicScenarioSupport
