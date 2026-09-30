@@ -1,7 +1,7 @@
 import Loam.HouseholdPaths
 import Loam.Core.Purpose
 import Loam.Persistence.TokenSyntax
-import Loam.PresentationMetadata
+import Loam.Presentation.PresentationMetadata
 
 namespace Loam.PurposeCatalog
 
