@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ScheduledCreationPublisher
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 import Lean.Elab.Tactic.Omega
