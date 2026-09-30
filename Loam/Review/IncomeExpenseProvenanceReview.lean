@@ -6,7 +6,7 @@ import Loam.Review.DailyRoleFlowReview
 import Loam.Review.MonthlyRoleFlowReview
 import Loam.Review.RoleFlowReview
 import Loam.ScheduledActualOwnership
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.Review.TransactionsFlowReview
 
 namespace Loam.IncomeExpenseProvenanceReview
