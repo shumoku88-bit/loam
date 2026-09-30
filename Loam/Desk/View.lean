@@ -87,9 +87,9 @@ private def ledgerPane
       [mutedLine " (no current Actual in this month)"]
     else
       rows.map fun (index, record) =>
-        let prefix := if state.selectedRow == some index then "> " else "  "
+        let marker := if state.selectedRow == some index then "> " else "  "
         let style := if state.selectedRow == some index then Style.selected else Style.normal
-        .row [span (Loam.Tui.Layout.padRight width (prefix ++ recordText record)) style]
+        .row [span (Loam.Tui.Layout.padRight width (marker ++ recordText record)) style]
   .column <| [plainLine " Actual", mutedLine " date        description / effects"] ++ body
 
 private def selectedContext
@@ -103,7 +103,7 @@ private def selectedContext
   | some record =>
       if state.showEvidence then
         [plainLine " Evidence"] ++
-          (Loam.ActualReview.detailLines snapshot.records record).take 6 |>.map plainLine
+          ((Loam.ActualReview.detailLines snapshot.records record).take 6).map plainLine
       else
         [ plainLine " Selected"
         , plainLine ("   Date        : " ++ record.date.getD "(undated)")
