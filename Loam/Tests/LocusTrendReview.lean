@@ -1,4 +1,4 @@
-import Loam.LocusTrendReview
+import Loam.Review.LocusTrendReview
 
 open Loam.Core
 

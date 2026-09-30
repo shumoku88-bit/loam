@@ -10,7 +10,7 @@ on:
       - 'Loam/Cli/ExplainCli.lean'
       - 'Loam/CurrentBalanceReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
-      - 'Loam/MultimeasureSpendReview.lean'
+      - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/Review/HistoricalBalanceReview.lean'
       - 'Loam/BoundedHistorySupport.lean'
@@ -54,7 +54,7 @@ on:
       - 'Loam/Cli/ExplainCli.lean'
       - 'Loam/CurrentBalanceReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
-      - 'Loam/MultimeasureSpendReview.lean'
+      - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/Review/HistoricalBalanceReview.lean'
       - 'Loam/BoundedHistorySupport.lean'
@@ -108,7 +108,7 @@ jobs:
       - name: Build accounting projection basis
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.RoleFlowReview Loam.CurrentBalanceReview Loam.Review.HistoricalBalanceReview Loam.RoleBalanceReview Loam.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.MultimeasureSpendReview Loam.CurrentQuantityAnchorPublisher Loam.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
+          build-args: Loam.RoleFlowReview Loam.CurrentBalanceReview Loam.Review.HistoricalBalanceReview Loam.RoleBalanceReview Loam.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.Review.MultimeasureSpendReview Loam.CurrentQuantityAnchorPublisher Loam.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Qualify role-aware flow composition

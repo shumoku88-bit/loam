@@ -8,7 +8,7 @@ import Loam.Presentation.ReadState
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
 import Loam.ScheduledReview
-import Loam.StockFlowReview
+import Loam.Review.StockFlowReview
 import Loam.TransactionsFlowReview
 
 namespace Loam.Presentation

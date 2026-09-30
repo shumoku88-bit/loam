@@ -4,11 +4,11 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.IncomeExpenseProvenanceReview
 import Loam.LocusCatalog
-import Loam.LocusTrendCompareReview
-import Loam.MultimeasureSpendReview
+import Loam.Review.LocusTrendCompareReview
+import Loam.Review.MultimeasureSpendReview
 import Loam.MeasurePresentation
-import Loam.PeriodComparisonReview
-import Loam.StockFlowReview
+import Loam.Review.PeriodComparisonReview
+import Loam.Review.StockFlowReview
 import Loam.TransactionsFlowReview
 import Loam.RoleFlowReview
 import Loam.RoleBalanceReview

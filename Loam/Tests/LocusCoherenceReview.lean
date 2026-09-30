@@ -1,4 +1,4 @@
-import Loam.LocusCoherenceReview
+import Loam.Review.LocusCoherenceReview
 
 open Loam.Core
 
