@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),

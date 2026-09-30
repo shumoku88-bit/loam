@@ -4,7 +4,7 @@ import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.ScheduledActualOwnership
+import Loam.Persistence.ScheduledActualOwnership
 import Loam.Persistence.WriterOwnership
 
 namespace Loam.AccountingRolePublisher

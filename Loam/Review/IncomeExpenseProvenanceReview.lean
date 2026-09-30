@@ -5,7 +5,7 @@ import Loam.HouseholdPaths
 import Loam.Review.DailyRoleFlowReview
 import Loam.Review.MonthlyRoleFlowReview
 import Loam.Review.RoleFlowReview
-import Loam.ScheduledActualOwnership
+import Loam.Persistence.ScheduledActualOwnership
 import Loam.Review.ScheduledReview
 import Loam.Review.TransactionsFlowReview
 
