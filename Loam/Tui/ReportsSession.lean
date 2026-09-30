@@ -6,7 +6,7 @@ import Loam.Authority.LocusAdmissionAuthority
 import Loam.Presentation.LocusCatalog
 import Loam.Review.LocusTrendCompareReview
 import Loam.Review.MultimeasureSpendReview
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Review.PeriodComparisonReview
 import Loam.Review.RoleBalanceReview
 import Loam.Review.RoleFlowReview

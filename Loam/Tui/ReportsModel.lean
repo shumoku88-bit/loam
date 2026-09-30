@@ -6,7 +6,7 @@ import Loam.Review.IncomeExpenseProvenanceReview
 import Loam.Presentation.LocusCatalog
 import Loam.Review.LocusTrendCompareReview
 import Loam.Review.MultimeasureSpendReview
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Review.PeriodComparisonReview
 import Loam.Review.StockFlowReview
 import Loam.Review.TransactionsFlowReview

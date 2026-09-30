@@ -1,6 +1,6 @@
 import Loam.ActualJournalProjection
 import Loam.Core.AccountingRole
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 
 namespace Loam.BeancountExport
 

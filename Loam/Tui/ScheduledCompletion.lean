@@ -1,4 +1,4 @@
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Record

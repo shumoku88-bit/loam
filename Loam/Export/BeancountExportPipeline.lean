@@ -2,7 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualJournalProjection
 import Loam.Export.BeancountExport
 import Loam.Core.AccountingRole
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.SiblingStage
 

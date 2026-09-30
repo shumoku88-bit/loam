@@ -1,5 +1,5 @@
 import Loam.Presentation.LocusCatalog
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Application.MovementAdmission
 import Loam.Persistence.TokenSyntax
 import Loam.Presentation.Record

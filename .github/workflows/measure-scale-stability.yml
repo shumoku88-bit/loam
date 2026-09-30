@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/MeasurePresentation.lean'
+      - 'Loam/Presentation/MeasurePresentation.lean'
       - 'Loam/MeasurePresentationAuthority.lean'
       - 'Loam/HouseholdCommand.lean'
       - 'Loam/Cli/MeasureScaleCli.lean'
@@ -31,7 +31,7 @@ on:
       - main
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/MeasurePresentation.lean'
+      - 'Loam/Presentation/MeasurePresentation.lean'
       - 'Loam/MeasurePresentationAuthority.lean'
       - 'Loam/HouseholdCommand.lean'
       - 'Loam/Cli/MeasureScaleCli.lean'
@@ -72,7 +72,7 @@ jobs:
       - name: Build production Measure scale boundary
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.MeasurePresentation Loam.MeasurePresentationAuthority Loam.HouseholdCommand Loam.Cli.MeasureScaleCli Loam.Cli Loam.Tests.ActualWorldFixture
+          build-args: Loam.Presentation.MeasurePresentation Loam.MeasurePresentationAuthority Loam.HouseholdCommand Loam.Cli.MeasureScaleCli Loam.Cli Loam.Tests.ActualWorldFixture
 
       - name: Qualify retained-family scale stability
         run: |
