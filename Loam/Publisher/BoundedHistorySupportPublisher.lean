@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.BoundedHistorySupport
-import Loam.CurrentQuantityAnchor
+import Loam.Application.CurrentQuantityAnchor
 import Loam.HouseholdPaths
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence

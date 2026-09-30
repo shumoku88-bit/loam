@@ -1,4 +1,4 @@
-import Loam.CurrentQuantityAnchor
+import Loam.Application.CurrentQuantityAnchor
 import Loam.Persistence.SiblingStage
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows
