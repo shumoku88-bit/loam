@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/EventMerchantPublisher.lean'
+      - 'Loam/Publisher/EventMerchantPublisher.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualEvidence.lean'
       - 'Loam/Core/EventMerchantEvidence.lean'
@@ -22,7 +22,7 @@ on:
       - main
     paths:
       - '.github/actions/lean-build/**'
-      - 'Loam/EventMerchantPublisher.lean'
+      - 'Loam/Publisher/EventMerchantPublisher.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/ActualEvidence.lean'
       - 'Loam/Core/EventMerchantEvidence.lean'
@@ -51,6 +51,6 @@ jobs:
       - name: Install Lean and build Merchant publisher dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.EventMerchantPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.Publisher.EventMerchantPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture
       - name: Verify Event Merchant publication
         run: lake env lean --run Loam/Tests/EventMerchantPublisher.lean "$(mktemp -d)/event-merchant-publisher"
