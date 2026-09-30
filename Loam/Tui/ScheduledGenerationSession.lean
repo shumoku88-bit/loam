@@ -143,9 +143,9 @@ private def awarenessChoiceView (state : AwarenessPromptState) : Widget :=
     ] ++
     (if state.additionalCount = 0 then [] else
       [awarenessLine ("Also found " ++ toString state.additionalCount ++
-        " more current-open plan(s) with the same date and positive Locus set.")]) ++
+        " more current-open plan(s) with the same date and signed Locus shape.")]) ++
     [ awarenessLine ""
-    , awarenessLine "Match basis: same explicit date and same positive Locus set."
+    , awarenessLine "Match basis: same explicit date and same signed Locus shape."
     , awarenessLine "LOAM does not claim this is the same series, contract, or obligation."
     , awarenessLine "Keep the existing plan, add another explicit Scheduled, or review it."
     , .row
