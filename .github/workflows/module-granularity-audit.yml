@@ -39,9 +39,6 @@ on:
       - "docs/drakon/loam-tui-transactions-flow-granularity-audit.drn"
       - ".github/workflows/module-granularity-audit.yml"
 
-permissions:
-  contents: write
-
 jobs:
   inventory:
     runs-on: ubuntu-latest
@@ -130,25 +127,9 @@ jobs:
               assert db.execute("select count(*) from diagrams where name='MGA.019.3 Qualification Obligation DAG'").fetchone()[0] == 1
               assert db.execute("select count(*) from diagrams where name='MGA.020.1 Qualified TransactionsFlowPane State Owner'").fetchone()[0] == 1
           PY
-      - name: Publish refreshed Transactions Flow DRAKON
-        if: github.event_name == 'pull_request'
-        run: |
-          cp docs/drakon/loam-tui-transactions-flow-granularity-audit.drn /tmp/transactions-flow.drn
-          git fetch origin "${{ github.head_ref }}"
-          git reset --hard
-          git checkout -B drakon-refresh "origin/${{ github.head_ref }}"
-          cp /tmp/transactions-flow.drn docs/drakon/loam-tui-transactions-flow-granularity-audit.drn
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/drakon/loam-tui-transactions-flow-granularity-audit.drn
-          if git diff --cached --quiet; then
-            exit 0
-          fi
-          git commit -m "docs(drakon): refresh Transactions Flow audit map"
-          git push origin HEAD:"${{ github.head_ref }}"
+          git diff --exit-code -- docs/drakon/loam-tui-transactions-flow-granularity-audit.drn
 
       - name: Upload descriptive inventory
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: module-granularity-inventory
