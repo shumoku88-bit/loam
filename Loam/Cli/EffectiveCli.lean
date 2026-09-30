@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Std
 
 namespace Loam.EffectiveCli

@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualJournalProjection
 import Loam.Export.BeancountExport
 import Loam.Core.AccountingRole
