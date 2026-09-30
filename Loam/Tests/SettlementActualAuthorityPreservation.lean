@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualValidityPublisher
-import Loam.EventMerchantPublisher
+import Loam.Publisher.EventMerchantPublisher
 import Loam.Persistence.NormalizedActualPersistence
 
 namespace Loam.Tests.SettlementActualAuthorityPreservation
