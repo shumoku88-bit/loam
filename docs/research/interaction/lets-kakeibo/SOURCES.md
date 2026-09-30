@@ -133,6 +133,42 @@ Use:
 
 Authority: **valuable specialist secondary source; distinguish its interpretation from author documentation**.
 
+
+## Source H — 窓の杜 current library entry
+
+URL: https://forest.watch.impress.co.jp/library/software/letskakeibo/
+
+Use:
+
+- v5.93 final release date;
+- direct-cell entry description;
+- cell/status guidance;
+- statement that household data is saved automatically whenever a change is made;
+- summary of graph families and period selection.
+
+Authority: **high for currently published product description**.
+
+## Source I — long-term-user Dropbox/data-location article
+
+URL: https://kurashi-note00.com/archives/53508
+
+Use:
+
+- documents the `自動バックアップ` folder;
+- identifies `.LBK` backup files in actual use;
+- demonstrates restore onto another PC;
+- demonstrates changing Let's家計簿's data storage location;
+- illustrates an unofficial Dropbox-synced local-data workflow.
+
+Authority: **secondary user report; useful for observed final-release data-location behavior, not for guarantees about safety or supported synchronization**.
+
+## Binary-package access note
+
+The official author page currently exposes `lets593.zip` and publishes MD5 `875b05ddc22e5992d06f4d0ca672a7d4`. 窓の杜 also exposes a v5.93 installer download.
+
+This research environment can discover those binary URLs but cannot fetch the binary payload for offline extraction. Therefore the bundled v5.93 help/manual has **not** yet been inspected directly. Do not silently upgrade secondary evidence into primary-manual evidence.
+
+
 ## Source-quality notes
 
 No source discovered in this pass is a complete formal manual.

@@ -22,8 +22,11 @@ The aim is not to clone Let's家計簿. The aim is to understand why a spreadshe
 - [UI_LAYOUT.md](UI_LAYOUT.md) — screen geometry, tabs, panes, table structure, visual hierarchy, and layout evolution.
 - [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) — feature census with evidence notes.
 - [INTERACTION_MODEL.md](INTERACTION_MODEL.md) — direct manipulation, keyboard/mouse use, input assistance, correction, and guidance.
+- [INPUT_MECHANICS_DEEP_DIVE.md](INPUT_MECHANICS_DEEP_DIVE.md) — cell-level entry mechanics, history reuse, formulas, receipt grouping, cards, autosave, and contextual help.
 - [REPORTS_AND_DRILLDOWN.md](REPORTS_AND_DRILLDOWN.md) — graphs, reports, budget views, account-balance views, and detail drill-down.
 - [LONGEVITY.md](LONGEVITY.md) — product history, durable interaction ideas, and technology-aging lessons.
+- [EVOLUTION_AND_REWRITE.md](EVOLUTION_AND_REWRITE.md) — the multi-year Ver.3 internal rewrite that intentionally preserved visible behavior, plus architectural lessons.
+- [DATA_PORTABILITY_AND_RECOVERY.md](DATA_PORTABILITY_AND_RECOVERY.md) — backup, restore, CSV, data location, import behavior, and multiple household books.
 - [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
 - [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
@@ -50,6 +53,8 @@ monthly chronological table
 Input assistance was unusually deep for a desktop household program: history reuse, keyword-driven category selection, calculator/formula entry, receipt grouping, recurring entries, card settlement support, context hints, and tutorial guidance.
 
 The reporting surface also supported a particularly valuable pattern: **summary -> originating detail**. Graph regions and report cells could lead back to the transactions that produced the number.
+
+A second-pass finding is especially relevant to longevity: the author reports that the Ver.3 line came from an almost complete internal rewrite after years of feature accretion, while deliberately keeping the visible appearance and behavior the same. The rewrite took more than three and a half years. This is direct historical evidence for treating interaction habits and implementation machinery as separate replacement boundaries.
 
 ## Research rule
 

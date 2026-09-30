@@ -11,7 +11,10 @@ This is a research census. "Observed" means supported by one or more sources in 
 | Date / shop / description / income / expense / category / account / balance | observed | Eight-field table documented in 1999 and later reviews. |
 | Category color coding | observed | Used to make the ledger visually scannable. |
 | Previously entered value reuse | observed | History/popup selection for shop and description. |
-| Initial-character lookup | observed | Earlier review describes typing a leading character and using arrow keys to reuse past values. |
+| Initial-character lookup | observed | 2005 review describes first-character or Enter-driven access to prior values. |
+| Mouse double-click equivalent to Enter | observed | 2005 review explicitly describes this beginner-friendly parity. |
+| Cross-field assistance from content | observed | 2005 review says entered content can assist/populate shop/category/amount. |
+| Consumption-tax calculation/input support | observed historically | 2005 review. |
 | Input-mode assistance | observed historically | 1999 review notes automatic input-mode switching by cell. |
 | Keyword-driven category assignment | observed | Version 5 can associate keywords with categories. |
 | Calculator popup | observed | Calculator available from amount cells. |
@@ -19,7 +22,7 @@ This is a research census. "Observed" means supported by one or more sources in 
 | Receipt grouping / receipt total | observed | Multiple item lines can be grouped visually under a receipt total. |
 | Insert row at position | observed | 2024 hands-on walkthrough uses a context-menu row insertion. |
 | Memo / diary-related context | observed | Daily diary/list appears in version 5 side pane. |
-| Automatic save behavior | partially observed | Contemporary descriptions emphasize direct editing; exact persistence timing still needs primary manual evidence. |
+| Automatic save behavior | observed at product-description level | Current 窓の杜 library page says changes are automatically saved; exact write/crash semantics still need primary manual evidence. |
 
 ## B. Accounts and movement
 
@@ -71,7 +74,8 @@ This is a research census. "Observed" means supported by one or more sources in 
 
 | Feature | Evidence status | Notes |
 | --- | --- | --- |
-| Backup / restore | observed | Version 5 review. |
+| Backup / restore | observed | Version 5 review; later user report demonstrates restore from .LBK auto-backup. |
+| Configurable data storage location | observed by later user report | Enables local-folder relocation; unofficial Dropbox use demonstrates portability but not supported concurrency. |
 | CSV export | observed | Version 5 review. |
 | Bank statement import | observed | Specific banks mentioned in 2008 review. |
 | Edy / Suica / PASMO history import | observed | Version 5 era, sometimes through FeliCa reader. |
