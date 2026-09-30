@@ -182,7 +182,7 @@ FLOW_DIAGRAMS = {
     },
     "10.2 Authoritative Movement Publish": {
         "description": "Production write seam for one already-collected Movement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
         "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The publisher is presentation-neutral; EventId is returned only after authoritative publication succeeds.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -275,7 +275,7 @@ FLOW_DIAGRAMS = {
     },
     "11.1 Authoritative Correction Publish": {
         "description": "Writer-owned publication seam for one correction replacement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean",
         "audit": "This path shares one-Actual publication mechanics with Record but keeps correction currentness, target restrictions, and replacement identity local.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -417,7 +417,7 @@ FLOW_DIAGRAMS = {
     },
     "13.1 Authoritative Reversal Publish": {
         "description": "Writer-owned publication seam for one exact Actual reversal with a read-only Scheduled provenance dependency.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
         "audit": "Scheduled is locked and read, not written. Ownership prevents completion provenance from changing across the reversal-independence check. Actual is the only authority published; lock order remains Scheduled then Actual.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
