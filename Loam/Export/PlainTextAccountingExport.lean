@@ -1,4 +1,4 @@
-import Loam.ActualJournalProjection
+import Loam.Review.ActualJournalProjection
 import Loam.Core.AccountingRole
 import Loam.Presentation.MeasurePresentation
 import Loam.Persistence.TextEscape
