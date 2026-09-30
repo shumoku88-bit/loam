@@ -33,7 +33,7 @@ import Loam.Tui.FavaLaunch
 import Loam.BoundaryPresetConfig
 import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Review.ScheduledReview
 import Loam.Review.ScheduledCoverageReview
 import Loam.Review.AttentionReview

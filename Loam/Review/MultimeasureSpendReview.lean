@@ -1,5 +1,5 @@
 import Loam.ActualAuthority
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Application.OriginalAmountFrontier
 import Loam.Review.RoleFlowReview

@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.HouseholdCommand
 import Loam.Tui.EventMerchant
 import Loam.Tui.SelectedDay

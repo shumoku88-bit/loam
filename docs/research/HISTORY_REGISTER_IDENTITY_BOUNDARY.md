@@ -124,7 +124,7 @@ relation, or posting-order timestamp is justified by Observations 254–256.
 
 The selected executable boundaries already live in current code:
 
-- `Loam/ActualReview.lean` owns correction-aware, occurrence-date-aware review;
+- `Loam/Review/ActualReview.lean` owns correction-aware, occurrence-date-aware review;
 - `Loam/Application/OpenRelationFrontier.lean` owns exact keyed Relation source
   resolution;
 - `Loam/Core/Event.lean` owns Event / Effect representation and the rule that

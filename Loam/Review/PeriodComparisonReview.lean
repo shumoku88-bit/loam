@@ -1,5 +1,5 @@
 import Loam.ActualAuthority
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Review.BalanceReview
 import Loam.HouseholdPaths
 import Loam.Review.IncomeExpenseProvenanceReview

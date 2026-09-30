@@ -3,7 +3,7 @@ import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.Correction
 import Loam.MovementPublisher
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Lean.Elab.Tactic.Omega
 
 open Loam.Core Loam.Tui.Kernel

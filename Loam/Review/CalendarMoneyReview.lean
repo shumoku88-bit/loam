@@ -1,4 +1,4 @@
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Core.AccountingRole
 
 namespace Loam.CalendarMoneyReview

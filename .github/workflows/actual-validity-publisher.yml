@@ -9,7 +9,7 @@ on:
       - 'Loam/ActualAuthority.lean'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/CorrectionPublisher.lean'
-      - 'Loam/ActualReview.lean'
+      - 'Loam/Review/ActualReview.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
@@ -38,7 +38,7 @@ on:
       - 'Loam/ActualAuthority.lean'
       - 'Loam/MovementPublisher.lean'
       - 'Loam/CorrectionPublisher.lean'
-      - 'Loam/ActualReview.lean'
+      - 'Loam/Review/ActualReview.lean'
       - 'Loam/Application/ActualValidityFrontier.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
@@ -72,7 +72,7 @@ jobs:
       - name: Install Lean and build shared publisher test dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.ActualValidityPublisher Loam.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
+          build-args: Loam.ActualValidityPublisher Loam.Review.ActualReview Loam.CorrectionPublisher Loam.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
       - name: Verify Movement operation evidence contract
         run: lake env lean --run Loam/Tests/MovementOperationEvidence.lean
       - name: Verify normalized Actual persistence

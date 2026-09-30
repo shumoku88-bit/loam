@@ -1,4 +1,4 @@
-import Loam.ActualReview
+import Loam.Review.ActualReview
 
 namespace Loam.ReviewCli
 

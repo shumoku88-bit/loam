@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Review.BalanceReview
 import Loam.Review.CurrentBalanceReview
 import Loam.BoundaryPresetConfig

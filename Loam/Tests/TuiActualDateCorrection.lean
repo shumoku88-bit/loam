@@ -2,7 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.ActualDateCorrection
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.CorrectionPublisher
 import Loam.MovementPublisher
 

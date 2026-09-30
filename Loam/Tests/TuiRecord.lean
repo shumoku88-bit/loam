@@ -3,7 +3,7 @@ import Loam.Tui.Record
 import Loam.Tui.UnresolvedActivation
 import Loam.Review.MovementDraftReview
 import Loam.MovementPublisher
-import Loam.ActualReview
+import Loam.Review.ActualReview
 
 open Loam.Core Loam.Tui.Record
 

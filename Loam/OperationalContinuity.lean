@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Review.ScheduledReview
 
 namespace Loam.OperationalContinuity

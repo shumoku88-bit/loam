@@ -18,7 +18,7 @@ OUTPUT = HERE / "loam-read-path-map.drn"
 READ_FLOW_DIAGRAMS = {
     "07.0 Read Path Comparison": {
         "description": "Read-side atlas: compare how production answers are derived without introducing report authority.",
-        "sources": "Loam/ActualReview.lean; Loam/Review/BalanceReview.lean; Loam/Review/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/Review/TransactionsFlowReview.lean; Loam/Review/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
+        "sources": "Loam/Review/ActualReview.lean; Loam/Review/BalanceReview.lean; Loam/Review/RoleBalanceReview.lean; Loam/StockFlowReview.lean; Loam/Review/TransactionsFlowReview.lean; Loam/Review/BudgetWindowReview.lean; Loam/CurrentCoverageReview.lean; Loam/CycleBudgetReview.lean",
         "audit": "Read answers should expose dependency shape, refusal boundaries, repeated evidence selection, and accidental mixing of local and query-global work. Current Coverage remains the first detailed path because it composes Capacity, Actual, Scheduled, routing, and AccountingRole evidence.",
         "nodes": [
             ("action", "ACTUAL REVIEW\ncorrection-aware current records"),
@@ -32,7 +32,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.1.1 Actual Review Read Boundary": {
         "description": "Production ActualReview.loadRecordsFromActual from one fully admitted ActualAuthority.Image; raw recordsFromActualEvidence? remains an independent in-memory entrance.",
-        "sources": "Loam/ActualReview.lean; Loam/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
+        "sources": "Loam/Review/ActualReview.lean; Loam/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/Application/CorrectionFrontier.lean; Loam/Application/ActualValidityFrontier.lean",
         "audit": "Normalized Actual admission now carries the accepted current Event frontier and current validity memory once. Canonical Actual Review reuses that admission but still iterates every retained historical Event, so corrected originals remain inspectable. Raw in-memory review keeps its own admission boundary.",
         "nodes": [
             ("insertion", "Load admitted ActualAuthority.Image ONCE\nactual.loam"),

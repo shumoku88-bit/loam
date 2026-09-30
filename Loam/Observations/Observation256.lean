@@ -1,4 +1,4 @@
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Application.OpenRelationFrontier
 import Loam.Observations.Observation255
 

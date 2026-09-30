@@ -1,6 +1,6 @@
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.PurposeCatalog
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
