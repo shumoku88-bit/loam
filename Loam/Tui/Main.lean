@@ -4,7 +4,7 @@ import Loam.Review.CalendarMoneyReview
 import Loam.Review.CycleSpendingPaceReview
 import Loam.MeasurePresentation
 import Loam.Presentation.ReadState
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.Tui.Calendar
 import Loam.Tui.Kernel
 
