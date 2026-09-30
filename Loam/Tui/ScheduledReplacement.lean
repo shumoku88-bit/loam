@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Persistence.TokenSyntax
-import Loam.ScheduledReplacementPublisher
+import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.Tui.EditorSession
 import Loam.Tui.Main
 import Loam.Tui.Record
