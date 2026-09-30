@@ -2,7 +2,7 @@ import Loam.MeasurePresentationAuthority
 import Loam.CapacityAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.ActualWorldFixture
-import Loam.MovementPublisher
+import Loam.Publisher.MovementPublisher
 import Loam.MovementWorldAdapter
 import Loam.LocusAdmissionAuthority
 

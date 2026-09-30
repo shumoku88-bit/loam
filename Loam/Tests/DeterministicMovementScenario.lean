@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
 import Loam.LocusAdmissionAuthority
-import Loam.MovementPublisher
+import Loam.Publisher.MovementPublisher
 import Loam.Tests.DeterministicScenarioSupport
 
 namespace Loam.Tests.DeterministicMovementScenario

@@ -2,7 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.Correction
-import Loam.MovementPublisher
+import Loam.Publisher.MovementPublisher
 import Loam.Review.ActualReview
 import Lean.Elab.Tactic.Omega
 
