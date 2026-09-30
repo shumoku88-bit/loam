@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.Authority.CapacityAuthority
 import Loam.HouseholdPaths
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.WriterOwnership

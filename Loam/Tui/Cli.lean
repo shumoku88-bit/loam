@@ -3,7 +3,7 @@ import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.HouseholdCommand
 import Loam.Presentation.LocusCatalog
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Presentation.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession

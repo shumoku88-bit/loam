@@ -1,5 +1,5 @@
 import Loam.Publisher.CorrectionPublisher
-import Loam.MeasurePresentation
+import Loam.Presentation.MeasurePresentation
 import Loam.Application.PracticalMovement
 import Loam.Tui.Main
 import Loam.Tui.Record

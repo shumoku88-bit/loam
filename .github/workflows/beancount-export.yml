@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'Loam/Export/BeancountExport.lean'
-      - 'Loam/MeasurePresentation.lean'
+      - 'Loam/Presentation/MeasurePresentation.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
@@ -21,7 +21,7 @@ on:
       - 'feat/beancount-export'
     paths:
       - 'Loam/Export/BeancountExport.lean'
-      - 'Loam/MeasurePresentation.lean'
+      - 'Loam/Presentation/MeasurePresentation.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
