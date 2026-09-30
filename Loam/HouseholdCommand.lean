@@ -20,7 +20,7 @@ import Loam.Publisher.LocusAdmissionPublisher
 import Loam.Publisher.AccountingRolePublisher
 import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Publisher.BoundedHistorySupportPublisher
-import Loam.MeasurePresentationAuthority
+import Loam.Authority.MeasurePresentationAuthority
 
 namespace Loam.HouseholdCommand
 
