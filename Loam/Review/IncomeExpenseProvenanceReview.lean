@@ -1,5 +1,5 @@
 import Loam.ActualAuthority
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.Application.CorrectionFrontierIndexed
 import Loam.HouseholdPaths
 import Loam.Review.DailyRoleFlowReview
