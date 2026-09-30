@@ -113,11 +113,11 @@ def slots (month : Month) : List (Option String) :=
 def monthLabel (month : Month) : String :=
   padded 4 month.year ++ "-" ++ padded 2 month.month
 
-example : firstWeekdayMonday { year := 2026, month := 9 } = 1 := by native_decide
-example : (slots { year := 2026, month := 9 })[1]? = some (some "2026-09-01") := by native_decide
-example : (slots { year := 2026, month := 9 })[30]? = some (some "2026-09-30") := by native_decide
-example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by native_decide
+example : firstWeekdayMonday { year := 2026, month := 9 } = 1 := by rfl
+example : (slots { year := 2026, month := 9 })[1]? = some (some "2026-09-01") := by rfl
+example : (slots { year := 2026, month := 9 })[30]? = some (some "2026-09-30") := by rfl
+example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by rfl
 example : shiftCalendarMonthWindow? "2026-12-01" "2027-01-01" true =
-    some ("2027-01-01", "2027-02-01") := by native_decide
+    some ("2027-01-01", "2027-02-01") := by rfl
 
 end Loam.Tui.Calendar
