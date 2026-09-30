@@ -457,7 +457,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiAccountingRoleAdministration.lean
 
       - name: Build bounded historical support administration boundary
-        run: lake build Loam.BoundedHistorySupportPublisher Loam.BoundedHistorySupportReview Loam.Tui.BoundedHistorySupportAdministration
+        run: lake build Loam.BoundedHistorySupportPublisher Loam.Review.BoundedHistorySupportReview Loam.Tui.BoundedHistorySupportAdministration
 
       - name: Verify bounded historical support publication and anchor guard
         run: lake env lean --run Loam/Tests/BoundedHistorySupport.lean

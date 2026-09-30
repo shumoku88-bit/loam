@@ -3,8 +3,8 @@ import Loam.BudgetWindowReview
 import Loam.ConditionalBalancePathReview
 import Loam.MultimeasureSpendReview
 import Loam.MeasurePresentation
-import Loam.DailyRoleFlowReview
-import Loam.MonthlyRoleFlowReview
+import Loam.Review.DailyRoleFlowReview
+import Loam.Review.MonthlyRoleFlowReview
 import Loam.RoleFlowReview
 import Loam.Presentation.Reports
 import Loam.Tui.RoleBalances

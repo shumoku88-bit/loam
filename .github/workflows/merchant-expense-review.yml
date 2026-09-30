@@ -49,6 +49,6 @@ jobs:
       - name: Install Lean and build Merchant Expense review
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.MerchantExpenseReview
+          build-args: Loam.Review.MerchantExpenseReview
       - name: Verify exact Merchant Expense projection
         run: lake env lean --run Loam/Tests/MerchantExpenseReview.lean

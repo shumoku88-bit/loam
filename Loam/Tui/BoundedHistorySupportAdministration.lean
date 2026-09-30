@@ -1,7 +1,7 @@
 import Loam.Tui.EditorSession
 import Loam.ActualDate
 import Loam.BoundedHistorySupportPublisher
-import Loam.BoundedHistorySupportReview
+import Loam.Review.BoundedHistorySupportReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.Terminal

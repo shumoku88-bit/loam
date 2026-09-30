@@ -3,7 +3,7 @@ import Loam.ActualDate
 import Loam.ActualReview
 import Loam.BalanceReview
 import Loam.CurrentBalanceReview
-import Loam.HistoricalBalanceReview
+import Loam.Review.HistoricalBalanceReview
 import Loam.HouseholdPaths
 
 namespace Loam.StockFlowReview

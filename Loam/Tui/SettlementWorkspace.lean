@@ -1,4 +1,4 @@
-import Loam.SettlementReview
+import Loam.Review.SettlementReview
 import Loam.Tui.Layout
 import Loam.Tui.Main
 
