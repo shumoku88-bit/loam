@@ -1,6 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualDate
-import Loam.ActualEvidence
+import Loam.Core.ActualEvidence
 import Loam.Core.ActualReversal
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence

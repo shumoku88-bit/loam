@@ -1,4 +1,4 @@
-import Loam.ActualEvidence
+import Loam.Core.ActualEvidence
 import Loam.Core.ActualValidity
 import Loam.Core.EventMemory
 import Loam.Persistence.NormalizedActualPersistence

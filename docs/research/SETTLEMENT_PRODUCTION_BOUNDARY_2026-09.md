@@ -61,7 +61,7 @@ settlement facts.
 
 ### One Actual authority generation
 
-`Loam/ActualEvidence.lean` retains one grouped `SettlementEvidence` family
+`Loam/Core/ActualEvidence.lean` retains one grouped `SettlementEvidence` family
 inside the ordinary Actual aggregate.
 
 `Loam/Persistence/NormalizedActualAdmission.lean` carries the admitted
