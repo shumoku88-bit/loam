@@ -1,4 +1,4 @@
-import Loam.ActualJournalProjection
+import Loam.Review.ActualJournalProjection
 import Init.Data.List.Sort.Lemmas
 
 namespace Loam.Observation335
