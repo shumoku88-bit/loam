@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 
 namespace Loam.ScheduledDayEvidenceCli
 
