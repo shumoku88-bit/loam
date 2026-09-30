@@ -2,7 +2,7 @@ import Loam.Application.CorrectionFrontier
 import Loam.Application.CurrentSupportRouting
 import Loam.Review.BalanceReview
 import Loam.Application.CurrentQuantityAnchor
-import Loam.CurrentQuantityPresence
+import Loam.Application.CurrentQuantityPresence
 import Loam.HouseholdPaths
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.CurrentQuantityPresencePersistence

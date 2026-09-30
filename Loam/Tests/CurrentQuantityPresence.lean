@@ -1,4 +1,4 @@
-import Loam.CurrentQuantityPresence
+import Loam.Application.CurrentQuantityPresence
 import Loam.Persistence.CurrentQuantityPresencePersistence
 import Loam.Review.RoleBalanceReview
 
