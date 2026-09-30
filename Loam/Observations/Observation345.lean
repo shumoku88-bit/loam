@@ -1,4 +1,4 @@
-import Loam.ActualEvidence
+import Loam.Core.ActualEvidence
 import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Review.MultimeasureSpendReview
 import Loam.Persistence.NormalizedActualAdmission

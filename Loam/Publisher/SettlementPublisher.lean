@@ -1,5 +1,5 @@
 import Loam.Authority.ActualAuthority
-import Loam.ActualEvidence
+import Loam.Core.ActualEvidence
 import Loam.Persistence.NormalizedActualAdmission
 
 namespace Loam.SettlementPublisher

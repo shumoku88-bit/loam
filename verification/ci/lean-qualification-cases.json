@@ -158,7 +158,7 @@
       ],
       "buildArgs": "Loam.Persistence.NormalizedActualAdmission",
       "paths": [
-        "Loam/ActualEvidence.lean",
+        "Loam/Core/ActualEvidence.lean",
         "Loam/Core/Settlement.lean",
         "Loam/Application/SettlementFrontier.lean",
         "Loam/Persistence/NormalizedActualAdmission.lean",
@@ -180,7 +180,7 @@
       ],
       "buildArgs": "Loam.Persistence.NormalizedActualPersistence",
       "paths": [
-        "Loam/ActualEvidence.lean",
+        "Loam/Core/ActualEvidence.lean",
         "Loam/Core/Settlement.lean",
         "Loam/Application/SettlementFrontier.lean",
         "Loam/Persistence/NormalizedActualAdmission.lean",

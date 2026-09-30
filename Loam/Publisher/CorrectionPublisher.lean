@@ -1,5 +1,5 @@
 import Loam.Authority.ActualAuthority
-import Loam.ActualEvidence
+import Loam.Core.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.FreshNumberedToken
 import Loam.Authority.LocusAdmissionAuthority

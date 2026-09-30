@@ -1,6 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualDate
-import Loam.ActualEvidence
+import Loam.Core.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.Application.CorrectionFrontier
 import Loam.Persistence.TextEscape
