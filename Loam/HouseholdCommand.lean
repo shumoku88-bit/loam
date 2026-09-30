@@ -14,7 +14,7 @@ import Loam.ScheduledReplacementPublisher
 import Loam.ScheduledContinuationRouting
 import Loam.Publisher.AttentionPublisher
 import Loam.CapacityPublisher
-import Loam.ActualRoutingPublisher
+import Loam.Publisher.ActualRoutingPublisher
 import Loam.ScheduledRoutingPublisher
 import Loam.Publisher.LocusAdmissionPublisher
 import Loam.Publisher.AccountingRolePublisher

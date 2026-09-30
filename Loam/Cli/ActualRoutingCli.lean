@@ -1,4 +1,4 @@
-import Loam.ActualRoutingPublisher
+import Loam.Publisher.ActualRoutingPublisher
 import Loam.Core.RoutingEffective
 
 namespace Loam.ActualRoutingCli

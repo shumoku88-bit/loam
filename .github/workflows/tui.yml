@@ -56,7 +56,7 @@ on:
       - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
-      - 'Loam/ActualRoutingPublisher.lean'
+      - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Review/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
       - 'Loam/Cli/MovementCli.lean'
@@ -196,7 +196,7 @@ on:
       - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
-      - 'Loam/ActualRoutingPublisher.lean'
+      - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Review/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
       - 'Loam/Cli/MovementCli.lean'
@@ -708,7 +708,7 @@ jobs:
 
       - name: Build shared Actual Purpose routing administration boundaries
         run: |
-          lake build Loam.ActualRoutingPublisher
+          lake build Loam.Publisher.ActualRoutingPublisher
           lake build Loam.Review.ActualRoutingReview
 
       - name: Verify current Expense Locus routing audit
