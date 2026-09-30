@@ -4,7 +4,7 @@ import Loam.Review.BalanceReview
 import Loam.BalanceViewConfig
 import Loam.Review.CurrentBalanceReview
 import Loam.HouseholdPaths
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 
 namespace Loam.ConditionalBalancePathReview
 
