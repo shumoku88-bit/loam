@@ -27,6 +27,7 @@ The aim is not to clone Let's家計簿. The aim is to understand why a spreadshe
 - [LONGEVITY.md](LONGEVITY.md) — product history, durable interaction ideas, and technology-aging lessons.
 - [EVOLUTION_AND_REWRITE.md](EVOLUTION_AND_REWRITE.md) — the multi-year Ver.3 internal rewrite that intentionally preserved visible behavior, plus architectural lessons.
 - [DATA_PORTABILITY_AND_RECOVERY.md](DATA_PORTABILITY_AND_RECOVERY.md) — backup, restore, CSV, data location, import behavior, and multiple household books.
+- [PACKAGE_INSPECTION_5_93.md](PACKAGE_INSPECTION_5_93.md) — byte-identity verification and non-executing static inspection of the official v5.93 ZIP/installer.
 - [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
 - [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
