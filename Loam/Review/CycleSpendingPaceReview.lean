@@ -4,7 +4,7 @@ import Loam.Review.ActualReview
 import Loam.Review.BalanceReview
 import Loam.Review.CurrentBalanceReview
 import Loam.BoundaryPresetConfig
-import Loam.DailyPaceConfig
+import Loam.Config.DailyPaceConfig
 import Loam.Review.HistoricalBalanceReview
 import Loam.HouseholdPaths
 import Loam.Review.ScheduledReview

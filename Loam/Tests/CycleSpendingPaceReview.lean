@@ -1,5 +1,5 @@
 import Loam.Review.CycleSpendingPaceReview
-import Loam.DailyPaceConfig
+import Loam.Config.DailyPaceConfig
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.NormalizedActualPersistence
