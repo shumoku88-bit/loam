@@ -2,7 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Review.ActualReview
-import Loam.CorrectionPublisher
+import Loam.Publisher.CorrectionPublisher
 import Loam.MovementPublisher
 
 open Loam.Core
