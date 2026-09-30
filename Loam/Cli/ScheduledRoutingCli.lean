@@ -1,5 +1,5 @@
 import Loam.Core.ScheduledRouting
-import Loam.ScheduledRoutingPublisher
+import Loam.Publisher.ScheduledRoutingPublisher
 
 namespace Loam.ScheduledRoutingCli
 

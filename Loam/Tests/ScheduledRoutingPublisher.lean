@@ -1,4 +1,4 @@
-import Loam.ScheduledRoutingPublisher
+import Loam.Publisher.ScheduledRoutingPublisher
 import Loam.Persistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence

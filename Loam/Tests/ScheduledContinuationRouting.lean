@@ -3,7 +3,7 @@ import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.ScheduledContinuationRouting
-import Loam.ScheduledRoutingPublisher
+import Loam.Publisher.ScheduledRoutingPublisher
 
 open Loam.Core
 open Loam.Persistence

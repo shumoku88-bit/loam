@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
-import Loam.ScheduledRoutingPublisher
+import Loam.Publisher.ScheduledRoutingPublisher
 
 namespace Loam.ScheduledContinuationRouting
 

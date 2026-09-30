@@ -10,7 +10,7 @@ on:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
-      - 'Loam/ScheduledRoutingPublisher.lean'
+      - 'Loam/Publisher/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
@@ -30,7 +30,7 @@ on:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
-      - 'Loam/ScheduledRoutingPublisher.lean'
+      - 'Loam/Publisher/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
@@ -51,7 +51,7 @@ jobs:
       - name: Build practical Scheduled routing utility and projection dependency
         uses: ./.github/actions/lean-build
         with:
-          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection Loam.ScheduledRoutingPublisher
+          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection Loam.Publisher.ScheduledRoutingPublisher
 
       - name: Check routing persistence feeds existing Commitment semantics
         shell: bash
