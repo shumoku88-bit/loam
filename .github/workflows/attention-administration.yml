@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/AttentionPublisher.lean'
-      - 'Loam/AttentionReview.lean'
+      - 'Loam/Review/AttentionReview.lean'
       - 'Loam/HouseholdCommand.lean'
       - 'Loam/Persistence/AttentionPersistence.lean'
       - 'Loam/Tui/AttentionAdministration.lean'

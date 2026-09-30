@@ -57,7 +57,7 @@ on:
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/ActualRoutingPublisher.lean'
-      - 'Loam/ActualRoutingReview.lean'
+      - 'Loam/Review/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/Movement/**'
@@ -99,17 +99,17 @@ on:
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
-      - 'Loam/AttentionReview.lean'
+      - 'Loam/Review/AttentionReview.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/Review/CapacityReview.lean'
-      - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/Review/BudgetWindowReview.lean'
       - 'Loam/Review/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
-      - 'Loam/ConditionalBalancePathReview.lean'
+      - 'Loam/Review/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
       - 'Loam/Core/ZeroOriginCoverage.lean'
@@ -197,7 +197,7 @@ on:
       - 'Loam/ScheduledTerminalPublisher.lean'
       - 'Loam/CapacityPublisher.lean'
       - 'Loam/ActualRoutingPublisher.lean'
-      - 'Loam/ActualRoutingReview.lean'
+      - 'Loam/Review/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
       - 'Loam/Cli/MovementCli.lean'
       - 'Loam/Cli/Movement/**'
@@ -239,17 +239,17 @@ on:
       - 'Loam/Tests/ConditionalBalancePathReview.lean'
       - 'Loam/ActualReview.lean'
       - 'Loam/ScheduledReview.lean'
-      - 'Loam/AttentionReview.lean'
+      - 'Loam/Review/AttentionReview.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/Review/CapacityReview.lean'
-      - 'Loam/BudgetWindowReview.lean'
+      - 'Loam/Review/BudgetWindowReview.lean'
       - 'Loam/Review/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
       - 'Loam/Review/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
-      - 'Loam/ConditionalBalancePathReview.lean'
+      - 'Loam/Review/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
       - 'Loam/Core/ZeroOriginCoverage.lean'
@@ -627,7 +627,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiSelectedDay.lean
 
       - name: Build Attention review boundary
-        run: lake build Loam.AttentionReview Loam.Tui.AttentionAdministration
+        run: lake build Loam.Review.AttentionReview Loam.Tui.AttentionAdministration
 
       - name: Verify shared Attention persistence and review boundary
         run: lake env lean --run Loam/Tests/AttentionPersistence.lean "$(mktemp -d)/attention-review"
@@ -709,7 +709,7 @@ jobs:
       - name: Build shared Actual Purpose routing administration boundaries
         run: |
           lake build Loam.ActualRoutingPublisher
-          lake build Loam.ActualRoutingReview
+          lake build Loam.Review.ActualRoutingReview
 
       - name: Verify current Expense Locus routing audit
         run: lake env lean --run Loam/Tests/ActualRoutingReview.lean "$(mktemp -d)/actual-routing-review"
@@ -718,7 +718,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiActualRoutingAdministration.lean "$(mktemp -d)/tui-actual-routing-administration"
 
       - name: Build Actual-backed Budget Window review boundary
-        run: lake build Loam.BudgetWindowReview
+        run: lake build Loam.Review.BudgetWindowReview
 
       - name: Verify Actual-backed Budget Window review boundary
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
@@ -736,7 +736,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TransactionsFlowReview.lean
 
       - name: Build conditional selected-balance path review boundary
-        run: lake build Loam.ConditionalBalancePathReview
+        run: lake build Loam.Review.ConditionalBalancePathReview
 
       - name: Verify conditional selected-balance path and refusal boundaries
         run: lake env lean --run Loam/Tests/ConditionalBalancePathReview.lean

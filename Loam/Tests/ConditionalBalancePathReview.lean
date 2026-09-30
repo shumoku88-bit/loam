@@ -1,4 +1,4 @@
-import Loam.ConditionalBalancePathReview
+import Loam.Review.ConditionalBalancePathReview
 
 open Loam.Core
 

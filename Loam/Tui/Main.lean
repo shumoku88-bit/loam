@@ -1,6 +1,6 @@
 import Loam.ActualReview
-import Loam.AttentionReview
-import Loam.CalendarMoneyReview
+import Loam.Review.AttentionReview
+import Loam.Review.CalendarMoneyReview
 import Loam.Review.CycleSpendingPaceReview
 import Loam.MeasurePresentation
 import Loam.Presentation.ReadState

@@ -1,4 +1,4 @@
-import Loam.BudgetWindowReview
+import Loam.Review.BudgetWindowReview
 import Loam.Persistence.TokenSyntax
 
 namespace Loam.BudgetWindowCli

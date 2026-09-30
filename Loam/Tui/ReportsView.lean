@@ -1,6 +1,6 @@
 import Loam.Tui.ReportsModel
-import Loam.BudgetWindowReview
-import Loam.ConditionalBalancePathReview
+import Loam.Review.BudgetWindowReview
+import Loam.Review.ConditionalBalancePathReview
 import Loam.Review.MultimeasureSpendReview
 import Loam.MeasurePresentation
 import Loam.Review.DailyRoleFlowReview
