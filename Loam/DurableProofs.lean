@@ -2,7 +2,7 @@ import Loam.Core.FiniteKeyed
 import Loam.Application.RelationDischargeFrontier
 import Loam.Application.OpenRelationFrontier
 import Loam.Persistence.VersionedRows
-import Loam.ScheduledOccurrenceConstruction
+import Loam.Application.ScheduledOccurrenceConstruction
 import Loam.Observations.Observation043
 import Loam.Observations.Observation044
 import Loam.Observations.Observation045

@@ -6,7 +6,7 @@ import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledActualOwnership
-import Loam.ScheduledOccurrenceConstruction
+import Loam.Application.ScheduledOccurrenceConstruction
 
 namespace Loam.ScheduledCreationPublisher
 
