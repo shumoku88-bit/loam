@@ -201,10 +201,10 @@
         "main",
         "test/settlement-actual-authority-preservation"
       ],
-      "buildArgs": "Loam.ActualAuthority Loam.Publisher.EventMerchantPublisher Loam.ActualValidityPublisher",
+      "buildArgs": "Loam.ActualAuthority Loam.Publisher.EventMerchantPublisher Loam.Publisher.ActualValidityPublisher",
       "paths": [
         "Loam/ActualAuthority.lean",
-        "Loam/ActualValidityPublisher.lean",
+        "Loam/Publisher/ActualValidityPublisher.lean",
         "Loam/Publisher/EventMerchantPublisher.lean",
         "Loam/Persistence/NormalizedActualPersistence.lean",
         "Loam/Tests/SettlementActualAuthorityPreservation.lean",
