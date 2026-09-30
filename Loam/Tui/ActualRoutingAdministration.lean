@@ -1,6 +1,6 @@
 import Loam.Tui.EditorSession
 import Loam.ActualDate
-import Loam.ActualRoutingPublisher
+import Loam.Publisher.ActualRoutingPublisher
 import Loam.Review.ActualRoutingReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
