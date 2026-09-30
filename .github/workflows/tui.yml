@@ -50,7 +50,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
       - 'Loam/ActualValidityPublisher.lean'
-      - 'Loam/ActualReversalPublisher.lean'
+      - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledGeneration.lean'
       - 'Loam/Tests/ScheduledGeneration.lean'
@@ -190,7 +190,7 @@ on:
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
       - 'Loam/ActualValidityPublisher.lean'
-      - 'Loam/ActualReversalPublisher.lean'
+      - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledGeneration.lean'
       - 'Loam/Tests/ScheduledGeneration.lean'
@@ -582,7 +582,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-correction"
 
       - name: Build shared Actual Reversal publisher boundary
-        run: lake build Loam.ActualReversalPublisher
+        run: lake build Loam.Publisher.ActualReversalPublisher
 
       - name: Verify relation-first exact Actual reversal publication
         run: lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal"
