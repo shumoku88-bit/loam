@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -153,7 +153,7 @@ FLOW_DIAGRAMS = {
     },
     "10.0 Record Movement": {
         "description": "End-to-end production path. Detailed diagrams split collection, pure admission, and atomic publication.",
-        "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/MovementAdmission.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/MovementAdmission.lean; Loam/Authority/ActualAuthority.lean",
         "audit": "Preview may use an earlier world; publication never trusts it. Authoritative evidence is re-read under writer ownership.",
         "nodes": [
             ("insertion", "Collect presentation-neutral draft\nTUI or line CLI"),
@@ -182,7 +182,7 @@ FLOW_DIAGRAMS = {
     },
     "10.2 Authoritative Movement Publish": {
         "description": "Production write seam for one already-collected Movement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
         "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The publisher is presentation-neutral; EventId is returned only after authoritative publication succeeds.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -223,7 +223,7 @@ FLOW_DIAGRAMS = {
     },
     "10.4 Atomic Actual Publish": {
         "description": "Crash-resilient switch of one complete normalized Actual generation.",
-        "sources": "Loam/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/Authority/ActualAuthority.lean; Loam/Persistence/NormalizedActualPersistence.lean; Loam/WriterOwnership.lean",
         "audit": "The authoritative file is untouched until the final rename. Stage bytes are compared and typed-decoded before the switch.",
         "nodes": [
             ("insertion", "Encode complete ActualEvidence"),
@@ -258,7 +258,7 @@ FLOW_DIAGRAMS = {
     },
     "11.0 Correct Actual": {
         "description": "End-to-end replacement correction of one selected current Actual Event.",
-        "sources": "Loam/Tui/Correction.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/Correction.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Authority/ActualAuthority.lean",
         "audit": "The original Event stays retained. Correction appends a replacement Event plus explicit EventCorrection and reuses the target's current occurrence date.",
         "nodes": [
             ("action", "Select one visible current Actual"),
@@ -275,7 +275,7 @@ FLOW_DIAGRAMS = {
     },
     "11.1 Authoritative Correction Publish": {
         "description": "Writer-owned publication seam for one correction replacement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean",
         "audit": "This path shares one-Actual publication mechanics with Record but keeps correction currentness, target restrictions, and replacement identity local.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
@@ -335,7 +335,7 @@ FLOW_DIAGRAMS = {
     },
     "12.1 Dual-Authority Completion Publish": {
         "description": "Writer-owned two-authority protocol for fresh or resumed Scheduled completion.",
-        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
         "audit": "Lock order is Scheduled then Actual. Scheduled terminal evidence is published first; if Actual publication fails, the retained terminal remains inert and a later retry reuses the same Actual identity.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
@@ -400,7 +400,7 @@ FLOW_DIAGRAMS = {
     },
     "13.0 Reverse Actual": {
         "description": "End-to-end exact reversal of one selected current Actual while retaining target and inverse as independent evidence.",
-        "sources": "Loam/Tui/ActualReversal.lean; Loam/Tui/ActualReversalSession.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/ActualReversal.lean; Loam/Tui/ActualReversalSession.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Authority/ActualAuthority.lean",
         "audit": "The TUI inverse is preview-only. Publication re-reads the target and derives the authoritative exact inverse under Scheduled-then-Actual ownership; only Actual is written.",
         "nodes": [
             ("action", "Select one visible current Actual"),
@@ -417,7 +417,7 @@ FLOW_DIAGRAMS = {
     },
     "13.1 Authoritative Reversal Publish": {
         "description": "Writer-owned publication seam for one exact Actual reversal with a read-only Scheduled provenance dependency.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
         "audit": "Scheduled is locked and read, not written. Ownership prevents completion provenance from changing across the reversal-independence check. Actual is the only authority published; lock order remains Scheduled then Actual.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
@@ -464,7 +464,7 @@ FLOW_DIAGRAMS = {
 
     "14.0 Correct Actual Date": {
         "description": "End-to-end occurrence-date correction that preserves the selected Event identity and physical Movement.",
-        "sources": "Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/ActualDateCorrection.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean",
         "audit": "The TUI edits one date string only. Preview calendar validation is convenience; publication re-reads admitted ActualEvidence under Actual ownership. Event, Effects, Measure, and Description remain untouched.",
         "nodes": [
             ("action", "Select one visible current Actual"),
@@ -483,7 +483,7 @@ FLOW_DIAGRAMS = {
     },
     "14.1 Authoritative Date Publish": {
         "description": "Writer-owned publication seam for one Actual occurrence-date reaffirmation or revision.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean",
         "audit": "ActualAuthority.loadActual? already decodes and admits normalized Actual evidence, including validity history. ActualValidityPublisher.admit? returns error, no update, or updated evidence; the two decisions below only unpack that one result. Same-date requests are successful no-ops.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),

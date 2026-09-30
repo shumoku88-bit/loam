@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Review.BudgetWindowReview
 import Loam.Review.ConditionalBalancePathReview
 import Loam.Review.IncomeExpenseProvenanceReview

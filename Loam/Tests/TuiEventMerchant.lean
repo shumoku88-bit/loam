@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Review.ActualReview
 import Loam.HouseholdCommand
 import Loam.Tui.EventMerchant
