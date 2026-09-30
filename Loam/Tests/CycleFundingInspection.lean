@@ -1,4 +1,4 @@
-import Loam.CycleFundingInspection
+import Loam.Review.CycleFundingInspection
 
 open Loam.Core
 open Loam.CycleFundingInspection

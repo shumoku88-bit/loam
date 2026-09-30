@@ -94,7 +94,7 @@ values. TUI builds and relevant production tests accompany the date change.
 
 ## Stage B: pure funding composition
 
-`Loam/CycleFundingInspection.lean` composes existing pure
+`Loam/Review/CycleFundingInspection.lean` composes existing pure
 `BalanceReview.project` with a complete `CurrentCoverageReview.Snapshot`.
 It lives alongside these shared Reviews rather than introducing an Application
 module that depends upwards on Review/IO adapters. The new function performs
