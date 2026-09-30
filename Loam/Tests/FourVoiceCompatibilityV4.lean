@@ -1,5 +1,5 @@
 import Loam.CurrentQuantityAnchor
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Application.CorrectionFrontier
 
 open Loam.Core

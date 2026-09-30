@@ -18,7 +18,7 @@ import Loam.Publisher.ActualRoutingPublisher
 import Loam.Publisher.ScheduledRoutingPublisher
 import Loam.Publisher.LocusAdmissionPublisher
 import Loam.Publisher.AccountingRolePublisher
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Publisher.BoundedHistorySupportPublisher
 import Loam.MeasurePresentationAuthority
 

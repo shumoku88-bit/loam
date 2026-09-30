@@ -1,7 +1,7 @@
 import Loam.HouseholdPaths
 import Loam.Publisher.AccountingRolePublisher
 import Loam.MovementWorldLoader
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence

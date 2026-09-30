@@ -1,4 +1,4 @@
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Persistence.TokenSyntax
 import Std
 
