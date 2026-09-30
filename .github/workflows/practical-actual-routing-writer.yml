@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Cli/ActualRoutingCli.lean'
-      - 'Loam/ActualRoutingPublisher.lean'
+      - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core/RoutingEffective.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
@@ -21,7 +21,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Cli/ActualRoutingCli.lean'
-      - 'Loam/ActualRoutingPublisher.lean'
+      - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core/RoutingEffective.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
