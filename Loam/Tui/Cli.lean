@@ -37,7 +37,7 @@ import Loam.Review.ActualReview
 import Loam.Review.ScheduledReview
 import Loam.Review.ScheduledCoverageReview
 import Loam.Review.AttentionReview
-import Loam.BalanceViewConfig
+import Loam.Config.BalanceViewConfig
 import Loam.Review.CurrentBalanceReview
 import Loam.Review.RoleBalanceReview
 import Loam.Review.RoleFlowReview

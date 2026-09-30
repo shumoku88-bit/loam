@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
 import Loam.Application.CorrectionFrontier
-import Loam.BalanceViewConfig
+import Loam.Config.BalanceViewConfig
 import Loam.HouseholdPaths
 import Loam.Persistence.ZeroOriginCoveragePersistence
 

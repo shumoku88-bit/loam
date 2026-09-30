@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Review.BalanceReview
-import Loam.BalanceViewConfig
+import Loam.Config.BalanceViewConfig
 import Loam.BoundaryPresetConfig
 import Loam.Review.BudgetWindowReview
 import Loam.Review.CapacityReview

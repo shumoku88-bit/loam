@@ -2,7 +2,7 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.ScheduledBalanceHypothetical
 import Loam.Application.ScheduledBalanceInspection
-import Loam.BalanceViewConfig
+import Loam.Config.BalanceViewConfig
 import Loam.HouseholdPaths
 import Loam.Persistence.ScheduledLifecyclePersistence
 
