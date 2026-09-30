@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.Core.AttentionMemory
 import Loam.FreshNumberedToken
 import Loam.Persistence.AttentionPersistence
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.AttentionPublisher
 

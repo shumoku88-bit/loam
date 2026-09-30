@@ -1,6 +1,6 @@
 import Loam.Export.BeancountExportPipeline
 import Loam.HouseholdPaths
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.Tui.FavaLaunch
 

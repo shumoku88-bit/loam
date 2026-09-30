@@ -4,7 +4,7 @@ import Loam.MeasurePresentation
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.SiblingStage
 import Loam.Export.PlainTextAccountingExport
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.PlainTextAccountingExportCli
 

@@ -1,5 +1,5 @@
 import Loam.Authority.ActualAuthority
-import Loam.WriterOwnership
+import Loam.Persistence.WriterOwnership
 
 namespace Loam.ScheduledActualOwnership
 
