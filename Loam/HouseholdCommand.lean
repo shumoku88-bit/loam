@@ -13,7 +13,7 @@ import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.ScheduledContinuationRouting
 import Loam.Publisher.AttentionPublisher
-import Loam.CapacityPublisher
+import Loam.Publisher.CapacityPublisher
 import Loam.Publisher.ActualRoutingPublisher
 import Loam.Publisher.ScheduledRoutingPublisher
 import Loam.Publisher.LocusAdmissionPublisher
