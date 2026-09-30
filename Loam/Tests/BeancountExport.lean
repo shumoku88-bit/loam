@@ -1,4 +1,4 @@
-import Loam.BeancountExport
+import Loam.Export.BeancountExport
 
 open Loam.Core
 

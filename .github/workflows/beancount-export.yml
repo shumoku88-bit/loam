@@ -3,7 +3,7 @@ name: Beancount Export
 on:
   pull_request:
     paths:
-      - 'Loam/BeancountExport.lean'
+      - 'Loam/Export/BeancountExport.lean'
       - 'Loam/MeasurePresentation.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
@@ -20,7 +20,7 @@ on:
     branches:
       - 'feat/beancount-export'
     paths:
-      - 'Loam/BeancountExport.lean'
+      - 'Loam/Export/BeancountExport.lean'
       - 'Loam/MeasurePresentation.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
