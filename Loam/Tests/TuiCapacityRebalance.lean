@@ -1,6 +1,6 @@
 import Loam.CapacityPublisher
-import Loam.CapacityReview
-import Loam.CurrentCoverageReview
+import Loam.Review.CapacityReview
+import Loam.Review.CurrentCoverageReview
 import Loam.Tui.CapacityRebalance
 import Lean.Elab.Tactic.Omega
 

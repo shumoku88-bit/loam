@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.Application.CapacityWindowInspection
 import Loam.CapacityAuthority
 import Loam.CapacityPublisher
-import Loam.CapacityReview
+import Loam.Review.CapacityReview
 import Std
 
 namespace Loam.CapacityCli

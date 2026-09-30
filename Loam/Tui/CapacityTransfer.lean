@@ -1,7 +1,7 @@
 import Loam.Tui.EditorSession
 import Loam.CapacityPublisher
-import Loam.CapacityReview
-import Loam.CurrentCoverageReview
+import Loam.Review.CapacityReview
+import Loam.Review.CurrentCoverageReview
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega

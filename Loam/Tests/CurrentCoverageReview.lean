@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
-import Loam.CurrentCoverageReview
+import Loam.Review.CurrentCoverageReview
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.CapacityAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence

@@ -13,10 +13,10 @@ on:
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
-      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Review/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/DailyPaceConfig.lean'
-      - 'Loam/CycleSpendingPaceReview.lean'
+      - 'Loam/Review/CycleSpendingPaceReview.lean'
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
       - 'Loam/Review/LocusTrendReview.lean'
       - 'Loam/Tests/LocusTrendReview.lean'
@@ -101,7 +101,7 @@ on:
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
       - 'Loam/BalanceReview.lean'
-      - 'Loam/CapacityReview.lean'
+      - 'Loam/Review/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/Review/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
@@ -136,7 +136,7 @@ on:
       - 'Loam/Tests/BudgetWindowReview.lean'
       - 'Loam/BoundaryPresetConfig.lean'
       - 'Loam/CycleFundingConfig.lean'
-      - 'Loam/CycleBudgetReview.lean'
+      - 'Loam/Review/CycleBudgetReview.lean'
       - 'Loam/Tests/CycleBudgetReview.lean'
       - 'Loam/Tests/TuiCycleBudget.lean'
       - 'Loam/Tests/TuiCycleGrant.lean'
@@ -163,7 +163,7 @@ on:
       - 'Loam/Application/CapacityWindowInspection.lean'
       - 'Loam/Application/CurrentCoverageInspection.lean'
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
-      - 'Loam/CurrentCoverageReview.lean'
+      - 'Loam/Review/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tests/TuiChart.lean'
       - 'Loam/LocusCatalog.lean'
@@ -241,7 +241,7 @@ on:
       - 'Loam/ScheduledReview.lean'
       - 'Loam/AttentionReview.lean'
       - 'Loam/BalanceReview.lean'
-      - 'Loam/CapacityReview.lean'
+      - 'Loam/Review/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
       - 'Loam/Review/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
@@ -276,7 +276,7 @@ on:
       - 'Loam/Tests/BudgetWindowReview.lean'
       - 'Loam/BoundaryPresetConfig.lean'
       - 'Loam/CycleFundingConfig.lean'
-      - 'Loam/CycleBudgetReview.lean'
+      - 'Loam/Review/CycleBudgetReview.lean'
       - 'Loam/Tests/CycleBudgetReview.lean'
       - 'Loam/Tests/TuiCycleBudget.lean'
       - 'Loam/ScheduledRoutingPublisher.lean'
@@ -769,7 +769,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiHelpFooter.lean
 
       - name: Build shared CycleBudget review boundary
-        run: lake build Loam.CycleBudgetReview
+        run: lake build Loam.Review.CycleBudgetReview
 
       - name: Verify shared CycleBudget review boundary
         run: lake env lean --run Loam/Tests/CycleBudgetReview.lean "$(mktemp -d)/cycle-budget-review"

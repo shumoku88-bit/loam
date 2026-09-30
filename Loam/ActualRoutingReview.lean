@@ -1,6 +1,6 @@
 import Loam.HouseholdPaths
 import Loam.ActualDate
-import Loam.CapacityReview
+import Loam.Review.CapacityReview
 import Loam.Core.AccountingRole
 import Loam.Core.RoutingEffective
 import Loam.LocusAdmissionAuthority

@@ -1,8 +1,8 @@
 import Loam.ActualReview
 import Loam.AttentionReview
-import Loam.CapacityReview
-import Loam.CycleBudgetReview
-import Loam.CycleSpendingPaceReview
+import Loam.Review.CapacityReview
+import Loam.Review.CycleBudgetReview
+import Loam.Review.CycleSpendingPaceReview
 import Loam.PurposeCatalog
 import Loam.Presentation.ReadState
 import Loam.RoleBalanceReview

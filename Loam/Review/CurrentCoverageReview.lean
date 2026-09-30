@@ -3,7 +3,7 @@ import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CurrentCoverageInspection
 import Loam.CapacityAuthority
-import Loam.CapacityReview
+import Loam.Review.CapacityReview
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence

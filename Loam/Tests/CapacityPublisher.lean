@@ -1,6 +1,6 @@
 import Loam.CapacityAuthority
 import Loam.CapacityPublisher
-import Loam.CapacityReview
+import Loam.Review.CapacityReview
 import Loam.Persistence.NormalizedCapacityPersistence
 
 open Loam.Core
