@@ -90,7 +90,7 @@ Decoding remains fail-closed.
 
 ### Publication
 
-`Loam/SettlementPublisher.lean` publishes explicit append-only settlement
+`Loam/Publisher/SettlementPublisher.lean` publishes explicit append-only settlement
 batches.
 
 It:
@@ -101,7 +101,7 @@ It:
 - reuses `admitActualImage?` rather than duplicating settlement admission;
 - publishes through the existing atomic Actual authority boundary.
 
-`Loam/SettlementActionPublisher.lean` translates a small human-facing lifecycle
+`Loam/Publisher/SettlementActionPublisher.lean` translates a small human-facing lifecycle
 vocabulary into that explicit evidence boundary. Commitment correction,
 retraction, non-payment reduction, and reduction correction/retraction retain
 their distinct meanings.

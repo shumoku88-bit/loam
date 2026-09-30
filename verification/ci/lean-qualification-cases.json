@@ -223,9 +223,9 @@
         "main",
         "feat/settlement-explicit-publisher"
       ],
-      "buildArgs": "Loam.SettlementPublisher Loam.HouseholdCommand",
+      "buildArgs": "Loam.Publisher.SettlementPublisher Loam.HouseholdCommand",
       "paths": [
-        "Loam/SettlementPublisher.lean",
+        "Loam/Publisher/SettlementPublisher.lean",
         "Loam/HouseholdCommand.lean",
         "Loam/ActualAuthority.lean",
         "Loam/Application/SettlementFrontier.lean",
@@ -322,8 +322,8 @@
       "paths": [
         "Loam/Core/Settlement.lean",
         "Loam/Application/SettlementFrontier.lean",
-        "Loam/SettlementPublisher.lean",
-        "Loam/SettlementActionPublisher.lean",
+        "Loam/Publisher/SettlementPublisher.lean",
+        "Loam/Publisher/SettlementActionPublisher.lean",
         "Loam/HouseholdCommand.lean",
         "Loam/ActualAuthority.lean",
         "Loam/Persistence/NormalizedActualAdmission.lean",
