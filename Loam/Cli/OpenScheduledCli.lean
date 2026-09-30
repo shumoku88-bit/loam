@@ -1,6 +1,6 @@
 import Loam.Cli.ScheduledBalanceCli
 import Loam.Cli.ScheduledDayEvidenceCli
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 
 namespace Loam.OpenScheduledCli
 
