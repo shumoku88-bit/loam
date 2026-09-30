@@ -47,9 +47,10 @@ Proposal consolidation then reached `46`; Scheduled publisher consolidation reac
 `44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`; Scheduled lifecycle qualification consolidation reaches `39`, or 58 retired workflow files in total.
 The surviving `movement-proposal.yml` retains separate read-only transport and
 explicit publication jobs under one shared path-trigger surface. The surviving
-`scheduled-publishers.yml` likewise retains separate Creation, Replacement, and
-Terminal publication jobs; no Scheduled semantic publisher is merged.
-Presentation-neutral Home / Reports / ReadState checks remain qualified by `tui.yml`.
+`scheduled-lifecycle.yml` retains separate lifecycle persistence, Creation,
+Replacement, and Terminal jobs; no persistence or Scheduled publisher semantic
+boundary is merged. Presentation-neutral Home / Reports / ReadState checks remain
+qualified by `tui.yml`.
 
 ## Shared Lean build mechanics
 
