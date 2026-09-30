@@ -1,4 +1,4 @@
-import Loam.PtaMigration
+import Loam.Application.PtaMigration
 
 open Loam.Core
 open Loam.PtaMigration

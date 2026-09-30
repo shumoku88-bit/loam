@@ -6,7 +6,7 @@ import Loam.Authority.ActualAuthority
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Application.MovementWorldAdapter
 import Loam.MovementWorldLoader
-import Loam.PtaMigration
+import Loam.Application.PtaMigration
 
 /-!
 # LOAM Lean umbrella
