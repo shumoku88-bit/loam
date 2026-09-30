@@ -95,7 +95,7 @@ All nine top-level files initially classified as writer/authority candidates are
 
 - `Loam/Publisher/ActualValidityPublisher.lean`
 - `Loam/CapacityPublisher.lean`
-- `Loam/CorrectionPublisher.lean`
+- `Loam/Publisher/CorrectionPublisher.lean`
 - `Loam/MovementManifestAuthority.lean`
 - `Loam/MovementPublisher.lean`
 - `Loam/Publisher/ScheduledCreationPublisher.lean`
