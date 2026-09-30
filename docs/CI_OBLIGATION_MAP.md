@@ -9,7 +9,7 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43. The Capacity publisher and practical entrance workflows were then grouped into one workflow with separate jobs, reducing the live topology to 42. The Event Merchant publisher and TUI input workflows were next grouped into one workflow with separate jobs, reducing the live topology to 41.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43. The Capacity publisher and practical entrance workflows were then grouped into one workflow with separate jobs, reducing the live topology to 42. The Event Merchant publisher and TUI input workflows were next grouped into one workflow with separate jobs, reducing the live topology to 41. The two runtime shadow workflows were then grouped into one workflow with separate redaction/projection and quantity jobs, reducing the live topology to 40.
 
 The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
@@ -44,7 +44,7 @@ A later graduation pass retired two additional standalone Lean workflows:
 The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
 frontend retirement brought the live workflow count to `47`. The Movement
 Proposal consolidation then reached `46`; Scheduled publisher consolidation reaches
-`44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`, or 56 retired workflow files in total.
+`44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`, or 57 retired workflow files in total.
 The surviving `movement-proposal.yml` retains separate read-only transport and
 explicit publication jobs under one shared path-trigger surface. The surviving
 `scheduled-publishers.yml` likewise retains separate Creation, Replacement, and
@@ -88,7 +88,7 @@ ownership of the checks:
 
 This changes *when* expensive evidence is replayed, not which evidence owns a
 boundary. Specialized path-scoped publisher, persistence, UI, and formal-method
-workflows remain independently triggered. Five narrow consolidation groups share
+workflows remain independently triggered. Six narrow consolidation groups share
 union path triggers while preserving independently named jobs: Movement Proposal
 keeps read-only transport separate from explicit publication, Scheduled
 publication keeps Creation, Replacement, and Terminal qualification separate,
@@ -98,7 +98,10 @@ on that qualification rather than replaying the same test. Capacity likewise kee
 publisher qualification separate from the practical CLI entrance; the latter remains
 suppressed on the historical `feat/tui` push lane. Event Merchant keeps canonical
 publisher qualification separate from TUI input qualification; on the historical
-`feat/tui-event-merchant` push lane only the TUI job runs.
+`feat/tui-event-merchant` push lane only the TUI job runs. Runtime shadow
+qualification keeps the redacted projection audit separate from the stateless
+quantity projection while sharing one trigger surface; Observation 078 remains an
+independent axiom-audited proof contract.
 
 ## Live obligation families
 
@@ -150,8 +153,7 @@ operational or trust boundary:
 - `attention-administration.yml`
 - `movement-proposal.yml` (separate read-only transport and explicit publication jobs)
 - `operational-continuity.yml`
-- `private-shadow-projection-observation.yml`
-- `stateless-shadow-quantity.yml`
+- `shadow-runtime.yml` (separate redacted projection and stateless quantity jobs)
 - `purpose-catalog.yml`
 
 ### User interfaces, interchange, distribution, and repository audits
@@ -205,6 +207,6 @@ The first instrumented measurement after adding the topology audit was
 live topology to 50 / 227627. Retiring the two graduated Lean witnesses produced
 the item-2 completion measurement above. The later native Web retirement reduced
 the live workflow-file count to 47, the Movement Proposal consolidation reduced
-it to 46, the Scheduled publisher consolidation reduced it to 44, the Actual Routing consolidation reduced it to 43, the Capacity consolidation reduced it to 42, and the Event Merchant consolidation reduces it to 41; use
+it to 46, the Scheduled publisher consolidation reduced it to 44, the Actual Routing consolidation reduced it to 43, the Capacity consolidation reduced it to 42, the Event Merchant consolidation reduced it to 41, and the runtime shadow consolidation reduces it to 40; use
 `python3 tools/audit-ci-topology` for the current YAML byte measurement after
 subsequent feature changes.
