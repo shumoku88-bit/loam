@@ -331,6 +331,14 @@ jobs:
           lake env lean --run Loam/Tests/TuiReports.lean
           lake env lean --run Loam/Tests/TuiHelpFooter.lean
 
+      - name: Verify Cycle Budget and Scheduled startup PTY interactions
+        shell: bash
+        run: |
+          set -euo pipefail
+          FIXTURE_DIR="$(mktemp -d)/cycle-budget-pty"
+          lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
+          python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
+
   full:
     name: Full production household TUI qualification
     if: github.event_name != 'pull_request'
