@@ -15,7 +15,7 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Review/CurrentCoverageReview.lean'
       - 'Loam/Tests/CurrentCoverageReview.lean'
-      - 'Loam/DailyPaceConfig.lean'
+      - 'Loam/Config/DailyPaceConfig.lean'
       - 'Loam/Review/CycleSpendingPaceReview.lean'
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
       - 'Loam/Review/LocusTrendReview.lean'
