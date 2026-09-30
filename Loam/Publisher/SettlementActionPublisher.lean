@@ -1,7 +1,7 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.FreshNumberedToken
-import Loam.SettlementPublisher
+import Loam.Publisher.SettlementPublisher
 
 namespace Loam.SettlementActionPublisher
 
