@@ -1,5 +1,5 @@
-import Loam.CurrentCoverageReview
-import Loam.CycleBudgetReview
+import Loam.Review.CurrentCoverageReview
+import Loam.Review.CycleBudgetReview
 import Loam.PurposeCatalog
 import Loam.Tui.Layout
 import Loam.Tui.Scroll

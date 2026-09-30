@@ -1,7 +1,7 @@
 import Loam.Tui.EditorSession
 import Loam.Application.ScheduledCommitmentInspection
 import Loam.Core.ScheduledRouting
-import Loam.CurrentCoverageReview
+import Loam.Review.CurrentCoverageReview
 import Loam.ScheduledRoutingPublisher
 import Loam.Tui.Kernel
 import Loam.Tui.Layout

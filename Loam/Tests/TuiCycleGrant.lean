@@ -1,8 +1,8 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.CapacityPublisher
-import Loam.CapacityReview
-import Loam.CurrentCoverageReview
-import Loam.CycleBudgetReview
+import Loam.Review.CapacityReview
+import Loam.Review.CurrentCoverageReview
+import Loam.Review.CycleBudgetReview
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.CapacityTransferSession
 import Loam.Tui.CycleBudget

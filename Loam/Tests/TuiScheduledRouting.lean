@@ -1,4 +1,4 @@
-import Loam.CurrentCoverageReview
+import Loam.Review.CurrentCoverageReview
 import Loam.ScheduledRoutingPublisher
 import Loam.Tui.ScheduledRouting
 import Loam.Tui.ScheduledRoutingSession

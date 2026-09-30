@@ -1,4 +1,4 @@
-import Loam.CapacityReview
+import Loam.Review.CapacityReview
 
 open Loam.Core
 

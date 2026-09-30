@@ -1,6 +1,6 @@
 import Loam.BoundaryPresetConfig
-import Loam.CapacityReview
-import Loam.CurrentCoverageReview
+import Loam.Review.CapacityReview
+import Loam.Review.CurrentCoverageReview
 import Loam.Tui.Capacity
 import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession

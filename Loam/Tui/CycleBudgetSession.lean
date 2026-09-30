@@ -1,5 +1,5 @@
-import Loam.CapacityReview
-import Loam.CycleBudgetReview
+import Loam.Review.CapacityReview
+import Loam.Review.CycleBudgetReview
 import Loam.Tui.CapacityRebalance
 import Loam.Tui.CapacityRebalanceSession
 import Loam.Tui.CapacityTransfer

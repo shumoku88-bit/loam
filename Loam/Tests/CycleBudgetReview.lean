@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.CycleBudgetReview
+import Loam.Review.CycleBudgetReview
 
 open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do

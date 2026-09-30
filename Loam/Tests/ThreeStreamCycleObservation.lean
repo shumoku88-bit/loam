@@ -1,4 +1,4 @@
-import Loam.CycleBudgetReview
+import Loam.Review.CycleBudgetReview
 
 set_option autoImplicit false
 

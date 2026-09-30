@@ -1,5 +1,5 @@
 import Loam.BalanceReview
-import Loam.CurrentCoverageReview
+import Loam.Review.CurrentCoverageReview
 
 namespace Loam.CycleFundingInspection
 
