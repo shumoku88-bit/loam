@@ -1,4 +1,4 @@
-import Loam.CapacityEvidence
+import Loam.Core.CapacityEvidence
 import Loam.Persistence.NormalizedCapacityPersistence
 
 namespace Loam.CapacityAuthority
