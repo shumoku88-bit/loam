@@ -55,7 +55,7 @@ on:
       - 'Loam/ScheduledGeneration.lean'
       - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
-      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
       - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Review/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
@@ -195,7 +195,7 @@ on:
       - 'Loam/ScheduledGeneration.lean'
       - 'Loam/Tests/ScheduledGeneration.lean'
       - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
-      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
       - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Review/ActualRoutingReview.lean'
       - 'Loam/Core/ActualReversal.lean'
@@ -668,7 +668,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiBalances.lean
 
       - name: Build shared Capacity publisher boundary
-        run: lake build Loam.CapacityPublisher
+        run: lake build Loam.Publisher.CapacityPublisher
 
       - name: Verify Capacity transfer and fresh shared review
         run: lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-transfer"
