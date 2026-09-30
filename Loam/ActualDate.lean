@@ -168,14 +168,14 @@ def practicalOccurrenceDate : IO (Except String String) := do
         let entered ← promptLine "Date (YYYY-MM-DD): "
         return validateOccurrenceDate entered
 
-example : validIsoDate "2026-09-03" = true := by native_decide
-example : validIsoDate "2024-02-29" = true := by native_decide
-example : validIsoDate "2026-02-29" = false := by native_decide
-example : validIsoDate "2026-13-01" = false := by native_decide
-example : validIsoDate "26-09-03" = false := by native_decide
-example : shiftMonthsSameDay? "2026-09-15" 1 = some "2026-10-15" := by native_decide
-example : shiftMonthsSameDay? "2026-12-31" 1 = some "2027-01-31" := by native_decide
-example : shiftMonthsSameDay? "2026-01-31" 1 = none := by native_decide
-example : shiftMonthsSameDay? "2026-01-31" 2 = some "2026-03-31" := by native_decide
+example : validIsoDate "2026-09-03" = true := by decide
+example : validIsoDate "2024-02-29" = true := by decide
+example : validIsoDate "2026-02-29" = false := by decide
+example : validIsoDate "2026-13-01" = false := by decide
+example : validIsoDate "26-09-03" = false := by decide
+example : shiftMonthsSameDay? "2026-09-15" 1 = some "2026-10-15" := by decide
+example : shiftMonthsSameDay? "2026-12-31" 1 = some "2027-01-31" := by decide
+example : shiftMonthsSameDay? "2026-01-31" 1 = none := by decide
+example : shiftMonthsSameDay? "2026-01-31" 2 = some "2026-03-31" := by decide
 
 end Loam.ActualDate
