@@ -8,9 +8,9 @@ import Loam.ActualReversalPublisher
 import Loam.Publisher.EventMerchantPublisher
 import Loam.SettlementPublisher
 import Loam.SettlementActionPublisher
-import Loam.ScheduledCreationPublisher
-import Loam.ScheduledTerminalPublisher
-import Loam.ScheduledReplacementPublisher
+import Loam.Publisher.ScheduledCreationPublisher
+import Loam.Publisher.ScheduledTerminalPublisher
+import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.ScheduledContinuationRouting
 import Loam.Publisher.AttentionPublisher
 import Loam.CapacityPublisher
