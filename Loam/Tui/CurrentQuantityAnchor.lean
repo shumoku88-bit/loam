@@ -1,5 +1,5 @@
 import Loam.Tui.EditorSession
-import Loam.CurrentQuantityAnchor
+import Loam.Application.CurrentQuantityAnchor
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel

@@ -48,7 +48,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.3.1 Role Balance Read Boundary": {
         "description": "Production RoleBalanceReview.loadSnapshot after admitted Actual read-image migration; raw RoleBalanceReview.project remains the arbitrary in-memory entrance.",
-        "sources": "Loam/Review/RoleBalanceReview.lean; Loam/Review/BalanceReview.lean; Loam/Authority/ActualAuthority.lean; Loam/CurrentQuantityAnchor.lean; Loam/Persistence/OpeningSupportPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
+        "sources": "Loam/Review/RoleBalanceReview.lean; Loam/Review/BalanceReview.lean; Loam/Authority/ActualAuthority.lean; Loam/Application/CurrentQuantityAnchor.lean; Loam/Persistence/OpeningSupportPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
         "audit": "Canonical Role Balance reuses ActualAuthority.Image.currentEvents for its ordinary current world and for BalanceReview zero-origin projection. Opening support remains independent evidence. CurrentQuantityAnchor deliberately keeps retained raw Events + Corrections because its reflected-root delta frontier is a different semantic world. No canonical RoleBalance correction-frontier re-admission remains.",
         "nodes": [
             ("insertion", "Load admitted ActualAuthority.Image ONCE\ncurrentEvents + retained raw evidence"),

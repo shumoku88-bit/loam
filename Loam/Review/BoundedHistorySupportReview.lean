@@ -1,5 +1,5 @@
 import Loam.BoundedHistorySupport
-import Loam.CurrentQuantityAnchor
+import Loam.Application.CurrentQuantityAnchor
 import Loam.HouseholdPaths
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
