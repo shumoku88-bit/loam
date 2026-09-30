@@ -1,5 +1,5 @@
 import Loam.Review.RoleBalanceReview
-import Loam.RoleBalanceAnswerability
+import Loam.Review.RoleBalanceAnswerability
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 
