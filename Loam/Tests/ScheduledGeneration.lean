@@ -30,6 +30,31 @@ def run : IO Unit := do
     "2026-09-29" "2026-09-29" nextMonthly.endExclusive
     .monthly ["2026-10-29"]
 
+  let some nextDecember29 :=
+      Loam.ScheduledGeneration.fillLimitForOccurrences?
+        "2026-12-29" .monthly 1
+    | throw (IO.userError "December 29 next Monthly extension horizon was unavailable")
+  expect (nextDecember29.endExclusive == "2027-02-01")
+    "December 29 next Monthly extension did not stop at the February boundary"
+  match Loam.ScheduledGeneration.planCandidates nextDecember29 "2026-12-29"
+      { anchor := "2026-12-29", cadence := .monthly } with
+  | .error message =>
+      throw (IO.userError ("December 29 boundary planning unexpectedly refused: " ++ message))
+  | .ok candidates =>
+      expect (candidates == [.dated "2027-01-29"])
+        s!"exclusive February boundary leaked an unresolved February candidate: {repr candidates}"
+
+  let partialFebruaryLimit : Loam.ScheduledGeneration.FillLimit := {
+    endExclusive := "2027-02-15"
+  }
+  match Loam.ScheduledGeneration.planCandidates partialFebruaryLimit "2026-12-29"
+      { anchor := "2026-12-29", cadence := .monthly } with
+  | .error message =>
+      throw (IO.userError ("partial February planning unexpectedly refused: " ++ message))
+  | .ok candidates =>
+      expect (candidates == [.dated "2027-01-29", .needsDate 2027 2 29])
+        s!"partial-month limit lost a resolvable February slot: {repr candidates}"
+
   let some threeBimonthly :=
       Loam.ScheduledGeneration.fillLimitForOccurrences?
         "2026-12-15" .everyTwoMonths 3
