@@ -1,8 +1,30 @@
 # loam
 
-LOAM is a household money-recording and review program built in Lean 4.
+LOAM is a personal household system and research project built in Lean 4.
 
-It is designed for ordinary day-to-day use through one standalone terminal app. Formal methods are used to test parts of the design, but you do not need Lean, Alloy, TLA+, or a repository checkout to use LOAM.
+It is used for ordinary day-to-day household money recording and review. At the same time, it is a place to study how explicit facts, derived views, and question-driven formal methods can support small, long-lived personal software.
+
+The project is public so its experiments, design decisions, proofs, and practical results can be inspected and reused by others. Broad adoption is not a project goal; if the work helps other people or projects, that is a welcome result.
+
+The production interface is one standalone terminal app. You do not need Lean, Alloy, TLA+, or a repository checkout to use LOAM.
+
+## Project stance
+
+LOAM is driven by concrete household use, demonstrated simplification, and clearly scoped research questions. It is not trying to maximize features, user count, or abstraction for hypothetical future users.
+
+The project therefore treats everyday use and research as one loop: real household needs expose design questions, and research is retained when it makes the working system clearer, safer, or easier to reason about.
+
+## What LOAM does
+
+LOAM currently supports everyday household work such as:
+
+- recording purchases, income, transfers, and split payments;
+- reviewing and correcting recorded Actual events;
+- tracking Scheduled payments and capacity;
+- inspecting balances, daily pace, trends, and household reports;
+- exporting a disposable Beancount view for Fava.
+
+The TUI is the main human interface. Named commands remain available for focused, scriptable, diagnostic, or export work.
 
 ## Quick start
 
@@ -17,18 +39,6 @@ With no arguments, `loam` opens the production terminal UI.
 Release archives are published for macOS Intel, macOS Apple Silicon, Linux x86_64, and Linux aarch64, together with SHA-256 checksums.
 
 LOAM uses `LOAM_DATA_DIR` as its household data directory. If it is not set, the default is `../loam-data`.
-
-## What LOAM does
-
-LOAM currently supports everyday household work such as:
-
-- recording purchases, income, transfers, and split payments;
-- reviewing and correcting recorded Actual events;
-- tracking Scheduled payments and capacity;
-- inspecting balances, daily pace, trends, and household reports;
-- exporting a disposable Beancount view for Fava.
-
-The TUI is the main human interface. Named commands remain available for focused, scriptable, diagnostic, or export work.
 
 ## Recording a movement
 
@@ -113,5 +123,3 @@ None of that is required for ordinary household use.
 ## Status
 
 LOAM is used as the current day-to-day household system.
-
-New work is driven by concrete household use, a demonstrated simplification, or a clearly scoped research question. There is no requirement to keep adding features simply because the architecture can support them.
