@@ -1,4 +1,4 @@
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.Application.MovementAdmission
 import Loam.Persistence.TokenSyntax

@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.Persistence.TokenSyntax
 import Loam.Publisher.ScheduledCreationPublisher
 import Loam.Tui.EditorSession

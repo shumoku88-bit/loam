@@ -1,5 +1,5 @@
 import Loam.HouseholdPaths
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.MeasurePresentation
 import Loam.Config.ScheduledCoverageConfig
 import Loam.Review.ScheduledCoverageReview

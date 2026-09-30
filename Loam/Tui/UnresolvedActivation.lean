@@ -1,5 +1,5 @@
 import Loam.HouseholdCommand
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.MovementWorldLoader
 import Loam.Tui.Record
 

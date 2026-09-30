@@ -1,4 +1,4 @@
-import Loam.LocusCatalog
+import Loam.Presentation.LocusCatalog
 import Loam.Tui.CyclicIndex
 
 namespace Loam.Tui.LocusPicker
