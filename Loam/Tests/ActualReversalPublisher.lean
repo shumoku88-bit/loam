@@ -4,7 +4,7 @@ import Loam.MovementWorldLoader
 import Loam.Publisher.ActualReversalPublisher
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Application.ActualValidityFrontier
-import Loam.CorrectionPublisher
+import Loam.Publisher.CorrectionPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 open Loam.Core
