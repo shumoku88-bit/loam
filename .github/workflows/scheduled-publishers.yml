@@ -1,0 +1,101 @@
+name: Scheduled Publisher Qualifications
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Publisher/ScheduledCreationPublisher.lean'
+      - 'Loam/Publisher/ScheduledReplacementPublisher.lean'
+      - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
+      - 'Loam/Review/ScheduledReview.lean'
+      - 'Loam/Review/ActualReview.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/MovementAdmission.lean'
+      - 'Loam/Application/MovementWorldAdapter.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/MovementWorldLoader.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Tests/ScheduledCreationPublisher.lean'
+      - 'Loam/Tests/ScheduledReplacementPublisher.lean'
+      - 'Loam/Tests/ScheduledTerminalPublisher.lean'
+      - '.github/workflows/scheduled-publishers.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  push:
+    branches:
+      - main
+      - feat/tui
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Publisher/ScheduledCreationPublisher.lean'
+      - 'Loam/Publisher/ScheduledReplacementPublisher.lean'
+      - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
+      - 'Loam/Review/ScheduledReview.lean'
+      - 'Loam/Review/ActualReview.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Application/ScheduledInspection.lean'
+      - 'Loam/Application/MovementAdmission.lean'
+      - 'Loam/Application/MovementWorldAdapter.lean'
+      - 'Loam/Application/ActualValidityFrontier.lean'
+      - 'Loam/MovementWorldLoader.lean'
+      - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Tests/ScheduledCreationPublisher.lean'
+      - 'Loam/Tests/ScheduledReplacementPublisher.lean'
+      - 'Loam/Tests/ScheduledTerminalPublisher.lean'
+      - '.github/workflows/scheduled-publishers.yml'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  creation:
+    name: Build and test Actual-backed Scheduled creation publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build shared Scheduled creation dependencies
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Publisher.ScheduledCreationPublisher Loam.Review.ScheduledReview Loam.Tests.ActualWorldFixture
+      - name: Verify Actual-backed Scheduled creation publication
+        run: lake env lean --run Loam/Tests/ScheduledCreationPublisher.lean "$(mktemp -d)/scheduled-creation-publisher"
+
+  replacement:
+    name: Build and test Actual-backed Scheduled replacement publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build shared Scheduled replacement dependencies
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Publisher.ScheduledReplacementPublisher Loam.Review.ScheduledReview Loam.Publisher.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
+      - name: Verify Actual-backed Scheduled replacement publication
+        run: lake env lean --run Loam/Tests/ScheduledReplacementPublisher.lean "$(mktemp -d)/scheduled-replacement-publisher"
+
+  terminal:
+    name: Build and test Actual-backed Scheduled terminal publisher
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install Lean and build shared Scheduled publisher dependencies
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Publisher.ScheduledTerminalPublisher Loam.Review.ScheduledReview Loam.Review.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
+      - name: Verify Actual-backed Scheduled completion and cancellation
+        run: lake env lean --run Loam/Tests/ScheduledTerminalPublisher.lean "$(mktemp -d)/scheduled-terminal-publisher"
