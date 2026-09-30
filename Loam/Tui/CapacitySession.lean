@@ -1,4 +1,4 @@
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
 import Loam.Tui.Capacity

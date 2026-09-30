@@ -30,7 +30,7 @@ import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
 import Loam.Tui.ReportsSession
 import Loam.Tui.FavaLaunch
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
 import Loam.Review.ActualReview

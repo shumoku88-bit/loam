@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Review.ActualReview
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 
 namespace Loam.LocusTrendReview
 

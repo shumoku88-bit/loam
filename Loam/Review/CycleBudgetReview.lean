@@ -3,7 +3,7 @@ import Loam.Review.CurrentBalanceReview
 import Loam.Config.CycleFundingConfig
 import Loam.CycleFundingInspection
 import Loam.HouseholdPaths
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 
 namespace Loam.CycleBudgetReview
 
