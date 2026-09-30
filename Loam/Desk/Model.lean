@@ -173,7 +173,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .previousMonth => { state := shiftMonth snapshot state false }
   | .nextMonth => { state := shiftMonth snapshot state true }
   | .beginJump =>
-      { state := { state with jumpEditing := true, jumpText := state.focusDate, notice := "" } }
+      { state := { state with jumpEditing := true, jumpText := "", notice := "" } }
   | .jumpInput char =>
       if state.jumpEditing && jumpCharacter char then
         { state := { state with jumpText := state.jumpText.push char, notice := "" } }
