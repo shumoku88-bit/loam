@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/ScheduledTerminalPublisher.lean; Loam/ActualReversalPublisher.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/ActualReversalPublisher.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -316,7 +316,7 @@ FLOW_DIAGRAMS = {
     },
     "12.0 Complete Scheduled": {
         "description": "End-to-end realization of one current-open Scheduled occurrence into independent Actual evidence.",
-        "sources": "Loam/Tui/ScheduledCompletion.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/ScheduledTerminalPublisher.lean",
+        "sources": "Loam/Tui/ScheduledCompletion.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ScheduledTerminalPublisher.lean",
         "audit": "Expected Scheduled postings seed the editor but are not Actual truth. Publication re-reads both authorities and binds Scheduled to a separately admitted Actual Event.",
         "nodes": [
             ("action", "Select one visible current-open Scheduled occurrence"),
@@ -335,7 +335,7 @@ FLOW_DIAGRAMS = {
     },
     "12.1 Dual-Authority Completion Publish": {
         "description": "Writer-owned two-authority protocol for fresh or resumed Scheduled completion.",
-        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/ActualAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
         "audit": "Lock order is Scheduled then Actual. Scheduled terminal evidence is published first; if Actual publication fails, the retained terminal remains inert and a later retry reuses the same Actual identity.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
@@ -365,7 +365,7 @@ FLOW_DIAGRAMS = {
     },
     "12.2 Completion Actual Admission": {
         "description": "Construct one plain Actual candidate for a Scheduled completion using an externally chosen stable EventId.",
-        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean",
         "audit": "Completion shares sparse Effect identity with Record and Correction. Because successful completion currently admits plain effects only, no collector key earns durability here and the keyless Event is constructed directly; stable EventId selection and the two-authority retry law remain completion-specific.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nplain completion earns no Effect identity"),
@@ -384,7 +384,7 @@ FLOW_DIAGRAMS = {
     },
     "12.3 Interrupted Completion Recovery": {
         "description": "Why Scheduled-first publication remains fail-closed across interruption.",
-        "sources": "Loam/ScheduledTerminalPublisher.lean; Loam/Application/ScheduledInspection.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Application/ScheduledInspection.lean",
         "audit": "A terminal relation whose Actual target is absent is intentionally inert to Scheduled readers. Retry reuses that target identity; cancellation refuses to compete with an interrupted completion.",
         "nodes": [
             ("decision", "Completion terminal already retained?", "Fresh completion path\ncreate stable endpoint"),

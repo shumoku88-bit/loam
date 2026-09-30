@@ -3,7 +3,7 @@ import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Review.ActualReview
 import Loam.Review.ScheduledReview
-import Loam.ScheduledTerminalPublisher
+import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 open Loam.Core

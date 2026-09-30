@@ -98,9 +98,9 @@ All nine top-level files initially classified as writer/authority candidates are
 - `Loam/CorrectionPublisher.lean`
 - `Loam/MovementManifestAuthority.lean`
 - `Loam/MovementPublisher.lean`
-- `Loam/ScheduledCreationPublisher.lean`
-- `Loam/ScheduledReplacementPublisher.lean`
-- `Loam/ScheduledTerminalPublisher.lean`
+- `Loam/Publisher/ScheduledCreationPublisher.lean`
+- `Loam/Publisher/ScheduledReplacementPublisher.lean`
+- `Loam/Publisher/ScheduledTerminalPublisher.lean`
 - `Loam/WriterOwnership.lean`
 
 Therefore the publisher/write-path concern is not primarily historical residue. It is part of the current executable closure and must be judged semantically and mechanically in Phases 2–3.

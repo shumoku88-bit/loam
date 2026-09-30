@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ScheduledReplacementPublisher
+import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.Review.ScheduledReview
-import Loam.ScheduledTerminalPublisher
+import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 import Lean.Elab.Tactic.Omega

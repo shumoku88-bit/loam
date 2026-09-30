@@ -1,5 +1,5 @@
 import Loam.Tui.EditorSession
-import Loam.ScheduledTerminalPublisher
+import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega

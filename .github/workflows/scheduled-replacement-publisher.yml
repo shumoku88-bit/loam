@@ -5,8 +5,8 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
-      - 'Loam/ScheduledReplacementPublisher.lean'
-      - 'Loam/ScheduledTerminalPublisher.lean'
+      - 'Loam/Publisher/ScheduledReplacementPublisher.lean'
+      - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
       - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
@@ -24,8 +24,8 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
-      - 'Loam/ScheduledReplacementPublisher.lean'
-      - 'Loam/ScheduledTerminalPublisher.lean'
+      - 'Loam/Publisher/ScheduledReplacementPublisher.lean'
+      - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
       - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
@@ -52,6 +52,6 @@ jobs:
       - name: Install Lean and build shared Scheduled replacement dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.ScheduledReplacementPublisher Loam.Review.ScheduledReview Loam.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.Publisher.ScheduledReplacementPublisher Loam.Review.ScheduledReview Loam.Publisher.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
       - name: Verify Actual-backed Scheduled replacement publication
         run: lake env lean --run Loam/Tests/ScheduledReplacementPublisher.lean "$(mktemp -d)/scheduled-replacement-publisher"
