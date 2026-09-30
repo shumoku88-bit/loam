@@ -1,7 +1,7 @@
 import Init.Data.Order
 import Loam.Application.ActualRoutingInspection
 import Loam.Application.CorrectionFrontier
-import Loam.CapacityEvidence
+import Loam.Core.CapacityEvidence
 import Loam.Core.CapacityEffective
 import Loam.Core.CapacityMemory
 

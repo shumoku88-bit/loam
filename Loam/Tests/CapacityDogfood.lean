@@ -1,5 +1,5 @@
 import Loam.Application.CapacityInspection
-import Loam.CapacityEvidence
+import Loam.Core.CapacityEvidence
 import Loam.Persistence.NormalizedCapacityPersistence
 
 open Loam.Core

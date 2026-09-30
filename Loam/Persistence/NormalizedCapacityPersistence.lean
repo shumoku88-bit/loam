@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.CapacityEvidence
+import Loam.Core.CapacityEvidence
 import Loam.Core.BalancedMovement
 import Loam.Persistence.TokenSyntax
 
