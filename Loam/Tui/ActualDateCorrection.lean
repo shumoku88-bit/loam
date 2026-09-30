@@ -1,6 +1,6 @@
 import Loam.Tui.EditorSession
 import Loam.ActualDate
-import Loam.ActualValidityPublisher
+import Loam.Publisher.ActualValidityPublisher
 import Loam.Tui.Main
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
