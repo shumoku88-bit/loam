@@ -1,4 +1,4 @@
-name: Scheduled Publisher Qualifications
+name: Scheduled Lifecycle Qualifications
 
 on:
   pull_request:
@@ -17,10 +17,11 @@ on:
       - 'Loam/MovementWorldLoader.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
       - 'Loam/Tests/ScheduledCreationPublisher.lean'
       - 'Loam/Tests/ScheduledReplacementPublisher.lean'
       - 'Loam/Tests/ScheduledTerminalPublisher.lean'
-      - '.github/workflows/scheduled-publishers.yml'
+      - '.github/workflows/scheduled-lifecycle.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -43,10 +44,11 @@ on:
       - 'Loam/MovementWorldLoader.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
+      - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
       - 'Loam/Tests/ScheduledCreationPublisher.lean'
       - 'Loam/Tests/ScheduledReplacementPublisher.lean'
       - 'Loam/Tests/ScheduledTerminalPublisher.lean'
-      - '.github/workflows/scheduled-publishers.yml'
+      - '.github/workflows/scheduled-lifecycle.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -56,6 +58,22 @@ permissions:
   contents: read
 
 jobs:
+  persistence:
+    name: Build and test complete Scheduled lifecycle persistence
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build lifecycle persistence
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Persistence.ScheduledLifecyclePersistence
+
+      - name: Verify complete lifecycle codec and fail-closed authority
+        run: lake env lean --run Loam/Tests/ScheduledLifecyclePersistence.lean "$(mktemp -d)/scheduled-lifecycle"
+
   creation:
     name: Build and test Actual-backed Scheduled creation publisher
     runs-on: ubuntu-24.04
@@ -63,10 +81,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Install Lean and build shared Scheduled creation dependencies
         uses: ./.github/actions/lean-build
         with:
           build-args: Loam.Publisher.ScheduledCreationPublisher Loam.Review.ScheduledReview Loam.Tests.ActualWorldFixture
+
       - name: Verify Actual-backed Scheduled creation publication
         run: lake env lean --run Loam/Tests/ScheduledCreationPublisher.lean "$(mktemp -d)/scheduled-creation-publisher"
 
@@ -77,10 +97,12 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Install Lean and build shared Scheduled replacement dependencies
         uses: ./.github/actions/lean-build
         with:
           build-args: Loam.Publisher.ScheduledReplacementPublisher Loam.Review.ScheduledReview Loam.Publisher.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
+
       - name: Verify Actual-backed Scheduled replacement publication
         run: lake env lean --run Loam/Tests/ScheduledReplacementPublisher.lean "$(mktemp -d)/scheduled-replacement-publisher"
 
@@ -91,9 +113,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
       - name: Install Lean and build shared Scheduled publisher dependencies
         uses: ./.github/actions/lean-build
         with:
           build-args: Loam.Publisher.ScheduledTerminalPublisher Loam.Review.ScheduledReview Loam.Review.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
+
       - name: Verify Actual-backed Scheduled completion and cancellation
         run: lake env lean --run Loam/Tests/ScheduledTerminalPublisher.lean "$(mktemp -d)/scheduled-terminal-publisher"

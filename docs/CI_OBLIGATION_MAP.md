@@ -9,7 +9,7 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43. The Capacity publisher and practical entrance workflows were then grouped into one workflow with separate jobs, reducing the live topology to 42. The Event Merchant publisher and TUI input workflows were next grouped into one workflow with separate jobs, reducing the live topology to 41. The two runtime shadow workflows were then grouped into one workflow with separate redaction/projection and quantity jobs, reducing the live topology to 40.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43. The Capacity publisher and practical entrance workflows were then grouped into one workflow with separate jobs, reducing the live topology to 42. The Event Merchant publisher and TUI input workflows were next grouped into one workflow with separate jobs, reducing the live topology to 41. The two runtime shadow workflows were then grouped into one workflow with separate redaction/projection and quantity jobs, reducing the live topology to 40. A final full-inventory pass found one remaining high-confidence grouping: Scheduled lifecycle persistence and the Scheduled publisher qualification surface, reducing the live topology to 39 while keeping four independent jobs.
 
 The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
@@ -44,16 +44,17 @@ A later graduation pass retired two additional standalone Lean workflows:
 The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
 frontend retirement brought the live workflow count to `47`. The Movement
 Proposal consolidation then reached `46`; Scheduled publisher consolidation reaches
-`44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`, or 57 retired workflow files in total.
+`44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`; Scheduled lifecycle qualification consolidation reaches `39`, or 58 retired workflow files in total.
 The surviving `movement-proposal.yml` retains separate read-only transport and
 explicit publication jobs under one shared path-trigger surface. The surviving
-`scheduled-publishers.yml` likewise retains separate Creation, Replacement, and
-Terminal publication jobs; no Scheduled semantic publisher is merged.
-Presentation-neutral Home / Reports / ReadState checks remain qualified by `tui.yml`.
+`scheduled-lifecycle.yml` retains separate lifecycle persistence, Creation,
+Replacement, and Terminal jobs; no persistence or Scheduled publisher semantic
+boundary is merged. Presentation-neutral Home / Reports / ReadState checks remain
+qualified by `tui.yml`.
 
 ## Shared Lean build mechanics
 
-Twenty surviving workflows use the shared build-only composite action while retaining their relevant job identity, runner,
+Nineteen surviving workflows use the shared build-only composite action while retaining their relevant job identity, runner,
 checkout behavior, permissions, concurrency, triggers, build target, and later
 qualification steps, but share one build-only composite action:
 
@@ -88,7 +89,7 @@ ownership of the checks:
 
 This changes *when* expensive evidence is replayed, not which evidence owns a
 boundary. Specialized path-scoped publisher, persistence, UI, and formal-method
-workflows remain independently triggered. Six narrow consolidation groups share
+workflows remain independently triggered. Seven narrow consolidation groups share
 union path triggers while preserving independently named jobs: Movement Proposal
 keeps read-only transport separate from explicit publication, Scheduled
 publication keeps Creation, Replacement, and Terminal qualification separate,
@@ -101,7 +102,9 @@ publisher qualification separate from TUI input qualification; on the historical
 `feat/tui-event-merchant` push lane only the TUI job runs. Runtime shadow
 qualification keeps the redacted projection audit separate from the stateless
 quantity projection while sharing one trigger surface; Observation 078 remains an
-independent axiom-audited proof contract.
+independent axiom-audited proof contract. Scheduled lifecycle qualification keeps
+persistence separate from Creation, Replacement, and Terminal publication while
+sharing the same main / `feat/tui` trigger surface.
 
 ## Live obligation families
 
@@ -143,8 +146,7 @@ operational or trust boundary:
 - `actual-validity-publisher.yml`
 - `capacity.yml` (separate publisher and practical-entrance jobs)
 - `event-merchant.yml` (separate publisher and TUI-input jobs)
-- `scheduled-publishers.yml` (separate Creation, Replacement, and Terminal publication jobs)
-- `scheduled-lifecycle-persistence.yml`
+- `scheduled-lifecycle.yml` (separate persistence, Creation, Replacement, and Terminal jobs)
 - `practical-actual-routing.yml` (separate persistence and practical-writer jobs)
 - `practical-scheduled-routing.yml`
 - `practical-slice-a2.yml`
@@ -168,6 +170,19 @@ operational roles differ:
 - `compression-audit.yml`
 - `module-granularity-audit.yml`
 - `repository-hygiene.yml`
+
+## Current stopping point after the 40-workflow audit
+
+The post-shadow full inventory classified the remaining workflows by current
+evidence rather than by naming similarity. It found one high-confidence GROUP
+pair, the Scheduled lifecycle persistence and publisher qualification surfaces,
+and no workflow that could be retired outright without dropping a distinct
+operational, proof, solver, packaging, repository-audit, or path-local
+qualification contract.
+
+After that grouping, the remaining 39 workflow files are therefore treated as
+KEEP by default. Future consolidation should require fresh evidence of mechanical
+and semantic equivalence rather than a target workflow count.
 
 ## Protected distinctions
 
@@ -207,6 +222,6 @@ The first instrumented measurement after adding the topology audit was
 live topology to 50 / 227627. Retiring the two graduated Lean witnesses produced
 the item-2 completion measurement above. The later native Web retirement reduced
 the live workflow-file count to 47, the Movement Proposal consolidation reduced
-it to 46, the Scheduled publisher consolidation reduced it to 44, the Actual Routing consolidation reduced it to 43, the Capacity consolidation reduced it to 42, the Event Merchant consolidation reduced it to 41, and the runtime shadow consolidation reduces it to 40; use
+it to 46, the Scheduled publisher consolidation reduced it to 44, the Actual Routing consolidation reduced it to 43, the Capacity consolidation reduced it to 42, the Event Merchant consolidation reduced it to 41, the runtime shadow consolidation reduced it to 40, and the Scheduled lifecycle qualification consolidation reduces it to 39; use
 `python3 tools/audit-ci-topology` for the current YAML byte measurement after
 subsequent feature changes.
