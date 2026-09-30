@@ -1,6 +1,6 @@
 import Loam.ActualEvidence
 import Loam.Application.ExchangeEvidenceFrontier
-import Loam.MultimeasureSpendReview
+import Loam.Review.MultimeasureSpendReview
 import Loam.Persistence.NormalizedActualAdmission
 
 namespace Loam.Observation345

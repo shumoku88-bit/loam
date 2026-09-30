@@ -1,4 +1,4 @@
-import Loam.MultimeasureSpendReview
+import Loam.Review.MultimeasureSpendReview
 
 open Loam.Core
 

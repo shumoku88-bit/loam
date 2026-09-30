@@ -18,16 +18,16 @@ on:
       - 'Loam/DailyPaceConfig.lean'
       - 'Loam/CycleSpendingPaceReview.lean'
       - 'Loam/Tests/CycleSpendingPaceReview.lean'
-      - 'Loam/LocusTrendReview.lean'
+      - 'Loam/Review/LocusTrendReview.lean'
       - 'Loam/Tests/LocusTrendReview.lean'
-      - 'Loam/LocusTrendCompareReview.lean'
+      - 'Loam/Review/LocusTrendCompareReview.lean'
       - 'Loam/Tests/LocusTrendCompareReview.lean'
-      - 'Loam/LocusTrendCompareReview.lean'
+      - 'Loam/Review/LocusTrendCompareReview.lean'
       - 'Loam/Tests/LocusTrendCompareReview.lean'
       - 'Loam/Tests/TuiChart.lean'
       - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/LocusCatalog.lean'
-      - 'Loam/LocusCoherenceReview.lean'
+      - 'Loam/Review/LocusCoherenceReview.lean'
       - 'Loam/Tests/LocusCoherenceReview.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Tests/LocusCatalog.lean'
@@ -103,11 +103,11 @@ on:
       - 'Loam/BalanceReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
-      - 'Loam/PeriodComparisonReview.lean'
+      - 'Loam/Review/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
-      - 'Loam/MultimeasureSpendReview.lean'
+      - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
-      - 'Loam/StockFlowReview.lean'
+      - 'Loam/Review/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
@@ -167,7 +167,7 @@ on:
       - 'Loam/Tests/CurrentCoverageReview.lean'
       - 'Loam/Tests/TuiChart.lean'
       - 'Loam/LocusCatalog.lean'
-      - 'Loam/LocusCoherenceReview.lean'
+      - 'Loam/Review/LocusCoherenceReview.lean'
       - 'Loam/Tests/LocusCoherenceReview.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Tests/LocusCatalog.lean'
@@ -243,11 +243,11 @@ on:
       - 'Loam/BalanceReview.lean'
       - 'Loam/CapacityReview.lean'
       - 'Loam/BudgetWindowReview.lean'
-      - 'Loam/PeriodComparisonReview.lean'
+      - 'Loam/Review/PeriodComparisonReview.lean'
       - 'Loam/IncomeExpenseProvenanceReview.lean'
-      - 'Loam/MultimeasureSpendReview.lean'
+      - 'Loam/Review/MultimeasureSpendReview.lean'
       - 'Loam/Tests/IncomeExpenseProvenanceReview.lean'
-      - 'Loam/StockFlowReview.lean'
+      - 'Loam/Review/StockFlowReview.lean'
       - 'Loam/TransactionsFlowReview.lean'
       - 'Loam/ConditionalBalancePathReview.lean'
       - 'Loam/BalanceViewConfig.lean'
@@ -435,7 +435,7 @@ jobs:
 
       - name: Build and verify read-only Locus coherence review
         run: |
-          lake build Loam.LocusCoherenceReview
+          lake build Loam.Review.LocusCoherenceReview
           lake env lean --run Loam/Tests/LocusCoherenceReview.lean
 
       - name: Build shared Locus admission publisher boundary
@@ -689,13 +689,13 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiChart.lean
 
       - name: Build exact Locus Trend review boundary
-        run: lake build Loam.LocusTrendReview
+        run: lake build Loam.Review.LocusTrendReview
 
       - name: Verify correction-aware Locus Trend daily series
         run: lake env lean --run Loam/Tests/LocusTrendReview.lean
 
       - name: Build aligned Trend Compare review boundary
-        run: lake build Loam.LocusTrendCompareReview
+        run: lake build Loam.Review.LocusTrendCompareReview
 
       - name: Verify exact-Locus multi-series Trend Compare
         run: lake env lean --run Loam/Tests/LocusTrendCompareReview.lean
@@ -724,7 +724,7 @@ jobs:
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
 
       - name: Build shared Stock-Flow review boundary
-        run: lake build Loam.StockFlowReview
+        run: lake build Loam.Review.StockFlowReview
 
       - name: Verify Stock-Flow reconstruction and refusal boundaries
         run: lake env lean --run Loam/Tests/StockFlowReview.lean

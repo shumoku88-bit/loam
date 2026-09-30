@@ -1,4 +1,4 @@
-import Loam.LocusTrendCompareReview
+import Loam.Review.LocusTrendCompareReview
 import Loam.LocusCatalog
 import Loam.Tui.Chart
 import Loam.Tui.CyclicIndex

@@ -1,6 +1,6 @@
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
-import Loam.StockFlowReview
+import Loam.Review.StockFlowReview
 
 open Loam.Core
 

@@ -5,7 +5,7 @@ import Loam.HouseholdPaths
 import Loam.IncomeExpenseProvenanceReview
 import Loam.Persistence.AccountingRolePersistence
 import Loam.RoleFlowReview
-import Loam.StockFlowReview
+import Loam.Review.StockFlowReview
 import Loam.TransactionsFlowReview
 
 namespace Loam.PeriodComparisonReview
