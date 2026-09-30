@@ -3,7 +3,7 @@ import Loam.ActualDate
 import Loam.Review.CapacityReview
 import Loam.Core.AccountingRole
 import Loam.Core.RoutingEffective
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 

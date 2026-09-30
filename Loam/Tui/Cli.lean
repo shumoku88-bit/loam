@@ -11,7 +11,7 @@ import Loam.Tui.Record
 import Loam.Tui.RecordSession
 import Loam.Tui.Exchange
 import Loam.Tui.ExchangeSession
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Tui.AttentionAdministration
 import Loam.Tui.AttentionAdministrationSession
 import Loam.Tui.Balances

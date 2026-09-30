@@ -2,7 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.Review.BudgetWindowReview
 import Loam.Review.ConditionalBalancePathReview
 import Loam.Review.IncomeExpenseProvenanceReview
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.LocusCatalog
 import Loam.Review.LocusTrendCompareReview
 import Loam.Review.MultimeasureSpendReview

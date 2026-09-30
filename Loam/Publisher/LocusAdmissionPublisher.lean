@@ -1,4 +1,4 @@
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 
 namespace Loam.LocusAdmissionPublisher

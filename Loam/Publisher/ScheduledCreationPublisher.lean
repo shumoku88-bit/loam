@@ -2,7 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualEvidence
 import Loam.Application.ScheduledInspection
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledActualOwnership

@@ -2,7 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Application.ActualValidityFrontier
 import Loam.FreshNumberedToken
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.PracticalMovement
 import Loam.SparseEffectIdentity

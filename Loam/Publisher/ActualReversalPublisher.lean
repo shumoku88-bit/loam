@@ -2,7 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.ActualEvidence
 import Loam.Core.ActualReversal
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.PracticalMovement
 import Loam.ScheduledActualOwnership

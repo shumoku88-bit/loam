@@ -4,7 +4,7 @@ import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.ActualWorldFixture
 import Loam.Publisher.MovementPublisher
 import Loam.MovementWorldAdapter
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 
 open Loam.Core
 
