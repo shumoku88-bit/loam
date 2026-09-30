@@ -1,7 +1,7 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Review.BalanceReview
-import Loam.BalanceViewConfig
+import Loam.Config.BalanceViewConfig
 import Loam.Review.CurrentBalanceReview
 import Loam.HouseholdPaths
 import Loam.Review.ScheduledReview

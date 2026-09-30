@@ -1,4 +1,4 @@
-import Loam.BalanceViewConfig
+import Loam.Config.BalanceViewConfig
 
 namespace Loam.DailyPaceConfig
 
