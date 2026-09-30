@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Review.ActualReview
-import Loam.AttentionPublisher
+import Loam.Publisher.AttentionPublisher
 import Loam.Review.AttentionReview
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
