@@ -7,7 +7,7 @@ on:
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
-      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -26,7 +26,7 @@ on:
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledReplacementPublisher.lean'
       - 'Loam/ScheduledTerminalPublisher.lean'
-      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -52,6 +52,6 @@ jobs:
       - name: Install Lean and build shared Scheduled replacement dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.ScheduledReplacementPublisher Loam.ScheduledReview Loam.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.ScheduledReplacementPublisher Loam.Review.ScheduledReview Loam.ScheduledTerminalPublisher Loam.Tests.ActualWorldFixture
       - name: Verify Actual-backed Scheduled replacement publication
         run: lake env lean --run Loam/Tests/ScheduledReplacementPublisher.lean "$(mktemp -d)/scheduled-replacement-publisher"

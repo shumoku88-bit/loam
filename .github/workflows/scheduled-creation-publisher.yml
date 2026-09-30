@@ -6,7 +6,7 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
-      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -24,7 +24,7 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/ScheduledCreationPublisher.lean'
-      - 'Loam/ScheduledReview.lean'
+      - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/ActualAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
@@ -50,6 +50,6 @@ jobs:
       - name: Install Lean and build shared Scheduled creation dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.ScheduledCreationPublisher Loam.ScheduledReview Loam.Tests.ActualWorldFixture
+          build-args: Loam.ScheduledCreationPublisher Loam.Review.ScheduledReview Loam.Tests.ActualWorldFixture
       - name: Verify Actual-backed Scheduled creation publication
         run: lake env lean --run Loam/Tests/ScheduledCreationPublisher.lean "$(mktemp -d)/scheduled-creation-publisher"

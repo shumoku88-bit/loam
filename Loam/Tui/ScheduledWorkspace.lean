@@ -4,7 +4,7 @@ import Loam.Tui.Calendar
 import Loam.Tui.Layout
 import Loam.Tui.Main
 import Loam.Tui.ScheduledCoveragePane
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 
 namespace Loam.Tui.ScheduledWorkspace
 

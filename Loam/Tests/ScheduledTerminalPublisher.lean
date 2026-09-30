@@ -2,7 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.ActualReview
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.ScheduledTerminalPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 

@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualReview
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.ScheduledReplacementPublisher
 import Loam.ScheduledTerminalPublisher
 import Loam.Tui.SelectedDay

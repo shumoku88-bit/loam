@@ -1,6 +1,6 @@
 import Loam.HouseholdCommand
 import Loam.LocusAdmissionAuthority
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.DeterministicScenarioSupport
 
