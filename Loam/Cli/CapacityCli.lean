@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Application.CapacityWindowInspection
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
 import Std
