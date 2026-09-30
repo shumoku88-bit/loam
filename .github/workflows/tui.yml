@@ -49,7 +49,7 @@ on:
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
-      - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/Publisher/ActualValidityPublisher.lean'
       - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledGeneration.lean'
@@ -189,7 +189,7 @@ on:
       - 'Loam/MovementPublisher.lean'
       - 'Loam/MovementAdmission.lean'
       - 'Loam/CorrectionPublisher.lean'
-      - 'Loam/ActualValidityPublisher.lean'
+      - 'Loam/Publisher/ActualValidityPublisher.lean'
       - 'Loam/Publisher/ActualReversalPublisher.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
       - 'Loam/ScheduledGeneration.lean'
@@ -576,7 +576,7 @@ jobs:
         run: lake env lean --run Loam/Tests/TuiCorrection.lean "$(mktemp -d)/tui-correction"
 
       - name: Build shared ActualValidity publisher boundary
-        run: lake build Loam.ActualValidityPublisher
+        run: lake build Loam.Publisher.ActualValidityPublisher
 
       - name: Verify selected-day date editor and shared publication
         run: lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-correction"
