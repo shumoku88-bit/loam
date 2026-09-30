@@ -97,6 +97,18 @@ private def selectedActionRecord?
   | .futureBoard => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
   | .list => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
 
+private def selectedExtensionRecord?
+    (snapshot : Snapshot)
+    (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
+    (state : Loam.Tui.ScheduledWorkspace.State) :
+    Option Loam.Tui.Main.ScheduledRecord :=
+  match state.viewMode with
+  | .coverage =>
+      Loam.Tui.ScheduledWorkspace.selectedCoverageReplenishmentRecord?
+        snapshot coverage state
+  | .futureBoard => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
+  | .list => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
+
 private def selectedMonitoringShape?
     (snapshot : Snapshot)
     (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
@@ -181,9 +193,15 @@ partial def run
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .extendPlan =>
-      match selectedActionRecord? snapshot coverage step.state with
+      match selectedExtensionRecord? snapshot coverage step.state with
       | none =>
-          let next := { step.state with notice := "No Scheduled plan is selected to extend." }
+          let notice :=
+            match step.state.viewMode with
+            | .coverage =>
+                "No explicit Scheduled occurrence on the monitored pace is available before the first gap."
+            | .futureBoard | .list =>
+                "No Scheduled plan is selected to extend."
+          let next := { step.state with notice := notice }
           let nextFrame := workspaceFrame bounds snapshot coverage next
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           run bounds dataDir root reload snapshot coverage next nextFrame
