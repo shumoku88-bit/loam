@@ -170,20 +170,34 @@ def earliestCurrentOpenRecord
   | [] => return none
   | first :: _ => return some first
 
+private def locusTokensFromChanges
+    (changes : List (MovementChange LocusId)) (positive : Bool) : List String :=
+  ((changes.filterMap fun change =>
+      if positive then
+        if change.quantity.quanta > 0 then some change.coordinate.token else none
+      else
+        if change.quantity.quanta < 0 then some change.coordinate.token else none).eraseDups)
+    |>.mergeSort (fun left right => left <= right)
+
 private def positiveLocusTokensFromChanges
     (changes : List (MovementChange LocusId)) : List String :=
-  ((changes.filterMap fun change =>
-      if change.quantity.quanta > 0 then some change.coordinate.token else none).eraseDups)
-    |>.mergeSort (fun left right => left <= right)
+  locusTokensFromChanges changes true
+
+private def negativeLocusTokensFromChanges
+    (changes : List (MovementChange LocusId)) : List String :=
+  locusTokensFromChanges changes false
 
 private def positiveLocusTokens (record : Record) : List String :=
   positiveLocusTokensFromChanges record.movement.changes
 
+private def negativeLocusTokens (record : Record) : List String :=
+  negativeLocusTokensFromChanges record.movement.changes
+
 /--
 Find current-open Scheduled occurrences on one exact date that share an edited
-draft's positive Locus set.
+draft's signed Locus shape.
 
-This is advisory read evidence only. Exact date + positive-Locus equality does
+This is advisory read evidence only. Exact date + signed-Locus equality does
 not establish recurrence, series identity, contract identity, or duplicate
 semantic identity. It is only sufficient evidence to ask before publishing
 another explicit Scheduled occurrence.
@@ -194,12 +208,14 @@ def sameDateSimilarOpenRecords
     (movement : BalancedMovement LocusId) : Except String (List Record) := do
   if !Loam.ActualDate.validIsoDate scheduledOn then
     throw "loam: Scheduled awareness date must be a real YYYY-MM-DD calendar date"
-  let proposedLoci := positiveLocusTokensFromChanges movement.changes
-  if proposedLoci.isEmpty then return []
+  let proposedNegative := negativeLocusTokensFromChanges movement.changes
+  let proposedPositive := positiveLocusTokensFromChanges movement.changes
+  if proposedNegative.isEmpty || proposedPositive.isEmpty then return []
   let records ← orderedCurrentOpenRecords snapshot
   return records.filter fun record =>
     record.scheduledOn == scheduledOn &&
-      positiveLocusTokens record == proposedLoci
+      negativeLocusTokens record == proposedNegative &&
+      positiveLocusTokens record == proposedPositive
 
 /--
 Find later current-open Scheduled occurrences that share the completed source's
