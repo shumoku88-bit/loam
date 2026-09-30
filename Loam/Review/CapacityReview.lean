@@ -1,6 +1,6 @@
 import Loam.HouseholdPaths
 import Loam.Application.CapacityInspection
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 
 namespace Loam.CapacityReview
 

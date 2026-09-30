@@ -2,7 +2,7 @@ import Loam.HouseholdPaths
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CurrentCoverageInspection
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 import Loam.Review.CapacityReview
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence

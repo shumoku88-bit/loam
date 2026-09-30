@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.Review.BudgetWindowReview
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 import Loam.Persistence.ActualRoutingPersistence
 
 open Loam.Core

@@ -1,6 +1,6 @@
 import Loam.ActualDate
 import Loam.Application.CapacityInspection
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 import Loam.FreshNumberedToken
 import Loam.Persistence.TokenSyntax
 import Loam.WriterOwnership

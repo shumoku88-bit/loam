@@ -1,5 +1,5 @@
 import Loam.ActualAuthority
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 import Loam.HouseholdPaths
 import Loam.MeasurePresentation
 import Loam.Persistence.CurrentQuantityAnchorPersistence

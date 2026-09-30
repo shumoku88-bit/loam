@@ -1,7 +1,7 @@
 import Loam.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CapacityWindowInspection
-import Loam.CapacityAuthority
+import Loam.Authority.CapacityAuthority
 import Loam.Review.CapacityReview
 import Loam.HouseholdPaths
 import Loam.Persistence.ActualRoutingPersistence
