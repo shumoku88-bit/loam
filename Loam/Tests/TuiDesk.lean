@@ -76,12 +76,9 @@ def main : IO Unit := do
     "Desk month navigation did not preserve the day coordinate"
 
   let jumpStart := (Loam.Desk.Model.update snap october .beginJump).state
-  let erased := (List.range jumpStart.jumpText.length).foldl
-    (fun current _ => (Loam.Desk.Model.update snap current .jumpBackspace).state)
-    jumpStart
   let typed := "2026-10-01".toList.foldl
     (fun current char => (Loam.Desk.Model.update snap current (.jumpInput char)).state)
-    erased
+    jumpStart
   let jumped := (Loam.Desk.Model.update snap typed .acceptJump).state
   expect (jumped.focusDate == "2026-10-01" && jumped.selectedRow == some 0)
     "Desk jump-to-date did not select the matching October Actual"
