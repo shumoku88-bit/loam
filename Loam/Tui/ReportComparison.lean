@@ -1,4 +1,4 @@
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 import Loam.Tui.Calendar
 import Loam.Tui.CyclicIndex
 import Loam.Tui.ReportWindow

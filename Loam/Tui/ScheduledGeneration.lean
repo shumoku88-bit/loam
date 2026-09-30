@@ -1,5 +1,5 @@
 import Loam.ActualDate
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 import Loam.Publisher.ScheduledCreationPublisher
 import Loam.ScheduledGeneration
 import Loam.ScheduledOccurrenceConstruction

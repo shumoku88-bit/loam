@@ -60,7 +60,7 @@ DIAGRAMS = {
     },
     "MGA.017.4 First Experiment Stop Rule": {
         "description": "Define the narrow acceptance test for a future ReportWindow extraction.",
-        "sources": "Loam/Tui/Reports.lean; Loam/BoundaryPresetConfig.lean; Loam/Tui/Calendar.lean; docs/research/MODULE_GRANULARITY_FRONTIER_017.md",
+        "sources": "Loam/Tui/Reports.lean; Loam/Config/BoundaryPresetConfig.lean; Loam/Tui/Calendar.lean; docs/research/MODULE_GRANULARITY_FRONTIER_017.md",
         "audit": "A ReportWindow extraction qualifies only if it creates exactly one owner for start/end coordinates, calendar anchor, presets, source label and focus/edit transitions. Liquidity's assumption horizon must remain distinct. The split must not duplicate window state, introduce report-specific policy parameters, move report semantics, or require a compatibility mirror in Reports.State. If those costs appear, reject the split despite the size reduction.",
         "nodes": [
             ("action", "Candidate nested ReportWindow state"),

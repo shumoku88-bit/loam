@@ -1,4 +1,4 @@
-import Loam.BoundaryPresetConfig
+import Loam.Config.BoundaryPresetConfig
 import Loam.HouseholdCommand
 import Loam.LocusCatalog
 import Loam.ScheduledGeneration
