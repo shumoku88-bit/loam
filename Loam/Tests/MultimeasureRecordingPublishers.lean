@@ -1,6 +1,6 @@
 import Loam.ActualAuthority
-import Loam.ExchangePublisher
-import Loam.OriginalAmountMovementPublisher
+import Loam.Publisher.ExchangePublisher
+import Loam.Publisher.OriginalAmountMovementPublisher
 import Loam.Tests.ActualWorldFixture
 
 open Loam.Core
