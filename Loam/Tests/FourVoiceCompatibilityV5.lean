@@ -1,4 +1,4 @@
-import Loam.CurrentQuantityAnchorPublisher
+import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Review.RoleBalanceReview
 
 open Loam.Core
