@@ -30,7 +30,22 @@ The following interaction ideas survive across the available snapshots:
 - fast return from summaries to details;
 - guidance that helps a dense program remain learnable.
 
-## 3. The technology did not age as well as the interaction model
+## 3. A deliberate implementation replacement already happened
+
+The 2005 author interview reports that repeated feature requests had made the old implementation increasingly difficult to extend. The author therefore started a separate project that rewrote almost all source code while intentionally keeping the visible appearance and behavior unchanged.
+
+The rewrite was expected to take months but took more than three and a half years and became the Ver.3.xx line.
+
+This is a concrete precedent inside the product's own history:
+
+```text
+interaction contract retained
+implementation machinery replaced
+```
+
+See [EVOLUTION_AND_REWRITE.md](EVOLUTION_AND_REWRITE.md) for the detailed reconstruction.
+
+## 4. The technology did not age as well as the interaction model
 
 The author's 2024 notice is a useful warning.
 
@@ -52,7 +67,7 @@ For LOAM, long life should therefore come from keeping:
 
 more durable than any one GUI toolkit.
 
-## 4. Continuity over perfect bookkeeping
+## 5. Continuity over perfect bookkeeping
 
 The author's 2008 remarks prioritize continuing the household record over forcing perfect reconstruction of every discrepancy.
 
@@ -65,7 +80,7 @@ may be less durable than one that records uncertainty explicitly
 
 LOAM should answer this in its own evidence model rather than by copying a generic "unknown expense" mechanism.
 
-## 5. Sample data as longevity infrastructure
+## 6. Sample data as longevity infrastructure
 
 The later walkthrough highlights an 18-month sample household that makes long-range graphs and reports meaningful immediately.
 
@@ -77,7 +92,7 @@ This is a subtle but strong teaching mechanism:
 
 A LOAM Desk prototype may benefit from deterministic demonstration data, but it should remain separate from canonical household authority.
 
-## 6. Long-lived UI hypothesis
+## 7. Long-lived UI hypothesis
 
 The evidence suggests that durable household software benefits from:
 
