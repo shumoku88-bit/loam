@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.Review.CurrentBalanceReview
 import Loam.Config.CycleFundingConfig
-import Loam.CycleFundingInspection
+import Loam.Review.CycleFundingInspection
 import Loam.HouseholdPaths
 import Loam.Config.BoundaryPresetConfig
 

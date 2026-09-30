@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
-      - 'Loam/CycleFundingInspection.lean'
+      - 'Loam/Review/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/Review/CurrentCoverageReview.lean'
@@ -20,7 +20,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
-      - 'Loam/CycleFundingInspection.lean'
+      - 'Loam/Review/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
       - 'Loam/BalanceReview.lean'
       - 'Loam/Review/CurrentCoverageReview.lean'
@@ -50,7 +50,7 @@ jobs:
       - name: Build shared funding boundary
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.CycleFundingInspection Loam.Tests.ActualWorldFixture
+          build-args: Loam.Review.CycleFundingInspection Loam.Tests.ActualWorldFixture
       - name: Qualify funding arithmetic and explicit evidence selection
         run: lake env lean --run Loam/Tests/CycleFundingInspection.lean
       - name: Check neighboring physical balance review

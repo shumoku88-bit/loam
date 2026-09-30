@@ -153,7 +153,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.8.1 Cycle Budget Read Boundary": {
         "description": "CycleBudgetReview.loadSnapshotAt composition after the one-Actual-observation refactor.",
-        "sources": "Loam/CycleBudgetReview.lean; Loam/Authority/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/Config/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Config/CycleFundingConfig.lean; Loam/CycleFundingInspection.lean",
+        "sources": "Loam/CycleBudgetReview.lean; Loam/Authority/ActualAuthority.lean; Loam/Tui/CycleBudget.lean; Loam/Config/BoundaryPresetConfig.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Config/CycleFundingConfig.lean; Loam/Review/CycleFundingInspection.lean",
         "audit": "Window, coverage, physical balances, funding selection, and funding summary remain separately visible failure boundaries in the TUI. CurrentCoverage and Balance evidence reads now share one short Actual ownership interval, pinning one normalized Actual generation across both branches without adding a second evidence API. Balance evidence remains shared by physical and funding. Other authorities keep their existing independent reads and failure semantics; no cross-authority atomic snapshot is claimed.",
         "nodes": [
             ("insertion", "loadCurrentWindow\nBoundaryPresetConfig"),
@@ -175,7 +175,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.8.2 Cycle Funding Composition": {
         "description": "Pure CycleFundingInspection.project composition after derived-summary compression.",
-        "sources": "Loam/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
+        "sources": "Loam/Review/CycleFundingInspection.lean; Loam/CycleBudgetReview.lean; Loam/CurrentCoverageReview.lean; Loam/Review/BalanceReview.lean; Loam/Tui/CycleBudget.lean",
         "audit": "Summary retains only budgetable backing and remaining assigned. JPY is fixed by admission and residualBeforeUnresolved is derived from the retained pair. CurrentCoverage keeps ownership of the three query-global Scheduled frontier quantities; CycleBudget reads them from the sibling coverage snapshot instead of a funding copy. Parent CycleBudget composition now pins the CurrentCoverage and Balance Actual reads to one normalized Actual generation before this pure funding projection runs.",
         "nodes": [
             ("action", "Inputs\nBalance evidence + selection + CurrentCoverage"),
