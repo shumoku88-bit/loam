@@ -1,5 +1,5 @@
 import Loam.Review.CurrentCoverageReview
-import Loam.ScheduledRoutingPublisher
+import Loam.Publisher.ScheduledRoutingPublisher
 import Loam.Tui.ScheduledRouting
 import Loam.Tui.ScheduledRoutingSession
 import Loam.Tui.Kernel
