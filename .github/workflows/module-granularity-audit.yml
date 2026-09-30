@@ -130,6 +130,7 @@ jobs:
           git diff --exit-code -- docs/drakon/loam-tui-transactions-flow-granularity-audit.drn
 
       - name: Upload descriptive inventory
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: module-granularity-inventory
