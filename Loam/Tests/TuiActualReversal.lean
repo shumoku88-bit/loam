@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
-import Loam.ActualReview
+import Loam.Review.ActualReview
 import Loam.ActualReversalPublisher
 import Loam.MovementPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
