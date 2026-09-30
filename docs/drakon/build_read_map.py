@@ -67,7 +67,7 @@ READ_FLOW_DIAGRAMS = {
     },
     "07.7.1 Current Coverage Read Boundary": {
         "description": "Production CurrentCoverageReview.loadSnapshotAt after admitted Actual read-image migration.",
-        "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/ActualAuthority.lean; Loam/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
+        "sources": "Loam/CurrentCoverageReview.lean; Loam/Application/CurrentCoverageInspection.lean; Loam/Application/ScheduledCommitmentInspection.lean; Loam/ActualAuthority.lean; Loam/Authority/CapacityAuthority.lean; Loam/Persistence/ActualRoutingPersistence.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledRoutingPersistence.lean; Loam/Persistence/AccountingRolePersistence.lean",
         "audit": "Scheduled lifecycle selection and routing/role classification happen once per snapshot. Actual quantity/date projection reuses the current Event frontier and current validity memory carried by ActualAuthority.Image, while Scheduled reference closure deliberately sees the retained raw Event identity set. No report-local Correction/ActualValidity re-admission or per-Purpose Scheduled frontier copies remain.",
         "nodes": [
             ("decision", "Current window coordinates are valid and ordered?", "Refuse\ninvalid current coverage coordinates"),

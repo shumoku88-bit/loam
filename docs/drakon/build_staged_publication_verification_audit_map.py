@@ -12,7 +12,7 @@ OUTPUT = HERE / "loam-staged-publication-verification-audit.drn"
 DIAGRAMS = {
     "G3.P1.1 Four staged publication paths": {
         "description": "Compare current complete-image/config staged publication protocols at one procedural scale.",
-        "sources": "Loam/ActualAuthority.lean; Loam/CapacityAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Config/ScheduledCoverageConfig.lean; Loam/Persistence/SiblingStage.lean",
+        "sources": "Loam/ActualAuthority.lean; Loam/Authority/CapacityAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Config/ScheduledCoverageConfig.lean; Loam/Persistence/SiblingStage.lean",
         "audit": "All four use sibling staging and one rename, but only Actual, Capacity, and Scheduled Coverage currently run the staged bytes back through their production typed decoder before rename. Scheduled lifecycle performs readback plus byte equality but no publication-local typed re-decode.",
         "nodes": [
             ("action", "ACTUAL"),
