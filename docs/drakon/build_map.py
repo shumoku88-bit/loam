@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/Application/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledActualOwnership.lean",
+        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Application/SparseEffectIdentity.lean; Loam/Application/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -202,7 +202,7 @@ FLOW_DIAGRAMS = {
     },
     "10.3 Movement Admission": {
         "description": "Pure semantic admission of one Movement draft against one typed world.",
-        "sources": "Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
+        "sources": "Loam/MovementAdmission.lean; Loam/Application/SparseEffectIdentity.lean; Loam/Core/BalancedMovement.lean; Loam/Application/OpenRelationFrontier.lean; Loam/Application/RelationDischargeFrontier.lean",
         "audit": "Collector-local Effect identity is canonicalized here through the shared sparse-identity law. Numbered identity allocation is total and RelationUnits are materialized structurally while traversing drafts. Event construction still rejects duplicate retained EffectKeys, while typed append guards remain deliberately fail-closed.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nretain only Relation sources"),
@@ -293,7 +293,7 @@ FLOW_DIAGRAMS = {
     },
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
-        "sources": "Loam/Publisher/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/Application/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
+        "sources": "Loam/Publisher/CorrectionPublisher.lean; Loam/Application/SparseEffectIdentity.lean; Loam/Application/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
         "audit": "Correction keeps its own target and lineage law, shares sparse Effect identity and measure-parametric practical Movement qualification, and allocates replacement EventIds through the total numbered allocator. Empty-earned canonicalization proves the replacement Event keyless, so construction is direct. Current production still passes JPY explicitly at this edge.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),
@@ -365,7 +365,7 @@ FLOW_DIAGRAMS = {
     },
     "12.2 Completion Actual Admission": {
         "description": "Construct one plain Actual candidate for a Scheduled completion using an externally chosen stable EventId.",
-        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/SparseEffectIdentity.lean",
+        "sources": "Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/MovementAdmission.lean; Loam/Application/SparseEffectIdentity.lean",
         "audit": "Completion shares sparse Effect identity with Record and Correction. Because successful completion currently admits plain effects only, no collector key earns durability here and the keyless Event is constructed directly; stable EventId selection and the two-authority retry law remain completion-specific.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nplain completion earns no Effect identity"),
