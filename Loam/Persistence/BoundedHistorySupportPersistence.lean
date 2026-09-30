@@ -1,4 +1,4 @@
-import Loam.BoundedHistorySupport
+import Loam.Core.BoundedHistorySupport
 import Loam.Persistence.SiblingStage
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.VersionedRows

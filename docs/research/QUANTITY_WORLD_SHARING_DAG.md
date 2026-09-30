@@ -286,7 +286,7 @@ coordinate + complete-since start day
 
 Current production owners are:
 
-- `Loam/BoundedHistorySupport.lean`;
+- `Loam/Core/BoundedHistorySupport.lean`;
 - `Loam/Persistence/BoundedHistorySupportPersistence.lean`;
 - `Loam/Publisher/BoundedHistorySupportPublisher.lean`;
 - `Loam/BoundedHistorySupportReview.lean`;
