@@ -1,0 +1,118 @@
+name: Practical Actual Routing
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'Loam/Publisher/ActualRoutingPublisher.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Persistence/WriterOwnership.lean'
+      - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-actual-routing.yml'
+  push:
+    branches:
+      - 'feat/actual-routing-persistence'
+      - main
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Cli/ActualRoutingCli.lean'
+      - 'Loam/Publisher/ActualRoutingPublisher.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
+      - 'Loam/Persistence/ActualRoutingPersistence.lean'
+      - 'Loam/ActualDate.lean'
+      - 'Loam/Persistence/WriterOwnership.lean'
+      - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - 'lean-toolchain'
+      - '.github/workflows/practical-actual-routing.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  persistence:
+    name: Build and test initial-aware Actual routing
+    runs-on: ubuntu-latest
+    concurrency:
+      group: practical-actual-routing-persistence-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Core and Application
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Core Loam.Application Loam.Persistence.ActualRoutingPersistence
+
+      - name: Run Actual routing persistence story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
+
+  writer:
+    name: Write and reload Actual routing
+    needs: persistence
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: practical-actual-routing-writer-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Actual routing executable
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: loamActualRouting
+
+      - name: Exercise practical routing writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          tmpdir="$(mktemp -d)"
+          trap 'rm -rf "$tmpdir"' EXIT
+          routing="$tmpdir/actual-routing.loam"
+          rejected="$tmpdir/rejected.log"
+
+          .lake/build/bin/loamActualRouting \
+            initial "$routing" expenses:food managed food
+          .lake/build/bin/loamActualRouting \
+            initial "$routing" expenses:coffee unmanaged
+          .lake/build/bin/loamActualRouting \
+            from "$routing" 2026-08-17 expenses:food managed household
+
+          grep -Fx $'LOAM-ACTUAL-ROUTING\t1' "$routing"
+          grep -Fx $'ROUTE\texpenses:food\tINITIAL\tMANAGED\tfood' "$routing"
+          grep -Fx $'ROUTE\texpenses:coffee\tINITIAL\tUNMANAGED' "$routing"
+          grep -Fx $'ROUTE\texpenses:food\tFROM\t2026-08-17\tMANAGED\thousehold' "$routing"
+
+          if .lake/build/bin/loamActualRouting \
+              initial "$routing" expenses:food managed another >"$rejected" 2>&1; then
+            echo 'duplicate initial routing coordinate was admitted' >&2
+            exit 1
+          fi
+          grep -F 'already has evidence at this locus/effective coordinate' "$rejected"
+
+          if .lake/build/bin/loamActualRouting \
+              from "$routing" 2026-02-29 expenses:other managed food >"$rejected" 2>&1; then
+            echo 'impossible routing date was admitted' >&2
+            exit 1
+          fi
+          grep -F 'real calendar date in YYYY-MM-DD form' "$rejected"
