@@ -93,7 +93,7 @@ The concentration around QuantityBasis / BasisCut is significant because the cur
 
 All nine top-level files initially classified as writer/authority candidates are executable-reachable:
 
-- `Loam/ActualValidityPublisher.lean`
+- `Loam/Publisher/ActualValidityPublisher.lean`
 - `Loam/CapacityPublisher.lean`
 - `Loam/CorrectionPublisher.lean`
 - `Loam/MovementManifestAuthority.lean`
