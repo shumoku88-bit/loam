@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.Config.BoundaryPresetConfig
 import Loam.Publisher.ScheduledCreationPublisher
 import Loam.Application.ScheduledGeneration
-import Loam.ScheduledOccurrenceConstruction
+import Loam.Application.ScheduledOccurrenceConstruction
 import Loam.Tui.Kernel
 import Loam.Tui.Main
 import Loam.Tui.Terminal

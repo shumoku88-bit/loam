@@ -74,7 +74,7 @@ The writers themselves remain separate because Replacement still has independent
 
 This does not prove the whole Scheduled subsystem correct. It establishes one local implication strongly enough to remove one local decision.
 
-Evidence: [obligation DAG](research/SCHEDULED_CREATION_REPLACEMENT_OBLIGATION_DAG.md) · [Lean theorem](../Loam/ScheduledOccurrenceConstruction.lean) · [production change #930](https://github.com/shumoku88-bit/loam/pull/930) · [DRAKON source](drakon/build_scheduled_creation_replacement_audit_map.py)
+Evidence: [obligation DAG](research/SCHEDULED_CREATION_REPLACEMENT_OBLIGATION_DAG.md) · [Lean theorem](../Loam/Application/ScheduledOccurrenceConstruction.lean) · [production change #930](https://github.com/shumoku88-bit/loam/pull/930) · [DRAKON source](drakon/build_scheduled_creation_replacement_audit_map.py)
 
 ---
 
