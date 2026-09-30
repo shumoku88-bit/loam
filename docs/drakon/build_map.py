@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledActualOwnership.lean",
+        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/Application/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/Persistence/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -293,7 +293,7 @@ FLOW_DIAGRAMS = {
     },
     "11.2 Correction Admission": {
         "description": "Correction-specific semantic admission before one replacement generation is published.",
-        "sources": "Loam/Publisher/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
+        "sources": "Loam/Publisher/CorrectionPublisher.lean; Loam/SparseEffectIdentity.lean; Loam/Application/PracticalMovement.lean; Loam/Application/ActualValidityFrontier.lean; Loam/Core/BalancedMovement.lean",
         "audit": "Correction keeps its own target and lineage law, shares sparse Effect identity and measure-parametric practical Movement qualification, and allocates replacement EventIds through the total numbered allocator. Empty-earned canonicalization proves the replacement Event keyless, so construction is direct. Current production still passes JPY explicitly at this edge.",
         "nodes": [
             ("action", "Canonicalize collector-local EffectKeys\nno new Relation source earns identity"),
@@ -438,7 +438,7 @@ FLOW_DIAGRAMS = {
     },
     "13.2 Reversal Admission": {
         "description": "Pure reversal-specific admission that derives one anonymous exact inverse and one explicit provenance relation.",
-        "sources": "Loam/Publisher/ActualReversalPublisher.lean; Loam/PracticalMovement.lean; Loam/Core/ActualReversal.lean; Loam/Core/BalancedMovement.lean; Loam/Core/ScheduledTerminal.lean",
+        "sources": "Loam/Publisher/ActualReversalPublisher.lean; Loam/Application/PracticalMovement.lean; Loam/Core/ActualReversal.lean; Loam/Core/BalancedMovement.lean; Loam/Core/ScheduledTerminal.lean",
         "audit": "The target must be current and independent of retained Relation/Discharge and Scheduled-completion provenance. Exact inverse balance is not revalidated at runtime: BalancedMovement.totalQuanta_negated is the retained Lean law that makes quantity negation preserve zero total. Anonymous inverse construction also proves retained EffectKeys empty, so inverse Event construction is direct. Deterministic reversal identity collision is owned by EventMemory.add?; there is no separate preflight lookup.",
         "nodes": [
             ("decision", "Reversal occurrence date valid?", "Refuse\ninvalid calendar date"),

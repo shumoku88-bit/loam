@@ -4,7 +4,7 @@ import Loam.ActualEvidence
 import Loam.Core.ActualReversal
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.PracticalMovement
+import Loam.Application.PracticalMovement
 import Loam.Persistence.ScheduledActualOwnership
 
 namespace Loam.ActualReversalPublisher

@@ -1,6 +1,6 @@
 import Loam.Application.ExchangeEvidenceFrontier
 import Loam.Application.OriginalAmountFrontier
-import Loam.PracticalMovement
+import Loam.Application.PracticalMovement
 
 namespace Loam.Observation343
 
