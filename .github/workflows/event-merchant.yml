@@ -1,0 +1,86 @@
+name: Event Merchant Qualifications
+
+on:
+  pull_request:
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Publisher/EventMerchantPublisher.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Core/ActualEvidence.lean'
+      - 'Loam/Core/EventMerchantEvidence.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Persistence/TokenSyntax.lean'
+      - 'Loam/Publisher/MovementPublisher.lean'
+      - 'Loam/Tui/EventMerchant.lean'
+      - 'Loam/Tui/SelectedDay.lean'
+      - 'Loam/Tui/Cli.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/EventMerchantPublisher.lean'
+      - 'Loam/Tests/TuiEventMerchant.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/event-merchant.yml'
+  push:
+    branches:
+      - main
+      - feat/tui-event-merchant
+    paths:
+      - '.github/actions/lean-build/**'
+      - 'Loam/Publisher/EventMerchantPublisher.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Core/ActualEvidence.lean'
+      - 'Loam/Core/EventMerchantEvidence.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Persistence/TokenSyntax.lean'
+      - 'Loam/Publisher/MovementPublisher.lean'
+      - 'Loam/Tui/EventMerchant.lean'
+      - 'Loam/Tui/SelectedDay.lean'
+      - 'Loam/Tui/Cli.lean'
+      - 'Loam/HouseholdCommand.lean'
+      - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/EventMerchantPublisher.lean'
+      - 'Loam/Tests/TuiEventMerchant.lean'
+      - 'lean-toolchain'
+      - 'lakefile.lean'
+      - 'lake-manifest.json'
+      - '.github/workflows/event-merchant.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publisher:
+    name: Build and test Event Merchant publisher
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build Merchant publisher dependencies
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Publisher.EventMerchantPublisher Loam.Publisher.MovementPublisher Loam.Tests.ActualWorldFixture
+
+      - name: Verify Event Merchant publication
+        run: lake env lean --run Loam/Tests/EventMerchantPublisher.lean "$(mktemp -d)/event-merchant-publisher"
+
+  tui:
+    name: Build and test TUI Event Merchant input
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build TUI Merchant entrance
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Tui.Cli Loam.Tui.EventMerchant Loam.HouseholdCommand Loam.Tests.ActualWorldFixture
+
+      - name: Verify TUI Event Merchant classification
+        run: lake env lean --run Loam/Tests/TuiEventMerchant.lean "$(mktemp -d)/tui-event-merchant"
