@@ -1,7 +1,7 @@
 # Let's Kakeibo interaction study
 
 Date: 2026-10-01  
-Status: **Evidence collection in progress, not a LOAM UI specification**  
+Status: **baseline research complete; implementation should now proceed through small LOAM Desk experiments**  
 Subject: Let's家計簿 / Let's Kakeibo, with emphasis on long-lived desktop household interaction.
 
 ## Purpose
@@ -34,6 +34,8 @@ The aim is not to clone Let's家計簿. The aim is to understand why a spreadshe
 - [FINAL_HELP_SCHEDULED_AND_MOVEMENT.md](FINAL_HELP_SCHEDULED_AND_MOVEMENT.md) — primary-help reconstruction of future items, recurring rules, cards, transfer assistance, reconciliation, holidays, and currencies.
 - [FINAL_HELP_ANALYSIS_AND_DATA.md](FINAL_HELP_ANALYSIS_AND_DATA.md) — primary-help reconstruction of reports, search/batch editing, tags, save/backup, data location, multiple books, and import.
 - [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
+- [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md) — research conclusion: adopt directly, translate into LOAM semantics, reference only, or do not copy.
+- [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md) — minimal separate read/navigation TUI experiment derived from the research.
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
 - [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
 
@@ -79,3 +81,15 @@ A LOAM Desk experiment should only borrow an idea after checking:
 ## Scope boundary
 
 This directory studies the external product. It does not redefine LOAM's authority model, Actual evidence, Scheduled semantics, movement model, or correction rules.
+
+
+## Research-cycle conclusion
+
+The first archaeology cycle is sufficiently complete to support a LOAM Desk experiment.
+
+Further Let's家計簿 research should be demand-driven rather than exhaustive. New historical work should answer a concrete design question raised by Desk implementation or use.
+
+The two forward-facing documents are:
+
+1. [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md)
+2. [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md)
