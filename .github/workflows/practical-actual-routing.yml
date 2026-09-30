@@ -1,4 +1,4 @@
-name: Practical Actual Routing Writer
+name: Practical Actual Routing
 
 on:
   pull_request:
@@ -8,15 +8,21 @@ on:
       - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence/WriterOwnership.lean'
       - 'Loam/Tests/ActualRoutingPersistence.lean'
       - 'lakefile.lean'
-      - '.github/workflows/practical-actual-routing-writer.yml'
+      - 'lake-manifest.json'
       - 'lean-toolchain'
+      - '.github/workflows/practical-actual-routing.yml'
   push:
     branches:
+      - 'feat/actual-routing-persistence'
       - main
     paths:
       - '.github/actions/lean-build/**'
@@ -24,26 +30,50 @@ on:
       - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
       - 'Loam/Core/RoutingEffective.lean'
+      - 'Loam/Core.lean'
+      - 'Loam/Application/ActualRoutingInspection.lean'
+      - 'Loam/Application/ConsumptionInspection.lean'
+      - 'Loam/Application.lean'
       - 'Loam/Persistence/ActualRoutingPersistence.lean'
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence/WriterOwnership.lean'
       - 'Loam/Tests/ActualRoutingPersistence.lean'
       - 'lakefile.lean'
-      - '.github/workflows/practical-actual-routing-writer.yml'
+      - 'lake-manifest.json'
       - 'lean-toolchain'
+      - '.github/workflows/practical-actual-routing.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
-concurrency:
-  group: practical-actual-routing-writer-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
-  check:
-    name: Write and reload Actual routing
+  persistence:
+    name: Build and test initial-aware Actual routing
     runs-on: ubuntu-latest
+    concurrency:
+      group: practical-actual-routing-persistence-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build Core and Application
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Core Loam.Application Loam.Persistence.ActualRoutingPersistence
+
+      - name: Run Actual routing persistence story
+        shell: bash
+        run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
+
+  writer:
+    name: Write and reload Actual routing
+    needs: persistence
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: practical-actual-routing-writer-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v6
 
@@ -51,14 +81,6 @@ jobs:
         uses: ./.github/actions/lean-build
         with:
           build-args: loamActualRouting
-
-      - name: Build routing inspection dependency
-        shell: bash
-        run: lake build Loam.Application.ActualRoutingInspection
-
-      - name: Run existing routing persistence story
-        shell: bash
-        run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
 
       - name: Exercise practical routing writer
         shell: bash
