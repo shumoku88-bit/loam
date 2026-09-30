@@ -23,7 +23,7 @@ import Loam.Tui.Capacity
 import Loam.Tui.CapacitySession
 import Loam.Tui.CycleBudget
 import Loam.Tui.CycleBudgetSession
-import Loam.CycleSpendingPaceReview
+import Loam.Review.CycleSpendingPaceReview
 import Loam.Tui.CurrentQuantityAnchor
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
@@ -41,7 +41,7 @@ import Loam.BalanceViewConfig
 import Loam.CurrentBalanceReview
 import Loam.RoleBalanceReview
 import Loam.RoleFlowReview
-import Loam.CapacityReview
+import Loam.Review.CapacityReview
 import Loam.ActualRoutingReview
 import Loam.Tui.Main
 import Loam.Tui.Home
