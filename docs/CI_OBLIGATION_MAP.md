@@ -9,7 +9,7 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43.
 
 The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
@@ -44,7 +44,7 @@ A later graduation pass retired two additional standalone Lean workflows:
 The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
 frontend retirement brought the live workflow count to `47`. The Movement
 Proposal consolidation then reached `46`; Scheduled publisher consolidation reaches
-`44`, or 53 retired workflow files in total.
+`44`; Actual Routing consolidation then reaches `43`, or 54 retired workflow files in total.
 The surviving `movement-proposal.yml` retains separate read-only transport and
 explicit publication jobs under one shared path-trigger surface. The surviving
 `scheduled-publishers.yml` likewise retains separate Creation, Replacement, and
@@ -53,7 +53,7 @@ Presentation-neutral Home / Reports / ReadState checks remain qualified by `tui.
 
 ## Shared Lean build mechanics
 
-Twenty-three surviving workflows use the shared build-only composite action while retaining their relevant job identity, runner,
+Twenty-two surviving workflows use the shared build-only composite action while retaining their relevant job identity, runner,
 checkout behavior, permissions, concurrency, triggers, build target, and later
 qualification steps, but share one build-only composite action:
 
@@ -88,10 +88,13 @@ ownership of the checks:
 
 This changes *when* expensive evidence is replayed, not which evidence owns a
 boundary. Specialized path-scoped publisher, persistence, UI, and formal-method
-workflows remain independently triggered. Two narrow consolidation groups share
+workflows remain independently triggered. Three narrow consolidation groups share
 union path triggers while preserving independently named jobs: Movement Proposal
-keeps read-only transport separate from explicit publication, and Scheduled
-publication keeps Creation, Replacement, and Terminal qualification separate.
+keeps read-only transport separate from explicit publication, Scheduled
+publication keeps Creation, Replacement, and Terminal qualification separate,
+and Actual Routing keeps persistence qualification separate from the practical
+writer. The routing persistence story is executed once and the writer job depends
+on that qualification rather than replaying the same test.
 
 ## Live obligation families
 
@@ -135,8 +138,7 @@ operational or trust boundary:
 - `event-merchant-publisher.yml`
 - `scheduled-publishers.yml` (separate Creation, Replacement, and Terminal publication jobs)
 - `scheduled-lifecycle-persistence.yml`
-- `practical-actual-routing-persistence.yml`
-- `practical-actual-routing-writer.yml`
+- `practical-actual-routing.yml` (separate persistence and practical-writer jobs)
 - `practical-capacity.yml`
 - `practical-scheduled-routing.yml`
 - `practical-slice-a2.yml`
@@ -201,6 +203,6 @@ The first instrumented measurement after adding the topology audit was
 live topology to 50 / 227627. Retiring the two graduated Lean witnesses produced
 the item-2 completion measurement above. The later native Web retirement reduced
 the live workflow-file count to 47, the Movement Proposal consolidation reduced
-it to 46, and the Scheduled publisher consolidation reduces it to 44; use
+it to 46, the Scheduled publisher consolidation reduced it to 44, and the Actual Routing consolidation reduces it to 43; use
 `python3 tools/audit-ci-topology` for the current YAML byte measurement after
 subsequent feature changes.
