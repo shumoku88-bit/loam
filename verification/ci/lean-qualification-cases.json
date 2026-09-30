@@ -295,7 +295,7 @@
       "buildArgs": "Loam.HouseholdCommand Loam.Persistence.NormalizedActualPersistence Loam.Tests.DeterministicScenarioSupport",
       "paths": [
         "Loam/CorrectionPublisher.lean",
-        "Loam/ActualReversalPublisher.lean",
+        "Loam/Publisher/ActualReversalPublisher.lean",
         "Loam/HouseholdCommand.lean",
         "Loam/ActualAuthority.lean",
         "Loam/LocusAdmissionAuthority.lean",

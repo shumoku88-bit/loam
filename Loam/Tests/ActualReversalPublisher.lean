@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.MovementWorldLoader
-import Loam.ActualReversalPublisher
+import Loam.Publisher.ActualReversalPublisher
 import Loam.ActualValidityPublisher
 import Loam.Application.ActualValidityFrontier
 import Loam.CorrectionPublisher

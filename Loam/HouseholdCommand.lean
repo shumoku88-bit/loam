@@ -4,7 +4,7 @@ import Loam.Publisher.OriginalAmountMovementPublisher
 import Loam.Publisher.ExchangePublisher
 import Loam.CorrectionPublisher
 import Loam.ActualValidityPublisher
-import Loam.ActualReversalPublisher
+import Loam.Publisher.ActualReversalPublisher
 import Loam.Publisher.EventMerchantPublisher
 import Loam.Publisher.SettlementPublisher
 import Loam.Publisher.SettlementActionPublisher

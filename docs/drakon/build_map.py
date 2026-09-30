@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/ActualReversalPublisher.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/MovementPublisher.lean; Loam/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -400,7 +400,7 @@ FLOW_DIAGRAMS = {
     },
     "13.0 Reverse Actual": {
         "description": "End-to-end exact reversal of one selected current Actual while retaining target and inverse as independent evidence.",
-        "sources": "Loam/Tui/ActualReversal.lean; Loam/Tui/ActualReversalSession.lean; Loam/HouseholdCommand.lean; Loam/ActualReversalPublisher.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/ActualReversal.lean; Loam/Tui/ActualReversalSession.lean; Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/ActualAuthority.lean",
         "audit": "The TUI inverse is preview-only. Publication re-reads the target and derives the authoritative exact inverse under Scheduled-then-Actual ownership; only Actual is written.",
         "nodes": [
             ("action", "Select one visible current Actual"),
@@ -417,7 +417,7 @@ FLOW_DIAGRAMS = {
     },
     "13.1 Authoritative Reversal Publish": {
         "description": "Writer-owned publication seam for one exact Actual reversal with a read-only Scheduled provenance dependency.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/ActualReversalPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/WriterOwnership.lean",
         "audit": "Scheduled is locked and read, not written. Ownership prevents completion provenance from changing across the reversal-independence check. Actual is the only authority published; lock order remains Scheduled then Actual.",
         "nodes": [
             ("decision", "Scheduled path and data root non-empty?", "Refuse\ninvalid authority path"),
@@ -438,7 +438,7 @@ FLOW_DIAGRAMS = {
     },
     "13.2 Reversal Admission": {
         "description": "Pure reversal-specific admission that derives one anonymous exact inverse and one explicit provenance relation.",
-        "sources": "Loam/ActualReversalPublisher.lean; Loam/PracticalMovement.lean; Loam/Core/ActualReversal.lean; Loam/Core/BalancedMovement.lean; Loam/Core/ScheduledTerminal.lean",
+        "sources": "Loam/Publisher/ActualReversalPublisher.lean; Loam/PracticalMovement.lean; Loam/Core/ActualReversal.lean; Loam/Core/BalancedMovement.lean; Loam/Core/ScheduledTerminal.lean",
         "audit": "The target must be current and independent of retained Relation/Discharge and Scheduled-completion provenance. Exact inverse balance is not revalidated at runtime: BalancedMovement.totalQuanta_negated is the retained Lean law that makes quantity negation preserve zero total. Anonymous inverse construction also proves retained EffectKeys empty, so inverse Event construction is direct. Deterministic reversal identity collision is owned by EventMemory.add?; there is no separate preflight lookup.",
         "nodes": [
             ("decision", "Reversal occurrence date valid?", "Refuse\ninvalid calendar date"),
