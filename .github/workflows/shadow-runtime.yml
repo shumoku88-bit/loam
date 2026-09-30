@@ -1,33 +1,45 @@
-name: Observation 074
+name: Shadow Runtime Qualifications
 
 on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Cli/ShadowAuditCli.lean'
+      - 'Loam/Cli/ShadowQuantityCli.lean'
+      - 'Loam/Application/**'
+      - 'Loam/Application.lean'
+      - 'Loam/Core/**'
+      - 'Loam/Observations/Observation078.lean'
       - 'tools/loam'
       - 'lakefile.lean'
       - 'experiments/074_private_shadow_projection_boundary.md'
-      - '.github/workflows/private-shadow-projection-observation.yml'
+      - '.github/workflows/shadow-runtime.yml'
   push:
     branches:
       - 'experiment/074-private-shadow-projection'
+      - 'feat/stateless-shadow-quantity'
       - main
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Cli/ShadowAuditCli.lean'
+      - 'Loam/Cli/ShadowQuantityCli.lean'
+      - 'Loam/Application/**'
+      - 'Loam/Application.lean'
+      - 'Loam/Core/**'
+      - 'Loam/Observations/Observation078.lean'
       - 'tools/loam'
       - 'lakefile.lean'
       - 'experiments/074_private_shadow_projection_boundary.md'
-      - '.github/workflows/private-shadow-projection-observation.yml'
+      - '.github/workflows/shadow-runtime.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  shadow:
+  projection:
     name: Redacted read-only shadow audit
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/experiment/074-private-shadow-projection'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -117,3 +129,85 @@ jobs:
             echo 'practical wrapper must not invoke Lean frontend per action' >&2
             exit 1
           fi
+
+  quantity:
+    name: Read-only recorded quantity shadow
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feat/stateless-shadow-quantity'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Lean toolchain
+        uses: leanprover/lean-action@v1
+        with:
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: false
+
+      - name: Build stateless shadow quantity executable
+        run: lake build loamShadowQuantity
+
+      - name: Exercise synthetic whole-file shape
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -t loam-shadow-quantity.XXXXXX.journal)"
+          cat >"$fixture" <<'EOF'
+          include synthetic-accounts.journal
+
+          2099-01-01 * synthetic opening
+              ; synthetic: metadata
+              locus:wallet    100 unit
+              locus:origin    -100 unit
+          2099-01-02 synthetic split
+            locus:wallet  -30 unit
+          	locus:food	20 unit
+          	locus:stock	10 unit
+          EOF
+
+          before="$(sha256sum "$fixture" | cut -d' ' -f1)"
+          output="$(./tools/loam shadow-quantity "$fixture")"
+          after="$(sha256sum "$fixture" | cut -d' ' -f1)"
+
+          test "$before" = "$after"
+          printf '%s\n' "$output"
+
+          grep -Fq 'source: read-only; persistence: none; sidecar: none' <<<"$output"
+          grep -Fq 'events projected: 2' <<<"$output"
+          grep -Fq 'effects projected: 5' <<<"$output"
+          grep -Fq 'header contexts not projected: 2' <<<"$output"
+          grep -Fq 'metadata lines not projected: 1' <<<"$output"
+          grep -Fq 'include directives not projected: 1' <<<"$output"
+          grep -Fq 'locus:wallet: 70 unit' <<<"$output"
+          grep -Fq 'locus:origin: -100 unit' <<<"$output"
+          grep -Fq 'locus:food: 20 unit' <<<"$output"
+          grep -Fq 'locus:stock: 10 unit' <<<"$output"
+
+          rm -f "$fixture"
+
+      - name: Fail closed on unsupported source lines
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -t loam-shadow-quantity-invalid.XXXXXX.journal)"
+          cat >"$fixture" <<'EOF'
+          2099-01-01 synthetic
+              locus:wallet 10 unit
+              unsupported posting shape
+          EOF
+
+          set +e
+          output="$(./tools/loam shadow-quantity "$fixture" 2>&1)"
+          status=$?
+          set -e
+
+          test "$status" -eq 2
+          grep -Fq 'refused malformed or unsupported source lines' <<<"$output"
+          grep -Fq 'no LOAM persistence was written' <<<"$output"
+          ! grep -Fq 'unsupported posting shape' <<<"$output"
+
+          rm -f "$fixture"
