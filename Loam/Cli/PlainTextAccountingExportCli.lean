@@ -3,7 +3,7 @@ import Loam.ActualJournalProjection
 import Loam.MeasurePresentation
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.SiblingStage
-import Loam.PlainTextAccountingExport
+import Loam.Export.PlainTextAccountingExport
 import Loam.WriterOwnership
 
 namespace Loam.PlainTextAccountingExportCli
