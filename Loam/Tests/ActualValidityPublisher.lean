@@ -3,7 +3,7 @@ import Loam.ActualAuthority
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Review.ActualReview
 import Loam.Publisher.CorrectionPublisher
-import Loam.MovementPublisher
+import Loam.Publisher.MovementPublisher
 
 open Loam.Core
 

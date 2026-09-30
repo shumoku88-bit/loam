@@ -126,7 +126,7 @@ FLOW_DIAGRAMS = {
     },
     "09 Write Path Comparison": {
         "description": "Cross-path comparison of what each write changes, plus the seams already earned as shared mechanics.",
-        "sources": "Loam/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
+        "sources": "Loam/Publisher/MovementPublisher.lean; Loam/Publisher/CorrectionPublisher.lean; Loam/Publisher/ScheduledTerminalPublisher.lean; Loam/Publisher/ActualReversalPublisher.lean; Loam/Publisher/ActualValidityPublisher.lean; Loam/ActualAuthority.lean; Loam/SparseEffectIdentity.lean; Loam/PracticalMovement.lean; Loam/Core/EventCorrection.lean; Loam/Persistence/ScheduledLifecyclePersistence.lean; Loam/ScheduledActualOwnership.lean",
         "audit": "Correction replaces current Event identity, Reversal appends an exact inverse Event with explicit provenance, and Date Correction preserves Event identity and Effects while revising only validity evidence. Share algebra and mechanics only after independent pressure; preserve semantic authority.",
         "nodes": [
             ("action", "CORRECTION\nEvent replacement"),
@@ -153,7 +153,7 @@ FLOW_DIAGRAMS = {
     },
     "10.0 Record Movement": {
         "description": "End-to-end production path. Detailed diagrams split collection, pure admission, and atomic publication.",
-        "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/MovementPublisher.lean; Loam/MovementAdmission.lean; Loam/ActualAuthority.lean",
+        "sources": "Loam/Tui/Record.lean; Loam/Tui/Cli.lean; Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/MovementAdmission.lean; Loam/ActualAuthority.lean",
         "audit": "Preview may use an earlier world; publication never trusts it. Authoritative evidence is re-read under writer ownership.",
         "nodes": [
             ("insertion", "Collect presentation-neutral draft\nTUI or line CLI"),
@@ -182,7 +182,7 @@ FLOW_DIAGRAMS = {
     },
     "10.2 Authoritative Movement Publish": {
         "description": "Production write seam for one already-collected Movement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/MovementPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/ActualAuthority.lean; Loam/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
         "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The publisher is presentation-neutral; EventId is returned only after authoritative publication succeeds.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),

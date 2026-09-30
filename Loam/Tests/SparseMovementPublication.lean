@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
-import Loam.MovementPublisher
+import Loam.Publisher.MovementPublisher
 
 open Loam.Core
 

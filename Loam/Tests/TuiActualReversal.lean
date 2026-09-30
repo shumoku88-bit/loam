@@ -2,7 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.ActualAuthority
 import Loam.Review.ActualReview
 import Loam.Publisher.ActualReversalPublisher
-import Loam.MovementPublisher
+import Loam.Publisher.MovementPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tui.ActualReversal
 
