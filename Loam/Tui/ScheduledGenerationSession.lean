@@ -1,7 +1,7 @@
 import Loam.Config.BoundaryPresetConfig
 import Loam.HouseholdCommand
 import Loam.LocusCatalog
-import Loam.ScheduledGeneration
+import Loam.Application.ScheduledGeneration
 import Loam.Review.ScheduledReview
 import Loam.Tui.Kernel
 import Loam.Tui.ScheduledCreation

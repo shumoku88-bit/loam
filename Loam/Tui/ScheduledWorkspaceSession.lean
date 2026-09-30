@@ -4,7 +4,7 @@ import Loam.MeasurePresentation
 import Loam.Config.ScheduledCoverageConfig
 import Loam.Review.ScheduledCoverageReview
 import Loam.ScheduledCoverageSelector
-import Loam.ScheduledGeneration
+import Loam.Application.ScheduledGeneration
 import Loam.MovementWorldLoader
 import Loam.Tui.ScheduledWorkspace
 import Loam.Tui.Kernel

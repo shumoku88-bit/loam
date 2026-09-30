@@ -1,4 +1,4 @@
-import Loam.ScheduledGeneration
+import Loam.Application.ScheduledGeneration
 
 namespace Loam.Tests.ScheduledGeneration
 
