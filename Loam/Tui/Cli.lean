@@ -35,7 +35,7 @@ import Loam.Tui.CompletionPrompt
 import Loam.ActualDate
 import Loam.ActualReview
 import Loam.ScheduledReview
-import Loam.ScheduledCoverageReview
+import Loam.Review.ScheduledCoverageReview
 import Loam.Review.AttentionReview
 import Loam.BalanceViewConfig
 import Loam.Review.CurrentBalanceReview
