@@ -1,4 +1,4 @@
-import Loam.CapacityPublisher
+import Loam.Publisher.CapacityPublisher
 import Loam.HouseholdCommand
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.Runtime
