@@ -182,7 +182,7 @@ FLOW_DIAGRAMS = {
     },
     "10.2 Authoritative Movement Publish": {
         "description": "Production write seam for one already-collected Movement draft.",
-        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean; Loam/MovementWorldAdapter.lean",
+        "sources": "Loam/HouseholdCommand.lean; Loam/Publisher/MovementPublisher.lean; Loam/Authority/ActualAuthority.lean; Loam/Authority/LocusAdmissionAuthority.lean; Loam/Application/MovementWorldAdapter.lean",
         "audit": "Historical Actual evidence and current Locus new-write policy remain separate authorities. The publisher is presentation-neutral; EventId is returned only after authoritative publication succeeds.",
         "nodes": [
             ("decision", "Data root non-empty?", "Refuse\ninvalid data root"),
