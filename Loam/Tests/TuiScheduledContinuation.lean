@@ -1,5 +1,5 @@
 import Loam.Review.AttentionReview
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.Tui.Home
 import Loam.Tui.ScheduledContinuationSession
 
