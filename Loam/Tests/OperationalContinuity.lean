@@ -1,6 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.OperationalContinuity
 
 set_option autoImplicit false

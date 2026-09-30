@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Publisher.CurrentQuantityAnchorPublisher
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.ScheduledActualOwnership

@@ -3,7 +3,7 @@ import Loam.ActualDate
 import Loam.BoundedHistorySupport
 import Loam.CurrentQuantityAnchor
 import Loam.HouseholdPaths
-import Loam.LocusAdmissionAuthority
+import Loam.Authority.LocusAdmissionAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.WriterOwnership
