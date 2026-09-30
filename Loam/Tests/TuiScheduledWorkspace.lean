@@ -251,7 +251,7 @@ def main : IO Unit := do
     contains "Pace" coverageText && contains "Oct" coverageText)
     "Scheduled overview did not render the recurring-plan Series Calendar"
   expect (contains "> food" coverageText &&
-    contains "[e] extend" coverageText && contains "[p] pace" coverageText &&
+    contains "[e] replenish" coverageText && contains "[p] pace" coverageText &&
     contains "[h/l] months" coverageText)
     "Scheduled overview did not expose selection, management, and month-window actions"
 
@@ -259,7 +259,7 @@ def main : IO Unit := do
   let coverageExtend :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .extendPlan
   expect (coverageExtend.command == .extendPlan)
-    "Scheduled overview could not extend its selected recurring plan directly"
+    "Scheduled overview could not replenish its selected recurring plan directly"
   let coveragePace :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .changePace
   expect (coveragePace.command == .changePace)
@@ -379,21 +379,67 @@ def main : IO Unit := do
   expect (supportNextSource.id.token == "support-feb")
     "Scheduled replenishment did not resume from the latest on-cadence occurrence before the next gap"
 
-  let openExact :=
+  let openPlan :=
     (Loam.Tui.ScheduledWorkspace.updateWithCoverage
       snapshot coverageEvidence coverageNext .openSelectedPlan).state
-  expect (openExact.viewMode == .futureBoard)
-    "Scheduled overview Enter action did not open exact Scheduled dates"
-  let exactRecord ← requireSome
-    (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot openExact)
-    "Scheduled overview exact-date transition lost its selected plan"
-  expect (exactRecord.id.token == "scheduled-1")
-    "Scheduled overview exact-date transition did not retain plan identity"
+  expect (openPlan.viewMode == .planDetail)
+    "Scheduled overview Enter action did not open focused Plan Detail"
+  let planBack :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      snapshot coverageEvidence openPlan .back
+  expect (planBack.command == .stay && planBack.state.viewMode == .coverage)
+    "Scheduled Plan Detail q/back did not return to the Series Calendar"
+
+  let supportPlan :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      supportFilledSnapshot (.ok supportFilledCoverage) supportState .openSelectedPlan).state
+  expect (supportPlan.viewMode == .planDetail)
+    "support Series Calendar row did not open Plan Detail"
+  let supportPlanText := widgetText
+    (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+      { width := 120, height := 30 }
+      supportFilledSnapshot supportPlan (.ok supportFilledCoverage))
+  expect (contains "Scheduled / Plan / support" supportPlanText &&
+    contains "2026-11-15" supportPlanText && contains "[outside pace]" supportPlanText &&
+    contains "2026-12-15" supportPlanText && contains "[on pace]" supportPlanText &&
+    contains "2027-04" supportPlanText && contains "MISSING monitored month" supportPlanText)
+    "Scheduled Plan Detail did not combine explicit, outside-pace, and missing rows"
+
+  let supportOutside :=
+    (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      supportFilledSnapshot (.ok supportFilledCoverage) supportPlan .next).state
+  let outsideRecord ← requireSome
+    (Loam.Tui.ScheduledWorkspace.selectedPlanDetailRecord?
+      supportFilledSnapshot (.ok supportFilledCoverage) supportOutside)
+    "Scheduled Plan Detail lost its selected outside-pace occurrence"
+  expect (outsideRecord.id.token == "support-nov")
+    "Scheduled Plan Detail j/k did not move directly to the next occurrence"
+  let cancelOutside :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      supportFilledSnapshot (.ok supportFilledCoverage) supportOutside .cancelScheduled
+  expect (cancelOutside.command == .cancelScheduled)
+    "Scheduled Plan Detail could not cancel an explicit outside-pace occurrence directly"
+
+  let supportMissing :=
+    (List.range 5).foldl
+      (fun current _ =>
+        (Loam.Tui.ScheduledWorkspace.updateWithCoverage
+          supportFilledSnapshot (.ok supportFilledCoverage) current .next).state)
+      supportPlan
+  expect
+    ((Loam.Tui.ScheduledWorkspace.selectedPlanDetailRecord?
+      supportFilledSnapshot (.ok supportFilledCoverage) supportMissing).isNone)
+    "Scheduled Plan Detail missing marker unexpectedly became an explicit occurrence"
+  let cancelMissing :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage
+      supportFilledSnapshot (.ok supportFilledCoverage) supportMissing .cancelScheduled
+  expect (cancelMissing.command == .stay && contains "missing monitored month" cancelMissing.state.notice)
+    "Scheduled Plan Detail did not protect a presentation-only missing row from cancellation"
 
   let coverageFill :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .fillCurrentCycle
   expect (coverageFill.command == .stay && contains "Use e" coverageFill.state.notice)
-    "Scheduled overview compatibility fill action did not redirect to simple extension"
+    "Scheduled overview compatibility fill action did not redirect to replenishment"
 
   let board :=
     (Loam.Tui.ScheduledWorkspace.updateWithCoverage

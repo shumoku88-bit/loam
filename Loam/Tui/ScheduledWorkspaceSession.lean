@@ -94,8 +94,24 @@ private def selectedActionRecord?
     Option Loam.Tui.Main.ScheduledRecord :=
   match state.viewMode with
   | .coverage => Loam.Tui.ScheduledWorkspace.selectedCoverageRecord? snapshot coverage state
+  | .planDetail =>
+      match Loam.Tui.ScheduledWorkspace.selectedPlanDetailRecord? snapshot coverage state with
+      | some record => some record
+      | none => Loam.Tui.ScheduledWorkspace.selectedCoverageRecord? snapshot coverage state
   | .futureBoard => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
   | .list => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
+
+private def selectedOccurrenceActionRecord?
+    (snapshot : Snapshot)
+    (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
+    (state : Loam.Tui.ScheduledWorkspace.State) :
+    Option Loam.Tui.Main.ScheduledRecord :=
+  match state.viewMode with
+  | .planDetail =>
+      Loam.Tui.ScheduledWorkspace.selectedPlanDetailRecord? snapshot coverage state
+  | .coverage => none
+  | .futureBoard | .list =>
+      Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
 
 private def selectedExtensionRecord?
     (snapshot : Snapshot)
@@ -103,7 +119,7 @@ private def selectedExtensionRecord?
     (state : Loam.Tui.ScheduledWorkspace.State) :
     Option Loam.Tui.Main.ScheduledRecord :=
   match state.viewMode with
-  | .coverage =>
+  | .coverage | .planDetail =>
       Loam.Tui.ScheduledWorkspace.selectedCoverageReplenishmentRecord?
         snapshot coverage state
   | .futureBoard => Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state
@@ -115,7 +131,7 @@ private def selectedMonitoringShape?
     (state : Loam.Tui.ScheduledWorkspace.State) :
     Option (List String × List String) :=
   match state.viewMode with
-  | .coverage =>
+  | .coverage | .planDetail =>
       (Loam.Tui.ScheduledWorkspace.selectedCoverageRow? coverage state).map fun row =>
         (row.rule.negativeLoci, row.rule.positiveLoci)
   | .futureBoard =>
@@ -147,6 +163,7 @@ def eventOfKey
   | .enter =>
       match viewMode with
       | .coverage => .openSelectedPlan
+      | .planDetail => .completeScheduled
       | .futureBoard =>
           match pane with
           | .loci => .other
@@ -197,7 +214,7 @@ partial def run
       | none =>
           let notice :=
             match step.state.viewMode with
-            | .coverage =>
+            | .coverage | .planDetail =>
                 "No explicit Scheduled occurrence on the monitored pace is available before the first gap."
             | .futureBoard | .list =>
                 "No Scheduled plan is selected to extend."
@@ -343,7 +360,7 @@ partial def run
           Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
           run bounds dataDir root reload snapshot freshCoverage next nextFrame
   | .completeScheduled =>
-      match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
+      match selectedOccurrenceActionRecord? snapshot coverage step.state with
       | none =>
           let next := { step.state with notice := "No current-open Scheduled occurrence is selected for completion." }
           let nextFrame := workspaceFrame bounds snapshot coverage next
@@ -384,7 +401,7 @@ partial def run
               Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .cancelScheduled =>
-      match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
+      match selectedOccurrenceActionRecord? snapshot coverage step.state with
       | none =>
           let next := { step.state with notice := "No current-open Scheduled occurrence is selected for cancellation." }
           let nextFrame := workspaceFrame bounds snapshot coverage next
@@ -405,7 +422,7 @@ partial def run
           Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
           run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .replaceScheduled =>
-      match Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot step.state with
+      match selectedOccurrenceActionRecord? snapshot coverage step.state with
       | none =>
           let next := { step.state with notice := "No current-open Scheduled occurrence is selected for supersede." }
           let nextFrame := workspaceFrame bounds snapshot coverage next
