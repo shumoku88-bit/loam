@@ -98,7 +98,6 @@ abbrev CoverageEvidence := Except String Loam.ScheduledCoverageReview.Snapshot
 inductive PlanDetailEntry where
   | occurrence (record : Record) (onPace : Bool)
   | missing (month : String)
-  deriving Repr
 
 private def planDetailEntryKey : PlanDetailEntry → String
   | .occurrence record _ => record.scheduledOn
@@ -900,13 +899,13 @@ private def planDetailWindowStart (state : State) : Nat :=
 
 private def planDetailEntryLine
     (state : State) (index : Nat) (entry : PlanDetailEntry) : Widget :=
-  let prefix := if index == state.planRow then "> " else "  "
+  let marker := if index == state.planRow then "> " else "  "
   match entry with
   | .missing month =>
-      plainLine (prefix ++ month ++ "  --      MISSING monitored month")
+      plainLine (marker ++ month ++ "  --      MISSING monitored month")
   | .occurrence record onPace =>
       let status := if onPace then "on pace" else "outside pace"
-      plainLine (prefix ++ record.scheduledOn ++ "  " ++
+      plainLine (marker ++ record.scheduledOn ++ "  " ++
         Loam.ScheduledReview.summary record ++ "  [" ++ status ++ "]")
 
 private def planDetailFooter (bounds : Bounds) : List Widget :=
