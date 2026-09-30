@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/CapacityAuthority.lean'
-      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
       - 'Loam/Review/CapacityReview.lean'
       - 'Loam/CapacityEvidence.lean'
       - 'Loam/Application/CapacityInspection.lean'
@@ -26,7 +26,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/CapacityAuthority.lean'
-      - 'Loam/CapacityPublisher.lean'
+      - 'Loam/Publisher/CapacityPublisher.lean'
       - 'Loam/Review/CapacityReview.lean'
       - 'Loam/CapacityEvidence.lean'
       - 'Loam/Application/CapacityInspection.lean'
@@ -56,7 +56,7 @@ jobs:
       - name: Install Lean and build shared Capacity publisher
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.CapacityAuthority Loam.CapacityPublisher Loam.Review.CapacityReview
+          build-args: Loam.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.CapacityAuthority Loam.Publisher.CapacityPublisher Loam.Review.CapacityReview
       - name: Verify shared Capacity publication
         run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
       - name: Verify normalized Capacity round trip

@@ -1,4 +1,4 @@
-import Loam.CapacityPublisher
+import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
 import Loam.Tui.CapacityTransfer
 import Lean.Elab.Tactic.Omega
