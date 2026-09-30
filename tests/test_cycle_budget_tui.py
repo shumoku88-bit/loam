@@ -272,9 +272,11 @@ try:
         assert process2.poll() is None, "TUI exited after retaining Scheduled startup refusal"
 
         os.write(master2, b"s")
-        scheduled_screen = wait_for_fd(master2, "Scheduled [Unavailable]")
-        assert "Household Scheduled Workspace" in scheduled_screen
-        assert process2.poll() is None, "TUI exited while showing unavailable Scheduled workspace"
+        scheduled_screen = wait_for_fd(master2, "[Coverage unavailable]")
+        assert "Scheduled" in scheduled_screen
+        assert "Scheduled lifecycle authority is missing, malformed, or unsupported" in scheduled_screen
+        assert "Months and List remain available with v." in scheduled_screen
+        assert process2.poll() is None, "TUI exited while showing unavailable Scheduled coverage"
         os.write(master2, b"q")
         wait_for_fd(master2, "LOAM Home")
 
