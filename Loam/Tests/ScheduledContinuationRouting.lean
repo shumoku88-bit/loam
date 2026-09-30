@@ -2,7 +2,7 @@ import Loam.ActualDate
 import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
-import Loam.ScheduledContinuationRouting
+import Loam.Application.ScheduledContinuationRouting
 import Loam.Publisher.ScheduledRoutingPublisher
 
 open Loam.Core
@@ -224,7 +224,7 @@ def main (args : List String) : IO Unit := do
   -- -------------------------------------------------------------
   -- Qualification 7: Shared module does not import Loam.Tui
   -- -------------------------------------------------------------
-  let moduleSource ← IO.FS.readFile "Loam/ScheduledContinuationRouting.lean"
+  let moduleSource ← IO.FS.readFile "Loam/Application/ScheduledContinuationRouting.lean"
   expect (!moduleSource.contains "Loam.Tui")
     "Q7: Loam.ScheduledContinuationRouting must not import Loam.Tui"
 

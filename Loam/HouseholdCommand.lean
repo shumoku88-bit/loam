@@ -11,7 +11,7 @@ import Loam.Publisher.SettlementActionPublisher
 import Loam.Publisher.ScheduledCreationPublisher
 import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Publisher.ScheduledReplacementPublisher
-import Loam.ScheduledContinuationRouting
+import Loam.Application.ScheduledContinuationRouting
 import Loam.Publisher.AttentionPublisher
 import Loam.Publisher.CapacityPublisher
 import Loam.Publisher.ActualRoutingPublisher
