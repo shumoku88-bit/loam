@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.CapacityPublisher
+import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
 import Loam.Review.CycleBudgetReview
