@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/OperationalContinuity.lean'
-      - 'Loam/ActualAuthority.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
       - 'Loam/MovementWorldLoader.lean'
       - 'Loam/Cli/DoctorCli.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
