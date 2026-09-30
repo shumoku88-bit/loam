@@ -840,6 +840,35 @@
         "EverySourceBackedObligationHasPriorPromise": true,
         "RetainedPriorPromisePrecedesSourceEvent": false
       }
+    },
+    {
+      "id": "scheduled-plan-projection-boundary",
+      "observation": "Observation 380",
+      "jobName": "Qualify Scheduled plan projection boundary",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "experiments/380_scheduled_plan_projection_boundary.als",
+      "paths": [
+        "experiments/380_scheduled_plan_projection_boundary.als",
+        "experiments/380_scheduled_plan_projection_boundary.md"
+      ],
+      "expected": {
+        "sameLifecycleDifferentMonitoringChangesProjection": true,
+        "sameRetainedDifferentTerminalChangesGap": true,
+        "outsidePaceOccurrenceRemainsActionable": true,
+        "terminalExpectedMonthBecomesGap": true,
+        "latestExplicitCanDifferFromReplenishmentSource": true,
+        "replenishmentWitness": true,
+        "monitoringOnlyChangeCanRelabelWithoutLifecycleMutation": true,
+        "SameOpenAndMonitoringDetermineProjection": false,
+        "MissingMonthCannotSelectExplicitActionTarget": false,
+        "TerminalOccurrenceIsNeverActionTarget": false,
+        "ReplenishmentSourceIsExpectedAndBeforeFirstGap": false,
+        "ReplenishmentPreservesExistingLifecycleEvidence": false,
+        "ReplenishmentFillsFirstGap": false,
+        "MonitoringOnlyChangePreservesLifecycleEvidence": false
+      }
     }
   ]
 }
