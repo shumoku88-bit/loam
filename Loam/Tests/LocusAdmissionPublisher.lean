@@ -1,6 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.MovementWorldLoader
-import Loam.LocusAdmissionPublisher
+import Loam.Publisher.LocusAdmissionPublisher
 
 open Loam.Core
 
