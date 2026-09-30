@@ -455,8 +455,23 @@ def main : IO Unit := do
   expect (contains "Selected Scheduled Details:" boardText)
     "Scheduled Months view lost the shared selected-record details"
   let boardLeft := (Loam.Tui.ScheduledWorkspace.update snapshot board .focusLeft).state
-  expect (boardLeft.pane == .occurrences && contains "Months uses one Scheduled selection" boardLeft.notice)
-    "Scheduled Months view unexpectedly entered the Locus pane"
+  expect (boardLeft.pane == .occurrences && boardLeft.futureBoardMonthOffset == 0 &&
+    contains "current calendar month" boardLeft.notice)
+    "Scheduled Months left navigation did not stop cleanly at the current month"
+  let boardRight :=
+    (Loam.Tui.ScheduledWorkspace.update snapshot board .focusRight).state
+  expect (boardRight.futureBoardMonthOffset == 1 && boardRight.pane == .occurrences)
+    "Scheduled Months right navigation did not shift the six-month window"
+  let boardRightText := widgetText
+    (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } snapshot boardRight)
+  expect (contains "2026-10 .. 2027-03" boardRightText &&
+    contains "[2026-10]" boardRightText && contains "[2027-03]" boardRightText &&
+    contains "horizontal wheel" boardRightText)
+    "Scheduled Months shifted window did not render the expected later calendar range"
+  let boardBack :=
+    (Loam.Tui.ScheduledWorkspace.update snapshot boardRight .focusLeft).state
+  expect (boardBack.futureBoardMonthOffset == 0)
+    "Scheduled Months left navigation did not return to the previous calendar window"
   let boardFilter := (Loam.Tui.ScheduledWorkspace.update snapshot board .cycleFilter).state
   expect (boardFilter.scope == .allCurrent &&
     contains "Months always uses the current-open frontier" boardFilter.notice)

@@ -41,6 +41,7 @@ structure State where
   occurrenceRow : Nat := 0
   coverageRow : Nat := 0
   coverageMonthOffset : Nat := 0
+  futureBoardMonthOffset : Nat := 0
   planRow : Nat := 0
   notice : String := ""
   deriving Repr, DecidableEq
@@ -299,6 +300,33 @@ private def clampState (snapshot : Snapshot) (state : State) : State :=
     if occCount = 0 then 0 else min withLocus.occurrenceRow (occCount - 1)
   { withLocus with occurrenceRow := occurrenceRow }
 
+private def monthOrdinal (month : Loam.Tui.Calendar.Month) : Nat :=
+  month.year * 12 + (month.month - 1)
+
+private def futureBoardBaseMonth (snapshot : Snapshot) : Loam.Tui.Calendar.Month :=
+  (Loam.Tui.Calendar.monthOf? snapshot.actual.today).getD { year := 1970, month := 1 }
+
+private def followFutureBoardSelection (snapshot : Snapshot) (state : State) : State :=
+  match selectedRecord? snapshot state with
+  | none => state
+  | some record =>
+      match Loam.Tui.Calendar.monthOf? record.scheduledOn with
+      | none => state
+      | some selectedMonth =>
+          let baseOrdinal := monthOrdinal (futureBoardBaseMonth snapshot)
+          let selectedOrdinal := monthOrdinal selectedMonth
+          if selectedOrdinal < baseOrdinal then
+            { state with futureBoardMonthOffset := 0 }
+          else
+            let selectedOffset := selectedOrdinal - baseOrdinal
+            let start := state.futureBoardMonthOffset
+            if selectedOffset < start then
+              { state with futureBoardMonthOffset := selectedOffset }
+            else if start + 6 ≤ selectedOffset then
+              { state with futureBoardMonthOffset := selectedOffset - 5 }
+            else
+              state
+
 def refreshed (snapshot : Snapshot) (state : State) : State :=
   clampState snapshot { state with notice := "" }
 
@@ -349,7 +377,7 @@ def updateWithCoverage
             { state := { state with notice := "Already at the first plan entry." } }
           else
             { state := { state with planRow := state.planRow - 1, notice := "" } }
-      | .futureBoard => { state := movePrevious snapshot state }
+      | .futureBoard => { state := followFutureBoardSelection snapshot (movePrevious snapshot state) }
       | .list => { state := movePrevious snapshot state }
   | .next =>
       match state.viewMode with
@@ -368,7 +396,7 @@ def updateWithCoverage
                 { state := { state with planRow := state.planRow + 1, notice := "" } }
               else
                 { state := { state with notice := "Already at the last plan entry." } }
-      | .futureBoard => { state := moveNext snapshot state }
+      | .futureBoard => { state := followFutureBoardSelection snapshot (moveNext snapshot state) }
       | .list => { state := moveNext snapshot state }
   | .focusLeft =>
       match state.viewMode with
@@ -382,7 +410,12 @@ def updateWithCoverage
       | .planDetail =>
           { state := { state with notice := "Plan Detail uses one vertical plan list; j/k moves the selection." } }
       | .futureBoard =>
-          { state := { state with notice := "Months uses one Scheduled selection; press v for List." } }
+          if state.futureBoardMonthOffset = 0 then
+            { state := { state with notice := "Already at the current calendar month." } }
+          else
+            { state := { state with
+                futureBoardMonthOffset := state.futureBoardMonthOffset - 1
+                notice := "" } }
       | .list => { state := { state with pane := .loci, notice := "" } }
   | .focusRight =>
       match state.viewMode with
@@ -400,7 +433,9 @@ def updateWithCoverage
       | .planDetail =>
           { state := { state with notice := "Plan Detail uses one vertical plan list; j/k moves the selection." } }
       | .futureBoard =>
-          { state := { state with notice := "Months uses one Scheduled selection; press v for List." } }
+          { state := { state with
+              futureBoardMonthOffset := state.futureBoardMonthOffset + 1
+              notice := "" } }
       | .list => { state := { state with pane := .occurrences, notice := "" } }
   | .cycleFilter =>
       match state.viewMode with
@@ -421,6 +456,7 @@ def updateWithCoverage
                 pane := .occurrences
                 locusRow := 0
                 occurrenceRow := 0
+                futureBoardMonthOffset := 0
                 notice := "" } }
       | .planDetail =>
           { state := { state with viewMode := .coverage, notice := "" } }
@@ -756,9 +792,14 @@ private def monthsFrom
   | 0 => []
   | n + 1 => month :: monthsFrom (Loam.Tui.Calendar.nextMonth month) n
 
-private def futureBoardMonths (snapshot : Snapshot) : List Loam.Tui.Calendar.Month :=
-  let start :=
-    (Loam.Tui.Calendar.monthOf? snapshot.actual.today).getD { year := 1970, month := 1 }
+private def monthAfter
+    (month : Loam.Tui.Calendar.Month) : Nat → Loam.Tui.Calendar.Month
+  | 0 => month
+  | n + 1 => monthAfter (Loam.Tui.Calendar.nextMonth month) n
+
+private def futureBoardMonths
+    (snapshot : Snapshot) (state : State) : List Loam.Tui.Calendar.Month :=
+  let start := monthAfter (futureBoardBaseMonth snapshot) state.futureBoardMonthOffset
   monthsFrom start 6
 
 private def recordDay (record : Record) : String :=
@@ -822,7 +863,7 @@ private def emptyMonthCard (height : Nat) : Widget :=
   .column (List.replicate height (.row []))
 
 private def futureBoardDetailedHelp : String :=
-  "[j/k] select  [e] extend  [s] undecided  [v] List  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+  "[j/k or wheel] select  [h/l or ←/→] months  [e] extend  [s] undecided  [v] List  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
 
 private def futureBoardFooterRowCount (bounds : Bounds) : Nat :=
   if Loam.Tui.Layout.displayWidth futureBoardDetailedHelp ≤
@@ -846,7 +887,7 @@ private def futureBoardRows
   else
     let leftWidth := (writable - 3) / 2
     let rightWidth := writable - leftWidth - 3
-    let months := futureBoardMonths snapshot
+    let months := futureBoardMonths snapshot state
     let selectedId? := (selectedRecord? snapshot state).map fun record => record.id.token
     let cardHeight := futureBoardCardHeight bounds snapshot state
     let maxVisible := cardHeight - 2
@@ -865,21 +906,25 @@ private def futureBoardFooter (bounds : Bounds) : List Widget :=
   if futureBoardFooterRowCount bounds = 1 then
     [mutedLine futureBoardDetailedHelp]
   else
-    [ mutedLine "[j/k] select [e] extend [s] undecided [v] List [n] new [q] back"
-    , mutedLine "[c/Enter] complete [r] replace [x] cancel"
+    [ mutedLine "[j/k or wheel] select [h/l or ←/→] months [e] extend [s] undecided"
+    , mutedLine "[v] List [n] new [c/Enter] complete [r] replace [x] cancel [q] back"
     ]
 
 private def futureBoardView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := clampState snapshot rawState
+  let months := futureBoardMonths snapshot state
   let startMonth :=
-    (futureBoardMonths snapshot).head?.getD { year := 1970, month := 1 }
+    months.head?.getD { year := 1970, month := 1 }
+  let endMonth :=
+    months.getLast?.getD startMonth
   let body :=
     [ rule bounds '='
     , plainLine " Scheduled / Months"
-    , mutedLine (" Explicit current-open plans by calendar month, starting " ++
-        Loam.Tui.Calendar.monthLabel startMonth)
-    , mutedLine " Calendar grouping is presentation only; no recurrence or month authority is inferred."
+    , mutedLine (" Explicit current-open plans: " ++
+        Loam.Tui.Calendar.monthLabel startMonth ++ " .. " ++
+        Loam.Tui.Calendar.monthLabel endMonth)
+    , mutedLine " Wheel/j/k moves the selected plan; h/l or horizontal wheel freely shifts the six-month window."
     , rule bounds '='
     ] ++
     futureBoardRows bounds snapshot state ++
