@@ -1,6 +1,8 @@
 # Let's Kakeibo -> LOAM translation notes
 
-Status: **tentative research mapping; no implementation commitment**
+> For the concluded classification, see [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md). For the minimal implementation hypothesis, see [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md).
+
+Status: **superseded as the exploratory mapping by the research conclusion; retained for traceability**
 
 ## 1. Do not clone the data model
 
