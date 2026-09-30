@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Review.ActualReview
 import Loam.HouseholdPaths
 import Loam.Review.TransactionsFlowReview

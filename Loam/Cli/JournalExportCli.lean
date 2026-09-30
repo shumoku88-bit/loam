@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualJournalProjection
 import Loam.Persistence.SiblingStage
 import Loam.WriterOwnership

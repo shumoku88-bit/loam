@@ -49,7 +49,7 @@ generation.
 `Loam/Persistence/NormalizedActualPersistence.lean` owns normalized decoding
 into that image.
 
-`Loam/ActualAuthority.lean` exposes the canonical image loading boundary.
+`Loam/Authority/ActualAuthority.lean` exposes the canonical image loading boundary.
 
 ## Why this image exists
 

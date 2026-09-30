@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Review.BudgetWindowReview
 import Loam.Authority.CapacityAuthority
 import Loam.Persistence.ActualRoutingPersistence

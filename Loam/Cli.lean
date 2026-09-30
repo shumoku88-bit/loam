@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Cli.CurrentQuantityAnchorCli
 import Loam.Cli.ReviewCli
 import Loam.WriterOwnership

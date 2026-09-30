@@ -1,5 +1,5 @@
 import Loam.HouseholdPaths
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.HouseholdCommand
 import Loam.LocusCatalog

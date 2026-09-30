@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
 open Loam.Core

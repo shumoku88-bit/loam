@@ -5,7 +5,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Review/MerchantExpenseReview.lean'
-      - 'Loam/ActualAuthority.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
       - 'Loam/Review/ActualReview.lean'
       - 'Loam/Review/TransactionsFlowReview.lean'
       - 'Loam/Core/AccountingRole.lean'
@@ -22,7 +22,7 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Review/MerchantExpenseReview.lean'
-      - 'Loam/ActualAuthority.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
       - 'Loam/Review/ActualReview.lean'
       - 'Loam/Review/TransactionsFlowReview.lean'
       - 'Loam/Core/AccountingRole.lean'

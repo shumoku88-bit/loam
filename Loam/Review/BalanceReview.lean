@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Application.CorrectionFrontier
 import Loam.Config.BalanceViewConfig
 import Loam.HouseholdPaths

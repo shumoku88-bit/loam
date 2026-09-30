@@ -1,5 +1,5 @@
 import Loam.HouseholdPaths
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.ScheduledOpenWorldInspection
 import Loam.Persistence.ScheduledLifecyclePersistence

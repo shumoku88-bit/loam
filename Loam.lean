@@ -2,7 +2,7 @@ import Loam.Core
 import Loam.Application
 import Loam.Persistence.TextEscape
 import Loam.ActualEvidence
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.MovementWorldAdapter
 import Loam.MovementWorldLoader

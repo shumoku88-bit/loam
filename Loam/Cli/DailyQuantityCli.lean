@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Config.BalanceViewConfig
 import Loam.Persistence.ZeroOriginCoveragePersistence
 import Std

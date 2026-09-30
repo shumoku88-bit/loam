@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.HouseholdCommand
 import Loam.LocusAdmissionAuthority
 import Loam.Tests.DeterministicScenarioSupport

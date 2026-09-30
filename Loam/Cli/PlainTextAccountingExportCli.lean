@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualJournalProjection
 import Loam.MeasurePresentation
 import Loam.Persistence.AccountingRolePersistence

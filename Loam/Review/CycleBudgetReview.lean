@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Review.CurrentBalanceReview
 import Loam.Config.CycleFundingConfig
 import Loam.CycleFundingInspection

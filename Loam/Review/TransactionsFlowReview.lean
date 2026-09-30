@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Review.ActualReview
 import Std.Data.HashMap

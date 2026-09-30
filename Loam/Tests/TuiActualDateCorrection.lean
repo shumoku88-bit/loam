@@ -1,5 +1,5 @@
 import Loam.Tests.ActualWorldFixture
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.ActualDateCorrection
 import Loam.Review.ActualReview

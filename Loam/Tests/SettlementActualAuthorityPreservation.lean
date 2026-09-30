@@ -1,4 +1,4 @@
-import Loam.ActualAuthority
+import Loam.Authority.ActualAuthority
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Publisher.EventMerchantPublisher
 import Loam.Persistence.NormalizedActualPersistence
