@@ -148,7 +148,7 @@ TUI, routing write, or household recovery is part of Stage B.
 ## Stage C: read-only cycle budget workspace
 
 Stage C introduces the read-only cycle Budget workspace (`Loam/Tui/CycleBudget.lean`,
-`Loam/CycleBudgetReview.lean`, `Loam/CycleFundingConfig.lean`) accessed via `c` from
+`Loam/CycleBudgetReview.lean`, `Loam/Config/CycleFundingConfig.lean`) accessed via `c` from
 LOAM Home.
 
 ### Semantic boundaries and evidence flow
