@@ -2,7 +2,7 @@ import Loam.Core.EventMemory
 import Loam.Core.OpeningSupport
 import Loam.Core.ZeroOriginCoverage
 import Loam.Application.CurrentQuantityAnchor
-import Loam.CurrentQuantityPresence
+import Loam.Application.CurrentQuantityPresence
 
 namespace Loam.Application.CurrentSupportRouting
 
