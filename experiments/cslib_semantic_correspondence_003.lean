@@ -1,4 +1,4 @@
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 
 namespace Loam.Experiments.CSLibSemanticCorrespondence003
 

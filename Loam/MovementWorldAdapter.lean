@@ -1,6 +1,6 @@
 import Loam.ActualEvidence
 import Loam.Core.LocusAdmission
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 
 namespace Loam.MovementWorldAdapter
 

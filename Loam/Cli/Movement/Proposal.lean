@@ -1,6 +1,6 @@
 import Loam.Core.Event
 import Loam.Core.MovementOperationEvidence
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 import Loam.Cli.Movement.RelationEntry
 import Loam.Cli.Movement.DischargeEntry
 import Loam.Persistence.TokenSyntax

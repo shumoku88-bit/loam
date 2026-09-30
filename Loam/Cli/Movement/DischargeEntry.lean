@@ -1,5 +1,5 @@
 import Loam.Core.OpenRelation
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 import Loam.Persistence.TokenSyntax
 
 namespace Loam.MovementDischargeEntry

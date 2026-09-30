@@ -1,7 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.ActualEvidence
 import Loam.Authority.LocusAdmissionAuthority
-import Loam.MovementAdmission
+import Loam.Application.MovementAdmission
 import Loam.MovementWorldAdapter
 import Loam.Persistence.TokenSyntax
 
