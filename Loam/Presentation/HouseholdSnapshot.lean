@@ -7,7 +7,7 @@ import Loam.PurposeCatalog
 import Loam.Presentation.ReadState
 import Loam.Review.RoleBalanceReview
 import Loam.Review.RoleFlowReview
-import Loam.ScheduledReview
+import Loam.Review.ScheduledReview
 import Loam.Review.StockFlowReview
 import Loam.Review.TransactionsFlowReview
 
