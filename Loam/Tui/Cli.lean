@@ -4,7 +4,7 @@ import Loam.MovementWorldLoader
 import Loam.HouseholdCommand
 import Loam.LocusCatalog
 import Loam.MeasurePresentation
-import Loam.PurposeCatalog
+import Loam.Presentation.PurposeCatalog
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Record

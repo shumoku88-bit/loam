@@ -3,7 +3,7 @@ import Loam.Review.AttentionReview
 import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.Review.CycleSpendingPaceReview
-import Loam.PurposeCatalog
+import Loam.Presentation.PurposeCatalog
 import Loam.Presentation.ReadState
 import Loam.Review.RoleBalanceReview
 import Loam.Review.RoleFlowReview

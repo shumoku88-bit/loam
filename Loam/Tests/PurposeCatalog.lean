@@ -1,4 +1,4 @@
-import Loam.PurposeCatalog
+import Loam.Presentation.PurposeCatalog
 
 open Loam.Core
 set_option autoImplicit false
