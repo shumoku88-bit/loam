@@ -10,3 +10,6 @@ require leansqlite from git
 
 lean_exe sqliteProjectionExperiment where
   root := `Main
+
+lean_exe sqliteProjectionScaleBenchmark where
+  root := `ScaleBenchmark
