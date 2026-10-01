@@ -23,17 +23,25 @@ private def capacityChange
 private def locusChange (locus : LocusId) (quanta : Int) : MovementChange LocusId :=
   { coordinate := locus, quantity := Quantity.ofQuanta quanta }
 
-private def allocation
-    (id purpose : String) (amount : Int) : IO CapacityMovement := do
+private def allocationForMeasure
+    (measure : MeasureId) (id purpose : String) (amount : Int) : IO CapacityMovement := do
   let balanced ← requireSome
-    (BalancedMovement.ofChanges? ⟨"jpy"⟩
+    (BalancedMovement.ofChanges? measure
       [capacityChange .unallocated (-amount),
        capacityChange (.purpose ⟨purpose⟩) amount])
     "capacity allocation was not balanced"
   return { id := ⟨id⟩, movement := balanced }
 
+private def allocation
+    (id purpose : String) (amount : Int) : IO CapacityMovement :=
+  allocationForMeasure ⟨"jpy"⟩ id purpose amount
+
+private def effectForMeasure
+    (measure : MeasureId) (id locus : String) (quanta : Int) : Effect :=
+  Effect.ofQuantity ⟨id⟩ ⟨locus⟩ measure (Quantity.ofQuanta quanta)
+
 private def effect (id locus : String) (quanta : Int) : Effect :=
-  Effect.ofQuantity ⟨id⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
+  effectForMeasure ⟨"jpy"⟩ id locus quanta
 
 private def movementWorld : IO Loam.MovementAdmission.World := do
   let oldActual ← requireSome
@@ -48,13 +56,19 @@ private def movementWorld : IO Loam.MovementAdmission.World := do
     (Event.ofEffects? ⟨"actual-future"⟩
       [effect "future-pay" "paypay" (-80), effect "future-use" "expenses:food" 80])
     "future Actual fixture"
+  let usdActual ← requireSome
+    (Event.ofEffects? ⟨"actual-usd"⟩
+      [effectForMeasure ⟨"usd"⟩ "usd-pay" "paypay" (-40),
+       effectForMeasure ⟨"usd"⟩ "usd-use" "expenses:food" 40])
+    "USD Actual fixture"
   let events ← requireSome
-    (EventMemory.ofEvents? [oldActual, actual, futureActual]) "Event memory"
+    (EventMemory.ofEvents? [oldActual, actual, futureActual, usdActual]) "Event memory"
   let validity : ActualValidityHistory String := {
     facts := [
       .base ⟨"actual-old"⟩ "2026-08-14",
       .base ⟨"actual-1"⟩ "2026-09-08",
-      .base ⟨"actual-future"⟩ "2026-09-09"]
+      .base ⟨"actual-future"⟩ "2026-09-09",
+      .base ⟨"actual-usd"⟩ "2026-09-08"]
     factRefNodup := by decide
     corrections := []
     correctionIdNodup := by simp
@@ -68,12 +82,16 @@ private def movementWorld : IO Loam.MovementAdmission.World := do
     locusAdmission := .empty
   }
 
-private def scheduledOccurrence : IO (ScheduledOccurrence String) := do
+private def scheduledOccurrenceForMeasure
+    (measure : MeasureId) (id : String) (amount : Int) : IO (ScheduledOccurrence String) := do
   let movement ← requireSome
-    (BalancedMovement.ofChanges? ⟨"jpy"⟩
-      [locusChange ⟨"paypay"⟩ (-35), locusChange ⟨"fixed-expense"⟩ 35])
+    (BalancedMovement.ofChanges? measure
+      [locusChange ⟨"paypay"⟩ (-amount), locusChange ⟨"fixed-expense"⟩ amount])
     "Scheduled movement was not balanced"
-  return { id := ⟨"scheduled-1"⟩, scheduledOn := "2026-09-10", movement := movement }
+  return { id := ⟨id⟩, scheduledOn := "2026-09-10", movement := movement }
+
+private def scheduledOccurrence : IO (ScheduledOccurrence String) :=
+  scheduledOccurrenceForMeasure ⟨"jpy"⟩ "scheduled-1" 35
 
 private def findRow?
     (snapshot : Loam.CurrentCoverageReview.Snapshot)
@@ -91,13 +109,15 @@ def main (args : List String) : IO Unit := do
   let general ← allocation "capacity-general" "general" 50
   let future ← allocation "capacity-future" "food" 600
   let previous ← allocation "capacity-previous" "food" 200
+  let usdFood ← allocationForMeasure ⟨"usd"⟩ "capacity-usd-food" "food" 250
   let capacity ← requireSome
-    (CapacityMemory.ofMovements? [food, general, future, previous]) "Capacity memory"
+    (CapacityMemory.ofMovements? [food, general, future, previous, usdFood]) "Capacity memory"
   let effective ← requireSome (CapacityEffectiveMemory.ofEntries?
     [{ movement := food.id, effectiveOn := "2026-09-08" },
      { movement := general.id, effectiveOn := "2026-09-08" },
      { movement := future.id, effectiveOn := "2026-10-08" },
-     { movement := previous.id, effectiveOn := "2026-08-14" }]) "Capacity effective"
+     { movement := previous.id, effectiveOn := "2026-08-14" },
+     { movement := usdFood.id, effectiveOn := "2026-09-08" }]) "Capacity effective"
   let evidence ← requireSome (Loam.CapacityEvidence.ofParts? capacity effective) "Capacity evidence"
   let .ok _ ← Loam.CapacityAuthority.publishImage? (root / "capacity.loam") evidence
     | throw (IO.userError "publish Capacity evidence")
@@ -117,8 +137,9 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "publish selected Movement world")
 
   let scheduled ← scheduledOccurrence
+  let usdScheduled ← scheduledOccurrenceForMeasure ⟨"usd"⟩ "scheduled-usd" 15
   let scheduledMemory ← requireSome
-    (ScheduledMemory.ofOccurrences? [scheduled]) "Scheduled memory"
+    (ScheduledMemory.ofOccurrences? [scheduled, usdScheduled]) "Scheduled memory"
   let terminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals? []) "empty Scheduled terminal memory"
   expect (← Loam.Persistence.saveScheduledLifecycleImage?
@@ -131,6 +152,11 @@ def main (args : List String) : IO Unit := do
     (RoutingHistory.ofEntries?
       [{ subject := {
            scheduled := ⟨"scheduled-1"⟩
+           locus := (⟨"fixed-expense"⟩ : LocusId) }
+         effectiveOn := "2026-09-08"
+         purpose := some ⟨"food"⟩ },
+       { subject := {
+           scheduled := ⟨"scheduled-usd"⟩
            locus := (⟨"fixed-expense"⟩ : LocusId) }
          effectiveOn := "2026-09-08"
          purpose := some ⟨"food"⟩ }])
@@ -170,6 +196,30 @@ def main (args : List String) : IO Unit := do
     "baseline invented unrouted Actual Expense rows"
   expect (snapshot.actualRoutingFrontier.unresolvedRole.isEmpty)
     "baseline invented role-unresolved Actual rows"
+
+  let .ok usdSnapshot ←
+      Loam.CurrentCoverageReview.loadSnapshotAtForMeasure ⟨"usd"⟩
+        root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+    | throw (IO.userError "USD current coverage review refused valid fixture")
+  expect (usdSnapshot.measure == ⟨"usd"⟩)
+    "CurrentCoverage lost the requested Measure"
+  let usdFoodRow ← requireSome (findRow? usdSnapshot "food") "missing USD food row"
+  expect (usdFoodRow.entitlement.quanta == 250) "USD food Entitlement"
+  expect (usdFoodRow.consumption.quanta == 40) "USD food Consumption"
+  expect (usdFoodRow.remaining.quanta == 210) "USD food Remaining"
+  expect (usdFoodRow.commitment.quanta == 15) "USD food Commitment"
+  expect (usdFoodRow.headroom.quanta == 195) "USD food Headroom"
+  let usdGeneralRow ← requireSome (findRow? usdSnapshot "general") "missing USD general row"
+  expect
+    (usdGeneralRow.entitlement.quanta == 0 &&
+      usdGeneralRow.consumption.quanta == 0 &&
+      usdGeneralRow.commitment.quanta == 0)
+    "JPY-only Purpose evidence leaked into the USD coverage projection"
+  expect
+    (usdSnapshot.actualRoutingFrontier.unroutedExpense.isEmpty &&
+      usdSnapshot.actualRoutingFrontier.unresolvedRole.isEmpty)
+    "USD coverage invented an Actual routing frontier"
+
 
   -- A route that starts after the Actual occurrence must not rewrite history.
   -- CurrentCoverage keeps its numeric Purpose answer but now exposes the exact
@@ -227,6 +277,7 @@ def main (args : List String) : IO Unit := do
       .base ⟨"actual-old"⟩ "2026-08-14",
       .base ⟨"actual-1"⟩ "2026-09-08",
       .base ⟨"actual-future"⟩ "2026-09-09",
+      .base ⟨"actual-usd"⟩ "2026-09-08",
       .base ⟨"actual-1-r1"⟩ "2026-09-08"
     ]
     factRefNodup := by decide
