@@ -14,6 +14,11 @@ on:
       - 'Loam/Review/BalanceReview.lean'
       - 'Loam/Review/HistoricalBalanceReview.lean'
       - 'Loam/Review/OpeningPositionReview.lean'
+      - 'Loam/Export/WealthfolioExport.lean'
+      - 'Loam/Export/WealthfolioExportPipeline.lean'
+      - 'Loam/Cli/WealthfolioExportCli.lean'
+      - 'Loam/Tests/WealthfolioExport.lean'
+      - 'docs/WEALTHFOLIO.md'
       - 'Loam/Core/BoundedHistorySupport.lean'
       - 'Loam/Application/CurrentQuantityAnchor.lean'
       - 'Loam/Application/CurrentQuantityPresence.lean'
@@ -60,6 +65,11 @@ on:
       - 'Loam/Review/BalanceReview.lean'
       - 'Loam/Review/HistoricalBalanceReview.lean'
       - 'Loam/Review/OpeningPositionReview.lean'
+      - 'Loam/Export/WealthfolioExport.lean'
+      - 'Loam/Export/WealthfolioExportPipeline.lean'
+      - 'Loam/Cli/WealthfolioExportCli.lean'
+      - 'Loam/Tests/WealthfolioExport.lean'
+      - 'docs/WEALTHFOLIO.md'
       - 'Loam/Core/BoundedHistorySupport.lean'
       - 'Loam/Application/CurrentQuantityAnchor.lean'
       - 'Loam/Application/CurrentQuantityPresence.lean'
@@ -112,7 +122,7 @@ jobs:
       - name: Build accounting projection basis
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Review.RoleFlowReview Loam.Review.CurrentBalanceReview Loam.Review.HistoricalBalanceReview Loam.Review.OpeningPositionReview Loam.Review.RoleBalanceReview Loam.Review.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.Review.MultimeasureSpendReview Loam.Publisher.CurrentQuantityAnchorPublisher Loam.Application.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
+          build-args: Loam.Review.RoleFlowReview Loam.Review.CurrentBalanceReview Loam.Review.HistoricalBalanceReview Loam.Review.OpeningPositionReview Loam.Export.WealthfolioExport Loam.Export.WealthfolioExportPipeline Loam.Cli.WealthfolioExportCli Loam.Review.RoleBalanceReview Loam.Review.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.Review.MultimeasureSpendReview Loam.Publisher.CurrentQuantityAnchorPublisher Loam.Application.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Cli
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Qualify role-aware flow composition
@@ -127,6 +137,8 @@ jobs:
         run: lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
       - name: Qualify derived accounting opening position
         run: lake env lean --run Loam/Tests/OpeningPositionReview.lean
+      - name: Qualify Wealthfolio cash projection
+        run: lake env lean --run Loam/Tests/WealthfolioExport.lean
       - name: Qualify Measure-neutral spending window
         run: lake env lean --run Loam/Tests/MultimeasureSpendReview.lean
       - name: Qualify current quantity anchor composition
