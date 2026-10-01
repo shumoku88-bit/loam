@@ -38,7 +38,7 @@ private def attachCurrentCoverage
   match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
   | .error message => return Loam.Tui.Capacity.withoutCoverage message state
   | .ok window =>
-    match ← Loam.CurrentCoverageReview.loadSnapshotAt
+    match ← Loam.CurrentCoverageReview.loadSnapshotAtForMeasure state.snapshot.measure
         dataDir root window.start observedAt window.endExclusive with
     | .error message => return Loam.Tui.Capacity.withoutCoverage message state
     | .ok coverage =>
@@ -69,7 +69,9 @@ partial def loop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityTransferSession.run
         bounds root editor editorFrame
-      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir)
+      let fresh ← requireReload notice
+        (Loam.CapacityReview.loadSnapshotFromHouseholdRootForMeasure
+          current.snapshot.measure dataDir)
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
@@ -83,7 +85,9 @@ partial def loop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityRebalanceSession.run
         bounds root editor editorFrame
-      let fresh ← requireReload notice (Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir)
+      let fresh ← requireReload notice
+        (Loam.CapacityReview.loadSnapshotFromHouseholdRootForMeasure
+          current.snapshot.measure dataDir)
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
