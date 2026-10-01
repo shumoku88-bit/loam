@@ -20,6 +20,12 @@ def main (args : List String) : IO Unit := do
   let config := "cash\tjpy\n"
   expect ((Loam.CycleFundingConfig.decode? config).isSome) "valid config"
   expect (Loam.CycleFundingConfig.decode? "" == some []) "empty config not explicit empty selection"
+  expect
+    ((Loam.CycleFundingConfig.decodeForMeasure? ⟨"usd"⟩ "cash\tusd\n").isSome)
+    "valid USD funding config"
+  expect
+    ((Loam.CycleFundingConfig.decodeForMeasure? ⟨"usd"⟩ "cash\tjpy\n").isNone)
+    "USD funding config accepted JPY backing"
   for invalid in ["cash\tjpy\ncash\tjpy\n", "cash\tusd\n", "cash\t\n", "\tjpy\n",
       "cash\tjpy\textra\n", "cash\njpy\n", "cash\tjpy\r\n"] do
     expect ((Loam.CycleFundingConfig.decode? invalid).isNone) ("bad config admitted: " ++ invalid)
@@ -41,9 +47,19 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero)
     "save zero-origin"
   IO.FS.writeFile (root / "current-quantity-anchor.loam")
-    "LOAM-CURRENT-QUANTITY-ANCHOR\t1\nASSERT\tcash\tjpy\t0\n"
+    ("LOAM-CURRENT-QUANTITY-ANCHOR\t1\n" ++
+     "ASSERT\tcash\tjpy\t0\n" ++
+     "ASSERT\tcash\tusd\t250\n")
   let capacityFixture :=
-    "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t100\nENDMOVEMENT\n"
+    ("LOAM-NORMALIZED-CAPACITY\t1\n" ++
+     "MOVEMENT\tcapacity-1\t2026-09-08\tjpy\n" ++
+     "CHANGE\tUNALLOCATED\t-100\n" ++
+     "CHANGE\tPURPOSE\tfood\t100\n" ++
+     "ENDMOVEMENT\n" ++
+     "MOVEMENT\tcapacity-2\t2026-09-08\tusd\n" ++
+     "CHANGE\tUNALLOCATED\t-40\n" ++
+     "CHANGE\tPURPOSE\tfood\t40\n" ++
+     "ENDMOVEMENT\n")
   IO.FS.writeFile (root / "capacity.loam") capacityFixture
   IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
   IO.FS.writeFile (root / "scheduled-routing.loam") "LOAM-SCHEDULED-ROUTING\t1\n"
@@ -61,6 +77,21 @@ def main (args : List String) : IO Unit := do
   let .ok summary := good.funding | throw (IO.userError "valid funding unavailable")
   expect (summary.budgetableBacking.quanta == 0 && summary.remainingAssigned.quanta == 100 &&
     summary.residualBeforeUnresolved.quanta == -100) "shared projection changed"
+  IO.FS.writeFile fundingPath "cash\tusd\n"
+  let usdBudget ← Loam.CycleBudgetReview.loadSnapshotAtForMeasure ⟨"usd"⟩ root root "2026-09-08"
+  expect (usdBudget.measure == ⟨"usd"⟩) "Cycle Budget lost the requested USD Measure"
+  let .ok usdCoverage := usdBudget.coverage
+    | throw (IO.userError "USD CurrentCoverage unavailable through Cycle Budget")
+  expect (usdCoverage.measure == ⟨"usd"⟩) "Cycle Budget coverage Measure diverged"
+  let .ok usdSummary := usdBudget.funding
+    | throw (IO.userError "USD funding unavailable through Cycle Budget")
+  expect
+    (usdSummary.measure == ⟨"usd"⟩ &&
+      usdSummary.budgetableBacking.quanta == 250 &&
+      usdSummary.remainingAssigned.quanta == 40 &&
+      usdSummary.residualBeforeUnresolved.quanta == 210)
+    "USD Cycle Budget funding arithmetic diverged"
+  IO.FS.writeFile fundingPath config
   for invalid in ["cash\tjpy\ncash\tjpy\n", "cash\tusd\n", "bad row\n"] do
     IO.FS.writeFile fundingPath invalid
     let bad ← load
