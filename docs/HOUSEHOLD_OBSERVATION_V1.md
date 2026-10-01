@@ -15,6 +15,10 @@ The v1 slice exposes three already-demonstrated query families:
 Adapters must call their existing Application / shared review boundaries. They
 must not reimplement accounting arithmetic in the serializer.
 
+LOAM selects one Measure for Budget, Capacity, and current-cycle diagnostics from
+`LOAM_MEASURE`, defaulting to `jpy` for the current household. Balance records
+remain coordinate-native and therefore may contain several Measures in one stream.
+
 ## Framing
 
 The stream is UTF-8, one record per line, with tab-separated fields. Identity
@@ -104,7 +108,7 @@ new accounting arithmetic or household authority.
 When `OBSERVED_AT` is supplied, LOAM currently emits Current Coverage rows:
 
 ```text
-HOBS1  diagnostic  current-coverage  PURPOSE  jpy
+HOBS1  diagnostic  current-coverage  PURPOSE  MEASURE
        ENTITLEMENT  CONSUMPTION  COMMITMENT  REMAINING  HEADROOM
 ```
 
@@ -127,9 +131,9 @@ an explicit `OBSERVED_AT` argument:
 
 ```text
 HOBS1  meta    funding_observed_at  YYYY-MM-DD
-HOBS1  scalar  funding  budgetable_backing          jpy  AMOUNT
-HOBS1  scalar  funding  remaining_assigned          jpy  AMOUNT
-HOBS1  scalar  funding  residual_before_unresolved  jpy  AMOUNT
+HOBS1  scalar  funding  budgetable_backing          MEASURE  AMOUNT
+HOBS1  scalar  funding  remaining_assigned          MEASURE  AMOUNT
+HOBS1  scalar  funding  residual_before_unresolved  MEASURE  AMOUNT
 ```
 
 These values come from the existing `CycleFundingInspection` composition.
