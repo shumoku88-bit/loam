@@ -74,13 +74,13 @@ private def csvQuoted (text : String) : String :=
     text.foldl
       (fun acc c =>
         match c with
-        | '"' => acc ++ """"
+        | '"' => acc ++ "\"\""
         | '\n' => acc.push ' '
         | '\r' => acc.push ' '
         | '\t' => acc.push ' '
         | other => acc.push other)
       ""
-  """ ++ escaped ++ """
+  "\"" ++ escaped ++ "\""
 
 private def renderRow (row : Row) : String :=
   String.intercalate ","
@@ -239,13 +239,15 @@ def renderWithPresentation?
     (opening : Loam.OpeningPositionReview.Snapshot)
     (entries : List Loam.ActualJournalProjection.Entry) :
     Except String String := do
-  let opening ← openingRows presentation roles opening
-  let selected := selectedEntries opening.accountingEpoch entries
-  let activityRows ← selected.flatMapM fun entry =>
+  let epoch := opening.accountingEpoch
+  let openingRows ← openingRows presentation roles opening
+  let selected := selectedEntries epoch entries
+  let activityGroups ← selected.mapM fun entry =>
     entryRows presentation roles entry
+  let activityRows := activityGroups.flatten
   let lines :=
     ["date,activityType,currency,amount,account,comment"] ++
-      (opening ++ activityRows).map renderRow
+      (openingRows ++ activityRows).map renderRow
   return String.intercalate "\n" lines ++ "\n"
 
 end Loam.WealthfolioExport
