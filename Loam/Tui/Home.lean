@@ -1,3 +1,4 @@
+import Loam.Tui.DateJump
 import Loam.Tui.Layout
 import Loam.Tui.Main
 import Loam.Tui.Scroll
@@ -523,65 +524,117 @@ private def pendingSection (pending : PendingEvidence) : List Widget :=
   | .ok [] => []
   | _ => [blankLine, plainLine " Pending Scheduled:"] ++ pendingLines pending
 
-private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
-  let pending := pendingEvidence snapshot
-  let pastOpenDates := pendingDates pending
-  [ ruleLine bounds '='
-  , .row
-      [ span " LOAM Home: known through " .muted
-      , span snapshot.actual.today
-      , span "  [Focus: " .muted
-      , span state.selectedDate .selected
-      , span "]" .muted
+private def monthNames : List String :=
+  ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+private def centeredYearTitle (year : Nat) : String :=
+  let title := s!"==  Year {year}  =="
+  let width := Loam.Tui.Layout.displayWidth title
+  let padding := if width < 35 then (35 - width) / 2 else 0
+  repeatChar padding ' ' ++ title
+
+private def monthCellSpans
+    (today : String) (state : State) (snapshot : Snapshot) (year month : Nat) : List Span :=
+  let mName := monthNames.getD (month - 1) (toString month)
+  let count := (recordsForMonth snapshot year month).length
+  let cur := selectedMonth state
+  let isSelected := cur.year == year && cur.month == month
+  let isTodayMonth :=
+    match Loam.Tui.Calendar.monthOf? today with
+    | some tm => tm.year == year && tm.month == month
+    | none => false
+  let nameStyle :=
+    if isSelected then
+      if isTodayMonth then .selectedUnderlined else .selected
+    else
+      if isTodayMonth then .underlined else .normal
+  let label := if isSelected then "[" ++ mName ++ "]" else " " ++ mName ++ " "
+  let countText := if count == 0 then "  -   " else Loam.Tui.Layout.padRight 6 (toString count ++ "t")
+  [ span label nameStyle
+  , span (" " ++ countText) .muted
+  , span "  "
+  ]
+
+private def monthQuarterRow
+    (today : String) (state : State) (snapshot : Snapshot) (year startMonth : Nat) : Widget :=
+  let spans := (List.range 3).flatMap fun col =>
+    monthCellSpans today state snapshot year (startMonth + col)
+  .row (span " " :: spans)
+
+private def monthCalendarPane
+    (snapshot : Snapshot) (state : State) : List Widget :=
+  let year := (selectedMonth state).year
+  let today := snapshot.actual.today
+  [ plainLine (centeredYearTitle year)
+  , blankLine
+  , monthQuarterRow today state snapshot year 1
+  , blankLine
+  , monthQuarterRow today state snapshot year 4
+  , blankLine
+  , monthQuarterRow today state snapshot year 7
+  , blankLine
+  , monthQuarterRow today state snapshot year 10
+  , blankLine
+  , mutedLine " [Enter] zoom into month  [h/l/k/j] move  [Tab] view"
+  , blankLine
+  ]
+
+private def yearOverviewPane
+    (snapshot : Snapshot) (state : State) : List Widget :=
+  let curYear := (selectedMonth state).year
+  let today := snapshot.actual.today
+  let startYear := if curYear < 2 then 1 else curYear - 2
+  let years := List.range 5 |>.map fun i => startYear + i
+  let rows := years.map fun y =>
+    let count := (recordsForYear snapshot y).length
+    let isSelected := (selectedMonth state).year == y
+    let isTodayYear :=
+      match Loam.Tui.Calendar.monthOf? today with
+      | some tm => tm.year == y
+      | none => false
+    let style :=
+      if isSelected then
+        if isTodayYear then .selectedUnderlined else .selected
+      else
+        if isTodayYear then .underlined else .normal
+    let label := if isSelected then "[" ++ toString y ++ "]" else " " ++ toString y ++ " "
+    let countText := if count == 0 then "no transactions" else (toString count ++ " transactions")
+    .row
+      [ span "   "
+      , span label style
+      , span ("     " ++ countText) .muted
       ]
-  , ruleLine bounds '='
-  ] ++
-  (match state.calendarMode with
-   | .plain =>
-       [ plainLine (centeredMonthTitle state)
-       , calendarHeader
-       ] ++
-       calendarRows snapshot.actual.today pastOpenDates state ++
-       [mutedLine " underline = today"] ++
-       (if pastOpenDates.isEmpty then [] else
-         [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
-       [blankLine] ++
-       homeSummaryLines snapshot
-   | .money =>
-       moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates) ++
-  [ ruleLine bounds '-'
-  , plainLine (" Selected Day : " ++ state.selectedDate ++ "  [Enter] open day workspace")
-  ] ++
-  (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  " (statusTokens snapshot state pending)).map
-    (fun text => mutedLine (" " ++ text)) ++
-  pendingSection pending ++
+  [ plainLine "           Years Overview"
+  , blankLine
+  ] ++ rows ++
   [ blankLine
-  , plainLine " Actual Transactions:"
-  ] ++
-  actualLines snapshot state ++
-  [ blankLine
-  , plainLine " Scheduled:"
-  ] ++
-  scheduledLines snapshot state ++
-  [ruleLine bounds '=']
+  , mutedLine " [Enter] zoom into year  [k/j] move  [Tab] view"
+  , blankLine
+  ]
 
 private def wideCalendarPane
     (paneWidth : Nat)
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : Widget :=
   .column <|
-    match state.calendarMode with
-    | .plain =>
-        [ plainLine (centeredMonthTitle state)
-        , calendarHeader
-        ] ++
-        calendarRows snapshot.actual.today pastOpenDates state ++
-        [mutedLine " underline = today"] ++
-        (if pastOpenDates.isEmpty then [] else
-          [mutedLine " ! = still current-open"]) ++
-        [blankLine] ++
-        wideHomeSummaryLines snapshot
-    | .money =>
-        moneyCalendarBlock paneWidth snapshot state pastOpenDates
+    match state.zoomLevel with
+    | .day =>
+        match state.calendarMode with
+        | .plain =>
+            [ plainLine (centeredMonthTitle state)
+            , calendarHeader
+            ] ++
+            calendarRows snapshot.actual.today pastOpenDates state ++
+            [mutedLine " underline = today"] ++
+            (if pastOpenDates.isEmpty then [] else
+              [mutedLine " ! = still current-open"]) ++
+            [blankLine] ++
+            wideHomeSummaryLines snapshot
+        | .money =>
+            moneyCalendarBlock paneWidth snapshot state pastOpenDates
+    | .month =>
+        monthCalendarPane snapshot state ++ wideHomeSummaryLines snapshot
+    | .year =>
+        yearOverviewPane snapshot state ++ wideHomeSummaryLines snapshot
 
 private def wideDetailLines
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
@@ -621,8 +674,17 @@ private def wideSelectedDayPane
   let visible := wideDetailVisibleRows panelRows
   let offset := Loam.Tui.Scroll.clamp details.length visible state.detailScroll
   let status := String.intercalate "  " (statusTokens snapshot state pending)
+  let (headerLabel, headerValue) :=
+    match state.zoomLevel with
+    | .day => (" Selected Day    ", state.selectedDate)
+    | .month =>
+        let m := selectedMonth state
+        (" Selected Month  ", Loam.Tui.Calendar.monthLabel m)
+    | .year =>
+        let m := selectedMonth state
+        (" Selected Year   ", toString m.year)
   .column
-    ([ .row [span " Selected Day  " .muted, span state.selectedDate .selected]
+    ([ .row [span headerLabel .muted, span headerValue .selected]
      , mutedLine (" " ++ status)
      , widePendingMarkerExplanation pending
      , wideScrollHint details.length visible offset
@@ -631,6 +693,62 @@ private def wideSelectedDayPane
 
 private def widePanelRows (bounds : Bounds) (footerRows : Nat) : Nat :=
   Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 4
+
+private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
+  let pending := pendingEvidence snapshot
+  let pastOpenDates := pendingDates pending
+  let (headerLabel, headerValue) :=
+    match state.zoomLevel with
+    | .day => ("Selected Day", state.selectedDate)
+    | .month => ("Selected Month", Loam.Tui.Calendar.monthLabel (selectedMonth state))
+    | .year => ("Selected Year", toString (selectedMonth state).year)
+  [ ruleLine bounds '='
+  , .row
+      [ span " LOAM Home: known through " .muted
+      , span snapshot.actual.today
+      , span "  [Focus: " .muted
+      , span state.selectedDate .selected
+      , span "]" .muted
+      , span "  [View: " .muted
+      , span (Loam.Tui.DateJump.zoomLabel state.zoomLevel)
+      , span "]" .muted
+      ]
+  , ruleLine bounds '='
+  ] ++
+  (match state.zoomLevel with
+   | .day =>
+       match state.calendarMode with
+       | .plain =>
+           [ plainLine (centeredMonthTitle state)
+           , calendarHeader
+           ] ++
+           calendarRows snapshot.actual.today pastOpenDates state ++
+           [mutedLine " underline = today"] ++
+           (if pastOpenDates.isEmpty then [] else
+             [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
+           [blankLine] ++
+           homeSummaryLines snapshot
+       | .money =>
+           moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
+   | .month =>
+       monthCalendarPane snapshot state ++ homeSummaryLines snapshot
+   | .year =>
+       yearOverviewPane snapshot state ++ homeSummaryLines snapshot) ++
+  [ ruleLine bounds '-'
+  , plainLine (" " ++ headerLabel ++ " : " ++ headerValue ++ "  [Enter] open workspace")
+  ] ++
+  (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  " (statusTokens snapshot state pending)).map
+    (fun text => mutedLine (" " ++ text)) ++
+  pendingSection pending ++
+  [ blankLine
+  , plainLine " Actual Transactions:"
+  ] ++
+  actualLines snapshot state ++
+  [ blankLine
+  , plainLine " Scheduled:"
+  ] ++
+  scheduledLines snapshot state ++
+  [ruleLine bounds '=']
 
 private def wideHomeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -653,6 +771,9 @@ private def wideHomeBody
       , span "  [Focus: " .muted
       , span state.selectedDate .selected
       , span "]" .muted
+      , span "  [View: " .muted
+      , span (Loam.Tui.DateJump.zoomLabel state.zoomLevel)
+      , span "]" .muted
       ]
   , ruleLine bounds '='
   ] ++
@@ -669,7 +790,7 @@ private def dayHelpTokens (state : State) : List String :=
     match state.calendarMode with
     | .plain => "[f] flow"
     | .money => "[f] calendar"
-  ["Day:", "[h/l] day", "[k/j] week", "[t] today", calendarToggle, "[Enter] open",
+  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[/] jump", "[Tab] view", calendarToggle, "[Enter] open",
    "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
@@ -696,11 +817,17 @@ def detailScrollDirection?
   | _ => none
 
 private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
-  let help := helpLines bounds state
-  if usesWideLayout bounds then
-    (if state.notice.isEmpty then [blankLine] else [plainLine state.notice]) ++ help
-  else
-    (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ help
+  match state.jumpPrompt with
+  | some buffer =>
+      let promptLine := plainLine (" Jump to date / month / year: " ++ buffer ++ "█")
+      let hintLine := mutedLine " [Enter] jump  [Esc] cancel  (e.g. 2026-10-15, 2026-10, 2026, 15)"
+      [ruleLine bounds '-', promptLine, hintLine]
+  | none =>
+      let help := helpLines bounds state
+      if usesWideLayout bounds then
+        (if state.notice.isEmpty then [blankLine] else [plainLine state.notice]) ++ help
+      else
+        (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ help
 
 /-- Move only the wide Home detail viewport. -/
 def scrollWideDetail
