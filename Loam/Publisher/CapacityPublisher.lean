@@ -16,7 +16,7 @@ set_option autoImplicit false
 # Shared Capacity publisher
 
 This module owns the surface-independent practical write boundary for one dated
-JPY Capacity movement. It deliberately stores no grant / transfer / return kind:
+single-Measure Capacity movement. It deliberately stores no grant / transfer / return kind:
 those remain interpretations of the two typed endpoints.
 
 Publication now constructs both retained semantic families in memory and hands one
@@ -30,6 +30,7 @@ by that boundary.
 -/
 
 structure Draft where
+  measure : MeasureId := ⟨"jpy"⟩
   effectiveOn : String
   source : CapacityCoordinate
   destination : CapacityCoordinate
@@ -39,10 +40,11 @@ structure Draft where
 /--
 A multi-coordinate balanced Capacity draft.
 
-All signed changes must sum to exact zero in JPY and every Purpose coordinate's
-resulting entitlement must remain non-negative.
+All signed changes must sum to exact zero in one explicit Measure and every Purpose
+coordinate's resulting entitlement must remain non-negative.
 -/
 structure BalancedDraft where
+  measure : MeasureId := ⟨"jpy"⟩
   effectiveOn : String
   changes : List (MovementChange CapacityCoordinate)
   deriving Repr, DecidableEq
@@ -74,13 +76,14 @@ def validateBalancedDraft
     throw "Capacity movement changes must not contain duplicate coordinates."
   if !draft.changes.all (fun c => coordinatePersistable c.coordinate) then
     throw "Capacity movement coordinate contains an invalid Purpose token."
-  let some movement := BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.changes
+  let some movement := BalancedMovement.ofChanges? draft.measure draft.changes
     | throw "Capacity movement changes must balance to zero."
   return movement
 
 /-- Convert a binary transfer Draft into an equivalent 2-change BalancedDraft. -/
 def Draft.toBalancedDraft (draft : Draft) : BalancedDraft :=
-  { effectiveOn := draft.effectiveOn
+  { measure := draft.measure
+  , effectiveOn := draft.effectiveOn
   , changes :=
       [ { coordinate := draft.source, quantity := Quantity.ofQuanta (-draft.quanta) }
       , { coordinate := draft.destination, quantity := Quantity.ofQuanta draft.quanta } ] }
@@ -104,7 +107,7 @@ def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.effectiveOn then
     throw "Capacity effective date must be a real calendar date in YYYY-MM-DD form."
   if draft.quanta <= 0 then
-    throw "Capacity movement amount must be a positive integer JPY quantity."
+    throw ("Capacity movement amount must be a positive integer " ++ draft.measure.token ++ " quantity.")
   if draft.source = draft.destination then
     throw "Capacity movement endpoints must differ."
   if !coordinatePersistable draft.source || !coordinatePersistable draft.destination then
@@ -181,11 +184,11 @@ private def publishUnlocked
   let memory := image.movements
   let effective := image.effective
 
-  if !canMoveCapacityFrom memory.movements draft.source ⟨"jpy"⟩ draft.quanta then
+  if !canMoveCapacityFrom memory.movements draft.source draft.measure draft.quanta then
     return .error "Capacity source has insufficient current entitlement."
 
-  let some balanced := BalancedMovement.ofChanges? ⟨"jpy"⟩ draft.toBalancedDraft.changes
-    | return .error "Capacity movement could not be represented as a balanced JPY movement."
+  let some balanced := BalancedMovement.ofChanges? draft.measure draft.toBalancedDraft.changes
+    | return .error ("Capacity movement could not be represented as a balanced " ++ draft.measure.token ++ " movement.")
   let movementId ←
     match ← publishAdmittedMovement capacityFile memory effective draft.effectiveOn balanced with
     | .ok id => pure id
@@ -194,7 +197,7 @@ private def publishUnlocked
   return .ok movementId
 
 /--
-Publish one dated JPY Capacity movement under Capacity writer ownership.
+Publish one dated single-Measure Capacity movement under Capacity writer ownership.
 
 The shared boundary re-reads one admitted Capacity image under the lock, checks
 named-source entitlement, allocates fresh identity, and atomically publishes one
@@ -222,7 +225,7 @@ private def publishBalancedUnlocked
   for change in draft.changes do
     match change.coordinate with
     | .purpose purpose =>
-        let current := (entitlementAt memory.movements purpose ⟨"jpy"⟩).quanta
+        let current := (entitlementAt memory.movements purpose draft.measure).quanta
         if current + change.quantity.quanta < 0 then
           return .error s!"Capacity Purpose '{purpose.token}' entitlement would become negative: {current + change.quantity.quanta}."
     | .unallocated => pure ()
@@ -235,7 +238,7 @@ private def publishBalancedUnlocked
   return .ok movementId
 
 /--
-Publish one dated multi-coordinate JPY Capacity movement under Capacity writer ownership.
+Publish one dated multi-coordinate single-Measure Capacity movement under Capacity writer ownership.
 
 Atomic publication checks that each Purpose entitlement remains non-negative,
 allocates one fresh CapacityMovementId, and publishes one normalized Capacity
@@ -249,8 +252,8 @@ def publishBalanced
 /--
 Finite local proposal for Purpose capacity deltas.
 
-This lives on the client/TUI boundary and maps Purpose identities to signed JPY
-deltas. It is never stored as canonical state. Downstream pure projections
+This lives on the client/TUI boundary and maps Purpose identities to signed
+single-Measure deltas. It is never stored as canonical state. Downstream pure projections
 evaluate proposal balance, negative entitlement refusal, and coverage
 consequences on every edit.
 -/
@@ -306,17 +309,23 @@ def toChanges (p : Proposal) : List (MovementChange CapacityCoordinate) :=
 Validate and build one publishable `BalancedDraft` from this proposal.
 Fails closed if the proposal is empty, unbalanced, or invalid.
 -/
-def toBalancedDraft (effectiveOn : String) (p : Proposal) : Except String BalancedDraft := do
+def toBalancedDraftForMeasure
+    (measure : MeasureId) (effectiveOn : String) (p : Proposal) : Except String BalancedDraft := do
   if !p.hasChanges then
     throw "Proposal has no non-zero changes."
   if !p.isBalanced then
-    throw s!"Proposal is unbalanced ({p.balance} JPY)."
+    throw s!"Proposal is unbalanced ({p.balance} {measure.token})."
   let draft : BalancedDraft := {
+    measure := measure
     effectiveOn := effectiveOn
     changes := p.toChanges
   }
   let _ ← validateBalancedDraft draft
   return draft
+
+/-- Backward-compatible proposal entrance for the current JPY household. -/
+def toBalancedDraft (effectiveOn : String) (p : Proposal) : Except String BalancedDraft :=
+  toBalancedDraftForMeasure ⟨"jpy"⟩ effectiveOn p
 
 /-- Find all purposes whose proposed entitlement (current + delta) would be strictly negative. -/
 def negativePurposes
