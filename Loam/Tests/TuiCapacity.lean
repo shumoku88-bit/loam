@@ -70,7 +70,7 @@ def main : IO Unit := do
   expect (contains "2 remembered purpose(s)" text) "Capacity purpose count was not rendered"
   expect (contains "food" text && contains "60" text) "food entitlement was not rendered"
   expect (contains "groceries" text && contains "40" text) "groceries entitlement was not rendered"
-  expect (contains "all retained JPY Capacity movements" text)
+  expect (contains "all retained jpy Capacity movements" text)
     "Capacity surface lost its all-retained projection statement"
   expect (contains "not priority" text) "Capacity surface omitted its ordering non-claim"
   expect (contains "No cycle, period, or selected-day meaning" text)
