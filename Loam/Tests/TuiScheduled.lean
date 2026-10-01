@@ -109,12 +109,9 @@ def main : IO Unit := do
   let dueTodayText := widgetText dueTodayView
   expect (contains "Daily pace" dueTodayText && contains "170 jpy/day" dueTodayText)
     "Home did not expose the current Daily Pace answer"
-  expect (contains "Recent pace (recomputed current truth)" dueTodayText)
-    "Home did not identify Daily Pace history as recomputed current truth"
-  expect (contains "09-05  150 jpy/day" dueTodayText &&
-          contains "09-06  160 jpy/day" dueTodayText &&
-          contains "09-07  170 jpy/day" dueTodayText)
-    "Home did not expose reconstructed Daily Pace values vertically"
+  expect (!contains "Recent pace" dueTodayText &&
+          !contains "09-05  150 jpy/day" dueTodayText)
+    "Home let historical Daily Pace compete with the current glance"
   expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
 
@@ -127,8 +124,8 @@ def main : IO Unit := do
     widgetText (Loam.Tui.Home.view stateBounds notRequestedSnapshot home)
   expect (contains "Attention: not requested" notRequestedText &&
       contains "Daily pace: not requested" notRequestedText &&
-      contains "Recent pace (current truth): not requested" notRequestedText)
-    "Home collapsed not-requested read state into ordinary unavailability"
+      !contains "Recent pace" notRequestedText)
+    "Home collapsed current not-requested state or exposed historical pace"
 
   let unavailableSnapshot := { snapshot with attention := .unavailable }
   let unavailableSnapshot := { unavailableSnapshot with pace := .unavailable }
@@ -137,8 +134,8 @@ def main : IO Unit := do
     widgetText (Loam.Tui.Home.view stateBounds unavailableSnapshot home)
   expect (contains "Attention: not configured" unavailableText &&
       contains "Daily pace: unavailable" unavailableText &&
-      contains "Recent pace (current truth): unavailable" unavailableText)
-    "Home lost typed unavailable read state"
+      !contains "Recent pace" unavailableText)
+    "Home lost typed current unavailable state or exposed historical pace"
 
   let failedSnapshot := { snapshot with attention := .failed "attention read failed" }
   let failedSnapshot := { failedSnapshot with pace := .failed "pace read failed" }
@@ -147,9 +144,9 @@ def main : IO Unit := do
     widgetText (Loam.Tui.Home.view stateBounds failedSnapshot home)
   expect (contains "Attention: failed" failedText &&
       contains "Daily pace: failed" failedText &&
-      contains "Recent pace (current truth): failed" failedText &&
-      contains "pace history read failed" failedText)
-    "Home hid the failed Recent Pace read reason"
+      !contains "Recent pace" failedText &&
+      !contains "pace history read failed" failedText)
+    "Home exposed historical pace failure on the current glance surface"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
@@ -255,4 +252,4 @@ def main : IO Unit := do
     expect (sgr.startsWith "\x1b[0;" || sgr == "\x1b[0m")
       "Terminal style can leak attributes into the next calendar cell"
 
-  IO.println "TUI Scheduled: Home Unknown/Pending and independent Today/focus presentation passed."
+  IO.println "TUI Scheduled: distilled Home glance, Unknown/Pending, and independent Today/focus presentation passed."
