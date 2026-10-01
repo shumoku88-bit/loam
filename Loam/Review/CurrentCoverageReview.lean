@@ -93,6 +93,7 @@ private def actualRoutingFrontier
   }
 
 structure Snapshot where
+  measure : MeasureId := ⟨"jpy"⟩
   currentWindowStart : String
   observedAt : String
   endExclusive : String
@@ -112,21 +113,21 @@ private def requireFile (path : System.FilePath) (label : String) : IO (Except S
   return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
 
 private def projectPurposeFromImage?
+    (measure : MeasureId)
     (capacity : Loam.CapacityAuthority.Image)
     (actual : Loam.ActualAuthority.Image)
     (actualRouting : Loam.Persistence.ActualRoutingHistory)
     (pressure : ScheduledPressurePartition String)
     (currentWindowStart observedAt : String)
     (purpose : PurposeId) : Option Row := do
-  let yen : MeasureId := ⟨"jpy"⟩
   let commitment := ScheduledPressurePartition.managedFor pressure purpose
   let consumption ←
     consumptionAtRecordedEffectiveRoutingThrough?
       actual.currentEvents actual.currentValidities actualRouting
-      currentWindowStart observedAt purpose yen
+      currentWindowStart observedAt purpose measure
   let entitlement ←
     entitlementAtAdmittedEffectiveThrough?
-      capacity currentWindowStart observedAt purpose yen
+      capacity currentWindowStart observedAt purpose measure
   return {
     purpose := purpose
     entitlement := entitlement
@@ -142,7 +143,8 @@ Every canonical source needed by the answer is explicit and fail-closed. The
 optional Event-correction stream preserves the established absent-as-empty policy.
 No fallback to frozen Movement sidecars exists.
 -/
-def loadSnapshotAt
+def loadSnapshotAtForMeasure
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (currentWindowStart observedAt endExclusive : String) : IO (Except String Snapshot) := do
   if !Loam.ActualDate.validIsoDate currentWindowStart ||
@@ -203,7 +205,7 @@ def loadSnapshotAt
   let actualUnrouted ←
     match unroutedActualRows?
         actualImage.currentEvents actualImage.currentValidities actualRouting roles
-        currentWindowStart observedAt ⟨"jpy"⟩ with
+        currentWindowStart observedAt measure with
     | some rows => pure rows
     | none =>
         return .error
@@ -213,7 +215,7 @@ def loadSnapshotAt
   let pressure ←
     match currentScheduledPressurePartition?
         scheduled.scheduled scheduled.terminals actualImage.evidence.events roles scheduledRouting
-        ⟨"jpy"⟩ observedAt endExclusive with
+        measure observedAt endExclusive with
     | some partition => pure partition
     | none => return .error "loam: canonical evidence does not justify actionable Scheduled pressure"
 
@@ -227,6 +229,7 @@ def loadSnapshotAt
   match purposes with
   | [] =>
       return .ok {
+        measure := measure
         currentWindowStart := currentWindowStart
         observedAt := observedAt
         endExclusive := endExclusive
@@ -237,12 +240,13 @@ def loadSnapshotAt
       }
   | _ =>
       match purposes.mapM (projectPurposeFromImage?
-          capacityImage actualImage actualRouting
+          measure capacityImage actualImage actualRouting
           pressure currentWindowStart observedAt) with
       | none =>
           return .error "loam: canonical evidence does not justify this current coverage projection"
       | some rows =>
           return .ok {
+            measure := measure
             currentWindowStart := currentWindowStart
             observedAt := observedAt
             endExclusive := endExclusive
@@ -252,12 +256,27 @@ def loadSnapshotAt
             actualRoutingFrontier := actualRoutingFrontier
           }
 
+/-- Backward-compatible current-coverage entrance for the current JPY household. -/
+def loadSnapshotAt
+    (dataDir actualRoot : System.FilePath)
+    (currentWindowStart observedAt endExclusive : String) : IO (Except String Snapshot) :=
+  loadSnapshotAtForMeasure ⟨"jpy"⟩
+    dataDir actualRoot currentWindowStart observedAt endExclusive
+
 /-- Production wrapper resolving only the current local observation date. -/
-def loadSnapshot
+def loadSnapshotForMeasure
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (currentWindowStart endExclusive : String) : IO (Except String Snapshot) := do
   let some observedAt ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local observation date"
-  loadSnapshotAt dataDir actualRoot currentWindowStart observedAt endExclusive
+  loadSnapshotAtForMeasure measure
+    dataDir actualRoot currentWindowStart observedAt endExclusive
+
+/-- Backward-compatible production wrapper for the current JPY household. -/
+def loadSnapshot
+    (dataDir actualRoot : System.FilePath)
+    (currentWindowStart endExclusive : String) : IO (Except String Snapshot) :=
+  loadSnapshotForMeasure ⟨"jpy"⟩ dataDir actualRoot currentWindowStart endExclusive
 
 end Loam.CurrentCoverageReview
