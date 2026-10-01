@@ -210,6 +210,8 @@ def main (args : List String) : IO Unit := do
   let some draft := stepPublish.publish | throw (IO.userError "publish draft missing")
   expect (draft.changes.length == 3) "draft must have 3 changes"
 
+  expect (draft.measure == (⟨"jpy"⟩ : MeasureId))
+    "JPY Capacity rebalance draft lost the snapshot Measure"
   let .ok movementId ← Loam.CapacityPublisher.publishBalanced capacityFile.toString draft
     | throw (IO.userError "failed to publish balanced draft")
   expect (movementId.token == "capacity-4") "movement token"
@@ -219,5 +221,27 @@ def main (args : List String) : IO Unit := do
   expect (rowQuanta? freshSnapshot.rows "food" == some 36000) "fresh food 36000"
   expect (rowQuanta? freshSnapshot.rows "stock" == some 8180) "fresh stock 8180"
   expect (rowQuanta? freshSnapshot.rows "living" == some 24166) "fresh living 24166"
+  let usd : MeasureId := ⟨"usd"⟩
+  let usdSnapshot := { seedSnapshot with measure := usd }
+  let usdCoverage := { coverageSnapshot with measure := usd }
+  let usdState0 := Loam.Tui.CapacityRebalance.initial
+    usdSnapshot (some usdCoverage) "2026-09-08"
+  let usdFoodDone := applyKeys usdState0
+    [.input 'e', .input '-', .input '1', .input '0', .enter]
+  let usdStockSel := (Loam.Tui.CapacityRebalance.update usdFoodDone .down).state
+  let usdReady := applyKeys usdStockSel
+    [.input 'e', .input '1', .input '0', .enter]
+  let usdPreviewStep := Loam.Tui.CapacityRebalance.update usdReady .enter
+  match usdPreviewStep.state.mode with
+  | .preview usdDraft _ =>
+      expect (usdDraft.measure == usd)
+        "Capacity rebalance rewrote the snapshot Measure as JPY"
+      let usdPreviewText := widgetText (Loam.Tui.CapacityRebalance.view bounds usdPreviewStep.state)
+      expect
+        (contains "-10 usd" usdPreviewText &&
+          contains "+10 usd" usdPreviewText &&
+          !(contains "-10 jpy" usdPreviewText))
+        "Capacity rebalance preview did not preserve the USD Measure"
+  | _ => throw (IO.userError "USD Capacity rebalance did not enter preview")
 
   IO.println "TUI Capacity Rebalance: initial view, cursor navigation, signed delta editing, live balance, negative entitlement refusal, clear actions, preview navigation, publish and fresh review passed."
