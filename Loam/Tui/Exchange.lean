@@ -47,7 +47,12 @@ structure State where
 abbrev Step :=
   Loam.Tui.EditorSession.Step State (Loam.ExchangeAdmission.Draft)
 
-def initial (date : String) : State := { form := { date := date } }
+def initialWithMeasure (measure : MeasureId) (date : String) : State :=
+  { form := { date := date, sourceMeasure := measure.token } }
+
+/-- Backward-compatible no-configuration entrance for the current JPY household. -/
+def initial (date : String) : State :=
+  initialWithMeasure ⟨"jpy"⟩ date
 
 def withMeasurePresentation
     (state : State) (metadata : List Loam.MeasurePresentation.Metadata) : State :=
