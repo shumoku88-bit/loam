@@ -28,7 +28,8 @@ Missing metadata retains the historical LOAM behavior: scale 0, so one displayed
 integer maps to one quantum.
 
 This module does not perform valuation, currency conversion, rounding, or
-cross-Measure arithmetic.
+cross-Measure arithmetic. A tiny set of currency symbols is presentation-only;
+symbols never identify or admit a Measure.
 -/
 
 structure Metadata where
