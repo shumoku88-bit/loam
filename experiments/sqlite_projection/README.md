@@ -128,3 +128,25 @@ shape. It is a falsification instrument, not a parallel persistence format.
 If the candidate becomes near-linear while producing identical bytes, the next
 step is to translate the proven mechanics into the production encoder with the
 full evidence vocabulary and existing persistence tests.
+
+
+## E3.3 production encoder qualification
+
+The production encoder now applies the same class of transient indexing and
+linear row accumulation tested by E3.2 across the full normalized Actual
+vocabulary.
+
+The existing scale executable remains useful here because it times both:
+
+~~~text
+encodeNormalizedActual?        -- production encoder
+encodeBenchmarkCandidate?      -- narrow E3.2 witness
+~~~
+
+and still requires the two wires to be byte-identical for the synthetic V1
+shape.
+
+E3.3 first reruns the bounded 1,000 / 10,000 Event comparison. Once production
+encoding follows the candidate's near-linear curve and the complete persistence
+qualification remains green, the 100,000-Event adversarial probe can be restored
+without conflating storage format with the old encoder algorithm.
