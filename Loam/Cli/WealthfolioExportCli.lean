@@ -19,7 +19,7 @@ def exportWealthfolio
     return 2
   let root := System.FilePath.mk rootPath
   let outputFile := System.FilePath.mk outputPath
-  match ← Loam.WealthfolioExportPipeline.export root accountingEpoch outputFile with
+  match ← Loam.WealthfolioExportPipeline.exportCsv root accountingEpoch outputFile with
   | .error message =>
       IO.eprintln ("loam: " ++ message)
       return 2
