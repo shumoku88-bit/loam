@@ -54,8 +54,8 @@ structure Snapshot where
   paceHistory : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) :=
     .notRequested
   /--
-  Optional role-aware daily money projection used only by Home's alternate calendar
-  lens. Failure must not prevent ordinary Home navigation or accounting workspaces.
+  Optional role-aware daily money projection used by Home's money calendar and
+  period summaries. Failure must not prevent ordinary navigation or accounting workspaces.
   -/
   moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot := .notRequested
 
@@ -73,8 +73,10 @@ inductive HomePane where
 structure State where
   selectedDate : String
   notice : String := ""
-  /-- Presentation-only viewport offset for the wide Home detail pane. -/
+  /-- Presentation-only viewport offset for the responsive Home detail pane. -/
   detailScroll : Nat := 0
+  /-- Scroll of the calendar/summary surface, independent of record selection. -/
+  overviewScroll : Nat := 0
   /-- Zero-based index of the currently selected Actual transaction in detail view. -/
   detailCursor : Nat := 0
   /-- Replaceable Home calendar lens; ordinary date view remains the default. -/
@@ -106,6 +108,7 @@ def initialState (selectedDate : String) : State :=
 /-- Toggle only presentation; no household evidence is mutated or reclassified. -/
 def toggleCalendarMode (state : State) : State :=
   { state with
+    overviewScroll := 0
     calendarMode :=
       match state.calendarMode with
       | .plain => .money
@@ -129,15 +132,20 @@ def focusCalendar (state : State) : State :=
 def focusDetail (state : State) : State :=
   { state with activePane := .detail, notice := "" }
 
-/-- Cycle calendar zoom level between Day, Month, and Year. -/
-def cycleZoomLevel (state : State) : State :=
-  let next := Loam.Tui.DateJump.cycleZoom state.zoomLevel
+/-- Every change of period starts a fresh selection and viewport. -/
+def setZoomLevel (state : State) (zoom : Loam.Tui.DateJump.ZoomLevel) : State :=
   { state with
-    zoomLevel := next
-    notice := s!"View: {Loam.Tui.DateJump.zoomLabel next}"
+    zoomLevel := zoom
+    overviewScroll := 0
+    notice := s!"View: {Loam.Tui.DateJump.zoomLabel zoom}"
     detailScroll := 0
     detailCursor := 0
+    activePane := .calendar
   }
+
+/-- Cycle calendar zoom level between Day, Month, and Year. -/
+def cycleZoomLevel (state : State) : State :=
+  setZoomLevel state (Loam.Tui.DateJump.cycleZoom state.zoomLevel)
 
 def openJumpPrompt (state : State) : State :=
   { state with jumpPrompt := some "", notice := "" }
@@ -167,11 +175,13 @@ def executeJump (state : State) : State :=
       | some target =>
           { state with
             selectedDate := target.date
+            overviewScroll := 0
             zoomLevel := target.zoom
             jumpPrompt := none
             notice := s!"Jumped to {target.date} ({Loam.Tui.DateJump.zoomLabel target.zoom})."
             detailScroll := 0
             detailCursor := 0
+            activePane := .calendar
           }
       | none =>
           { state with
@@ -210,7 +220,7 @@ def selectedMonth (state : State) : Loam.Tui.Calendar.Month :=
 def moveDate (state : State) (offset : Int) : State :=
   match Loam.ActualDate.shiftDays? state.selectedDate offset with
   | none => { state with notice := "Calendar boundary reached." }
-  | some date => { state with selectedDate := date, notice := "", detailScroll := 0, detailCursor := 0 }
+  | some date => { state with selectedDate := date, notice := "", detailScroll := 0, detailCursor := 0, overviewScroll := 0 }
 
 def moveMonth (state : State) (offset : Int) : State :=
   let cur := selectedMonth state
@@ -229,7 +239,7 @@ def moveMonth (state : State) (offset : Int) : State :=
       let maxDay := (Loam.Tui.Calendar.daysInMonth? { year := targetYear, month := targetMonth }).getD 31
       let clampedDay := if day > maxDay then maxDay else if day == 0 then 1 else day
       let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := targetMonth } clampedDay
-      { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0 }
+      { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0, overviewScroll := 0 }
 
 def moveYear (state : State) (offset : Int) : State :=
   match Loam.Tui.Calendar.parseDate? state.selectedDate with
@@ -243,7 +253,7 @@ def moveYear (state : State) (offset : Int) : State :=
         let maxDay := (Loam.Tui.Calendar.daysInMonth? { year := targetYear, month := m }).getD 31
         let clampedDay := if d > maxDay then maxDay else d
         let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := m } clampedDay
-        { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0 }
+        { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0, overviewScroll := 0 }
 
 /-- Home-only root navigation. Household evidence is consumed by presentation, not this transition. -/
 def update (state : State) (event : Event) : Step :=
@@ -288,9 +298,14 @@ def homeActualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord 
       let m := selectedMonth state
       recordsForYear snapshot m.year
 
+/-- Reconcile ephemeral selection after a workspace reload changes the record set. -/
+def normalizeDetailCursor (snapshot : Snapshot) (state : State) : State :=
+  let count := (homeActualRecords snapshot state).length
+  { state with detailCursor := min state.detailCursor (count - 1) }
+
 def selectedDetailRecord? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
   let records := (homeActualRecords snapshot state).reverse
-  records[state.detailCursor]?
+  records[(normalizeDetailCursor snapshot state).detailCursor]?
 
 def moveDetailCursor (snapshot : Snapshot) (state : State) (offset : Int) : State :=
   let records := homeActualRecords snapshot state

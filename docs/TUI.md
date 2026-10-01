@@ -32,10 +32,15 @@ do not fall back to retired steady-state sidecars.
 The production Home surface currently exposes these entrances:
 
 ```text
-h/l        previous / next day
-k/j        previous / next week
-t          return focus to today
-Enter      selected-day workspace
+h/l        previous / next day, month, or year (current zoom)
+k/j        previous / next week, quarter, or year (current zoom)
+t          return calendar focus to today
+/          jump to a date, month, or year (Enter confirms; Esc cancels)
+z          cycle Day / Month / Year
+Tab/w      switch calendar / transaction focus
+Ctrl-u/d   scroll calendar/summary; page transaction selection in detail
+Enter      Year -> Month -> Day -> selected-day workspace
+f          toggle calendar / money lens in Day view
 r          Record
 a          Actual workspace
 s          Scheduled workspace
@@ -58,9 +63,32 @@ Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 Home keeps household state in the body and shortcut grammar in the stable footer.
-The footer groups commands as `Day`, `Household`, and `Manage`; all Home entrances
-remain one-keystroke commands. The body glance line reports only Scheduled and
-Pending state. An empty Pending set remains visible as `Pending: 0` but does not
+The footer groups commands by the active Day/Month/Year or Detail context,
+`Household`, and `Manage`. In Detail, j/k selects transactions, Enter opens the
+selected transaction in its day workspace, and h/Esc/Tab returns to the calendar.
+At widths below 120 columns, Detail takes the full body instead of selecting
+invisible rows below a stacked calendar. Selection follows the viewport at every
+width; oversized records keep their title visible. With no Actual rows, Ctrl-u/d
+scrolls the remaining Scheduled evidence. In calendar focus, Enter or Esc drills
+Year -> Month -> Day; Esc at Day does nothing.
+
+Month/Year summaries consume the same role-aware CalendarMoneyReview as the money
+calendar. Every represented Measure is labelled and shown separately, including
+unresolved-role counts. In/Out are role-classified directional flow, not all asset
+movements or a cash-balance claim. Out/day and Out/month are approximate quanta
+quotients over the **full selected calendar period**, not elapsed-period spending
+pace or forecasts. Empty flow, not requested, unavailable, and failed reads have
+distinct labels. Long summaries remain accessible with Ctrl-u/d and an explicit
+overflow indicator. The duplicate Peak Month transaction-count decoration is not
+part of this financial summary.
+
+Date/zoom changes reset selection and scrolling. Reloads after workspace edits
+clamp selection to current records; rendering and Enter use the same selection.
+These are ephemeral presentation states, not additional household authority.
+Regression coverage is in `Loam/Tests/TuiHomeNavigation.lean` and
+`Loam/Tests/TuiHelpFooter.lean`, run by both TUI CI tiers.
+
+In Day view, an empty Pending set remains visible as `Pending: 0` but does not
 allocate a separate empty `Pending Scheduled` section.
 
 The Home labels distinguish the user-facing action from the narrower implementation

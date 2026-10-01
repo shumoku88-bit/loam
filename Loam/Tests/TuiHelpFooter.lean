@@ -235,30 +235,23 @@ def main : IO Unit := do
     "money calendar did not render visible day-cell boundaries"
 
   let scrollBounds : Bounds := { width := 150, height := 15 }
-  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .up == none)
-    "wide layout stole Up from Calendar navigation"
-  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .down == none)
-    "wide layout stole Down from Calendar navigation"
-  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .left == none)
-    "wide layout stole Left from Calendar navigation"
-  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds .right == none)
-    "wide layout stole Right from Calendar navigation"
-  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds (.ctrl 'u') == some false)
-    "wide layout lost Ctrl-U detail scrolling"
-  expect (Loam.Tui.Home.detailScrollDirection? scrollBounds (.ctrl 'd') == some true)
-    "wide layout lost Ctrl-D detail scrolling"
-  let narrowScrollBounds : Bounds := { width := 80, height := 15 }
-  expect (Loam.Tui.Home.detailScrollDirection? narrowScrollBounds (.ctrl 'd') == none)
-    "narrow layout unexpectedly captured detail-scroll input"
-  let scrolled := Loam.Tui.Home.scrollWideDetail scrollBounds snapshot state true
-  expect (scrolled.detailScroll == 1)
-    "wide Home detail viewport did not advance by one row"
-  let scrolledText := widgetText (Loam.Tui.Home.view scrollBounds snapshot scrolled)
-  expect (contains "scroll  (Ctrl-U/D)" scrolledText)
-    "overflowing wide Home did not advertise its local scroll affordance"
-  let resetStep := Loam.Tui.Main.update scrolled .right
-  expect (resetStep.state.detailScroll == 0)
-    "changing Home date did not reset the detail viewport to its origin"
+  for (key, event) in [(Loam.Tui.Terminal.Key.up, Loam.Tui.Main.Event.up),
+      (.down, .down), (.left, .left), (.right, .right)] do
+    let moved ← requireSome (Loam.Tui.Home.navigationKey scrollBounds snapshot state key)
+      "Home navigation key was not handled"
+    expect (moved.selectedDate == (Loam.Tui.Main.update state event).state.selectedDate)
+      "layout stole an arrow key from Calendar navigation"
+  for b in [scrollBounds, { width := 80, height := 15 }] do
+    let scrolled ← requireSome (Loam.Tui.Home.navigationKey b snapshot state (.ctrl 'd'))
+      "Home lost Ctrl-D scrolling"
+    expect (scrolled.overviewScroll > 0)
+      "Home overview did not scroll in a short terminal"
+    let scrolledText := widgetText (Loam.Tui.Home.view b snapshot scrolled)
+    expect (contains "[Ctrl-u/d] scroll" scrolledText)
+      "overflowing Home did not advertise its local scroll affordance"
+    let resetStep := Loam.Tui.Main.update scrolled .right
+    expect (resetStep.state.overviewScroll == 0 && resetStep.state.detailScroll == 0)
+      "changing Home date did not reset the viewports"
 
   let mediumContentWidth := contentWidth mediumBounds
   for lineCells in mediumView.lines do

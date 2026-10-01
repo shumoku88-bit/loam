@@ -78,6 +78,8 @@ on:
       - 'Loam/Tests/TuiScheduledContinuation.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
+      - 'Loam/Tests/TuiHomeNavigation.lean'
+      - 'tests/test_date_jump.lean'
       - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
       - 'Loam/Tests/TuiSettlement.lean'
@@ -217,6 +219,8 @@ on:
       - 'Loam/Tests/TuiScheduledContinuation.lean'
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
+      - 'Loam/Tests/TuiHomeNavigation.lean'
+      - 'tests/test_date_jump.lean'
       - 'Loam/Tests/TuiAttention.lean'
       - 'Loam/Tests/TuiAttentionAdministration.lean'
       - 'Loam/Tests/TuiBalances.lean'
@@ -330,6 +334,8 @@ jobs:
           lake env lean --run Loam/Tests/TuiSettlement.lean
           lake env lean --run Loam/Tests/TuiReports.lean
           lake env lean --run Loam/Tests/TuiHelpFooter.lean
+          lake env lean --run Loam/Tests/TuiHomeNavigation.lean
+          lake env lean --run tests/test_date_jump.lean
 
       - name: Verify Cycle Budget and Scheduled startup PTY interactions
         shell: bash
@@ -767,6 +773,11 @@ jobs:
 
       - name: Verify TUI help footer geometry and adaptive flow
         run: lake env lean --run Loam/Tests/TuiHelpFooter.lean
+
+      - name: Verify Home navigation and period summaries
+        run: |
+          lake env lean --run Loam/Tests/TuiHomeNavigation.lean
+          lake env lean --run tests/test_date_jump.lean
 
       - name: Build shared CycleBudget review boundary
         run: lake build Loam.Review.CycleBudgetReview

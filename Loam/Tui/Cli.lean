@@ -386,135 +386,32 @@ partial def currentQuantityAnchorLoop
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  if state.jumpPrompt.isSome then
-    match key with
-    | .escape =>
-        let home := Loam.Tui.Main.closeJumpPrompt state
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        loop bounds dataDir root snapshot home nextFrame
-    | .backspace =>
-        let home := Loam.Tui.Main.backspaceJump state
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        loop bounds dataDir root snapshot home nextFrame
-    | .enter =>
-        let home := Loam.Tui.Main.executeJump state
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        loop bounds dataDir root snapshot home nextFrame
-    | .input char =>
-        if char.isDigit || char == '-' || char == '/' then
-          let home := Loam.Tui.Main.appendJumpChar state char
-          let nextFrame := compiledFrameFor bounds snapshot home
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          loop bounds dataDir root snapshot home nextFrame
-        else
-          loop bounds dataDir root snapshot state frame
-    | _ =>
-        loop bounds dataDir root snapshot state frame
-  else if key = .input '/' then
-    let home := Loam.Tui.Main.openJumpPrompt state
+  let state := Loam.Tui.Home.reconcileState bounds snapshot state
+  if let some home := Loam.Tui.Home.navigationKey bounds snapshot state key then
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if key = .input 'z' || key = .input 'Z' then
-    let home := Loam.Tui.Main.cycleZoomLevel state
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if key = .tab || key = .input 'w' || key = .input 'W' then
-    let home := Loam.Tui.Main.toggleActivePane state
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if state.activePane == .detail && (key = .input 'j' || key = .input 'J' || key = .down) then
-    let home := Loam.Tui.Home.moveDetailCursor bounds snapshot state 1
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if state.activePane == .detail && (key = .input 'k' || key = .input 'K' || key = .up) then
-    let home := Loam.Tui.Home.moveDetailCursor bounds snapshot state (-1)
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if state.activePane == .detail && key = .ctrl 'd' then
-    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state true 5
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if state.activePane == .detail && key = .ctrl 'u' then
-    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state false 5
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if state.activePane == .detail && (key = .input 'h' || key = .input 'H' || key = .left || key = .escape) then
-    let home := Loam.Tui.Main.focusCalendar state
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
-  else if key = .escape then
-    match state.zoomLevel with
-    | .year =>
-        let home := { state with zoomLevel := .month, notice := "View: Month" }
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        loop bounds dataDir root snapshot home nextFrame
-    | .month =>
-        let home := { state with zoomLevel := .day, notice := "View: Day" }
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        loop bounds dataDir root snapshot home nextFrame
-    | .day =>
-        loop bounds dataDir root snapshot state frame
   else if key = .enter then
-    if state.activePane == .detail then
-      match Loam.Tui.Main.selectedDetailRecord? snapshot state with
-      | some record =>
-          let dayState :=
-            match Loam.Tui.SelectedDay.initialForActual? snapshot record with
-            | some day => day
-            | none => Loam.Tui.SelectedDay.initial (record.date.getD state.selectedDate)
-          let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot dayState)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame dayFrame
-          let fresh ← Loam.Tui.SelectedDaySession.run
-            bounds dataDir root (loadSnapshot dataDir) snapshot dayState dayFrame
-          let home := { state with notice := "" }
-          let nextFrame := compiledFrameFor bounds fresh home
-          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-          loop bounds dataDir root fresh home nextFrame
-      | none =>
-          let home := { state with notice := "No transaction selected." }
-          let nextFrame := compiledFrameFor bounds snapshot home
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          loop bounds dataDir root snapshot home nextFrame
-    else
-      match state.zoomLevel with
-      | .year =>
-          let home := { state with zoomLevel := .month, notice := "View: Month" }
-          let nextFrame := compiledFrameFor bounds snapshot home
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          loop bounds dataDir root snapshot home nextFrame
-      | .month =>
-          let home := { state with zoomLevel := .day, notice := "View: Day" }
-          let nextFrame := compiledFrameFor bounds snapshot home
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          loop bounds dataDir root snapshot home nextFrame
-      | .day =>
-          let day := Loam.Tui.SelectedDay.initial state.selectedDate
-          let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot day)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame dayFrame
-          let fresh ← Loam.Tui.SelectedDaySession.run
-            bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
-          let home := { state with notice := "" }
-          let nextFrame := compiledFrameFor bounds fresh home
-          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-          loop bounds dataDir root fresh home nextFrame
-  else if (key = .input 'f' || key = .input 'F') then
-    let home := Loam.Tui.Main.toggleCalendarMode state
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    let day? :=
+      if state.activePane == .detail then do
+        let record ← Loam.Tui.Main.selectedDetailRecord? snapshot state
+        Loam.Tui.SelectedDay.initialForActual? snapshot record
+      else some (Loam.Tui.SelectedDay.initial state.selectedDate)
+    match day? with
+    | none =>
+        let home := { state with notice := "No transaction selected." }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | some day =>
+        let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot day)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame dayFrame
+        let fresh ← Loam.Tui.SelectedDaySession.run
+          bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
+        let home := Loam.Tui.Home.reconcileState bounds fresh { state with notice := "" }
+        let nextFrame := compiledFrameFor bounds fresh home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'm' || key = .input 'M') then
     let world ←
       match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
@@ -687,12 +584,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor nextBounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank nextBounds nextFrame
     loop nextBounds dataDir root snapshot home nextFrame
-  else if (key = .input 't' || key = .input 'T') then
-    let home :=
-      { state with selectedDate := snapshot.actual.today, notice := "", detailScroll := 0 }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'x' || key = .input 'X') then
     let evidence ←
       match ← Loam.ActualAuthority.loadActual? root with
@@ -742,11 +633,6 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds fresh destination
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh destination nextFrame
-  else if let some forward := Loam.Tui.Home.detailScrollDirection? bounds key then
-    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state forward
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
   else
     let event := homeEventOfKey key
     let step := update state event
