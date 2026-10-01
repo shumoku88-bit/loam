@@ -305,6 +305,9 @@ def main : IO Unit := do
     "ScheduledWorkspace at 80 cols must retain complete action in wrapped footer"
 
   -- 5. Current Quantity TUI remains a thin reconciliation-group observation adapter.
+  let usdAnchor := Loam.Tui.CurrentQuantityAnchor.initialWithMeasure ⟨"usd"⟩
+  expect (usdAnchor.form.measure == "usd")
+    "Current Quantity Anchor did not retain the configured Measure"
   let enteredLocus := typeAnchorText Loam.Tui.CurrentQuantityAnchor.initial "mother-wifi-debt"
   let quantityFocus := pressAnchor (pressAnchor enteredLocus .tab) .tab
   let enteredQuantity := typeAnchorText quantityFocus "-12345"
