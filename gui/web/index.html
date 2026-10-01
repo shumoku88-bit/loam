@@ -10,28 +10,38 @@
   <main class="app-shell">
     <header class="topbar">
       <div>
-        <p class="eyebrow">LOAM GUI · read-only experiment</p>
+        <p class="eyebrow">LOAM GUI</p>
         <h1 id="month-title">Household desk</h1>
       </div>
-      <div class="month-controls" aria-label="Month navigation">
-        <button id="previous-month" type="button" aria-label="Previous month">‹</button>
-        <button id="today-month" type="button">今月</button>
-        <button id="next-month" type="button" aria-label="Next month">›</button>
+
+      <div class="topbar-actions">
+        <span class="readonly-badge">read-only</span>
+
+        <details class="data-source">
+          <summary>Data</summary>
+          <div class="data-source-popover">
+            <label for="data-dir">Household data</label>
+            <input id="data-dir" type="text" placeholder="LOAM_DATA_DIR / ../loam-data" />
+            <div class="data-source-actions">
+              <button id="reload" type="button">読み直す</button>
+              <span id="status" role="status">起動中…</span>
+            </div>
+          </div>
+        </details>
+
+        <div class="month-controls" aria-label="Month navigation">
+          <button id="previous-month" type="button" aria-label="Previous month">‹</button>
+          <button id="today-month" type="button">今月</button>
+          <button id="next-month" type="button" aria-label="Next month">›</button>
+        </div>
       </div>
     </header>
-
-    <section class="sourcebar">
-      <label for="data-dir">Household data</label>
-      <input id="data-dir" type="text" placeholder="LOAM_DATA_DIR / ../loam-data" />
-      <button id="reload" type="button">読み直す</button>
-      <span id="status" role="status">起動中…</span>
-    </section>
 
     <section id="workspace" class="workspace">
       <aside class="calendar-pane">
         <div class="pane-heading">
           <strong>Calendar</strong>
-          <span id="month-count"></span>
+          <span id="selected-day-count">0 rows</span>
         </div>
         <div class="weekday-row" aria-hidden="true">
           <span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span><span>日</span>
@@ -45,8 +55,23 @@
       <section class="ledger-pane">
         <div class="pane-heading">
           <strong>Actual</strong>
-          <span>月間の現在レコード</span>
+          <span id="month-count">0 rows</span>
         </div>
+
+        <div class="ledger-toolbar">
+          <div class="scope-switch" role="group" aria-label="Actual scope">
+            <button id="scope-month" type="button" class="scope-button selected">月全体</button>
+            <button id="scope-day" type="button" class="scope-button">選択日</button>
+          </div>
+
+          <label class="search-field">
+            <span>検索</span>
+            <input id="search" type="search" placeholder="内容・口座・費目・ID…" autocomplete="off" />
+          </label>
+
+          <span id="visible-count" class="visible-count"></span>
+        </div>
+
         <div class="table-wrap">
           <table>
             <thead>
@@ -59,7 +84,7 @@
             </thead>
             <tbody id="actual-body"></tbody>
           </table>
-          <div id="empty" class="empty" hidden>この月のCurrent Actualはありません。</div>
+          <div id="empty" class="empty" hidden></div>
         </div>
       </section>
     </section>
