@@ -77,8 +77,8 @@ def main : IO Unit := do
   let allCurrent := (Loam.Tui.ActualWorkspace.update snapshot second .cycleFilter).state
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot allCurrent).length == 3)
     "Actual workspace filter did not expand from Focus Day to all current Actual evidence"
-  expect (allCurrent.order == .asc)
-    "Actual workspace initial order was not ascending"
+  expect (allCurrent.order == .desc)
+    "Actual workspace initial order was not newest-first"
 
   -- Slash-style search reuses ActualReview text search across all current evidence.
   let some searchMetadata := Loam.LocusCatalog.decode?
@@ -143,83 +143,87 @@ def main : IO Unit := do
   let paypayLocus := (Loam.Tui.ActualWorkspace.update snapshot allCurrentLoci .next).state
   expect (Loam.Tui.ActualWorkspace.selectedLocus? snapshot paypayLocus == some "paypay")
     "Actual workspace next did not select the paypay locus"
-  let paypayAsc := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayLocus
-  expect (paypayAsc.map (·.description) == ["gamma", "beta", "alpha"])
-    "Actual workspace paypay records in ascending order did not list oldest first"
+  let paypayDesc := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayLocus
+  expect (paypayDesc.map (·.description) == ["alpha", "beta", "gamma"])
+    "Actual workspace default paypay order did not list newest first"
   match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayLocus with
   | none => throw (IO.userError "Actual workspace paypay record selection disappeared")
   | some record =>
-      expect (record.description == "gamma")
-        "Actual workspace ascending paypay record was not oldest first (gamma)"
-
-  -- Toggle order to descending (newest first)
-  let paypayDesc := (Loam.Tui.ActualWorkspace.update snapshot paypayLocus .cycleOrder).state
-  expect (paypayDesc.order == .desc)
-    "Actual workspace cycleOrder did not change order to descending"
-  let paypayDescRecords := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayDesc
-  expect (paypayDescRecords.map (·.description) == ["alpha", "beta", "gamma"])
-    "Actual workspace paypay records in descending order did not list newest first"
-  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayDesc with
-  | none => throw (IO.userError "Actual workspace descending paypay record selection disappeared")
-  | some record =>
       expect (record.description == "alpha")
-        "Actual workspace descending paypay record at row 0 was not newest (alpha)"
+        "Actual workspace default paypay record was not newest first (alpha)"
 
-  -- Move down in descending order
-  let paypayDescRight := (Loam.Tui.ActualWorkspace.update snapshot paypayDesc .focusRight).state
-  let paypayDescSecond := (Loam.Tui.ActualWorkspace.update snapshot paypayDescRight .next).state
-  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayDescSecond with
-  | none => throw (IO.userError "Actual workspace descending second record disappeared")
+  -- Toggle order to ascending (oldest first)
+  let paypayAsc := (Loam.Tui.ActualWorkspace.update snapshot paypayLocus .cycleOrder).state
+  expect (paypayAsc.order == .asc)
+    "Actual workspace cycleOrder did not change order to ascending"
+  let paypayAscRecords := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayAsc
+  expect (paypayAscRecords.map (·.description) == ["gamma", "beta", "alpha"])
+    "Actual workspace paypay records in ascending order did not list oldest first"
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayAsc with
+  | none => throw (IO.userError "Actual workspace ascending paypay record selection disappeared")
+  | some record =>
+      expect (record.description == "gamma")
+        "Actual workspace ascending paypay record at row 0 was not oldest (gamma)"
+
+  -- Move down in ascending order
+  let paypayAscRight := (Loam.Tui.ActualWorkspace.update snapshot paypayAsc .focusRight).state
+  let paypayAscSecond := (Loam.Tui.ActualWorkspace.update snapshot paypayAscRight .next).state
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayAscSecond with
+  | none => throw (IO.userError "Actual workspace ascending second record disappeared")
   | some record =>
       expect (record.description == "beta")
-        "Actual workspace descending second record was not beta"
+        "Actual workspace ascending second record was not beta"
 
-  -- Toggle back to ascending
-  let paypayAscAgain := (Loam.Tui.ActualWorkspace.update snapshot paypayDescSecond .cycleOrder).state
-  expect (paypayAscAgain.order == .asc)
-    "Actual workspace cycleOrder did not toggle back to ascending"
-  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayAscAgain with
+  -- Toggle back to descending
+  let paypayDescAgain := (Loam.Tui.ActualWorkspace.update snapshot paypayAscSecond .cycleOrder).state
+  expect (paypayDescAgain.order == .desc)
+    "Actual workspace cycleOrder did not toggle back to descending"
+  match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayDescAgain with
   | none => throw (IO.userError "Actual workspace toggled-back record disappeared")
   | some record =>
-      expect (record.description == "gamma")
-        "Actual workspace toggled-back record at row 0 was not oldest (gamma)"
+      expect (record.description == "alpha")
+        "Actual workspace toggled-back record at row 0 was not newest (alpha)"
 
   -- View check
-  let descViewText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot paypayDesc)
+  let descViewText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot paypayDescAgain)
   expect (contains "desc" descViewText && contains "newest first" descViewText)
     "Actual workspace view did not display descending order indication"
   expect (contains "[s] sort" descViewText)
     "Actual workspace view footer did not expose [s] sort"
 
-  -- Production Actual workspace owns its own eight-row viewport. Pin navigation beyond it
-  -- before the older Main cursor implementation is retired.
+  -- Production Actual workspace should use the available terminal height rather than
+  -- keeping the former fixed eight-row viewport, while still scrolling long lists.
   let longActual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-07"
-    allRecords := (List.range 12).map testRecord
+    allRecords := (List.range 30).map testRecord
   }
   let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
   let longActualStart :=
     (Loam.Tui.ActualWorkspace.update longSnapshot
       (Loam.Tui.ActualWorkspace.initial "2026-09-07") .focusRight).state
-  let longShifted := (List.range 10).foldl
+  let tallViewText := widgetText
+    (Loam.Tui.ActualWorkspace.view { width := 100, height := 40 } longSnapshot longActualStart)
+  expect (contains "row-21" tallViewText)
+    "Actual workspace did not grow its list viewport beyond the former eight rows"
+  let longShifted := (List.range 26).foldl
     (fun current _ => (Loam.Tui.ActualWorkspace.update longSnapshot current .next).state)
     longActualStart
-  expect (longShifted.transactionRow == 10)
-    "Actual workspace selection could not reach the eleventh record"
+  expect (longShifted.transactionRow == 26)
+    "Actual workspace selection could not reach a record beyond the visible window"
   let longRecords := Loam.Tui.ActualWorkspace.visibleRecords longSnapshot longShifted
   let selectedLong ← requireSome
     (Loam.Tui.ActualWorkspace.selectedRecord? longSnapshot longShifted)
-    "Actual workspace eleventh-row selection disappeared"
+    "Actual workspace long-list selection disappeared"
   let longViewText := widgetText
     (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } longSnapshot longShifted)
   expect (contains selectedLong.description longViewText)
-    "Actual workspace moving viewport did not render its selected eleventh record"
+    "Actual workspace moving viewport did not render its selected long-list record"
   match longRecords.head? with
   | none => throw (IO.userError "Actual workspace long-list fixture became empty")
   | some firstLong =>
       expect (!contains firstLong.description longViewText)
-        "Actual workspace eight-row viewport did not move beyond its first record"
-  let longLast := (List.range 11).foldl
+        "Actual workspace moving viewport did not leave its first record behind"
+  let longLast := (List.range 29).foldl
     (fun current _ => (Loam.Tui.ActualWorkspace.update longSnapshot current .next).state)
     longActualStart
   let longBlocked := (Loam.Tui.ActualWorkspace.update longSnapshot longLast .next).state
