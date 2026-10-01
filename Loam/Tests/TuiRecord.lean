@@ -127,6 +127,27 @@ def main (args : List String) : IO Unit := do
       decimalPresentation ⟨"usd"⟩ 123456 == "1,234.56")
     "grouped quantity formatting lost the configured decimal scale"
   expect
+    (Loam.MeasurePresentation.formatGroupedAmount [] ⟨"jpy"⟩ (-240000) == "-¥240,000")
+    "JPY symbol formatting misplaced the sign or grouping"
+  expect
+    (Loam.MeasurePresentation.formatGroupedAmount
+      decimalPresentation ⟨"usd"⟩ 123456 == "$1,234.56")
+    "USD symbol formatting lost the configured decimal scale"
+  expect
+    (Loam.MeasurePresentation.formatAmount
+      [{ measure := ⟨"eur"⟩, scale := 2 }] ⟨"eur"⟩ 1850 == "€18.50")
+    "EUR symbol formatting lost exact decimal presentation"
+  expect
+    (Loam.MeasurePresentation.formatAmount
+      decimalPresentation ⟨"ils"⟩ 2790 == "₪27.90")
+    "ILS symbol formatting lost exact decimal presentation"
+  expect
+    (Loam.Tui.Layout.displayWidth "₪27.90" == 6)
+    "ILS symbol did not occupy one terminal column"
+  expect
+    (Loam.MeasurePresentation.formatAmount [] ⟨"points"⟩ 12 == "12 points")
+    "unknown Measure did not fall back to its explicit token"
+  expect
     ((draftWithPresentation? decimalPresentation
       { decimalUsdForm with rows := #[
           { locus := "paypay", amount := "-12.345" },
