@@ -5,21 +5,22 @@ Status: **experimental disposable cash projection**
 LOAM can emit a Wealthfolio-native CSV for transaction-tracked Cash accounts:
 
 ```text
-loam export wealthfolio DATA_ROOT ACCOUNTING_EPOCH OUTPUT_FILE
+loam export wealthfolio DATA_ROOT ACCOUNTING_EPOCH OUTPUT_FILE ACCOUNT_LOCUS [ACCOUNT_LOCUS ...]
 ```
 
 Example:
 
 ```text
-loam export wealthfolio ../loam-data 2026-09-01 /tmp/loam-wealthfolio.csv
+loam export wealthfolio ../loam-data 2026-04-04 /tmp/loam-wealthfolio.csv cash yucho all-country paypay smbc
 ```
 
 LOAM remains authoritative. The CSV may be deleted and regenerated at any time.
 
 ## Scope
 
-The first exporter intentionally handles only LOAM coordinates with explicit
-`AccountingRole.asset`.
+The first exporter handles only explicitly selected LOAM Loci whose
+`AccountingRole` is `asset`. `ASSET` alone does not mean "Wealthfolio Cash":
+receivables and other non-cash Assets stay outside the target unless selected.
 
 It emits:
 
@@ -56,8 +57,9 @@ OpeningPositionReview(Accounting Epoch)
 Wealthfolio DEPOSIT / WITHDRAWAL target rows
 ```
 
-If LOAM cannot justify an exact Asset quantity at the requested Accounting
-Epoch, export fails closed.
+If LOAM cannot justify an exact quantity at the requested Accounting Epoch for
+one of the selected cash-account Loci, export fails closed. Unselected Assets
+do not need historical support merely to stay outside Wealthfolio.
 
 ## CSV shape
 
@@ -74,8 +76,9 @@ security holding.
 Amounts are always positive because Wealthfolio derives cash direction from the
 activity type.
 
-`account` is the LOAM Locus token. Create matching Wealthfolio Cash accounts
-or map the column during import.
+`account` is the selected LOAM Locus token. Create matching Wealthfolio Cash
+accounts or map the column during import. Selection is an export-time target
+choice, not persisted LOAM authority.
 
 `comment` retains the human description when present plus:
 
