@@ -482,3 +482,69 @@ projection**, not a canonical migration.
 
 That experiment is intentionally reversible and can provide the evidence needed
 to decide whether architecture C deserves implementation at all.
+
+
+## First executable result — E1 / narrow E2 passed
+
+The first bounded implementation is now retained under
+`experiments/sqlite_projection/`.
+
+It deliberately does not read private household data. The fixture contains five
+balanced Actual Events, including one correction pair. It is first published
+through the real normalized Actual authority, then reloaded as an admitted
+image. Only after that admission does the experiment derive Actual Review
+records and materialize them into SQLite.
+
+The SQLite read model currently owns two tables:
+
+~~~text
+actual_records
+effects
+~~~
+
+and indexes for date ordering and Locus/Measure lookup. It has no write-back
+path.
+
+CI result on the first executable checkpoint:
+
+~~~text
+Build completed successfully (130 jobs).
+
+[ok] admitted Actual records: 5
+[ok] current records: 4
+[ok] newest-first current ids:
+     event-book, event-topup, event-coffee-new, event-grocery
+[ok] wallet/jpy current quantity: 3060
+[ok] two independently rebuilt SQLite projections equal LOAM answers
+[result] SQLite remained a disposable read model; actual.loam remained authority
+~~~
+
+The fixture checks four initial semantic correspondences:
+
+1. retained review-record count;
+2. correction-aware current record count;
+3. newest-first current Event identity order;
+4. correction-aware current quantity for one Locus / Measure coordinate.
+
+A second SQLite database is independently rebuilt from the same admitted image
+and must produce the same query-visible answer. This is a small but concrete
+witness for the rebuildability requirement in H2.
+
+### What this result does not show
+
+This checkpoint does **not** establish that SQLite should become production
+infrastructure.
+
+It does not yet measure:
+
+- realistic or adversarial scale;
+- projection rebuild time;
+- indexed-query speed against current Lean review paths;
+- memory use;
+- stale projection detection;
+- interrupted rebuild recovery;
+- database-authority migration or recovery.
+
+The next useful experiment is therefore E3-style scale/query measurement, while
+keeping the SQLite database disposable. Canonical SQLite authority remains
+premature.
