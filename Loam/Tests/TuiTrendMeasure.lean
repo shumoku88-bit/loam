@@ -57,8 +57,8 @@ def main : IO Unit := do
   let bounds : Bounds := { width := 120, height := 40 }
   let text := widgetText (Loam.Tui.Reports.viewForBounds bounds report)
 
-  expect (contains "usd" text && contains "4.64 usd/day" text)
-    "Trend did not apply USD Measure identity and decimal presentation"
+  expect (contains "usd" text && contains "$4.64/day" text)
+    "Trend did not apply USD Measure identity, symbol, and decimal presentation"
   expect (!(contains "¥" text) && !(contains " jpy" text))
     "USD Trend leaked the historical JPY presentation"
 
