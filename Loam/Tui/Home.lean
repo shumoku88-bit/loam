@@ -267,19 +267,38 @@ private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
   else Loam.ActualReview.displayText record.description
 
-private def actualRecordLines (record : ReviewRecord) : List Widget :=
-  [plainLine ("   - " ++ displayDescription record)] ++
-  (record.event.effects.map fun effect =>
-    plainLine
-      ("       " ++ effect.locus.token ++ "  " ++
-        toString effect.quantity.quanta ++ " " ++ effect.measure.token))
+private def actualRecordLines
+    (isSelected : Bool) (state : State) (record : ReviewRecord) : List Widget :=
+  let prefixSpan :=
+    if isSelected then span " ▶ " .series2
+    else span "   " .normal
+  let markerSpan :=
+    if isSelected then span "- " .series2
+    else span "- " .muted
+  let dateText :=
+    match state.zoomLevel with
+    | .day => ""
+    | .month | .year =>
+        match record.date with
+        | some d => d ++ "  "
+        | none => ""
+  let descSpan :=
+    span (dateText ++ displayDescription record) (if isSelected then .selected else .normal)
+  let titleRow := .row [prefixSpan, markerSpan, descSpan]
+  let effectLines := record.event.effects.map fun effect =>
+    let effectText := "       " ++ effect.locus.token ++ "  " ++
+        toString effect.quantity.quanta ++ " " ++ effect.measure.token
+    if isSelected then plainLine effectText else mutedLine effectText
+  titleRow :: effectLines
 
 private def actualLines (snapshot : Snapshot) (state : State) : List Widget :=
   let records := (homeActualRecords snapshot state).reverse
   if records.isEmpty then
     [mutedLine "   (none recorded)"]
   else
-    records.flatMap actualRecordLines
+    records.zipIdx.flatMap fun (record, idx) =>
+      let isSelected := state.activePane == .detail && idx == state.detailCursor
+      actualRecordLines isSelected state record
 
 private def scheduledLines (snapshot : Snapshot) (state : State) : List Widget :=
   match homeScheduledEvidence snapshot state with
@@ -687,7 +706,7 @@ private def wideSelectedDayPane
   let focusBadge :=
     if isDetailFocused then
       [ span " [FOCUSED]" .series2
-      , span "  [j/k] scroll  [h/Esc] back" .muted
+      , span "  [j/k] select  [Enter] edit  [h/Esc] back" .muted
       ]
     else
       [ span "  [Tab/w] focus" .muted ]
@@ -805,8 +824,11 @@ private def dayHelpTokens (state : State) : List String :=
     match state.calendarMode with
     | .plain => "[f] flow"
     | .money => "[f] calendar"
-  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[/] jump", "[z] zoom", "[Tab/w] pane", calendarToggle, "[Enter] open",
-   "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
+  if state.activePane == .detail then
+    ["Detail:", "[j/k] select", "[Enter] open/edit", "[Ctrl-d/u] scroll", "[h/Esc/Tab] calendar", "[q] quit"]
+  else
+    ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[/] jump", "[z] zoom", "[Tab/w] pane", calendarToggle, "[Enter] open",
+     "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
   ["Household:", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
@@ -859,6 +881,40 @@ def scrollWideDetail
       if forward then Loam.Tui.Scroll.forward content visible current step
       else Loam.Tui.Scroll.backward content visible current step
     { state with detailScroll := next, notice := "" }
+
+/-- Move detail cursor and scroll viewport so the selected record is visible. -/
+def moveDetailCursor
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (offset : Int) : State :=
+  let nextState := Loam.Tui.Main.moveDetailCursor snapshot state offset
+  if !usesWideLayout bounds then nextState
+  else
+    let records := (homeActualRecords snapshot nextState).reverse
+    if records.isEmpty then nextState
+    else
+      let footerRows := (homeFooter bounds nextState).length
+      let panelRows := widePanelRows bounds footerRows
+      let visible := wideDetailVisibleRows panelRows
+      let pending := pendingEvidence snapshot
+      let pendingCount := (pendingSection pending).length
+      let actualHeaderRows := pendingCount + 2
+      let idx := nextState.detailCursor
+      match records[idx]? with
+      | none => nextState
+      | some currentRec =>
+          let prevRows := (records.take idx).foldl (fun acc r => acc + 1 + r.event.effects.length) 0
+          let recStart := actualHeaderRows + prevRows
+          let recEnd := recStart + 1 + currentRec.event.effects.length
+          let content := (wideDetailLines snapshot nextState pending).length
+          let currentScroll := Loam.Tui.Scroll.clamp content visible nextState.detailScroll
+          let adjustedScroll :=
+            if recEnd > currentScroll + visible then
+              if recEnd ≥ visible then recEnd - visible else 0
+            else if recStart < currentScroll then
+              recStart
+            else
+              currentScroll
+          let finalScroll := Loam.Tui.Scroll.clamp content visible adjustedScroll
+          { nextState with detailScroll := finalScroll }
 
 /--
 Production Home presentation over LOAM's already-admitted read answers.

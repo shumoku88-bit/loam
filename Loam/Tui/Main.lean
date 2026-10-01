@@ -75,6 +75,8 @@ structure State where
   notice : String := ""
   /-- Presentation-only viewport offset for the wide Home detail pane. -/
   detailScroll : Nat := 0
+  /-- Zero-based index of the currently selected Actual transaction in detail view. -/
+  detailCursor : Nat := 0
   /-- Replaceable Home calendar lens; ordinary date view remains the default. -/
   calendarMode : CalendarMode := .plain
   /-- Calendar zoom level: Day, Month, or Year. -/
@@ -110,6 +112,7 @@ def toggleCalendarMode (state : State) : State :=
       | .money => .plain
     notice := ""
     detailScroll := 0
+    detailCursor := 0
   }
 
 /-- Toggle focus between calendar and detail pane. -/
@@ -133,6 +136,7 @@ def cycleZoomLevel (state : State) : State :=
     zoomLevel := next
     notice := s!"View: {Loam.Tui.DateJump.zoomLabel next}"
     detailScroll := 0
+    detailCursor := 0
   }
 
 def openJumpPrompt (state : State) : State :=
@@ -167,6 +171,7 @@ def executeJump (state : State) : State :=
             jumpPrompt := none
             notice := s!"Jumped to {target.date} ({Loam.Tui.DateJump.zoomLabel target.zoom})."
             detailScroll := 0
+            detailCursor := 0
           }
       | none =>
           { state with
@@ -205,7 +210,7 @@ def selectedMonth (state : State) : Loam.Tui.Calendar.Month :=
 def moveDate (state : State) (offset : Int) : State :=
   match Loam.ActualDate.shiftDays? state.selectedDate offset with
   | none => { state with notice := "Calendar boundary reached." }
-  | some date => { state with selectedDate := date, notice := "", detailScroll := 0 }
+  | some date => { state with selectedDate := date, notice := "", detailScroll := 0, detailCursor := 0 }
 
 def moveMonth (state : State) (offset : Int) : State :=
   let cur := selectedMonth state
@@ -224,7 +229,7 @@ def moveMonth (state : State) (offset : Int) : State :=
       let maxDay := (Loam.Tui.Calendar.daysInMonth? { year := targetYear, month := targetMonth }).getD 31
       let clampedDay := if day > maxDay then maxDay else if day == 0 then 1 else day
       let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := targetMonth } clampedDay
-      { state with selectedDate := newDate, notice := "", detailScroll := 0 }
+      { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0 }
 
 def moveYear (state : State) (offset : Int) : State :=
   match Loam.Tui.Calendar.parseDate? state.selectedDate with
@@ -238,7 +243,7 @@ def moveYear (state : State) (offset : Int) : State :=
         let maxDay := (Loam.Tui.Calendar.daysInMonth? { year := targetYear, month := m }).getD 31
         let clampedDay := if d > maxDay then maxDay else d
         let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := m } clampedDay
-        { state with selectedDate := newDate, notice := "", detailScroll := 0 }
+        { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0 }
 
 /-- Home-only root navigation. Household evidence is consumed by presentation, not this transition. -/
 def update (state : State) (event : Event) : Step :=
@@ -282,6 +287,20 @@ def homeActualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord 
   | .year =>
       let m := selectedMonth state
       recordsForYear snapshot m.year
+
+def selectedDetailRecord? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
+  let records := (homeActualRecords snapshot state).reverse
+  records[state.detailCursor]?
+
+def moveDetailCursor (snapshot : Snapshot) (state : State) (offset : Int) : State :=
+  let records := homeActualRecords snapshot state
+  if records.isEmpty then state
+  else
+    let count := records.length
+    let current := (state.detailCursor : Int)
+    let nextInt := current + offset
+    let clamped := if nextInt < 0 then 0 else if nextInt >= count then count - 1 else nextInt.toNat
+    { state with detailCursor := clamped }
 
 
 def homeScheduledEvidence
