@@ -39,6 +39,7 @@ def Row.remaining (row : Row) : Quantity :=
   row.entitlement - row.consumption
 
 structure Snapshot where
+  measure : MeasureId := ⟨"jpy"⟩
   start : String
   endExclusive : String
   rows : List Row
@@ -68,17 +69,17 @@ ActualValidity memory are all carried by their authority images rather than
 reconstructed inside the report.
 -/
 private def projectPurpose?
+    (measure : MeasureId)
     (evidence : Evidence)
     (start end_ : String)
     (purpose : PurposeId) : Option Row := do
-  let yen : MeasureId := ⟨"jpy"⟩
   let entitlement ←
     entitlementAtAdmittedEffectiveWindow?
-      evidence.capacity start end_ purpose yen
+      evidence.capacity start end_ purpose measure
   let consumption ←
     consumptionAtRecordedEffectiveRoutingWindow?
       evidence.actual.currentEvents evidence.actual.currentValidities
-      evidence.routing start end_ purpose yen
+      evidence.routing start end_ purpose measure
   some {
     purpose := purpose
     entitlement := entitlement
@@ -122,11 +123,12 @@ private def loadWindowEvidence
   | .ok _ => loadEvidence dataDir actualRoot
 
 /--
-Load one immutable production evidence snapshot and answer one explicit JPY
-Purpose over `[start, end)`. The Purpose need not already appear in Capacity
-history: complete evidence can therefore justify an exact zero row.
+Load one immutable production evidence snapshot and answer one explicit
+single-Measure Purpose over `[start, end)`. The Purpose need not already appear
+in Capacity history: complete evidence can therefore justify an exact zero row.
 -/
-def loadPurposeRow
+def loadPurposeRowForMeasure
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (start end_ : String)
     (purpose : PurposeId) : IO (Except String Row) := do
@@ -134,21 +136,29 @@ def loadPurposeRow
     match ← loadWindowEvidence dataDir actualRoot start end_ with
     | .ok evidence => pure evidence
     | .error message => return .error message
-  match projectPurpose? evidence start end_ purpose with
+  match projectPurpose? measure evidence start end_ purpose with
   | some row => return .ok row
   | none =>
       return .error "loam: canonical evidence does not justify this budget-window projection"
 
+/-- Backward-compatible JPY entrance for the current household. -/
+def loadPurposeRow
+    (dataDir actualRoot : System.FilePath)
+    (start end_ : String)
+    (purpose : PurposeId) : IO (Except String Row) :=
+  loadPurposeRowForMeasure ⟨"jpy"⟩ dataDir actualRoot start end_ purpose
+
 /--
-Load one immutable production evidence snapshot and answer an explicit JPY
-`[start, end)` query for every Purpose represented by retained Capacity evidence.
+Load one immutable production evidence snapshot and answer an explicit
+single-Measure `[start, end)` query for every Purpose represented by retained Capacity evidence.
 
 An empty Purpose set remains an empty successful answer. For a non-empty set,
 every Purpose reuses the current Event frontier and current ActualValidity memory
 already carried by the admitted Actual authority image. No report-local
 Correction or ActualValidity admission is repeated.
 -/
-def loadSnapshot
+def loadSnapshotForMeasure
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (start end_ : String) : IO (Except String Snapshot) := do
   let evidence ←
@@ -158,16 +168,27 @@ def loadSnapshot
   let purposes := Loam.CapacityReview.rememberedPurposes evidence.capacity.movements
   match purposes with
   | [] =>
-      return .ok { start := start, endExclusive := end_, rows := [] }
+      return .ok { measure := measure, start := start, endExclusive := end_, rows := [] }
   | first :: rest =>
-      match projectPurpose? evidence start end_ first with
+      match projectPurpose? measure evidence start end_ first with
       | none =>
           return .error "loam: canonical evidence does not justify this budget-window projection"
       | some firstRow =>
-          match rest.mapM (projectPurpose? evidence start end_) with
+          match rest.mapM (projectPurpose? measure evidence start end_) with
           | none =>
               return .error "loam: canonical evidence does not justify this budget-window projection"
           | some later =>
-              return .ok { start := start, endExclusive := end_, rows := firstRow :: later }
+              return .ok {
+                measure := measure
+                start := start
+                endExclusive := end_
+                rows := firstRow :: later
+              }
+
+/-- Backward-compatible JPY entrance for the current household. -/
+def loadSnapshot
+    (dataDir actualRoot : System.FilePath)
+    (start end_ : String) : IO (Except String Snapshot) :=
+  loadSnapshotForMeasure ⟨"jpy"⟩ dataDir actualRoot start end_
 
 end Loam.BudgetWindowReview
