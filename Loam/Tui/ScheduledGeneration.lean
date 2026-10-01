@@ -277,7 +277,8 @@ private def draftSummary (index : Nat) (draft : Draft) : Widget :=
   line
     ("  " ++ toString (index + 1) ++ ". " ++ draft.scheduledOn ++
      "  " ++ toString
-       (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++ " jpy")
+       (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
+       " " ++ draft.movement.measure.token)
 
 private def previewView
     (state : State)
