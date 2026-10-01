@@ -36,10 +36,11 @@ private def completedLifecycle
     | throw (IO.userError "Scheduled completion terminal")
   return { scheduled, terminals }
 
-private def initialWorld : IO Loam.MovementAdmission.World := do
+private def initialWorldForMeasure
+    (measure : MeasureId) : IO Loam.MovementAdmission.World := do
   let effects :=
-    [ Effect.ofQuantity ⟨"actual-1-effect-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
-    , Effect.ofQuantity ⟨"actual-1-effect-2"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 700)
+    [ Effect.ofQuantity ⟨"actual-1-effect-1"⟩ ⟨"paypay"⟩ measure (Quantity.ofQuanta (-700))
+    , Effect.ofQuantity ⟨"actual-1-effect-2"⟩ ⟨"food"⟩ measure (Quantity.ofQuanta 700)
     ]
   let some event := Event.ofEffects? ⟨"actual-1"⟩ effects
     | throw (IO.userError "initial Event")
@@ -47,6 +48,32 @@ private def initialWorld : IO Loam.MovementAdmission.World := do
     | throw (IO.userError "initial Event memory")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"food"⟩]
     | throw (IO.userError "initial Locus vocabulary")
+  return {
+    events := events
+    validity := {
+      facts := [.base event.id "2026-09-07"]
+      factRefNodup := by simp
+      corrections := []
+      correctionIdNodup := by simp }
+    descriptions := .empty
+    relations := []
+    discharges := []
+    locusAdmission := vocabulary }
+
+private def initialWorld : IO Loam.MovementAdmission.World :=
+  initialWorldForMeasure ⟨"jpy"⟩
+
+private def mixedMeasureWorld : IO Loam.MovementAdmission.World := do
+  let effects :=
+    [ Effect.ofQuantity ⟨"actual-1-effect-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
+    , Effect.ofQuantity ⟨"actual-1-effect-2"⟩ ⟨"food"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 700)
+    ]
+  let some event := Event.ofEffects? ⟨"actual-1"⟩ effects
+    | throw (IO.userError "mixed-Measure Event")
+  let some events := EventMemory.ofEvents? [event]
+    | throw (IO.userError "mixed-Measure Event memory")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"food"⟩]
+    | throw (IO.userError "mixed-Measure Locus vocabulary")
   return {
     events := events
     validity := {
@@ -209,6 +236,56 @@ def main (args : List String) : IO Unit := do
     scheduledFile.toString root.toString reverseAgain
   expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
+
+  let usdRoot := dataDir / "usd-reversal"
+  IO.FS.createDirAll usdRoot
+  let usdScheduledFile := usdRoot / "scheduled.loam"
+  let usdWorld ← initialWorldForMeasure ⟨"usd"⟩
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? usdRoot usdWorld
+    | throw (IO.userError "publish USD Actual world")
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? usdScheduledFile lifecycle)
+    "publish empty lifecycle for USD reversal"
+  let .ok () ← Loam.ActualReversalPublisher.publishReversal
+      usdScheduledFile.toString usdRoot.toString draft
+    | throw (IO.userError "publish USD Actual reversal")
+  let .ok usdEvidence ← Loam.ActualAuthority.loadActual? usdRoot
+    | throw (IO.userError "reload USD Actual authority")
+  let usdRelation ←
+    match usdEvidence.reversals.findByTarget? draft.target with
+    | some retained => pure retained
+    | none => throw (IO.userError "USD reversal provenance missing")
+  let usdTarget ←
+    match EventMemory.findById? usdEvidence.events draft.target with
+    | some event => pure event
+    | none => throw (IO.userError "USD reversal target missing")
+  let usdInverse ←
+    match EventMemory.findById? usdEvidence.events usdRelation.reversal with
+    | some event => pure event
+    | none => throw (IO.userError "USD reversal endpoint missing")
+  expect (usdTarget.effects.all fun effect => decide (effect.measure = ⟨"usd"⟩))
+    "USD reversal target lost its Measure"
+  expect (usdInverse.effects.all fun effect => decide (effect.measure = ⟨"usd"⟩))
+    "USD reversal endpoint was rewritten as another Measure"
+  expect (ActualReversal.exactPhysicalInverse? usdTarget.effects usdInverse.effects)
+    "USD reversal endpoint was not the exact physical inverse"
+
+  let mixedRoot := dataDir / "mixed-measure-reversal"
+  IO.FS.createDirAll mixedRoot
+  let mixedScheduledFile := mixedRoot / "scheduled.loam"
+  let mixedWorld ← mixedMeasureWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? mixedRoot mixedWorld
+    | throw (IO.userError "publish mixed-Measure Actual world")
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? mixedScheduledFile lifecycle)
+    "publish empty lifecycle for mixed-Measure reversal"
+  let mixedResult ← Loam.ActualReversalPublisher.publishReversal
+    mixedScheduledFile.toString mixedRoot.toString draft
+  expect (!mixedResult.isOk)
+    "mixed-Measure Actual was admitted by the single-Measure reversal entrance"
+  let .ok mixedAfter ← Loam.ActualAuthority.loadActual? mixedRoot
+    | throw (IO.userError "reload mixed-Measure Actual authority")
+  expect (mixedAfter.events.events.length == 1 &&
+      (mixedAfter.reversals.findByTarget? draft.target).isNone)
+    "refused mixed-Measure reversal mutated Actual authority"
 
   let dischargeRoot := dataDir / "relation-discharge-guard"
   IO.FS.createDirAll dischargeRoot

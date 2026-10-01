@@ -73,6 +73,37 @@ def main (args : List String) : IO Unit := do
   expect (editor.target == recorded && editor.inputDate == "2026-09-08")
     "reversal editor did not keep selected target and today as independent coordinates"
 
+  let some usdEvent := Event.ofEffects? ⟨"usd-actual"⟩
+      [ Effect.ofQuantity ⟨"usd-effect-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-25))
+      , Effect.ofQuantity ⟨"usd-effect-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 25)
+      ]
+    | throw (IO.userError "USD reversal editor Event fixture")
+  let usdRecord : Loam.ActualReview.Record := {
+    event := usdEvent
+    date := some "2026-09-07"
+    description := "USD coffee"
+    replacement := none
+  }
+  let .ok usdEditor := Loam.Tui.ActualReversal.initial? usdRecord "2026-09-08"
+    | throw (IO.userError "reversal editor rejected single-Measure USD Actual")
+  let usdInverse := Loam.Tui.ActualReversal.inversePreview usdEditor
+  expect (usdInverse.all fun (_, _, measure) => decide (measure = ⟨"usd"⟩))
+    "reversal editor rewrote USD inverse preview as another Measure"
+
+  let some mixedEvent := Event.ofEffects? ⟨"mixed-actual"⟩
+      [ Effect.ofQuantity ⟨"mixed-effect-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-25))
+      , Effect.ofQuantity ⟨"mixed-effect-2"⟩ ⟨"coffee"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 25)
+      ]
+    | throw (IO.userError "mixed-Measure reversal editor Event fixture")
+  let mixedRecord : Loam.ActualReview.Record := {
+    event := mixedEvent
+    date := some "2026-09-07"
+    description := "mixed"
+    replacement := none
+  }
+  expect (!(Loam.Tui.ActualReversal.initial? mixedRecord "2026-09-08").isOk)
+    "reversal editor admitted a mixed-Measure Actual"
+
   let inverse := Loam.Tui.ActualReversal.inversePreview editor
   expect (inverse.length == 2)
     "reversal preview lost postings"
