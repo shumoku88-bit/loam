@@ -46,6 +46,13 @@ private def overlayProposal : String :=
   "relation\teffect-2\tH2E\tbookshop\t2470\n" ++
   "discharge\trelation-1\t100\n"
 
+private def usdProposal : String :=
+  "LOAM-MOVEMENT-PROPOSAL\t1\n" ++
+  "date\t2026-09-16\n" ++
+  "description\tUSD proposal\n" ++
+  "effect\t-\tpaypay\tusd\t-25\n" ++
+  "effect\t-\tbooks\tusd\t25\n"
+
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
@@ -96,6 +103,19 @@ def main (args : List String) : IO Unit := do
   expect (!(Loam.MovementProposal.parse?
     (ordinaryProposal ++ "source-id\tbank-row-7\n")).isOk)
     "unearned external source identity entered proposal transport"
+
+  let usdFile := root / "usd.proposal"
+  IO.FS.writeFile usdFile usdProposal
+  let usdReviewed ← IO.Process.output {
+    cmd := ".lake/build/bin/loamMovementProposal"
+    args := #[usdFile.toString, root.toString]
+  }
+  expect (usdReviewed.exitCode == 0)
+    s!"USD proposal review CLI failed with code {usdReviewed.exitCode}: {usdReviewed.stderr}"
+  expect (usdReviewed.stdout.contains "movement: 25 usd")
+    "USD proposal review did not render its qualified Measure"
+  expect (!(usdReviewed.stdout.contains "movement: 25 jpy"))
+    "USD proposal review rewrote its Measure as JPY"
 
   let proposalFile := root / "proposal.loam-movement"
   IO.FS.writeFile proposalFile ordinaryProposal
