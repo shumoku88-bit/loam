@@ -11,8 +11,9 @@ private def usage : String :=
   "Usage: loam explain actual --machine --month YYYY-MM [LOAM_DATA_DIR]\n" ++
   "\n" ++
   "Emits one read-only ACTUAL1 month projection from the shared correction-aware\n" ++
-  "ActualReview boundary. The stream is presentation transport only and ends\n" ++
-  "with meta status complete."
+  "ActualReview boundary, including retained Event-correction ancestors of those\n" ++
+  "rows (not date-validity revision history). Schema 2 is presentation transport\n" ++
+  "only and ends with meta status complete."
 
 def validMonth (text : String) : Bool :=
   text.length == 7 && Loam.ActualDate.validIsoDate (text ++ "-01")
@@ -56,21 +57,62 @@ private def effectRecord
     toString effect.quantity.quanta
   ]
 
+/-- The inverse edge index reuses the already-admitted, disjoint correction paths. -/
+private def predecessorIndex
+    (records : List Loam.ActualReview.Record) :
+    Std.HashMap String Loam.ActualReview.Record :=
+  records.foldl (fun index record =>
+    match record.replacement with
+    | none => index
+    | some replacement => index.insert replacement.token record) {}
+
+/-- Relation order, never date or file order, determines oldest-to-newest ancestry. -/
+private def ancestors
+    (index : Std.HashMap String Loam.ActualReview.Record) :
+    Nat → String → List Loam.ActualReview.Record → List Loam.ActualReview.Record
+  | 0, _, collected => collected
+  | fuel + 1, id, collected =>
+      match index[id]? with
+      | none => collected
+      | some previous =>
+          ancestors index fuel previous.event.id.token (previous :: collected)
+
+private def historyText
+    (owner : String)
+    (record : Loam.ActualReview.Record) : List String :=
+  let id := record.event.id.token
+  machineRecord [
+    "history", owner, id,
+    (record.replacement.map (·.token)).getD "",
+    record.date.getD "",
+    Loam.Persistence.escapeText record.description
+  ] :: record.event.effects.map (fun effect => machineRecord [
+    "history-effect", owner, id, effect.locus.token, effect.measure.token,
+    toString effect.quantity.quanta
+  ])
+
+/--
+Current monthly rows plus only their retained correction ancestors. Historical dates
+may be absent or outside the month. Canonical callers provide admitted ActualReview
+records; no new correction authority or accounting arithmetic is introduced here.
+-/
 def machineText
     (month : String)
     (records : List Loam.ActualReview.Record) : String :=
   let rows := monthRecords month records
+  let predecessors := predecessorIndex records
   let body := rows.flatMap fun record =>
     let id := record.event.id.token
     let header := machineRecord [
       "record",
       id,
       record.date.getD "",
-      Loam.ActualReview.displayText record.description
+      Loam.Persistence.escapeText record.description
     ]
-    header :: record.event.effects.map (effectRecord id)
+    [header] ++ record.event.effects.map (effectRecord id) ++
+      (ancestors predecessors records.length id []).flatMap (historyText id)
   String.intercalate "\n" <|
-    [ machineRecord ["meta", "schema", "1"]
+    [ machineRecord ["meta", "schema", "2"]
     , machineRecord ["meta", "implementation", "loam"]
     , machineRecord ["meta", "question", "actual-month"]
     , machineRecord ["meta", "month", month]
