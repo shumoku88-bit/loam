@@ -1,9 +1,18 @@
 import Loam.Cli.Movement.Proposal
+import Loam.Application.PracticalMovement
 import Loam.Review.MovementDraftReview
 
 namespace Loam.MovementProposalCli
 
 set_option autoImplicit false
+
+private def showMovementSummary
+    (draft : Loam.MovementAdmission.Draft) : IO Unit := do
+  match Loam.PracticalMovement.ofSingleMeasureEffects? draft.effects with
+  | none =>
+      throw (IO.userError "loam: admitted Movement lost its single-Measure qualification")
+  | some movement =>
+      IO.println ("movement: " ++ toString draft.total ++ " " ++ movement.measure.token)
 
 private def resolveRootPath (explicit : Option String) : IO (Except String String) := do
   match explicit with
@@ -23,7 +32,7 @@ private def showAccepted
   IO.println ("source: " ++ path)
   IO.println ("date: " ++ draft.validOn)
   IO.println ("effects: " ++ toString draft.effects.length)
-  IO.println ("movement: " ++ toString draft.total ++ " jpy")
+  showMovementSummary draft
   match draft.description with
   | some text => IO.println ("description: " ++ text)
   | none => pure ()
