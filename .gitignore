@@ -1,6 +1,8 @@
 # Build outputs
 .lake/
 gui/src-tauri/target/
+# Tauri generates local capability schemas during builds; Cargo.lock is tracked.
+gui/src-tauri/gen/
 dist-newstyle/
 
 # Local generated, test, qualification, and dogfood material.
