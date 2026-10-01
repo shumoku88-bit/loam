@@ -6,6 +6,7 @@ import Loam.Review.BudgetWindowReview
 import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.HouseholdPaths
+import Loam.Persistence.TokenSyntax
 import Loam.Review.RoleBalanceReview
 import Loam.Review.ScheduledCoverageReview
 
