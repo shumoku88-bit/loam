@@ -206,6 +206,8 @@ def main : IO Unit := do
   -- 4. Encode evidence back to normalized wire
   let encodedWire ← requireSome (encodeNormalizedActual? evidence1)
     "encoding admitted evidence failed"
+  expect (encodedWire == validFixtureWire)
+    "canonical V1 re-encoding changed normalized Actual bytes"
 
   -- Check wire preservation: anonymous effects do NOT have KEYED-EFFECT, Merchant rows are explicit.
   expect ((encodedWire.splitOn "EFFECT\twallet\tjpy\t-1000").length >= 2)
@@ -577,6 +579,8 @@ def main : IO Unit := do
     "decoded exchange EffectKey anchors changed"
   let reencodedExchange ← requireSome (encodeNormalizedActual? exchangeEvidence)
     "qualified exchange failed to encode"
+  expect (reencodedExchange == qualifiedExchange)
+    "canonical exchange re-encoding changed normalized Actual bytes"
   expect ((reencodedExchange.splitOn "EXCHANGE\tjpy-source\tusd-destination").length == 2)
     "encoded wire lost exchange evidence"
   let _ ← requireSome (decodeNormalizedActual? reencodedExchange)
