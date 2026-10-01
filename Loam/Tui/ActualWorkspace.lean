@@ -116,9 +116,23 @@ def visibleRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
         (recordsForScope snapshot state).filter fun record =>
           record.event.effects.any fun effect => effect.locus.token == locus
   let base := byLocus.filter (matchesSearch state)
-  match state.order with
-  | .asc => base
-  | .desc => base.reverse
+  base.mergeSort fun a b =>
+    match a.date, b.date with
+    | some aDate, some bDate =>
+        if aDate == bDate then
+          match state.order with
+          | .asc => b.event.id.token <= a.event.id.token
+          | .desc => a.event.id.token <= b.event.id.token
+        else
+          match state.order with
+          | .asc => aDate < bDate
+          | .desc => aDate > bDate
+    | some _, none => true
+    | none, some _ => false
+    | none, none =>
+        match state.order with
+        | .asc => b.event.id.token <= a.event.id.token
+        | .desc => a.event.id.token <= b.event.id.token
 
 
 def selectedRecord? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
