@@ -2,6 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Publisher.ActualReversalPublisher
+import Loam.Publisher.ExchangePublisher
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Application.ActualValidityFrontier
 import Loam.Publisher.CorrectionPublisher
@@ -63,21 +64,16 @@ private def initialWorldForMeasure
 private def initialWorld : IO Loam.MovementAdmission.World :=
   initialWorldForMeasure ⟨"jpy"⟩
 
-private def mixedMeasureWorld : IO Loam.MovementAdmission.World := do
-  let effects :=
-    [ Effect.ofQuantity ⟨"actual-1-effect-1"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-700))
-    , Effect.ofQuantity ⟨"actual-1-effect-2"⟩ ⟨"food"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 700)
-    ]
-  let some event := Event.ofEffects? ⟨"actual-1"⟩ effects
-    | throw (IO.userError "mixed-Measure Event")
-  let some events := EventMemory.ofEvents? [event]
-    | throw (IO.userError "mixed-Measure Event memory")
-  let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"food"⟩]
-    | throw (IO.userError "mixed-Measure Locus vocabulary")
+private def exchangeWorld : IO Loam.MovementAdmission.World := do
+  let some events := EventMemory.ofEvents? []
+    | throw (IO.userError "empty exchange Event memory")
+  let some vocabulary := LocusAdmissionVocabulary.ofLoci?
+      [⟨"cash-jpy"⟩, ⟨"cash-usd"⟩, ⟨"exchange-fee"⟩]
+    | throw (IO.userError "exchange Locus vocabulary")
   return {
     events := events
     validity := {
-      facts := [.base event.id "2026-09-07"]
+      facts := []
       factRefNodup := by simp
       corrections := []
       correctionIdNodup := by simp }
@@ -85,6 +81,21 @@ private def mixedMeasureWorld : IO Loam.MovementAdmission.World := do
     relations := []
     discharges := []
     locusAdmission := vocabulary }
+
+private def exchangeDraft : Loam.ExchangeAdmission.Draft := {
+  validOn := "2026-09-07"
+  description := some "JPY to USD"
+  effects := [
+    Effect.ofQuantity
+      ⟨"jpy-source"⟩ ⟨"cash-jpy"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-15100)),
+    Effect.ofQuantity
+      ⟨"fee"⟩ ⟨"exchange-fee"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100),
+    Effect.ofQuantity
+      ⟨"usd-destination"⟩ ⟨"cash-usd"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 100)
+  ]
+  source := ⟨"jpy-source"⟩
+  destination := ⟨"usd-destination"⟩
+}
 
 private def dischargeWorld : IO Loam.MovementAdmission.World := do
   let sourceEffects :=
@@ -272,20 +283,26 @@ def main (args : List String) : IO Unit := do
   let mixedRoot := dataDir / "mixed-measure-reversal"
   IO.FS.createDirAll mixedRoot
   let mixedScheduledFile := mixedRoot / "scheduled.loam"
-  let mixedWorld ← mixedMeasureWorld
-  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? mixedRoot mixedWorld
-    | throw (IO.userError "publish mixed-Measure Actual world")
+  let exchangeBase ← exchangeWorld
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? mixedRoot exchangeBase
+    | throw (IO.userError "initialize exchange Actual world")
+  let .ok exchangeEvent ← Loam.ExchangePublisher.publish mixedRoot.toString exchangeDraft
+    | throw (IO.userError "publish qualified mixed-Measure exchange")
   expect (← Loam.Persistence.saveScheduledLifecycleImage? mixedScheduledFile lifecycle)
     "publish empty lifecycle for mixed-Measure reversal"
+  let mixedDraft : Loam.ActualReversalPublisher.Draft := {
+    target := exchangeEvent
+    validOn := "2026-09-08"
+  }
   let mixedResult ← Loam.ActualReversalPublisher.publishReversal
-    mixedScheduledFile.toString mixedRoot.toString draft
+    mixedScheduledFile.toString mixedRoot.toString mixedDraft
   expect (!mixedResult.isOk)
-    "mixed-Measure Actual was admitted by the single-Measure reversal entrance"
+    "qualified cross-Measure Exchange was admitted by the single-Measure reversal entrance"
   let .ok mixedAfter ← Loam.ActualAuthority.loadActual? mixedRoot
     | throw (IO.userError "reload mixed-Measure Actual authority")
   expect (mixedAfter.events.events.length == 1 &&
-      (mixedAfter.reversals.findByTarget? draft.target).isNone)
-    "refused mixed-Measure reversal mutated Actual authority"
+      (mixedAfter.reversals.findByTarget? exchangeEvent).isNone)
+    "refused Exchange reversal mutated Actual authority"
 
   let dischargeRoot := dataDir / "relation-discharge-guard"
   IO.FS.createDirAll dischargeRoot
