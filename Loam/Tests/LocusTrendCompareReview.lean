@@ -13,11 +13,12 @@ private def requireSome {α : Type}
   | some result => pure result
   | none => throw (IO.userError message)
 
-private def record
+private def recordForMeasure
+    (measure : MeasureId)
     (id date locus : String) (quanta : Int) :
     Loam.ActualReview.Record :=
   let effect := Effect.ofAnonymousQuantity
-    ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
+    ⟨locus⟩ measure (Quantity.ofQuanta quanta)
   {
     event := {
       id := ⟨id⟩
@@ -28,6 +29,11 @@ private def record
     description := ""
     replacement := none
   }
+
+private def record
+    (id date locus : String) (quanta : Int) :
+    Loam.ActualReview.Record :=
+  recordForMeasure ⟨"jpy"⟩ id date locus quanta
 
 def main : IO Unit := do
   let preset : Loam.BoundaryPresetConfig.Preset := {
@@ -57,6 +63,28 @@ def main : IO Unit := do
 
   expect (snapshot.source == "Pension" && snapshot.series.length == 3)
     "Trend Compare lost the configured source or exact series"
+  expect (snapshot.measure == (⟨"jpy"⟩ : MeasureId))
+    "Trend Compare lost its common JPY Measure"
+  let usdSpecs : List Loam.LocusTrendCompareReview.SeriesSpec :=
+    [ { label := "Coffee USD", coordinate := ⟨⟨"coffee"⟩, ⟨"usd"⟩⟩ } ]
+  let usdRecords :=
+    [ recordForMeasure ⟨"usd"⟩ "usd-c1" "2026-04-15" "coffee" 464
+    , recordForMeasure ⟨"usd"⟩ "usd-c2" "2026-04-16" "coffee" 464
+    ]
+  let usdSnapshot ←
+    match Loam.LocusTrendCompareReview.project
+        usdRecords preset "2026-04-17" usdSpecs with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect (usdSnapshot.measure == (⟨"usd"⟩ : MeasureId))
+    "Trend Compare rewrote the selected USD Measure"
+  let mixedSpecs : List Loam.LocusTrendCompareReview.SeriesSpec :=
+    [ { label := "JPY", coordinate := ⟨⟨"coffee"⟩, ⟨"jpy"⟩⟩ }
+    , { label := "USD", coordinate := ⟨⟨"coffee"⟩, ⟨"usd"⟩⟩ }
+    ]
+  expect (!(Loam.LocusTrendCompareReview.project
+      (records ++ usdRecords) preset "2026-04-17" mixedSpecs).isOk)
+    "Trend Compare admitted incomparable mixed-Measure series"
   expect (snapshot.pointCount == 2)
     "Trend Compare did not align every series on the same configured windows"
 
