@@ -63,9 +63,6 @@ lean_exe loamHouseholdObservation where
 lean_exe loamTui where
   root := `Loam.Tui.Executable
 
-lean_exe loamDesk where
-  root := `Loam.Desk.Executable
-
 lean_exe loamAttention where
   root := `Loam.Tui.AttentionMain
 

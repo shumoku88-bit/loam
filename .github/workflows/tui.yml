@@ -46,8 +46,6 @@ on:
       - 'Loam/Tests/BoundedHistorySupport.lean'
       - 'Loam/Tests/TuiBoundedHistorySupportAdministration.lean'
       - 'Loam/Tui/**'
-      - 'Loam/Desk/**'
-      - 'Loam/Tests/TuiDesk.lean'
       - 'Loam/Publisher/MovementPublisher.lean'
       - 'Loam/Application/MovementAdmission.lean'
       - 'Loam/Publisher/CorrectionPublisher.lean'
@@ -188,8 +186,6 @@ on:
       - 'Loam/Tests/BoundedHistorySupport.lean'
       - 'Loam/Tests/TuiBoundedHistorySupportAdministration.lean'
       - 'Loam/Tui/**'
-      - 'Loam/Desk/**'
-      - 'Loam/Tests/TuiDesk.lean'
       - 'Loam/Publisher/MovementPublisher.lean'
       - 'Loam/Application/MovementAdmission.lean'
       - 'Loam/Publisher/CorrectionPublisher.lean'
@@ -315,7 +311,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamTui loamDesk Loam.Tests.ActualWorldFixture Loam.Review.MovementDraftReview
+          build-args: loamTui Loam.Tests.ActualWorldFixture Loam.Review.MovementDraftReview
           test: false
           lint: false
           use-mathlib-cache: false
@@ -329,7 +325,6 @@ jobs:
           set -euo pipefail
           lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
           lake env lean --run Loam/Tests/TuiActual.lean
-          lake env lean --run Loam/Tests/TuiDesk.lean
           lake env lean --run Loam/Tests/TuiScheduledWorkspace.lean
           lake env lean --run Loam/Tests/TuiCapacity.lean
           lake env lean --run Loam/Tests/TuiSettlement.lean
@@ -358,7 +353,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui loamDesk Loam.Tests.ActualWorldFixture
+          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
