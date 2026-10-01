@@ -65,10 +65,16 @@ def withCoverage
     (coverage : Loam.CurrentCoverageReview.Snapshot)
     (source : String)
     (state : State) : State :=
-  { state with
-      coverage := some coverage
-      coverageSource := source
-      coverageNotice := "" }
+  if coverage.measure != state.snapshot.measure then
+    withoutCoverage
+      ("Current coverage Measure " ++ coverage.measure.token ++
+        " does not match Capacity Measure " ++ state.snapshot.measure.token ++ ".")
+      state
+  else
+    { state with
+        coverage := some coverage
+        coverageSource := source
+        coverageNotice := "" }
 
 /-- Preserve the Capacity workspace while explicitly recording why coverage is absent. -/
 def withoutCoverage (message : String) (state : State) : State :=
@@ -218,7 +224,8 @@ private def coverageFooter (state : State) : List Widget :=
         | some frontier =>
             "Scheduled frontier: unmanaged " ++ toString frontier.unmanaged.quanta ++
             " | unrouted " ++ toString frontier.unrouted.quanta ++
-            " | unresolved " ++ toString frontier.unresolvedEligibility.quanta ++ " jpy"
+            " | unresolved " ++ toString frontier.unresolvedEligibility.quanta ++
+              " " ++ coverage.measure.token
       [ muted
           ("Coverage: observed " ++ coverage.observedAt ++
            " | " ++ source ++ " -> " ++ coverage.endExclusive)
@@ -227,7 +234,7 @@ private def coverageFooter (state : State) : List Widget :=
       , muted "Coverage labels are presentation only; this is not SafeToSpend authority."
       ]
 
-/-- Render all-retained JPY Capacity plus optional shared current coverage evidence. -/
+/-- Render all-retained single-Measure Capacity plus optional shared current coverage evidence. -/
 def view (state : State) : Widget :=
   if state.snapshot.rows.isEmpty then
     .column <|
@@ -254,7 +261,8 @@ def view (state : State) : Widget :=
       ] ++
       ((visibleRows state).map fun row => rowLine state row.1 row.2) ++
       [ blank
-      , muted "Entitlement is derived from all retained JPY Capacity movements."
+      , muted ("Entitlement is derived from all retained " ++
+          state.snapshot.measure.token ++ " Capacity movements.")
       , muted "Order shown is first retained appearance, not priority."
       ] ++ coverageFooter state ++
       [ muted "t transfer, r rebalance; shared CapacityPublisher owns publication."
