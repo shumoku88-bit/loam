@@ -126,6 +126,23 @@ def main : IO Unit := do
     "Daily Pace trend did not preserve the reconstructed current-truth series"
   expect (contains "not stored as daily household state" paceTrendText)
     "Daily Pace trend lost its reconstruction disclosure"
+  let usd : MeasureId := ⟨"usd"⟩
+  let usdPace := { pace with measure := usd }
+  let usdHistory := paceHistory.map fun point => { point with measure := usd }
+  let usdSnapshot := { snapshot with pace := .loaded usdPace, paceHistory := .loaded usdHistory }
+  let usdHomeText := widgetText (Loam.Tui.Home.view bounds usdSnapshot home)
+  expect
+    (contains "170 usd/day" usdHomeText &&
+      contains "1700 usd through 2026-09-17" usdHomeText &&
+      !(contains "170 jpy/day" usdHomeText))
+    "Home rewrote a non-JPY Daily Pace snapshot as JPY"
+  let usdTrendText := widgetText (Loam.Tui.DailyPaceTrend.view bounds usdSnapshot)
+  expect
+    (contains "150 usd/day" usdTrendText &&
+      contains "160 usd/day" usdTrendText &&
+      contains "170 usd/day  current" usdTrendText &&
+      !(contains "jpy/day" usdTrendText))
+    "Daily Pace trend rewrote non-JPY history as JPY"
   expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
 

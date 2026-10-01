@@ -364,10 +364,10 @@ private def dailyPaceText (snapshot : Snapshot) : String :=
       match pace.dailyPaceQuanta? with
       | none => "Daily pace: unavailable"
       | some quanta =>
-          "Daily pace: " ++ toString quanta ++ " jpy/day  (" ++
+          "Daily pace: " ++ toString quanta ++ " " ++ pace.measure.token ++ "/day  (" ++
             toString pace.remainingDays ++ " days; " ++
             toString pace.availableThroughEnd.quanta ++
-            " jpy through " ++ pace.endExclusive ++ ")"
+            " " ++ pace.measure.token ++ " through " ++ pace.endExclusive ++ ")"
 
 private def nextScheduledText (snapshot : Snapshot) : String :=
   match snapshot.scheduled with
@@ -480,10 +480,10 @@ private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
             ]
         | some quanta =>
             [ plainLine " Daily pace"
-            , plainLine ("   " ++ toString quanta ++ " jpy/day")
+            , plainLine ("   " ++ toString quanta ++ " " ++ pace.measure.token ++ "/day")
             , mutedLine
                 ("   " ++ toString pace.availableThroughEnd.quanta ++
-                  " jpy through " ++ pace.endExclusive)
+                  " " ++ pace.measure.token ++ " through " ++ pace.endExclusive)
             ]
   let paceLines := currentPaceLines
   let scheduledLines :=

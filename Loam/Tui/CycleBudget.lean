@@ -53,9 +53,12 @@ private def muted (text : String) : Widget := .row [span text .muted]
 private def padded (width : Nat) (text : String) : String :=
   Loam.Tui.Layout.padLeft width text
 
-private def amount (label : String) (quantity : Loam.Core.Quantity) : Widget :=
+private def amount
+    (measure : Loam.Core.MeasureId)
+    (label : String)
+    (quantity : Loam.Core.Quantity) : Widget :=
   line (Loam.Tui.Layout.padRight 34 label ++
-    padded 10 (toString quantity.quanta) ++ " jpy")
+    padded 10 (toString quantity.quanta) ++ " " ++ measure.token)
 
 /-- A fixed-width, Japanese-label-aware summary with the guide on the same row. -/
 def coverageRow
@@ -68,9 +71,9 @@ def coverageRow
     padded 13 (pace.getD "--") ++
     padded 14 (toString row.headroom.quanta))
 
-private def coverageHeader : Widget :=
+private def coverageHeader (measure : Loam.Core.MeasureId) : Widget :=
   muted (Loam.Tui.Layout.padRight 22 "Purpose" ++
-    padded 12 "Now" ++ padded 13 "~jpy/day" ++ padded 14 "After-known")
+    padded 12 "Now" ++ padded 13 ("~" ++ measure.token ++ "/day") ++ padded 14 "After-known")
 
 private def detailCoverageRow
     (metadata : List Loam.PurposeCatalog.Metadata)
@@ -101,7 +104,7 @@ private def perDayHorizon (snapshot : Loam.CycleBudgetReview.Snapshot) : Except 
 private def perDayGuideHeader (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
   match perDayHorizon snapshot with
   | .ok days =>
-      [muted ("~jpy/day = After-known / " ++ toString days ++
+      [muted ("~" ++ snapshot.measure.token ++ "/day = After-known / " ++ toString days ++
         " days (known managed plans only; not spending permission)")]
   | .error message =>
       if snapshot.window.isOk && snapshot.coverage.isOk then [muted message] else []
@@ -113,9 +116,9 @@ private def futurePressureLines (snapshot : Loam.CycleBudgetReview.Snapshot) : L
     match coverage.scheduledFrontier with
     | none => [muted "Future pressure unavailable: Scheduled frontier missing"]
     | some frontier =>
-      [ amount "Unresolved future pressure" frontier.unresolvedEligibility
-      , amount "Unrouted future pressure" frontier.unrouted
-      , amount "Unmanaged future pressure" frontier.unmanaged ]
+      [ amount snapshot.measure "Unresolved future pressure" frontier.unresolvedEligibility
+      , amount snapshot.measure "Unrouted future pressure" frontier.unrouted
+      , amount snapshot.measure "Unmanaged future pressure" frontier.unmanaged ]
 
 private def actualRoutingFrontierLines
     (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
@@ -143,26 +146,28 @@ private def fundingLines (snapshot : Loam.CycleBudgetReview.Snapshot) : List Wid
   (match snapshot.funding with
    | .error message => [line ("Funding unavailable: " ++ message)]
    | .ok summary =>
-     [ amount "Budgetable backing" summary.budgetableBacking
-     , amount "Remaining assigned" summary.remainingAssigned
-     , amount "Residual before unresolved" summary.residualBeforeUnresolved ]) ++
+     [ amount summary.measure "Budgetable backing" summary.budgetableBacking
+     , amount summary.measure "Remaining assigned" summary.remainingAssigned
+     , amount summary.measure "Residual before unresolved" summary.residualBeforeUnresolved ]) ++
   -- Query-global future pressure is owned by CurrentCoverage regardless of funding configuration.
   futurePressureLines snapshot
 
 /-- Sum only the visible Purpose coverage rows; this is not a physical balance or income. -/
-private def purposeTotals (rows : List Loam.CurrentCoverageReview.Row) : List Widget :=
+private def purposeTotals
+    (measure : Loam.Core.MeasureId)
+    (rows : List Loam.CurrentCoverageReview.Row) : List Widget :=
   if rows.isEmpty then [muted "No Purpose coverage rows available."]
   else
     let assigned := rows.foldl (fun n row => n + row.entitlement.quanta) (0 : Int)
     let spent := rows.foldl (fun n row => n + row.consumption.quanta) (0 : Int)
     let now := assigned - spent
-    [muted "Purpose totals / jpy (allocated capacity, not money received)"
+    [muted ("Purpose totals / " ++ measure.token ++ " (allocated capacity, not money received)")
     , line ("Assigned " ++ toString assigned ++ "   Spent " ++ toString spent ++
       "   Now " ++ toString now)]
 
 /-- Keep the independent backing question visible without conflating it with Purpose totals. -/
 private def fundingSummary (snapshot : Loam.CycleBudgetReview.Snapshot) : List Widget :=
-  [muted "Funding / jpy (separate from Purpose totals)"] ++
+  [muted ("Funding / " ++ snapshot.measure.token ++ " (separate from Purpose totals)")] ++
   (match snapshot.funding with
    | .error message => [line ("Funding unavailable: " ++ message)]
    | .ok summary =>
@@ -201,7 +206,7 @@ private def detailLines (state : State) : List Widget :=
          | .error _ => "  [backing selection unavailable]"
          | .ok selection =>
            if row.coordinate ∈ selection then "  [budget backing]" else "  [outside budget backing]")) ++
-  [line "", line "Details / Purpose components (jpy)", detailCoverageHeader] ++
+  [line "", line ("Details / Purpose components (" ++ snapshot.measure.token ++ ")"), detailCoverageHeader] ++
   (match snapshot.coverage with
    | .error message => [line ("CurrentCoverage unavailable: " ++ message)]
    | .ok coverage => coverage.rows.map (detailCoverageRow state.purposeMetadata))
@@ -220,12 +225,14 @@ def body (state : State) : List Widget :=
      (if window.hasFollowingBoundary then [] else
        [muted ("Boundary horizon: " ++ window.endExclusive ++
          " is the last explicitly configured boundary.")])) ++
-  [line "Purpose / jpy (Now = current remainder; After-known = after managed plans)"] ++
+  [line ("Purpose / " ++ snapshot.measure.token ++
+    " (Now = current remainder; After-known = after managed plans)")] ++
   (match snapshot.coverage with
    | .error message => [line ("CurrentCoverage unavailable: " ++ message)]
    | .ok coverage =>
      let days? := (perDayHorizon snapshot).toOption
-     purposeTotals coverage.rows ++ perDayGuideHeader snapshot ++ [coverageHeader] ++
+     purposeTotals snapshot.measure coverage.rows ++ perDayGuideHeader snapshot ++
+       [coverageHeader snapshot.measure] ++
        coverage.rows.map (fun row => coverageRow state.purposeMetadata row days?)) ++
   coverageWarnings snapshot ++ fundingSummary snapshot ++
   (if state.details then detailLines state else [muted "d details: backing coordinates, physical balances, and Cap/Spent/Known future"]) ++
@@ -300,7 +307,7 @@ def grantPickerView (_bounds : Bounds) (state : State)
       let marker := if isSel then "▶  " else "   "
       let purpose := Loam.PurposeCatalog.labelFor state.purposeMetadata row.purpose
       let content := marker ++ paddedRight 20 purpose ++
-        padded 14 (toString row.headroom.quanta) ++ " jpy"
+        padded 14 (toString row.headroom.quanta) ++ " " ++ state.snapshot.measure.token
       .row [span content (if isSel then .selected else .normal)]
   .column <|
     [ line "Capacity / Cycle Grant / Select Purpose"

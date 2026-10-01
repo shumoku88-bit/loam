@@ -67,6 +67,23 @@ def main : IO Unit := do
     !(contains "Details / Purpose components" rendered))
     "expanded accounting details displaced the Purpose overview"
   expect (!(contains "Daily pace:" rendered)) "Purpose guide copied the independent Home pool pace"
+  let usd : MeasureId := ⟨"usd"⟩
+  let .ok baseCoverage := fixture.coverage
+    | throw (IO.userError "fixture has no coverage")
+  let .ok baseFunding := fixture.funding
+    | throw (IO.userError "fixture has no funding")
+  let usdFixture : Loam.CycleBudgetReview.Snapshot := {
+    fixture with
+      measure := usd
+      coverage := .ok { baseCoverage with measure := usd }
+      funding := .ok { baseFunding with measure := usd }
+  }
+  let usdRendered := text (Loam.Tui.CycleBudget.view bounds { snapshot := usdFixture })
+  for value in ["Purpose / usd", "Purpose totals / usd", "~usd/day",
+      "Funding / usd (separate from Purpose totals)"] do
+    expect (contains value usdRendered) ("USD Cycle Budget label missing: " ++ value)
+  expect (!(contains "Purpose / jpy" usdRendered) && !(contains "~jpy/day" usdRendered))
+    "Cycle Budget rewrote the snapshot Measure as JPY"
   let rowText := text (Loam.Tui.CycleBudget.coverageRow []
     { purpose := ⟨"食費"⟩, entitlement := q 100, consumption := q 0, commitment := q 0 } (some 3))
   expect (contains "食費" rowText && contains "33" rowText &&
