@@ -350,44 +350,11 @@ private def statusTokens
       let count := (recordsForYear snapshot y).length
       [s!"Transactions: {count}"]
 
-private def shortPaceDate (date : String) : String :=
-  String.ofList (date.toList.drop 5)
-
 /--
-Home favors exact recent values over a shape-only graph.
-
-The review boundary may derive seven days, while Home keeps the last five rows
-to preserve the calendar as the dominant object in the left pane.
+Home keeps only the current Daily Pace answer on its glance surface.
+Historical pace remains review evidence, but belongs in a deeper trend/report
+surface rather than competing with the current household state.
 -/
-private def readFailureDetailLines (message : String) : List Widget :=
-  (Loam.Tui.Layout.flowTokens 36 " " (message.splitOn " ")).take 3 |>.map fun text =>
-    mutedLine ("   " ++ text)
-
-private def dailyPaceHistoryLines (snapshot : Snapshot) : List Widget :=
-  match snapshot.paceHistory with
-  | .notRequested =>
-      [mutedLine " Recent pace (current truth): not requested"]
-  | .unavailable =>
-      [mutedLine " Recent pace (current truth): unavailable"]
-  | .failed message =>
-      [mutedLine " Recent pace (current truth): failed"] ++
-        readFailureDetailLines message
-  | .loaded history =>
-      let recent := (history.reverse.take 5).reverse
-      if recent.isEmpty then
-        [mutedLine " Recent pace (current truth): unavailable"]
-      else
-        [mutedLine " Recent pace (recomputed current truth)"] ++
-        (recent.map fun point =>
-          match point.dailyPaceQuanta? with
-          | some quanta =>
-              mutedLine
-                ("   " ++ shortPaceDate point.observedAt ++ "  " ++
-                  toString quanta ++ " jpy/day")
-          | none =>
-              mutedLine
-                ("   " ++ shortPaceDate point.observedAt ++ "  unavailable"))
-
 private def dailyPaceText (snapshot : Snapshot) : String :=
   match snapshot.pace with
   | .notRequested => "Daily pace: not requested"
@@ -488,9 +455,7 @@ private def nextScheduledLine (snapshot : Snapshot) : Widget :=
       | .ok (some _) => plainLine (" " ++ nextScheduledText snapshot)
 
 private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
-  [dailyPaceLine snapshot] ++
-  dailyPaceHistoryLines snapshot ++
-  [nextScheduledLine snapshot, attentionLine snapshot]
+  [dailyPaceLine snapshot, nextScheduledLine snapshot, attentionLine snapshot]
 
 private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
   let currentPaceLines :=
@@ -520,7 +485,7 @@ private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
                 ("   " ++ toString pace.availableThroughEnd.quanta ++
                   " jpy through " ++ pace.endExclusive)
             ]
-  let paceLines := currentPaceLines ++ dailyPaceHistoryLines snapshot
+  let paceLines := currentPaceLines
   let scheduledLines :=
     match snapshot.scheduled with
     | .error _ =>
@@ -918,7 +883,7 @@ private def dayHelpTokens (state : State) : List String :=
        "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
-  ["Household:", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
+  ["Household:", "[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
    "[e] capacity", "[v] reports"]
 
 private def manageHelpTokens : List String :=
