@@ -76,7 +76,10 @@ structure Step where
   enableUnresolved : Bool := false
   publish : Option PublishIntent := none
 
-def initial (date : String) : State := { form := { date := date } }
+/-- Entrances already supply the selected date; start typing at Description.
+Shift-Tab still reaches Date when it needs correction. -/
+def initial (date : String) : State :=
+  { form := { date := date, focus := ⟨1, by omega⟩ } }
 
 /-- Attach replaceable Locus display metadata without granting any write permission. -/
 def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=

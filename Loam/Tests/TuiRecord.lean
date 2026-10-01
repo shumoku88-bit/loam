@@ -37,6 +37,18 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let w ← world
+  let opened := initial "2026-09-06"
+  expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
+    "Record must start at Description with the selected date intact"
+  let typed := update w [] opened (.input 'A')
+  expect (typed.state.form.description == "A" && typed.state.form.date == "2026-09-06")
+    "first keystroke must edit Description, not the prefilled date"
+  let dateFocus := update w [] opened .shiftTab
+  expect (dateFocus.state.form.focus.val == 0)
+    "Shift-Tab must still allow editing the prefilled date"
+  let restored := update w [] dateFocus.state .tab
+  expect (restored.state.form.focus.val == 1)
+    "Tab must return from Date to Description"
   let sharedInput : Loam.Presentation.Record.Input := {
     date := "2026-09-06"
     description := "数学ガール"

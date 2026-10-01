@@ -41,7 +41,7 @@ Tab/w      switch calendar / transaction focus
 Ctrl-u/d   scroll calendar/summary; page transaction selection in detail
 Enter      Year -> Month -> Day -> selected-day workspace
 f          toggle calendar / money lens in Day view
-r          Record
+r          Record (selected date prefilled; cursor starts in Description)
 a          Actual workspace
 s          Scheduled workspace
 i          Attention
