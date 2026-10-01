@@ -12,6 +12,7 @@ set_option autoImplicit false
 
 /-- Immutable read answers with independent visible failure boundaries. -/
 structure Snapshot where
+  measure : MeasureId := ⟨"jpy"⟩
   observedAt : String
   window : Except String Loam.BoundaryPresetConfig.CurrentWindow
   coverage : Except String Loam.CurrentCoverageReview.Snapshot
@@ -30,6 +31,7 @@ private structure ActualObservation where
   balances : Except String Loam.CurrentBalanceReview.Snapshot
 
 private def loadActualObservation
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (observedAt : String)
     (window : Except String Loam.BoundaryPresetConfig.CurrentWindow) :
@@ -38,7 +40,7 @@ private def loadActualObservation
     match window with
     | .error message => return .error message
     | .ok window =>
-      Loam.CurrentCoverageReview.loadSnapshotAt
+      Loam.CurrentCoverageReview.loadSnapshotAtForMeasure measure
         dataDir actualRoot window.start observedAt window.endExclusive
   let balances ← attempt (Loam.CurrentBalanceReview.loadSnapshot dataDir actualRoot)
   return { coverage, balances }
@@ -52,14 +54,17 @@ writer publishes concurrently. Other authorities remain independently visible;
 this still does not promise a cross-file atomic snapshot or historical balance
 replay. No writer or recovery is invoked.
 -/
-def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) :
+def loadSnapshotAtForMeasure
+    (measure : MeasureId)
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String) :
     IO Snapshot := do
   let window ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let observation ←
     try
       Loam.ActualAuthority.withActualFileOwnership actualPath
-        (loadActualObservation dataDir actualRoot observedAt window)
+        (loadActualObservation measure dataDir actualRoot observedAt window)
     catch error =>
       let message := "loam: Cycle Budget Actual observation unavailable: " ++ error.toString
       pure {
@@ -76,13 +81,20 @@ def loadSnapshotAt (dataDir actualRoot : System.FilePath) (observedAt : String) 
       | none => return .error "balance-view.tsv malformed"
       | some coordinates =>
           return Loam.CurrentBalanceReview.selectExact current coordinates
-  let selection ← Loam.CycleFundingConfig.load (Loam.HouseholdPaths.cycleFunding dataDir)
+  let selection ←
+    Loam.CycleFundingConfig.loadForMeasure measure (Loam.HouseholdPaths.cycleFunding dataDir)
   let funding := do
     let currentCoverage ← coverage
     let coordinates ← selection
     let currentBalances ← balances
     let exact ← Loam.CurrentBalanceReview.selectExact currentBalances coordinates
-    Loam.CycleFundingInspection.project exact coordinates ⟨"jpy"⟩ currentCoverage
-  return { observedAt, window, coverage, physical, selection, funding }
+    Loam.CycleFundingInspection.project exact coordinates measure currentCoverage
+  return { measure, observedAt, window, coverage, physical, selection, funding }
+
+/-- Backward-compatible Cycle Budget loader for the current JPY household. -/
+def loadSnapshotAt
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String) : IO Snapshot :=
+  loadSnapshotAtForMeasure ⟨"jpy"⟩ dataDir actualRoot observedAt
 
 end Loam.CycleBudgetReview
