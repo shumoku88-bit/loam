@@ -61,14 +61,13 @@ private def containsScheduled
 private def validateDraft (draft : Draft) : Except String Unit := do
   if !Loam.ActualDate.validIsoDate draft.scheduledOn then
     throw "loam: Scheduled replacement requires a valid ISO calendar date"
-  if draft.movement.measure != ⟨"jpy"⟩ then
-    throw "loam: Scheduled replacement requires a JPY movement"
   if draft.movement.changes.isEmpty then
     throw "loam: Scheduled replacement requires at least one movement change"
   if !draft.movement.changes.all (fun change =>
       Loam.Persistence.validToken change.coordinate.token &&
       change.quantity.quanta != 0) then
-    throw "loam: Scheduled replacement requires valid Locus tokens and nonzero JPY quantities"
+    throw ("loam: Scheduled replacement requires valid Locus tokens and nonzero " ++
+      draft.movement.measure.token ++ " quantities")
 
 private def publishUnderOwnership
     (scheduledFile root : System.FilePath)
