@@ -534,17 +534,25 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
             loop bounds dataDir root snapshot home nextFrame
   else if Loam.Tui.CycleBudget.isHomeEntrance key then
-    let answer ← Loam.CycleBudgetReview.loadSnapshotAt dataDir root snapshot.actual.today
-    let purposeMetadata ← currentPurposeMetadata dataDir
-    let budget := Loam.Tui.CycleBudget.withPurposeMetadata purposeMetadata
-      ({ snapshot := answer } : Loam.Tui.CycleBudget.State)
-    let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
-    Loam.Tui.CycleBudgetSession.run bounds dataDir root budget budgetFrame
-    let home := { state with notice := "" }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    match ← configuredMeasure with
+    | .error message =>
+        let home := { state with notice := message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok measure =>
+        let answer ← Loam.CycleBudgetReview.loadSnapshotAtForMeasure
+          measure dataDir root snapshot.actual.today
+        let purposeMetadata ← currentPurposeMetadata dataDir
+        let budget := Loam.Tui.CycleBudget.withPurposeMetadata purposeMetadata
+          ({ snapshot := answer } : Loam.Tui.CycleBudget.State)
+        let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
+        Loam.Tui.CycleBudgetSession.run bounds dataDir root budget budgetFrame
+        let home := { state with notice := "" }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+        loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'p' || key = .input 'P') then
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
     | .error message =>
@@ -564,22 +572,30 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'e' || key = .input 'E') then
-    match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot dataDir with
+    match ← configuredMeasure with
     | .error message =>
-        let home := { state with notice := unavailableNotice "Capacity" message }
+        let home := { state with notice := message }
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         loop bounds dataDir root snapshot home nextFrame
-    | .ok capacitySnapshot =>
-        let purposeMetadata ← currentPurposeMetadata dataDir
-        let baseCapacity := Loam.Tui.Capacity.withPurposeMetadata purposeMetadata
-          (Loam.Tui.Capacity.initial capacitySnapshot)
-        Loam.Tui.CapacitySession.run
-          bounds dataDir root snapshot.actual.today baseCapacity frame
-        let home := { state with notice := "" }
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-        loop bounds dataDir root snapshot home nextFrame
+    | .ok measure =>
+        match ← Loam.CapacityReview.loadSnapshotFromHouseholdRootForMeasure
+            measure dataDir with
+        | .error message =>
+            let home := { state with notice := unavailableNotice "Capacity" message }
+            let nextFrame := compiledFrameFor bounds snapshot home
+            Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+            loop bounds dataDir root snapshot home nextFrame
+        | .ok capacitySnapshot =>
+            let purposeMetadata ← currentPurposeMetadata dataDir
+            let baseCapacity := Loam.Tui.Capacity.withPurposeMetadata purposeMetadata
+              (Loam.Tui.Capacity.initial capacitySnapshot)
+            Loam.Tui.CapacitySession.run
+              bounds dataDir root snapshot.actual.today baseCapacity frame
+            let home := { state with notice := "" }
+            let nextFrame := compiledFrameFor bounds snapshot home
+            Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+            loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'o' || key = .input 'O') then
     let editor := Loam.Tui.CurrentQuantityAnchor.initial
     let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
