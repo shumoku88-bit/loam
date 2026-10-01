@@ -194,10 +194,18 @@ j/k       select recurring plan
 h/l       move the visible month window
 e         extend / replenish future explicit plans
 p         change expected pace
-s         future pace undecided
 Enter     open that plan's exact Scheduled dates
+
+More:
+s         future pace undecided
 n         create one explicit Scheduled plan
+v         Months / List alternate projections
 ```
+
+The footer mirrors that hierarchy: ordinary plan navigation and maintenance stay on
+the first line, while less-frequent creation/state changes and alternate projections
+remain visible under `More:`. This is progressive disclosure only; no Scheduled
+action or projection is removed.
 
 `e` automatically chooses the latest current-open occurrence matching the selected
 plan shape as its construction template and reuses the plan's current monitoring
