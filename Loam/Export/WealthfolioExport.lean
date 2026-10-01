@@ -85,6 +85,7 @@ private def csvQuoted (text : String) : String :=
 private def renderRow (row : Row) : String :=
   String.intercalate ","
     [ row.date
+    , "$CASH-" ++ row.currency
     , activityTypeText row.activityType
     , row.currency
     , row.amount
@@ -228,7 +229,7 @@ Render one deterministic Wealthfolio-native cash CSV.
 The output columns are the current Wealthfolio importer field names needed for
 cash activity plus LOAM provenance:
 
-`date,activityType,currency,amount,account,comment`
+`date,symbol,activityType,currency,amount,account,comment`
 
 Opening rows are emitted first, followed by correction-aware current Actual
 entries on or after the Accounting Epoch.
@@ -246,7 +247,7 @@ def renderWithPresentation?
     entryRows presentation roles entry
   let activityRows := activityGroups.flatten
   let lines :=
-    ["date,activityType,currency,amount,account,comment"] ++
+    ["date,symbol,activityType,currency,amount,account,comment"] ++
       (openingRows ++ activityRows).map renderRow
   return String.intercalate "\n" lines ++ "\n"
 
