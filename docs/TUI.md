@@ -44,6 +44,7 @@ f          toggle calendar / money lens in Day view
 r          Record (selected date prefilled; cursor starts in Description)
 a          Actual workspace
 s          Scheduled workspace
+d          Daily Pace trend
 i          Attention
 b          Balances
 c          current-cycle Budget
@@ -63,6 +64,9 @@ Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 Home keeps household state in the body and shortcut grammar in the stable footer.
+The current Daily Pace answer stays on Home, while `d` opens a small read-only
+trend over the already-derived retrospective current-truth series. The trend does
+not retain daily pace as household state or introduce a second calculation.
 The footer groups commands by the active Day/Month/Year or Detail context,
 `Household`, and `Manage`. In Detail, j/k selects transactions, Enter opens the
 selected transaction in its day workspace, and h/Esc/Tab returns to the calendar.
@@ -103,6 +107,7 @@ Loam/Tui/Runtime                  compiled sparse-row redraw representation
 Loam/Tui/Terminal                 terminal input/output mechanics
 Loam/Tui/Calendar                 presentation-only Gregorian calendar projection
 Loam/Tui/Home                     production Home presentation
+Loam/Tui/DailyPaceTrend           read-only retrospective Daily Pace drill-down
 Loam/Tui/ActualWorkspace          Actual workspace presentation state
 Loam/Tui/ScheduledWorkspace       Scheduled workspace presentation state
 Loam/Tui/SelectedDay              one-date Actual / Scheduled composition
