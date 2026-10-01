@@ -66,5 +66,56 @@ def main : IO Unit := do
   expect ((output.splitOn "\n").getLast? ==
       some "ACTUAL1\tmeta\tstatus\tcomplete")
     "ACTUAL1 completion marker missing"
+  expect (contains "ACTUAL1\tmeta\tschema\t2" output)
+    "ACTUAL1 schema 2 framing missing"
 
-  IO.println "Actual observation transport: current monthly rows and completion framing passed."
+  let original ← requireSome
+    (record? "original" "2026-09-28" "old\\nrecognition" "cash" "food" 100
+      (some ⟨"middle"⟩))
+    "cross-month ancestor fixture failed"
+  let middleBase ← requireSome
+    (record? "middle" "2026-10-03" "intermediate" "cash" "food" 200
+      (some first.event.id))
+    "intermediate ancestor fixture failed"
+  let middle : Loam.ActualReview.Record := { middleBase with date := none }
+  -- Representation and date order deliberately disagree with correction-edge order.
+  let withHistory := Loam.ActualObservationCli.machineText "2026-10"
+    [middle, second, corrected, first, old, original]
+  let historyLines := (withHistory.splitOn "\n").filter fun line =>
+    line.startsWith "ACTUAL1\thistory\t"
+  expect (historyLines ==
+    [ "ACTUAL1\thistory\tevent-1\toriginal\tmiddle\t2026-09-28\told\\\\nrecognition"
+    , "ACTUAL1\thistory\tevent-1\tmiddle\tevent-1\t\tintermediate"
+    ])
+    "correction ancestry lost owner, unknown date, escaped text or relation order"
+  expect (contains "ACTUAL1\thistory-effect\tevent-1\toriginal\tcash\tjpy\t-100" withHistory)
+    "historical Effects were not retained in the transport"
+  expect (!contains "event-corrected" withHistory && !contains "event-old" withHistory)
+    "unrelated historical records leaked into monthly ancestry"
+  expect ((Loam.ActualObservationCli.monthRecords "2026-10"
+      [original, first, middle]).map (·.event.id.token) == ["event-1"])
+    "historical ancestors became current monthly rows"
+  expect (Loam.ActualObservationCli.machineText "2026-08" [original, middle, first] ==
+      Loam.ActualObservationCli.machineText "2026-08" [])
+    "an empty month leaked ancestors of another month's current records"
+
+  let exact ← requireSome
+    (record? "large" "2026-10-05" "exact" "cash" "food" 900719925474099312345)
+    "large exact quantity fixture failed"
+  expect (contains "\tjpy\t900719925474099312345"
+      (Loam.ActualObservationCli.machineText "2026-10" [exact]))
+    "presentation transport rounded exact quantities"
+
+  let multiline : Loam.ActualReview.Record := {
+    first with description := "a\nb\tc\rd\\e" }
+  expect (contains "ACTUAL1\trecord\tevent-1\t2026-10-01\ta\\nb\\tc\\rd\\\\e"
+      (Loam.ActualObservationCli.machineText "2026-10" [multiline]))
+    "description separators or backslashes broke lossless single-line framing"
+
+  let controlBefore : Loam.ActualReview.Record := { first with description := "a\x1b" }
+  let controlAfter : Loam.ActualReview.Record := { first with description := "a\x07" }
+  expect (Loam.ActualObservationCli.machineText "2026-10" [controlBefore] !=
+      Loam.ActualObservationCli.machineText "2026-10" [controlAfter])
+    "different retained descriptions collapsed during presentation escaping"
+
+  IO.println "Actual observation: current month, retained correction ancestry, unknown dates, exact quantities, lossless descriptions and completion framing passed."

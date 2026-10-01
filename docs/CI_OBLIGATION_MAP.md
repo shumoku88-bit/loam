@@ -165,11 +165,19 @@ operational roles differ:
 
 - `tui.yml`
 - `tui-foundation.yml`
+- `gui.yml` (separate thin-native-transport and synthetic-browser-interaction jobs)
 - `beancount-export.yml`
 - `standalone-distribution.yml`
 - `compression-audit.yml`
 - `module-granularity-audit.yml`
 - `repository-hygiene.yml`
+
+The new Tauri workbench's `gui.yml` checks presentation transport in Rust on
+macOS and interaction over synthetic read answers in Chromium. It never reads
+operational household data. The shared ActualReview admission boundary and Lean
+ACTUAL1 month/correction-lineage projection remain qualified by `application.yml`;
+the GUI workflow does not replace that upstream obligation or claim native
+WKWebView rendering equivalence from browser tests.
 
 ## Current stopping point after the 40-workflow audit
 
