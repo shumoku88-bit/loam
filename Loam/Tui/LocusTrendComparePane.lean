@@ -1,5 +1,6 @@
 import Loam.Review.LocusTrendCompareReview
 import Loam.Presentation.LocusCatalog
+import Loam.Presentation.MeasurePresentation
 import Loam.Tui.Chart
 import Loam.Tui.CyclicIndex
 import Loam.Tui.LocusPicker
@@ -46,6 +47,7 @@ structure State where
   granularity : Loam.LocusTrendCompareReview.Granularity := .cycle
   scope : Loam.LocusTrendCompareReview.Scope := .allHistory
   candidateCatalog : Loam.LocusCatalog.Catalog := []
+  measurePresentation : List Loam.MeasurePresentation.Metadata := []
   pickerOpen : Bool := false
   pickerSlot : Nat := 0
   pickerIndex : Nat := 0
@@ -64,6 +66,10 @@ def maxOverlays : Nat := 3
 def withCatalog
     (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
   { state with candidateCatalog := catalog, pickerIndex := 0 }
+
+def withMeasurePresentation
+    (state : State) (metadata : List Loam.MeasurePresentation.Metadata) : State :=
+  { state with measurePresentation := metadata }
 
 def isPickerOpen (state : State) : Bool := state.pickerOpen
 
@@ -282,9 +288,9 @@ private def groupedNat (value : Nat) : String :=
     commaEveryThreeFromRight (toString value).toList.reverse 0
   String.ofList reversed.reverse
 
-private def amountText (value : Int) : String :=
-  if value < 0 then "-¥" ++ groupedNat (-value).natAbs
-  else "¥" ++ groupedNat value.natAbs
+private def amountText
+    (state : State) (measure : MeasureId) (value : Int) : String :=
+  Loam.MeasurePresentation.formatGroupedQuanta state.measurePresentation measure value
 
 private def monthLabel : String → String
   | "01" => "Jan" | "02" => "Feb" | "03" => "Mar" | "04" => "Apr"
@@ -544,7 +550,8 @@ private def selectedSeriesRows (state : State) : List Widget :=
         .row
           [ span (String.ofList [seriesMarker index] ++ " " ++ series.spec.label ++ "  ")
               (seriesStyle index)
-          , span (amountText value ++ suffix)
+          , span (amountText state snapshot.measure value ++ " " ++
+              snapshot.measure.token ++ suffix)
           ]
 
 private def isCurrentPartial
@@ -584,11 +591,11 @@ private def sourceLine
       snapshot.source ++
         "   ·   Range " ++ snapshot.scope.label ++
         "   " ++ shortDate snapshot.scopeStart ++ " → " ++ scopeEndLabel snapshot ++
-        "   ·   Grain Day   ·   jpy   ·   braille" ++ viewport
+        "   ·   Grain Day   ·   " ++ snapshot.measure.token ++ "   ·   braille" ++ viewport
   | granularity =>
       snapshot.source ++
         "   ·   Grain " ++ granularity.label ++
-        "   ·   jpy   ·   braille"
+        "   ·   " ++ snapshot.measure.token ++ "   ·   braille"
 
 private def selectedLine
     (snapshot : Loam.LocusTrendCompareReview.Snapshot)
@@ -646,10 +653,12 @@ private def tickForRow?
     Loam.Tui.Chart.rowForValue height scale.range tick = row
 
 private def axisText
+    (state : State)
+    (measure : MeasureId)
     (height row : Nat) (scale : Loam.Tui.Chart.Scale) : String :=
   match tickForRow? height row scale with
   | some tick =>
-      Loam.Tui.Layout.padLeft 8 (amountText tick) ++ " ┤ "
+      Loam.Tui.Layout.padLeft 8 (amountText state measure tick) ++ " ┤ "
   | none => "         │ "
 
 private def overlayGuideColumns (bounds : Bounds) (state : State) : List Nat :=
@@ -758,24 +767,29 @@ def pointerInPlot (bounds : Bounds) (state : State) (row : Nat) : Bool :=
     decide (plotTop state <= row && row < plotTop state + plotHeight bounds state)
 
 private def chartRows (bounds : Bounds) (state : State) : List Widget :=
-  let width := plotWidth bounds
-  let height := plotHeight bounds state
-  let scale := chartScale state
-  let gridRows :=
-    scale.ticks.map fun tick =>
-      Loam.Tui.Chart.rowForValue height scale.range tick
-  let rendered :=
-    Loam.Tui.Chart.renderManyInRange
-      .braille width height (plotSeries state) (localSelected state)
-      scale.range gridRows (overlayGuideColumns bounds state)
-  (List.range height).map fun row =>
-    match rendered[row]? with
-    | some widget =>
-        match widget with
-        | Widget.row spans =>
-            Widget.row ([span (axisText height row scale)] ++ spans)
-        | Widget.column _ => Widget.row [span (axisText height row scale)]
-    | none => Widget.row [span (axisText height row scale)]
+  match state.snapshot with
+  | none => []
+  | some snapshot =>
+      let width := plotWidth bounds
+      let height := plotHeight bounds state
+      let scale := chartScale state
+      let gridRows :=
+        scale.ticks.map fun tick =>
+          Loam.Tui.Chart.rowForValue height scale.range tick
+      let rendered :=
+        Loam.Tui.Chart.renderManyInRange
+          .braille width height (plotSeries state) (localSelected state)
+          scale.range gridRows (overlayGuideColumns bounds state)
+      (List.range height).map fun row =>
+        match rendered[row]? with
+        | some widget =>
+            match widget with
+            | Widget.row spans =>
+                Widget.row ([span (axisText state snapshot.measure height row scale)] ++ spans)
+            | Widget.column _ =>
+                Widget.row [span (axisText state snapshot.measure height row scale)]
+        | none =>
+            Widget.row [span (axisText state snapshot.measure height row scale)]
 
 private def compactAxisRow
     (bounds : Bounds)

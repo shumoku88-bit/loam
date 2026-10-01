@@ -88,6 +88,7 @@ structure Series where
   deriving Repr, DecidableEq
 
 structure Snapshot where
+  measure : MeasureId := ⟨"jpy"⟩
   source : String
   observedAt : String
   granularity : Granularity := .cycle
@@ -108,6 +109,14 @@ def Snapshot.selectedWindow?
 
 def Series.valueAt? (series : Series) (index : Nat) : Option Int :=
   series.points[index]?.map (·.dailyAverageQuanta)
+
+private def commonMeasure? (specs : List SeriesSpec) : Option MeasureId := do
+  let first ← specs.head?
+  let measure := first.coordinate.measure
+  if specs.all (fun spec => decide (spec.coordinate.measure = measure)) then
+    some measure
+  else
+    none
 
 private def monthKey (date : String) : String :=
   String.ofList (date.toList.take 7)
@@ -372,6 +381,10 @@ def projectAtScope
     (specs : List SeriesSpec) : Except String Snapshot := do
   if specs.isEmpty then
     throw "loam: Trend Compare requires at least one exact coordinate"
+  let measure ←
+    match commonMeasure? specs with
+    | some measure => pure measure
+    | none => throw "loam: Trend Compare requires every series to use the same Measure"
   let (start, endExclusive) ← scopeWindow preset observedAt scope
   let series ← specs.mapM fun spec =>
     if scope == .allHistory then
@@ -380,6 +393,7 @@ def projectAtScope
       projectScopedSeries
         records preset observedAt start endExclusive granularity spec
   return {
+    measure := measure
     source := preset.name
     observedAt := observedAt
     granularity := granularity
