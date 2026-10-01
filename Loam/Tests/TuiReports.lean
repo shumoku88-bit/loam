@@ -710,9 +710,9 @@ def main : IO Unit := do
     (Loam.Tui.Reports.viewForBounds compareBounds comparePointer)
   expect (contains "Trend   cycle average / day" compareText &&
       contains "Selected   Apr 15 → Jun 15" compareText &&
-      contains "Tobacco" compareText && contains "¥464/day" compareText &&
-      contains "Coffee" compareText && contains "¥131/day" compareText &&
-      contains "Food" compareText && contains "¥477/day" compareText)
+      contains "Tobacco" compareText && contains "464 jpy/day" compareText &&
+      contains "Coffee" compareText && contains "131 jpy/day" compareText &&
+      contains "Food" compareText && contains "477 jpy/day" compareText)
     "Trend did not show all selected-cycle series values together"
   expect (!(contains "Range " compareText) && !(contains "s/S range" compareText))
     "Trend Cycle exposed Day-only Range controls"
@@ -721,6 +721,39 @@ def main : IO Unit := do
   expect ((Loam.Tui.Reports.viewForBounds compareBounds comparePointer).lines.length <=
       compareBounds.height)
     "Trend exceeded the terminal height"
+  let usdInitial := Loam.Tui.Reports.initialForDateForMeasure ⟨"usd"⟩ "2026-09-07"
+  let usdTrendStep := Loam.Tui.Reports.update usdInitial (.input 'v')
+  match usdTrendStep.query with
+  | some (.locusTrendCompare _ _ _ series) =>
+      expect (series.all fun spec => decide (spec.coordinate.measure = ⟨"usd"⟩))
+        "Reports did not seed Trend from the configured USD Measure"
+  | _ => throw (IO.userError "USD Reports Trend did not emit its query")
+  let usdSpec : Loam.LocusTrendCompareReview.SeriesSpec := {
+    label := "Coffee USD"
+    coordinate := ⟨⟨"coffee"⟩, ⟨"usd"⟩⟩
+  }
+  let usdSeries : Loam.LocusTrendCompareReview.Series := {
+    spec := usdSpec
+    points := tobaccoPoints
+    undatedMatchingCurrentRecords := 0
+  }
+  let usdSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
+    measure := ⟨"usd"⟩
+    source := "Pension"
+    observedAt := "2026-09-07"
+    scopeStart := "2026-04-15"
+    scopeEndExclusive := "2026-09-08"
+    series := [usdSeries]
+  }
+  let usdReport :=
+    Loam.Tui.Reports.withLocusTrendCompareSnapshot usdTrendStep.state usdSnapshot
+      [{ measure := ⟨"usd"⟩, scale := 2 }]
+  let usdText := widgetText
+    (Loam.Tui.Reports.viewForBounds compareBounds usdReport)
+  expect (contains "usd" usdText && contains "4.64 usd/day" usdText)
+    "Trend did not apply USD Measure identity and decimal presentation"
+  expect (!(contains "¥" usdText) && !(contains " jpy" usdText))
+    "USD Trend leaked the historical JPY presentation"
 
   let ignoredTrendRendererKey := Loam.Tui.Reports.update comparePointer (.input 'r')
   expect (ignoredTrendRendererKey.query.isNone &&
