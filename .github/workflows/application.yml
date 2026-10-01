@@ -106,3 +106,17 @@ jobs:
           grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-10')" "$output"
           grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-')" "$output"
           grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$output")
+          printf 'cash\tusd\n' > "$fixture/config/cycle-funding.tsv"
+          usd_output="$fixture/current-usd.hobs1"
+          LOAM_MEASURE=usd .lake/build/bin/loamHouseholdObservation \
+            "$fixture" 2026-08-14 2026-10-15 2026-09-08 > "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tbudget\tfood\tusd\t40\t0\t40')" "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tcapacity\tpurpose\tfood\tusd\t40')" "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tusd\t250')" "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tusd\t40')" "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tusd\t210')" "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tusd\t40\t0\t0\t40\t40')" "$usd_output"
+          ! grep -F "$(printf 'HOBS1\tbudget\tfood\tjpy')" "$usd_output"
+          ! grep -F "$(printf 'HOBS1\tcapacity\tpurpose\tfood\tjpy')" "$usd_output"
+          ! grep -F "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy')" "$usd_output"
+          grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$usd_output")
