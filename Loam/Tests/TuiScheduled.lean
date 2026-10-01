@@ -1,4 +1,5 @@
 import Loam.Tui.Home
+import Loam.Tui.DailyPaceTrend
 import Loam.Tui.Terminal
 
 open Loam.Core Loam.Tui.Kernel
@@ -112,6 +113,19 @@ def main : IO Unit := do
   expect (!contains "Recent pace" dueTodayText &&
           !contains "09-05  150 jpy/day" dueTodayText)
     "Home let historical Daily Pace compete with the current glance"
+
+  let paceTrendText :=
+    widgetText (Loam.Tui.DailyPaceTrend.view bounds snapshot)
+  expect (contains "Daily Pace / Trend" paceTrendText &&
+          contains "2026-09-05" paceTrendText &&
+          contains "150 jpy/day" paceTrendText &&
+          contains "2026-09-06" paceTrendText &&
+          contains "160 jpy/day" paceTrendText &&
+          contains "2026-09-07" paceTrendText &&
+          contains "170 jpy/day  current" paceTrendText)
+    "Daily Pace trend did not preserve the reconstructed current-truth series"
+  expect (contains "not stored as daily household state" paceTrendText)
+    "Daily Pace trend lost its reconstruction disclosure"
   expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
     "Home did not expose the earliest current-open Scheduled occurrence"
 
