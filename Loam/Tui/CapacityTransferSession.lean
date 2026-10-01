@@ -39,7 +39,7 @@ partial def run
         match ← Loam.HouseholdCommand.moveCapacity root draft with
         | .ok _ =>
             pure
-              ("Moved " ++ toString draft.quanta ++ " jpy Capacity: " ++
+              ("Moved " ++ toString draft.quanta ++ " " ++ draft.measure.token ++ " Capacity: " ++
                 Loam.CapacityPublisher.coordinateToken draft.source ++ " -> " ++
                 Loam.CapacityPublisher.coordinateToken draft.destination ++
                 ". Effective: " ++ draft.effectiveOn ++ ".")
