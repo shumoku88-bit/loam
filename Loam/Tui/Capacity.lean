@@ -66,10 +66,12 @@ def withCoverage
     (source : String)
     (state : State) : State :=
   if coverage.measure != state.snapshot.measure then
-    withoutCoverage
-      ("Current coverage Measure " ++ coverage.measure.token ++
-        " does not match Capacity Measure " ++ state.snapshot.measure.token ++ ".")
-      state
+    { state with
+        coverage := none
+        coverageSource := ""
+        coverageNotice :=
+          "Current coverage Measure " ++ coverage.measure.token ++
+            " does not match Capacity Measure " ++ state.snapshot.measure.token ++ "." }
   else
     { state with
         coverage := some coverage
