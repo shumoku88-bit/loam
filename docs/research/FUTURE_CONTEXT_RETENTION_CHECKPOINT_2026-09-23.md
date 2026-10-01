@@ -533,3 +533,34 @@ no universality claim
 ```
 
 That is the strongest current form of the work.
+
+## 14. 2026-10-01 dependency-closure distillation
+
+A later repository-distillation trial was prompted by Proof-R1's distinction
+between verified steps and the smaller dependency closure that actually supports
+a selected final result.
+
+Applied narrowly to this research thread, the live synthesis/classification arc
+now runs through the shared bounded-search machinery in Observation 299 and the
+positive/exact-classification work in Observations 304–317. The three early
+negative semantic case studies in Observations 300–302 and the collision-filter
+fixture in Observation 303 are not dependencies of that later arc.
+
+Those four modules therefore graduated from the live Lean observation umbrella.
+Their results remain recorded in sections 5–7 of this checkpoint and in Git
+history. This is not a claim that the experiments were unimportant or invalid.
+It is a narrower retention decision: they supplied evidence during discovery,
+but later live results no longer require their executable witnesses.
+
+Observation 299 remains live because later bounded-signature synthesis reuses
+its finite SearchSpace and continuation enumeration directly.
+
+The trial suggests a useful future pruning question:
+
+> After verification succeeds, which retained artifacts are still inside the
+> dependency closure of a current production, durable-proof, or active-research
+> claim?
+
+Being outside such a closure is a review signal, not an automatic deletion
+verdict. Independent obligations, counterexamples, and intentionally diverse
+qualification surfaces may still justify retention.

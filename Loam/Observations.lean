@@ -37,10 +37,6 @@ import Loam.Observations.Observation296
 import Loam.Observations.Observation297
 import Loam.Observations.Observation298
 import Loam.Observations.Observation299
-import Loam.Observations.Observation300
-import Loam.Observations.Observation301
-import Loam.Observations.Observation302
-import Loam.Observations.Observation303
 import Loam.Observations.Observation304
 import Loam.Observations.Observation305
 import Loam.Observations.Observation306
@@ -84,6 +80,13 @@ import Loam.Observations.Observation380
 /-!
 Research compaction notes:
 
+- 2026-10-01: Observations 300–303 retired from the live Lean research umbrella
+  after a dependency-closure distillation trial. Their Correction, document-
+  provenance, ActualReversal, and collision-filtering case studies remain
+  summarized in `docs/research/FUTURE_CONTEXT_RETENTION_CHECKPOINT_2026-09-23.md`
+  and Git history. The later live synthesis/classification chain depends on
+  Observation 299 and Observations 304–317, not on these four case-study leaves.
+  Observation 299 remains live as shared bounded-search machinery.
 - 2026-09-26: Observations 320, 322–324, 326–330 (except 325), 332,
   338, and 339 retired from the live witness umbrella after later terminal
   proofs, production promotion, proof-carrying production types, and retained
