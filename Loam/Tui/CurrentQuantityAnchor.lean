@@ -45,7 +45,12 @@ abbrev Step :=
   Loam.Tui.EditorSession.Step State (List Loam.CurrentQuantityAnchor.Assertion)
 
 
-def initial : State := {}
+def initialWithMeasure (measure : Loam.Core.MeasureId) : State :=
+  { form := { measure := measure.token } }
+
+/-- Backward-compatible no-configuration entrance for the current JPY household. -/
+def initial : State :=
+  initialWithMeasure ⟨"jpy"⟩
 
 private def focusCount : Nat := 6
 private def firstAction : Nat := 3
