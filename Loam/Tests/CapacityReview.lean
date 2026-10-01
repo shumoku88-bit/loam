@@ -88,13 +88,16 @@ def main (args : List String) : IO Unit := do
   let mixedMemory ← requireSome
     (CapacityMemory.ofMovements? [allocation, reallocation, usdAllocation])
     "mixed-Measure Capacity review memory was rejected"
-  let usdRows :=
-    (Loam.CapacityReview.snapshotForMeasure usd mixedMemory).rows.map fun row =>
+  let usdSnapshot := Loam.CapacityReview.snapshotForMeasure usd mixedMemory
+  expect (usdSnapshot.measure == usd)
+    "Capacity review lost the requested non-JPY Measure"
+  let usdRows := usdSnapshot.rows.map fun row =>
       (row.purpose.token, row.entitlement.quanta)
   expect (usdRows == [("food", 2500), ("groceries", 0)])
     "Capacity review did not isolate the requested non-JPY Measure"
-  let jpyRows :=
-    (Loam.CapacityReview.snapshotForMeasure yen mixedMemory).rows.map fun row =>
+  let jpySnapshot := Loam.CapacityReview.snapshotForMeasure yen mixedMemory
+  expect (jpySnapshot.measure == yen) "JPY Capacity review lost its Measure"
+  let jpyRows := jpySnapshot.rows.map fun row =>
       (row.purpose.token, row.entitlement.quanta)
   expect (jpyRows == [("food", 60), ("groceries", 40)])
     "non-JPY Capacity evidence changed the JPY projection"
