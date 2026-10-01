@@ -144,9 +144,9 @@ def main : IO Unit := do
     for zoom in [Loam.Tui.DateJump.ZoomLevel.month, .year] do
       let state := {base with zoomLevel := zoom}
       let rendered ← browseOverview bounds snapshot state
-      for token in ["jpy", "usd", "Out: -100", "? 2 unresolved effects", "Net:", "(full"] do
+      for token in ["jpy", "usd", "Out: -$100", "? 2 unresolved effects", "Net:", "(full"] do
         expect (contains token rendered) s!"period overview lost {token}"
-      expect (contains (if zoom == .month then "Out: -3,100" else "Out: -3,720") rendered)
+      expect (contains (if zoom == .month then "Out: -¥3,100" else "Out: -¥3,720") rendered)
         "period sum changed or mixed measures"
       expect (!contains "[h/l] day" rendered && !contains "[k/j] week" rendered)
         "zoom footer advertised daily navigation"
@@ -166,7 +166,7 @@ def main : IO Unit := do
     presentation := [{measure := ⟨"usd"⟩, scale := 2}]
   }}
   let scaledText ← browseOverview wide scaled base
-  expect (contains "Out: -1.00" scaledText && contains "Out/day: ~0.03" scaledText)
+  expect (contains "Out: -$1.00" scaledText && contains "Out/day: ~$0.03" scaledText)
     "USD summary ignored presentation scale"
   expect (contains "usd [partial]" scaledText) "partial sum looked complete"
 
@@ -176,7 +176,7 @@ def main : IO Unit := do
   }}
   for zoom in [Loam.Tui.DateJump.ZoomLevel.month, .year] do
     let rendered ← browseOverview wide lastYear {base with selectedDate := "9999-12-31", zoomLevel := zoom}
-    expect (contains "Out: -3,720" rendered && contains "Out: -100" rendered)
+    expect (contains "Out: -¥3,720" rendered && contains "Out: -$100" rendered)
       "last supported period lost flow"
 
   -- With no Actual rows, paging still exposes non-selectable pending evidence.

@@ -40,6 +40,20 @@ LOAM deliberately does **not** copy the whole ISO 4217 table into the program.
 The standard remains an external reference, while the household records only
 the Measures it actually uses.
 
+LOAM does carry a tiny presentation-only symbol alias set for the currencies
+the household currently expects to display:
+
+```text
+jpy -> ¥
+usd -> $
+eur -> €
+ils -> ₪
+```
+
+These aliases do not identify a Measure, parse input, perform conversion, or
+create currency semantics. Unknown Measures simply render with their explicit
+token, so adding a new Measure never depends on adding a symbol first.
+
 This avoids turning LOAM into a currency-registry maintenance project and keeps
 non-currency Measures possible.
 
