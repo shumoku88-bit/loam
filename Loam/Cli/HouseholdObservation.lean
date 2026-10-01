@@ -23,7 +23,8 @@ private def usage : String :=
   "Capacity over the explicit half-open budget window [START, END). When\n" ++
   "OBSERVED_AT is supplied, existing CycleBudget and ScheduledCoverage reads\n" ++
   "also emit LOAM-specific current-coverage, funding, and Scheduled-series\n" ++
-  "diagnostics. The output is a\n" ++
+  "diagnostics. LOAM_MEASURE selects the single Measure for Budget, Capacity,\n" ++
+  "and current-cycle diagnostics; it defaults to jpy. The output is a\n" ++
   "read-only derived projection, never canonical household state."
 
 private def emitRecord (fields : List String) : IO Unit :=
