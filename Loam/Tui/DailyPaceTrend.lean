@@ -26,7 +26,7 @@ private def paceLine
     (snapshot : Loam.CycleSpendingPaceReview.Snapshot) : Widget :=
   let value :=
     match snapshot.dailyPaceQuanta? with
-    | some quanta => toString quanta ++ " jpy/day"
+    | some quanta => toString quanta ++ " " ++ snapshot.measure.token ++ "/day"
     | none => "unavailable"
   let marker := if snapshot.observedAt == today then "  current" else ""
   line
