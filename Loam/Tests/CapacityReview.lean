@@ -11,6 +11,7 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
   | none => throw (IO.userError message)
 
 private def yen : MeasureId := ⟨"jpy"⟩
+private def usd : MeasureId := ⟨"usd"⟩
 private def food : PurposeId := ⟨"food"⟩
 private def groceries : PurposeId := ⟨"groceries"⟩
 
@@ -19,11 +20,17 @@ private def change
     (quanta : Int) : MovementChange CapacityCoordinate :=
   { coordinate := coordinate, quantity := Quantity.ofQuanta quanta }
 
-private def movement?
+private def movementForMeasure?
+    (measure : MeasureId)
     (id : String)
     (changes : List (MovementChange CapacityCoordinate)) : Option CapacityMovement := do
-  let balanced ← BalancedMovement.ofChanges? yen changes
+  let balanced ← BalancedMovement.ofChanges? measure changes
   pure { id := ⟨id⟩, movement := balanced }
+
+private def movement?
+    (id : String)
+    (changes : List (MovementChange CapacityCoordinate)) : Option CapacityMovement :=
+  movementForMeasure? yen id changes
 
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated Capacity review directory")
@@ -73,6 +80,24 @@ def main (args : List String) : IO Unit := do
       let rows := snapshot.rows.map fun row => (row.purpose.token, row.entitlement.quanta)
       expect (rows == [("food", 60), ("groceries", 40)])
         "shared Capacity review diverged from all-retained entitlement projection"
+
+  let usdAllocation ← requireSome
+    (movementForMeasure? usd "capacity-usd-1"
+      [change .unallocated (-2500), change (.purpose food) 2500])
+    "USD allocation specimen was not admitted"
+  let mixedMemory ← requireSome
+    (CapacityMemory.ofMovements? [allocation, reallocation, usdAllocation])
+    "mixed-Measure Capacity review memory was rejected"
+  let usdRows :=
+    (Loam.CapacityReview.snapshotForMeasure usd mixedMemory).rows.map fun row =>
+      (row.purpose.token, row.entitlement.quanta)
+  expect (usdRows == [("food", 2500), ("groceries", 0)])
+    "Capacity review did not isolate the requested non-JPY Measure"
+  let jpyRows :=
+    (Loam.CapacityReview.snapshotForMeasure yen mixedMemory).rows.map fun row =>
+      (row.purpose.token, row.entitlement.quanta)
+  expect (jpyRows == [("food", 60), ("groceries", 40)])
+    "non-JPY Capacity evidence changed the JPY projection"
 
   IO.FS.writeFile (root / "malformed.loam") "not-capacity\n"
   match ← Loam.CapacityReview.loadSnapshot (root / "malformed.loam") with
