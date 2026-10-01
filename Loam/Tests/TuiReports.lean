@@ -1652,8 +1652,9 @@ def main : IO Unit := do
   for report in [stockReport, liquidityReport, budgetReport] do
     let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
     let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds tall report)).splitOn "\n"
-    expect (originalLines.all (fun original => original ∈ boundedLines))
-      "bounds-aware presentation lost existing production report content"
+    for original in originalLines do
+      expect (boundedLines.any fun bounded => bounded == original)
+        "bounds-aware presentation lost existing production report content"
 
   for heightIndex in List.range 8 do
     let tiny : Bounds := { width := 80, height := heightIndex + 1 }
