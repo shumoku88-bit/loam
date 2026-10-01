@@ -18,7 +18,7 @@ set_option autoImplicit false
 # Selected Scheduled replacement editor
 
 This state is presentation-only. It edits exactly the retained replacement content:
-one date plus signed JPY postings. It deliberately has no Actual description,
+one date plus signed single-Measure postings. It deliberately has no Actual description,
 Movement Event, recurrence, continuation, or routing state. Publication authority
 remains `ScheduledReplacementPublisher`, which re-reads current Scheduled and
 Movement evidence under ownership.
@@ -31,6 +31,7 @@ inductive Mode where
   | preview (draft : Loam.ScheduledReplacementPublisher.Draft) (choice : Fin 3)
 
 structure State where
+  measure : MeasureId := ⟨"jpy"⟩
   target : ScheduledId
   originalOn : String
   form : Form
@@ -49,14 +50,13 @@ private def rowsFromScheduled
 /-- Seed replacement content from one visible current-open Scheduled occurrence. -/
 def initial?
     (record : Loam.Tui.Main.ScheduledRecord) : Except String State := do
-  if record.measure != ⟨"jpy"⟩ then
-    throw "This Scheduled occurrence uses a non-JPY measure and cannot be represented by the JPY replacement editor."
   let rows := rowsFromScheduled record
   if rows.size < 2 then
     throw "This Scheduled occurrence is outside the practical balanced replacement editor."
   if rows.size > 6 then
     throw "This Scheduled occurrence has more than six postings; this replacement editor will not truncate it."
   pure {
+    measure := record.measure
     target := record.id
     originalOn := record.scheduledOn
     form := { date := record.scheduledOn, rows := rows }
@@ -84,9 +84,9 @@ def draft? (state : State) : Except String Loam.ScheduledReplacementPublisher.Dr
   for index in List.range state.form.rows.size do
     let row := state.form.rows[index]!
     let some amount := row.amount.toInt?
-      | throw "Enter a nonzero signed integer JPY amount for every posting."
+      | throw ("Enter a nonzero signed integer " ++ state.measure.token ++ " amount for every posting.")
     if amount = 0 then
-      throw "Enter a nonzero signed integer JPY amount for every posting."
+      throw ("Enter a nonzero signed integer " ++ state.measure.token ++ " amount for every posting.")
     if !Loam.Persistence.validToken row.locus then
       throw "Enter a valid Locus token for every posting."
     changes := changes ++ [{
@@ -94,7 +94,7 @@ def draft? (state : State) : Except String Loam.ScheduledReplacementPublisher.Dr
       quantity := Quantity.ofQuanta amount
     }]
     if amount > 0 then positive := positive + amount
-  let some movement := BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
+  let some movement := BalancedMovement.ofChanges? state.measure changes
     | throw "Scheduled replacement posting totals differ."
   if positive <= 0 then
     throw "Scheduled replacement requires a positive balanced total."
@@ -179,7 +179,7 @@ def view (known : List String) (state : State) : Widget :=
       let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
         let row := form.rows[index]!
         [ field form (1 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
-        , field form (2 + index * 2) "  JPY" row.amount
+        , field form (2 + index * 2) ("  " ++ state.measure.token) row.amount
         ]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
       .column <|
@@ -191,7 +191,7 @@ def view (known : List String) (state : State) : Widget :=
             span ("[" ++ label ++ "] ")
               (if form.focus = Loam.Tui.ScheduledPostingForm.firstAction form + index then .selected else .normal))
         , line ("Candidate: " ++ (candidate? known form).getD "")
-        , line "Signed JPY postings are editable replacement content; no Actual is created."
+        , line ("Signed " ++ state.measure.token ++ " postings are editable replacement content; no Actual is created.")
         , line "Tab / Shift-Tab focus   Enter next/preview/action   Right accept candidate"
         , line "Esc cancel   Backspace delete   Drop keeps at least two postings"
         , line state.notice
@@ -203,9 +203,11 @@ def view (known : List String) (state : State) : Widget :=
         , line ("Replacement due: " ++ draft.scheduledOn)
         ] ++
         (draft.movement.changes.take 12).map (fun change =>
-          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++ " jpy")) ++
+          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++
+            " " ++ draft.movement.measure.token)) ++
         [ line ("Balanced total: " ++ toString
-            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++ " jpy")
+            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
+            " " ++ draft.movement.measure.token)
         , line "Publish appends an explicit Scheduled replacement relation plus its endpoint."
         , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")

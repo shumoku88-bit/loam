@@ -154,4 +154,23 @@ def main (args : List String) : IO Unit := do
   expect (cancelled.cancel && cancelled.publish.isNone)
     "Esc from new Scheduled editor emitted publication"
 
+  let usdRows : Array Loam.Tui.Record.Row :=
+    #[ { locus := "paypay", amount := "-25" }
+     , { locus := "food", amount := "25" } ]
+  let usdEditor := Loam.Tui.ScheduledCreation.initialWithMeasure ⟨"usd"⟩ "2026-09-13"
+  let usdEdited : Loam.Tui.ScheduledCreation.State := {
+    usdEditor with form := { usdEditor.form with rows := usdRows } }
+  let .ok usdDraft := Loam.Tui.ScheduledCreation.draft? usdEdited
+    | throw (IO.userError "build USD Scheduled draft")
+  expect (usdDraft.movement.measure == ⟨"usd"⟩)
+    "new Scheduled editor replaced the explicitly selected Measure"
+  let usdRecord : ScheduledOccurrence String := {
+    id := ⟨"scheduled-usd"⟩
+    scheduledOn := usdDraft.scheduledOn
+    movement := usdDraft.movement }
+  let .ok usdNext := Loam.Tui.ScheduledCreation.initialFromScheduled? usdRecord
+    | throw (IO.userError "seed next USD Scheduled occurrence")
+  expect (usdNext.measure == ⟨"usd"⟩ && usdNext.form.rows == usdRows)
+    "next Scheduled seed did not preserve a non-JPY Measure and postings"
+
   IO.println "TUI Scheduled create: pane-local intent, explicit next seed, shared publication, fresh Due read and Actual independence passed."
