@@ -72,27 +72,27 @@ def main : IO Unit := do
     | .ok rendered => pure rendered
     | .error message => throw (IO.userError ("Wealthfolio export failed: " ++ message))
 
-  expect (contains "date,activityType,currency,amount,account,comment" rendered)
+  expect (contains "date,symbol,activityType,currency,amount,account,comment" rendered)
     "Wealthfolio CSV header missing"
-  expect (contains "2026-09-01,DEPOSIT,JPY,500,\"cash\"" rendered)
+  expect (contains "2026-09-01,$CASH-JPY,DEPOSIT,JPY,500,\"cash\"" rendered)
     "cash opening position missing"
-  expect (contains "2026-09-01,DEPOSIT,JPY,10000,\"smbc\"" rendered)
+  expect (contains "2026-09-01,$CASH-JPY,DEPOSIT,JPY,10000,\"smbc\"" rendered)
     "SMBC opening position missing"
   expect (!contains "before epoch" rendered)
     "pre-epoch Actual leaked into Wealthfolio export"
-  expect (contains "2026-09-02,WITHDRAWAL,JPY,700,\"smbc\"" rendered)
+  expect (contains "2026-09-02,$CASH-JPY,WITHDRAWAL,JPY,700,\"smbc\"" rendered)
     "expense did not become Asset withdrawal"
   expect (contains "\"Lunch, \"\"good\"\" | loam_event_id=spend" rendered)
     "CSV quoting did not preserve description and provenance"
-  expect (contains "2026-09-03,TRANSFER_OUT,JPY,1000,\"smbc\"" rendered)
+  expect (contains "2026-09-03,$CASH-JPY,TRANSFER_OUT,JPY,1000,\"smbc\"" rendered)
     "Asset source transfer missing"
-  expect (contains "2026-09-03,TRANSFER_IN,JPY,1000,\"cash\"" rendered)
+  expect (contains "2026-09-03,$CASH-JPY,TRANSFER_IN,JPY,1000,\"cash\"" rendered)
     "Asset destination transfer missing"
-  expect (contains "2026-09-04,DEPOSIT,JPY,2000,\"smbc\"" rendered)
+  expect (contains "2026-09-04,$CASH-JPY,DEPOSIT,JPY,2000,\"smbc\"" rendered)
     "income did not become Asset deposit"
-  expect (contains "2026-09-05,WITHDRAWAL,USD,12.34,\"wise_usd\"" rendered)
+  expect (contains "2026-09-05,$CASH-USD,WITHDRAWAL,USD,12.34,\"wise_usd\"" rendered)
     "Measure presentation scale was not retained"
-  expect (!contains "2026-09-01,DEPOSIT,USD,0.00" rendered)
+  expect (!contains "2026-09-01,$CASH-USD,DEPOSIT,USD,0.00" rendered)
     "zero opening position should not create a target activity"
 
   let unresolved ← event "unresolved"
