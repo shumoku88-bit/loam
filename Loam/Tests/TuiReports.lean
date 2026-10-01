@@ -31,6 +31,13 @@ private def expectTinyReportFits
   expect (contains "q / Esc" (widgetText rendered))
     ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
 
+private def expectBoundsPreserveContent
+    (bounds : Bounds) (report : Loam.Tui.Reports.State) : IO Unit := do
+  let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
+  let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds bounds report)).splitOn "\n"
+  expect (allLinesPresent originalLines boundedLines)
+    "bounds-aware presentation lost existing production report content"
+
 private def isMenu (state : Loam.Tui.Reports.State) : Bool :=
   match state.mode with
   | .menu => true
@@ -1663,11 +1670,9 @@ def main : IO Unit := do
     "opening a report retained stale scrolling from the previous mode"
 
   let tall : Bounds := { width := 120, height := 100 }
-  for report in [stockReport, liquidityReport, budgetReport] do
-    let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
-    let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds tall report)).splitOn "\n"
-    expect (allLinesPresent originalLines boundedLines)
-      "bounds-aware presentation lost existing production report content"
+  expectBoundsPreserveContent tall stockReport
+  expectBoundsPreserveContent tall liquidityReport
+  expectBoundsPreserveContent tall budgetReport
 
   for heightIndex in List.range 8 do
     let height := heightIndex + 1
