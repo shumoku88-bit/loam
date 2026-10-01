@@ -1,7 +1,7 @@
 # Lessons from Let's Kakeibo for LOAM Desk
 
 Date: 2026-10-01  
-Status: **research conclusion; not yet a production UI commitment**
+Status: **research conclusion; Desk TUI tested and retired; GUI experiment is the next shell hypothesis**
 
 This note closes the first Let's家計簿 research cycle by separating durable interaction lessons from historical product details.
 
@@ -255,38 +255,36 @@ Every useful summary should answer "what made this number?"
 
 Let's家計簿 survived multiple Delphi generations and one major internal rewrite. LOAM should make the terminal/GUI replaceable while household meaning remains stable.
 
-## 6. What this implies for a separate Desk TUI
+## 6. Desk TUI experiment outcome
 
-The first experiment should be a **new front end**, not a rewrite of the production TUI.
+A separate read-only Desk TUI was implemented and used.
 
-Architecture target:
+It preserved the intended semantic boundary: the shell owned only layout/focus/selection and consumed existing read projections. However, in actual use it did not feel materially different from the production TUI.
+
+This is informative rather than a reason to widen the terminal experiment. The missing distinction is primarily interaction-medium capability:
+
+- pointer-directed selection;
+- genuinely resizable spatial panes;
+- richer table affordances;
+- graph/region selection;
+- hover/context surfaces where useful;
+- direct manipulation without rebuilding GUI mechanics inside a terminal.
+
+Therefore the separate Desk TUI implementation is retired rather than grown into a second production TUI.
+
+The next shell experiment should be a small GUI over the existing presentation/read boundary, with the same semantic rule:
 
 ```text
-Core / Authority / Application / Presentation
-                    |
-          +---------+---------+
-          |                   |
-    production TUI         Desk TUI
-                           experiment
+Core / Authority / Application / Review / Presentation
+                         |
+                         v
+              surface-neutral read answers
+                         |
+                         v
+               replaceable GUI shell
 ```
 
-The Desk should own:
-
-- layout;
-- focus;
-- scrolling;
-- visible selection;
-- keyboard mapping;
-- local presentation state.
-
-It should not own:
-
-- accounting semantics;
-- Actual authority;
-- Scheduled truth;
-- correction rules;
-- balance arithmetic;
-- provenance meaning.
+The GUI must not become a second accounting engine.
 
 ## 7. Stop rule for this research cycle
 

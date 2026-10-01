@@ -1,13 +1,35 @@
 # LOAM Desk TUI v0 hypothesis
 
 Date: 2026-10-01  
-Status: **minimal experimental specification; no replacement of the production TUI**
+Status: **experiment concluded; implementation retired after real-use comparison with the production TUI**
 
 ## 1. Question
 
 Can a separate terminal "household desk" make LOAM easier to inhabit day to day by keeping chronological Actual evidence at the center?
 
 The experiment is successful only if it improves orientation and navigation without duplicating LOAM semantics.
+
+## 1.1 Outcome
+
+The merged v0 was used alongside the existing production TUI.
+
+The result was useful but negative: the calendar + chronological Actual + selected-detail arrangement did **not** create enough practical difference from the production TUI to justify a second terminal shell.
+
+That result triggers the experiment's own kill criterion:
+
+```text
+same terminal interaction medium
+        +
+similar keyboard navigation
+        +
+same underlying household reads
+        ->
+insufficiently distinct daily experience
+```
+
+The `Loam/Desk/` implementation and `loamDesk` executable are therefore retired from the product tree. Git history preserves the implementation. This document preserves the hypothesis and result.
+
+The next experiment moves the same information-topology question to a GUI, where direct manipulation, pointer selection, resizable panes, rich tables, and graph-to-evidence navigation can create a genuinely different interaction surface.
 
 ## 2. Non-goals
 
