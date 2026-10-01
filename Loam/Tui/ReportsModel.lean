@@ -96,11 +96,15 @@ inductive Query where
   | favaProjection
   deriving Repr, DecidableEq
 
-def defaultTrendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
-  [ { label := "Tobacco", coordinate := ⟨⟨"tobacco"⟩, ⟨"jpy"⟩⟩ }
-  , { label := "Coffee", coordinate := ⟨⟨"coffee"⟩, ⟨"jpy"⟩⟩ }
-  , { label := "Food", coordinate := ⟨⟨"food"⟩, ⟨"jpy"⟩⟩ }
+def defaultTrendCompareSeriesForMeasure
+    (measure : Loam.Core.MeasureId) : List Loam.LocusTrendCompareReview.SeriesSpec :=
+  [ { label := "Tobacco", coordinate := ⟨⟨"tobacco"⟩, measure⟩ }
+  , { label := "Coffee", coordinate := ⟨⟨"coffee"⟩, measure⟩ }
+  , { label := "Food", coordinate := ⟨⟨"food"⟩, measure⟩ }
   ]
+
+def defaultTrendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
+  defaultTrendCompareSeriesForMeasure ⟨"jpy"⟩
 
 structure State where
   mode : Mode := .menu
@@ -148,7 +152,8 @@ configuration; they are resolved to explicit coordinates before any report query
 is emitted. The conditional outlook keeps its independent editable assumption
 horizon and is not executed until the user explicitly runs it.
 -/
-def initialForDateWithPresets
+def initialForDateWithPresetsForMeasure
+    (measure : Loam.Core.MeasureId)
     (selectedDate : String)
     (presets : List Loam.BoundaryPresetConfig.Preset) : State :=
   let windowResult := Loam.Tui.ReportWindow.initialForDateWithPresets selectedDate presets
@@ -156,12 +161,23 @@ def initialForDateWithPresets
     mode := .menu
     window := windowResult.state
     liquidityForm := liquidityFormForEndExclusive windowResult.state.form.endExclusive
+    trendCompareSeries := defaultTrendCompareSeriesForMeasure measure
     notice := windowResult.notice
   }
 
+/-- Backward-compatible Reports initializer for the current JPY household. -/
+def initialForDateWithPresets
+    (selectedDate : String)
+    (presets : List Loam.BoundaryPresetConfig.Preset) : State :=
+  initialForDateWithPresetsForMeasure ⟨"jpy"⟩ selectedDate presets
+
+def initialForDateForMeasure
+    (measure : Loam.Core.MeasureId) (selectedDate : String) : State :=
+  initialForDateWithPresetsForMeasure measure selectedDate []
+
 /-- Compatibility initializer when no named presets were loaded. -/
 def initialForDate (selectedDate : String) : State :=
-  initialForDateWithPresets selectedDate []
+  initialForDateForMeasure ⟨"jpy"⟩ selectedDate
 
 
 def withStockFlowSnapshot
@@ -222,10 +238,14 @@ def withBudgetSnapshot
 
 
 def withLocusTrendCompareSnapshot
-    (state : State) (snapshot : Loam.LocusTrendCompareReview.Snapshot) : State :=
+    (state : State)
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (presentation : List Loam.MeasurePresentation.Metadata := []) : State :=
   { state with
       trendCompare := Loam.Tui.LocusTrendComparePane.withSnapshot
-        state.trendCompare snapshot
+        (Loam.Tui.LocusTrendComparePane.withMeasurePresentation
+          state.trendCompare presentation)
+        snapshot
       notice := ""
       scroll := 0 }
 
@@ -597,12 +617,11 @@ private def rerunAfterWindowResult
   let next := applyWindowResult state result
   { state := next, query := queryForMode next }
 
-private def trendSeriesMeasureForSlot
-    (state : State) (slot : Nat) : Loam.Core.MeasureId :=
+private def trendSeriesMeasureForSlot?
+    (state : State) (slot : Nat) : Option Loam.Core.MeasureId :=
   match state.trendCompareSeries[slot]? with
-  | some spec => spec.coordinate.measure
-  | none =>
-      state.trendCompareSeries.head?.map (·.coordinate.measure) |>.getD ⟨"jpy"⟩
+  | some spec => some spec.coordinate.measure
+  | none => state.trendCompareSeries.head?.map (·.coordinate.measure)
 
 private def replaceTrendSeries
     (state : State) (entry : Loam.LocusCatalog.Entry) : Except String State := do
@@ -610,7 +629,8 @@ private def replaceTrendSeries
   let slot := min state.trendCompare.pickerSlot count
   if slot >= Loam.Tui.LocusTrendComparePane.maxSeries then
     throw "Trend can display at most five series."
-  let measure := trendSeriesMeasureForSlot state slot
+  let some measure := trendSeriesMeasureForSlot? state slot
+    | throw "Trend requires at least one active series."
   let spec : Loam.LocusTrendCompareReview.SeriesSpec := {
     label := entry.label
     coordinate := ⟨entry.locus, measure⟩
