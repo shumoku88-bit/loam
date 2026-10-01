@@ -57,7 +57,8 @@ private def practicalUsage : String :=
   "Portable exports:\n" ++
   "  loam export journal ACTUAL_FILE OUTPUT_FILE\n" ++
   "  loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
-  "  loam export beancount [--partial|--suspense] ...\n" ++\n  "  loam export wealthfolio DATA_ROOT ACCOUNTING_EPOCH OUTPUT_FILE\n\n" ++
+  "  loam export beancount [--partial|--suspense] ...\n" ++
+  "  loam export wealthfolio DATA_ROOT ACCOUNTING_EPOCH OUTPUT_FILE\n\n" ++
   "Print read-only household reports as plain text:\n" ++
   "  loam report balances [LOAM_DATA_DIR]\n" ++
   "  loam report loci [LOAM_DATA_DIR]\n\n" ++
