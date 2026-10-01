@@ -729,6 +729,22 @@ jobs:
       - name: Verify Actual-backed Budget Window review boundary
         run: lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review"
 
+      - name: Verify Budget Window CLI Measure selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/budget-window-cli"
+          lake env lean --run Loam/Tests/BudgetWindowReview.lean "$fixture"
+          jpy_output="$(.lake/build/bin/loamBudgetWindow "$fixture" 2026-08-17 2026-10-15 food)"
+          grep -Fqx "Entitlement: 100 jpy" <<< "$jpy_output"
+          grep -Fqx "Consumption: 40 jpy" <<< "$jpy_output"
+          grep -Fqx "Remaining: 60 jpy" <<< "$jpy_output"
+          usd_output="$(LOAM_MEASURE=usd .lake/build/bin/loamBudgetWindow "$fixture" 2026-08-17 2026-10-15 food)"
+          grep -Fqx "Entitlement: 250 usd" <<< "$usd_output"
+          grep -Fqx "Consumption: 70 usd" <<< "$usd_output"
+          grep -Fqx "Remaining: 180 usd" <<< "$usd_output"
+          ! grep -F " jpy" <<< "$usd_output"
+
       - name: Build shared Stock-Flow review boundary
         run: lake build Loam.Review.StockFlowReview
 
