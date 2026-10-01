@@ -40,6 +40,9 @@ def main (args : List String) : IO Unit := do
   let opened := initial "2026-09-06"
   expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
     "Record must start at Description with the selected date intact"
+  let usdOpened := initialWithMeasure ⟨"usd"⟩ "2026-09-06"
+  expect (usdOpened.form.measure == "usd" && usdOpened.form.focus.val == 1)
+    "Record did not retain the configured default Measure"
   let typed := update w [] opened (.input 'A')
   expect (typed.state.form.description == "A" && typed.state.form.date == "2026-09-06")
     "first keystroke must edit Description, not the prefilled date"

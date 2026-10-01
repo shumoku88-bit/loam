@@ -34,6 +34,9 @@ private def usdScale : List Loam.MeasurePresentation.Metadata := [
 ]
 
 def main : IO Unit := do
+  let usdOpened := Loam.Tui.Exchange.initialWithMeasure ⟨"usd"⟩ "2026-09-26"
+  expect (usdOpened.form.sourceMeasure == "usd")
+    "Exchange did not retain the configured source Measure"
   let w ← world
 
   let state : Loam.Tui.Exchange.State :=

@@ -2,6 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.HouseholdCommand
 import Loam.Presentation.LocusCatalog
 import Loam.Presentation.MeasurePresentation
+import Loam.Persistence.TokenSyntax
 import Loam.MovementWorldLoader
 import Loam.Tui.ActualDateCorrection
 import Loam.Tui.ActualReversal
@@ -50,6 +51,12 @@ private def currentMeasurePresentation
   match ← Loam.MeasurePresentation.loadMetadata dataDir with
   | .ok metadata => return metadata
   | .error message => throw (IO.userError message)
+
+private def configuredMeasure : IO Loam.Core.MeasureId := do
+  let token := (← IO.getEnv "LOAM_MEASURE").getD "jpy"
+  if !Loam.Persistence.validToken token then
+    throw (IO.userError "loam: Measure must be a nonempty single-line token")
+  pure ⟨token⟩
 
 private def currentLocusCatalog
     (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :
@@ -403,7 +410,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
       let measurePresentation ← currentMeasurePresentation dataDir
       let editor := Loam.Tui.Record.withMeasurePresentation
         (Loam.Tui.Record.withCatalog
-          (Loam.Tui.Record.initial state.focusDate) catalog)
+          (Loam.Tui.Record.initialWithMeasure (← configuredMeasure) state.focusDate) catalog)
         measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame

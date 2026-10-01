@@ -76,10 +76,14 @@ structure Step where
   enableUnresolved : Bool := false
   publish : Option PublishIntent := none
 
-/-- Entrances already supply the selected date; start typing at Description.
+/-- Entrances already supply the selected date and default Measure; start typing at Description.
 Shift-Tab still reaches Date when it needs correction. -/
+def initialWithMeasure (measure : Loam.Core.MeasureId) (date : String) : State :=
+  { form := { date := date, measure := measure.token, focus := ⟨1, by omega⟩ } }
+
+/-- Backward-compatible no-configuration entrance for the current JPY household. -/
 def initial (date : String) : State :=
-  { form := { date := date, focus := ⟨1, by omega⟩ } }
+  initialWithMeasure ⟨"jpy"⟩ date
 
 /-- Attach replaceable Locus display metadata without granting any write permission. -/
 def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=

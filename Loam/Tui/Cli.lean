@@ -109,6 +109,11 @@ private def configuredMeasure : IO (Except String Loam.Core.MeasureId) := do
     return .error "loam: Measure must be a nonempty single-line token"
   return .ok ⟨token⟩
 
+private def requireConfiguredMeasure : IO Loam.Core.MeasureId := do
+  match ← configuredMeasure with
+  | .ok measure => pure measure
+  | .error message => throw (IO.userError message)
+
 private def currentLocusCatalog
     (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :
     IO Loam.LocusCatalog.Catalog := do
@@ -289,7 +294,7 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
       let measurePresentation ← currentMeasurePresentation dataDir
       let editor := Loam.Tui.Record.withMeasurePresentation
         (Loam.Tui.Record.withCatalog
-          (Loam.Tui.Record.initial state.focusDate) catalog)
+          (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) state.focusDate) catalog)
         measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
@@ -597,7 +602,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
             loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'o' || key = .input 'O') then
-    let editor := Loam.Tui.CurrentQuantityAnchor.initial
+    let editor := Loam.Tui.CurrentQuantityAnchor.initialWithMeasure (← requireConfiguredMeasure)
     let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
     let notice ← currentQuantityAnchorLoop bounds root editor editorFrame
@@ -651,7 +656,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     }
     let measurePresentation ← currentMeasurePresentation dataDir
     let editor := Loam.Tui.Exchange.withMeasurePresentation
-      (Loam.Tui.Exchange.initial state.selectedDate)
+      (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate)
       measurePresentation
     let editorFrame := compileWidget (Loam.Tui.Exchange.view editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
@@ -671,7 +676,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let measurePresentation ← currentMeasurePresentation dataDir
     let editor := Loam.Tui.Record.withMeasurePresentation
       (Loam.Tui.Record.withCatalog
-        (Loam.Tui.Record.initial state.selectedDate) catalog)
+        (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate) catalog)
       measurePresentation
     let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
