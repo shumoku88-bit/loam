@@ -172,7 +172,7 @@ private def groupedQuantaText
     (money : MoneyCalendarSnapshot)
     (measure : Loam.Core.MeasureId)
     (quanta : Int) : String :=
-  Loam.MeasurePresentation.formatGroupedQuanta money.presentation measure quanta
+  Loam.MeasurePresentation.formatGroupedAmount money.presentation measure quanta
 
 private def moneyMonthSummaryText
     (snapshot : Snapshot) (state : State) : String :=
@@ -205,11 +205,11 @@ private def moneyAmountSpan
         else
           let signText := if positive then "+" else "-"
           let rendered :=
-            Loam.MeasurePresentation.formatQuanta money.presentation row.measure amount
+            Loam.MeasurePresentation.formatAmount money.presentation row.measure amount
           let plain := signText ++ rendered
           let grouped :=
             signText ++
-              Loam.MeasurePresentation.formatGroupedQuanta
+              Loam.MeasurePresentation.formatGroupedAmount
                 money.presentation row.measure amount
           if Loam.Tui.Layout.displayWidth grouped ≤ cellWidth then grouped else plain
     | _, _ => ""
