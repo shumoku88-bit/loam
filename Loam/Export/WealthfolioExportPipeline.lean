@@ -51,16 +51,16 @@ private def coordinateLabel (coordinate : EffectCoordinate) : String :=
 private def assetCoordinates
     (roles : AccountingRoleMap)
     (current : Loam.CurrentBalanceReview.Snapshot) :
-    Except String (List EffectCoordinate) := do
+    Except String (List EffectCoordinate) :=
   let blockers :=
     (current.knownPresent ++ current.unsupported).filter fun coordinate =>
       roles.roleOf? coordinate.locus == some .asset
   if !blockers.isEmpty then
-    throw
+    .error
       ("Wealthfolio cash export requires exact current quantity support for Asset coordinates: " ++
         String.intercalate ", " (blockers.map coordinateLabel))
   else
-    return
+    .ok <|
       (current.rows.filterMap fun row =>
         if roles.roleOf? row.coordinate.locus == some .asset then
           some row.coordinate
