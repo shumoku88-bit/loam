@@ -64,8 +64,12 @@ Epoch, export fails closed.
 The generated file uses:
 
 ```text
-date,activityType,currency,amount,account,comment
+date,symbol,activityType,currency,amount,account,comment
 ```
+
+The `symbol` column is emitted as Wealthfolio's explicit synthetic cash symbol
+(`$CASH-JPY`, `$CASH-USD`, and so on). This remains a cash activity, not a
+security holding.
 
 Amounts are always positive because Wealthfolio derives cash direction from the
 activity type.
