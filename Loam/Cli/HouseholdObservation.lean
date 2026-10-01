@@ -6,6 +6,7 @@ import Loam.Review.BudgetWindowReview
 import Loam.Review.CapacityReview
 import Loam.Review.CycleBudgetReview
 import Loam.HouseholdPaths
+import Loam.Persistence.TokenSyntax
 import Loam.Review.RoleBalanceReview
 import Loam.Review.ScheduledCoverageReview
 
@@ -22,7 +23,8 @@ private def usage : String :=
   "Capacity over the explicit half-open budget window [START, END). When\n" ++
   "OBSERVED_AT is supplied, existing CycleBudget and ScheduledCoverage reads\n" ++
   "also emit LOAM-specific current-coverage, funding, and Scheduled-series\n" ++
-  "diagnostics. The output is a\n" ++
+  "diagnostics. LOAM_MEASURE selects the single Measure for Budget, Capacity,\n" ++
+  "and current-cycle diagnostics; it defaults to jpy. The output is a\n" ++
   "read-only derived projection, never canonical household state."
 
 private def emitRecord (fields : List String) : IO Unit :=
@@ -113,7 +115,7 @@ private def printBudget (snapshot : Loam.BudgetWindowReview.Snapshot) : IO Unit 
     emitRecord [
       "budget",
       row.purpose.token,
-      "jpy",
+      snapshot.measure.token,
       toString row.entitlement.quanta,
       toString row.consumption.quanta,
       toString row.remaining.quanta
@@ -126,9 +128,9 @@ private def printBudget (snapshot : Loam.BudgetWindowReview.Snapshot) : IO Unit 
   let totalRemaining :=
     snapshot.rows.foldl (fun total row => total + row.remaining.quanta) (0 : Int)
 
-  emitScalar "budget" "total_entitlement" "jpy" (toString totalEntitlement)
-  emitScalar "budget" "total_consumption" "jpy" (toString totalConsumption)
-  emitScalar "budget" "total_remaining" "jpy" (toString totalRemaining)
+  emitScalar "budget" "total_entitlement" snapshot.measure.token (toString totalEntitlement)
+  emitScalar "budget" "total_consumption" snapshot.measure.token (toString totalConsumption)
+  emitScalar "budget" "total_remaining" snapshot.measure.token (toString totalRemaining)
 
 private def printCapacity (snapshot : Loam.CapacityReview.Snapshot) : IO Unit := do
   for row in snapshot.rows do
@@ -136,7 +138,7 @@ private def printCapacity (snapshot : Loam.CapacityReview.Snapshot) : IO Unit :=
       "capacity",
       "purpose",
       row.purpose.token,
-      "jpy",
+      snapshot.measure.token,
       toString row.entitlement.quanta
     ]
 
@@ -148,10 +150,11 @@ private structure CurrentDiagnostics where
   scheduled : Loam.ScheduledCoverageReview.Snapshot
 
 private def loadCurrentDiagnostics
+    (measure : MeasureId)
     (root : System.FilePath)
     (start observedAt end_ : String) :
     IO (Except String CurrentDiagnostics) := do
-  let cycle ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
+  let cycle ← Loam.CycleBudgetReview.loadSnapshotAtForMeasure measure root root observedAt
   let window ←
     match cycle.window with
     | .error message => return .error message
@@ -184,11 +187,11 @@ private def printFunding
     (observedAt : String)
     (summary : Loam.CycleFundingInspection.Summary) : IO Unit := do
   emitMeta "funding_observed_at" observedAt
-  emitScalar "funding" "budgetable_backing" "jpy"
+  emitScalar "funding" "budgetable_backing" summary.measure.token
     (toString summary.budgetableBacking.quanta)
-  emitScalar "funding" "remaining_assigned" "jpy"
+  emitScalar "funding" "remaining_assigned" summary.measure.token
     (toString summary.remainingAssigned.quanta)
-  emitScalar "funding" "residual_before_unresolved" "jpy"
+  emitScalar "funding" "residual_before_unresolved" summary.measure.token
     (toString summary.residualBeforeUnresolved.quanta)
 
 private def printCurrentCoverage
@@ -200,7 +203,7 @@ private def printCurrentCoverage
     emitDiagnostic [
       "current-coverage",
       row.purpose.token,
-      "jpy",
+      snapshot.measure.token,
       toString row.entitlement.quanta,
       toString row.consumption.quanta,
       toString row.commitment.quanta,
@@ -212,11 +215,11 @@ private def printCurrentCoverage
       emitScalar "coverage" "scheduled_frontier_available" "bool" "0"
   | some frontier =>
       emitScalar "coverage" "scheduled_frontier_available" "bool" "1"
-      emitScalar "coverage" "scheduled_unmanaged" "jpy"
+      emitScalar "coverage" "scheduled_unmanaged" snapshot.measure.token
         (toString frontier.unmanaged.quanta)
-      emitScalar "coverage" "scheduled_unrouted" "jpy"
+      emitScalar "coverage" "scheduled_unrouted" snapshot.measure.token
         (toString frontier.unrouted.quanta)
-      emitScalar "coverage" "scheduled_unresolved_eligibility" "jpy"
+      emitScalar "coverage" "scheduled_unresolved_eligibility" snapshot.measure.token
         (toString frontier.unresolvedEligibility.quanta)
   emitScalar "coverage" "unresolved_scheduled_rows" "count"
     (toString snapshot.unresolvedScheduled.length)
@@ -262,7 +265,10 @@ loaded before stdout is touched, so a semantic or persistence refusal cannot mas
 as a complete observation document. Consumers should additionally require the
 terminal `meta status complete` record to detect stream truncation.
 -/
-def report (rootPath start end_ : String) (observedAt? : Option String := none) : IO UInt32 := do
+def reportForMeasure
+    (measure : MeasureId)
+    (rootPath start end_ : String)
+    (observedAt? : Option String := none) : IO UInt32 := do
   let root := System.FilePath.mk rootPath
 
   let balances ←
@@ -273,14 +279,14 @@ def report (rootPath start end_ : String) (observedAt? : Option String := none) 
     | .ok rows => pure rows
 
   let budget ←
-    match ← Loam.BudgetWindowReview.loadSnapshot root root start end_ with
+    match ← Loam.BudgetWindowReview.loadSnapshotForMeasure measure root root start end_ with
     | .error message =>
         IO.eprintln message
         return 2
     | .ok snapshot => pure snapshot
 
   let capacity ←
-    match ← Loam.CapacityReview.loadSnapshotFromHouseholdRoot root with
+    match ← Loam.CapacityReview.loadSnapshotFromHouseholdRootForMeasure measure root with
     | .error message =>
         IO.eprintln message
         return 2
@@ -290,7 +296,7 @@ def report (rootPath start end_ : String) (observedAt? : Option String := none) 
     match observedAt? with
     | none => pure none
     | some observedAt =>
-        match ← loadCurrentDiagnostics root start observedAt end_ with
+        match ← loadCurrentDiagnostics measure root start observedAt end_ with
         | .error message =>
             IO.eprintln message
             return 2
@@ -316,6 +322,20 @@ def report (rootPath start end_ : String) (observedAt? : Option String := none) 
 
   emitMeta "status" "complete"
   return 0
+
+private def configuredMeasure : IO (Except String MeasureId) := do
+  let token := (← IO.getEnv "LOAM_MEASURE").getD "jpy"
+  if !Loam.Persistence.validToken token then
+    return .error "loam: Measure must be a nonempty single-line token"
+  return .ok ⟨token⟩
+
+def report (rootPath start end_ : String) (observedAt? : Option String := none) : IO UInt32 := do
+  match ← configuredMeasure with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok measure =>
+      reportForMeasure measure rootPath start end_ observedAt?
 
 private def defaultDataRoot : IO (Except String String) := do
   match ← IO.getEnv "LOAM_DATA_DIR" with
