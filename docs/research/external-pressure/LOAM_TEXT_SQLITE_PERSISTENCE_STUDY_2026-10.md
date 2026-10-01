@@ -548,3 +548,94 @@ It does not yet measure:
 The next useful experiment is therefore E3-style scale/query measurement, while
 keeping the SQLite database disposable. Canonical SQLite authority remains
 premature.
+
+
+## E3 / E3.1 result — the first scale wall is encoder mechanics, not text I/O
+
+The first E3 run reached 100,000 synthetic Events and exposed a steep canonical
+publication curve. E3.1 then decomposed the publication path and corrected the
+pure-LOAM query benchmark so results are forced before the timer stops.
+
+Representative GitHub Actions measurements from the E3.1 runner:
+
+| Events | admission | encode incl. re-admission | stage write | staged decode | reconstructed publication | forced LOAM latest-window | SQLite latest-window | forced LOAM food sum | SQLite food sum |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 1.086 ms | 54.388 ms | 0.136 ms | 4.506 ms | 59.274 ms | 0.008 ms | 0.025 ms | 0.007 ms | 0.168 ms |
+| 10,000 | 12.218 ms | 6,063.211 ms | 0.312 ms | 52.608 ms | 6,118.281 ms | 0.101 ms | 0.111 ms | 0.132 ms | 1.718 ms |
+
+At 10,000 Events, encoding with its ordinary re-admission consumed about 99% of
+the reconstructed publication time. The raw stage write was about 0.3 ms and
+stage read about 2.1 ms for an approximately 1.04 MB canonical text file.
+
+The 10x increase from 1,000 to 10,000 Events produced roughly:
+
+~~~text
+semantic admission:       11.3x
+staged typed decode:      11.7x
+encode with re-admission: 111.5x
+~~~
+
+That is strong evidence against "plain text I/O is the first wall". The wall is
+inside the current encoder path.
+
+Code inspection gives a concrete mechanism consistent with the measurement.
+The production encoder currently:
+
+- grows the output list repeatedly with `rows := rows ++ [row]`, making row
+  accumulation increasingly expensive;
+- searches the full validity fact list to find each Event's base date;
+- scans the full validity fact list again for every Event to discover date
+  revisions;
+- performs additional per-Event linear lookups for descriptions and selected
+  evidence families.
+
+The E3 synthetic world has no date revisions, yet the complete validity list is
+still traversed once per Event by the revision loop. This supplies a direct
+quadratic pressure independent of filesystem performance.
+
+This is not yet a proof that every production encoder cost is quadratic, but it
+is now a falsifiable implementation hypothesis with a precise next experiment:
+replace repeated scans/append growth with transient indexes and reverse/linear
+row accumulation, then require byte-for-byte wire equivalence and rerun the same
+scale benchmark.
+
+### Query-side result
+
+Once the admitted image is already in memory, the simple LOAM scans are not
+losing to SQLite at household-like scales in this experiment.
+
+At 10,000 Events:
+
+~~~text
+latest-window:
+  forced LOAM scan  101 us
+  SQLite indexed    111 us
+
+food/jpy aggregate:
+  forced LOAM scan  132 us
+  SQLite indexed   1718 us
+
+SQLite open + first latest-window query:
+  274 us
+~~~
+
+These are workload-specific observations, not a general SQL verdict. They do
+show that the first measured reason to adopt SQLite is **not** these two simple
+queries.
+
+### Updated provisional conclusion
+
+E3.1 weakens the case for SQLite canonical authority.
+
+The immediate engineering question is now:
+
+> Can the normalized text encoder be made near-linear while preserving the exact
+> canonical wire and semantic admission laws?
+
+If yes, plain-text authority survives the first measured scale attack. SQLite
+can remain a disposable relational projection for query shapes that actually
+benefit from indexing.
+
+Only if publication remains a practical wall after fixing the identified
+encoder mechanics does SQLite canonical authority regain force as a storage
+candidate.

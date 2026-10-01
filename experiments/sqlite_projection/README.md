@@ -70,10 +70,34 @@ tmp="$(mktemp -d)"
 rm -rf "$tmp"
 ~~~
 
-CI currently exercises 1,000, 10,000, and 100,000 Events. The 1,000,000-Event
-case remains an adversarial manual probe so routine CI does not turn a household
-storage question into a compute tax.
+CI now exercises 1,000 and 10,000 Events. E3 showed that the 100,000-Event
+publication path can take many minutes, so 100,000 and 1,000,000 remain manual
+adversarial probes while E3.1 isolates that cost. Routine CI should not turn a
+household storage question into a compute tax.
 
 Benchmark timings are comparative observations from one runner, not stable
 product performance promises. Semantic equality is a hard requirement; timing
 ratios are evidence only.
+
+
+## E3.1 publication decomposition
+
+E3.1 keeps the same synthetic shape but decomposes canonical publication into:
+
+~~~text
+semantic admission
+encode with ordinary re-admission
+stage write
+stage read
+byte verification
+typed staged decode
+atomic rename
+canonical reload
+~~~
+
+It also explicitly forces Actual Review rows and the pure Lean query answers
+before stopping their timers. The earlier 0 microsecond values were therefore
+measurement artifacts, not evidence that the queries were literally free.
+
+Current CI remains bounded at 1,000 and 10,000 Events. Larger scales are manual
+until the publication curve is understood.
