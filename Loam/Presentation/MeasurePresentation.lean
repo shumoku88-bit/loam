@@ -98,6 +98,25 @@ def scaleFor (metadata : List Metadata) (measure : MeasureId) : Nat :=
   | some row => row.scale
   | none => 0
 
+/--
+Small built-in human-facing symbol aliases for Measures this household currently
+uses. These are presentation hints only: Measure identity remains the token, and
+unknown Measures remain fully usable without a symbol.
+-/
+def currencySymbol? (measure : MeasureId) : Option String :=
+  match measure.token with
+  | "jpy" => some "¥"
+  | "usd" => some "$"
+  | "eur" => some "€"
+  | "ils" => some "₪"
+  | _ => none
+
+private def prefixSymbol (symbol text : String) : String :=
+  match text.toList with
+  | '-' :: rest => "-" ++ symbol ++ String.ofList rest
+  | '+' :: rest => "+" ++ symbol ++ String.ofList rest
+  | _ => symbol ++ text
+
 private def factor (scale : Nat) : Nat :=
   10 ^ scale
 
@@ -180,6 +199,26 @@ def groupDisplayedNumber (text : String) : String :=
 def formatGroupedQuanta
     (metadata : List Metadata) (measure : MeasureId) (quanta : Int) : String :=
   groupDisplayedNumber (formatQuanta metadata measure quanta)
+
+/--
+Render one human-facing amount with a conventional symbol when LOAM knows one.
+Unknown Measures fall back to the explicit Measure token, so presentation never
+guesses quantity identity from a symbol.
+-/
+def formatAmount
+    (metadata : List Metadata) (measure : MeasureId) (quanta : Int) : String :=
+  let rendered := formatQuanta metadata measure quanta
+  match currencySymbol? measure with
+  | some symbol => prefixSymbol symbol rendered
+  | none => rendered ++ " " ++ measure.token
+
+/-- Symbol-aware amount rendering with human-facing thousands separators. -/
+def formatGroupedAmount
+    (metadata : List Metadata) (measure : MeasureId) (quanta : Int) : String :=
+  let rendered := formatGroupedQuanta metadata measure quanta
+  match currencySymbol? measure with
+  | some symbol => prefixSymbol symbol rendered
+  | none => rendered ++ " " ++ measure.token
 
 /-- Canonical Measure presentation filename. -/
 def configFileName : String := Loam.HouseholdPaths.measurePresentationFileName
