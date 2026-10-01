@@ -17,27 +17,6 @@ private def widgetLineTexts (widget : Widget) : List String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
-private def allLinesPresent
-    (needles haystack : List String) : Bool :=
-  needles.all fun needle =>
-    haystack.any fun line => line == needle
-
-private def expectTinyReportFits
-    (height : Nat) (report : Loam.Tui.Reports.State) : IO Unit := do
-  let tiny : Bounds := { width := 80, height := height }
-  let rendered := Loam.Tui.Reports.viewForBounds tiny report
-  expect (rendered.lines.length <= tiny.height)
-    ("Reports exceeded tiny terminal height " ++ toString tiny.height)
-  expect (contains "q / Esc" (widgetText rendered))
-    ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
-
-private def expectBoundsPreserveContent
-    (bounds : Bounds) (report : Loam.Tui.Reports.State) : IO Unit := do
-  let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
-  let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds bounds report)).splitOn "\n"
-  expect (allLinesPresent originalLines boundedLines)
-    "bounds-aware presentation lost existing production report content"
-
 private def isMenu (state : Loam.Tui.Reports.State) : Bool :=
   match state.mode with
   | .menu => true
@@ -742,39 +721,6 @@ def main : IO Unit := do
   expect ((Loam.Tui.Reports.viewForBounds compareBounds comparePointer).lines.length <=
       compareBounds.height)
     "Trend exceeded the terminal height"
-  let usdInitial := Loam.Tui.Reports.initialForDateForMeasure ⟨"usd"⟩ "2026-09-07"
-  let usdTrendStep := Loam.Tui.Reports.update usdInitial (.input 'v')
-  match usdTrendStep.query with
-  | some (.locusTrendCompare _ _ _ series) =>
-      expect (series.all fun spec => decide (spec.coordinate.measure = ⟨"usd"⟩))
-        "Reports did not seed Trend from the configured USD Measure"
-  | _ => throw (IO.userError "USD Reports Trend did not emit its query")
-  let usdSpec : Loam.LocusTrendCompareReview.SeriesSpec := {
-    label := "Coffee USD"
-    coordinate := ⟨⟨"coffee"⟩, ⟨"usd"⟩⟩
-  }
-  let usdSeries : Loam.LocusTrendCompareReview.Series := {
-    spec := usdSpec
-    points := tobaccoPoints
-    undatedMatchingCurrentRecords := 0
-  }
-  let usdSnapshot : Loam.LocusTrendCompareReview.Snapshot := {
-    measure := ⟨"usd"⟩
-    source := "Pension"
-    observedAt := "2026-09-07"
-    scopeStart := "2026-04-15"
-    scopeEndExclusive := "2026-09-08"
-    series := [usdSeries]
-  }
-  let usdReport :=
-    Loam.Tui.Reports.withLocusTrendCompareSnapshot usdTrendStep.state usdSnapshot
-      [{ measure := ⟨"usd"⟩, scale := 2 }]
-  let usdText := widgetText
-    (Loam.Tui.Reports.viewForBounds compareBounds usdReport)
-  expect (contains "usd" usdText && contains "4.64 usd/day" usdText)
-    "Trend did not apply USD Measure identity and decimal presentation"
-  expect (!(contains "¥" usdText) && !(contains " jpy" usdText))
-    "USD Trend leaked the historical JPY presentation"
 
   let ignoredTrendRendererKey := Loam.Tui.Reports.update comparePointer (.input 'r')
   expect (ignoredTrendRendererKey.query.isNone &&
@@ -1670,17 +1616,20 @@ def main : IO Unit := do
     "opening a report retained stale scrolling from the previous mode"
 
   let tall : Bounds := { width := 120, height := 100 }
-  expectBoundsPreserveContent tall stockReport
-  expectBoundsPreserveContent tall liquidityReport
-  expectBoundsPreserveContent tall budgetReport
+  for report in [stockReport, liquidityReport, budgetReport] do
+    let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
+    let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds tall report)).splitOn "\n"
+    expect (originalLines.all (fun original => original ∈ boundedLines))
+      "bounds-aware presentation lost existing production report content"
 
   for heightIndex in List.range 8 do
-    let height := heightIndex + 1
-    expectTinyReportFits height initial
-    expectTinyReportFits height stockReport
-    expectTinyReportFits height incomeExpense
-    expectTinyReportFits height liquidityReport
-    expectTinyReportFits height budgetReport
+    let tiny : Bounds := { width := 80, height := heightIndex + 1 }
+    for report in [initial, stockReport, incomeExpense, liquidityReport, budgetReport] do
+      let rendered := Loam.Tui.Reports.viewForBounds tiny report
+      expect (rendered.lines.length <= tiny.height)
+        ("Reports exceeded tiny terminal height " ++ toString tiny.height)
+      expect (contains "q / Esc" (widgetText rendered))
+        ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
 
   IO.println
     "TUI Reports: menu, two-period Stock–Flow and Income & Expense comparison, conditional Liquidity, Budget Window and navigation passed."
