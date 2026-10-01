@@ -44,12 +44,17 @@ private def median (values : List Nat) : Nat :=
     (records : List Loam.ActualReview.Record) : Nat :=
   records.foldl
     (fun total record =>
-      total +
-        record.event.id.token.length +
-        record.event.effects.length +
-        record.date.map String.length |>.getD 0 +
-        record.description.length +
-        record.replacement.map (fun id => id.token.length) |>.getD 0)
+      let eventIdLength := record.event.id.token.length
+      let effectCount := record.event.effects.length
+      let dateLength := match record.date with
+        | some date => date.length
+        | none => 0
+      let descriptionLength := record.description.length
+      let replacementLength := match record.replacement with
+        | some id => id.token.length
+        | none => 0
+      total + eventIdLength + effectCount + dateLength +
+        descriptionLength + replacementLength)
     0
 
 private def timedAdmission
