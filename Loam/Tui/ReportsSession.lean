@@ -142,9 +142,13 @@ private partial def loop (bounds : Bounds)
         | some (.locusTrendCompare observedAt granularity scope series) =>
             match ← Loam.LocusTrendCompareReview.loadConfiguredAtScope
                 dataDir root observedAt granularity scope series with
-            | .ok snapshot =>
-                pure (Loam.Tui.Reports.withLocusTrendCompareSnapshot step.state snapshot)
             | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
+            | .ok snapshot =>
+                match ← Loam.MeasurePresentation.loadMetadata dataDir with
+                | .error message => pure (Loam.Tui.Reports.withTrendError step.state message)
+                | .ok presentation =>
+                    pure (Loam.Tui.Reports.withLocusTrendCompareSnapshot
+                      step.state snapshot presentation)
         | some .favaProjection =>
             let notice ← Loam.Tui.FavaLaunch.launch dataDir root
             pure { step.state with notice := notice }
