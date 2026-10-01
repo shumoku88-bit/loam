@@ -710,3 +710,93 @@ rerun. If the full encoder becomes near-linear, the first measured justification
 for SQLite canonical authority disappears. SQLite may still be useful as a
 disposable query projection for workloads that actually benefit from relational
 indexes.
+
+
+## E3.3 result — production text authority survives the first scale attack
+
+E3.3 moved the indexed / linear mechanics from the narrow research candidate
+into the complete production `encodeNormalizedActual?` path.
+
+The production encoder now builds transient indexes for Event-scoped retained
+evidence, groups validity revisions / Relations / Discharges once, and
+accumulates output rows through an Array rather than repeatedly copying a
+growing List. Semantic admission still occurs before encoding and normalized
+wire spelling / ordering remains unchanged.
+
+Qualification includes exact canonical byte checks for the established V1
+fixture and qualified Exchange fixture, while the E3.2 synthetic benchmark still
+requires:
+
+~~~text
+production wire == narrow candidate wire
+~~~
+
+before timing is accepted.
+
+Representative GitHub Actions measurements after the production change:
+
+| Events | production encode | narrow candidate | staged decode | reconstructed publication |
+| ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 3.003 ms | 2.336 ms | 5.664 ms | 9.089 ms |
+| 10,000 | 26.883 ms | 26.198 ms | 62.654 ms | 92.454 ms |
+| 100,000 | 538.381 ms | 538.519 ms | 1,377.071 ms | 1,945.896 ms |
+
+At 100,000 Events the canonical text file is about 10.6 MB. Raw stage write is
+about 2.6 ms and stage read about 27.8 ms. The previous E3 checkpoint measured
+roughly 875 seconds for the 100,000-Event publication path on CI; the new
+representative run is about 1.95 seconds. Runner variation prevents treating the
+ratio as a product guarantee, but the order-of-magnitude change is decisive.
+
+The production encoder and the narrow E3.2 candidate now have effectively the
+same timing at 10,000 and 100,000 Events. The original superlinear encoder wall
+has therefore been removed rather than hidden by a different storage format.
+
+### New dominant boundary
+
+After encoder linearization, staged typed decoding / semantic reconstruction is
+the largest measured publication component at 100,000 Events:
+
+~~~text
+production encode incl. admission:  ~0.54 s
+stage write + read:                  ~0.03 s
+staged typed decode:                 ~1.38 s
+total reconstructed publication:    ~1.95 s
+~~~
+
+This shifts any future persistence-performance work away from text output and
+toward decode / reconstruction / admission only if real household operation ever
+needs it.
+
+### Query-side scale observation
+
+At 100,000 Events:
+
+~~~text
+latest-window:
+  forced LOAM scan   ~5.4 ms
+  SQLite indexed     ~1.4 ms
+
+food/jpy aggregate:
+  forced LOAM scan  ~10.9 ms
+  SQLite indexed    ~35.3 ms
+
+SQLite projection rebuild:
+  ~1.85 s
+~~~
+
+SQLite wins the selective date-window query in this synthetic workload, while
+the in-memory LOAM scan remains substantially faster for the simple aggregate.
+This supports workload-specific projection rather than database-first migration.
+
+### Updated conclusion
+
+The first measured case for SQLite canonical authority is now falsified.
+
+Plain-text canonical authority is no longer the observed publication bottleneck
+at even the 100,000-Event adversarial scale. SQLite remains technically useful
+as a disposable relational projection when a query shape earns indexing, but
+there is currently no measured persistence-performance reason to replace
+`actual.loam` as household authority.
+
+Future database work should therefore be demand-driven by concrete query or
+operational requirements, not by the former encoder scale curve.

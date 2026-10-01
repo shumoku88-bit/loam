@@ -70,10 +70,9 @@ tmp="$(mktemp -d)"
 rm -rf "$tmp"
 ~~~
 
-CI now exercises 1,000 and 10,000 Events. E3 showed that the 100,000-Event
-publication path can take many minutes, so 100,000 and 1,000,000 remain manual
-adversarial probes while E3.1 isolates that cost. Routine CI should not turn a
-household storage question into a compute tax.
+CI now exercises 1,000, 10,000, and 100,000 Events again. E3.3 removed the
+production encoder wall that had made 100,000 Events take many minutes. The
+1,000,000-Event case remains a manual adversarial probe.
 
 Benchmark timings are comparative observations from one runner, not stable
 product performance promises. Semantic equality is a hard requirement; timing
@@ -128,3 +127,25 @@ shape. It is a falsification instrument, not a parallel persistence format.
 If the candidate becomes near-linear while producing identical bytes, the next
 step is to translate the proven mechanics into the production encoder with the
 full evidence vocabulary and existing persistence tests.
+
+
+## E3.3 production encoder qualification
+
+The production encoder now applies the same class of transient indexing and
+linear row accumulation tested by E3.2 across the full normalized Actual
+vocabulary.
+
+The existing scale executable remains useful here because it times both:
+
+~~~text
+encodeNormalizedActual?        -- production encoder
+encodeBenchmarkCandidate?      -- narrow E3.2 witness
+~~~
+
+and still requires the two wires to be byte-identical for the synthetic V1
+shape.
+
+E3.3 first reran the bounded 1,000 / 10,000 Event comparison. Production
+encoding now tracks the candidate's near-linear curve, so the 100,000-Event
+adversarial probe is restored to CI without conflating storage format with the
+old encoder algorithm.
