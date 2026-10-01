@@ -52,6 +52,13 @@ private def unadmittedLocusProposal : String :=
   "effect\t-\tpaypay\tjpy\t-100\n" ++
   "effect\t-\tgroceries\tjpy\t100\n"
 
+private def usdProposal : String :=
+  "LOAM-MOVEMENT-PROPOSAL\t1\n" ++
+  "date\t2026-09-19\n" ++
+  "description\tUSD accepted book purchase\n" ++
+  "effect\t-\tpaypay\tusd\t-25\n" ++
+  "effect\t-\tbooks\tusd\t25\n"
+
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
@@ -126,6 +133,24 @@ def main (args : List String) : IO Unit := do
     "idempotent retry changed the retained OperationId to EventId mapping"
 
   let actualPath := root / "actual.loam"
+  IO.FS.writeFile proposalFile usdProposal
+  let usdRecorded ← IO.Process.output {
+    cmd := ".lake/build/bin/loamMovementProposalRecord"
+    args := #[proposalFile.toString, root.toString]
+  }
+  expect (usdRecorded.exitCode == 0)
+    s!"USD proposal record CLI failed with code {usdRecorded.exitCode}: {usdRecorded.stderr}"
+  expect (usdRecorded.stdout.contains "movement: 25 usd")
+    "USD proposal record did not render its qualified Measure"
+  expect (!(usdRecorded.stdout.contains "movement: 25 jpy"))
+    "USD proposal record rewrote its Measure as JPY"
+  let .ok afterUsd ← Loam.ActualAuthority.loadActual? root
+    | throw (IO.userError "reload USD proposal-record Actual")
+  let some usdEvent := afterUsd.events.events.find? fun event =>
+      event.effects.any fun effect => decide (effect.measure = ⟨"usd"⟩)
+    | throw (IO.userError "recorded USD Event missing")
+  expect (usdEvent.effects.all fun effect => decide (effect.measure = ⟨"usd"⟩))
+    "USD proposal publication changed its Measure"
   let acceptedSnapshot ← IO.FS.readFile actualPath
 
   IO.FS.writeFile proposalFile driftedIdempotentProposal
