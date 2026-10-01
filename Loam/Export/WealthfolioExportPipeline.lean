@@ -59,12 +59,13 @@ private def assetCoordinates
     throw
       ("Wealthfolio cash export requires exact current quantity support for Asset coordinates: " ++
         String.intercalate ", " (blockers.map coordinateLabel))
-  return
-    (current.rows.filterMap fun row =>
-      if roles.roleOf? row.coordinate.locus == some .asset then
-        some row.coordinate
-      else
-        none).eraseDups
+  else
+    return
+      (current.rows.filterMap fun row =>
+        if roles.roleOf? row.coordinate.locus == some .asset then
+          some row.coordinate
+        else
+          none).eraseDups
 
 /--
 Regenerate one disposable Wealthfolio cash-activity CSV from a household root.
@@ -74,7 +75,7 @@ the existing historical-support boundary for every exact current Asset
 coordinate. If any selected Asset cannot be justified at the requested epoch,
 the export fails closed.
 -/
-def export
+def exportCsv
     (root : System.FilePath)
     (accountingEpoch : String)
     (outputFile : System.FilePath) : IO (Except String Unit) := do
