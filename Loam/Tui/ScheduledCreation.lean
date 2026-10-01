@@ -21,8 +21,8 @@ set_option autoImplicit false
 /-!
 # New Scheduled editor
 
-This state is presentation-only. It edits one explicit due date plus signed JPY
-postings. It carries no recurrence, continuation, replacement source, routing,
+This state is presentation-only. It edits one explicit due date plus signed
+single-Measure postings. It carries no recurrence, continuation, replacement source, routing,
 or Actual evidence. Publication authority remains `ScheduledCreationPublisher`.
 -/
 
@@ -33,6 +33,7 @@ inductive Mode where
   | preview (draft : Loam.ScheduledCreationPublisher.Draft) (choice : Fin 3)
 
 structure State where
+  measure : MeasureId := ⟨"jpy"⟩
   form : Form
   mode : Mode := .editing
   notice : String := ""
@@ -42,9 +43,13 @@ structure State where
 abbrev Step :=
   Loam.Tui.EditorSession.Step State Loam.ScheduledCreationPublisher.Draft
 
-/-- Seed a new Scheduled occurrence on the currently focused household date. -/
+/-- Seed a new Scheduled occurrence for one explicit Measure. -/
+def initialWithMeasure (measure : MeasureId) (date : String) : State :=
+  { measure := measure, form := { date := date, rows := #[{}, {}] } }
+
+/-- Backward-compatible no-configuration entrance for the current JPY household. -/
 def initial (date : String) : State :=
-  { form := { date := date, rows := #[{}, {}] } }
+  initialWithMeasure ⟨"jpy"⟩ date
 
 /-- Attach display-only metadata to one Scheduled creation editor. -/
 def withCatalog (state : State) (catalog : Loam.LocusCatalog.Catalog) : State :=
@@ -68,14 +73,13 @@ introduced. Durable publication still goes through `ScheduledCreationPublisher`.
 -/
 def initialFromScheduled?
     (record : Loam.Tui.Main.ScheduledRecord) : Except String State := do
-  if record.measure != ⟨"jpy"⟩ then
-    throw "This Scheduled occurrence uses a non-JPY measure and cannot seed the JPY next-Scheduled editor."
   let rows := rowsFromScheduled record
   if rows.size < 2 then
     throw "This Scheduled occurrence is outside the practical balanced-Movement next-Scheduled editor."
   if rows.size > 6 then
     throw "This Scheduled occurrence has more than six postings; the next-Scheduled editor will not truncate it."
   pure {
+    measure := record.measure
     form := { date := "", rows := rows, focus := 0 }
     notice := "Completion is already published. Enter the next due date, or Esc for completion only."
   }
@@ -115,9 +119,9 @@ def draft? (state : State) : Except String Loam.ScheduledCreationPublisher.Draft
   for index in List.range state.form.rows.size do
     let row := state.form.rows[index]!
     let some amount := row.amount.toInt?
-      | throw "Enter a nonzero signed integer JPY amount for every posting."
+      | throw ("Enter a nonzero signed integer " ++ state.measure.token ++ " amount for every posting.")
     if amount = 0 then
-      throw "Enter a nonzero signed integer JPY amount for every posting."
+      throw ("Enter a nonzero signed integer " ++ state.measure.token ++ " amount for every posting.")
     if !Loam.Persistence.validToken row.locus then
       throw "Enter a valid Locus token for every posting."
     changes := changes ++ [{
@@ -125,7 +129,7 @@ def draft? (state : State) : Except String Loam.ScheduledCreationPublisher.Draft
       quantity := Quantity.ofQuanta amount
     }]
     if amount > 0 then positive := positive + amount
-  let some movement := BalancedMovement.ofChanges? ⟨"jpy"⟩ changes
+  let some movement := BalancedMovement.ofChanges? state.measure changes
     | throw "Scheduled posting totals differ."
   if positive <= 0 then
     throw "Scheduled creation requires a positive balanced total."
@@ -211,7 +215,7 @@ def view (_known : List String) (state : State) : Widget :=
       let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
         let row := form.rows[index]!
         [ field form (1 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
-        , field form (2 + index * 2) "  JPY" row.amount
+        , field form (2 + index * 2) ("  " ++ state.measure.token) row.amount
         ]
       let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
       let options := catalogCandidates state
@@ -235,7 +239,7 @@ def view (_known : List String) (state : State) : Widget :=
               (if form.focus = Loam.Tui.ScheduledPostingForm.firstAction form + index then .selected else .normal))
         , line "Locus catalog:"
         ] ++ candidateLines ++ helpLine ++
-        [ line "Signed JPY postings describe one independent expected movement."
+        [ line ("Signed " ++ state.measure.token ++ " postings describe one independent expected movement.")
         , line "No recurrence, continuation, replacement relation, or Actual is created."
         , line "Tab / Shift-Tab focus   Enter next/preview/action"
         , line "Up / Down choose Locus   Right accept Locus"
@@ -248,9 +252,11 @@ def view (_known : List String) (state : State) : Widget :=
         , line ("Due: " ++ draft.scheduledOn)
         ] ++
         (draft.movement.changes.take 12).map (fun change =>
-          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++ " jpy")) ++
+          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++
+            " " ++ draft.movement.measure.token)) ++
         [ line ("Balanced total: " ++ toString
-            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++ " jpy")
+            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
+            " " ++ draft.movement.measure.token)
         , line "Publish appends one independent Scheduled occurrence."
         , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
