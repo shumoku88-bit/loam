@@ -80,8 +80,8 @@ private def admit?
     throw "loam: reversal of an Actual referenced by retained relation/discharge evidence is not yet qualified"
   if scheduledCompletionMentionsEvent lifecycle draft.target then
     throw "loam: reversal of a Scheduled-completion Actual is not yet qualified"
-  if (Loam.PracticalMovement.ofEffects? ⟨"jpy"⟩ target.effects).isNone then
-    throw "loam: selected Actual is outside the practical balanced-JPY reversal entrance"
+  if (Loam.PracticalMovement.ofSingleMeasureEffects? target.effects).isNone then
+    throw "loam: selected Actual is outside the practical balanced single-Measure reversal entrance"
 
   let reversal := deterministicReversalId draft.target
   let relation : ActualReversal := { target := draft.target, reversal := reversal }
