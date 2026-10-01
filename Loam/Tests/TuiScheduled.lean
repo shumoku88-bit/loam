@@ -127,8 +127,12 @@ def main : IO Unit := do
   expect (contains "not stored as daily household state" paceTrendText)
     "Daily Pace trend lost its reconstruction disclosure"
   let usd : MeasureId := ⟨"usd"⟩
-  let usdPace := { pace with measure := usd }
-  let usdHistory := paceHistory.map fun point => { point with measure := usd }
+  let .loaded basePace := snapshot.pace
+    | throw (IO.userError "fixture Daily Pace unavailable")
+  let .loaded baseHistory := snapshot.paceHistory
+    | throw (IO.userError "fixture Daily Pace history unavailable")
+  let usdPace := { basePace with measure := usd }
+  let usdHistory := baseHistory.map fun point => { point with measure := usd }
   let usdSnapshot := { snapshot with pace := .loaded usdPace, paceHistory := .loaded usdHistory }
   let usdHomeText := widgetText (Loam.Tui.Home.view bounds usdSnapshot home)
   expect
