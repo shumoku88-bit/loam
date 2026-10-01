@@ -18,17 +18,27 @@ private def capacityChange
     (coordinate : CapacityCoordinate) (quanta : Int) : MovementChange CapacityCoordinate :=
   { coordinate := coordinate, quantity := Quantity.ofQuanta quanta }
 
-private def allocation
+private def allocationForMeasure
+    (measure : MeasureId)
     (id purpose : String) (amount : Int) : IO CapacityMovement := do
   let balanced ← requireSome
-    (BalancedMovement.ofChanges? ⟨"jpy"⟩
+    (BalancedMovement.ofChanges? measure
       [capacityChange .unallocated (-amount),
        capacityChange (.purpose ⟨purpose⟩) amount])
     "capacity allocation was not balanced"
   return { id := ⟨id⟩, movement := balanced }
 
+private def allocation
+    (id purpose : String) (amount : Int) : IO CapacityMovement :=
+  allocationForMeasure ⟨"jpy"⟩ id purpose amount
+
+private def effectForMeasure
+    (measure : MeasureId)
+    (id locus : String) (quanta : Int) : Effect :=
+  Effect.ofQuantity ⟨id⟩ ⟨locus⟩ measure (Quantity.ofQuanta quanta)
+
 private def effect (id locus : String) (quanta : Int) : Effect :=
-  Effect.ofQuantity ⟨id⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)
+  effectForMeasure ⟨"jpy"⟩ id locus quanta
 
 private def movementWorld : IO Loam.MovementAdmission.World := do
   let oldEvent ← requireSome
@@ -39,11 +49,20 @@ private def movementWorld : IO Loam.MovementAdmission.World := do
     (Event.ofEffects? ⟨"actual-inside"⟩
       [effect "inside-pay" "paypay" (-30), effect "inside-use" "expenses:food" 30])
     "inside event"
-  let events ← requireSome (EventMemory.ofEvents? [oldEvent, insideEvent]) "event memory"
+  let usd : MeasureId := ⟨"usd"⟩
+  let usdEvent ← requireSome
+    (Event.ofEffects? ⟨"actual-inside-usd"⟩
+      [ effectForMeasure usd "usd-pay" "paypay" (-70)
+      , effectForMeasure usd "usd-use" "expenses:food" 70
+      ])
+    "USD inside event"
+  let events ← requireSome
+    (EventMemory.ofEvents? [oldEvent, insideEvent, usdEvent]) "event memory"
   let validity : ActualValidityHistory String := {
     facts := [
       .base ⟨"actual-old"⟩ "2026-08-16",
-      .base ⟨"actual-inside"⟩ "2026-08-18"]
+      .base ⟨"actual-inside"⟩ "2026-08-18",
+      .base ⟨"actual-inside-usd"⟩ "2026-08-20"]
     factRefNodup := by decide
     corrections := []
     correctionIdNodup := by simp
@@ -71,12 +90,15 @@ def main (args : List String) : IO Unit := do
 
   let food ← allocation "capacity-food" "food" 100
   let general ← allocation "capacity-general" "general" 50
+  let usd : MeasureId := ⟨"usd"⟩
+  let usdFood ← allocationForMeasure usd "capacity-food-usd" "food" 250
   let capacity ← requireSome
-    (CapacityMemory.ofMovements? [food, general]) "capacity memory"
+    (CapacityMemory.ofMovements? [food, general, usdFood]) "capacity memory"
   let effective ← requireSome
     (CapacityEffectiveMemory.ofEntries?
       [{ movement := ⟨"capacity-food"⟩, effectiveOn := "2026-08-17" },
-       { movement := ⟨"capacity-general"⟩, effectiveOn := "2026-08-17" }])
+       { movement := ⟨"capacity-general"⟩, effectiveOn := "2026-08-17" },
+       { movement := ⟨"capacity-food-usd"⟩, effectiveOn := "2026-08-17" }])
     "capacity effective memory"
   let evidence ← requireSome
     (Loam.CapacityEvidence.ofParts? capacity effective) "capacity evidence"
@@ -113,6 +135,29 @@ def main (args : List String) : IO Unit := do
   expect (generalRow.entitlement.quanta == 50) "general entitlement"
   expect (generalRow.consumption.quanta == 0) "general consumption"
   expect (generalRow.remaining.quanta == 50) "general remaining"
+  expect (snapshot.measure == (⟨"jpy"⟩ : MeasureId))
+    "compatibility Budget Window lost its JPY Measure"
+  let .ok usdSnapshot ←
+      Loam.BudgetWindowReview.loadSnapshotForMeasure usd
+        root actualRoot "2026-08-17" "2026-10-15"
+    | throw (IO.userError "USD budget-window review refused valid mixed fixture")
+  expect (usdSnapshot.measure == usd)
+    "Budget Window lost the requested USD Measure"
+  let usdFoodRow ← requireSome (findRow? usdSnapshot "food") "missing USD food row"
+  expect (usdFoodRow.entitlement.quanta == 250) "USD food entitlement"
+  expect (usdFoodRow.consumption.quanta == 70) "USD food consumption"
+  expect (usdFoodRow.remaining.quanta == 180) "USD food remaining"
+  let usdGeneralRow ← requireSome (findRow? usdSnapshot "general") "missing USD general row"
+  expect (usdGeneralRow.entitlement.quanta == 0) "JPY Capacity leaked into USD entitlement"
+  expect (usdGeneralRow.consumption.quanta == 0) "JPY Actual leaked into USD consumption"
+  let .ok usdPurpose ←
+      Loam.BudgetWindowReview.loadPurposeRowForMeasure usd
+        root actualRoot "2026-08-17" "2026-10-15" ⟨"food"⟩
+    | throw (IO.userError "USD per-Purpose Budget Window refused valid fixture")
+  expect (usdPurpose.entitlement.quanta == 250 &&
+      usdPurpose.consumption.quanta == 70 &&
+      usdPurpose.remaining.quanta == 180)
+    "USD per-Purpose Budget Window did not preserve Measure isolation"
 
   -- Canonical BudgetWindow must reuse the admitted Actual image. Replace the
   -- inside-window Event and verify Consumption follows the current frontier.
@@ -128,7 +173,8 @@ def main (args : List String) : IO Unit := do
     facts := [
       .base ⟨"actual-old"⟩ "2026-08-16",
       .base ⟨"actual-inside"⟩ "2026-08-18",
-      .base ⟨"actual-inside-r1"⟩ "2026-08-19"
+      .base ⟨"actual-inside-r1"⟩ "2026-08-19",
+      .base ⟨"actual-inside-usd"⟩ "2026-08-20"
     ]
     factRefNodup := by decide
     corrections := []
