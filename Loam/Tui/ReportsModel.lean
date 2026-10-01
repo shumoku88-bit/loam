@@ -107,6 +107,7 @@ def defaultTrendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
   defaultTrendCompareSeriesForMeasure ⟨"jpy"⟩
 
 structure State where
+  measure : Loam.Core.MeasureId := ⟨"jpy"⟩
   mode : Mode := .menu
   menuIndex : Fin 9 := ⟨0, by decide⟩
   window : Loam.Tui.ReportWindow.State := {}
@@ -158,6 +159,7 @@ def initialForDateWithPresetsForMeasure
     (presets : List Loam.BoundaryPresetConfig.Preset) : State :=
   let windowResult := Loam.Tui.ReportWindow.initialForDateWithPresets selectedDate presets
   {
+    measure := measure
     mode := .menu
     window := windowResult.state
     liquidityForm := liquidityFormForEndExclusive windowResult.state.form.endExclusive

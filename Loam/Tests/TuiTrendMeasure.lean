@@ -15,6 +15,8 @@ private def contains (needle haystack : String) : Bool :=
 def main : IO Unit := do
   let usd : MeasureId := ⟨"usd"⟩
   let initial := Loam.Tui.Reports.initialForDateForMeasure usd "2026-09-07"
+  expect (initial.measure == usd)
+    "Reports did not retain the configured USD Measure in workspace state"
   let trendStep := Loam.Tui.Reports.update initial (.input 'v')
   match trendStep.query with
   | some (.locusTrendCompare _ _ _ series) =>

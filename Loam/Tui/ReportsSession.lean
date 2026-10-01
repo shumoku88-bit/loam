@@ -92,7 +92,8 @@ private partial def loop (bounds : Bounds)
         match step.query with
         | none => pure step.state
         | some (.budgetWindow start endExclusive) =>
-            match ← Loam.BudgetWindowReview.loadSnapshot dataDir root start endExclusive with
+            match ← Loam.BudgetWindowReview.loadSnapshotForMeasure
+                step.state.measure dataDir root start endExclusive with
             | .ok snapshot => pure (Loam.Tui.Reports.withBudgetSnapshot step.state snapshot)
             | .error message => pure (Loam.Tui.Reports.withError step.state message)
         | some (.stockFlow start endExclusive) =>
