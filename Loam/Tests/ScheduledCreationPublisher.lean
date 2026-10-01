@@ -34,9 +34,10 @@ private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
     | throw (IO.userError "empty terminal memory")
   return { scheduled, terminals }
 
-private def movement
+private def movementForMeasure
+    (measure : MeasureId)
     (fromLocus toLocus : String) (amount : Int) : BalancedMovement LocusId := {
-  measure := ⟨"jpy"⟩
+  measure := measure
   changes :=
     [ { coordinate := ⟨fromLocus⟩, quantity := Quantity.ofQuanta (-amount) }
     , { coordinate := ⟨toLocus⟩, quantity := Quantity.ofQuanta amount }
@@ -46,12 +47,22 @@ private def movement
     omega
 }
 
-private def draft
+private def movement
+    (fromLocus toLocus : String) (amount : Int) : BalancedMovement LocusId :=
+  movementForMeasure ⟨"jpy"⟩ fromLocus toLocus amount
+
+private def draftForMeasure
+    (measure : MeasureId)
     (day fromLocus toLocus : String) (amount : Int) :
     Loam.ScheduledCreationPublisher.Draft := {
   scheduledOn := day
-  movement := movement fromLocus toLocus amount
+  movement := movementForMeasure measure fromLocus toLocus amount
 }
+
+private def draft
+    (day fromLocus toLocus : String) (amount : Int) :
+    Loam.ScheduledCreationPublisher.Draft :=
+  draftForMeasure ⟨"jpy"⟩ day fromLocus toLocus amount
 
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (id : ScheduledId) : Bool :=
@@ -119,10 +130,23 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "publish second Scheduled creation")
   expect (second.token == "scheduled-2")
     "second Scheduled creation did not advance fresh identity"
+  let usd : MeasureId := ⟨"usd"⟩
+  let .ok third ← Loam.ScheduledCreationPublisher.publishCreation
+      scheduledFile.toString root.toString
+      (draftForMeasure usd "2026-09-12" "paypay" "food" 450)
+    | throw (IO.userError "publish USD Scheduled creation")
+  expect (third.token == "scheduled-3")
+    "USD Scheduled creation did not advance fresh identity"
+  let some afterUsd ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle after USD creation")
+  let some usdOccurrence := ScheduledMemory.findById? afterUsd.scheduled third
+    | throw (IO.userError "USD Scheduled creation missing from lifecycle")
+  expect (usdOccurrence.movement.measure == usd)
+    "Scheduled creation rewrote a non-JPY movement as JPY"
 
   let some current ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload lifecycle before orphan fixture")
-  let orphan : ScheduledTerminal := { source := ⟨"scheduled-3"⟩, target := none }
+  let orphan : ScheduledTerminal := { source := ⟨"scheduled-4"⟩, target := none }
   let some orphanMemory := ScheduledTerminalMemory.ofTerminals? [orphan]
     | throw (IO.userError "orphan terminal fixture")
   let brokenLifecycle := { current with terminals := orphanMemory }
@@ -140,8 +164,8 @@ def main (args : List String) : IO Unit := do
     "Scheduled creation silently healed orphan lifecycle evidence by recycling its identity"
   let some afterRefusal ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | throw (IO.userError "reload Scheduled lifecycle after lifecycle refusal")
-  expect (afterRefusal.scheduled.occurrences.length == 2 &&
-      (ScheduledMemory.findById? afterRefusal.scheduled ⟨"scheduled-3"⟩).isNone)
+  expect (afterRefusal.scheduled.occurrences.length == 3 &&
+      (ScheduledMemory.findById? afterRefusal.scheduled ⟨"scheduled-4"⟩).isNone)
     "lifecycle refusal still retained the candidate Scheduled identity"
 
   IO.println "Scheduled Creation Publisher: explicit authority, Locus admission, fresh append, date validation, current-open review and orphan-evidence fail-closed admission passed."
