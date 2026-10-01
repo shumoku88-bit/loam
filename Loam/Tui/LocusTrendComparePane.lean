@@ -290,7 +290,7 @@ private def groupedNat (value : Nat) : String :=
 
 private def amountText
     (state : State) (measure : MeasureId) (value : Int) : String :=
-  Loam.MeasurePresentation.formatGroupedQuanta state.measurePresentation measure value
+  Loam.MeasurePresentation.formatGroupedAmount state.measurePresentation measure value
 
 private def monthLabel : String → String
   | "01" => "Jan" | "02" => "Feb" | "03" => "Mar" | "04" => "Apr"
@@ -550,8 +550,7 @@ private def selectedSeriesRows (state : State) : List Widget :=
         .row
           [ span (String.ofList [seriesMarker index] ++ " " ++ series.spec.label ++ "  ")
               (seriesStyle index)
-          , span (amountText state snapshot.measure value ++ " " ++
-              snapshot.measure.token ++ suffix)
+          , span (amountText state snapshot.measure value ++ suffix)
           ]
 
 private def isCurrentPartial
