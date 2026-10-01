@@ -1,4 +1,6 @@
 import Loam.Authority.ActualAuthority
+import Loam.Persistence.NormalizedActualAdmission
+import Loam.Persistence.NormalizedActualPersistence
 import Loam.Review.ActualReview
 import SQLite
 
@@ -25,26 +27,109 @@ private def timed {α : Type} (action : IO α) : IO (Nat × α) := do
   pure ((t1 - t0) / 1000, value)
 
 private def median (values : List Nat) : Nat :=
-  if h : values.isEmpty then
+  if values.isEmpty then
     0
   else
     let sorted := values.toArray.qsort (· < ·)
     sorted[sorted.size / 2]!
 
-private def medianTimedNat (repetitions : Nat) (action : IO Nat) : IO (Nat × Nat) := do
+@[noinline] private def forceImageScore
+    (image : Loam.Persistence.AdmittedActualImage) : Nat :=
+  image.evidence.events.events.length +
+    image.currentEvents.events.length +
+    image.currentValidities.entries.length +
+    image.evidence.corrections.corrections.length
+
+@[noinline] private def forceRecordScore
+    (records : List Loam.ActualReview.Record) : Nat :=
+  records.foldl
+    (fun total record =>
+      total +
+        record.event.id.token.length +
+        record.event.effects.length +
+        record.date.map String.length |>.getD 0 +
+        record.description.length +
+        record.replacement.map (fun id => id.token.length) |>.getD 0)
+    0
+
+private def timedAdmission
+    (evidence : Loam.ActualEvidence) :
+    IO (Nat × Loam.Persistence.AdmittedActualImage) := do
+  let t0 ← IO.monoNanosNow
+  let image ← requireSome
+    (Loam.Persistence.admitActualImage? evidence)
+    "synthetic Actual admission failed"
+  let score := forceImageScore image
+  if score == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, image)
+
+private def timedEncode
+    (evidence : Loam.ActualEvidence) : IO (Nat × String) := do
+  let t0 ← IO.monoNanosNow
+  let wire ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? evidence)
+    "synthetic Actual encoding failed"
+  let bytes := wire.length
+  if bytes == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, wire)
+
+private def timedDecode
+    (wire : String) :
+    IO (Nat × Loam.Persistence.AdmittedActualImage) := do
+  let t0 ← IO.monoNanosNow
+  let image ← match Loam.Persistence.decodeNormalizedActualImageDetailed wire with
+    | .ok image => pure image
+    | .error err =>
+        throw <| IO.userError ("synthetic staged decode failed: " ++ toString err)
+  let score := forceImageScore image
+  if score == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, image)
+
+private def timedRecords
+    (image : Loam.Persistence.AdmittedActualImage) :
+    IO (Nat × List Loam.ActualReview.Record) := do
+  let t0 ← IO.monoNanosNow
+  let records := Loam.ActualReview.recordsFromActualImage image
+  let score := forceRecordScore records
+  if score == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, records)
+
+private def timedForcedNat
+    (action : Unit → Nat) : IO (Nat × Nat) := do
+  let t0 ← IO.monoNanosNow
+  let value := action ()
+  if value == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, value)
+
+private def timedForcedInt
+    (action : Unit → Int) : IO (Nat × Int) := do
+  let t0 ← IO.monoNanosNow
+  let value := action ()
+  if value == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, value)
+
+private def medianTimedNat
+    (repetitions : Nat) (action : Unit → Nat) : IO (Nat × Nat) := do
   let mut times : List Nat := []
   let mut answer : Nat := 0
   for _ in List.range repetitions do
-    let (us, value) ← timed action
+    let (us, value) ← timedForcedNat action
     times := us :: times
     answer := value
   pure (median times, answer)
 
-private def medianTimedInt (repetitions : Nat) (action : IO Int) : IO (Nat × Int) := do
+private def medianTimedInt
+    (repetitions : Nat) (action : Unit → Int) : IO (Nat × Int) := do
   let mut times : List Nat := []
   let mut answer : Int := 0
   for _ in List.range repetitions do
-    let (us, value) ← timed action
+    let (us, value) ← timedForcedInt action
     times := us :: times
     answer := value
   pure (median times, answer)
@@ -133,10 +218,6 @@ private def buildEvidence (n : Nat) : IO Loam.ActualEvidence := do
     descriptions := descriptions
     corrections := corrections
   }
-
-private def currentRecords
-    (records : List Loam.ActualReview.Record) : List Loam.ActualReview.Record :=
-  records.filter (·.isCurrent)
 
 private def latestWindowCount
     (records : List Loam.ActualReview.Record) : Nat :=
@@ -288,8 +369,15 @@ private structure Result where
   n : Nat
   corrections : Nat
   generateUs : Nat
-  publishUs : Nat
-  loadUs : Nat
+  admissionUs : Nat
+  encodeWithReadmissionUs : Nat
+  stageWriteUs : Nat
+  stageReadUs : Nat
+  stageVerifyUs : Nat
+  stagedDecodeUs : Nat
+  renameUs : Nat
+  canonicalLoadUs : Nat
+  reconstructedPublishUs : Nat
   reviewUs : Nat
   leanLatestUs : Nat
   sqliteBuildUs : Nat
@@ -305,18 +393,25 @@ deriving Repr
 
 private def printResult (r : Result) : IO Unit := do
   IO.println <|
-    "E3" ++
+    "E3.1" ++
     s!",events={r.n}" ++
     s!",corrections={r.corrections}" ++
     s!",generate_us={r.generateUs}" ++
-    s!",publish_us={r.publishUs}" ++
-    s!",load_us={r.loadUs}" ++
-    s!",review_us={r.reviewUs}" ++
-    s!",lean_latest30_median_us={r.leanLatestUs}" ++
+    s!",admission_us={r.admissionUs}" ++
+    s!",encode_with_readmission_us={r.encodeWithReadmissionUs}" ++
+    s!",stage_write_us={r.stageWriteUs}" ++
+    s!",stage_read_us={r.stageReadUs}" ++
+    s!",stage_verify_us={r.stageVerifyUs}" ++
+    s!",staged_decode_us={r.stagedDecodeUs}" ++
+    s!",rename_us={r.renameUs}" ++
+    s!",canonical_load_us={r.canonicalLoadUs}" ++
+    s!",reconstructed_publish_us={r.reconstructedPublishUs}" ++
+    s!",review_forced_us={r.reviewUs}" ++
+    s!",lean_latest30_forced_median_us={r.leanLatestUs}" ++
     s!",sqlite_build_us={r.sqliteBuildUs}" ++
     s!",sqlite_latest30_median_us={r.sqliteLatestUs}" ++
     s!",sqlite_cold_latest30_us={r.sqliteColdLatestUs}" ++
-    s!",lean_food_sum_median_us={r.leanFoodUs}" ++
+    s!",lean_food_sum_forced_median_us={r.leanFoodUs}" ++
     s!",sqlite_food_sum_median_us={r.sqliteFoodUs}" ++
     s!",actual_bytes={r.actualBytes}" ++
     s!",sqlite_bytes={r.sqliteBytes}" ++
@@ -328,40 +423,75 @@ def run (root : System.FilePath) (n : Nat) : IO Unit := do
   IO.FS.createDirAll root
 
   let actualFile := root / "actual.loam"
+  let stageFile := System.FilePath.mk (actualFile.toString ++ ".loam-stage")
   let sqliteFile := root / "projection.sqlite"
 
   let (generateUs, evidence) ← timed (buildEvidence n)
 
-  let (publishUs, publishResult) ← timed (Loam.ActualAuthority.publishActualFile? actualFile evidence)
-  match publishResult with
-  | .error message =>
-      throw <| IO.userError ("synthetic Actual publication failed: " ++ message)
-  | .ok () => pure ()
+  let (admissionUs, _) ← timedAdmission evidence
 
-  let (loadUs, imageResult) ← timed (Loam.ActualAuthority.loadImageFile? actualFile)
-  let image ← match imageResult with
+  let (encodeUs, wire) ← timedEncode evidence
+
+  let (stageWriteUs, _) ← timed do
+    IO.FS.writeFile stageFile wire
+
+  let (stageReadUs, staged) ← timed do
+    IO.FS.readFile stageFile
+
+  let (stageVerifyUs, verified) ← timed do
+    let same := staged == wire
+    if same then pure true else pure false
+  expect verified "staged Actual bytes differed from encoded bytes"
+
+  let (stagedDecodeUs, stagedImage) ← timedDecode staged
+
+  let (renameUs, _) ← timed do
+    IO.FS.rename stageFile actualFile
+
+  let reconstructedPublishUs :=
+    encodeUs + stageWriteUs + stageReadUs + stageVerifyUs + stagedDecodeUs + renameUs
+
+  let (canonicalLoadUs, canonicalResult) ← timed
+    (Loam.ActualAuthority.loadImageFile? actualFile)
+  let canonicalImage ← match canonicalResult with
     | .error message =>
-        throw <| IO.userError ("synthetic Actual reload failed: " ++ message)
+        throw <| IO.userError ("synthetic canonical reload failed: " ++ message)
     | .ok image => pure image
+  let canonicalScore := forceImageScore canonicalImage
+  if canonicalScore == 999999999 then IO.println "unreachable" else pure ()
 
-  let (reviewUs, records) ← timed do
-    pure (Loam.ActualReview.recordsFromActualImage image)
+  expect (forceImageScore stagedImage == canonicalScore)
+    "staged decode and canonical reload disagreed on admitted image shape"
+
+  let (reviewUs, records) ← timedRecords canonicalImage
 
   let repetitions := if n <= 10000 then 7 else 3
 
   let (leanLatestUs, leanLatest) ←
-    medianTimedNat repetitions do pure (latestWindowCount records)
+    medianTimedNat repetitions fun _ => latestWindowCount records
 
   let (leanFoodUs, leanFood) ←
-    medianTimedInt repetitions do pure (locusQuantity records "food" "jpy")
+    medianTimedInt repetitions fun _ => locusQuantity records "food" "jpy"
 
   let (sqliteBuildUs, db) ← timed (buildProjection sqliteFile records)
 
-  let (sqliteLatestUs, sqliteLatest) ←
-    medianTimedNat repetitions (sqliteLatestWindowCount db)
+  let (sqliteLatestUs, sqliteLatest) ← do
+    let mut times : List Nat := []
+    let mut answer : Nat := 0
+    for _ in List.range repetitions do
+      let (us, value) ← timed (sqliteLatestWindowCount db)
+      times := us :: times
+      answer := value
+    pure (median times, answer)
 
-  let (sqliteFoodUs, sqliteFood) ←
-    medianTimedInt repetitions (sqliteLocusQuantity db "food" "jpy")
+  let (sqliteFoodUs, sqliteFood) ← do
+    let mut times : List Nat := []
+    let mut answer : Int := 0
+    for _ in List.range repetitions do
+      let (us, value) ← timed (sqliteLocusQuantity db "food" "jpy")
+      times := us :: times
+      answer := value
+    pure (median times, answer)
 
   expect (sqliteLatest == leanLatest)
     s!"latest-window semantic mismatch at N={n}: LOAM={leanLatest}, SQLite={sqliteLatest}"
@@ -370,8 +500,7 @@ def run (root : System.FilePath) (n : Nat) : IO Unit := do
 
   let (sqliteColdLatestUs, coldPair) ← timed do
     let cold ← SQLite.openWith sqliteFile SQLite.OpenFlags.readonly
-    let value ← sqliteLatestWindowCount cold
-    pure value
+    sqliteLatestWindowCount cold
   expect (coldPair == leanLatest)
     s!"cold SQLite latest-window mismatch at N={n}"
 
@@ -382,8 +511,15 @@ def run (root : System.FilePath) (n : Nat) : IO Unit := do
     n := n
     corrections := correctionsFor n |>.length
     generateUs := generateUs
-    publishUs := publishUs
-    loadUs := loadUs
+    admissionUs := admissionUs
+    encodeWithReadmissionUs := encodeUs
+    stageWriteUs := stageWriteUs
+    stageReadUs := stageReadUs
+    stageVerifyUs := stageVerifyUs
+    stagedDecodeUs := stagedDecodeUs
+    renameUs := renameUs
+    canonicalLoadUs := canonicalLoadUs
+    reconstructedPublishUs := reconstructedPublishUs
     reviewUs := reviewUs
     leanLatestUs := leanLatestUs
     sqliteBuildUs := sqliteBuildUs
