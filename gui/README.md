@@ -16,11 +16,12 @@ loam explain actual --machine --month YYYY-MM
    |
 thin Tauri command
    |
-calendar + monthly Actual table + selected evidence
+calendar + monthly Actual workbench + selected evidence
 ```
 
 The Rust side only starts the normal `loam` binary and validates/parses the bounded
-`ACTUAL1` transport. The web side owns pointer selection, pane geometry, and rendering.
+`ACTUAL1` transport. The web side owns pointer selection, presentation filtering,
+pane geometry, and rendering.
 
 ## Run on macOS
 
@@ -33,8 +34,8 @@ cargo install tauri-cli --version "^2.0.0" --locked   # first time only
 
 `gui/dev` builds the ordinary LOAM binary first, then starts Tauri.
 
-The GUI uses the same default household root as LOAM. A different path can be
-typed into the Household data field.
+The GUI uses the same default household root as LOAM. A different path is available
+behind the `Data` disclosure and is remembered locally by the GUI.
 
 Optional development overrides:
 
@@ -43,16 +44,21 @@ LOAM_GUI_REPO_ROOT=/path/to/loam
 LOAM_GUI_LOAM_BIN=/path/to/loam
 ```
 
-## v0 interaction
+## Current read-only interaction
 
-- click a calendar date;
-- click a monthly Actual row;
-- selected evidence updates immediately;
+- click a calendar date and keep temporal orientation;
+- click a monthly Actual row and inspect exact Effects;
+- switch between the whole month and the selected day;
+- presentation-only search across description, identities, loci, measures, and quanta;
 - drag the vertical separator to resize calendar vs ledger;
 - move month backward/forward;
-- resize the native window.
+- resize the native window;
+- remember the calendar width, data path, and month/day view preference locally.
 
-No write action exists in v0.
+Search and scope switches never change household evidence. They only filter the
+already-loaded monthly read answer in the webview.
+
+No write action exists yet.
 
 ## Boundary
 
