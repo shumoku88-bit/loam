@@ -17,6 +17,11 @@ private def widgetLineTexts (widget : Widget) : List String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
+private def allLinesPresent
+    (needles haystack : List String) : Bool :=
+  needles.all fun needle =>
+    haystack.any fun line => line == needle
+
 private def isMenu (state : Loam.Tui.Reports.State) : Bool :=
   match state.mode with
   | .menu => true
@@ -1652,9 +1657,8 @@ def main : IO Unit := do
   for report in [stockReport, liquidityReport, budgetReport] do
     let originalLines := (widgetText (Loam.Tui.Reports.view report)).splitOn "\n"
     let boundedLines := (widgetText (Loam.Tui.Reports.viewForBounds tall report)).splitOn "\n"
-    for original in originalLines do
-      expect (boundedLines.any fun bounded => bounded == original)
-        "bounds-aware presentation lost existing production report content"
+    expect (allLinesPresent originalLines boundedLines)
+      "bounds-aware presentation lost existing production report content"
 
   for heightIndex in List.range 8 do
     let tiny : Bounds := { width := 80, height := heightIndex + 1 }
