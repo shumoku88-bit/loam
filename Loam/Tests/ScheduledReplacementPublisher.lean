@@ -28,18 +28,29 @@ private def emptyWorld : IO Loam.MovementAdmission.World := do
     discharges := []
     locusAdmission := vocabulary }
 
-private def movement? (fromLocus toLocus : String) (amount : Int) :
+private def movementForMeasure?
+    (measure : MeasureId)
+    (fromLocus toLocus : String) (amount : Int) :
     Option (BalancedMovement LocusId) :=
-  BalancedMovement.ofChanges? ⟨"jpy"⟩
+  BalancedMovement.ofChanges? measure
     [ { coordinate := ⟨fromLocus⟩, quantity := Quantity.ofQuanta (-amount) }
     , { coordinate := ⟨toLocus⟩, quantity := Quantity.ofQuanta amount }
     ]
 
-private def occurrence
+private def movement? (fromLocus toLocus : String) (amount : Int) :
+    Option (BalancedMovement LocusId) :=
+  movementForMeasure? ⟨"jpy"⟩ fromLocus toLocus amount
+
+private def occurrenceForMeasure
+    (measure : MeasureId)
     (id day fromLocus toLocus : String) (amount : Int) : IO (ScheduledOccurrence String) := do
-  let some movement := movement? fromLocus toLocus amount
+  let some movement := movementForMeasure? measure fromLocus toLocus amount
     | throw (IO.userError "scheduled movement")
   return { id := ⟨id⟩, scheduledOn := day, movement := movement }
+
+private def occurrence
+    (id day fromLocus toLocus : String) (amount : Int) : IO (ScheduledOccurrence String) :=
+  occurrenceForMeasure ⟨"jpy"⟩ id day fromLocus toLocus amount
 
 private def lifecycleFromScheduled
     (scheduled : ScheduledMemory String) : IO Loam.Persistence.ScheduledLifecycleImage := do
@@ -47,9 +58,10 @@ private def lifecycleFromScheduled
     | throw (IO.userError "empty terminal memory")
   return { scheduled, terminals }
 
-private def replacementMovement
+private def replacementMovementForMeasure
+    (measure : MeasureId)
     (fromLocus toLocus : String) (amount : Int) : BalancedMovement LocusId := {
-  measure := ⟨"jpy"⟩
+  measure := measure
   changes :=
     [ { coordinate := ⟨fromLocus⟩, quantity := Quantity.ofQuanta (-amount) }
     , { coordinate := ⟨toLocus⟩, quantity := Quantity.ofQuanta amount }
@@ -59,13 +71,23 @@ private def replacementMovement
     omega
 }
 
-private def replacementDraft
+private def replacementMovement
+    (fromLocus toLocus : String) (amount : Int) : BalancedMovement LocusId :=
+  replacementMovementForMeasure ⟨"jpy"⟩ fromLocus toLocus amount
+
+private def replacementDraftForMeasure
+    (measure : MeasureId)
     (source day fromLocus toLocus : String) (amount : Int) :
     Loam.ScheduledReplacementPublisher.Draft := {
   source := ⟨source⟩
   scheduledOn := day
-  movement := replacementMovement fromLocus toLocus amount
+  movement := replacementMovementForMeasure measure fromLocus toLocus amount
 }
+
+private def replacementDraft
+    (source day fromLocus toLocus : String) (amount : Int) :
+    Loam.ScheduledReplacementPublisher.Draft :=
+  replacementDraftForMeasure ⟨"jpy"⟩ source day fromLocus toLocus amount
 
 private def hasScheduled
     (records : List (ScheduledOccurrence String)) (id : ScheduledId) : Bool :=
@@ -91,7 +113,9 @@ def main (args : List String) : IO Unit := do
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
   let s2 ← occurrence "scheduled-2" "2026-09-11" "smbc" "rent" 3000
   let s3 ← occurrence "scheduled-3" "2026-09-12" "paypay" "food" 400
-  let some scheduledMemory := ScheduledMemory.ofOccurrences? [s1, s2, s3]
+  let usd : MeasureId := ⟨"usd"⟩
+  let s4 ← occurrenceForMeasure usd "scheduled-4" "2026-09-12" "paypay" "food" 450
+  let some scheduledMemory := ScheduledMemory.ofOccurrences? [s1, s2, s3, s4]
     | throw (IO.userError "scheduled memory")
   let lifecycle0 ← lifecycleFromScheduled scheduledMemory
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
@@ -187,5 +211,20 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reload final lifecycle")
   expect (replacementCount finalLifecycle.terminals == 1)
     "stale or malformed refusal changed replacement relation count"
+  let .ok () ← Loam.ScheduledReplacementPublisher.publishReplacement
+      scheduledFile.toString root.toString
+      (replacementDraftForMeasure usd "scheduled-4" "2026-09-16" "paypay" "food" 475)
+    | throw (IO.userError "publish USD Scheduled replacement")
+  let some afterUsd ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+    | throw (IO.userError "reload lifecycle after USD replacement")
+  let some usdReplacementId :=
+      ScheduledTerminalMemory.replacementFor? afterUsd.terminals ⟨"scheduled-4"⟩
+    | throw (IO.userError "find USD replacement endpoint")
+  let some usdReplacement := ScheduledMemory.findById? afterUsd.scheduled usdReplacementId
+    | throw (IO.userError "USD replacement occurrence missing")
+  expect (usdReplacement.movement.measure == usd)
+    "Scheduled replacement rewrote a non-JPY movement as JPY"
+  expect (replacementCount afterUsd.terminals == 2)
+    "USD replacement relation was not retained exactly once"
 
   IO.println "Scheduled Replacement Publisher: Locus admission, one-image publication, append-only provenance, malformed-world refusal and terminal refusal passed."
