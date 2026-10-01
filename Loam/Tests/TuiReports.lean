@@ -22,6 +22,15 @@ private def allLinesPresent
   needles.all fun needle =>
     haystack.any fun line => line == needle
 
+private def expectTinyReportFits
+    (height : Nat) (report : Loam.Tui.Reports.State) : IO Unit := do
+  let tiny : Bounds := { width := 80, height := height }
+  let rendered := Loam.Tui.Reports.viewForBounds tiny report
+  expect (rendered.lines.length <= tiny.height)
+    ("Reports exceeded tiny terminal height " ++ toString tiny.height)
+  expect (contains "q / Esc" (widgetText rendered))
+    ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
+
 private def isMenu (state : Loam.Tui.Reports.State) : Bool :=
   match state.mode with
   | .menu => true
@@ -1661,13 +1670,12 @@ def main : IO Unit := do
       "bounds-aware presentation lost existing production report content"
 
   for heightIndex in List.range 8 do
-    let tiny : Bounds := { width := 80, height := heightIndex + 1 }
-    for report in [initial, stockReport, incomeExpense, liquidityReport, budgetReport] do
-      let rendered := Loam.Tui.Reports.viewForBounds tiny report
-      expect (rendered.lines.length <= tiny.height)
-        ("Reports exceeded tiny terminal height " ++ toString tiny.height)
-      expect (contains "q / Esc" (widgetText rendered))
-        ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
+    let height := heightIndex + 1
+    expectTinyReportFits height initial
+    expectTinyReportFits height stockReport
+    expectTinyReportFits height incomeExpense
+    expectTinyReportFits height liquidityReport
+    expectTinyReportFits height budgetReport
 
   IO.println
     "TUI Reports: menu, two-period Stock–Flow and Income & Expense comparison, conditional Liquidity, Budget Window and navigation passed."
