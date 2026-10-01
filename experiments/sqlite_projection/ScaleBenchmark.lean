@@ -3,6 +3,7 @@ import Loam.Persistence.NormalizedActualAdmission
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Review.ActualReview
 import SQLite
+import Std.Data.HashMap
 
 open Loam.Core
 open SQLite
@@ -224,6 +225,107 @@ private def buildEvidence (n : Nat) : IO Loam.ActualEvidence := do
     corrections := corrections
   }
 
+private def benchmarkShapeSupported (evidence : Loam.ActualEvidence) : Bool :=
+  evidence.validity.corrections.isEmpty &&
+  evidence.validity.facts.all (fun fact =>
+    match fact with
+    | .base _ _ => true
+    | .revision _ _ _ => false) &&
+  evidence.merchants.entries.isEmpty &&
+  evidence.exchanges.entries.isEmpty &&
+  evidence.originalAmounts.entries.isEmpty &&
+  evidence.movementOperations.entries.isEmpty &&
+  evidence.reversals.reversals.isEmpty &&
+  evidence.relations.isEmpty &&
+  evidence.discharges.isEmpty &&
+  evidence.settlements.commitments.isEmpty &&
+  evidence.settlements.commitmentRevisions.isEmpty &&
+  evidence.settlements.extinguishments.isEmpty &&
+  evidence.settlements.extinguishmentRevisions.isEmpty &&
+  evidence.settlements.correspondences.isEmpty &&
+  evidence.settlements.correspondenceRevisions.isEmpty &&
+  evidence.settlements.nettingContexts.isEmpty &&
+  evidence.settlements.nettingMembers.isEmpty &&
+  evidence.settlements.nettingMemberRevisions.isEmpty
+
+/--
+E3.2 candidate encoder for the deliberately narrow synthetic benchmark shape.
+
+This is not a second production encoder. It exists only to test whether the
+observed scale wall comes from repeated scans and append-growing row assembly.
+
+The candidate retains ordinary semantic admission, but then:
+- indexes base dates, descriptions, and correction replacement lookups once;
+- emits rows through Array.push rather than repeated List append;
+- produces exactly the current V1 wire for the supported benchmark shape.
+
+Byte equality against the production encoder is a hard benchmark requirement.
+-/
+private def encodeBenchmarkCandidate?
+    (evidence : Loam.ActualEvidence) : Option String := do
+  let _ ← Loam.Persistence.admitActualEvidence? evidence
+  if !benchmarkShapeSupported evidence then none
+
+  let baseDates : Std.HashMap String String :=
+    evidence.validity.facts.foldl
+      (fun index fact =>
+        match fact with
+        | .base event validOn => index.insert event.token validOn
+        | .revision _ _ _ => index)
+      {}
+
+  let descriptions : Std.HashMap String String :=
+    evidence.descriptions.entries.foldl
+      (fun index entry => index.insert entry.event.token entry.text)
+      {}
+
+  let correctionTargets : Std.HashMap String String :=
+    evidence.corrections.corrections.foldl
+      (fun index correction =>
+        index.insert correction.replacement.token correction.target.token)
+      {}
+
+  let mut rows : Array String := #[Loam.Persistence.normalizedActualHeaderV1]
+
+  for event in evidence.events.events do
+    let baseDate ← baseDates[event.id.token]?
+
+    match descriptions[event.id.token]? with
+    | none =>
+        rows := rows.push s!"TX\t{event.id.token}\t{baseDate}\tNODESC"
+    | some text =>
+        if text.isEmpty || text.contains '\n' || text.contains '\r' then none
+        rows := rows.push s!"TX\t{event.id.token}\t{baseDate}\tDESC\t{text}"
+
+    match correctionTargets[event.id.token]? with
+    | none => pure ()
+    | some target =>
+        rows := rows.push s!"REPLACES\t{target}"
+
+    for effect in event.effects do
+      match effect.key with
+      | none =>
+          rows := rows.push
+            s!"EFFECT\t{effect.locus.token}\t{effect.measure.token}\t{effect.quantity.quanta}"
+      | some key =>
+          rows := rows.push
+            s!"KEYED-EFFECT\t{key.token}\t{effect.locus.token}\t{effect.measure.token}\t{effect.quantity.quanta}"
+
+    rows := rows.push "ENDTX"
+
+  some (String.intercalate "\n" rows.toList ++ "\n")
+
+private def timedCandidateEncode
+    (evidence : Loam.ActualEvidence) : IO (Nat × String) := do
+  let t0 ← IO.monoNanosNow
+  let wire ← requireSome
+    (encodeBenchmarkCandidate? evidence)
+    "E3.2 benchmark candidate encoder rejected supported synthetic evidence"
+  let bytes := wire.length
+  if bytes == 999999999 then IO.println "unreachable" else pure ()
+  let t1 ← IO.monoNanosNow
+  pure ((t1 - t0) / 1000, wire)
+
 private def latestWindowCount
     (records : List Loam.ActualReview.Record) : Nat :=
   records.foldl
@@ -376,6 +478,7 @@ private structure Result where
   generateUs : Nat
   admissionUs : Nat
   encodeWithReadmissionUs : Nat
+  candidateEncodeUs : Nat
   stageWriteUs : Nat
   stageReadUs : Nat
   stageVerifyUs : Nat
@@ -398,12 +501,13 @@ deriving Repr
 
 private def printResult (r : Result) : IO Unit := do
   IO.println <|
-    "E3.1" ++
+    "E3.2" ++
     s!",events={r.n}" ++
     s!",corrections={r.corrections}" ++
     s!",generate_us={r.generateUs}" ++
     s!",admission_us={r.admissionUs}" ++
     s!",encode_with_readmission_us={r.encodeWithReadmissionUs}" ++
+    s!",candidate_encode_us={r.candidateEncodeUs}" ++
     s!",stage_write_us={r.stageWriteUs}" ++
     s!",stage_read_us={r.stageReadUs}" ++
     s!",stage_verify_us={r.stageVerifyUs}" ++
@@ -436,6 +540,10 @@ def run (root : System.FilePath) (n : Nat) : IO Unit := do
   let (admissionUs, _) ← timedAdmission evidence
 
   let (encodeUs, wire) ← timedEncode evidence
+
+  let (candidateEncodeUs, candidateWire) ← timedCandidateEncode evidence
+  expect (candidateWire == wire)
+    s!"E3.2 candidate wire differed byte-for-byte from production encoder at N={n}"
 
   let (stageWriteUs, _) ← timed do
     IO.FS.writeFile stageFile wire
@@ -518,6 +626,7 @@ def run (root : System.FilePath) (n : Nat) : IO Unit := do
     generateUs := generateUs
     admissionUs := admissionUs
     encodeWithReadmissionUs := encodeUs
+    candidateEncodeUs := candidateEncodeUs
     stageWriteUs := stageWriteUs
     stageReadUs := stageReadUs
     stageVerifyUs := stageVerifyUs

@@ -639,3 +639,74 @@ benefit from indexing.
 Only if publication remains a practical wall after fixing the identified
 encoder mechanics does SQLite canonical authority regain force as a storage
 candidate.
+
+
+## E3.2 result — indexed byte-identical candidate removes the observed encoder wall
+
+E3.2 tested the concrete implementation hypothesis from E3.1 without changing
+production persistence.
+
+The experimental candidate supports only the synthetic V1 benchmark shape. It
+still performs ordinary LOAM semantic admission, but replaces repeated per-Event
+linear scans with transient HashMaps and replaces growing List append with
+Array.push row assembly.
+
+A benchmark run is accepted only when:
+
+~~~text
+production encoder bytes == candidate encoder bytes
+~~~
+
+exactly. Both the 1,000-Event and 10,000-Event CI cases passed that byte equality
+gate.
+
+Representative GitHub Actions measurements:
+
+| Events | production encode | indexed candidate | speedup | semantic admission |
+| ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 58.721 ms | 2.373 ms | 24.7x | 1.369 ms |
+| 10,000 | 7,889.193 ms | 26.981 ms | 292.4x | 15.422 ms |
+
+The scale curve is more important than the absolute runner timings.
+
+For a 10x increase in retained Events:
+
+~~~text
+semantic admission:  ~11.3x
+indexed candidate:   ~11.4x
+production encoder: ~134.4x
+~~~
+
+The candidate therefore tracks the near-linear admission curve while the current
+production encoder grows superlinearly on the same evidence and emits the same
+canonical bytes.
+
+This is strong falsification of the first "plain text is the storage wall"
+hypothesis. On this workload, the measured wall is implementation mechanics in
+the production encoder, not the normalized text representation or filesystem
+write.
+
+### Consequence
+
+The next production experiment should no longer be "replace text with SQLite".
+
+It should be:
+
+> Generalize the E3.2 mechanics across the complete normalized Actual vocabulary
+> while preserving byte-for-byte canonical output and all existing semantic
+> admission tests.
+
+That production refactor must cover, rather than silently omit:
+
+- Merchant, Exchange, OriginalAmount, and MovementOperation evidence;
+- correction and reversal lookup;
+- validity revisions;
+- Relation and Discharge grouping;
+- settlement row families;
+- every current normalized Actual wire version.
+
+Only after that full encoder is qualified should 100,000-Event publication be
+rerun. If the full encoder becomes near-linear, the first measured justification
+for SQLite canonical authority disappears. SQLite may still be useful as a
+disposable query projection for workloads that actually benefit from relational
+indexes.

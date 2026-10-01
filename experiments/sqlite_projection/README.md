@@ -101,3 +101,30 @@ measurement artifacts, not evidence that the queries were literally free.
 
 Current CI remains bounded at 1,000 and 10,000 Events. Larger scales are manual
 until the publication curve is understood.
+
+
+## E3.2 indexed encoder candidate
+
+E3.2 does not modify the production encoder. It adds one deliberately narrow
+candidate encoder for the synthetic V1 benchmark shape and requires:
+
+~~~text
+production wire == candidate wire
+~~~
+
+byte-for-byte before any timing result is accepted.
+
+The candidate keeps ordinary semantic admission but replaces the scale-sensitive
+mechanics identified by E3.1:
+
+- repeated base-date scans -> one transient HashMap;
+- repeated description scans -> one transient HashMap;
+- repeated correction-replacement scans -> one transient HashMap;
+- repeated growing List append -> Array.push row assembly.
+
+The candidate deliberately rejects evidence outside the synthetic benchmark
+shape. It is a falsification instrument, not a parallel persistence format.
+
+If the candidate becomes near-linear while producing identical bytes, the next
+step is to translate the proven mechanics into the production encoder with the
+full evidence vocabulary and existing persistence tests.
