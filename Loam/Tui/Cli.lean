@@ -45,6 +45,7 @@ import Loam.Review.CapacityReview
 import Loam.Review.ActualRoutingReview
 import Loam.Tui.Main
 import Loam.Tui.Home
+import Loam.Tui.DailyPaceTrend
 import Loam.Tui.ActualWorkspace
 import Loam.Tui.ScheduledWorkspace
 import Loam.Tui.ScheduledWorkspaceSession
@@ -383,6 +384,12 @@ partial def currentQuantityAnchorLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       currentQuantityAnchorLoop bounds root step.state nextFrame
 
+/-- Read-only Daily Pace history drill-down. Any unrelated key leaves the view unchanged. -/
+partial def dailyPaceTrendLoop : IO Unit := do
+  match ← Loam.Tui.Terminal.readKey with
+  | .escape | .input 'q' | .input 'Q' => return ()
+  | _ => dailyPaceTrendLoop
+
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
@@ -424,6 +431,14 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
       bounds dataDir root admin adminFrame
     let home := { state with notice := notice }
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if (key = .input 'd' || key = .input 'D') then
+    let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame paceFrame
+    dailyPaceTrendLoop
+    let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
