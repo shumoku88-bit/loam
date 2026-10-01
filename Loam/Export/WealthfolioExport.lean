@@ -15,8 +15,8 @@ set_option autoImplicit false
 This is a disposable target projection for Wealthfolio transaction-tracked Cash
 accounts. LOAM remains authoritative.
 
-The first boundary deliberately exports only coordinates whose explicit
-`AccountingRole` is `.asset`. It does not infer securities, credit-card
+The first boundary deliberately exports only caller-selected Loci whose
+explicit `AccountingRole` is `.asset`. It does not infer securities, credit-card
 semantics, valuation, fees, taxes, refunds, or investment activity types.
 
 For each current Actual Event on or after the Accounting Epoch:
@@ -183,14 +183,17 @@ private def validateRoles
 private def entryRows
     (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
+    (accountLoci : List LocusId)
     (entry : Loam.ActualJournalProjection.Entry) :
     Except String (List Row) := do
   validateRoles roles entry
-  let assets :=
+  let allAssets :=
     (entry.event.effects.filter fun effect =>
       roles.roleOf? effect.locus == some .asset).mergeSort effectLe
-  let isTransfer := assets.length > 1
-  assets.mapM fun effect => do
+  let selectedAssets :=
+    allAssets.filter fun effect => accountLoci.contains effect.locus
+  let isTransfer := allAssets.length > 1
+  selectedAssets.mapM fun effect => do
     let currency ←
       match currencyText? effect.measure with
       | some currency => pure currency
@@ -237,6 +240,7 @@ entries on or after the Accounting Epoch.
 def renderWithPresentation?
     (presentation : List Loam.MeasurePresentation.Metadata)
     (roles : AccountingRoleMap)
+    (accountLoci : List LocusId)
     (opening : Loam.OpeningPositionReview.Snapshot)
     (entries : List Loam.ActualJournalProjection.Entry) :
     Except String String := do
@@ -244,7 +248,7 @@ def renderWithPresentation?
   let openingRows ← openingRows presentation roles opening
   let selected := selectedEntries epoch entries
   let activityGroups ← selected.mapM fun entry =>
-    entryRows presentation roles entry
+    entryRows presentation roles accountLoci entry
   let activityRows := activityGroups.flatten
   let lines :=
     ["date,symbol,activityType,currency,amount,account,comment"] ++
