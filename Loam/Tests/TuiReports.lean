@@ -1558,6 +1558,15 @@ def main : IO Unit := do
     "Budget Window components were not rendered"
   expect (contains "Remaining is derived exactly as Entitlement - Consumption." budgetText)
     "Budget Window lost the derived Remaining boundary"
+  let usdBudgetReport := Loam.Tui.Reports.withBudgetSnapshot budget {
+    measure := ⟨"usd"⟩
+    start := "2026-08-17"
+    endExclusive := "2026-10-15"
+    rows := [food]
+  }
+  let usdBudgetText := widgetText (Loam.Tui.Reports.view usdBudgetReport)
+  expect (contains "70 usd" usdBudgetText && !(contains "70 jpy" usdBudgetText))
+    "Budget Window rendering rewrote the snapshot Measure as JPY"
 
   let small : Bounds := { width := 80, height := 9 }
   let lastMenuItem := (List.range 5).foldl

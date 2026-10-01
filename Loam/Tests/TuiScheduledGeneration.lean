@@ -140,6 +140,20 @@ def main : IO Unit := do
     "Scheduled generation final review did not show individually edited dates"
   expect (contains "Cadence will not be stored" previewText)
     "Scheduled generation final review implied retained recurrence"
+  let some usdMovement := BalancedMovement.ofChanges? ⟨"usd"⟩
+      [ { coordinate := ⟨"paypay"⟩, quantity := Quantity.ofQuanta (-3000) }
+      , { coordinate := ⟨"gpt-plus"⟩, quantity := Quantity.ofQuanta 3000 } ]
+    | throw (IO.userError "USD Scheduled generation movement fixture")
+  let usdDraft : Loam.ScheduledCreationPublisher.Draft := {
+    scheduledOn := "2026-12-15"
+    movement := usdMovement
+  }
+  let usdPreview :=
+    Loam.Tui.ScheduledGeneration.withDrafts
+      selectedSuggestion.state .monthly [usdDraft]
+  let usdPreviewText := widgetText (Loam.Tui.ScheduledGeneration.view usdPreview)
+  expect (contains "3000 usd" usdPreviewText && !(contains "3000 jpy" usdPreviewText))
+    "Scheduled generation final review rewrote a non-JPY draft as JPY"
 
   let publish := Loam.Tui.ScheduledGeneration.update preview .enter
   expect publish.publish

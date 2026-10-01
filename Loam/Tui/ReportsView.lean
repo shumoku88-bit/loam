@@ -1187,12 +1187,14 @@ private def liquidityView (state : State) : Widget :=
     , line state.notice
     ]
 
-private def budgetRowLine (row : Loam.BudgetWindowReview.Row) : Widget :=
+private def budgetRowLine
+    (measure : Loam.Core.MeasureId)
+    (row : Loam.BudgetWindowReview.Row) : Widget :=
   line
     (Loam.Tui.Layout.padRight 16 row.purpose.token ++
       padNum 10 (toString row.entitlement.quanta) ++
       padNum 10 (toString row.consumption.quanta) ++
-      padNum 10 (toString row.remaining.quanta) ++ " jpy")
+      padNum 10 (toString row.remaining.quanta) ++ " " ++ measure.token)
 
 private def budgetTableHeader : Widget :=
   muted
@@ -1209,7 +1211,7 @@ private def budgetResultLines (state : State) : List Widget :=
       , muted (toString snapshot.rows.length ++ " remembered purpose(s)")
       , budgetTableHeader
       ] ++
-      (snapshot.rows.take 10).map budgetRowLine ++
+      (snapshot.rows.take 10).map (budgetRowLine snapshot.measure) ++
       [ muted "Remaining is derived exactly as Entitlement - Consumption." ]
 
 private def budgetView (state : State) : Widget :=
