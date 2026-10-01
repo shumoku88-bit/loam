@@ -251,9 +251,15 @@ def main : IO Unit := do
     contains "Pace" coverageText && contains "Oct" coverageText)
     "Scheduled overview did not render the recurring-plan Series Calendar"
   expect (contains "> food" coverageText &&
+    contains "[j/k] plan" coverageText &&
     contains "[e] replenish" coverageText && contains "[p] pace" coverageText &&
-    contains "[h/l] months" coverageText)
-    "Scheduled overview did not expose selection, management, and month-window actions"
+    contains "[h/l] months" coverageText && contains "[Enter] detail" coverageText)
+    "Scheduled overview did not expose its ordinary recurring-plan actions"
+  expect (contains "More:" coverageText &&
+    contains "[s] undecided" coverageText &&
+    contains "[n] new" coverageText &&
+    contains "[v] Months/List" coverageText)
+    "Scheduled overview hid advanced projections or less-frequent actions"
 
   let coverageEvidence : Loam.Tui.ScheduledWorkspace.CoverageEvidence := .ok coverageSnapshot
   let coverageExtend :=

@@ -1003,14 +1003,14 @@ private def planDetailView
       .column (Loam.Tui.Layout.fitWithFooter bounds body (planDetailFooter bounds))
 
 private def coverageFooter (bounds : Bounds) : List Widget :=
-  let detailed :=
-    "[j/k] select  [e] replenish  [p] pace  [s] undecided  [Enter] plan detail  [h/l] months  [n] new  [q] back"
-  if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
-    [mutedLine detailed]
-  else
-    [ mutedLine "[j/k] select [e] replenish [p] pace [s] undecided [Enter] plan detail"
-    , mutedLine "[h/l] months [n] new [v] all plans [q] back"
-    ]
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let primary :=
+    Loam.Tui.Layout.flowTokens width "  "
+      ["[j/k] plan", "[h/l] months", "[Enter] detail", "[e] replenish", "[p] pace", "[q] back"]
+  let more :=
+    Loam.Tui.Layout.flowTokens width "  "
+      ["More:", "[s] undecided", "[n] new", "[v] Months/List"]
+  (primary ++ more).map mutedLine
 
 private def coverageView
     (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
