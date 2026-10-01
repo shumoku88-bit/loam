@@ -29,9 +29,12 @@ private def row (purpose : String) (remaining : Int) (commitment : Int := 0) :
     consumption := Quantity.ofQuanta 6000
     commitment := Quantity.ofQuanta commitment }
 
-private def current (rows : List Loam.CurrentCoverageReview.Row) :
+private def currentForMeasure
+    (measure : MeasureId)
+    (rows : List Loam.CurrentCoverageReview.Row) :
     Loam.CurrentCoverageReview.Snapshot :=
-  { currentWindowStart := "2026-08-14"
+  { measure := measure
+    currentWindowStart := "2026-08-14"
     observedAt := "2026-09-08"
     endExclusive := "2026-10-15"
     rows := rows
@@ -39,6 +42,10 @@ private def current (rows : List Loam.CurrentCoverageReview.Row) :
       unmanaged := Quantity.ofQuanta 3
       unrouted := Quantity.ofQuanta 5
       unresolvedEligibility := Quantity.ofQuanta 4000 } }
+
+private def current (rows : List Loam.CurrentCoverageReview.Row) :
+    Loam.CurrentCoverageReview.Snapshot :=
+  currentForMeasure yen rows
 
 private def assertAmounts (label : String) (summary : Summary)
     (backing assigned residual : Int) : IO Unit := do
@@ -89,6 +96,15 @@ def main : IO Unit := do
     "mixed-measure selection accepted"
   expect (!(project (balances [balanceRow dollars 100]) [dollars] usd (current [])).isOk)
     "JPY CurrentCoverage was coerced to another measure"
+  let usdSummary ← requireOk
+    (project (balances [balanceRow dollars 250]) [dollars] usd
+      (currentForMeasure usd [row "food" 40]))
+  expect
+    (usdSummary.measure == usd &&
+      usdSummary.budgetableBacking.quanta == 250 &&
+      usdSummary.remainingAssigned.quanta == 40 &&
+      usdSummary.residualBeforeUnresolved.quanta == 210)
+    "USD Cycle Funding projection diverged from the requested Measure"
 
   let rows := [row "food" 70, row "general" 0, row "fixed" 0]
   let multi ← inspectRows rows
