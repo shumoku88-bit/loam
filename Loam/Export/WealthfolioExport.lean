@@ -15,8 +15,8 @@ set_option autoImplicit false
 This is a disposable target projection for Wealthfolio transaction-tracked Cash
 accounts. LOAM remains authoritative.
 
-The first boundary deliberately exports only coordinates whose explicit
-`AccountingRole` is `.asset`. It does not infer securities, credit-card
+The first boundary deliberately exports only caller-selected Loci whose
+explicit `AccountingRole` is `.asset`. It does not infer securities, credit-card
 semantics, valuation, fees, taxes, refunds, or investment activity types.
 
 For each current Actual Event on or after the Accounting Epoch:
