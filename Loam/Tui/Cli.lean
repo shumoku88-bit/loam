@@ -5,6 +5,7 @@ import Loam.HouseholdCommand
 import Loam.Presentation.LocusCatalog
 import Loam.Presentation.MeasurePresentation
 import Loam.Presentation.PurposeCatalog
+import Loam.Persistence.TokenSyntax
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Record
@@ -101,6 +102,12 @@ private def currentMeasurePresentation
   match ← Loam.MeasurePresentation.loadMetadata dataDir with
   | .ok metadata => return metadata
   | .error message => throw (IO.userError message)
+
+private def configuredMeasure : IO (Except String Loam.Core.MeasureId) := do
+  let token := (← IO.getEnv "LOAM_MEASURE").getD "jpy"
+  if !Loam.Persistence.validToken token then
+    return .error "loam: Measure must be a nonempty single-line token"
+  return .ok ⟨token⟩
 
 private def currentLocusCatalog
     (dataDir : System.FilePath) (world : Loam.MovementAdmission.World) :
@@ -583,22 +590,32 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'v' || key = .input 'V') then
-    let reports ←
-      match ← Loam.BoundaryPresetConfig.load? (Loam.HouseholdPaths.boundaryPresets dataDir) with
-      | some presets =>
-          pure (Loam.Tui.Reports.initialForDateWithPresets state.selectedDate presets)
-      | none =>
-          let base := Loam.Tui.Reports.initialForDate state.selectedDate
-          pure { base with
-            notice := "Boundary preset config malformed; named presets unavailable." }
-    Loam.Tui.Terminal.redrawWidgetDirect
-      bounds (Loam.Tui.Reports.viewForBounds bounds reports)
-    let nextBounds ←
-      Loam.Tui.ReportsSession.run bounds dataDir root reports
-    let home := { state with notice := "" }
-    let nextFrame := compiledFrameFor nextBounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank nextBounds nextFrame
-    loop nextBounds dataDir root snapshot home nextFrame
+    match ← configuredMeasure with
+    | .error message =>
+        let home := { state with notice := message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok measure =>
+        let reports ←
+          match ← Loam.BoundaryPresetConfig.load?
+              (Loam.HouseholdPaths.boundaryPresets dataDir) with
+          | some presets =>
+              pure (Loam.Tui.Reports.initialForDateWithPresetsForMeasure
+                measure state.selectedDate presets)
+          | none =>
+              let base := Loam.Tui.Reports.initialForDateForMeasure
+                measure state.selectedDate
+              pure { base with
+                notice := "Boundary preset config malformed; named presets unavailable." }
+        Loam.Tui.Terminal.redrawWidgetDirect
+          bounds (Loam.Tui.Reports.viewForBounds bounds reports)
+        let nextBounds ←
+          Loam.Tui.ReportsSession.run bounds dataDir root reports
+        let home := { state with notice := "" }
+        let nextFrame := compiledFrameFor nextBounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank nextBounds nextFrame
+        loop nextBounds dataDir root snapshot home nextFrame
   else if (key = .input 'x' || key = .input 'X') then
     let evidence ←
       match ← Loam.ActualAuthority.loadActual? root with
