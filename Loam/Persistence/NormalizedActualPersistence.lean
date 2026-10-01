@@ -12,6 +12,7 @@ import Loam.Core.ActualReversal
 import Loam.Core.OpenRelation
 import Loam.Persistence.NormalizedActualAdmission
 import Loam.Persistence.TokenSyntax
+import Std.Data.HashMap
 
 namespace Loam.Persistence
 
@@ -1046,6 +1047,123 @@ private def endpointTokenAdmissible : RelationEndpoint → Bool
   | .household => true
   | .external id => validToken id.token
 
+private def insertFirst {α : Type}
+    (index : Std.HashMap String α)
+    (key : String)
+    (value : α) : Std.HashMap String α :=
+  if index.contains key then index else index.insert key value
+
+private def prependGrouped {α : Type}
+    (index : Std.HashMap String (List α))
+    (key : String)
+    (value : α) : Std.HashMap String (List α) :=
+  index.insert key (value :: index[key]?.getD [])
+
+/--
+Transient encoder indexes.
+
+These are derived acceleration structures only. They do not change canonical
+authority, ordering, admission, or the normalized wire. List-valued indexes are
+stored in reverse encounter order so construction stays linear; the encoder
+reverses each selected group before emission to preserve historical wire order.
+-/
+private structure NormalizedActualEncodeIndex where
+  baseDates : Std.HashMap String String
+  descriptions : Std.HashMap String String
+  merchants : Std.HashMap String MerchantDisposition
+  exchanges : Std.HashMap String ExchangeEvidence
+  originalAmounts : Std.HashMap String OriginalAmountEvidence
+  movementOperations : Std.HashMap String MovementOperationId
+  correctionTargets : Std.HashMap String EventId
+  reversalTargets : Std.HashMap String EventId
+  validityCorrectionTargets : Std.HashMap String ActualValidityRef
+  validityRevisions : Std.HashMap String (List (ActualValidityRevisionId × String))
+  relations : Std.HashMap String (List RelationUnit)
+  discharges : Std.HashMap String (List RelationDischarge)
+
+private def buildNormalizedActualEncodeIndex
+    (evidence : ActualEvidence) : NormalizedActualEncodeIndex :=
+  let baseDates :=
+    evidence.validity.facts.foldl
+      (fun index fact =>
+        match fact with
+        | .base event validOn =>
+            insertFirst index event.token validOn
+        | .revision _ _ _ => index)
+      {}
+  let descriptions :=
+    evidence.descriptions.entries.foldl
+      (fun index entry =>
+        insertFirst index entry.event.token entry.text)
+      {}
+  let merchants :=
+    evidence.merchants.entries.foldl
+      (fun index entry =>
+        insertFirst index entry.event.token entry.disposition)
+      {}
+  let exchanges :=
+    evidence.exchanges.entries.foldl
+      (fun index entry =>
+        insertFirst index entry.event.token entry)
+      {}
+  let originalAmounts :=
+    evidence.originalAmounts.entries.foldl
+      (fun index entry =>
+        insertFirst index entry.event.token entry)
+      {}
+  let movementOperations :=
+    evidence.movementOperations.entries.foldl
+      (fun index entry =>
+        insertFirst index entry.event.token entry.operation)
+      {}
+  let correctionTargets :=
+    evidence.corrections.corrections.foldl
+      (fun index correction =>
+        insertFirst index correction.replacement.token correction.target)
+      {}
+  let reversalTargets :=
+    evidence.reversals.reversals.foldl
+      (fun index reversal =>
+        insertFirst index reversal.reversal.token reversal.target)
+      {}
+  let validityCorrectionTargets :=
+    evidence.validity.corrections.foldl
+      (fun index correction =>
+        insertFirst index correction.replacement.token correction.target)
+      {}
+  let validityRevisions :=
+    evidence.validity.facts.foldl
+      (fun index fact =>
+        match fact with
+        | .base _ _ => index
+        | .revision revision event validOn =>
+            prependGrouped index event.token (revision, validOn))
+      {}
+  let relations :=
+    evidence.relations.foldl
+      (fun index relation =>
+        prependGrouped index relation.sourceEvent.token relation)
+      {}
+  let discharges :=
+    evidence.discharges.foldl
+      (fun index discharge =>
+        prependGrouped index discharge.event.token discharge)
+      {}
+  {
+    baseDates := baseDates
+    descriptions := descriptions
+    merchants := merchants
+    exchanges := exchanges
+    originalAmounts := originalAmounts
+    movementOperations := movementOperations
+    correctionTargets := correctionTargets
+    reversalTargets := reversalTargets
+    validityCorrectionTargets := validityCorrectionTargets
+    validityRevisions := validityRevisions
+    relations := relations
+    discharges := discharges
+  }
+
 /--
 Encode persistence-neutral ActualEvidence into normalized Actual wire representation.
 Version 1 is preserved while settlement evidence is empty.
@@ -1053,6 +1171,10 @@ Version 2 retains the original settlement row family when no commitment revision
 Version 3 is selected when append-only commitment revision evidence is present.
 Version 4 is selected when non-settlement extinguishment evidence is present.
 Fails closed (`none`) on invalid wire tokens or inadmissible semantic evidence.
+
+The retained wire is unchanged. Encoder-only transient indexes avoid repeated
+whole-family scans per Event, and Array row accumulation avoids repeatedly
+copying a growing List.
 -/
 def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
   let _ ← admitActualEvidence? evidence
@@ -1070,91 +1192,88 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
       normalizedActualHeaderV3
     else
       normalizedActualHeaderV2
-  let mut rows : List String := [header]
+
+  let index := buildNormalizedActualEncodeIndex evidence
+  let mut rows : Array String := #[header]
 
   for event in evidence.events.events do
-    -- Find base occurrence date for this event
-    let baseFact ← evidence.validity.facts.find? fun f =>
-      match f with
-      | .base ev _ => decide (ev = event.id)
-      | _ => false
-    let baseDate := baseFact.validOn
+    let baseDate ← index.baseDates[event.id.token]?
 
-    match evidence.descriptions.findText? event.id with
+    match index.descriptions[event.id.token]? with
     | none =>
-        rows := rows ++ [s!"TX\t{event.id.token}\t{baseDate}\tNODESC"]
+        rows := rows.push s!"TX\t{event.id.token}\t{baseDate}\tNODESC"
     | some text =>
         if text.isEmpty || text.contains '\n' || text.contains '\r' then none
-        rows := rows ++ [s!"TX\t{event.id.token}\t{baseDate}\tDESC\t{text}"]
+        rows := rows.push s!"TX\t{event.id.token}\t{baseDate}\tDESC\t{text}"
 
-    match evidence.merchants.findDisposition? event.id with
+    match index.merchants[event.id.token]? with
     | none => pure ()
     | some .nonmerchant =>
-        rows := rows ++ ["NONMERCHANT"]
+        rows := rows.push "NONMERCHANT"
     | some (.merchant party) =>
         if !validToken party.token then none
-        rows := rows ++ [s!"MERCHANT\t{party.token}"]
+        rows := rows.push s!"MERCHANT\t{party.token}"
 
-    match evidence.exchanges.findByEvent? event.id with
+    match index.exchanges[event.id.token]? with
     | none => pure ()
     | some exchange =>
         if !validToken exchange.source.token || !validToken exchange.destination.token then none
-        rows := rows ++ [
+        rows := rows.push
           s!"EXCHANGE\t{exchange.source.token}\t{exchange.destination.token}"
-        ]
 
-    match evidence.originalAmounts.findByEvent? event.id with
+    match index.originalAmounts[event.id.token]? with
     | none => pure ()
     | some original =>
         if !validToken original.measure.token then none
-        rows := rows ++ [
+        rows := rows.push
           s!"ORIGINAL-AMOUNT\t{original.measure.token}\t{original.quantity.quanta}"
-        ]
 
-    match evidence.movementOperations.findOperation? event.id with
+    match index.movementOperations[event.id.token]? with
     | none => pure ()
     | some operation =>
         if !validToken operation.token then none
-        rows := rows ++ [s!"OPERATION\t{operation.token}"]
+        rows := rows.push s!"OPERATION\t{operation.token}"
 
-    if let some corr := evidence.corrections.corrections.find? fun c => decide (c.replacement = event.id) then
-      rows := rows ++ [s!"REPLACES\t{corr.target.token}"]
+    match index.correctionTargets[event.id.token]? with
+    | none => pure ()
+    | some target =>
+        rows := rows.push s!"REPLACES\t{target.token}"
 
-    if let some rev := evidence.reversals.reversals.find? fun r => decide (r.reversal = event.id) then
-      rows := rows ++ [s!"REVERSAL-OF\t{rev.target.token}"]
+    match index.reversalTargets[event.id.token]? with
+    | none => pure ()
+    | some target =>
+        rows := rows.push s!"REVERSAL-OF\t{target.token}"
 
     for effect in event.effects do
       match effect.key with
       | none =>
-          rows := rows ++ [s!"EFFECT\t{effect.locus.token}\t{effect.measure.token}\t{effect.quantity.quanta}"]
+          rows := rows.push
+            s!"EFFECT\t{effect.locus.token}\t{effect.measure.token}\t{effect.quantity.quanta}"
       | some key =>
-          rows := rows ++ [s!"KEYED-EFFECT\t{key.token}\t{effect.locus.token}\t{effect.measure.token}\t{effect.quantity.quanta}"]
+          rows := rows.push
+            s!"KEYED-EFFECT\t{key.token}\t{effect.locus.token}\t{effect.measure.token}\t{effect.quantity.quanta}"
 
-    -- Date revisions for this event
-    for fact in evidence.validity.facts do
-      match fact with
-      | .revision revId ev date =>
-          if ev = event.id then
-            let corr ← evidence.validity.corrections.find? fun c => decide (c.replacement = revId)
-            match corr.target with
-            | .root _ =>
-                rows := rows ++ [s!"DATE-REV\t{revId.token}\t{date}\tREPLACES\tROOT"]
-            | .revision prior =>
-                rows := rows ++ [s!"DATE-REV\t{revId.token}\t{date}\tREPLACES\tREV\t{prior.token}"]
-      | .base _ _ => pure ()
+    for (revision, date) in (index.validityRevisions[event.id.token]?.getD []).reverse do
+      let target ← index.validityCorrectionTargets[revision.token]?
+      match target with
+      | .root _ =>
+          rows := rows.push
+            s!"DATE-REV\t{revision.token}\t{date}\tREPLACES\tROOT"
+      | .revision prior =>
+          rows := rows.push
+            s!"DATE-REV\t{revision.token}\t{date}\tREPLACES\tREV\t{prior.token}"
 
-    for rel in evidence.relations do
-      if rel.sourceEvent = event.id then
-        rows := rows ++ [
-          s!"RELATION\t{rel.id.token}\tSOURCE\t{rel.sourceEffect.token}\t" ++
-          s!"{formatEndpoint rel.debtor}\t{formatEndpoint rel.creditor}\t{rel.quantity.quanta}"
-        ]
+    for relation in (index.relations[event.id.token]?.getD []).reverse do
+      rows := rows.push (
+        s!"RELATION\t{relation.id.token}\tSOURCE\t{relation.sourceEffect.token}\t" ++
+        s!"{formatEndpoint relation.debtor}\t{formatEndpoint relation.creditor}\t{relation.quantity.quanta}"
+      )
 
-    for discharge in evidence.discharges do
-      if discharge.event = event.id then
-        rows := rows ++ [s!"DISCHARGE\t{discharge.target.token}\t{discharge.quantity.quanta}"]
+    for discharge in (index.discharges[event.id.token]?.getD []).reverse do
+      rows := rows.push
+        s!"DISCHARGE\t{discharge.target.token}\t{discharge.quantity.quanta}"
 
-    rows := rows ++ ["ENDTX"]
+    rows := rows.push "ENDTX"
 
   if !settlementEmpty then
     for commitment in evidence.settlements.commitments do
@@ -1165,28 +1284,26 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
           !endpointTokenAdmissible commitment.creditor ||
           !validToken commitment.measure.token then
         none
-      rows := rows ++ [
+      rows := rows.push (
         s!"SETTLEMENT-COMMITMENT\t{commitment.id.token}\tSOURCE\t" ++
         s!"{commitment.sourceEvent.token}\t{commitment.sourceEffect.token}\t" ++
         s!"{formatEndpoint commitment.debtor}\t{formatEndpoint commitment.creditor}\t" ++
         s!"{commitment.measure.token}\t{commitment.quantity.quanta}"
-      ]
+      )
 
     for revision in evidence.settlements.commitmentRevisions do
       if !validToken revision.target.token then
         none
       match revision.replacement with
       | none =>
-          rows := rows ++ [
+          rows := rows.push
             s!"SETTLEMENT-COMMITMENT-REVISION\t{revision.target.token}\tRETRACT"
-          ]
       | some replacement =>
-          if !validToken replacement.token then
-            none
-          rows := rows ++ [
+          if !validToken replacement.token then none
+          rows := rows.push (
             s!"SETTLEMENT-COMMITMENT-REVISION\t{revision.target.token}\t" ++
             s!"REPLACEMENT\t{replacement.token}"
-          ]
+          )
 
     for extinguishment in evidence.settlements.extinguishments do
       if !validToken extinguishment.id.token ||
@@ -1194,34 +1311,31 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
         none
       match extinguishment.effectiveOn with
       | none =>
-          rows := rows ++ [
+          rows := rows.push (
             s!"SETTLEMENT-EXTINGUISHMENT\t{extinguishment.id.token}\tTARGET\t" ++
             s!"{extinguishment.target.token}\t{extinguishment.quantity.quanta}\tUNKNOWN"
-          ]
+          )
       | some effectiveOn =>
-          if !validToken effectiveOn then
-            none
-          rows := rows ++ [
+          if !validToken effectiveOn then none
+          rows := rows.push (
             s!"SETTLEMENT-EXTINGUISHMENT\t{extinguishment.id.token}\tTARGET\t" ++
             s!"{extinguishment.target.token}\t{extinguishment.quantity.quanta}\t" ++
             s!"EFFECTIVE\t{effectiveOn}"
-          ]
+          )
 
     for revision in evidence.settlements.extinguishmentRevisions do
       if !validToken revision.target.token then
         none
       match revision.replacement with
       | none =>
-          rows := rows ++ [
+          rows := rows.push
             s!"SETTLEMENT-EXTINGUISHMENT-REVISION\t{revision.target.token}\tRETRACT"
-          ]
       | some replacement =>
-          if !validToken replacement.token then
-            none
-          rows := rows ++ [
+          if !validToken replacement.token then none
+          rows := rows.push (
             s!"SETTLEMENT-EXTINGUISHMENT-REVISION\t{revision.target.token}\t" ++
             s!"REPLACEMENT\t{replacement.token}"
-          ]
+          )
 
     for correspondence in evidence.settlements.correspondences do
       if !validToken correspondence.id.token ||
@@ -1229,54 +1343,53 @@ def encodeNormalizedActual? (evidence : ActualEvidence) : Option String := do
           !validToken correspondence.event.token ||
           !validToken correspondence.effect.token then
         none
-      rows := rows ++ [
+      rows := rows.push (
         s!"SETTLEMENT-CORRESPONDENCE\t{correspondence.id.token}\tTARGET\t" ++
         s!"{correspondence.target.token}\tPHYSICAL\t{correspondence.event.token}\t" ++
         s!"{correspondence.effect.token}\t{correspondence.quantity.quanta}"
-      ]
+      )
 
     for revision in evidence.settlements.correspondenceRevisions do
       if !validToken revision.target.token || !validToken revision.replacement.token then
         none
-      rows := rows ++ [
+      rows := rows.push (
         s!"SETTLEMENT-CORRESPONDENCE-REVISION\t{revision.target.token}\t" ++
         s!"REPLACEMENT\t{revision.replacement.token}"
-      ]
+      )
 
     for context in evidence.settlements.nettingContexts do
       if !validToken context.id.token || !validToken context.measure.token then
         none
       match context.outcome with
       | .zero =>
-          rows := rows ++ [
+          rows := rows.push
             s!"SETTLEMENT-NETTING\t{context.id.token}\t{context.measure.token}\tZERO"
-          ]
       | .physical event effect =>
           if !validToken event.token || !validToken effect.token then
             none
-          rows := rows ++ [
+          rows := rows.push (
             s!"SETTLEMENT-NETTING\t{context.id.token}\t{context.measure.token}\t" ++
             s!"PHYSICAL\t{event.token}\t{effect.token}"
-          ]
+          )
 
     for member in evidence.settlements.nettingMembers do
       if !validToken member.id.token ||
           !validToken member.context.token ||
           !validToken member.target.token then
         none
-      rows := rows ++ [
+      rows := rows.push (
         s!"SETTLEMENT-MEMBER\t{member.id.token}\tCONTEXT\t{member.context.token}\t" ++
         s!"TARGET\t{member.target.token}\t{member.quantity.quanta}"
-      ]
+      )
 
     for revision in evidence.settlements.nettingMemberRevisions do
       if !validToken revision.target.token || !validToken revision.replacement.token then
         none
-      rows := rows ++ [
+      rows := rows.push (
         s!"SETTLEMENT-MEMBER-REVISION\t{revision.target.token}\t" ++
         s!"REPLACEMENT\t{revision.replacement.token}"
-      ]
+      )
 
-  some (String.intercalate "\n" rows ++ "\n")
+  some (String.intercalate "\n" rows.toList ++ "\n")
 
 end Loam.Persistence
