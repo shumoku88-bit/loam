@@ -32,13 +32,32 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Build and run isolated SQLite projection experiment
+      - name: Build isolated SQLite research executables
         shell: bash
         run: |
           set -euo pipefail
           cd experiments/sqlite_projection
           lake update
-          lake build sqliteProjectionExperiment
+          lake build sqliteProjectionExperiment sqliteProjectionScaleBenchmark
+
+      - name: Run semantic projection checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/sqlite_projection
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
           .lake/build/bin/sqliteProjectionExperiment "$tmp"
+
+      - name: Run E3 scale boundary benchmark
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/sqlite_projection
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          for n in 1000 10000 100000; do
+            root="$tmp/$n"
+            mkdir -p "$root"
+            .lake/build/bin/sqliteProjectionScaleBenchmark "$root" "$n"
+          done
