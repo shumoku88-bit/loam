@@ -21,7 +21,7 @@ set_option autoImplicit false
 A read-only answer to one narrow household question:
 
 ```text
-explicit day-to-day JPY balance pool
+explicit day-to-day single-Measure balance pool
 - current-open Scheduled outflow from that pool before cycle end
 = balance available through cycle end
 
@@ -40,6 +40,7 @@ closes it.
 -/
 
 structure Snapshot where
+  measure : MeasureId := ⟨"jpy"⟩
   observedAt : String
   endExclusive : String
   remainingDays : Nat
@@ -98,7 +99,8 @@ There is intentionally no lower Scheduled-date bound. Current-open overdue
 occurrences still drain the selected pool until completion, retirement, or
 replacement removes them from the current-open frontier.
 -/
-def project
+def projectForMeasure
+    (measure : MeasureId)
     (observedAt endExclusive : String)
     (selection : List EffectCoordinate)
     (balances : Loam.BalanceReview.Snapshot)
@@ -113,8 +115,8 @@ def project
     throw "loam: Daily Pace requires the observation date to precede cycle end"
   if !decide selection.Nodup then
     throw "loam: Daily Pace pool contains duplicate coordinates"
-  if !selection.all (fun coordinate => coordinate.measure.token == "jpy") then
-    throw "loam: Daily Pace currently requires an explicit JPY pool"
+  if !selection.all (fun coordinate => coordinate.measure == measure) then
+    throw ("loam: Daily Pace pool must use only Measure " ++ measure.token)
   if !(balances.coordinates == selection) then
     throw "loam: Daily Pace balance answer does not match the selected pool"
 
@@ -135,6 +137,7 @@ def project
   let available := eligible - deductions
 
   return {
+    measure := measure
     observedAt := observedAt
     endExclusive := endExclusive
     remainingDays := distance.natAbs
@@ -142,6 +145,15 @@ def project
     automaticDeductions := Quantity.ofQuanta deductions
     availableThroughEnd := Quantity.ofQuanta available
   }
+
+/-- Backward-compatible Daily Pace projection for the current JPY household. -/
+def project
+    (observedAt endExclusive : String)
+    (selection : List EffectCoordinate)
+    (balances : Loam.BalanceReview.Snapshot)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) :
+    Except String Snapshot :=
+  projectForMeasure ⟨"jpy"⟩ observedAt endExclusive selection balances scheduled
 
 /-!
 ## Retrospective pace series
@@ -253,6 +265,7 @@ private def historicalDeductionsForDate
                   " was retired without a learned-time coordinate")
 
 private def reconstructedSnapshot
+    (measure : MeasureId)
     (endExclusive : String)
     (selection : List EffectCoordinate)
     (records : List Loam.ActualReview.Record)
@@ -267,6 +280,7 @@ private def reconstructedSnapshot
     historicalDeductionsForDate
       selection records scheduled endExclusive date scheduled.scheduled.occurrences
   return {
+    measure := measure
     observedAt := date
     endExclusive := endExclusive
     remainingDays := distance.natAbs
@@ -291,7 +305,8 @@ The latest reconstructed point must equal the ordinary current Daily Pace answer
 This parity check prevents the trend from silently using a different balance or
 Scheduled interpretation than Home's headline number.
 -/
-def projectHistory
+def projectHistoryForMeasure
+    (measure : MeasureId)
     (image : Loam.ActualAuthority.Image)
     (historicalEvidence : Loam.HistoricalBalanceReview.Evidence)
     (windowStart observedAt endExclusive : String)
@@ -303,7 +318,7 @@ def projectHistory
     throw "loam: Daily Pace history requires a real cycle-start date"
   if !(decide (windowStart ≤ observedAt)) then
     throw "loam: Daily Pace history observation precedes the current cycle"
-  let current ← project observedAt endExclusive selection balances scheduled
+  let current ← projectForMeasure measure observedAt endExclusive selection balances scheduled
   let _ ← Loam.ScheduledReview.currentOpenRecords scheduled
   let dates := recentDates windowStart observedAt days
   if days = 0 then
@@ -312,7 +327,7 @@ def projectHistory
     eligiblePoolAtEndOfDay image historicalEvidence selection date
   let records := Loam.ActualReview.recordsFromActualImage image
   let points ← (dates.zip eligiblePools).mapM fun (date, eligible) =>
-    reconstructedSnapshot endExclusive selection records scheduled eligible date
+    reconstructedSnapshot measure endExclusive selection records scheduled eligible date
   match points.reverse with
   | [] => return []
   | latest :: _ =>
@@ -321,6 +336,19 @@ def projectHistory
       throw
         "loam: Daily Pace history latest point disagrees with the current Daily Pace answer"
 
+/-- Backward-compatible Daily Pace history projection for the current JPY household. -/
+def projectHistory
+    (image : Loam.ActualAuthority.Image)
+    (historicalEvidence : Loam.HistoricalBalanceReview.Evidence)
+    (windowStart observedAt endExclusive : String)
+    (selection : List EffectCoordinate)
+    (balances : Loam.BalanceReview.Snapshot)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (days : Nat) : Except String (List Snapshot) :=
+  projectHistoryForMeasure ⟨"jpy"⟩
+    image historicalEvidence windowStart observedAt endExclusive
+    selection balances scheduled days
+
 /--
 Load the current explicit boundary, Daily Pace pool, current balances, and
 current-open Scheduled evidence from one caller-supplied admitted Actual image.
@@ -328,7 +356,8 @@ current-open Scheduled evidence from one caller-supplied admitted Actual image.
 This entrance is for composed read boundaries such as Home that need several
 Actual-backed answers from one generation. It never reopens `actual.loam`.
 -/
-def loadSnapshotFromActualImageAt
+def loadSnapshotFromActualImageAtForMeasure
+    (measure : MeasureId)
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image)
     (observedAt : String) : IO (Except String Snapshot) := do
@@ -337,7 +366,7 @@ def loadSnapshotFromActualImageAt
     | .error message => return .error message
     | .ok window => pure window
   let selection ←
-    match ← Loam.DailyPaceConfig.load (Loam.HouseholdPaths.dailyPace dataDir) with
+    match ← Loam.DailyPaceConfig.loadForMeasure measure (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
   let current ←
@@ -352,7 +381,14 @@ def loadSnapshotFromActualImageAt
     match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events with
     | .error message => return .error message
     | .ok scheduled => pure scheduled
-  return project observedAt window.endExclusive selection balances scheduled
+  return projectForMeasure measure observedAt window.endExclusive selection balances scheduled
+
+/-- Backward-compatible admitted-image Daily Pace loader for the current JPY household. -/
+def loadSnapshotFromActualImageAt
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
+    (observedAt : String) : IO (Except String Snapshot) :=
+  loadSnapshotFromActualImageAtForMeasure ⟨"jpy"⟩ dataDir image observedAt
 
 /--
 Load the current explicit boundary, Daily Pace pool, current balances, and
@@ -362,7 +398,8 @@ Standalone callers still select and load their Actual authority here. Composed
 readers that already own one admitted Actual generation should call
 `loadSnapshotFromActualImageAt` instead.
 -/
-def loadSnapshotAt
+def loadSnapshotAtForMeasure
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (observedAt : String) : IO (Except String Snapshot) := do
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
@@ -370,7 +407,13 @@ def loadSnapshotAt
     match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message
     | .ok image => pure image
-  loadSnapshotFromActualImageAt dataDir image observedAt
+  loadSnapshotFromActualImageAtForMeasure measure dataDir image observedAt
+
+/-- Backward-compatible Daily Pace loader for the current JPY household. -/
+def loadSnapshotAt
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String) : IO (Except String Snapshot) :=
+  loadSnapshotAtForMeasure ⟨"jpy"⟩ dataDir actualRoot observedAt
 
 /--
 Reconstruct a retrospective current-truth Daily Pace series from one
@@ -381,7 +424,8 @@ and Actual review records, so a composed reader cannot mix Actual generations
 while building one answer. Completion activation follows retained occurrence
 identity; Event Correction does not reopen an already-completed Scheduled item.
 -/
-def loadHistoryFromActualImageAt
+def loadHistoryFromActualImageAtForMeasure
+    (measure : MeasureId)
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image)
     (observedAt : String)
@@ -391,7 +435,7 @@ def loadHistoryFromActualImageAt
     | .error message => return .error message
     | .ok window => pure window
   let selection ←
-    match ← Loam.DailyPaceConfig.load (Loam.HouseholdPaths.dailyPace dataDir) with
+    match ← Loam.DailyPaceConfig.loadForMeasure measure (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
   let current ←
@@ -410,17 +454,26 @@ def loadHistoryFromActualImageAt
     match ← Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events with
     | .error message => return .error message
     | .ok scheduled => pure scheduled
-  return projectHistory
+  return projectHistoryForMeasure measure
     image historicalEvidence
     window.start observedAt window.endExclusive
     selection balances scheduled days
+
+/-- Backward-compatible admitted-image Daily Pace history loader for the current JPY household. -/
+def loadHistoryFromActualImageAt
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
+    (observedAt : String)
+    (days : Nat) : IO (Except String (List Snapshot)) :=
+  loadHistoryFromActualImageAtForMeasure ⟨"jpy"⟩ dataDir image observedAt days
 
 /--
 Load a retrospective current-truth Daily Pace series without retaining any pace
 observation. The current normalized Actual image is read once and then delegated
 to `loadHistoryFromActualImageAt`.
 -/
-def loadHistoryAt
+def loadHistoryAtForMeasure
+    (measure : MeasureId)
     (dataDir actualRoot : System.FilePath)
     (observedAt : String)
     (days : Nat) : IO (Except String (List Snapshot)) := do
@@ -429,6 +482,13 @@ def loadHistoryAt
     match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message
     | .ok image => pure image
-  loadHistoryFromActualImageAt dataDir image observedAt days
+  loadHistoryFromActualImageAtForMeasure measure dataDir image observedAt days
+
+/-- Backward-compatible retrospective Daily Pace loader for the current JPY household. -/
+def loadHistoryAt
+    (dataDir actualRoot : System.FilePath)
+    (observedAt : String)
+    (days : Nat) : IO (Except String (List Snapshot)) :=
+  loadHistoryAtForMeasure ⟨"jpy"⟩ dataDir actualRoot observedAt days
 
 end Loam.CycleSpendingPaceReview
