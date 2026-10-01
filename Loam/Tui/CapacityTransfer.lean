@@ -17,7 +17,7 @@ set_option autoImplicit false
 
 This is presentation-only state for one practical Capacity movement. It edits the
 same four pieces of intent used by the shared publisher: source endpoint,
-destination endpoint, effective day, and positive JPY amount.
+destination endpoint, effective day, and positive single-Measure amount.
 
 `unallocated` remains an allocation boundary, not a finite balance. Purpose
 entitlement shown in preview is advisory current all-retained evidence only; the
@@ -86,6 +86,7 @@ def initialGrant
     (residual : Option Loam.Core.Quantity) : State :=
   let suggested := max 1 (-row.headroom.quanta)
   let draft : Loam.CapacityPublisher.Draft := {
+    measure := snapshot.measure
     source := .unallocated
     destination := .purpose row.purpose
     effectiveOn := effectiveOn
@@ -152,8 +153,10 @@ def draft? (state : State) : Except String Loam.CapacityPublisher.Draft := do
   let some destination := Loam.CapacityPublisher.parseCoordinate? state.form.destination
     | throw "Capacity To must be unallocated or a valid Purpose token."
   let some quanta := state.form.amount.toInt?
-    | throw "Capacity amount must be a positive integer JPY quantity."
+    | throw ("Capacity amount must be a positive integer " ++
+        state.snapshot.measure.token ++ " quantity.")
   let draft : Loam.CapacityPublisher.Draft := {
+    measure := state.snapshot.measure
     effectiveOn := state.form.effectiveOn
     source := source
     destination := destination
@@ -238,7 +241,8 @@ private def impactLine
   | .purpose purpose =>
       let current := currentPurposeQuanta snapshot.rows purpose
       let after := if source then current - quanta else current + quanta
-      purpose.token ++ ": " ++ toString current ++ " -> " ++ toString after ++ " jpy"
+      purpose.token ++ ": " ++ toString current ++ " -> " ++ toString after ++
+        " " ++ snapshot.measure.token
 
 /-- Render one Capacity transfer without importing Envelope identity or backing semantics. -/
 def view (state : State) : Widget :=
@@ -254,13 +258,17 @@ def view (state : State) : Widget :=
         | some ctx =>
             let residualText :=
               match ctx.residual with
-              | some r => toString r.quanta ++ " jpy"
+              | some r => toString r.quanta ++ " " ++ state.snapshot.measure.token
               | none => "unavailable"
             [ line ("Purpose: " ++ ctx.row.purpose.token)
-            , line ("Current Now: " ++ toString ctx.row.remaining.quanta ++ " jpy")
-            , line ("Known future: " ++ toString ctx.row.commitment.quanta ++ " jpy")
-            , line ("After-known: " ++ toString ctx.row.headroom.quanta ++ " jpy")
-            , line s!"Suggested to reach After-known 0: {ctx.suggested} jpy"
+            , line ("Current Now: " ++ toString ctx.row.remaining.quanta ++
+                " " ++ state.snapshot.measure.token)
+            , line ("Known future: " ++ toString ctx.row.commitment.quanta ++
+                " " ++ state.snapshot.measure.token)
+            , line ("After-known: " ++ toString ctx.row.headroom.quanta ++
+                " " ++ state.snapshot.measure.token)
+            , line ("Suggested to reach After-known 0: " ++ toString ctx.suggested ++
+                " " ++ state.snapshot.measure.token)
             , line ("Funding residual before unresolved: " ++ residualText)
             , line "Funding residual is advisory current evidence, not an allocation ceiling."
             ]
@@ -270,7 +278,7 @@ def view (state : State) : Widget :=
         , field form 0 "From" form.source
         , field form 1 "To" form.destination
         , field form 2 "Effective" form.effectiveOn
-        , field form 3 "Amount JPY" form.amount
+        , field form 3 ("Amount " ++ state.snapshot.measure.token) form.amount
         , .row
             [ span "[Preview] " (if form.focus = 4 then .selected else .normal)
             , span "[Cancel]" (if form.focus = 5 then .selected else .normal)
@@ -288,19 +296,22 @@ def view (state : State) : Widget :=
       | some ctx =>
           let residualText :=
             match ctx.residual with
-            | some r => toString r.quanta ++ " jpy"
+            | some r => toString r.quanta ++ " " ++ state.snapshot.measure.token
             | none => "unavailable"
           .column
             [ line "Capacity / Cycle Grant / Preview"
             , line ""
             , line ("Purpose:       " ++ ctx.row.purpose.token)
-            , line ("Current Now:   " ++ toString ctx.row.remaining.quanta ++ " jpy")
-            , line ("Known future:  " ++ toString ctx.row.commitment.quanta ++ " jpy")
-            , line ("After-known:   " ++ toString ctx.row.headroom.quanta ++ " jpy")
+            , line ("Current Now:   " ++ toString ctx.row.remaining.quanta ++
+                " " ++ state.snapshot.measure.token)
+            , line ("Known future:  " ++ toString ctx.row.commitment.quanta ++
+                " " ++ state.snapshot.measure.token)
+            , line ("After-known:   " ++ toString ctx.row.headroom.quanta ++
+                " " ++ state.snapshot.measure.token)
             , line ""
             , line ("From:          " ++ Loam.CapacityPublisher.coordinateToken draft.source)
             , line ("Effective:     " ++ draft.effectiveOn)
-            , line ("Amount:        " ++ toString draft.quanta ++ " jpy")
+            , line ("Amount:        " ++ toString draft.quanta ++ " " ++ draft.measure.token)
             , line ""
             , line "Funding residual before unresolved:"
             , line residualText
@@ -319,7 +330,7 @@ def view (state : State) : Widget :=
             , line ("From: " ++ Loam.CapacityPublisher.coordinateToken draft.source)
             , line ("To: " ++ Loam.CapacityPublisher.coordinateToken draft.destination)
             , line ("Effective: " ++ draft.effectiveOn)
-            , line ("Amount: " ++ toString draft.quanta ++ " jpy")
+            , line ("Amount: " ++ toString draft.quanta ++ " " ++ draft.measure.token)
             , line "Current all-retained Entitlement -> after this movement:"
             , line ("  " ++ impactLine state.snapshot draft.source draft.quanta true)
             , line ("  " ++ impactLine state.snapshot draft.destination draft.quanta false)
