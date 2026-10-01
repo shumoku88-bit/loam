@@ -47,32 +47,45 @@ def rememberedPurposes (memory : CapacityMemory) : List PurposeId :=
         purposes)
     []
 
-/-- Current all-retained JPY entitlement projection for every remembered Purpose. -/
-def snapshot (memory : CapacityMemory) : Snapshot :=
-  let yen : MeasureId := ⟨"jpy"⟩
+/-- Current all-retained entitlement projection for one explicit Measure. -/
+def snapshotForMeasure (measure : MeasureId) (memory : CapacityMemory) : Snapshot :=
   { rows := (rememberedPurposes memory).map fun purpose =>
       { purpose := purpose
-        entitlement := entitlementAt memory.movements purpose yen } }
+        entitlement := entitlementAt memory.movements purpose measure } }
+
+/-- Backward-compatible all-retained view for the current JPY household. -/
+def snapshot (memory : CapacityMemory) : Snapshot :=
+  snapshotForMeasure ⟨"jpy"⟩ memory
 
 /--
 Load the practical all-retained view. Missing storage follows the existing
 Capacity entrance/view policy and is the empty retained movement history;
 malformed configured evidence still refuses.
 -/
-def loadSnapshot (path : System.FilePath) : IO (Except String Snapshot) := do
+def loadSnapshotForMeasure
+    (measure : MeasureId) (path : System.FilePath) : IO (Except String Snapshot) := do
   let image ←
     match ← Loam.CapacityAuthority.loadOrEmpty path with
     | .ok image => pure image
     | .error message => return .error message
-  return .ok (snapshot image.movements)
+  return .ok (snapshotForMeasure measure image.movements)
+
+/-- Backward-compatible loader for the current JPY household. -/
+def loadSnapshot (path : System.FilePath) : IO (Except String Snapshot) :=
+  loadSnapshotForMeasure ⟨"jpy"⟩ path
 
 /--
 Load canonical Capacity evidence from one household root. High-level frontends
 use this entrance so canonical physical file selection remains owned by the
 shared review boundary. Explicit-path diagnostic callers keep `loadSnapshot`.
 -/
+def loadSnapshotFromHouseholdRootForMeasure
+    (measure : MeasureId) (root : System.FilePath) : IO (Except String Snapshot) :=
+  loadSnapshotForMeasure measure (Loam.HouseholdPaths.capacity root)
+
+/-- Backward-compatible household-root loader for the current JPY household. -/
 def loadSnapshotFromHouseholdRoot
     (root : System.FilePath) : IO (Except String Snapshot) :=
-  loadSnapshot (Loam.HouseholdPaths.capacity root)
+  loadSnapshotFromHouseholdRootForMeasure ⟨"jpy"⟩ root
 
 end Loam.CapacityReview
