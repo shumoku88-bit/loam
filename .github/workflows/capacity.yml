@@ -126,3 +126,19 @@ jobs:
           printf '%s\n' "$window"
           grep -F 'food: 60 jpy' <<<"$window"
           grep -F 'groceries: 40 jpy' <<<"$window"
+
+          usd_capacity="$tmpdir/capacity-usd.loam"
+          usd_recorded="$(printf 'unallocated\ntravel\n75\n' | LOAM_MEASURE=usd .lake/build/bin/loamCapacity "$usd_capacity")"
+          printf '%s\n' "$usd_recorded"
+          grep -F '75 usd' <<<"$usd_recorded"
+          ! grep -F ' jpy' <<<"$usd_recorded"
+
+          usd_output="$(LOAM_MEASURE=usd .lake/build/bin/loamCapacity show "$usd_capacity")"
+          printf '%s\n' "$usd_output"
+          grep -F 'travel: 75 usd' <<<"$usd_output"
+          ! grep -F ' jpy' <<<"$usd_output"
+
+          usd_window="$(LOAM_MEASURE=usd .lake/build/bin/loamCapacity show-window "$usd_capacity" 2026-01-01 2099-01-01)"
+          printf '%s\n' "$usd_window"
+          grep -F 'travel: 75 usd' <<<"$usd_window"
+          ! grep -F ' jpy' <<<"$usd_window"
