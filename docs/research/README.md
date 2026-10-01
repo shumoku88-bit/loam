@@ -78,6 +78,8 @@ Historical dated checkpoints live under `household/checkpoints/`.
 
 `external-pressure/` contains surveys and compression checkpoints derived from mature accounting and household systems used as adversarial pressure against LOAM's current evidence model.
 
+- [`LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md`](external-pressure/LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md) — compares text authority, disposable SQLite projection, and SQLite canonical authority before any persistence migration.
+
 ## Falsification
 
 `falsification/` contains the domain falsification atlas, progress authority, selection checkpoints, and concept-pressure checkpoint.
