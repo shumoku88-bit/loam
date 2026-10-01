@@ -329,16 +329,26 @@ private def pendingLines : PendingEvidence → List Widget
 
 private def statusTokens
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List String :=
-  let scheduled :=
-    match homeScheduledEvidence snapshot state with
-    | .error _ => "Unavailable"
-    | .ok (.due _ rest) => "Due (" ++ toString (rest.length + 1) ++ ")"
-    | .ok .unknown => "Unknown"
-  let pendingStatus :=
-    match pending with
-    | .ok records => toString records.length
-    | .error _ => "Unavailable"
-  ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus]
+  match state.zoomLevel with
+  | .day =>
+      let scheduled :=
+        match homeScheduledEvidence snapshot state with
+        | .error _ => "Unavailable"
+        | .ok (.due _ rest) => "Due (" ++ toString (rest.length + 1) ++ ")"
+        | .ok .unknown => "Unknown"
+      let pendingStatus :=
+        match pending with
+        | .ok records => toString records.length
+        | .error _ => "Unavailable"
+      ["Scheduled: " ++ scheduled, "Pending: " ++ pendingStatus]
+  | .month =>
+      let m := selectedMonth state
+      let count := (recordsForMonth snapshot m.year m.month).length
+      [s!"Transactions: {count}"]
+  | .year =>
+      let y := (selectedMonth state).year
+      let count := (recordsForYear snapshot y).length
+      [s!"Transactions: {count}"]
 
 private def shortPaceDate (date : String) : String :=
   String.ofList (date.toList.drop 5)
@@ -631,6 +641,146 @@ private def yearOverviewPane
   , blankLine
   ]
 
+private def monthWindowFor (m : Loam.Tui.Calendar.Month) : String × String :=
+  Loam.Tui.Calendar.monthWindow m
+
+private def yearWindowFor (year : Nat) : String × String :=
+  (Loam.Tui.Calendar.padded 4 year ++ "-01-01", Loam.Tui.Calendar.padded 4 (year + 1) ++ "-01-01")
+
+structure PeriodFlowSummary where
+  measure : Loam.Core.MeasureId
+  plusText : String
+  minusText : String
+  netText : String
+  dailyAvgText : String
+  monthlyAvgText : String
+  unresolvedCount : Nat
+
+private def periodFlowSummary?
+    (snapshot : Snapshot) (window : String × String) (daysInPeriod : Nat) : Option PeriodFlowSummary :=
+  match snapshot.moneyCalendar with
+  | .loaded money =>
+      let measures := money.flow.measuresInWindow window.1 window.2
+      match measures.head? with
+      | none => none
+      | some measure =>
+          let summary := money.flow.summaryForWindow window.1 window.2 measure
+          let net := summary.plus.quanta - summary.minus.quanta
+          let plusFormatted := "+" ++ groupedQuantaText money measure summary.plus.quanta
+          let minusFormatted := "-" ++ groupedQuantaText money measure summary.minus.quanta
+          let netFormatted :=
+            if net > 0 then "+" ++ groupedQuantaText money measure net
+            else groupedQuantaText money measure net
+          let dailyAvg := if daysInPeriod > 0 then summary.minus.quanta / (daysInPeriod : Int) else 0
+          let dailyAvgFormatted := groupedQuantaText money measure dailyAvg
+          let monthlyAvg := summary.minus.quanta / 12
+          let monthlyAvgFormatted := groupedQuantaText money measure monthlyAvg
+          some {
+            measure := measure
+            plusText := plusFormatted
+            minusText := minusFormatted
+            netText := netFormatted
+            dailyAvgText := dailyAvgFormatted
+            monthlyAvgText := monthlyAvgFormatted
+            unresolvedCount := summary.unresolvedEffectCount
+          }
+  | _ => none
+
+private def monthSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
+  let m := selectedMonth state
+  let window := monthWindowFor m
+  let days := (Loam.Tui.Calendar.daysInMonth? m).getD 30
+  let records := recordsForMonth snapshot m.year m.month
+  match periodFlowSummary? snapshot window days with
+  | some flow =>
+      let unresolved := if flow.unresolvedCount > 0 then s!" (? {flow.unresolvedCount})" else ""
+      [ plainLine s!" Month Flow: {flow.plusText}  {flow.minusText}  = {flow.netText}{unresolved}"
+      , mutedLine s!" Transactions: {records.length} recorded  (avg: {flow.dailyAvgText}/day)"
+      ]
+  | none =>
+      [ mutedLine s!" Month: {records.length} transactions recorded" ]
+
+private def wideMonthSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
+  let m := selectedMonth state
+  let window := monthWindowFor m
+  let days := (Loam.Tui.Calendar.daysInMonth? m).getD 30
+  let records := recordsForMonth snapshot m.year m.month
+  let flowLines :=
+    match periodFlowSummary? snapshot window days with
+    | some flow =>
+        let unresolvedText :=
+          if flow.unresolvedCount > 0 then s!"  (? {flow.unresolvedCount} unresolved)" else ""
+        [ plainLine s!" Month Flow ({Loam.Tui.Calendar.monthLabel m})"
+        , plainLine s!"   Inflow:  {flow.plusText}   Outflow: {flow.minusText}"
+        , plainLine s!"   Net:     {flow.netText}{unresolvedText}"
+        , mutedLine s!"   Daily average: {flow.dailyAvgText} / day"
+        ]
+    | none =>
+        [ mutedLine s!" Month Flow ({Loam.Tui.Calendar.monthLabel m})"
+        , mutedLine "   flow data unavailable"
+        ]
+  let countText :=
+    if records.isEmpty then "0 recorded"
+    else s!"{records.length} recorded"
+  let activityLines :=
+    [ mutedLine " Activity"
+    , plainLine s!"   Transactions: {countText}"
+    ]
+  flowLines ++ [blankLine] ++ activityLines
+
+private def yearSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
+  let year := (selectedMonth state).year
+  let window := yearWindowFor year
+  let isLeap := Loam.Tui.Calendar.isLeapYear year
+  let days := if isLeap then 366 else 365
+  let records := recordsForYear snapshot year
+  match periodFlowSummary? snapshot window days with
+  | some flow =>
+      let unresolved := if flow.unresolvedCount > 0 then s!" (? {flow.unresolvedCount})" else ""
+      [ plainLine s!" Year Flow: {flow.plusText}  {flow.minusText}  = {flow.netText}{unresolved}"
+      , mutedLine s!" Total Transactions: {records.length} recorded  (avg: {flow.monthlyAvgText}/month)"
+      ]
+  | none =>
+      [ mutedLine s!" Year: {records.length} total transactions recorded" ]
+
+private def wideYearSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
+  let year := (selectedMonth state).year
+  let window := yearWindowFor year
+  let isLeap := Loam.Tui.Calendar.isLeapYear year
+  let days := if isLeap then 366 else 365
+  let records := recordsForYear snapshot year
+  let flowLines :=
+    match periodFlowSummary? snapshot window days with
+    | some flow =>
+        let unresolvedText :=
+          if flow.unresolvedCount > 0 then s!"  (? {flow.unresolvedCount} unresolved)" else ""
+        [ plainLine s!" Year Flow ({year})"
+        , plainLine s!"   Inflow:  {flow.plusText}   Outflow: {flow.minusText}"
+        , plainLine s!"   Net:     {flow.netText}{unresolvedText}"
+        , mutedLine s!"   Monthly average: {flow.monthlyAvgText} / month"
+        ]
+    | none =>
+        [ mutedLine s!" Year Flow ({year})"
+        , mutedLine "   flow data unavailable"
+        ]
+  let monthCounts := (List.range 12).map fun i =>
+    let mo := i + 1
+    (mo, (recordsForMonth snapshot year mo).length)
+  let peak := monthCounts.foldl (fun (pMo, pCnt) (mo, cnt) => if cnt > pCnt then (mo, cnt) else (pMo, pCnt)) (1, 0)
+  let peakName := monthNames.getD (peak.1 - 1) (toString peak.1)
+  let peakText :=
+    if peak.2 == 0 then "none"
+    else s!"{peakName} ({peak.2} transactions)"
+  let countText :=
+    if records.isEmpty then "0 recorded"
+    else s!"{records.length} recorded"
+  let activityLines :=
+    [ mutedLine " Activity"
+    , plainLine s!"   Total Transactions: {countText}"
+    , mutedLine s!"   Peak Month: {peakText}"
+    ]
+  flowLines ++ [blankLine] ++ activityLines
+
 private def wideCalendarPane
     (paneWidth : Nat)
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : Widget :=
@@ -651,31 +801,42 @@ private def wideCalendarPane
         | .money =>
             moneyCalendarBlock paneWidth snapshot state pastOpenDates
     | .month =>
-        monthCalendarPane snapshot state ++ wideHomeSummaryLines snapshot
+        monthCalendarPane snapshot state ++ wideMonthSummaryLines snapshot state
     | .year =>
-        yearOverviewPane snapshot state ++ wideHomeSummaryLines snapshot
+        yearOverviewPane snapshot state ++ wideYearSummaryLines snapshot state
 
 private def wideDetailLines
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
-  pendingSection pending ++
-  [ blankLine
-  , plainLine " Actual"
-  ] ++
-  actualLines snapshot state ++
-  [ blankLine
-  , plainLine " Scheduled"
-  ] ++
-  scheduledLines snapshot state
+  match state.zoomLevel with
+  | .day =>
+      pendingSection pending ++
+      [ blankLine
+      , plainLine " Actual"
+      ] ++
+      actualLines snapshot state ++
+      [ blankLine
+      , plainLine " Scheduled"
+      ] ++
+      scheduledLines snapshot state
+  | .month | .year =>
+      [ blankLine
+      , plainLine " Actual Transactions"
+      ] ++
+      actualLines snapshot state
 
 private def wideDetailHeaderRows : Nat := 4
 
 private def wideDetailVisibleRows (panelRows : Nat) : Nat :=
   panelRows - wideDetailHeaderRows
 
-private def widePendingMarkerExplanation : PendingEvidence → Widget
-  | .ok [] => blankLine
-  | .ok _ => mutedLine " ! = expected date passed; Scheduled is still current-open"
-  | .error _ => blankLine
+private def widePendingMarkerExplanation (state : State) (pending : PendingEvidence) : Widget :=
+  match state.zoomLevel with
+  | .day =>
+      match pending with
+      | .ok [] => blankLine
+      | .ok _ => mutedLine " ! = expected date passed; Scheduled is still current-open"
+      | .error _ => blankLine
+  | .month | .year => blankLine
 
 private def wideScrollHint (content visible offset : Nat) : Widget :=
   if content ≤ visible then blankLine
@@ -720,7 +881,7 @@ private def wideSelectedDayPane
   .column
     ([ .row ([span headerLabel (if isDetailFocused then .selected else .muted), span headerValue .selected] ++ focusBadge)
      , mutedLine (" " ++ status ++ scrollInfo)
-     , widePendingMarkerExplanation pending
+     , widePendingMarkerExplanation state pending
      , wideScrollHint details.length visible offset
      ] ++
      ((details.drop offset).take visible))
@@ -765,23 +926,30 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
        | .money =>
            moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
    | .month =>
-       monthCalendarPane snapshot state ++ homeSummaryLines snapshot
+       monthCalendarPane snapshot state ++ monthSummaryLines snapshot state
    | .year =>
-       yearOverviewPane snapshot state ++ homeSummaryLines snapshot) ++
+       yearOverviewPane snapshot state ++ yearSummaryLines snapshot state) ++
   [ ruleLine bounds '-'
   , plainLine (" " ++ headerLabel ++ " : " ++ headerValue ++ "  [Enter] open workspace")
   ] ++
   (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  " (statusTokens snapshot state pending)).map
     (fun text => mutedLine (" " ++ text)) ++
-  pendingSection pending ++
-  [ blankLine
-  , plainLine " Actual Transactions:"
-  ] ++
-  actualLines snapshot state ++
-  [ blankLine
-  , plainLine " Scheduled:"
-  ] ++
-  scheduledLines snapshot state ++
+  (match state.zoomLevel with
+   | .day =>
+       pendingSection pending ++
+       [ blankLine
+       , plainLine " Actual Transactions:"
+       ] ++
+       actualLines snapshot state ++
+       [ blankLine
+       , plainLine " Scheduled:"
+       ] ++
+       scheduledLines snapshot state
+   | .month | .year =>
+       [ blankLine
+       , plainLine " Actual Transactions:"
+       ] ++
+       actualLines snapshot state) ++
   [ruleLine bounds '=']
 
 private def wideHomeBody
@@ -895,8 +1063,10 @@ def moveDetailCursor
       let panelRows := widePanelRows bounds footerRows
       let visible := wideDetailVisibleRows panelRows
       let pending := pendingEvidence snapshot
-      let pendingCount := (pendingSection pending).length
-      let actualHeaderRows := pendingCount + 2
+      let actualHeaderRows :=
+        match nextState.zoomLevel with
+        | .day => (pendingSection pending).length + 2
+        | .month | .year => 2
       let idx := nextState.detailCursor
       match records[idx]? with
       | none => nextState
