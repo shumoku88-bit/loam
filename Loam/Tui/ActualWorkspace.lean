@@ -28,7 +28,7 @@ inductive Pane where
 structure State where
   focusDate : String
   scope : Scope := .focusDay
-  order : SortOrder := .asc
+  order : SortOrder := .desc
   pane : Pane := .loci
   locusRow : Nat := 0
   transactionRow : Nat := 0
@@ -274,20 +274,17 @@ private def txSummary (record : ReviewRecord) : String :=
     else Loam.ActualReview.displayText record.description
   record.date.getD "date unknown" ++ "  " ++ positiveSummary record ++ "  " ++ description
 
-private def locusWindowStart (state : State) : Nat :=
-  if state.locusRow > 6 then state.locusRow - 5 else 0
-
-private def txWindowStart (state : State) : Nat :=
-  if state.transactionRow > 6 then state.transactionRow - 5 else 0
+private def paneWindowStart (selected visibleRows : Nat) : Nat :=
+  Loam.Tui.Layout.trailingWindowStart selected (max 1 visibleRows)
 
 private def locusLabel (snapshot : Snapshot) (state : State) (row : Nat) : Option String :=
   if row = 0 then some "[All loci]"
   else (lociForScope snapshot state)[row - 1]?.map (displayLocus state)
 
 private def paneRow (snapshot : Snapshot) (state : State)
-    (leftWidth rightWidth row : Nat) : Widget :=
-  let locusIndex := locusWindowStart state + row
-  let txIndex := txWindowStart state + row
+    (leftWidth rightWidth visibleRows row : Nat) : Widget :=
+  let locusIndex := paneWindowStart state.locusRow visibleRows + row
+  let txIndex := paneWindowStart state.transactionRow visibleRows + row
   let leftPrefix :=
     if locusIndex = state.locusRow then
       if state.pane == .loci then " > " else " * "
@@ -382,6 +379,12 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       let cursor := if state.searchEditing then "_" else ""
       [plainLine (Loam.Tui.Layout.clip writable
         (" Search: /" ++ state.searchQuery ++ cursor))]
+  let details := detailLines snapshot state
+  let footerLines := footer bounds state
+  let noticeRows := if state.notice.isEmpty then 0 else 1
+  let fixedBodyRows := 7 + searchLine.length + details.length + noticeRows
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
+  let paneRows := max 1 (bodyCapacity - fixedBodyRows)
   let body :=
     [ rule bounds '='
     , plainLine " Household Actuals Workspace"
@@ -391,9 +394,9 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     [ rule bounds '='
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++
-    (List.range 8).map (paneRow snapshot state leftWidth rightWidth) ++
-    [rule bounds '-'] ++ detailLines snapshot state ++
+    (List.range paneRows).map (paneRow snapshot state leftWidth rightWidth paneRows) ++
+    [rule bounds '-'] ++ details ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds state))
+  .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
 
 end Loam.Tui.ActualWorkspace
