@@ -18,6 +18,8 @@ on:
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam/Cli/HouseholdObservation.lean'
+      - 'Loam/Cli/ActualObservationCli.lean'
+      - 'Loam/Tests/ActualObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -39,6 +41,8 @@ on:
       - 'Loam/Tests/SparseMovementPublication.lean'
       - 'Loam/Cli/HouseholdObservationCli.lean'
       - 'Loam/Cli/HouseholdObservation.lean'
+      - 'Loam/Cli/ActualObservationCli.lean'
+      - 'Loam/Tests/ActualObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -80,6 +84,9 @@ jobs:
           set -euo pipefail
           fixture="$(mktemp -d)/multimeasure-recording"
           lake env lean --run Loam/Tests/MultimeasureRecordingPublishers.lean "$fixture"
+
+      - name: Qualify ACTUAL1 month presentation transport
+        run: lake env lean --run Loam/Tests/ActualObservationCli.lean
 
       - name: Qualify HOBS1 cycle funding diagnostics
         shell: bash

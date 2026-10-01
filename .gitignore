@@ -1,5 +1,6 @@
 # Build outputs
 .lake/
+gui/src-tauri/target/
 dist-newstyle/
 
 # Local generated, test, qualification, and dogfood material.
