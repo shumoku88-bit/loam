@@ -604,7 +604,7 @@ private def monthCalendarPane
   , blankLine
   , monthQuarterRow today state snapshot year 10
   , blankLine
-  , mutedLine " [Enter] zoom into month  [h/l/k/j] move  [Tab] view"
+  , mutedLine " [Enter] days  [Tab] transactions"
   , blankLine
   ]
 
@@ -637,173 +637,81 @@ private def yearOverviewPane
   , blankLine
   ] ++ rows ++
   [ blankLine
-  , mutedLine " [Enter] zoom into year  [k/j] move  [Tab] view"
+  , mutedLine " [Enter] months  [Tab] transactions"
   , blankLine
   ]
 
-private def monthWindowFor (m : Loam.Tui.Calendar.Month) : String × String :=
-  Loam.Tui.Calendar.monthWindow m
-
-private def yearWindowFor (year : Nat) : String × String :=
-  (Loam.Tui.Calendar.padded 4 year ++ "-01-01", Loam.Tui.Calendar.padded 4 (year + 1) ++ "-01-01")
-
-structure PeriodFlowSummary where
-  measure : Loam.Core.MeasureId
-  plusText : String
-  minusText : String
-  netText : String
-  dailyAvgText : String
-  monthlyAvgText : String
-  unresolvedCount : Nat
-
-private def periodFlowSummary?
-    (snapshot : Snapshot) (window : String × String) (daysInPeriod : Nat) : Option PeriodFlowSummary :=
-  match snapshot.moneyCalendar with
-  | .loaded money =>
-      let measures := money.flow.measuresInWindow window.1 window.2
-      match measures.head? with
-      | none => none
-      | some measure =>
-          let summary := money.flow.summaryForWindow window.1 window.2 measure
-          let net := summary.plus.quanta - summary.minus.quanta
-          let plusFormatted := "+" ++ groupedQuantaText money measure summary.plus.quanta
-          let minusFormatted := "-" ++ groupedQuantaText money measure summary.minus.quanta
-          let netFormatted :=
-            if net > 0 then "+" ++ groupedQuantaText money measure net
-            else groupedQuantaText money measure net
-          let dailyAvg := if daysInPeriod > 0 then summary.minus.quanta / (daysInPeriod : Int) else 0
-          let dailyAvgFormatted := groupedQuantaText money measure dailyAvg
-          let monthlyAvg := summary.minus.quanta / 12
-          let monthlyAvgFormatted := groupedQuantaText money measure monthlyAvg
-          some {
-            measure := measure
-            plusText := plusFormatted
-            minusText := minusFormatted
-            netText := netFormatted
-            dailyAvgText := dailyAvgFormatted
-            monthlyAvgText := monthlyAvgFormatted
-            unresolvedCount := summary.unresolvedEffectCount
-          }
-  | _ => none
-
-private def monthSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
+/-- One period summary for both layouts. Measures and read states remain distinct. -/
+private def periodSummaryLines
+    (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
   let m := selectedMonth state
-  let window := monthWindowFor m
-  let days := (Loam.Tui.Calendar.daysInMonth? m).getD 30
-  let records := recordsForMonth snapshot m.year m.month
-  match periodFlowSummary? snapshot window days with
-  | some flow =>
-      let unresolved := if flow.unresolvedCount > 0 then s!" (? {flow.unresolvedCount})" else ""
-      [ plainLine s!" Month Flow: {flow.plusText}  {flow.minusText}  = {flow.netText}{unresolved}"
-      , mutedLine s!" Transactions: {records.length} recorded  (avg: {flow.dailyAvgText}/day)"
-      ]
-  | none =>
-      [ mutedLine s!" Month: {records.length} transactions recorded" ]
-
-private def wideMonthSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
-  let m := selectedMonth state
-  let window := monthWindowFor m
-  let days := (Loam.Tui.Calendar.daysInMonth? m).getD 30
-  let records := recordsForMonth snapshot m.year m.month
+  let isYear := state.zoomLevel == .year
+  let firstMonth := if isYear then { m with month := 1 } else m
+  let lastMonth := if isYear then { m with month := 12 } else m
+  -- Lexical bounds over admitted ISO dates, not dates to publish. Day 32 includes
+  -- the final month's last day without overflowing the four-digit year domain.
+  let window := (Loam.Tui.Calendar.dateForDay firstMonth 1, Loam.Tui.Calendar.dateForDay lastMonth 32)
+  let label := if isYear then s!"Year Flow ({m.year})" else s!"Month Flow ({monthTitle state})"
+  let tokens (items : List String) : List Widget :=
+    (Loam.Tui.Layout.flowTokens (width - 3) "  " items).map fun line =>
+      plainLine ("   " ++ line)
   let flowLines :=
-    match periodFlowSummary? snapshot window days with
-    | some flow =>
-        let unresolvedText :=
-          if flow.unresolvedCount > 0 then s!"  (? {flow.unresolvedCount} unresolved)" else ""
-        [ plainLine s!" Month Flow ({Loam.Tui.Calendar.monthLabel m})"
-        , plainLine s!"   Inflow:  {flow.plusText}   Outflow: {flow.minusText}"
-        , plainLine s!"   Net:     {flow.netText}{unresolvedText}"
-        , mutedLine s!"   Daily average: {flow.dailyAvgText} / day"
-        ]
-    | none =>
-        [ mutedLine s!" Month Flow ({Loam.Tui.Calendar.monthLabel m})"
-        , mutedLine "   flow data unavailable"
-        ]
-  let countText :=
-    if records.isEmpty then "0 recorded"
-    else s!"{records.length} recorded"
-  let activityLines :=
-    [ mutedLine " Activity"
-    , plainLine s!"   Transactions: {countText}"
-    ]
-  flowLines ++ [blankLine] ++ activityLines
-
-private def yearSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
-  let year := (selectedMonth state).year
-  let window := yearWindowFor year
-  let isLeap := Loam.Tui.Calendar.isLeapYear year
-  let days := if isLeap then 366 else 365
-  let records := recordsForYear snapshot year
-  match periodFlowSummary? snapshot window days with
-  | some flow =>
-      let unresolved := if flow.unresolvedCount > 0 then s!" (? {flow.unresolvedCount})" else ""
-      [ plainLine s!" Year Flow: {flow.plusText}  {flow.minusText}  = {flow.netText}{unresolved}"
-      , mutedLine s!" Total Transactions: {records.length} recorded  (avg: {flow.monthlyAvgText}/month)"
-      ]
-  | none =>
-      [ mutedLine s!" Year: {records.length} total transactions recorded" ]
-
-private def wideYearSummaryLines (snapshot : Snapshot) (state : State) : List Widget :=
-  let year := (selectedMonth state).year
-  let window := yearWindowFor year
-  let isLeap := Loam.Tui.Calendar.isLeapYear year
-  let days := if isLeap then 366 else 365
-  let records := recordsForYear snapshot year
-  let flowLines :=
-    match periodFlowSummary? snapshot window days with
-    | some flow =>
-        let unresolvedText :=
-          if flow.unresolvedCount > 0 then s!"  (? {flow.unresolvedCount} unresolved)" else ""
-        [ plainLine s!" Year Flow ({year})"
-        , plainLine s!"   Inflow:  {flow.plusText}   Outflow: {flow.minusText}"
-        , plainLine s!"   Net:     {flow.netText}{unresolvedText}"
-        , mutedLine s!"   Monthly average: {flow.monthlyAvgText} / month"
-        ]
-    | none =>
-        [ mutedLine s!" Year Flow ({year})"
-        , mutedLine "   flow data unavailable"
-        ]
-  let monthCounts := (List.range 12).map fun i =>
-    let mo := i + 1
-    (mo, (recordsForMonth snapshot year mo).length)
-  let peak := monthCounts.foldl (fun (pMo, pCnt) (mo, cnt) => if cnt > pCnt then (mo, cnt) else (pMo, pCnt)) (1, 0)
-  let peakName := monthNames.getD (peak.1 - 1) (toString peak.1)
-  let peakText :=
-    if peak.2 == 0 then "none"
-    else s!"{peakName} ({peak.2} transactions)"
-  let countText :=
-    if records.isEmpty then "0 recorded"
-    else s!"{records.length} recorded"
-  let activityLines :=
-    [ mutedLine " Activity"
-    , plainLine s!"   Total Transactions: {countText}"
-    , mutedLine s!"   Peak Month: {peakText}"
-    ]
-  flowLines ++ [blankLine] ++ activityLines
+    match snapshot.moneyCalendar with
+    | .notRequested => [mutedLine "   flow not requested"]
+    | .unavailable => [mutedLine "   flow unavailable"]
+    | .failed message =>
+        [plainLine "   flow read failed"] ++
+        (Loam.Tui.Layout.flowTokens (width - 3) " " (message.splitOn " ")).map
+          (fun line => mutedLine ("   " ++ line))
+    | .loaded money =>
+        let measures := money.flow.measuresInWindow window.1 window.2
+        if measures.isEmpty then
+          [mutedLine "   No recorded income/expense flow."]
+        else
+          measures.flatMap fun measure =>
+            let summary := money.flow.summaryForWindow window.1 window.2 measure
+            let format := groupedQuantaText money measure
+            let net := summary.plus.quanta - summary.minus.quanta
+            let netText := (if net > 0 then "+" else "") ++ format net
+            let divisor := if isYear then some 12 else Loam.Tui.Calendar.daysInMonth? m
+            [plainLine (" " ++ measure.token ++
+              (if summary.unresolvedEffectCount == 0 then "" else " [partial]"))] ++
+            (if summary.unresolvedEffectCount == 0 then [] else
+              tokens [s!"? {summary.unresolvedEffectCount} unresolved effects"]) ++
+            tokens ["In: +" ++ format summary.plus.quanta, "Out: -" ++ format summary.minus.quanta] ++
+            tokens ["Net: " ++ netText] ++
+            (match divisor with
+             | some days =>
+                 let avg := format (summary.minus.quanta / (days : Int))
+                 let unit := if isYear then "month" else "day"
+                 tokens [s!"Out/{unit}: ~{avg}", if isYear then "(full year)" else "(full month)"]
+             | none => [])
+  [ plainLine (" " ++ label)
+  , mutedLine s!" {(homeActualRecords snapshot state).length} transactions recorded"
+  ] ++ flowLines
 
 private def wideCalendarPane
     (paneWidth : Nat)
-    (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : Widget :=
-  .column <|
-    match state.zoomLevel with
-    | .day =>
-        match state.calendarMode with
-        | .plain =>
-            [ plainLine (centeredMonthTitle state)
-            , calendarHeader
-            ] ++
-            calendarRows snapshot.actual.today pastOpenDates state ++
-            [mutedLine " underline = today"] ++
-            (if pastOpenDates.isEmpty then [] else
-              [mutedLine " ! = still current-open"]) ++
-            [blankLine] ++
-            wideHomeSummaryLines snapshot
-        | .money =>
-            moneyCalendarBlock paneWidth snapshot state pastOpenDates
-    | .month =>
-        monthCalendarPane snapshot state ++ wideMonthSummaryLines snapshot state
-    | .year =>
-        yearOverviewPane snapshot state ++ wideYearSummaryLines snapshot state
+    (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : List Widget :=
+  match state.zoomLevel with
+  | .day =>
+      match state.calendarMode with
+      | .plain =>
+          [ plainLine (centeredMonthTitle state)
+          , calendarHeader
+          ] ++
+          calendarRows snapshot.actual.today pastOpenDates state ++
+          [mutedLine " underline = today"] ++
+          (if pastOpenDates.isEmpty then [] else
+            [mutedLine " ! = still current-open"]) ++
+          [blankLine] ++
+          wideHomeSummaryLines snapshot
+      | .money =>
+          moneyCalendarBlock paneWidth snapshot state pastOpenDates
+  | .month =>
+      monthCalendarPane snapshot state ++ periodSummaryLines paneWidth snapshot state
+  | .year =>
+      yearOverviewPane snapshot state ++ periodSummaryLines paneWidth snapshot state
 
 private def wideDetailLines
     (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
@@ -838,18 +746,8 @@ private def widePendingMarkerExplanation (state : State) (pending : PendingEvide
       | .error _ => blankLine
   | .month | .year => blankLine
 
-private def wideScrollHint (content visible offset : Nat) : Widget :=
-  if content ≤ visible then blankLine
-  else
-    let maxOffset := Loam.Tui.Scroll.maxOffset content visible
-    let direction :=
-      if offset = 0 then "↓"
-      else if offset = maxOffset then "↑"
-      else "↑↓"
-    mutedLine (" " ++ direction ++ " scroll  (Ctrl-U/D)")
-
-private def wideSelectedDayPane
-    (panelRows : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : Widget :=
+private def detailPaneLines
+    (panelRows : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
   let details := wideDetailLines snapshot state pending
   let visible := wideDetailVisibleRows panelRows
   let offset := Loam.Tui.Scroll.clamp details.length visible state.detailScroll
@@ -866,9 +764,7 @@ private def wideSelectedDayPane
   let isDetailFocused := state.activePane == .detail
   let focusBadge :=
     if isDetailFocused then
-      [ span " [FOCUSED]" .series2
-      , span "  [j/k] select  [Enter] edit  [h/Esc] back" .muted
-      ]
+      [span " [active]" .series2]
     else
       [ span "  [Tab/w] focus" .muted ]
   let scrollInfo :=
@@ -878,13 +774,13 @@ private def wideSelectedDayPane
       s!" ({offset + 1}..{min (offset + visible) details.length}/{details.length} lines, {percent}%)"
     else
       ""
-  .column
-    ([ .row ([span headerLabel (if isDetailFocused then .selected else .muted), span headerValue .selected] ++ focusBadge)
-     , mutedLine (" " ++ status ++ scrollInfo)
-     , widePendingMarkerExplanation state pending
-     , wideScrollHint details.length visible offset
-     ] ++
-     ((details.drop offset).take visible))
+  [ .row ([span headerLabel (if isDetailFocused then .selected else .muted), span headerValue .selected] ++ focusBadge)
+  , mutedLine (" " ++ status ++ scrollInfo)
+  , widePendingMarkerExplanation state pending
+  , if !isDetailFocused && details.length > visible then
+      mutedLine " [Tab] browse transactions / evidence"
+    else blankLine
+  ] ++ ((details.drop offset).take visible)
 
 private def widePanelRows (bounds : Bounds) (footerRows : Nat) : Nat :=
   Loam.Tui.Layout.footerBodyCapacity bounds footerRows - 4
@@ -926,11 +822,11 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
        | .money =>
            moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
    | .month =>
-       monthCalendarPane snapshot state ++ monthSummaryLines snapshot state
+       monthCalendarPane snapshot state ++ periodSummaryLines (Loam.Tui.Layout.contentWidth bounds) snapshot state
    | .year =>
-       yearOverviewPane snapshot state ++ yearSummaryLines snapshot state) ++
+       yearOverviewPane snapshot state ++ periodSummaryLines (Loam.Tui.Layout.contentWidth bounds) snapshot state) ++
   [ ruleLine bounds '-'
-  , plainLine (" " ++ headerLabel ++ " : " ++ headerValue ++ "  [Enter] open workspace")
+  , plainLine (" " ++ headerLabel ++ " : " ++ headerValue ++ "  [Tab] transactions")
   ] ++
   (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  " (statusTokens snapshot state pending)).map
     (fun text => mutedLine (" " ++ text)) ++
@@ -952,20 +848,31 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
        actualLines snapshot state) ++
   [ruleLine bounds '=']
 
+/-- Do not silently clip additional measures or diagnostics below the calendar. -/
+private def overviewViewport (height : Nat) (state : State) (rows : List Widget) : List Widget :=
+  if rows.length ≤ height then rows
+  else
+    let visible := height - 1
+    let offset := Loam.Tui.Scroll.clamp rows.length visible state.overviewScroll
+    let hint := if state.activePane == .calendar then "[Ctrl-u/d] scroll" else "[Tab] calendar"
+    (rows.drop offset).take visible ++
+      [mutedLine s!" {offset + 1}-{min (offset + visible) rows.length}/{rows.length}  {hint}"]
+
+private def detailPaneWidth (state : State) : Nat :=
+  if state.zoomLevel == .day && state.calendarMode == .money then 50 else 64
+
 private def wideHomeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
   let pending := pendingEvidence snapshot
   let pastOpenDates := pendingDates pending
   let contentWidth := Loam.Tui.Layout.contentWidth bounds
   let dividerWidth := 3
-  let rightWidth :=
-    match state.calendarMode with
-    | .plain => 64
-    | .money => 50
+  let rightWidth := detailPaneWidth state
   let leftWidth := contentWidth - dividerWidth - rightWidth
   let panelRows := widePanelRows bounds footerRows
-  let left := wideCalendarPane leftWidth snapshot state pastOpenDates
-  let right := wideSelectedDayPane panelRows snapshot state pending
+  let leftRows := wideCalendarPane leftWidth snapshot state pastOpenDates
+  let left := Widget.column (overviewViewport panelRows state leftRows)
+  let right := Widget.column (detailPaneLines panelRows snapshot state pending)
   [ ruleLine bounds '='
   , .row
       [ span " LOAM Home: known through " .muted
@@ -985,7 +892,13 @@ private def wideHomeBody
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
   if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
-  else stackedHomeBody bounds snapshot state
+  else if state.activePane == .detail then
+    [ruleLine bounds '=', plainLine " LOAM Home / Transactions", ruleLine bounds '='] ++
+    detailPaneLines (widePanelRows bounds footerRows) snapshot state (pendingEvidence snapshot) ++
+    [ruleLine bounds '=']
+  else
+    overviewViewport (Loam.Tui.Layout.footerBodyCapacity bounds footerRows) state
+      (stackedHomeBody bounds snapshot state)
 
 private def dayHelpTokens (state : State) : List String :=
   let calendarToggle :=
@@ -993,10 +906,16 @@ private def dayHelpTokens (state : State) : List String :=
     | .plain => "[f] flow"
     | .money => "[f] calendar"
   if state.activePane == .detail then
-    ["Detail:", "[j/k] select", "[Enter] open/edit", "[Ctrl-d/u] scroll", "[h/Esc/Tab] calendar", "[q] quit"]
+    ["Detail:", "[j/k] select", "[Enter] open", "[Ctrl-d/u] page", "[h/Esc/Tab] calendar", "[q] quit"]
   else
-    ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[/] jump", "[z] zoom", "[Tab/w] pane", calendarToggle, "[Enter] open",
-     "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
+    let navigation :=
+      match state.zoomLevel with
+      | .day => ["Day:", "[h/l] day", "[k/j] week", calendarToggle, "[Enter] open"]
+      | .month => ["Month:", "[h/l] month", "[k/j] quarter", "[Enter] days"]
+      | .year => ["Year:", "[h/l/k/j] year", "[Enter] months"]
+    navigation ++
+      ["[t] today", "[/] jump", "[z] zoom", "[Tab/w] transactions", "[Ctrl-u/d] scroll",
+       "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
   ["Household:", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
@@ -1010,16 +929,9 @@ private def helpLines (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowLines width "  "
     [dayHelpTokens state, householdHelpTokens, manageHelpTokens]).map mutedLine
 
-/-- Wide Home is a spatial projection; narrow Home retains the stacked projection. -/
+/-- Wide Home shows both panes; narrow Home gives focused transactions the full body. -/
 def usesWideLayout (bounds : Bounds) : Bool :=
   decide (120 ≤ bounds.width)
-
-/-- Layout width may expose a local detail viewport, but never changes arrow-key meaning. -/
-def detailScrollDirection?
-    (bounds : Bounds) : Loam.Tui.Terminal.Key → Option Bool
-  | .ctrl 'u' => if usesWideLayout bounds then some false else none
-  | .ctrl 'd' => if usesWideLayout bounds then some true else none
-  | _ => none
 
 private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
   match state.jumpPrompt with
@@ -1034,57 +946,132 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
       else
         (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ help
 
-/-- Move only the wide Home detail viewport. -/
-def scrollWideDetail
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) (step : Nat := 1) : State :=
-  if !usesWideLayout bounds then state
-  else
-    let footerRows := (homeFooter bounds state).length
-    let panelRows := widePanelRows bounds footerRows
-    let visible := wideDetailVisibleRows panelRows
-    let pending := pendingEvidence snapshot
-    let content := (wideDetailLines snapshot state pending).length
-    let current := Loam.Tui.Scroll.clamp content visible state.detailScroll
-    let next :=
-      if forward then Loam.Tui.Scroll.forward content visible current step
-      else Loam.Tui.Scroll.backward content visible current step
-    { state with detailScroll := next, notice := "" }
+/-- Scroll non-selectable detail evidence when there are no Actual rows. -/
+private def scrollDetail
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) (step : Nat) : State :=
+  let state := { state with notice := "" }
+  let footerRows := (homeFooter bounds state).length
+  let panelRows := widePanelRows bounds footerRows
+  let visible := wideDetailVisibleRows panelRows
+  let pending := pendingEvidence snapshot
+  let content := (wideDetailLines snapshot state pending).length
+  let current := Loam.Tui.Scroll.clamp content visible state.detailScroll
+  let next :=
+    if forward then Loam.Tui.Scroll.forward content visible current step
+    else Loam.Tui.Scroll.backward content visible current step
+  { state with detailScroll := next }
+
+/-- Scroll the active calendar/summary, including overflow in short terminals. -/
+private def scrollOverview
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) : State :=
+  let state := { state with notice := "" }
+  let footerRows := (homeFooter bounds state).length
+  let (height, rows) :=
+    if usesWideLayout bounds then
+      let rightWidth := detailPaneWidth state
+      let width := Loam.Tui.Layout.contentWidth bounds - 3 - rightWidth
+      (widePanelRows bounds footerRows,
+       wideCalendarPane width snapshot state (pendingDates (pendingEvidence snapshot)))
+    else
+      (Loam.Tui.Layout.footerBodyCapacity bounds footerRows, stackedHomeBody bounds snapshot state)
+  let visible := if rows.length > height then height - 1 else height
+  let current := Loam.Tui.Scroll.clamp rows.length visible state.overviewScroll
+  let next :=
+    if forward then Loam.Tui.Scroll.forward rows.length visible current 5
+    else Loam.Tui.Scroll.backward rows.length visible current 5
+  { state with overviewScroll := next }
 
 /-- Move detail cursor and scroll viewport so the selected record is visible. -/
 def moveDetailCursor
     (bounds : Bounds) (snapshot : Snapshot) (state : State) (offset : Int) : State :=
   let nextState := Loam.Tui.Main.moveDetailCursor snapshot state offset
-  if !usesWideLayout bounds then nextState
+  let records := (homeActualRecords snapshot nextState).reverse
+  if records.isEmpty then nextState
   else
-    let records := (homeActualRecords snapshot nextState).reverse
-    if records.isEmpty then nextState
-    else
-      let footerRows := (homeFooter bounds nextState).length
-      let panelRows := widePanelRows bounds footerRows
-      let visible := wideDetailVisibleRows panelRows
-      let pending := pendingEvidence snapshot
-      let actualHeaderRows :=
-        match nextState.zoomLevel with
-        | .day => (pendingSection pending).length + 2
-        | .month | .year => 2
-      let idx := nextState.detailCursor
-      match records[idx]? with
-      | none => nextState
-      | some currentRec =>
-          let prevRows := (records.take idx).foldl (fun acc r => acc + 1 + r.event.effects.length) 0
-          let recStart := actualHeaderRows + prevRows
-          let recEnd := recStart + 1 + currentRec.event.effects.length
-          let content := (wideDetailLines snapshot nextState pending).length
-          let currentScroll := Loam.Tui.Scroll.clamp content visible nextState.detailScroll
-          let adjustedScroll :=
-            if recEnd > currentScroll + visible then
-              if recEnd ≥ visible then recEnd - visible else 0
-            else if recStart < currentScroll then
-              recStart
-            else
-              currentScroll
-          let finalScroll := Loam.Tui.Scroll.clamp content visible adjustedScroll
-          { nextState with detailScroll := finalScroll }
+    let footerRows := (homeFooter bounds nextState).length
+    let panelRows := widePanelRows bounds footerRows
+    let visible := wideDetailVisibleRows panelRows
+    let pending := pendingEvidence snapshot
+    let actualHeaderRows :=
+      match nextState.zoomLevel with
+      | .day => (pendingSection pending).length + 2
+      | .month | .year => 2
+    let idx := nextState.detailCursor
+    match records[idx]? with
+    | none => nextState
+    | some currentRec =>
+        let prevRows := (records.take idx).foldl (fun acc r => acc + 1 + r.event.effects.length) 0
+        let recStart := actualHeaderRows + prevRows
+        let recEnd := recStart + 1 + currentRec.event.effects.length
+        let content := (wideDetailLines snapshot nextState pending).length
+        let currentScroll := Loam.Tui.Scroll.clamp content visible nextState.detailScroll
+        let adjustedScroll :=
+          if recStart < currentScroll || recEnd - recStart > visible then
+            recStart
+          else if recEnd > currentScroll + visible then
+            recEnd - visible
+          else currentScroll
+        let finalScroll := Loam.Tui.Scroll.clamp content visible adjustedScroll
+        { nextState with detailScroll := finalScroll }
+
+/-- Reconcile reloads and geometry without changing any household evidence. -/
+def reconcileState (bounds : Bounds) (snapshot : Snapshot) (state : State) : State :=
+  let state := normalizeDetailCursor snapshot state
+  if state.activePane == .detail then moveDetailCursor bounds snapshot state 0 else state
+
+/-- Pure local navigation. `none` delegates a workspace entrance to the IO shell. -/
+def navigationKey
+    (bounds : Bounds) (snapshot : Snapshot) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Option State :=
+  let state := reconcileState bounds snapshot state
+  let handled := fun next => some (reconcileState bounds snapshot next)
+  if state.jumpPrompt.isSome then
+    handled <| match key with
+    | .escape => closeJumpPrompt state
+    | .backspace => backspaceJump state
+    | .enter => executeJump state
+    | .input char =>
+        if char.isDigit || char == '-' || char == '/' then appendJumpChar state char else state
+    | _ => state
+  else
+    match key with
+    | .input '/' => handled (openJumpPrompt state)
+    | .input 'z' | .input 'Z' => handled (cycleZoomLevel state)
+    | .tab | .input 'w' | .input 'W' => handled (toggleActivePane state)
+    | .input 't' | .input 'T' =>
+        handled { state with
+          selectedDate := snapshot.actual.today
+          notice := ""
+          detailCursor := 0
+          detailScroll := 0
+          overviewScroll := 0
+          activePane := .calendar
+        }
+    | .input 'f' | .input 'F' =>
+        handled (if state.zoomLevel == .day && state.activePane == .calendar then toggleCalendarMode state else state)
+    | .ctrl 'u' | .ctrl 'd' =>
+        let forward := key == .ctrl 'd'
+        if state.activePane == .calendar then handled (scrollOverview bounds snapshot state forward)
+        else if (homeActualRecords snapshot state).isEmpty then
+          some (scrollDetail bounds snapshot state forward 5)
+        else handled (moveDetailCursor bounds snapshot { state with notice := "" } (if forward then 5 else -5))
+    | .escape | .enter =>
+        if state.activePane == .detail then
+          if key == .escape then handled (focusCalendar state) else none
+        else
+          match state.zoomLevel with
+          | .year => handled (setZoomLevel state .month)
+          | .month => handled (setZoomLevel state .day)
+          | .day => if key == .escape then handled state else none
+    | .input 'h' | .input 'H' | .left =>
+        handled (if state.activePane == .detail then focusCalendar state else (update state .left).state)
+    | .input 'l' | .input 'L' | .right =>
+        handled (if state.activePane == .detail then state else (update state .right).state)
+    | .input 'j' | .input 'J' | .down =>
+        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state 1 else (update state .down).state)
+    | .input 'k' | .input 'K' | .up =>
+        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state (-1) else (update state .up).state)
+    | _ => none
 
 /--
 Production Home presentation over LOAM's already-admitted read answers.
@@ -1092,6 +1079,7 @@ This is presentation only: it adds no household authority, cycle policy,
 Scheduled completeness claim, or retained pending status.
 -/
 def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
+  let state := reconcileState bounds snapshot state
   let footer := homeFooter bounds state
   let body := homeBody bounds footer.length snapshot state
   .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
