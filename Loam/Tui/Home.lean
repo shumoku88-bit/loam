@@ -683,9 +683,24 @@ private def wideSelectedDayPane
     | .year =>
         let m := selectedMonth state
         (" Selected Year   ", toString m.year)
+  let isDetailFocused := state.activePane == .detail
+  let focusBadge :=
+    if isDetailFocused then
+      [ span " [FOCUSED]" .series2
+      , span "  [j/k] scroll  [h/Esc] back" .muted
+      ]
+    else
+      [ span "  [Tab/w] focus" .muted ]
+  let scrollInfo :=
+    if details.length > visible then
+      let maxOffset := Loam.Tui.Scroll.maxOffset details.length visible
+      let percent := if maxOffset == 0 then 100 else (offset * 100) / maxOffset
+      s!" ({offset + 1}..{min (offset + visible) details.length}/{details.length} lines, {percent}%)"
+    else
+      ""
   .column
-    ([ .row [span headerLabel .muted, span headerValue .selected]
-     , mutedLine (" " ++ status)
+    ([ .row ([span headerLabel (if isDetailFocused then .selected else .muted), span headerValue .selected] ++ focusBadge)
+     , mutedLine (" " ++ status ++ scrollInfo)
      , widePendingMarkerExplanation pending
      , wideScrollHint details.length visible offset
      ] ++
@@ -790,7 +805,7 @@ private def dayHelpTokens (state : State) : List String :=
     match state.calendarMode with
     | .plain => "[f] flow"
     | .money => "[f] calendar"
-  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[/] jump", "[Tab] view", calendarToggle, "[Enter] open",
+  ["Day:", "[h/l] day", "[k/j] week", "[t] today", "[/] jump", "[z] zoom", "[Tab/w] pane", calendarToggle, "[Enter] open",
    "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
 
 private def householdHelpTokens : List String :=
@@ -831,7 +846,7 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
 
 /-- Move only the wide Home detail viewport. -/
 def scrollWideDetail
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) : State :=
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) (step : Nat := 1) : State :=
   if !usesWideLayout bounds then state
   else
     let footerRows := (homeFooter bounds state).length
@@ -841,8 +856,8 @@ def scrollWideDetail
     let content := (wideDetailLines snapshot state pending).length
     let current := Loam.Tui.Scroll.clamp content visible state.detailScroll
     let next :=
-      if forward then Loam.Tui.Scroll.forward content visible current 1
-      else Loam.Tui.Scroll.backward content visible current 1
+      if forward then Loam.Tui.Scroll.forward content visible current step
+      else Loam.Tui.Scroll.backward content visible current step
     { state with detailScroll := next, notice := "" }
 
 /--

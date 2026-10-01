@@ -64,6 +64,11 @@ inductive CalendarMode where
   | money
   deriving Repr, DecidableEq, BEq
 
+inductive HomePane where
+  | calendar
+  | detail
+  deriving Repr, DecidableEq, BEq
+
 /-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
@@ -76,6 +81,8 @@ structure State where
   zoomLevel : Loam.Tui.DateJump.ZoomLevel := .day
   /-- Active jump input buffer. When `some s`, Home is in jump-prompt mode. -/
   jumpPrompt : Option String := none
+  /-- Currently active/focused pane on the Home surface. -/
+  activePane : HomePane := .calendar
 
 inductive Event where
   | left
@@ -104,6 +111,20 @@ def toggleCalendarMode (state : State) : State :=
     notice := ""
     detailScroll := 0
   }
+
+/-- Toggle focus between calendar and detail pane. -/
+def toggleActivePane (state : State) : State :=
+  let next :=
+    match state.activePane with
+    | .calendar => .detail
+    | .detail => .calendar
+  { state with activePane := next, notice := "" }
+
+def focusCalendar (state : State) : State :=
+  { state with activePane := .calendar, notice := "" }
+
+def focusDetail (state : State) : State :=
+  { state with activePane := .detail, notice := "" }
 
 /-- Cycle calendar zoom level between Day, Month, and Year. -/
 def cycleZoomLevel (state : State) : State :=

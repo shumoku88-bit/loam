@@ -418,8 +418,38 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if key = .tab then
+  else if key = .input 'z' || key = .input 'Z' then
     let home := Loam.Tui.Main.cycleZoomLevel state
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if key = .tab || key = .input 'w' || key = .input 'W' then
+    let home := Loam.Tui.Main.toggleActivePane state
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if state.activePane == .detail && (key = .input 'j' || key = .input 'J' || key = .down) then
+    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state true 1
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if state.activePane == .detail && (key = .input 'k' || key = .input 'K' || key = .up) then
+    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state false 1
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if state.activePane == .detail && key = .ctrl 'd' then
+    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state true 5
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if state.activePane == .detail && key = .ctrl 'u' then
+    let home := Loam.Tui.Home.scrollWideDetail bounds snapshot state false 5
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
+  else if state.activePane == .detail && (key = .input 'h' || key = .input 'H' || key = .left || key = .escape) then
+    let home := Loam.Tui.Main.focusCalendar state
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
