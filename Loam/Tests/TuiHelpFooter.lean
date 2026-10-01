@@ -225,9 +225,9 @@ def main : IO Unit := do
     "money calendar footer did not advertise the return-to-calendar action"
   expect (contains "± jpy" moneyText)
     "money calendar did not expose its selected Measure"
-  expect (contains "+12,000" moneyText && contains "-2,470" moneyText)
-    "money calendar did not render grouped daily + / - totals"
-  expect (contains "+12,000   -2,470   = +9,530" moneyText)
+  expect (contains "+¥12,000" moneyText && contains "-¥2,470" moneyText)
+    "money calendar did not render grouped daily + / - totals with the JPY symbol"
+  expect (contains "+¥12,000   -¥2,470   = +¥9,530" moneyText)
     "money calendar did not render the symbolic monthly + / - / net summary"
   expect (contains "┌" moneyText && contains "┬" moneyText &&
           contains "│" moneyText && contains "┼" moneyText &&
