@@ -44,8 +44,9 @@ Administer one Measure presentation scale:
   ./tools/loam measure-scale LOAM_DATA_DIR MEASURE SCALE
   Used Measures refuse ordinary scale changes; explicit migration is separate.
 
-Record one balanced JPY movement into actual.loam:
+Record one balanced single-Measure movement into actual.loam:
   ./tools/loam movement [LOAM_DATA_DIR]
+  LOAM_MEASURE selects the Measure; default is jpy.
 
 Review one machine-readable Movement proposal without publishing:
   ./tools/loam movement-proposal PROPOSAL_FILE [LOAM_DATA_DIR]
@@ -53,8 +54,9 @@ Review one machine-readable Movement proposal without publishing:
 Record one explicitly accepted machine-readable Movement proposal:
   ./tools/loam movement-proposal-record PROPOSAL_FILE [LOAM_DATA_DIR]
 
-Move JPY spending capacity:
+Move single-Measure spending capacity:
   ./tools/loam capacity CAPACITY_FILE
+  LOAM_MEASURE selects the Measure; default is jpy.
 
 Show spending capacity:
   ./tools/loam capacity show CAPACITY_FILE
