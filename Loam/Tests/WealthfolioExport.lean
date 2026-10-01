@@ -32,6 +32,7 @@ def main : IO Unit := do
       , { locus := ⟨"wise_usd"⟩, role := .asset }
       , { locus := ⟨"food"⟩, role := .expense }
       , { locus := ⟨"salary"⟩, role := .income }
+      , { locus := ⟨"receivable"⟩, role := .asset }
       ])
     "Wealthfolio AccountingRole fixture"
 
@@ -52,6 +53,8 @@ def main : IO Unit := do
     [effect "smbc" "jpy" (-1000), effect "cash" "jpy" 1000]
   let income ← event "income"
     [effect "smbc" "jpy" 2000, effect "salary" "jpy" (-2000)]
+  let receivableTransfer ← event "receivable-transfer"
+    [effect "smbc" "jpy" (-300), effect "receivable" "jpy" 300]
   let usdSpend ← event "usd-spend"
     [effect "wise_usd" "usd" (-1234), effect "food" "usd" 1234]
 
@@ -60,6 +63,7 @@ def main : IO Unit := do
     , { event := spend, validOn := "2026-09-02", description := some "Lunch, \"good\"" }
     , { event := transfer, validOn := "2026-09-03", description := some "cash refill" }
     , { event := income, validOn := "2026-09-04", description := some "salary" }
+    , { event := receivableTransfer, validOn := "2026-09-04", description := some "mother receivable" }
     , { event := usdSpend, validOn := "2026-09-05", description := some "travel food" }
     ]
 
@@ -68,7 +72,7 @@ def main : IO Unit := do
 
   let rendered ←
     match Loam.WealthfolioExport.renderWithPresentation?
-        presentation roles opening entries with
+        presentation roles [⟨"smbc"⟩, ⟨"cash"⟩, ⟨"wise_usd"⟩] opening entries with
     | .ok rendered => pure rendered
     | .error message => throw (IO.userError ("Wealthfolio export failed: " ++ message))
 
@@ -90,6 +94,10 @@ def main : IO Unit := do
     "Asset destination transfer missing"
   expect (contains "2026-09-04,$CASH-JPY,DEPOSIT,JPY,2000,\"smbc\"" rendered)
     "income did not become Asset deposit"
+  expect (contains "2026-09-04,$CASH-JPY,TRANSFER_OUT,JPY,300,\"smbc\"" rendered)
+    "transfer to unselected Asset did not remain a transfer"
+  expect (!contains "\"receivable\"" rendered)
+    "unselected Asset leaked into Wealthfolio cash accounts"
   expect (contains "2026-09-05,$CASH-USD,WITHDRAWAL,USD,12.34,\"wise_usd\"" rendered)
     "Measure presentation scale was not retained"
   expect (!contains "2026-09-01,$CASH-USD,DEPOSIT,USD,0.00" rendered)
@@ -98,7 +106,7 @@ def main : IO Unit := do
   let unresolved ← event "unresolved"
     [effect "smbc" "jpy" (-100), effect "mystery" "jpy" 100]
   match Loam.WealthfolioExport.renderWithPresentation?
-      presentation roles opening
+      presentation roles [⟨"smbc"⟩, ⟨"cash"⟩, ⟨"wise_usd"⟩] opening
       [{ event := unresolved, validOn := "2026-09-06", description := none }] with
   | .ok _ => throw (IO.userError "unresolved AccountingRole was silently exported")
   | .error message =>
@@ -108,7 +116,7 @@ def main : IO Unit := do
   let nonCurrency ← event "points"
     [effect "smbc" "points" (-10), effect "food" "points" 10]
   match Loam.WealthfolioExport.renderWithPresentation?
-      presentation roles opening
+      presentation roles [⟨"smbc"⟩, ⟨"cash"⟩, ⟨"wise_usd"⟩] opening
       [{ event := nonCurrency, validOn := "2026-09-06", description := none }] with
   | .ok _ => throw (IO.userError "non-currency Measure was silently exported")
   | .error message =>
