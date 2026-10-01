@@ -3,6 +3,7 @@ import Loam.Application.CapacityWindowInspection
 import Loam.Authority.CapacityAuthority
 import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
+import Loam.Persistence.TokenSyntax
 import Std
 
 namespace Loam.CapacityCli
@@ -14,12 +15,13 @@ set_option autoImplicit false
 
 private def usage : String :=
   "LOAM spending capacity\n\n" ++
-  "Move JPY capacity between unallocated and purpose coordinates:\n" ++
+  "Move single-Measure capacity between unallocated and purpose coordinates:\n" ++
   "  loam capacity <capacity-file>\n\n" ++
-  "Show current all-history JPY entitlement projections:\n" ++
+  "Show current all-history entitlement projections:\n" ++
   "  loam capacity show <capacity-file>\n\n" ++
-  "Show JPY entitlement projected from movements effective in [start, end):\n" ++
+  "Show entitlement projected from movements effective in [start, end):\n" ++
   "  loam capacity show-window <capacity-file> YYYY-MM-DD YYYY-MM-DD\n\n" ++
+  "LOAM_MEASURE selects the Measure and defaults to jpy.\n" ++
   "Scripted recording may set LOAM_CAPACITY_EFFECTIVE_DATE=YYYY-MM-DD."
 
 private def promptLine (prompt : String) : IO String := do
@@ -28,6 +30,12 @@ private def promptLine (prompt : String) : IO String := do
   stdout.flush
   let stdin ← IO.getStdin
   return (← stdin.getLine).trimAsciiEnd.toString
+
+private def configuredMeasure : IO (Except String MeasureId) := do
+  let token := (← IO.getEnv "LOAM_MEASURE").getD "jpy"
+  if !Loam.Persistence.validToken token then
+    return .error "loam: Measure must be a nonempty single-line token"
+  return .ok ⟨token⟩
 
 private def validateEffectiveDate (text : String) : Except String String :=
   if Loam.ActualDate.validIsoDate text then
@@ -73,10 +81,11 @@ def parseCoordinate? (token : String) : Option CapacityCoordinate :=
   Loam.CapacityPublisher.parseCoordinate? token
 
 /--
-Collect one dated JPY Capacity transfer, then delegate all retained write
-semantics and writer ownership to `CapacityPublisher.publish`.
+Collect one dated single-Measure Capacity transfer, then delegate all retained
+write semantics and writer ownership to `CapacityPublisher.publish`.
 -/
-def recordCapacity (capacityPath : String) : IO UInt32 := do
+def recordCapacityForMeasure
+    (measure : MeasureId) (capacityPath : String) : IO UInt32 := do
   match ← practicalEffectiveDate with
   | Except.error message =>
       IO.eprintln message
@@ -101,6 +110,7 @@ def recordCapacity (capacityPath : String) : IO UInt32 := do
                   return 2
               | some quanta =>
                   let draft : Loam.CapacityPublisher.Draft := {
+                    measure := measure
                     effectiveOn := effectiveOn
                     source := fromCoordinate
                     destination := toCoordinate
@@ -113,17 +123,19 @@ def recordCapacity (capacityPath : String) : IO UInt32 := do
                   | .ok _ =>
                       IO.println
                         ("Recorded capacity movement: " ++ fromText ++ " -> " ++ toText ++
-                          " = " ++ toString draft.quanta ++ " jpy. Effective: " ++ draft.effectiveOn ++ ".")
+                          " = " ++ toString draft.quanta ++ " " ++ draft.measure.token ++
+                          ". Effective: " ++ draft.effectiveOn ++ ".")
                       return 0
 
 /--
-Show the shared all-retained JPY Capacity review.
+Show the shared all-retained single-Measure Capacity review.
 
 This remains the original untimed projection for inspection and compatibility.
 Household cycle questions should use `show-window` instead.
 -/
-def showCapacity (capacityPath : String) : IO UInt32 := do
-  match ← Loam.CapacityReview.loadSnapshot (System.FilePath.mk capacityPath) with
+def showCapacityForMeasure
+    (measure : MeasureId) (capacityPath : String) : IO UInt32 := do
+  match ← Loam.CapacityReview.loadSnapshotForMeasure measure (System.FilePath.mk capacityPath) with
   | .error message =>
       IO.eprintln message
       return 2
@@ -135,11 +147,12 @@ def showCapacity (capacityPath : String) : IO UInt32 := do
         for row in snapshot.rows do
           IO.println
             ("  " ++ row.purpose.token ++ ": " ++
-              toString row.entitlement.quanta ++ " jpy")
+              toString row.entitlement.quanta ++ " " ++ snapshot.measure.token)
       return 0
 
-/-- Show JPY Entitlement selected only by Purpose and a half-open ISO date window. -/
-def showCapacityWindow
+/-- Show single-Measure Entitlement selected by Purpose and a half-open ISO date window. -/
+def showCapacityWindowForMeasure
+    (measure : MeasureId)
     (capacityPath start end_ : String) : IO UInt32 := do
   if !Loam.ActualDate.validIsoDate start || !Loam.ActualDate.validIsoDate end_ then
     IO.eprintln "loam: Capacity window endpoints must be real YYYY-MM-DD calendar dates"
@@ -154,11 +167,10 @@ def showCapacityWindow
         let memory := image.movements
         let effective := image.effective
         let purposes := Loam.CapacityReview.rememberedPurposes memory
-        let yen : MeasureId := ⟨"jpy"⟩
         match purposes.mapM
             (fun purpose =>
               entitlementAtEffectiveWindow?
-                memory effective start end_ purpose yen) with
+                memory effective start end_ purpose measure) with
         | none =>
             IO.eprintln
               "loam: cannot project Capacity window from incomplete effective evidence or an invalid window"
@@ -170,8 +182,34 @@ def showCapacityWindow
               IO.println ("Spending capacity [" ++ start ++ ", " ++ end_ ++ "):")
               for (purpose, quantity) in purposes.zip quantities do
                 IO.println
-                  ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++ " jpy")
+                  ("  " ++ purpose.token ++ ": " ++ toString quantity.quanta ++
+                    " " ++ measure.token)
             return 0
+
+def recordCapacity (capacityPath : String) : IO UInt32 := do
+  match ← configuredMeasure with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok measure =>
+      recordCapacityForMeasure measure capacityPath
+
+def showCapacity (capacityPath : String) : IO UInt32 := do
+  match ← configuredMeasure with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok measure =>
+      showCapacityForMeasure measure capacityPath
+
+def showCapacityWindow
+    (capacityPath start end_ : String) : IO UInt32 := do
+  match ← configuredMeasure with
+  | .error message =>
+      IO.eprintln message
+      return 2
+  | .ok measure =>
+      showCapacityWindowForMeasure measure capacityPath start end_
 
 /-- Command dispatcher for practical Capacity recording and inspection. -/
 def run (args : List String) : IO UInt32 :=
