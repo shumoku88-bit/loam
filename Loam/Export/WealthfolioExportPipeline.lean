@@ -48,24 +48,45 @@ private def conflictsAny
 private def coordinateLabel (coordinate : EffectCoordinate) : String :=
   coordinate.locus.token ++ " / " ++ coordinate.measure.token
 
-private def assetCoordinates
+private def selectedAssetCoordinates
     (roles : AccountingRoleMap)
-    (current : Loam.CurrentBalanceReview.Snapshot) :
+    (current : Loam.CurrentBalanceReview.Snapshot)
+    (accountLoci : List LocusId) :
     Except String (List EffectCoordinate) :=
-  let blockers :=
-    (current.knownPresent ++ current.unsupported).filter fun coordinate =>
-      roles.roleOf? coordinate.locus == some .asset
-  if !blockers.isEmpty then
-    .error
-      ("Wealthfolio cash export requires exact current quantity support for Asset coordinates: " ++
-        String.intercalate ", " (blockers.map coordinateLabel))
+  let selected := accountLoci.eraseDups
+  if selected.isEmpty then
+    .error "Wealthfolio cash export requires at least one selected Asset Locus"
   else
-    .ok <|
-      (current.rows.filterMap fun row =>
-        if roles.roleOf? row.coordinate.locus == some .asset then
-          some row.coordinate
+    let invalid :=
+      selected.filter fun locus => roles.roleOf? locus != some .asset
+    if !invalid.isEmpty then
+      .error
+        ("Wealthfolio cash export requires selected Loci to have AccountingRole ASSET: " ++
+          String.intercalate ", " (invalid.map (·.token)))
+    else
+      let blockers :=
+        (current.knownPresent ++ current.unsupported).filter fun coordinate =>
+          selected.contains coordinate.locus
+      if !blockers.isEmpty then
+        .error
+          ("Wealthfolio cash export requires exact current quantity support for selected coordinates: " ++
+            String.intercalate ", " (blockers.map coordinateLabel))
+      else
+        let coordinates :=
+          (current.rows.filterMap fun row =>
+            if selected.contains row.coordinate.locus then
+              some row.coordinate
+            else
+              none).eraseDups
+        let missing :=
+          selected.filter fun locus =>
+            !coordinates.any fun coordinate => coordinate.locus == locus
+        if !missing.isEmpty then
+          .error
+            ("Wealthfolio cash export found no exact current coordinate for selected Loci: " ++
+              String.intercalate ", " (missing.map (·.token)))
         else
-          none).eraseDups
+          .ok coordinates
 
 /--
 Regenerate one disposable Wealthfolio cash-activity CSV from a household root.
@@ -78,7 +99,8 @@ the export fails closed.
 def exportCsv
     (root : System.FilePath)
     (accountingEpoch : String)
-    (outputFile : System.FilePath) : IO (Except String Unit) := do
+    (outputFile : System.FilePath)
+    (accountLoci : List LocusId) : IO (Except String Unit) := do
   let actualFile := Loam.HouseholdPaths.actual root
   let roleFile := Loam.HouseholdPaths.accountingRole root
   let sourceFiles :=
@@ -116,7 +138,7 @@ def exportCsv
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let coordinates ←
-    match assetCoordinates roles current with
+    match selectedAssetCoordinates roles current accountLoci with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
 
@@ -133,7 +155,7 @@ def exportCsv
 
   let rendered ←
     match Loam.WealthfolioExport.renderWithPresentation?
-        presentation roles opening entries with
+        presentation roles accountLoci opening entries with
     | .error message => return .error message
     | .ok rendered => pure rendered
 
