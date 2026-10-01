@@ -133,5 +133,28 @@ def main (args : List String) : IO Unit := do
     "Capacity transfer preview omitted source current-to-after Entitlement"
   expect (contains "rent: 0 -> 2000 jpy" previewText)
     "Capacity transfer preview omitted destination current-to-after Entitlement"
+  let usd : MeasureId := ⟨"usd"⟩
+  let usdSnapshot : Loam.CapacityReview.Snapshot := {
+    measure := usd
+    rows := [{ purpose := ⟨"food"⟩, entitlement := Quantity.ofQuanta 5000 }]
+  }
+  let usdBase := Loam.Tui.CapacityTransfer.initial usdSnapshot "2026-09-15"
+  let usdState : Loam.Tui.CapacityTransfer.State := {
+    usdBase with form := {
+      usdBase.form with source := "food", destination := "rent", amount := "1200" }
+  }
+  let .ok usdDraft := Loam.Tui.CapacityTransfer.draft? usdState
+    | throw (IO.userError "build USD Capacity transfer draft")
+  expect (usdDraft.measure == usd)
+    "Capacity transfer rewrote the snapshot Measure as JPY"
+  let usdPreview : Loam.Tui.CapacityTransfer.State := {
+    usdState with mode := .preview usdDraft ⟨0, by omega⟩
+  }
+  let usdPreviewText := widgetText (Loam.Tui.CapacityTransfer.view usdPreview)
+  expect
+    (contains "Amount: 1200 usd" usdPreviewText &&
+      contains "food: 5000 -> 3800 usd" usdPreviewText &&
+      !(contains "1200 jpy" usdPreviewText))
+    "Capacity transfer preview did not preserve the USD Measure"
 
   IO.println "TUI Capacity transfer: empty grant, selected-purpose seed, purpose transfer, preview impact, shared publication and fresh review passed."

@@ -29,6 +29,7 @@ structure Row where
   deriving Repr, DecidableEq
 
 structure Snapshot where
+  measure : MeasureId := ⟨"jpy"⟩
   rows : List Row
   deriving Repr, DecidableEq
 
@@ -49,7 +50,8 @@ def rememberedPurposes (memory : CapacityMemory) : List PurposeId :=
 
 /-- Current all-retained entitlement projection for one explicit Measure. -/
 def snapshotForMeasure (measure : MeasureId) (memory : CapacityMemory) : Snapshot :=
-  { rows := (rememberedPurposes memory).map fun purpose =>
+  { measure := measure
+    rows := (rememberedPurposes memory).map fun purpose =>
       { purpose := purpose
         entitlement := entitlementAt memory.movements purpose measure } }
 

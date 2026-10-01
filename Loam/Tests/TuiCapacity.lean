@@ -70,13 +70,18 @@ def main : IO Unit := do
   expect (contains "2 remembered purpose(s)" text) "Capacity purpose count was not rendered"
   expect (contains "food" text && contains "60" text) "food entitlement was not rendered"
   expect (contains "groceries" text && contains "40" text) "groceries entitlement was not rendered"
-  expect (contains "all retained JPY Capacity movements" text)
+  expect (contains "all retained jpy Capacity movements" text)
     "Capacity surface lost its all-retained projection statement"
   expect (contains "not priority" text) "Capacity surface omitted its ordering non-claim"
   expect (contains "No cycle, period, or selected-day meaning" text)
     "Capacity surface accidentally implied temporal policy"
   expect (contains "shared CapacityPublisher owns publication" text)
     "Capacity surface did not identify the shared publication boundary"
+  let usd : MeasureId := ⟨"usd"⟩
+  let usdState := Loam.Tui.Capacity.initial { measure := usd, rows := [food] }
+  let usdText := widgetText (Loam.Tui.Capacity.view usdState)
+  expect (contains "all retained usd Capacity movements" usdText)
+    "Capacity surface rewrote a non-JPY snapshot as JPY"
   expect (Loam.Tui.Capacity.selectedPurpose? state == some ⟨"food"⟩)
     "Capacity did not expose the selected purpose as local transfer seed"
 
@@ -170,6 +175,17 @@ def main : IO Unit := do
     "CHECK diagnosis was not rendered"
   expect (contains "unresolved 9 jpy" unresolvedText)
     "unresolved Scheduled frontier was hidden"
+  let usdCoverage : Loam.CurrentCoverageReview.Snapshot := {
+    unresolvedCoverage with measure := usd
+  }
+  let usdCoverageState := Loam.Tui.Capacity.withCoverage usdCoverage "preset Pension" <|
+    Loam.Tui.Capacity.initial { measure := usd, rows := [baseRow "check" 100] }
+  let usdCoverageText := widgetText (Loam.Tui.Capacity.view usdCoverageState)
+  expect (contains "unresolved 9 usd" usdCoverageText)
+    "Capacity frontier rewrote a non-JPY coverage Measure as JPY"
+  let mismatchState := Loam.Tui.Capacity.withCoverage unresolvedCoverage "preset Pension" usdState
+  expect (mismatchState.coverage.isNone && contains "does not match Capacity Measure" mismatchState.coverageNotice)
+    "Capacity silently combined different review and coverage Measures"
 
   let unavailable := Loam.Tui.Capacity.withoutCoverage
     "no configured boundary preset contains the current date" state

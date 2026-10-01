@@ -19,7 +19,7 @@ set_option autoImplicit false
 
 This is presentation-only state for multi-coordinate Capacity rebalancing.
 It operates over the shared `CapacityReview.Snapshot` (and optional
-`CurrentCoverageReview.Snapshot`), allowing the user to propose signed JPY
+`CurrentCoverageReview.Snapshot`), allowing the user to propose signed single-Measure
 deltas across remembered purposes.
 
 No new Core concept or domain primitive is created; publication delegates
@@ -112,7 +112,9 @@ def update (state : State) (key : Key) : Step :=
           if !state.proposal.hasChanges then
             stay { state with notice := "No changes proposed in rebalance." }
           else if !state.proposal.isBalanced then
-            stay { state with notice := s!"Proposal is unbalanced ({state.proposal.balance} JPY). ΣΔ must be 0." }
+            stay { state with notice :=
+              "Proposal is unbalanced (" ++ toString state.proposal.balance ++ " " ++
+                state.snapshot.measure.token ++ "). ΣΔ must be 0." }
           else
             let currentEnts := state.snapshot.rows.map (fun r => (r.purpose, r.entitlement.quanta))
             let negs := state.proposal.negativePurposes currentEnts
@@ -120,7 +122,8 @@ def update (state : State) (key : Key) : Step :=
               let negDesc := String.intercalate ", " (negs.map (fun (purp, amt) => s!"{purp.token}: {amt}"))
               stay { state with notice := s!"Negative proposed entitlement: {negDesc}." }
             else
-              match state.proposal.toBalancedDraft state.effectiveOn with
+              match state.proposal.toBalancedDraftForMeasure
+                  state.snapshot.measure state.effectiveOn with
               | .error msg => stay { state with notice := msg }
               | .ok draft => stay { state with mode := .preview draft ⟨0, by decide⟩, notice := "" }
       | .input 'q' | .input 'Q' | .escape => cancelStep state
@@ -258,7 +261,7 @@ def view (_bounds : Bounds) (state : State) : Widget :=
             | .purpose p => p.token
           let q := change.quantity.quanta
           let qStr := if q > 0 then "+" ++ toString q else toString q
-          line ("  " ++ padRight 20 cToken ++ qStr ++ " jpy")) ++
+          line ("  " ++ padRight 20 cToken ++ qStr ++ " " ++ draft.measure.token)) ++
         [ blank
         , line "Publication re-reads current Capacity and effective evidence under ownership."
         , blank
@@ -303,9 +306,15 @@ def view (_bounds : Bounds) (state : State) : Widget :=
             | none => "none ✓"
             | some frontier =>
                 let parts :=
-                  (if frontier.unrouted.quanta > 0 then [s!"unrouted {frontier.unrouted.quanta} jpy"] else []) ++
-                  (if frontier.unresolvedEligibility.quanta > 0 then [s!"unresolved {frontier.unresolvedEligibility.quanta} jpy"] else []) ++
-                  (if frontier.unmanaged.quanta > 0 then [s!"unmanaged {frontier.unmanaged.quanta} jpy"] else [])
+                  (if frontier.unrouted.quanta > 0 then
+                    ["unrouted " ++ toString frontier.unrouted.quanta ++ " " ++ cov.measure.token]
+                   else []) ++
+                  (if frontier.unresolvedEligibility.quanta > 0 then
+                    ["unresolved " ++ toString frontier.unresolvedEligibility.quanta ++ " " ++ cov.measure.token]
+                   else []) ++
+                  (if frontier.unmanaged.quanta > 0 then
+                    ["unmanaged " ++ toString frontier.unmanaged.quanta ++ " " ++ cov.measure.token]
+                   else [])
                 if parts.isEmpty then "none ✓"
                 else String.intercalate " | " parts
 
