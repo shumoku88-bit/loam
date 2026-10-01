@@ -17,21 +17,32 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
   | none => throw (IO.userError message)
 
 private def yen : MeasureId := ⟨"jpy"⟩
+private def usd : MeasureId := ⟨"usd"⟩
 private def wallet : LocusId := ⟨"wallet"⟩
 private def cash : LocusId := ⟨"cash"⟩
 private def expense : LocusId := ⟨"expense"⟩
 private def income : LocusId := ⟨"income"⟩
 
-private def coordinate (locus : LocusId) : EffectCoordinate := ⟨locus, yen⟩
+private def coordinateForMeasure (measure : MeasureId) (locus : LocusId) : EffectCoordinate :=
+  ⟨locus, measure⟩
+
+private def coordinate (locus : LocusId) : EffectCoordinate :=
+  coordinateForMeasure yen locus
 
 private def change (locus : LocusId) (quanta : Int) : MovementChange LocusId :=
   { coordinate := locus, quantity := Quantity.ofQuanta quanta }
 
-private def scheduled?
+private def scheduledForMeasure?
+    (measure : MeasureId)
     (id date : String) (changes : List (MovementChange LocusId)) :
     Option (ScheduledOccurrence String) := do
-  let movement ← BalancedMovement.ofChanges? yen changes
+  let movement ← BalancedMovement.ofChanges? measure changes
   pure { id := ⟨id⟩, scheduledOn := date, movement := movement }
+
+private def scheduled?
+    (id date : String) (changes : List (MovementChange LocusId)) :
+    Option (ScheduledOccurrence String) :=
+  scheduledForMeasure? yen id date changes
 
 private def admittedScheduled : IO Loam.ScheduledReview.EvidenceSnapshot := do
   let overdue ← requireSome
@@ -79,7 +90,13 @@ def main : IO Unit := do
   expect ((Loam.DailyPaceConfig.decode? "wallet\tjpy\nwallet\tjpy\n").isNone)
     "Daily Pace config accepted duplicate coordinates"
   expect ((Loam.DailyPaceConfig.decode? "wallet\tusd\n").isNone)
-    "Daily Pace config accepted a non-JPY coordinate"
+    "JPY compatibility Daily Pace config accepted a non-JPY coordinate"
+  expect
+    ((Loam.DailyPaceConfig.decodeForMeasure? usd "wallet\tusd\ncash\tusd\n").isSome)
+    "Daily Pace config rejected a valid explicit USD pool"
+  expect
+    ((Loam.DailyPaceConfig.decodeForMeasure? usd "wallet\tjpy\n").isNone)
+    "USD Daily Pace config accepted a JPY coordinate"
 
   let pace ←
     match Loam.CycleSpendingPaceReview.project
@@ -95,6 +112,51 @@ def main : IO Unit := do
     "Daily Pace available-through-end arithmetic drifted"
   expect (pace.dailyPaceQuanta? == some 170)
     "Daily Pace exact integer-quanta presentation drifted"
+
+  let usdSelection := [coordinateForMeasure usd wallet, coordinateForMeasure usd cash]
+  let usdBalances : Loam.BalanceReview.Snapshot := {
+    rows := [
+      { coordinate := coordinateForMeasure usd wallet, quantity := Quantity.ofQuanta 3000 },
+      { coordinate := coordinateForMeasure usd cash, quantity := Quantity.ofQuanta 500 }
+    ]
+  }
+  let usdOutflow ← requireSome
+    (scheduledForMeasure? usd "usd-outflow" "2026-09-12"
+      [change cash (-700), change expense 700])
+    "USD Daily Pace Scheduled fixture"
+  let jpyOutflow ← requireSome
+    (scheduled? "jpy-outflow" "2026-09-12"
+      [change cash (-900), change expense 900])
+    "JPY isolation Scheduled fixture"
+  let usdScheduledMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [usdOutflow, jpyOutflow])
+    "mixed-Measure Daily Pace Scheduled memory"
+  let usdTerminals ← requireSome (ScheduledTerminalMemory.ofTerminals? [])
+    "mixed-Measure Daily Pace empty terminal memory"
+  let usdEvents ← requireSome (EventMemory.ofEvents? [])
+    "mixed-Measure Daily Pace empty Event memory"
+  let usdScheduled : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := usdScheduledMemory
+    terminals := usdTerminals
+    events := usdEvents
+  }
+  let usdPace ←
+    match Loam.CycleSpendingPaceReview.projectForMeasure
+        usd "2026-09-08" "2026-09-18" usdSelection usdBalances usdScheduled with
+    | .error message => throw (IO.userError message)
+    | .ok value => pure value
+  expect (usdPace.measure == usd) "Daily Pace lost the requested Measure"
+  expect (usdPace.eligiblePool.quanta == 3500) "USD Daily Pace eligible pool"
+  expect (usdPace.automaticDeductions.quanta == 700)
+    "JPY Scheduled pressure leaked into USD Daily Pace"
+  expect (usdPace.availableThroughEnd.quanta == 2800)
+    "USD Daily Pace available-through-end arithmetic"
+  expect (usdPace.dailyPaceQuanta? == some 280)
+    "USD Daily Pace integer-quanta presentation"
+  expectError
+    (Loam.CycleSpendingPaceReview.projectForMeasure
+      usd "2026-09-08" "2026-09-18" selection balances scheduled)
+    "USD Daily Pace accepted a JPY pool"
 
   let earliest ←
     match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
