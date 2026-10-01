@@ -300,4 +300,21 @@ def main (args : List String) : IO Unit := do
   expect (refreshed.focusDate == "2026-09-10" && refreshed.scheduledRow == 0)
     "Scheduled write moved the selected-day coordinate instead of only clamping local selection"
 
+  let some usdReplacementMovement := BalancedMovement.ofChanges? ⟨"usd"⟩
+      [ { coordinate := ⟨"paypay"⟩, quantity := Quantity.ofQuanta (-40) }
+      , { coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 40 } ]
+    | throw (IO.userError "USD replacement fixture")
+  let usdReplacementSource : ScheduledOccurrence String := {
+    id := ⟨"scheduled-usd"⟩
+    scheduledOn := "2026-09-20"
+    movement := usdReplacementMovement }
+  let .ok usdReplacementEditor := Loam.Tui.ScheduledReplacement.initial? usdReplacementSource
+    | throw (IO.userError "initialize USD Scheduled replacement editor")
+  let .ok usdReplacementDraft := Loam.Tui.ScheduledReplacement.draft? usdReplacementEditor
+    | throw (IO.userError "build USD Scheduled replacement draft")
+  expect
+    (usdReplacementEditor.measure == ⟨"usd"⟩ &&
+      usdReplacementDraft.movement.measure == ⟨"usd"⟩)
+    "Scheduled replacement did not preserve a non-JPY Measure"
+
   IO.println "TUI Scheduled terminal: canonical completion endpoint, safe cancellation, editable supersede, shared publication and fresh reads passed."
