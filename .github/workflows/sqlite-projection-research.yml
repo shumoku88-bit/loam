@@ -1,0 +1,44 @@
+name: SQLite Projection Research
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/sqlite_projection/**'
+      - 'docs/research/external-pressure/LOAM_TEXT_SQLITE_PERSISTENCE_STUDY_2026-10.md'
+      - '.github/workflows/sqlite-projection-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  projection:
+    name: Compare admitted LOAM and disposable SQLite answers
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build and run isolated SQLite projection experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/sqlite_projection
+          lake update
+          lake build sqliteProjectionExperiment
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          .lake/build/bin/sqliteProjectionExperiment "$tmp"
