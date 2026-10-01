@@ -158,12 +158,12 @@ private def openingRows
 private def eventComment
     (entry : Loam.ActualJournalProjection.Entry)
     (effect : Effect) : String :=
-  let prefix :=
+  let descriptionPrefix :=
     match entry.description with
     | some description =>
         if description.isEmpty then "" else description ++ " | "
     | none => ""
-  prefix ++
+  descriptionPrefix ++
     "loam_event_id=" ++ entry.event.id.token ++
     " | loam_locus=" ++ effect.locus.token ++
     " | loam_measure=" ++ effect.measure.token
