@@ -1,5 +1,6 @@
 import Loam.Tui.EditorSession
 import Loam.ActualDate
+import Loam.Application.PracticalMovement
 import Loam.Publisher.ActualReversalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Kernel
@@ -43,10 +44,8 @@ def initial?
     (record : Loam.Tui.Main.ReviewRecord) (today : String) : Except String State := do
   if !Loam.ActualDate.validIsoDate today then
     throw "Current date is unavailable for the reversal editor."
-  if !record.event.effects.all (fun effect => decide (effect.measure = ⟨"jpy"⟩)) then
-    throw "This Actual uses a non-JPY measure and cannot use the practical reversal entrance."
-  if record.event.effects.length < 2 then
-    throw "This Actual is outside the practical balanced-Movement reversal entrance."
+  if (Loam.PracticalMovement.ofSingleMeasureEffects? record.event.effects).isNone then
+    throw "This Actual is outside the practical balanced single-Measure reversal entrance."
   pure {
     target := record.event.id
     targetDate := record.date
