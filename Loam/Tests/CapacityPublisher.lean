@@ -122,6 +122,48 @@ private def testBinaryPublisher (dataDir : System.FilePath) : IO Unit := do
     "refused Capacity publication changed the normalized authority"
 
 
+private def testNonJpyPublisher (dataDir : System.FilePath) : IO Unit := do
+  IO.FS.createDirAll dataDir
+  let capacityFile := dataDir / "capacity.loam"
+  let usd : MeasureId := ⟨"usd"⟩
+
+  let grant : Loam.CapacityPublisher.Draft := {
+    measure := usd
+    effectiveOn := "2026-09-08"
+    source := .unallocated
+    destination := .purpose ⟨"food"⟩
+    quanta := 2500
+  }
+  let .ok _ ← Loam.CapacityPublisher.publish capacityFile.toString grant
+    | throw (IO.userError "publish USD Capacity grant")
+  let .ok first ← Loam.CapacityReview.loadSnapshotForMeasure usd capacityFile
+    | throw (IO.userError "load USD Capacity snapshot")
+  expect (rowQuanta? first.rows "food" == some 2500)
+    "USD Capacity grant did not produce the requested Measure entitlement"
+
+  let transfer : Loam.CapacityPublisher.Draft := {
+    measure := usd
+    effectiveOn := "2026-09-09"
+    source := .purpose ⟨"food"⟩
+    destination := .purpose ⟨"rent"⟩
+    quanta := 1000
+  }
+  let .ok _ ← Loam.CapacityPublisher.publish capacityFile.toString transfer
+    | throw (IO.userError "publish USD Capacity transfer")
+  let .ok second ← Loam.CapacityReview.loadSnapshotForMeasure usd capacityFile
+    | throw (IO.userError "reload USD Capacity snapshot")
+  expect
+    (rowQuanta? second.rows "food" == some 1500 &&
+      rowQuanta? second.rows "rent" == some 1000)
+    "USD Capacity transfer did not preserve Measure-specific entitlements"
+
+  let .ok jpy ← Loam.CapacityReview.loadSnapshot capacityFile
+    | throw (IO.userError "load compatibility JPY Capacity snapshot")
+  expect
+    (rowQuanta? jpy.rows "food" == some 0 &&
+      rowQuanta? jpy.rows "rent" == some 0)
+    "USD Capacity evidence leaked into the compatibility JPY projection"
+
 private def testProposalPure : IO Unit := do
   let emptyProp := Loam.CapacityPublisher.Proposal.empty
   expect (!emptyProp.hasChanges) "empty proposal has changes"
@@ -159,7 +201,12 @@ private def testProposalPure : IO Unit := do
 
   let .ok balancedDraft := p2.toBalancedDraft "2026-09-08"
     | throw (IO.userError "p2 should produce valid draft")
-  expect (balancedDraft.changes.length == 3) "balancedDraft should have 3 changes"
+  expect (balancedDraft.measure == ⟨"jpy"⟩ && balancedDraft.changes.length == 3)
+    "compatibility proposal did not retain JPY or all changes"
+  let .ok usdDraft := p2.toBalancedDraftForMeasure ⟨"usd"⟩ "2026-09-08"
+    | throw (IO.userError "USD proposal should produce valid draft")
+  expect (usdDraft.measure == ⟨"usd"⟩)
+    "explicit-Measure proposal was rewritten to JPY"
 
 private def testBalancedPublisher (dataDir : System.FilePath) : IO Unit := do
   IO.FS.createDirAll dataDir
@@ -282,6 +329,7 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
 
   testBinaryPublisher (dataDir / "binary")
+  testNonJpyPublisher (dataDir / "non-jpy")
   testProposalPure
   testBalancedPublisher (dataDir / "balanced")
 
