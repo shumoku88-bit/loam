@@ -81,8 +81,9 @@ def main (args : List String) : IO Unit := do
   expect (stepUp2.state.subjectIndex == 0) "up clamped at 0"
 
   -- 4. Cancel from selectSubject
-  let cancelB := Loam.Tui.ScheduledRouting.update bounds s0 (.input 'b')
-  expect cancelB.cancel "b cancels selectSubject"
+  let ignoredB := Loam.Tui.ScheduledRouting.update bounds s0 (.input 'b')
+  expect (!ignoredB.cancel && ignoredB.state.phase == .selectSubject)
+    "retired b cancel alias survived"
   let cancelEsc := Loam.Tui.ScheduledRouting.update bounds s0 .escape
   expect cancelEsc.cancel "Esc cancels selectSubject"
   let cancelQ := Loam.Tui.ScheduledRouting.update bounds s0 (.input 'q')
@@ -105,8 +106,8 @@ def main (args : List String) : IO Unit := do
   expect (stepToggle2.state.targetChoice == .managed) "tab toggled back to managed"
 
   -- 7. Back from selectTarget to selectSubject
-  let stepBack := Loam.Tui.ScheduledRouting.update bounds sTarget (.input 'b')
-  expect (stepBack.state.phase == .selectSubject) "b returns to selectSubject"
+  let stepBack := Loam.Tui.ScheduledRouting.update bounds sTarget .escape
+  expect (stepBack.state.phase == .selectSubject) "Esc returns to selectSubject"
 
   -- 8. Select unmanaged -> enters preview directly
   let sUnmanaged := { sTarget with targetChoice := .unmanaged }
