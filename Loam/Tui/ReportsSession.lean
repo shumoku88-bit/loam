@@ -74,14 +74,16 @@ private def currentTrendCatalog
 private partial def loop (bounds : Bounds)
     (dataDir root : System.FilePath)
     (state : Loam.Tui.Reports.State)
-    (prepared : Option Loam.Tui.Reports.PreparedScrollView) : IO Bounds := do
+    (prepared : Option Loam.Tui.Reports.PreparedScrollView)
+    (frame : Loam.Tui.Runtime.CompiledWidget) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
   match prepared, scrollDirection? key with
   | some cached, some forward =>
       let next := Loam.Tui.Reports.scrollPrepared state cached forward
-      Loam.Tui.Terminal.redrawWidgetDirect
-        bounds (Loam.Tui.Reports.viewPreparedScroll bounds next cached)
-      loop bounds dataDir root next prepared
+      let nextView := Loam.Tui.Reports.viewPreparedScroll bounds next cached
+      let nextFrame := Loam.Tui.Runtime.compileWidget nextView
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      loop bounds dataDir root next prepared nextFrame
   | _, _ =>
       let activeBounds ←
         if refreshBoundsForKey key then
@@ -175,13 +177,20 @@ private partial def loop (bounds : Bounds)
         | some cached => Loam.Tui.Reports.viewPreparedScroll activeBounds next cached
         | none => Loam.Tui.Reports.viewForBounds activeBounds next
       Loam.Tui.Terminal.redrawWidgetDirect activeBounds nextView
-      loop activeBounds dataDir root next nextPrepared
+      let nextFrame := Loam.Tui.Runtime.compileWidget nextView
+      loop activeBounds dataDir root next nextPrepared nextFrame
 
 /-- Reports session; q/Esc moves back one level and eventually returns Home. -/
 def run (bounds : Bounds)
     (dataDir root : System.FilePath)
-    (state : Loam.Tui.Reports.State) : IO Bounds :=
-  loop bounds dataDir root state (Loam.Tui.Reports.prepareScrollView? bounds state)
+    (state : Loam.Tui.Reports.State) : IO Bounds := do
+  let prepared := Loam.Tui.Reports.prepareScrollView? bounds state
+  let initialView :=
+    match prepared with
+    | some cached => Loam.Tui.Reports.viewPreparedScroll bounds state cached
+    | none => Loam.Tui.Reports.viewForBounds bounds state
+  let frame := Loam.Tui.Runtime.compileWidget initialView
+  loop bounds dataDir root state prepared frame
 
 
 end Loam.Tui.ReportsSession
