@@ -269,7 +269,7 @@ def view (state : State) : Widget :=
       ] ++ coverageFooter state ++
       [ muted "t transfer, r rebalance; shared CapacityPublisher owns publication."
       , muted "unallocated is an allocation boundary, not money available to allocate."
-      , muted "↑/↓ select/scroll   t transfer   r rebalance   q / Esc home"
+      , muted "j/k or ↑/↓ select/scroll   t transfer   r rebalance   q / Esc home"
       , muted state.notice
       ]
 
