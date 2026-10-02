@@ -11,6 +11,8 @@ open Loam.Core Loam.Tui.Record
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+open Loam.Tui.Kernel
+
 private def world : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
   let some vocabulary := LocusAdmissionVocabulary.ofLoci? [⟨"paypay"⟩, ⟨"books"⟩]
