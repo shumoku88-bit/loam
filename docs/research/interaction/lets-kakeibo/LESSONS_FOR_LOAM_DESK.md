@@ -1,7 +1,7 @@
 # Lessons from Let's Kakeibo for LOAM Desk
 
 Date: 2026-10-01  
-Status: **research conclusion; Desk TUI tested and retired; GUI experiment is the next shell hypothesis**
+Status: **research conclusion; Desk TUI and conventional GUI tested and retired; Observatory is the next shell hypothesis**
 
 This note closes the first Let's家計簿 research cycle by separating durable interaction lessons from historical product details.
 
@@ -272,7 +272,7 @@ This is informative rather than a reason to widen the terminal experiment. The m
 
 Therefore the separate Desk TUI implementation is retired rather than grown into a second production TUI.
 
-The next shell experiment should be a small GUI over the existing presentation/read boundary, with the same semantic rule:
+The conventional calendar/ledger Tauri GUI was subsequently implemented and retired because ordinary recording and ledger inspection remained better served by the production TUI. The next shell experiment is LOAM Observatory: a GPU-first, read-only spatial instrument over the existing presentation/read boundary, with the same semantic rule:
 
 ```text
 Core / Authority / Application / Review / Presentation
@@ -281,14 +281,14 @@ Core / Authority / Application / Review / Presentation
               surface-neutral read answers
                          |
                          v
-               replaceable GUI shell
+          replaceable Observatory renderer
 ```
 
-The GUI must not become a second accounting engine.
+The Observatory must not become a second accounting engine.
 
 ## 7. Stop rule for this research cycle
 
-The Let's家計簿 study is sufficiently complete to start a LOAM Desk interaction experiment.
+The Let's家計簿 study is sufficiently complete. New interaction work should proceed through the Observatory hypothesis rather than another ledger-desk shell.
 
 Further archaeology should be demand-driven.
 

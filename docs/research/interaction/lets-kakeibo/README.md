@@ -1,7 +1,7 @@
 # Let's Kakeibo interaction study
 
 Date: 2026-10-01  
-Status: **baseline research complete; Desk TUI experiment concluded; small GUI experiment is next**  
+Status: **baseline research complete; Desk TUI and conventional GUI experiments concluded; Observatory is next**  
 Subject: Let's家計簿 / Let's Kakeibo, with emphasis on long-lived desktop household interaction.
 
 ## Purpose
@@ -36,7 +36,8 @@ The aim is not to clone Let's家計簿. The aim is to understand why a spreadshe
 - [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
 - [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md) — research conclusion: adopt directly, translate into LOAM semantics, reference only, or do not copy.
 - [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md) — completed read/navigation TUI experiment; implementation retired after it did not differentiate enough from the production TUI.
-- [GUI_DESK_V0_HYPOTHESIS.md](GUI_DESK_V0_HYPOTHESIS.md) — next experiment: a small replaceable GUI over existing surface-neutral LOAM read boundaries.
+- [GUI_DESK_V0_HYPOTHESIS.md](GUI_DESK_V0_HYPOTHESIS.md) — completed conventional Tauri workbench experiment; implementation retired after it did not differentiate enough from TUI-era information topology.
+- [LOAM Observatory v0](../LOAM_OBSERVATORY_V0_HYPOTHESIS.md) — next experiment: GPU-first pension-cycle Orbit, followed by evidence X-Ray.
 - [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
 - [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
 
@@ -90,10 +91,11 @@ The first archaeology cycle is complete enough for implementation experiments.
 
 The separate Desk TUI experiment has also completed. It preserved LOAM semantics but did not produce a sufficiently different daily interaction from the production TUI, so its code was retired rather than allowed to become a second terminal product.
 
-Further Let's家計簿 research should be demand-driven rather than exhaustive. New historical work should answer a concrete design question raised by GUI implementation or use.
+The conventional Tauri GUI experiment also completed and was retired. Further Let's家計簿 research should be demand-driven rather than exhaustive. New historical work should answer a concrete design question raised by Observatory implementation or use.
 
 The forward-facing documents are:
 
 1. [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md)
 2. [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md)
-3. [GUI_DESK_V0_HYPOTHESIS.md](GUI_DESK_V0_HYPOTHESIS.md)
+3. [GUI_DESK_V0_HYPOTHESIS.md](GUI_DESK_V0_HYPOTHESIS.md) — completed historical experiment
+4. [LOAM Observatory v0](../LOAM_OBSERVATORY_V0_HYPOTHESIS.md) — current forward experiment

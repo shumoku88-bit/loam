@@ -165,19 +165,13 @@ operational roles differ:
 
 - `tui.yml`
 - `tui-foundation.yml`
-- `gui.yml` (separate thin-native-transport and synthetic-browser-interaction jobs)
 - `beancount-export.yml`
 - `standalone-distribution.yml`
 - `compression-audit.yml`
 - `module-granularity-audit.yml`
 - `repository-hygiene.yml`
 
-The new Tauri workbench's `gui.yml` checks presentation transport in Rust on
-macOS and interaction over synthetic read answers in Chromium. It never reads
-operational household data. The shared ActualReview admission boundary and Lean
-ACTUAL1 month/correction-lineage projection remain qualified by `application.yml`;
-the GUI workflow does not replace that upstream obligation or claim native
-WKWebView rendering equivalence from browser tests.
+The completed conventional Tauri workbench and its `gui.yml` qualification surface are retired and remain available in Git history. This removes one presentation-only workflow from the live topology; use `python3 tools/audit-ci-topology` for the exact current repository count because later feature work may add or consolidate unrelated workflows. A future Observatory renderer should gain its own presentation-local qualification only when executable code exists; upstream Review / Presentation answers remain the semantic boundary.
 
 ## Current stopping point after the 40-workflow audit
 
