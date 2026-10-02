@@ -871,7 +871,7 @@ private def dayHelpTokens (state : State) : List String :=
     | .plain => "[f] flow"
     | .money => "[f] calendar"
   if state.activePane == .detail then
-    ["Detail:", "[j/k] select", "[Enter] open", "[Ctrl-d/u] page", "[h/Esc/Tab] calendar", "[q] quit"]
+    ["Detail:", "[j/k] select", "[Enter] open", "[Ctrl-d/u] page", "[Esc/Tab/w] calendar", "[q] quit"]
   else
     let navigation :=
       match state.zoomLevel with
@@ -1029,7 +1029,7 @@ def navigationKey
           | .month => handled (setZoomLevel state .day)
           | .day => if key == .escape then handled state else none
     | .input 'h' | .input 'H' | .left =>
-        handled (if state.activePane == .detail then focusCalendar state else (update state .left).state)
+        handled (if state.activePane == .detail then state else (update state .left).state)
     | .input 'l' | .input 'L' | .right =>
         handled (if state.activePane == .detail then state else (update state .right).state)
     | .input 'j' | .input 'J' | .down =>
