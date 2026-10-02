@@ -484,6 +484,8 @@ theorem preview_edit_preserves_form (world : Loam.MovementAdmission.World)
       state.form := by rfl
 
 def line (text : String) : Widget := .row [span text]
+private def muted (text : String) : Widget := .row [span text .muted]
+private def blank : Widget := .row []
 def field (form : Form) (index : Nat) (label text : String) : Widget :=
   .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
     (if form.focus.val = index then .selected else .normal)]
@@ -530,20 +532,33 @@ def view (_known : List String) (state : State) : Widget :=
         match selectedCatalogCandidate? state with
         | some entry => if entry.help.isEmpty then [] else [line ("  " ++ entry.help)]
         | none => []
-      .column <| [line "Record / Edit", field form 0 "Date" form.date,
-        field form 1 "Description" form.description,
-        field form 2 "Measure" form.measure] ++ rowLines ++
-        [.row ((actions.zipIdx).map fun (label, index) =>
-          span ("[" ++ label ++ "] ")
-            (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal)),
-         line "Locus catalog:"] ++ candidateLines ++ helpLine ++
-        [line (originalSummary state),
-         line ("Posting " ++ form.measure ++ " is signed; decimal input follows the Measure presentation scale."),
-         line "Tab / Shift-Tab focus   Enter accept candidate / next / preview",
-         line "Up / Down choose candidate   Ctrl-U fill unresolved remainder",
-         line "Ctrl-N add row   Ctrl-D drop row   Ctrl-O original amount",
-         line "Esc cancel   Backspace delete   Drop keeps at least two postings",
-         line state.notice]
+      .column <|
+        [ line "Record / Edit"
+        , field form 0 "Date" form.date
+        , field form 1 "Description" form.description
+        , field form 2 "Measure" form.measure
+        , blank
+        ] ++
+        rowLines ++
+        [ muted ("Posting " ++ form.measure ++
+            " is signed; decimal input follows the Measure presentation scale.")
+        , blank
+        , line "Locus catalog:"
+        ] ++
+        candidateLines ++ helpLine ++
+        [ blank
+        , line (originalSummary state)
+        , blank
+        , .row ((actions.zipIdx).map fun (label, index) =>
+            span ("[" ++ label ++ "] ")
+              (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal))
+        , blank
+        , muted "Tab / Shift-Tab focus   Enter accept candidate / next / preview"
+        , muted "Up / Down choose candidate   Ctrl-U fill unresolved remainder"
+        , muted "Ctrl-N add row   Ctrl-D drop row   Ctrl-O original amount"
+        , muted "Esc cancel   Backspace delete   Drop keeps at least two postings"
+        , line state.notice
+        ]
   | .enableUnresolved =>
       .column
         [ line "Unresolved recording / Enable"

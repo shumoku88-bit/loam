@@ -11,6 +11,13 @@ open Loam.Core Loam.Tui.Record
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def widgetText (widget : Loam.Tui.Kernel.Widget) : String :=
+  String.intercalate "\n" <| widget.lines.map fun cells =>
+    String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)
+
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 open Loam.Tui.Kernel
 
 private def world : IO Loam.MovementAdmission.World := do
@@ -52,6 +59,14 @@ def main (args : List String) : IO Unit := do
     (geometry.top + geometry.height <= largeBounds.height &&
       geometry.left + geometry.width <= Loam.Tui.Layout.contentWidth largeBounds)
     "floating Record geometry escaped the visible terminal"
+
+  let openedText := widgetText (view [] (initial "2026-09-06"))
+  expect
+    (contains "Measure: jpy\n\nPosting 1:" openedText &&
+      contains "decimal input follows the Measure presentation scale.\n\nLocus catalog:" openedText &&
+      contains "Original amount: (none)   Ctrl-O add\n\n[Preview]" openedText &&
+      contains "[Cancel] \n\nTab / Shift-Tab focus" openedText)
+    "Record editing surface lost semantic vertical spacing"
 
   let opened := initial "2026-09-06"
   expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
