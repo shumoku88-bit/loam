@@ -69,7 +69,7 @@ trend over the already-derived retrospective current-truth series. The trend doe
 not retain daily pace as household state or introduce a second calculation.
 The footer groups commands by the active Day/Month/Year or Detail context,
 `Household`, and `Manage`. In Detail, j/k selects transactions, Enter opens the
-selected transaction in its day workspace, and h/Esc/Tab returns to the calendar.
+selected transaction in its day workspace, and Esc/Tab/w returns to the calendar.
 At widths below 120 columns, Detail takes the full body instead of selecting
 invisible rows below a stacked calendar. Selection follows the viewport at every
 width; oversized records keep their title visible. With no Actual rows, Ctrl-u/d

@@ -102,6 +102,16 @@ def main : IO Unit := do
             s!"Home exceeded terminal width at {width}x{height}"
         expect (Loam.Tui.Home.navigationKey bounds snapshot last .enter |>.isNone)
           "detail Enter did not delegate to workspace"
+        let hStayed ← press bounds snapshot last (.input 'h')
+        expect (hStayed.activePane == .detail && hStayed.selectedDate == last.selectedDate)
+          "detail h unexpectedly changed focus or date"
+        let lStayed ← press bounds snapshot last (.input 'l')
+        expect (lStayed.activePane == .detail && lStayed.selectedDate == last.selectedDate)
+          "detail l unexpectedly changed focus or date"
+        let tabBack ← press bounds snapshot last .tab
+        expect (tabBack.activePane == .calendar) "Tab did not leave detail"
+        let wBack ← press bounds snapshot last (.input 'w')
+        expect (wBack.activePane == .calendar) "w did not leave detail"
         let day ← requireSome (Loam.Tui.SelectedDay.initialForActual? snapshot record)
           "selected transaction cannot open its day workspace"
         expect (day.focusDate == record.date.getD "") "opened another date"
