@@ -103,7 +103,7 @@ def update (bounds : Bounds) (state : State) (key : Key) : Step :=
                 { state := { state with notice := "No unresolved Scheduled routing subjects." } }
               else
                 { state := { state with phase := .selectTarget, notice := "" } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               { state := state, cancel := true }
           | _ => { state := state }
 
@@ -125,7 +125,7 @@ def update (bounds : Bounds) (state : State) (key : Key) : Step :=
                     { state := { state with notice := "No managed Purpose available in coverage." } }
                   else
                     { state := { state with phase := .selectPurpose, notice := "" } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               { state := { state with phase := .selectSubject, notice := "" } }
           | _ => { state := state }
 
@@ -143,7 +143,7 @@ def update (bounds : Bounds) (state : State) (key : Key) : Step :=
                 { state := { state with phase := .preview, notice := "" } }
               else
                 { state := { state with notice := "Invalid Purpose selection." } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               { state := { state with phase := .selectTarget, notice := "" } }
           | _ => { state := state }
 
@@ -155,7 +155,7 @@ def update (bounds : Bounds) (state : State) (key : Key) : Step :=
               | none => { state := { state with notice := "Incomplete routing draft." } }
           | .input 'e' | .input 'E' =>
               { state := { state with phase := .selectTarget, notice := "" } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               match state.targetChoice with
               | .managed => { state := { state with phase := .selectPurpose, notice := "" } }
               | .unmanaged => { state := { state with phase := .selectTarget, notice := "" } }
@@ -204,7 +204,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         ] ++ listWidgets ++
         [ blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ (j/k) select   Enter select route type   Esc/b/q cancel"
+        , muted "↑/↓ (j/k) select   Enter select route type   Esc/q cancel"
         ]
 
   | .selectTarget =>
@@ -232,7 +232,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         , unmanagedWidget
         , blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ (j/k) or Tab toggle   Enter continue   Esc/b back   q cancel"
+        , muted "↑/↓ (j/k) or Tab toggle   Enter continue   Esc back   q cancel"
         ]
 
   | .selectPurpose =>
@@ -261,7 +261,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         ] ++ purposeWidgets ++
         [ blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ (j/k) select   Enter preview   Esc/b back   q cancel"
+        , muted "↑/↓ (j/k) select   Enter preview   Esc back   q cancel"
         ]
 
   | .preview =>
@@ -294,7 +294,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         , muted "Effective date is strictly the current observation date (observedAt)."
         , blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter publish   e edit   Esc/b back   q cancel"
+        , muted "Enter publish   e edit   Esc back   q cancel"
         ]
 
 end Loam.Tui.ScheduledRouting
