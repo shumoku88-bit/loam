@@ -270,6 +270,23 @@ def main (args : List String) : IO Unit := do
   match cleared.state.mode with
   | .editing => pure ()
   | _ => throw (IO.userError "clearing original amount did not return to editor")
+  let previewText := widgetText (view [] (preview w { form := readyForm }))
+  expect
+    (contains "Record / Preview\n\nMovement\n" previewText &&
+      contains "Date         2026-09-06" previewText &&
+      contains "Description  数学ガール" previewText &&
+      contains "Measure      jpy\n\nPostings\n" previewText)
+    "Record preview lost its ledger header"
+  expect
+    (contains "-2,470 jpy" previewText &&
+      contains "2,470 jpy" previewText &&
+      contains "Balanced total" previewText)
+    "Record preview lost aligned grouped posting amounts"
+  expect
+    (contains "Publication gate\n  recheck current evidence\n  recheck Locus admission\n\n[Publish]" previewText &&
+      contains "[Cancel] \n\nTab / Shift-Tab select   Enter confirm   Esc cancel" previewText)
+    "Record preview lost publication-gate hierarchy"
+
   let editor := preview w { form := readyForm }
   match (update w [] editor .enter).publish with
   | some (.movement _) => pure ()
