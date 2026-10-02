@@ -530,7 +530,9 @@ def view (_known : List String) (state : State) : Widget :=
           line (marker ++ Loam.Tui.LocusPicker.display entry)
       let helpLine :=
         match selectedCatalogCandidate? state with
-        | some entry => if entry.help.isEmpty then [] else [line ("  " ++ entry.help)]
+        | some entry =>
+            if entry.help.isEmpty then []
+            else [blank, muted ("  ↳ " ++ entry.help)]
         | none => []
       .column <|
         [ line "Record / Edit"
