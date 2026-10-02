@@ -84,7 +84,7 @@ def main : IO Unit := do
       { width := 80, height := 24 } 3 10 20 oldPanel newPanel
   expect ((regionAnsi.splitOn "\x1b[K").length == 1)
     "region renderer cleared beyond its owned rectangle"
-  expect ((regionAnsi.splitOn "\x1b[4;11H").length > 1)
+  expect ((regionAnsi.splitOn "\x1b[5;11H").length > 1)
     "region renderer lost the panel cursor origin"
 
   IO.println "domain-free TUI foundation smoke checks passed"
