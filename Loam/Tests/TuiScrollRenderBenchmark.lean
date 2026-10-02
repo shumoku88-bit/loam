@@ -112,9 +112,9 @@ def main : IO Unit := do
   IO.println "offset\tviewport-ns\tdirect-ansi-ns\tdirect-chars"
 
   for offset in [0, 100, 1000, 5000, 9000] do
-    let viewportNs ← medianNsPerCall 7 4000 fun i =>
+    let viewportNs ← medianNsPerCall 5 200 fun i =>
       forceViewportShape bounds state prepared (offset + (i % 8))
-    let directNs ← medianNsPerCall 7 300 fun i =>
+    let directNs ← medianNsPerCall 5 40 fun i =>
       forceDirectAnsi bounds state prepared (offset + (i % 8))
     let directChars := forceDirectAnsi bounds state prepared offset
     IO.println s!"{offset}\t{viewportNs}\t{directNs}\t{directChars}"
@@ -126,7 +126,7 @@ def main : IO Unit := do
   let dirtyCount := (Loam.Tui.Runtime.dirtyRows bounds 0 oldFrame nextFrame).length
   let dirtyChars := dirtyAnsiLength bounds oldFrame nextFrame
   let directChars := forceDirectAnsi bounds state prepared 5001
-  let dirtyNs ← medianNsPerCall 7 300 fun i =>
+  let dirtyNs ← medianNsPerCall 5 40 fun i =>
     forceCompiledDirty bounds state prepared oldFrame (5001 + (i % 8))
 
   IO.println ""
