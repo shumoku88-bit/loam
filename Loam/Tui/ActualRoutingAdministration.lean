@@ -151,7 +151,7 @@ def update (state : State) (key : Key) : Step :=
                 { state := { state with notice := label } }
               else
                 { state := { state with phase := .selectTarget, notice := "" } }
-          | .escape | .input 'b' | .input 'B' => { state := state, cancel := true }
+          | .escape => { state := state, cancel := true }
           | _ => { state := state }
 
       | .selectTarget =>
@@ -171,7 +171,7 @@ def update (state : State) (key : Key) : Step :=
                     { state := { state with notice := "No retained Capacity Purpose is available." } }
                   else
                     { state := { state with phase := .selectPurpose, notice := "" } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               { state := { state with phase := .selectLocus, notice := "" } }
           | _ => { state := state }
 
@@ -190,7 +190,7 @@ def update (state : State) (key : Key) : Step :=
                 startEffectiveEdit state
               else
                 { state := { state with notice := "Invalid Purpose selection." } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               { state := { state with phase := .selectTarget, notice := "" } }
           | _ => { state := state }
 
@@ -198,7 +198,7 @@ def update (state : State) (key : Key) : Step :=
           match key with
           | .input 'i' | .input 'I' =>
               { state := { state with effectiveOn := .initial, phase := .preview, notice := "" } }
-          | .escape | .input 'b' | .input 'B' => backFromEffective state
+          | .escape => backFromEffective state
           | .input char =>
               if char.isDigit || char == '-' then
                 { state := { state with phase := .editEffective (buffer.push char), notice := "" } }
@@ -225,7 +225,7 @@ def update (state : State) (key : Key) : Step :=
               { state := { state with phase := .editEffective "", notice := "" } }
           | .input 'e' | .input 'E' =>
               { state := { state with phase := .selectTarget, notice := "" } }
-          | .escape | .input 'b' | .input 'B' =>
+          | .escape =>
               match state.targetChoice with
               | .managed => { state := { state with phase := .selectPurpose, notice := "" } }
               | .unmanaged => { state := { state with phase := .selectTarget, notice := "" } }
@@ -286,7 +286,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ blank
         , if state.notice.isEmpty then blank else line state.notice
         , muted ("Enter edit selected route   ↑/↓ (j/k) select   " ++ toggleHelp)
-        , muted "Esc/b/q back   Other admitted loci are optional; UNROUTED there is not a warning."
+        , muted "Esc/q back   Other admitted loci are optional; UNROUTED there is not a warning."
         ]
 
   | .selectTarget =>
@@ -308,7 +308,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
                     (if unmanaged then .selected else .normal)]
         , blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ or Tab toggle   Enter continue   Esc/b back   q cancel"
+        , muted "↑/↓ or Tab toggle   Enter continue   Esc back   q cancel"
         ]
 
   | .selectPurpose =>
@@ -328,7 +328,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [ blank
         , muted "Purpose candidates come from retained Capacity evidence."
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ (j/k) select   Enter continue   Esc/b back   q cancel"
+        , muted "↑/↓ (j/k) select   Enter continue   Esc back   q cancel"
         ]
 
   | .editEffective buffer =>
@@ -345,7 +345,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         , muted "No historical route is inferred from today's choice."
         , blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "digits/- edit   Backspace delete   i initial   Enter continue   Esc/b back   q cancel"
+        , muted "digits/- edit   Backspace delete   i initial   Enter continue   Esc back   q cancel"
         ]
 
   | .preview =>
@@ -371,7 +371,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         , muted "Purpose identity is stable; no account-name, sign, or AccountingRole inference is performed."
         , blank
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter publish   d edit date   e edit target   Esc/b back   q cancel"
+        , muted "Enter publish   d edit date   e edit target   Esc back   q cancel"
         ]
 
 end Loam.Tui.ActualRoutingAdministration
