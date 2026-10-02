@@ -21,7 +21,6 @@ import Loam.Cli.BudgetWindowCli
 import Loam.Cli.JournalExportCli
 import Loam.Cli.PlainTextAccountingExportCli
 import Loam.Cli.BeancountExportCli
-import Loam.Cli.WealthfolioExportCli
 import Loam.Cli.MeasureScaleCli
 import Loam.Tui.Cli
 import Loam.Review.RoleBalanceReview
@@ -58,7 +57,6 @@ private def practicalUsage : String :=
   "  loam export journal ACTUAL_FILE OUTPUT_FILE\n" ++
   "  loam export pta ACTUAL_FILE ACCOUNTING_ROLE_FILE OUTPUT_FILE\n" ++
   "  loam export beancount [--partial|--suspense] ...\n" ++
-  "  loam export wealthfolio DATA_ROOT ACCOUNTING_EPOCH OUTPUT_FILE ACCOUNT_LOCUS...\n\n" ++
   "Print read-only household reports as plain text:\n" ++
   "  loam report balances [LOAM_DATA_DIR]\n" ++
   "  loam report loci [LOAM_DATA_DIR]\n\n" ++
@@ -247,8 +245,6 @@ def run (args : List String) : IO UInt32 := do
       Loam.PlainTextAccountingExportCli.run exportArgs
   | "export" :: "beancount" :: exportArgs =>
       Loam.BeancountExportCli.run exportArgs
-  | "export" :: "wealthfolio" :: exportArgs =>
-      Loam.WealthfolioExportCli.run exportArgs
   | ["help"] => do
       IO.println practicalUsage
       return 0

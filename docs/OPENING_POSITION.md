@@ -65,7 +65,7 @@ A disposable exporter may translate the derived Opening Position into the
 target application's conventional opening-balance rows, then emit Actual
 activity from the Accounting Epoch onward.
 
-For example, a future Wealthfolio projection can use:
+A target-specific exporter can compose:
 
 ```text
 OpeningPositionReview(epoch)
@@ -73,7 +73,7 @@ OpeningPositionReview(epoch)
 ActualJournalProjection(activity on/after epoch)
         |
         v
-disposable Wealthfolio CSV
+disposable external projection
 ```
 
 Those generated opening rows belong to the external projection. They do not
