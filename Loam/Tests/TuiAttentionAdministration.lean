@@ -118,6 +118,10 @@ def main : IO Unit := do
   expect (upSelected.cursor == 2) "Up from top did not cycle to bottom"
   let downSelected := (Loam.Tui.AttentionAdministration.update upSelected .down).state
   expect (downSelected.cursor == 0) "Down from bottom did not cycle to top"
+  let kSelected := (Loam.Tui.AttentionAdministration.update adminOpen (.input 'k')).state
+  expect (kSelected.cursor == 2) "k from top did not match Up navigation"
+  let jSelected := (Loam.Tui.AttentionAdministration.update kSelected (.input 'j')).state
+  expect (jSelected.cursor == 0) "j from bottom did not match Down navigation"
 
   let resolveConfirm :=
     (Loam.Tui.AttentionAdministration.update adminOpen (.input 'r')).state
@@ -154,7 +158,7 @@ def main : IO Unit := do
   expect (contains "Attention / Manage" manageText) "view missing Attention / Manage heading"
   expect (contains "Household matters that should not disappear from view" manageText)
     "view missing descriptive subtitle"
-  expect (contains "n new   r resolve today   x drop today   Up/Down select" manageText)
+  expect (contains "j/k or ↑/↓ select   n new   r resolve today   x drop today" manageText)
     "view missing action help footer"
   expect (contains "due 2026-10-01" manageText)
     "known due meaning was not rendered in the production Attention surface"
