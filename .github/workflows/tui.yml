@@ -95,6 +95,7 @@ on:
       - 'Loam/Tests/TuiFavaLifecycle.lean'
       - 'tests/test_tui_fava_lifecycle_pty.py'
       - 'Loam/Tests/TuiReports.lean'
+      - 'Loam/Tests/TuiScrollRenderBenchmark.lean'
       - 'Loam/Tests/TuiTrendMeasure.lean'
       - 'Loam/Tests/TuiTransactionsFlow.lean'
       - 'Loam/Tests/StockFlowReview.lean'
@@ -334,6 +335,7 @@ jobs:
           lake env lean --run Loam/Tests/TuiCapacity.lean
           lake env lean --run Loam/Tests/TuiSettlement.lean
           lake env lean --run Loam/Tests/TuiReports.lean
+          lake env lean --run Loam/Tests/TuiScrollRenderBenchmark.lean
           lake env lean --run Loam/Tests/TuiTrendMeasure.lean
           lake env lean --run Loam/Tests/TuiHelpFooter.lean
           lake env lean --run Loam/Tests/TuiHomeNavigation.lean
