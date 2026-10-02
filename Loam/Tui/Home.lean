@@ -895,7 +895,7 @@ private def helpRow (category : String) (showCategory : Bool) (items : List Help
   let categoryWidth := 11
   let categoryText :=
     if showCategory then Loam.Tui.Layout.padRight categoryWidth category
-    else Loam.Tui.Layout.spaces categoryWidth
+    else String.ofList (List.replicate categoryWidth ' ')
   let itemSpans :=
     (items.zipIdx).flatMap fun (item, index) =>
       (if index = 0 then [] else [span "   " .muted]) ++
