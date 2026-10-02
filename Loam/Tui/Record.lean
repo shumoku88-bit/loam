@@ -504,6 +504,26 @@ private def originalSummary (state : State) : String :=
           state.measurePresentation original.measure original.quantity.quanta ++
         " " ++ original.measure.token ++ "   Ctrl-O edit"
 
+private def previewMetaRow (label value : String) : Widget :=
+  .row
+    [ span (Loam.Tui.Layout.padRight 13 label) .muted
+    , span value
+    ]
+
+private def previewAmount
+    (state : State) (measure : Loam.Core.MeasureId) (quanta : Int) : String :=
+  Loam.MeasurePresentation.formatGroupedQuanta
+    state.measurePresentation measure quanta
+
+private def previewPostingRow (state : State) (effect : Loam.Core.Effect) : Widget :=
+  .row
+    [ span "  "
+    , span (Loam.Tui.Layout.padRight 28 effect.locus.token)
+    , span (Loam.Tui.Layout.padLeft 14
+        (previewAmount state effect.measure effect.quantity.quanta))
+    , span (" " ++ effect.measure.token) .muted
+    ]
+
 /-- Render the bounded signed-posting field window shared by Record-shaped editors. -/
 def postingFieldLines (form : Form) : List Widget :=
   let activeRow := (form.focus.val - 3) / 2
@@ -594,25 +614,40 @@ def view (_known : List String) (state : State) : Widget :=
         match state.originalAmount with
         | none => []
         | some original =>
-            [line ("Original amount: " ++
-              Loam.MeasurePresentation.formatQuanta
-                state.measurePresentation original.measure original.quantity.quanta ++
-              " " ++ original.measure.token)]
-      .column <| [line "Record / Preview", line draft.validOn,
-        line ("Measure: " ++ measure.token),
-        line (draft.description.getD "(no description)")] ++ originalLines ++
-        (draft.effects.take 12).map (fun effect =>
-          line (Loam.Tui.Layout.padRight 20 effect.locus.token ++
-            Loam.Tui.Layout.padLeft 10
-              (Loam.MeasurePresentation.formatQuanta
-                state.measurePresentation effect.measure effect.quantity.quanta) ++
-            " " ++ effect.measure.token)) ++
-        [line ("Balanced total: " ++
-            Loam.MeasurePresentation.formatQuanta
-              state.measurePresentation measure draft.total ++ " " ++ measure.token),
-         line "Publication rechecks current evidence and Locus admission.",
-         .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
-           span ("[" ++ label ++ "] ") (if choice.val = index then .selected else .normal)),
-         line "Tab / Shift-Tab select   Enter confirm   Esc cancel", line state.notice]
+            [previewMetaRow "Original"
+              (previewAmount state original.measure original.quantity.quanta ++
+                " " ++ original.measure.token)]
+      .column <|
+        [ line "Record / Preview"
+        , blank
+        , line "Movement"
+        , previewMetaRow "Date" draft.validOn
+        , previewMetaRow "Description" (draft.description.getD "(no description)")
+        , previewMetaRow "Measure" measure.token
+        ] ++
+        originalLines ++
+        [ blank
+        , line "Postings"
+        ] ++
+        (draft.effects.take 12).map (previewPostingRow state) ++
+        [ blank
+        , .row
+            [ span (Loam.Tui.Layout.padRight 30 "Balanced total") .muted
+            , span (Loam.Tui.Layout.padLeft 14
+                (previewAmount state measure draft.total))
+            , span (" " ++ measure.token) .muted
+            ]
+        , blank
+        , line "Publication gate"
+        , muted "  recheck current evidence"
+        , muted "  recheck Locus admission"
+        , blank
+        , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+            span ("[" ++ label ++ "] ")
+              (if choice.val = index then .selected else .normal))
+        , blank
+        , muted "Tab / Shift-Tab select   Enter confirm   Esc cancel"
+        , line state.notice
+        ]
 
 end Loam.Tui.Record
