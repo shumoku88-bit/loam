@@ -254,5 +254,15 @@ def main : IO Unit := do
     widgetText (Loam.Tui.ScheduledGenerationSession.awarenessPromptView review.state)
   expect (contains "Expected effects:" reviewText && contains "6000 jpy" reviewText)
     "Scheduled generation awareness Review did not show retained movement evidence"
+  expect (contains "Esc back" reviewText && !(contains "Enter / Esc back" reviewText))
+    "Scheduled generation Review still advertised Enter as back"
+  let reviewEnter :=
+    Loam.Tui.ScheduledGenerationSession.updateAwarenessPrompt review.state .enter
+  expect (reviewEnter.state.mode == .review)
+    "Enter unexpectedly left Scheduled generation Review"
+  let reviewEsc :=
+    Loam.Tui.ScheduledGenerationSession.updateAwarenessPrompt review.state .escape
+  expect (reviewEsc.state.mode == .choice)
+    "Esc did not return from Scheduled generation Review"
 
   IO.println "TUI Scheduled generation: suggestions, custom limit, cadence, review, and awareness passed."

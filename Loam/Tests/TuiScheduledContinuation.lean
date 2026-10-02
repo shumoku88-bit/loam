@@ -89,6 +89,14 @@ def main : IO Unit := do
   let reviewText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView review.state)
   expect (contains "Expected effects:" reviewText && contains "6000 jpy" reviewText)
     "existing-plan Review did not show explicit retained movement"
+  expect (contains "Esc back" reviewText && !(contains "Enter / Esc back" reviewText))
+    "existing-plan Review still advertised Enter as back"
+  let reviewEnter := Loam.Tui.ScheduledContinuationSession.updatePrompt review.state .enter
+  expect (reviewEnter.state.mode == .review)
+    "Enter unexpectedly left read-only Review"
+  let reviewEsc := Loam.Tui.ScheduledContinuationSession.updatePrompt review.state .escape
+  expect (reviewEsc.state.mode == .choice)
+    "Esc did not return from read-only Review"
 
   let nonePrompt := Loam.Tui.ScheduledContinuationSession.initialPrompt []
   let noneText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView nonePrompt)

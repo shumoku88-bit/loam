@@ -111,7 +111,7 @@ def updateAwarenessPrompt
   match state.mode with
   | .review =>
       match key with
-      | .enter | .escape =>
+      | .escape =>
           { state := { state with mode := .choice } }
       | _ => { state }
   | .choice =>
@@ -169,7 +169,7 @@ private def awarenessReviewView (state : AwarenessPromptState) : Widget :=
         toString change.quantity.quanta ++ " " ++ state.candidate.measure.token)) ++
     [ awarenessLine ""
     , awarenessLine "This is retained Scheduled evidence, not a same-series claim."
-    , awarenessLine "Enter / Esc back"
+    , awarenessLine "Esc back"
     ]
 
 def awarenessPromptView (state : AwarenessPromptState) : Widget :=

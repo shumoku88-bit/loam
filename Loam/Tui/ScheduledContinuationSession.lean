@@ -86,7 +86,7 @@ def updatePrompt (state : PromptState) (key : Loam.Tui.Terminal.Key) : PromptSte
   match state.mode with
   | .review =>
       match key with
-      | .enter | .escape =>
+      | .escape =>
           { state := { state with mode := .choice } }
       | _ => { state }
   | .choice =>
@@ -167,7 +167,7 @@ private def candidateReviewView (candidate : Loam.ScheduledReview.Record) : Widg
         toString change.quantity.quanta ++ " " ++ candidate.measure.token)) ++
     [ line ""
     , line "This is an explicit existing Scheduled occurrence, not a same-series claim."
-    , line "Enter / Esc back"
+    , line "Esc back"
     ]
 
 def promptView (state : PromptState) : Widget :=
