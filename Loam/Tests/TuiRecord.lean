@@ -63,10 +63,10 @@ def main (args : List String) : IO Unit := do
   let openedText := widgetText (view [] (initial "2026-09-06"))
   expect
     (contains "Measure: jpy\n\nPosting 1:" openedText &&
-      contains "decimal input follows the Measure presentation scale.\n\nLocus catalog:" openedText &&
-      contains "Original amount: (none)   Ctrl-O add\n\n[Preview]" openedText &&
-      contains "[Cancel] \n\nTab / Shift-Tab focus" openedText)
-    "Record editing surface lost semantic vertical spacing"
+      contains "decimal input follows the Measure presentation scale.\nCtrl-U fill unresolved remainder\n\nLocus catalog:" openedText &&
+      contains "Up / Down choose candidate   Enter accept candidate\n\nOriginal amount: (none)   Ctrl-O add" openedText &&
+      contains "[Cancel] \nCtrl-N add row   Ctrl-D drop row   Drop keeps at least two postings\n\nTab / Shift-Tab focus   Enter next / preview   Esc cancel   Backspace delete" openedText)
+    "Record editing surface lost contextual help placement"
 
   let opened := initial "2026-09-06"
   expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
