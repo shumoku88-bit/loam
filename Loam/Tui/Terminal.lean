@@ -46,6 +46,11 @@ def ansiStyle : Style → String
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"
 
+/-- Move the terminal's logical cursor without changing any rendered cells. -/
+def placeCursor (row col : Nat) : IO Unit := do
+  IO.print (cursorTo row col)
+  (← IO.getStdout).flush
+
 private def sameStyleRun
     (style : Style) (chars : List Char) (remaining : List Cell)
     (acc : List Span) : List Span :=
