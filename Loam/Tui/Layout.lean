@@ -196,4 +196,38 @@ preserving logical boundaries between groups while wrapping within each group.
 def flowLines (columns : Nat) (separator : String) (groups : List (List String)) : List String :=
   groups.flatMap (flowTokens columns separator)
 
+/--
+Frame one fixed-size terminal panel.
+
+The panel owns presentation geometry only. Content is clipped to the inner
+rectangle and padded so every row occupies exactly `width` terminal columns.
+That fixed rectangle lets a caller overwrite only the panel region while leaving
+the surrounding screen untouched.
+-/
+def framedPanel (width height : Nat) (title : String) (content : Widget) : Widget :=
+  if width < 2 ∨ height < 2 then
+    .row []
+  else
+    let innerWidth := width - 2
+    let innerHeight := height - 2
+    let label := clip innerWidth (" " ++ title ++ " ")
+    let topFill :=
+      String.ofList (List.replicate (innerWidth - displayWidth label) '─')
+    let top : Widget := .row [span ("┌" ++ label ++ topFill ++ "┐") .muted]
+    let bottom : Widget :=
+      .row [span ("└" ++ String.ofList (List.replicate innerWidth '─') ++ "┘") .muted]
+    let contentRows :=
+      (content.lines.take innerHeight).map fun cells =>
+        let clipped := clipCells innerWidth cells
+        let padding := innerWidth - cellsWidth clipped
+        .row <|
+          [span "│" .muted] ++
+          cellsToSpans clipped ++
+          [span (spaces padding), span "│" .muted]
+    let blankRow : Widget :=
+      .row [span "│" .muted, span (spaces innerWidth), span "│" .muted]
+    let paddedRows :=
+      contentRows ++ List.replicate (innerHeight - contentRows.length) blankRow
+    .column ([top] ++ paddedRows ++ [bottom])
+
 end Loam.Tui.Layout
