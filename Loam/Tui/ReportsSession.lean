@@ -35,14 +35,16 @@ query meaning, and report rendering remain in their existing owners.
 /--
 High-frequency vertical navigation reuses the already observed terminal bounds.
 
-Mouse-wheel input is normalized to Up/Down before it reaches this session. Running
-`stty size` for every wheel notch can queue subprocess latency behind ordinary
-scrolling, especially on long report surfaces. Other actionable keys still
-refresh the terminal geometry, so a resize is picked up at the next non-scroll
-interaction.
+Mouse-wheel input is normalized to Up/Down before it reaches this session, and
+j/k are the keyboard aliases for the same high-frequency vertical navigation.
+Running `stty size` for every wheel notch or j/k repeat can queue subprocess
+latency behind ordinary scrolling, especially on long report surfaces. Other
+actionable keys still refresh the terminal geometry, so a resize is picked up at
+the next non-scroll interaction.
 -/
 def refreshBoundsForKey : Loam.Tui.Terminal.Key → Bool
-  | .up | .down => false
+  | .up | .down
+  | .input 'j' | .input 'J' | .input 'k' | .input 'K' => false
   | .other | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ => false
   | _ => true
 

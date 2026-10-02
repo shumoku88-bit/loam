@@ -69,8 +69,12 @@ private def dayPoints
 
 def main : IO Unit := do
   expect (!Loam.Tui.ReportsSession.refreshBoundsForKey .up &&
-      !Loam.Tui.ReportsSession.refreshBoundsForKey .down)
-    "high-frequency report scrolling unexpectedly probes terminal bounds"
+      !Loam.Tui.ReportsSession.refreshBoundsForKey .down &&
+      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'j') &&
+      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'J') &&
+      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'k') &&
+      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'K'))
+    "high-frequency report navigation unexpectedly probes terminal bounds"
   expect (Loam.Tui.ReportsSession.refreshBoundsForKey .enter)
     "ordinary report interaction no longer refreshes terminal bounds"
 
