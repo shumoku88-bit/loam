@@ -107,8 +107,8 @@ def main : IO Unit := do
     "Esc did not return back intent"
   expect (Loam.Tui.AttentionAdministration.update admin0 (.input 'q')).back
     "q did not return back intent"
-  expect (Loam.Tui.AttentionAdministration.update admin0 (.input 'b')).back
-    "b did not return back intent"
+  expect (!(Loam.Tui.AttentionAdministration.update admin0 (.input 'b')).back)
+    "retired b back alias survived"
 
   -- Selection bounds: moveCursor cycles.
   let openEvidence : Loam.AttentionReview.Availability :=
