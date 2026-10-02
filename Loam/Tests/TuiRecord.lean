@@ -68,6 +68,20 @@ def main (args : List String) : IO Unit := do
       contains "[Cancel] \nCtrl-N add row   Ctrl-D drop row   Drop keeps at least two postings\n\nTab / Shift-Tab focus   Enter next / preview   Esc cancel   Backspace delete" openedText)
     "Record editing surface lost contextual help placement"
 
+  let helpCatalog : Loam.LocusCatalog.Catalog :=
+    [{ locus := ⟨"food"⟩, label := "食費", help := "日常の食事・食材" }]
+  let helpForm : Form := {
+    readyForm with
+    rows := #[
+      { locus := "f", amount := "-2470" },
+      { locus := "books", amount := "2470" }]
+    focus := ⟨3, by decide⟩ }
+  let helpText :=
+    widgetText (view [] (withCatalog { form := helpForm } helpCatalog))
+  expect
+    (contains "> food  食費\n\n  ↳ 日常の食事・食材\nUp / Down choose candidate" helpText)
+    "Record Locus help was not visually separated from catalog candidates"
+
   let opened := initial "2026-09-06"
   expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
     "Record must start at Description with the selected date intact"
