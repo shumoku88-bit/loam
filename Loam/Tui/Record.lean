@@ -542,21 +542,21 @@ def view (_known : List String) (state : State) : Widget :=
         rowLines ++
         [ muted ("Posting " ++ form.measure ++
             " is signed; decimal input follows the Measure presentation scale.")
+        , muted "Ctrl-U fill unresolved remainder"
         , blank
         , line "Locus catalog:"
         ] ++
         candidateLines ++ helpLine ++
-        [ blank
+        [ muted "Up / Down choose candidate   Enter accept candidate"
+        , blank
         , line (originalSummary state)
         , blank
         , .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
               (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal))
+        , muted "Ctrl-N add row   Ctrl-D drop row   Drop keeps at least two postings"
         , blank
-        , muted "Tab / Shift-Tab focus   Enter accept candidate / next / preview"
-        , muted "Up / Down choose candidate   Ctrl-U fill unresolved remainder"
-        , muted "Ctrl-N add row   Ctrl-D drop row   Ctrl-O original amount"
-        , muted "Esc cancel   Backspace delete   Drop keeps at least two postings"
+        , muted "Tab / Shift-Tab focus   Enter next / preview   Esc cancel   Backspace delete"
         , line state.notice
         ]
   | .enableUnresolved =>
