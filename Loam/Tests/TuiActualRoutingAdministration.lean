@@ -141,6 +141,9 @@ def main (args : List String) : IO Unit := do
 
   let cancel := Loam.Tui.ActualRoutingAdministration.update s0 .escape
   expect cancel.cancel "escape cancels administration"
+  let ignoredB := Loam.Tui.ActualRoutingAdministration.update s0 (.input 'b')
+  expect (!ignoredB.cancel && ignoredB.state.phase == .selectLocus)
+    "retired b cancel alias survived"
 
   if args.length >= 1 then
     let root := System.FilePath.mk args.head!

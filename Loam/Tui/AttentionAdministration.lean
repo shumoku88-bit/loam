@@ -82,7 +82,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match state.mode with
   | .browse =>
       match key with
-      | .escape | .input 'q' | .input 'Q' | .input 'b' | .input 'B' =>
+      | .escape | .input 'q' | .input 'Q' =>
           { state, back := true }
       | .up | .input 'k' | .input 'K' => { state := moveCursor state true }
       | .down | .input 'j' | .input 'J' => { state := moveCursor state false }
@@ -182,7 +182,7 @@ private def browseView (state : State) : Widget :=
     [ blank
     , muted "j/k or ↑/↓ select   n new   r resolve today   x drop today"
     , muted "Due date is optional; unknown timing remains distinct from no due date."
-    , muted "Esc/b/q back"
+    , muted "Esc/q back"
     , line state.notice
     ]
 
