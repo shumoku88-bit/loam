@@ -678,9 +678,8 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       (Loam.Tui.Record.withCatalog
         (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate) catalog)
       measurePresentation
-    let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
-    let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
+    let notice ←
+      Loam.Tui.RecordSession.runAdaptive bounds root world known editor frame
     let fresh ← requireReload notice (loadSnapshot dataDir)
     let destination := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds fresh destination
