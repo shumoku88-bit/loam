@@ -177,8 +177,19 @@ def main : IO Unit := do
     "wide Home moved Daily Pace away from the space below the calendar"
   for token in expectedTokens do
     expect (contains token wideText) s!"wide Home lost token {token}"
-  expect (contains "Day:" wideText && contains "Household:" wideText && contains "Manage:" wideText)
-    "wide Home lost semantic footer groups"
+  expect
+    (contains "Day" wideText && contains "View" wideText && contains "Action" wideText &&
+      contains "Household" wideText && contains "Manage" wideText)
+    "wide Home lost command-deck groups"
+  let dayFooterRow ← requireSome
+    (firstLineContaining? "[h/l] day" wideView.lines 0)
+    "wide Home lost Day command-deck row"
+  let dayFooterCells ← requireSome wideView.lines[dayFooterRow]?
+    "wide Home Day command-deck row was not addressable"
+  expect
+    (dayFooterCells.any (fun cell => cell.style == .normal) &&
+      dayFooterCells.any (fun cell => cell.style == .muted))
+    "Home command deck no longer distinguishes keys/categories from descriptions"
   expect (contains "Pending: 0" wideText)
     "empty Pending evidence disappeared from the glance status"
   expect (!contains "Pending Scheduled:" wideText)
@@ -189,7 +200,7 @@ def main : IO Unit := do
     "Home body regained explanatory shortcut prose"
   -- Glance answers now live inside the left calendar pane, so they do
   -- not consume an outer frame row.
-  let expectedWidePanelRows := footerBodyCapacity wideBounds 4 - 4
+  let expectedWidePanelRows := footerBodyCapacity wideBounds 5 - 4
   expect (occurrences " │ " wideText == expectedWidePanelRows)
     "wide Home divider height changed with content instead of filling the fixed viewport"
   for token in ["[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] budget", "[e] capacity",

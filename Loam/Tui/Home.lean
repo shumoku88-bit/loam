@@ -852,7 +852,7 @@ private def wideHomeBody
   , ruleLine bounds '='
   ] ++
   Loam.Tui.Layout.sideBySide panelRows leftWidth rightWidth left right ++
-  [ruleLine bounds '=']
+  [ruleLine bounds '-']
 
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -860,39 +860,139 @@ private def homeBody
   else if state.activePane == .detail then
     [ruleLine bounds '=', plainLine " LOAM Home / Transactions", ruleLine bounds '='] ++
     detailPaneLines (widePanelRows bounds footerRows) snapshot state (pendingEvidence snapshot) ++
-    [ruleLine bounds '=']
+    [ruleLine bounds '-']
   else
     overviewViewport (Loam.Tui.Layout.footerBodyCapacity bounds footerRows) state
       (stackedHomeBody bounds snapshot state)
 
-private def dayHelpTokens (state : State) : List String :=
+private structure HelpItem where
+  key : String
+  label : String
+
+private def helpItemWidth (item : HelpItem) : Nat :=
+  Loam.Tui.Layout.displayWidth item.key + 1 + Loam.Tui.Layout.displayWidth item.label
+
+private def wrapHelpItems (width : Nat) (items : List HelpItem) : List (List HelpItem) :=
+  let separatorWidth := 3
+  let rec loop
+      (current : List HelpItem) (currentWidth : Nat)
+      (remaining : List HelpItem) (acc : List (List HelpItem)) : List (List HelpItem) :=
+    match remaining with
+    | [] =>
+        if current.isEmpty then acc.reverse
+        else (current.reverse :: acc).reverse
+    | item :: rest =>
+        let itemWidth := helpItemWidth item
+        if current.isEmpty then
+          loop [item] itemWidth rest acc
+        else if currentWidth + separatorWidth + itemWidth ≤ width then
+          loop (item :: current) (currentWidth + separatorWidth + itemWidth) rest acc
+        else
+          loop [item] itemWidth rest (current.reverse :: acc)
+  loop [] 0 items []
+
+private def helpRow (category : String) (showCategory : Bool) (items : List HelpItem) : Widget :=
+  let categoryWidth := 11
+  let categoryText :=
+    if showCategory then Loam.Tui.Layout.padRight categoryWidth category
+    else String.ofList (List.replicate categoryWidth ' ')
+  let itemSpans :=
+    (items.zipIdx).flatMap fun (item, index) =>
+      (if index = 0 then [] else [span "   " .muted]) ++
+      [span item.key, span (" " ++ item.label) .muted]
+  .row ([span categoryText] ++ itemSpans)
+
+private def helpGroupLines
+    (width : Nat) (category : String) (items : List HelpItem) : List Widget :=
+  let categoryWidth := 11
+  let itemWidth := width - min width categoryWidth
+  (wrapHelpItems itemWidth items).zipIdx.map fun (row, index) =>
+    helpRow category (index = 0) row
+
+private def navigationHelp (state : State) : String × List HelpItem :=
   let calendarToggle :=
     match state.calendarMode with
-    | .plain => "[f] flow"
-    | .money => "[f] calendar"
+    | .plain => { key := "[f]", label := "flow" }
+    | .money => { key := "[f]", label := "calendar" }
   if state.activePane == .detail then
-    ["Detail:", "[j/k] select", "[Enter] open", "[Ctrl-d/u] page", "[Esc/Tab/w] calendar", "[q] quit"]
+    ("Detail",
+      [ { key := "[j/k]", label := "select" }
+      , { key := "[Enter]", label := "open" }
+      , { key := "[Ctrl-d/u]", label := "page" }
+      ])
   else
-    let navigation :=
-      match state.zoomLevel with
-      | .day => ["Day:", "[h/l] day", "[k/j] week", calendarToggle, "[Enter] open"]
-      | .month => ["Month:", "[h/l] month", "[k/j] quarter", "[Enter] days"]
-      | .year => ["Year:", "[h/l/k/j] year", "[Enter] months"]
-    navigation ++
-      ["[t] today", "[/] jump", "[z] zoom", "[Tab/w] transactions", "[Ctrl-u/d] scroll",
-       "[r] record", "[x] exchange", "[a] actual", "[s] scheduled", "[q] quit"]
+    match state.zoomLevel with
+    | .day =>
+        ("Day",
+          [ { key := "[h/l]", label := "day" }
+          , { key := "[k/j]", label := "week" }
+          , calendarToggle
+          , { key := "[Enter]", label := "open" }
+          , { key := "[t]", label := "today" }
+          , { key := "[/]", label := "jump" }
+          , { key := "[z]", label := "zoom" }
+          ])
+    | .month =>
+        ("Month",
+          [ { key := "[h/l]", label := "month" }
+          , { key := "[k/j]", label := "quarter" }
+          , { key := "[Enter]", label := "days" }
+          , { key := "[t]", label := "today" }
+          , { key := "[/]", label := "jump" }
+          , { key := "[z]", label := "zoom" }
+          ])
+    | .year =>
+        ("Year",
+          [ { key := "[h/l/k/j]", label := "year" }
+          , { key := "[Enter]", label := "months" }
+          , { key := "[t]", label := "today" }
+          , { key := "[/]", label := "jump" }
+          , { key := "[z]", label := "zoom" }
+          ])
 
-private def householdHelpTokens : List String :=
-  ["Household:", "[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
-   "[e] capacity", "[v] reports"]
+private def viewHelp (state : State) : List HelpItem :=
+  if state.activePane == .detail then
+    [{ key := "[Esc/Tab/w]", label := "calendar" }]
+  else
+    [ { key := "[Tab/w]", label := "transactions" }
+    , { key := "[Ctrl-u/d]", label := "scroll" }
+    ]
 
-private def manageHelpTokens : List String :=
-  ["Manage:", "[p] purpose routing", "[m] manage loci", "[o] observe quantities"]
+private def actionHelp (state : State) : List HelpItem :=
+  if state.activePane == .detail then
+    [{ key := "[q]", label := "quit" }]
+  else
+    [ { key := "[r]", label := "record" }
+    , { key := "[x]", label := "exchange" }
+    , { key := "[a]", label := "actual" }
+    , { key := "[s]", label := "scheduled" }
+    , { key := "[q]", label := "quit" }
+    ]
+
+private def householdHelp : List HelpItem :=
+  [ { key := "[d]", label := "pace" }
+  , { key := "[i]", label := "attention" }
+  , { key := "[b]", label := "balances" }
+  , { key := "[u]", label := "settlements" }
+  , { key := "[c]", label := "budget" }
+  , { key := "[e]", label := "capacity" }
+  , { key := "[v]", label := "reports" }
+  ]
+
+private def manageHelp : List HelpItem :=
+  [ { key := "[p]", label := "purpose routing" }
+  , { key := "[m]", label := "manage loci" }
+  , { key := "[o]", label := "observe quantities" }
+  ]
 
 private def helpLines (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  (Loam.Tui.Layout.flowLines width "  "
-    [dayHelpTokens state, householdHelpTokens, manageHelpTokens]).map mutedLine
+  let (navigationLabel, navigation) := navigationHelp state
+  helpGroupLines width navigationLabel navigation ++
+    helpGroupLines width "View" (viewHelp state) ++
+    helpGroupLines width "Action" (actionHelp state) ++
+    helpGroupLines width "Household" householdHelp ++
+    helpGroupLines width "Manage" manageHelp
 
 /-- Wide Home shows both panes; narrow Home gives focused transactions the full body. -/
 def usesWideLayout (bounds : Bounds) : Bool :=
@@ -906,10 +1006,10 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
       [ruleLine bounds '-', promptLine, hintLine]
   | none =>
       let help := helpLines bounds state
-      if usesWideLayout bounds then
-        (if state.notice.isEmpty then [blankLine] else [plainLine state.notice]) ++ help
+      if state.notice.isEmpty then
+        help
       else
-        (if state.notice.isEmpty then [] else [plainLine state.notice]) ++ help
+        [plainLine state.notice, blankLine] ++ help
 
 /-- Scroll non-selectable detail evidence when there are no Actual rows. -/
 private def scrollDetail
