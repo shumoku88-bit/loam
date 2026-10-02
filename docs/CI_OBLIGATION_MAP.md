@@ -9,7 +9,7 @@ are needed.
 
 ## Compression ledger
 
-The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43. The Capacity publisher and practical entrance workflows were then grouped into one workflow with separate jobs, reducing the live topology to 42. The Event Merchant publisher and TUI input workflows were next grouped into one workflow with separate jobs, reducing the live topology to 41. The two runtime shadow workflows were then grouped into one workflow with separate redaction/projection and quantity jobs, reducing the live topology to 40. A final full-inventory pass found one remaining high-confidence grouping: Scheduled lifecycle persistence and the Scheduled publisher qualification surface, reducing the live topology to 39 while keeping four independent jobs.
+The item-2 baseline had 97 workflow files. After retiring two graduated standalone Lean witnesses, the item-2 completion topology had 48. Retiring the native LOAM Web frontend later reduced the live topology to 47. A later product-CI consolidation folded the two Movement Proposal workflows into one file, reducing the live topology to 46. The three Scheduled publisher workflows were then grouped into one workflow with three independent jobs, reducing the live topology to 44. The Actual Routing persistence and writer workflows were next grouped into one workflow with separate jobs, reducing the live topology to 43. The Capacity publisher and practical entrance workflows were then grouped into one workflow with separate jobs, reducing the live topology to 42. The Event Merchant publisher and TUI input workflows were next grouped into one workflow with separate jobs, reducing the live topology to 41. The two runtime shadow workflows were then grouped into one workflow with separate redaction/projection and quantity jobs, reducing the live topology to 40. A final full-inventory pass found one remaining high-confidence grouping: Scheduled lifecycle persistence and the Scheduled publisher qualification surface, reducing the live topology to 39 while keeping four independent jobs. Retiring the completed conventional Tauri workbench later reduced the live topology to 38 without removing a household semantic obligation.
 
 The first 47 retired workflow files are accounted for by four explicit
 consolidation families:
@@ -44,7 +44,7 @@ A later graduation pass retired two additional standalone Lean workflows:
 The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
 frontend retirement brought the live workflow count to `47`. The Movement
 Proposal consolidation then reached `46`; Scheduled publisher consolidation reaches
-`44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`; Scheduled lifecycle qualification consolidation reaches `39`, or 58 retired workflow files in total.
+`44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`; Scheduled lifecycle qualification consolidation reaches `39`; retiring the completed conventional GUI workbench reaches `38`, or 59 retired workflow files in total.
 The surviving `movement-proposal.yml` retains separate read-only transport and
 explicit publication jobs under one shared path-trigger surface. The surviving
 `scheduled-lifecycle.yml` retains separate lifecycle persistence, Creation,
@@ -165,21 +165,15 @@ operational roles differ:
 
 - `tui.yml`
 - `tui-foundation.yml`
-- `gui.yml` (separate thin-native-transport and synthetic-browser-interaction jobs)
 - `beancount-export.yml`
 - `standalone-distribution.yml`
 - `compression-audit.yml`
 - `module-granularity-audit.yml`
 - `repository-hygiene.yml`
 
-The new Tauri workbench's `gui.yml` checks presentation transport in Rust on
-macOS and interaction over synthetic read answers in Chromium. It never reads
-operational household data. The shared ActualReview admission boundary and Lean
-ACTUAL1 month/correction-lineage projection remain qualified by `application.yml`;
-the GUI workflow does not replace that upstream obligation or claim native
-WKWebView rendering equivalence from browser tests.
+The completed conventional Tauri workbench and its `gui.yml` qualification surface are retired and remain available in Git history. A future Observatory renderer should gain its own presentation-local qualification only when executable code exists; upstream Review / Presentation answers remain the semantic boundary.
 
-## Current stopping point after the 40-workflow audit
+## Current stopping point after GUI workbench retirement
 
 The post-shadow full inventory classified the remaining workflows by current
 evidence rather than by naming similarity. It found one high-confidence GROUP
@@ -188,7 +182,7 @@ and no workflow that could be retired outright without dropping a distinct
 operational, proof, solver, packaging, repository-audit, or path-local
 qualification contract.
 
-After that grouping, the remaining 39 workflow files are therefore treated as
+After that grouping and the later GUI workbench retirement, the remaining 38 workflow files are therefore treated as
 KEEP by default. Future consolidation should require fresh evidence of mechanical
 and semantic equivalence rather than a target workflow count.
 
@@ -230,6 +224,6 @@ The first instrumented measurement after adding the topology audit was
 live topology to 50 / 227627. Retiring the two graduated Lean witnesses produced
 the item-2 completion measurement above. The later native Web retirement reduced
 the live workflow-file count to 47, the Movement Proposal consolidation reduced
-it to 46, the Scheduled publisher consolidation reduced it to 44, the Actual Routing consolidation reduced it to 43, the Capacity consolidation reduced it to 42, the Event Merchant consolidation reduced it to 41, the runtime shadow consolidation reduced it to 40, and the Scheduled lifecycle qualification consolidation reduces it to 39; use
+it to 46, the Scheduled publisher consolidation reduced it to 44, the Actual Routing consolidation reduced it to 43, the Capacity consolidation reduced it to 42, the Event Merchant consolidation reduced it to 41, the runtime shadow consolidation reduced it to 40, and the Scheduled lifecycle qualification consolidation reduced it to 39, and retiring the completed conventional GUI workbench reduced it to 38; use
 `python3 tools/audit-ci-topology` for the current YAML byte measurement after
 subsequent feature changes.

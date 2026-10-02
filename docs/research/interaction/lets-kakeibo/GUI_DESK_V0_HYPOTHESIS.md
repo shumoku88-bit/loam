@@ -1,7 +1,7 @@
 # LOAM GUI Desk v0 hypothesis
 
 Date: 2026-10-01  
-Status: **next interaction experiment; read-only and replaceable**
+Status: **completed experiment; implementation retired 2026-10-03**
 
 ## 1. Why a GUI experiment now
 
@@ -207,3 +207,30 @@ What does not survive:
 - terminal key grammar as the primary interaction model.
 
 The next experiment should reuse the **question**, not the old renderer.
+
+
+## 10. Experiment outcome
+
+The conventional read-only Tauri workbench was implemented and qualified, but it
+remained too close to an ordinary household desktop application to justify a
+second daily surface beside the production TUI.
+
+Its code and dedicated CI were therefore retired on 2026-10-03. The experiment
+survives in this document and Git history.
+
+What survives into the next GUI direction:
+
+- read-only presentation over surface-neutral LOAM answers;
+- no accounting or household authority in the renderer;
+- direct navigation from aggregate observation to contributing evidence;
+- a replaceable shell.
+
+What does not survive:
+
+- calendar + ledger + inspector as the primary GUI topology;
+- duplicating ordinary TUI workflows in a window;
+- a GUI whose main advantage is conventional pointer interaction.
+
+The next experiment is [LOAM Observatory v0](../LOAM_OBSERVATORY_V0_HYPOTHESIS.md):
+a GPU-first spatial instrument whose first surface is the pension-cycle Orbit and
+whose second surface is evidence X-Ray.
