@@ -297,7 +297,7 @@ Capacity currently exposes:
 ```text
 t          transfer
 r          rebalance
-up/down    select remembered Purpose
+j/k or up/down  select remembered Purpose
 q / Esc    Home
 ```
 
