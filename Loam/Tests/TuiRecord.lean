@@ -15,6 +15,9 @@ private def widgetText (widget : Loam.Tui.Kernel.Widget) : String :=
   String.intercalate "\n" <| widget.lines.map fun cells =>
     String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)
 
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 open Loam.Tui.Kernel
 
 private def world : IO Loam.MovementAdmission.World := do
@@ -59,10 +62,10 @@ def main (args : List String) : IO Unit := do
 
   let openedText := widgetText (view [] (initial "2026-09-06"))
   expect
-    (openedText.contains "Measure: jpy\n\nPosting 1:" &&
-      openedText.contains "decimal input follows the Measure presentation scale.\n\nLocus catalog:" &&
-      openedText.contains "Original amount: (none)   Ctrl-O add\n\n[Preview]" &&
-      openedText.contains "[Cancel] \n\nTab / Shift-Tab focus")
+    (contains "Measure: jpy\n\nPosting 1:" openedText &&
+      contains "decimal input follows the Measure presentation scale.\n\nLocus catalog:" openedText &&
+      contains "Original amount: (none)   Ctrl-O add\n\n[Preview]" openedText &&
+      contains "[Cancel] \n\nTab / Shift-Tab focus" openedText)
     "Record editing surface lost semantic vertical spacing"
 
   let opened := initial "2026-09-06"
