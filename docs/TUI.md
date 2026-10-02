@@ -360,3 +360,10 @@ Routing, Cycle Grant, and PTY interaction paths.
 read-only Cycle Budget. Those files are historical/research evidence unless they
 explicitly claim to be current production guidance. This document and the production
 source/tests are the current TUI contract.
+
+
+### Floating Record panel
+
+On terminals with enough room, the Home `r` entrance opens Record as a centered
+floating panel. Compact terminals keep the existing full-screen Record surface.
+Only presentation changes; Record validation and publication are shared.

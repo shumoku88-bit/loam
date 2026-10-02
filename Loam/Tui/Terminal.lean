@@ -143,6 +143,41 @@ private def dirtyRowAnsi
         renderCellsAnsi <| Loam.Tui.Layout.clipCells available cells.toList
   cursorTo row.val left ++ content ++ "\x1b[0m\x1b[K"
 
+
+private def regionCellsWidth (cells : List Cell) : Nat :=
+  cells.foldl (fun width cell => width + Loam.Tui.Layout.charWidth cell.glyph) 0
+
+/--
+Build ANSI for structurally changed rows inside one fixed-width region.
+
+Unlike the full-row dirty renderer, this deliberately does not clear to the
+physical end of line. The caller owns a rectangular overlay and therefore only
+that many terminal columns may be replaced.
+-/
+def dirtyRegionAnsi
+    (bounds : Bounds) (top left width : Nat)
+    (old new : CompiledWidget) : String :=
+  let available := min width (Loam.Tui.Layout.contentWidth bounds - left)
+  String.intercalate "" <|
+    (dirtyRows bounds top old new).map fun row =>
+      let clipped :=
+        match new.rowAt top row.val with
+        | none => []
+        | some cells =>
+            Loam.Tui.Layout.clipCells available cells.toList
+      let padding :=
+        String.ofList (List.replicate (available - regionCellsWidth clipped) ' ')
+      cursorTo row.val left ++
+        renderCellsAnsi clipped ++
+        "\x1b[0m" ++ padding
+
+/-- Emit only the changed rows of one fixed-width overlay rectangle. -/
+def emitDirtyRegion
+    (bounds : Bounds) (top left width : Nat)
+    (old new : CompiledWidget) : IO Unit := do
+  IO.print (dirtyRegionAnsi bounds top left width old new)
+  (← IO.getStdout).flush
+
 /--
 Emit only structurally changed rows. The semantic reconstruction theorem remains
 in `Loam.Tui.Runtime`; ANSI and terminal glyph advance are the physical boundary.

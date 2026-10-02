@@ -1,5 +1,6 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Tui.Record
+import Loam.Tui.RecordSession
 import Loam.Tui.UnresolvedActivation
 import Loam.Review.MovementDraftReview
 import Loam.Publisher.MovementPublisher
@@ -9,6 +10,8 @@ open Loam.Core Loam.Tui.Record
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
+
+open Loam.Tui.Kernel
 
 private def world : IO Loam.MovementAdmission.World := do
   let some events := EventMemory.ofEvents? [] | throw (IO.userError "empty events")
@@ -37,6 +40,19 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let w ← world
+  let compactBounds : Bounds := { width := 80, height := 24 }
+  expect (Loam.Tui.RecordSession.floatingGeometry? compactBounds).isNone
+    "compact terminal unexpectedly forced floating Record"
+  let largeBounds : Bounds := { width := 120, height := 40 }
+  let geometry ←
+    match Loam.Tui.RecordSession.floatingGeometry? largeBounds with
+    | some geometry => pure geometry
+    | none => throw (IO.userError "large terminal did not admit floating Record")
+  expect
+    (geometry.top + geometry.height <= largeBounds.height &&
+      geometry.left + geometry.width <= Loam.Tui.Layout.contentWidth largeBounds)
+    "floating Record geometry escaped the visible terminal"
+
   let opened := initial "2026-09-06"
   expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
     "Record must start at Description with the selected date intact"

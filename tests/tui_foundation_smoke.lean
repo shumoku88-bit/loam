@@ -66,4 +66,25 @@ def main : IO Unit := do
   expect (Loam.Tui.Terminal.cursorTo 1 2 == "\x1b[2;3H")
     "terminal cursor addressing no longer converts zero-based coordinates"
 
+  let panel :=
+    framedPanel 20 5 "Record" (.column [.row [span "alpha"], .row [span "beta"]])
+  expect (panel.lines.length == 5)
+    "fixed panel lost its requested row count"
+  expect
+    (panel.lines.all fun cells =>
+      cells.foldl (fun width cell => width + charWidth cell.glyph) 0 == 20)
+    "fixed panel did not occupy its requested terminal width"
+
+  let oldPanel := Loam.Tui.Runtime.compileWidget <|
+    framedPanel 20 5 "Record" (.column [.row [span "alpha"]])
+  let newPanel := Loam.Tui.Runtime.compileWidget <|
+    framedPanel 20 5 "Record" (.column [.row [span "omega"]])
+  let regionAnsi :=
+    Loam.Tui.Terminal.dirtyRegionAnsi
+      { width := 80, height := 24 } 3 10 20 oldPanel newPanel
+  expect ((regionAnsi.splitOn "\x1b[K").length == 1)
+    "region renderer cleared beyond its owned rectangle"
+  expect ((regionAnsi.splitOn "\x1b[5;11H").length > 1)
+    "region renderer lost the panel cursor origin"
+
   IO.println "domain-free TUI foundation smoke checks passed"
