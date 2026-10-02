@@ -82,6 +82,18 @@ def main (args : List String) : IO Unit := do
     (contains "> food  食費\n\n  ↳ 日常の食事・食材\nUp / Down choose candidate" helpText)
     "Record Locus help was not visually separated from catalog candidates"
 
+  let imeFrame :=
+    Loam.Tui.Runtime.compileWidget (view [] (initial "2026-09-06"))
+  expect
+    (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 imeFrame == some (2, 14))
+    "Record cursor did not return to the active Description field"
+  let japaneseState :=
+    { initial "2026-09-06" with form := { (initial "2026-09-06").form with description := "食事" } }
+  let japaneseFrame := Loam.Tui.Runtime.compileWidget (view [] japaneseState)
+  expect
+    (Loam.Tui.RecordSession.focusedCursorPosition? 5 10 japaneseFrame == some (7, 27))
+    "Record cursor lost CJK display width or floating origin"
+
   let opened := initial "2026-09-06"
   expect (opened.form.date == "2026-09-06" && opened.form.focus.val == 1)
     "Record must start at Description with the selected date intact"
