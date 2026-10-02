@@ -119,7 +119,7 @@ private def frameFor
 
 private def redraw
     (bounds : Bounds) (surface : Surface)
-    (old new : CompiledWidget) : IO Unit :=
+    (old new : CompiledWidget) : IO Unit := do
   match surface with
   | .full =>
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 old new
