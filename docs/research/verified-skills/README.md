@@ -196,7 +196,7 @@ have verifier/test surfaces that can provide useful feedback.
 Current trial records:
 
 - Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
-- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): skill arm complete; first baseline attempt contaminated; fresh rerun pending.
+- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins.
 
 ## Trial record template
 
