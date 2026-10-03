@@ -249,6 +249,7 @@ def actualWorkspaceEventOfKey
       | .enter => .openSelected
       | .input 'n' | .input 'N' => .recordNew
       | .escape | .input 'q' | .input 'Q' => .back
+      | .ctrl 'l' => .redraw
       | _ => .other
 
 /-- Actual workspace session. `q` returns to Home; `n` reuses the shared Movement writer. -/
@@ -305,6 +306,10 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
       let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       actualWorkspaceLoop bounds dataDir root fresh next nextFrame
+  | .redraw =>
+      let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot step.state)
+      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+      actualWorkspaceLoop bounds dataDir root snapshot step.state nextFrame
   | .stay =>
       let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -459,7 +464,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let actual := Loam.Tui.ActualWorkspace.withMetadata
       (Loam.Tui.ActualWorkspace.initial state.selectedDate) metadata
     let actualFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot actual)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame actualFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds actualFrame
     let fresh ← actualWorkspaceLoop bounds dataDir root snapshot actual actualFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds fresh home

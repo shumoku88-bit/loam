@@ -29,7 +29,7 @@ structure State where
   focusDate : String
   scope : Scope := .focusDay
   order : SortOrder := .desc
-  pane : Pane := .loci
+  pane : Pane := .transactions
   locusRow : Nat := 0
   transactionRow : Nat := 0
   searchQuery : String := ""
@@ -54,6 +54,7 @@ inductive Event where
   | openSelected
   | recordNew
   | back
+  | redraw
   | other
   deriving Repr, DecidableEq, BEq
 
@@ -62,6 +63,7 @@ inductive Command where
   | openSelected
   | recordNew
   | back
+  | redraw
   deriving Repr, DecidableEq, BEq
 
 structure Step where
@@ -138,14 +140,18 @@ def visibleRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
 def selectedRecord? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
   (visibleRecords snapshot state)[state.transactionRow]?
 
-private def clampState (snapshot : Snapshot) (state : State) : State :=
-  let lociCount := (lociForScope snapshot state).length
+def clampStateWithCounts (lociCount txCount : Nat) (state : State) : State :=
   let locusRow := min state.locusRow lociCount
   let withLocus := { state with locusRow := locusRow }
-  let txCount := (visibleRecords snapshot withLocus).length
   let transactionRow :=
     if txCount = 0 then 0 else min withLocus.transactionRow (txCount - 1)
   { withLocus with transactionRow := transactionRow }
+
+private def clampState (snapshot : Snapshot) (state : State) : State :=
+  let lociCount := (lociForScope snapshot state).length
+  let withLocus := { state with locusRow := min state.locusRow lociCount }
+  let txCount := (visibleRecords snapshot withLocus).length
+  clampStateWithCounts lociCount txCount withLocus
 
 /-- Re-clamp only local cursor coordinates after canonical evidence is reloaded. -/
 def refreshed (snapshot : Snapshot) (state : State) : State :=
@@ -249,6 +255,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
           { state := { state with notice := "Move to the Actuals pane before opening a record." } }
   | .recordNew => { state, command := .recordNew }
   | .back => { state, command := .back }
+  | .redraw => { state, command := .redraw }
   | .other => { state }
 
 private def repeatChar (count : Nat) (char : Char) : String :=
@@ -291,11 +298,12 @@ private def txSummary (record : ReviewRecord) : String :=
 private def paneWindowStart (selected visibleRows : Nat) : Nat :=
   Loam.Tui.Layout.trailingWindowStart selected (max 1 visibleRows)
 
-private def locusLabel (snapshot : Snapshot) (state : State) (row : Nat) : Option String :=
+private def locusLabel (state : State) (loci : List String) (row : Nat) : Option String :=
   if row = 0 then some "[All loci]"
-  else (lociForScope snapshot state)[row - 1]?.map (displayLocus state)
+  else loci[row - 1]?.map (displayLocus state)
 
-private def paneRow (snapshot : Snapshot) (state : State)
+private def paneRow
+    (state : State) (recordsArr : Array ReviewRecord) (loci : List String)
     (leftWidth rightWidth visibleRows row : Nat) : Widget :=
   let locusIndex := paneWindowStart state.locusRow visibleRows + row
   let txIndex := paneWindowStart state.transactionRow visibleRows + row
@@ -304,36 +312,64 @@ private def paneRow (snapshot : Snapshot) (state : State)
       if state.pane == .loci then " > " else " * "
     else "   "
   let rightPrefix :=
-    if txIndex = state.transactionRow && (visibleRecords snapshot state).length > 0 then
+    if txIndex = state.transactionRow && recordsArr.size > 0 then
       if state.pane == .transactions then " > " else " * "
     else "   "
   let leftText :=
-    match locusLabel snapshot state locusIndex with
+    match locusLabel state loci locusIndex with
     | some label => leftPrefix ++ label
     | none => ""
   let rightText :=
-    match (visibleRecords snapshot state)[txIndex]? with
+    match recordsArr[txIndex]? with
     | some record => rightPrefix ++ txSummary record
-    | none => if row = 0 && (visibleRecords snapshot state).isEmpty then " (no matching Actual records)" else ""
+    | none => if row = 0 && recordsArr.isEmpty then " (no matching Actual records)" else ""
   .row [span (fit leftWidth leftText), span " | ", span (fit rightWidth rightText)]
 
-private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
-  match selectedRecord? snapshot state with
-  | none =>
-      [ plainLine " Selected Actual Details:"
-      , mutedLine "   (no Actual selected)"
-      ]
-  | some record =>
-      [ plainLine " Selected Actual Details:"
-      , plainLine ("   Date        : " ++ record.date.getD "date unknown")
-      , plainLine ("   Description : " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
-      , plainLine ("   Identity    : " ++ record.event.id.token)
-      , plainLine "   Status      : Current"
-      , plainLine "   Effects:"
-      ] ++
-      (record.event.effects.map fun effect =>
-        plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
-          toString effect.quantity.quanta ++ " " ++ effect.measure.token))
+/--
+Stable details presentation. By fixing the allocated rows across records,
+vertical geometry (divider position and pane rows) remains stationary during
+scrolling, preventing whole-screen layout jitter and dirty-diff desynchronization.
+-/
+def detailCapacityForBounds (bounds : Bounds) : Nat :=
+  if bounds.height ≥ 36 then 10 else 8
+
+private def fixedDetailLines
+    (state : State) (record? : Option ReviewRecord) (capacity : Nat) : List Widget :=
+  let baseLines : List Widget :=
+    match record? with
+    | none =>
+        [ plainLine " Selected Actual Details:"
+        , mutedLine "   (no Actual selected)"
+        ]
+    | some record =>
+        let effectSlotCapacity := if capacity > 6 then capacity - 6 else 0
+        let effects := record.event.effects
+        let renderedEffects : List Widget :=
+          if effects.length ≤ effectSlotCapacity then
+            effects.map fun effect =>
+              plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
+                toString effect.quantity.quanta ++ " " ++ effect.measure.token)
+          else
+            let shownCount := if effectSlotCapacity > 1 then effectSlotCapacity - 1 else 0
+            let shown := effects.take shownCount
+            let remaining := effects.length - shownCount
+            (shown.map fun effect =>
+              plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
+                toString effect.quantity.quanta ++ " " ++ effect.measure.token)) ++
+              [mutedLine s!"     ... (+{remaining} more effects)"]
+        [ plainLine " Selected Actual Details:"
+        , plainLine ("   Date        : " ++ record.date.getD "date unknown")
+        , plainLine ("   Description : " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
+        , plainLine ("   Identity    : " ++ record.event.id.token)
+        , plainLine "   Status      : Current"
+        , plainLine "   Effects:"
+        ] ++ renderedEffects
+  let visibleBase := baseLines.take capacity
+  let padding := capacity - visibleBase.length
+  visibleBase ++ List.replicate padding blankLine
+
+def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
+  fixedDetailLines state (selectedRecord? snapshot state) 8
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   if state.searchEditing then
@@ -361,13 +397,17 @@ Production Actual workspace over the shared ActualReview answer. Stable tokens
 still own filtering/selection identity; catalog labels alter presentation only.
 -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
-  let state := clampState snapshot rawState
+  let loci := lociForScope snapshot rawState
+  let lociCount := loci.length
+  let withLocus := { rawState with locusRow := min rawState.locusRow lociCount }
+  let records := visibleRecords snapshot withLocus
+  let recordsArr := records.toArray
+  let txCount := recordsArr.size
+  let state := clampStateWithCounts lociCount txCount withLocus
   let writable := Loam.Tui.Layout.contentWidth bounds
   let leftWidth :=
     if writable >= 70 then min 32 (writable / 3) else min 24 (writable / 2)
   let rightWidth := if writable > leftWidth + 3 then writable - leftWidth - 3 else 0
-  let lociCount := (lociForScope snapshot state).length
-  let txCount := (visibleRecords snapshot state).length
   let leftHeader :=
     fit leftWidth
       (if state.pane == .loci then " Loci [active] (" ++ toString lociCount ++ ")"
@@ -393,10 +433,12 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       let cursor := if state.searchEditing then "_" else ""
       [plainLine (Loam.Tui.Layout.clip writable
         (" Search: /" ++ state.searchQuery ++ cursor))]
-  let details := detailLines snapshot state
+  let detailCap := detailCapacityForBounds bounds
+  let selectedRecord := recordsArr[state.transactionRow]?
+  let details := fixedDetailLines state selectedRecord detailCap
   let footerLines := footer bounds state
   let noticeRows := if state.notice.isEmpty then 0 else 1
-  let fixedBodyRows := 7 + searchLine.length + details.length + noticeRows
+  let fixedBodyRows := 7 + searchLine.length + detailCap + noticeRows
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
   let paneRows := max 1 (bodyCapacity - fixedBodyRows)
   let body :=
@@ -408,7 +450,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     [ rule bounds '='
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++
-    (List.range paneRows).map (paneRow snapshot state leftWidth rightWidth paneRows) ++
+    (List.range paneRows).map (paneRow state recordsArr loci leftWidth rightWidth paneRows) ++
     [rule bounds '-'] ++ details ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
   .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
