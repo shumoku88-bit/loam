@@ -580,7 +580,7 @@ private def monthlyAccountsResultLines
             "Role classification is complete for selected quantity Effects."
            else
             "Monthly totals are partial while unresolved role Effects remain.")
-      , muted "Monthly Accounts is a projection of the same occurrence-time flow, not stored monthly state."
+      , muted "Monthly Accounts groups the selected recorded flow by calendar month; it does not create a separate monthly ledger."
       ]
 
 private def dailyMeasures
