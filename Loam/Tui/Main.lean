@@ -7,12 +7,10 @@ import Loam.Presentation.ReadState
 import Loam.Review.ScheduledReview
 import Loam.Tui.Calendar
 import Loam.Tui.DateJump
-import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.Main
 
-open Loam.Tui.Kernel
 
 set_option autoImplicit false
 
@@ -189,11 +187,6 @@ def executeJump (state : State) : State :=
             notice := if buffer.isEmpty then "" else s!"Invalid date format: {buffer}"
           }
   | none => state
-
-
-def plainLine (text : String) : Widget := .row [span text]
-def mutedLine (text : String) : Widget := .row [span text .muted]
-def blankLine : Widget := .row []
 
 
 def recordsForDay (snapshot : Snapshot) (date : String) : List ReviewRecord :=

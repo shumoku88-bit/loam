@@ -126,6 +126,11 @@ inductive Widget where
 def span (text : String) (style : Style := .normal) : Span :=
   { style, text }
 
+/-- Common one-line widgets used by terminal renderers. -/
+def plainLine (text : String) : Widget := .row [span text]
+def mutedLine (text : String) : Widget := .row [span text .muted]
+def blankLine : Widget := .row []
+
 def Span.cells (value : Span) : List Cell :=
   value.text.toList.map fun glyph => { glyph, style := value.style }
 
