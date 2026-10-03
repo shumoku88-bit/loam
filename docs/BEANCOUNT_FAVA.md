@@ -14,7 +14,7 @@ LOAM provides a one-way deterministic projection from its canonical Actual evide
 
 ## Projection Modes
 
-`loamBeancountExport` supports three explicit modes:
+`loam export beancount` supports three explicit modes:
 
 | Mode | Flag | Behavior on Unresolved Locus | Recommended Use |
 | :--- | :--- | :--- | :--- |
@@ -43,11 +43,11 @@ The spawned Fava server runs in a dedicated process group owned by the active `l
 
 #### 1. Generate Disposable Beancount View
 
-Run the exporter from the repository root (using `lake exe` or directly calling `./.lake/build/bin/loamBeancountExport`):
+Run the exporter from the repository root (using `lake exe` or directly calling `./.lake/build/bin/loam export beancount`):
 
 ```bash
 # Recommended: Suspense mode (retains all events; unclassified effects go to Equity:Loam-Unresolved)
-lake exe loamBeancountExport --suspense \
+lake exe loam export beancount --suspense \
   ../loam-data/actual.loam \
   ../loam-data/accounting-role.loam \
   /tmp/loam-fava-household.beancount \
@@ -56,7 +56,7 @@ lake exe loamBeancountExport --suspense \
 
 For partial mode (skipping events containing unclassified loci):
 ```bash
-lake exe loamBeancountExport --partial \
+lake exe loam export beancount --partial \
   ../loam-data/actual.loam \
   ../loam-data/accounting-role.loam \
   /tmp/loam-fava-household.beancount \
@@ -65,7 +65,7 @@ lake exe loamBeancountExport --partial \
 
 For strict mode (fails closed if any locus lacks an AccountingRole):
 ```bash
-lake exe loamBeancountExport \
+lake exe loam export beancount \
   ../loam-data/actual.loam \
   ../loam-data/accounting-role.loam \
   /tmp/loam-fava-household.beancount

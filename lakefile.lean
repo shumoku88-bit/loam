@@ -29,9 +29,6 @@ lean_exe loam where
 lean_exe loamScheduledSuppression where
   root := `Loam.Cli.ScheduledSuppressionCli
 
-lean_exe loamBeancountExport where
-  root := `Loam.Cli.BeancountExportExecutable
-
 lean_exe loamShadowAudit where
   root := `Loam.Cli.ShadowAuditCli
 
