@@ -26,9 +26,6 @@ lean_lib Loam
 lean_exe loam where
   root := `Loam.Cli
 
-lean_exe loamScheduledSuppression where
-  root := `Loam.Cli.ScheduledSuppressionCli
-
 lean_exe loamShadowAudit where
   root := `Loam.Cli.ShadowAuditCli
 

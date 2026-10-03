@@ -99,11 +99,13 @@ def run (args : List String) : IO UInt32 :=
       Loam.ScheduledDayEvidenceCli.report scheduledPath actualRoot day
   | ["balance-effects", rootPath, endExclusive] =>
       Loam.ScheduledBalanceCli.report rootPath endExclusive
+  | ["suppression", rootPath, endExclusive, scheduledId] =>
+      Loam.ScheduledBalanceCli.reportSuppression rootPath endExclusive scheduledId
   | [scheduledPath, actualRoot] =>
       showOpenScheduled scheduledPath actualRoot
   | _ => do
       IO.eprintln
-        "Usage: loam open-scheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | SCHEDULED_FILE ACTUAL_ROOT"
+        "Usage: loam open-scheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD | balance-effects DATA_ROOT END | suppression DATA_ROOT END SCHEDULED_ID | SCHEDULED_FILE ACTUAL_ROOT"
       return 2
 
 end Loam.OpenScheduledCli
