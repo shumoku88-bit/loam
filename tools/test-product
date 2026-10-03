@@ -6,6 +6,43 @@ run() {
   "$@"
 }
 
+run_measure_scale_administration() {
+  local base root ready writer_pid
+
+  base="$(mktemp -d)/measure-scale"
+  run lake env lean --run Loam/Tests/MeasureScaleAdministration.lean "$base"
+
+  root="$(mktemp -d)/measure-scale-race"
+  ready="$root/ready"
+
+  run lake env lean --run Loam/Tests/MeasureScaleAdministration.lean race-setup "$root"
+  lake env lean --run Loam/Tests/MeasureScaleAdministration.lean race-first-use "$root" "$ready" &
+  writer_pid=$!
+
+  for _ in $(seq 1 100); do
+    if [ -f "$ready" ]; then
+      break
+    fi
+    sleep 0.05
+  done
+
+  if [ ! -f "$ready" ]; then
+    echo "first-use writer did not acquire Actual ownership" >&2
+    kill "$writer_pid" 2>/dev/null || true
+    wait "$writer_pid" || true
+    return 1
+  fi
+
+  if lake exe loam measure-scale "$root" usd 3; then
+    echo "scale change unexpectedly succeeded after concurrent first use" >&2
+    wait "$writer_pid" || true
+    return 1
+  fi
+
+  wait "$writer_pid"
+  run lake env lean --run Loam/Tests/MeasureScaleAdministration.lean race-check "$root"
+}
+
 accounting_tests=(
   RoleFlowReview
   CurrentBalanceReview
@@ -123,6 +160,7 @@ singleton_tests=(
   BoundaryPresetConfig
   MerchantExpenseReview
   OperationalContinuity
+  MeasureScaleAdministration
 )
 
 representative_tests=(
@@ -268,6 +306,9 @@ for test_name in "${tests[@]}"; do
       ;;
     OperationalContinuity)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/operational-continuity"
+      ;;
+    MeasureScaleAdministration)
+      run_measure_scale_administration
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
