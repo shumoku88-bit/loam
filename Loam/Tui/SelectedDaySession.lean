@@ -77,6 +77,10 @@ def eventOfKey
     Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
   | .up | .input 'k' | .input 'K' => .previous
   | .down | .input 'j' | .input 'J' => .next
+  | .pageUp => .pageUp
+  | .pageDown => .pageDown
+  | .home => .home
+  | .«end» => .«end»
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
   | .input 'n' | .input 'N' =>

@@ -22,6 +22,11 @@ inductive Key where
   | escape
   | ctrl (char : Char)
   | input (char : Char)
+  | pageUp
+  | pageDown
+  | home
+  | «end»
+  | delete
   /-- Zero-based pointer press coordinate. Surfaces decide whether it is actionable. -/
   | pointer (col row : Nat)
   /-- Zero-based pointer motion while the primary button remains pressed. -/
@@ -304,28 +309,72 @@ private def readSgrMousePayload : Nat → String → IO (String × Bool)
 def backspaceText (text : String) : String :=
   String.ofList text.toList.dropLast
 
+/-- Read remaining bytes of one CSI parameter sequence until the terminating letter or `~`. -/
+private def readCsiPayload (fuel : Nat) (acc : String) : IO (String × Nat) :=
+  match fuel with
+  | 0 => pure (acc, 0)
+  | Nat.succ nextFuel => do
+      let byte ← readByte
+      let value := byte.toNat
+      if value = 0 then
+        return (acc, 0)
+      else if value >= 64 && value <= 126 then
+        return (acc, value)
+      else
+        readCsiPayload nextFuel (acc.push (Char.ofNat value))
+
+/-- Decode ANSI CSI parameter and terminating character into normalized Key. -/
+def decodeCsi (param : String) (finalByte : Nat) : Key :=
+  if finalByte == 126 then
+    if param == "5" || param.startsWith "5;" then .pageUp
+    else if param == "6" || param.startsWith "6;" then .pageDown
+    else if param == "3" || param.startsWith "3;" then .delete
+    else if param == "1" || param == "7" || param.startsWith "1;" then .home
+    else if param == "4" || param == "8" || param.startsWith "4;" then .«end»
+    else .other
+  else if finalByte == 72 then .home
+  else if finalByte == 70 then .«end»
+  else if finalByte == 65 then .up
+  else if finalByte == 66 then .down
+  else if finalByte == 67 then .right
+  else if finalByte == 68 then .left
+  else if finalByte == 90 then .shiftTab
+  else .other
+
 /-- Small input decoder shared by all production TUI surfaces. -/
 def readKey : IO Key := do
   let first ← readByte
   let value := first.toNat
   if value = 27 then
     let second ← readByte
-    if second.toNat != 91 then
+    let secondVal := second.toNat
+    if secondVal = 79 then
+      let third ← readByte
+      match third.toNat with
+      | 72 => return .home
+      | 70 => return .«end»
+      | 65 => return .up
+      | 66 => return .down
+      | 67 => return .right
+      | 68 => return .left
+      | _ => return .other
+    else if secondVal != 91 then
       return .escape
     let third ← readByte
-    match third.toNat with
-    | 65 => return .up
-    | 66 => return .down
-    | 67 => return .right
-    | 68 => return .left
-    | 90 => return .shiftTab
-    | 60 =>
-        let (payload, active) ← readSgrMousePayload 32 ""
-        if active then
-          return decodeSgrMousePayload payload
-        else
-          return .other
-    | _ => return .other
+    let thirdVal := third.toNat
+    if thirdVal = 60 then
+      let (payload, active) ← readSgrMousePayload 32 ""
+      if active then
+        return decodeSgrMousePayload payload
+      else
+        return .other
+    else if thirdVal >= 64 && thirdVal <= 126 then
+      return decodeCsi "" thirdVal
+    else if thirdVal > 0 then
+      let (param, finalByte) ← readCsiPayload 16 (String.singleton (Char.ofNat thirdVal))
+      return decodeCsi param finalByte
+    else
+      return .other
   else if value = 9 then
     return .tab
   else if value = 10 ∨ value = 13 then

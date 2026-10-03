@@ -42,6 +42,10 @@ structure State where
 inductive Event where
   | previous
   | next
+  | pageUp
+  | pageDown
+  | home
+  | «end»
   | focusLeft
   | focusRight
   | cycleFilter
@@ -183,6 +187,41 @@ private def moveNext (snapshot : Snapshot) (state : State) : State :=
       else
         { state with notice := "No next Actual row." }
 
+private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 10) : State :=
+  match state.pane with
+  | .loci =>
+      if state.locusRow == 0 then { state with notice := "Top of Locus list." }
+      else clampState snapshot { state with locusRow := state.locusRow - min state.locusRow pageSize, transactionRow := 0, notice := "" }
+  | .transactions =>
+      if state.transactionRow == 0 then { state with notice := "Top of Actual list." }
+      else { state with transactionRow := state.transactionRow - min state.transactionRow pageSize, notice := "" }
+
+private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat := 10) : State :=
+  match state.pane with
+  | .loci =>
+      let count := (lociForScope snapshot state).length
+      if state.locusRow >= count then { state with notice := "End of Locus list." }
+      else clampState snapshot { state with locusRow := min count (state.locusRow + pageSize), transactionRow := 0, notice := "" }
+  | .transactions =>
+      let count := (visibleRecords snapshot state).length
+      if count == 0 || state.transactionRow + 1 >= count then { state with notice := "End of Actual list." }
+      else { state with transactionRow := min (count - 1) (state.transactionRow + pageSize), notice := "" }
+
+private def moveHome (snapshot : Snapshot) (state : State) : State :=
+  match state.pane with
+  | .loci => clampState snapshot { state with locusRow := 0, transactionRow := 0, notice := "" }
+  | .transactions => { state with transactionRow := 0, notice := "" }
+
+private def moveEnd (snapshot : Snapshot) (state : State) : State :=
+  match state.pane with
+  | .loci =>
+      let count := (lociForScope snapshot state).length
+      clampState snapshot { state with locusRow := count, transactionRow := 0, notice := "" }
+  | .transactions =>
+      let count := (visibleRecords snapshot state).length
+      let row := if count == 0 then 0 else count - 1
+      { state with transactionRow := row, notice := "" }
+
 private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
   let scope := match state.scope with
     | .focusDay => Scope.allCurrent
@@ -221,6 +260,10 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
   | .previous => { state := movePrevious snapshot state }
   | .next => { state := moveNext snapshot state }
+  | .pageUp => { state := movePageUp snapshot state }
+  | .pageDown => { state := movePageDown snapshot state }
+  | .home => { state := moveHome snapshot state }
+  | .«end» => { state := moveEnd snapshot state }
   | .focusLeft => { state := { state with pane := .loci, notice := "" } }
   | .focusRight => { state := { state with pane := .transactions, notice := "" } }
   | .cycleFilter => { state := cycleFilter snapshot state }

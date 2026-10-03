@@ -232,7 +232,7 @@ def actualWorkspaceEventOfKey
     fun key =>
       match key with
       | .escape => .cancelSearch
-      | .backspace => .searchBackspace
+      | .backspace | .delete => .searchBackspace
       | .enter => .acceptSearch
       | .input char => .searchInput char
       | _ => .other
@@ -241,6 +241,10 @@ def actualWorkspaceEventOfKey
       match key with
       | .up | .input 'k' | .input 'K' => .previous
       | .down | .input 'j' | .input 'J' => .next
+      | .pageUp => .pageUp
+      | .pageDown => .pageDown
+      | .home => .home
+      | .«end» => .«end»
       | .left | .input 'h' | .input 'H' => .focusLeft
       | .right | .input 'l' | .input 'L' => .focusRight
       | .input 'f' | .input 'F' => .cycleFilter

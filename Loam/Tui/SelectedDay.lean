@@ -24,6 +24,10 @@ structure State where
 inductive Event where
   | previous
   | next
+  | pageUp
+  | pageDown
+  | home
+  | «end»
   | focusLeft
   | focusRight
   | recordNew
@@ -137,11 +141,50 @@ private def moveNext (snapshot : Snapshot) (state : State) : State :=
       else
         { state with notice := "No next Scheduled row on this day." }
 
+private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 8) : State :=
+  match state.pane with
+  | .actual =>
+      if state.actualRow == 0 then { state with notice := "Top of Actual list." }
+      else { state with actualRow := state.actualRow - min state.actualRow pageSize, notice := "" }
+  | .scheduled =>
+      if state.scheduledRow == 0 then { state with notice := "Top of Scheduled list." }
+      else { state with scheduledRow := state.scheduledRow - min state.scheduledRow pageSize, notice := "" }
+
+private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat := 8) : State :=
+  match state.pane with
+  | .actual =>
+      let count := (actualRecords snapshot state).length
+      if count == 0 || state.actualRow + 1 >= count then { state with notice := "End of Actual list." }
+      else { state with actualRow := min (count - 1) (state.actualRow + pageSize), notice := "" }
+  | .scheduled =>
+      let count := (scheduledRecords snapshot state).length
+      if count == 0 || state.scheduledRow + 1 >= count then { state with notice := "End of Scheduled list." }
+      else { state with scheduledRow := min (count - 1) (state.scheduledRow + pageSize), notice := "" }
+
+private def moveHome (snapshot : Snapshot) (state : State) : State :=
+  match state.pane with
+  | .actual => { state with actualRow := 0, notice := "" }
+  | .scheduled => { state with scheduledRow := 0, notice := "" }
+
+private def moveEnd (snapshot : Snapshot) (state : State) : State :=
+  match state.pane with
+  | .actual =>
+      let count := (actualRecords snapshot state).length
+      let row := if count == 0 then 0 else count - 1
+      { state with actualRow := row, notice := "" }
+  | .scheduled =>
+      let count := (scheduledRecords snapshot state).length
+      let row := if count == 0 then 0 else count - 1
+      { state with scheduledRow := row, notice := "" }
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
   | .previous => { state := movePrevious snapshot state }
   | .next => { state := moveNext snapshot state }
+  | .pageUp => { state := movePageUp snapshot state }
+  | .pageDown => { state := movePageDown snapshot state }
+  | .home => { state := moveHome snapshot state }
+  | .«end» => { state := moveEnd snapshot state }
   | .focusLeft => { state := { state with pane := .actual, notice := "" } }
   | .focusRight => { state := { state with pane := .scheduled, notice := "" } }
   | .recordNew =>

@@ -1096,7 +1096,7 @@ def navigationKey
   if state.jumpPrompt.isSome then
     handled <| match key with
     | .escape => closeJumpPrompt state
-    | .backspace => backspaceJump state
+    | .backspace | .delete => backspaceJump state
     | .enter => executeJump state
     | .input char =>
         if char.isDigit || char == '-' || char == '/' then appendJumpChar state char else state
@@ -1117,12 +1117,27 @@ def navigationKey
         }
     | .input 'f' | .input 'F' =>
         handled (if state.zoomLevel == .day && state.activePane == .calendar then toggleCalendarMode state else state)
-    | .ctrl 'u' | .ctrl 'd' =>
-        let forward := key == .ctrl 'd'
+    | .ctrl 'u' | .ctrl 'd' | .pageUp | .pageDown =>
+        let forward := key == .ctrl 'd' || key == .pageDown
         if state.activePane == .calendar then handled (scrollOverview bounds snapshot state forward)
         else if (homeActualRecords snapshot state).isEmpty then
           some (scrollDetail bounds snapshot state forward 5)
         else handled (moveDetailCursor bounds snapshot { state with notice := "" } (if forward then 5 else -5))
+    | .home =>
+        if state.activePane == .detail then
+          handled (moveDetailCursor bounds snapshot { state with notice := "" } (-10000))
+        else
+          handled { state with
+            selectedDate := snapshot.actual.today
+            notice := ""
+            detailCursor := 0
+            detailScroll := 0
+            overviewScroll := 0
+          }
+    | .«end» =>
+        if state.activePane == .detail then
+          handled (moveDetailCursor bounds snapshot { state with notice := "" } 10000)
+        else handled state
     | .escape | .enter =>
         if state.activePane == .detail then
           if key == .escape then handled (focusCalendar state) else none

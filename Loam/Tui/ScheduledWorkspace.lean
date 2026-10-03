@@ -49,6 +49,10 @@ structure State where
 inductive Event where
   | previous
   | next
+  | pageUp
+  | pageDown
+  | home
+  | «end»
   | focusLeft
   | focusRight
   | cycleFilter
@@ -356,6 +360,41 @@ private def moveNext (snapshot : Snapshot) (state : State) : State :=
       else
         { state with notice := "No next Scheduled row." }
 
+private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 8) : State :=
+  match state.pane with
+  | .loci =>
+      if state.locusRow == 0 then { state with notice := "Top of Locus list." }
+      else clampState snapshot { state with locusRow := state.locusRow - min state.locusRow pageSize, occurrenceRow := 0, notice := "" }
+  | .occurrences =>
+      if state.occurrenceRow == 0 then { state with notice := "Top of Scheduled list." }
+      else { state with occurrenceRow := state.occurrenceRow - min state.occurrenceRow pageSize, notice := "" }
+
+private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat := 8) : State :=
+  match state.pane with
+  | .loci =>
+      let count := (lociForScope snapshot state).length
+      if state.locusRow >= count then { state with notice := "End of Locus list." }
+      else clampState snapshot { state with locusRow := min count (state.locusRow + pageSize), occurrenceRow := 0, notice := "" }
+  | .occurrences =>
+      let count := (visibleRecords snapshot state).length
+      if count == 0 || state.occurrenceRow + 1 >= count then { state with notice := "End of Scheduled list." }
+      else { state with occurrenceRow := min (count - 1) (state.occurrenceRow + pageSize), notice := "" }
+
+private def moveHome (snapshot : Snapshot) (state : State) : State :=
+  match state.pane with
+  | .loci => clampState snapshot { state with locusRow := 0, occurrenceRow := 0, notice := "" }
+  | .occurrences => { state with occurrenceRow := 0, notice := "" }
+
+private def moveEnd (snapshot : Snapshot) (state : State) : State :=
+  match state.pane with
+  | .loci =>
+      let count := (lociForScope snapshot state).length
+      clampState snapshot { state with locusRow := count, occurrenceRow := 0, notice := "" }
+  | .occurrences =>
+      let count := (visibleRecords snapshot state).length
+      let row := if count == 0 then 0 else count - 1
+      { state with occurrenceRow := row, notice := "" }
+
 private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
   let scope := match state.scope with
     | .focusDay => Scope.allCurrent
@@ -400,6 +439,50 @@ def updateWithCoverage
                 { state := { state with notice := "Already at the last plan entry." } }
       | .futureBoard => { state := followFutureBoardSelection snapshot (moveNext snapshot state) }
       | .list => { state := moveNext snapshot state }
+  | .pageUp =>
+      match state.viewMode with
+      | .coverage =>
+          { state := { state with coverageRow := state.coverageRow - min state.coverageRow 8, notice := "" } }
+      | .planDetail =>
+          { state := { state with planRow := state.planRow - min state.planRow 8, notice := "" } }
+      | .futureBoard => { state := followFutureBoardSelection snapshot (movePageUp snapshot state) }
+      | .list => { state := movePageUp snapshot state }
+  | .pageDown =>
+      match state.viewMode with
+      | .coverage =>
+          let count := (coverageRows coverage).length
+          let target := if count == 0 then 0 else min (count - 1) (state.coverageRow + 8)
+          { state := { state with coverageRow := target, notice := "" } }
+      | .planDetail =>
+          match selectedCoverageRow? coverage state with
+          | none => { state := { state with notice := "Plan details are unavailable." } }
+          | some row =>
+              let count := (planDetailEntries snapshot row).length
+              let target := if count == 0 then 0 else min (count - 1) (state.planRow + 8)
+              { state := { state with planRow := target, notice := "" } }
+      | .futureBoard => { state := followFutureBoardSelection snapshot (movePageDown snapshot state) }
+      | .list => { state := movePageDown snapshot state }
+  | .home =>
+      match state.viewMode with
+      | .coverage => { state := { state with coverageRow := 0, notice := "" } }
+      | .planDetail => { state := { state with planRow := 0, notice := "" } }
+      | .futureBoard => { state := followFutureBoardSelection snapshot (moveHome snapshot state) }
+      | .list => { state := moveHome snapshot state }
+  | .«end» =>
+      match state.viewMode with
+      | .coverage =>
+          let count := (coverageRows coverage).length
+          let target := if count == 0 then 0 else count - 1
+          { state := { state with coverageRow := target, notice := "" } }
+      | .planDetail =>
+          match selectedCoverageRow? coverage state with
+          | none => { state := { state with notice := "Plan details are unavailable." } }
+          | some row =>
+              let count := (planDetailEntries snapshot row).length
+              let target := if count == 0 then 0 else count - 1
+              { state := { state with planRow := target, notice := "" } }
+      | .futureBoard => { state := followFutureBoardSelection snapshot (moveEnd snapshot state) }
+      | .list => { state := moveEnd snapshot state }
   | .focusLeft =>
       match state.viewMode with
       | .coverage =>
