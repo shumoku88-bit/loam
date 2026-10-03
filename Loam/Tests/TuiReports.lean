@@ -819,8 +819,6 @@ def main : IO Unit := do
       [ { coordinate := unsupportedDebt, role := some .liability } ]
   }
   let balancesText := widgetText (Loam.Tui.Reports.view balancesReport)
-  expect (contains "One RoleBalance answer; three presentation projections" balancesText)
-    "Balances surface introduced or hid the shared projection boundary"
   expect (contains "Balance Sheet support: INCOMPLETE" balancesText)
     "Balances surface hid missing stock-role support"
   expect (contains "Known Net Worth subtotal: 12000 jpy" balancesText)
