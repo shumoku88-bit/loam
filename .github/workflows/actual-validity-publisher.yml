@@ -23,6 +23,8 @@ on:
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualAuthorityDetailed.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -52,6 +54,8 @@ on:
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualAuthorityDetailed.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/actual-validity-publisher.yml'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -73,11 +77,5 @@ jobs:
         uses: ./.github/actions/lean-build
         with:
           build-args: Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Publisher.CorrectionPublisher Loam.Publisher.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
-      - name: Verify Movement operation evidence contract
-        run: lake env lean --run Loam/Tests/MovementOperationEvidence.lean
-      - name: Verify normalized Actual persistence
-        run: lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
-      - name: Verify ActualAuthority detailed diagnostics
-        run: lake env lean --run Loam/Tests/ActualAuthorityDetailed.lean
-      - name: Verify Actual-backed occurrence-date publication
-        run: lake env lean --run Loam/Tests/ActualValidityPublisher.lean "$(mktemp -d)/actual-validity-publisher"
+      - name: Run Actual validity package test group
+        run: lake test -- actual-validity
