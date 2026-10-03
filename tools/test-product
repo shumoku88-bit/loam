@@ -100,6 +100,17 @@ case "$group" in
     ;;
 esac
 
+extra_targets=()
+case "$group" in
+  movement-proposal|all)
+    extra_targets+=(loamMovementProposal loamMovementProposalRecord)
+    ;;
+esac
+
+if (("${#extra_targets[@]}" > 0)); then
+  run lake build "${extra_targets[@]}"
+fi
+
 modules=()
 for test_name in "${tests[@]}"; do
   modules+=("Loam.Tests.$test_name")
