@@ -190,8 +190,9 @@ partial def run
     (coverage : Loam.Tui.ScheduledWorkspace.CoverageEvidence)
     (state : Loam.Tui.ScheduledWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
-  let step := Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverage state
-    (eventOfKey state.viewMode state.pane (← Loam.Tui.Terminal.readKey))
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let step := Loam.Tui.ScheduledWorkspace.updateWithCoverageWithRepeat snapshot coverage state
+    (eventOfKey state.viewMode state.pane key) repeatCount
   match step.command with
   | .back => return snapshot
   | .createScheduled =>

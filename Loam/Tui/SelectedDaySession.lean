@@ -158,8 +158,9 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
     (reload : IO (Except String Snapshot))
     (snapshot : Snapshot) (state : Loam.Tui.SelectedDay.State)
     (frame : CompiledWidget) : IO Snapshot := do
-  let step := Loam.Tui.SelectedDay.update snapshot state
-    (eventOfKey state.pane (← Loam.Tui.Terminal.readKey))
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let step := Loam.Tui.SelectedDay.updateWithRepeat snapshot state
+    (eventOfKey state.pane key) repeatCount
   match step.command with
   | .back => return snapshot
   | .manageLoci =>

@@ -255,10 +255,112 @@ def copyToClipboard (text : String) : IO Bool := do
     return true
   return false
 
+structure InputBuffer where
+  data : ByteArray := ByteArray.empty
+  pos  : Nat := 0
+deriving Inhabited
+
+initialize inputBufferRef : IO.Ref InputBuffer ← IO.mkRef {}
+
+/-- Reset any buffered terminal input bytes. -/
+def resetInputBuffer : IO Unit := do
+  inputBufferRef.set {}
+
 private def readByte : IO UInt8 := do
-  let bytes ← (← IO.getStdin).read 1
-  if bytes.isEmpty then return 0
-  return bytes.get! 0
+  let state ← inputBufferRef.get
+  if state.pos < state.data.size then
+    let b := state.data.get! state.pos
+    inputBufferRef.set { state with pos := state.pos + 1 }
+    return b
+  let bytes ← (← IO.getStdin).read 1024
+  if bytes.isEmpty then
+    inputBufferRef.set { data := ByteArray.empty, pos := 0 }
+    return 0
+  let b := bytes.get! 0
+  inputBufferRef.set { data := bytes, pos := 1 }
+  return b
+
+private def parseNatFromBytes (buf : ByteArray) (start : Nat) (stop : Nat) : Option Nat :=
+  if start >= stop then none
+  else
+    let rec loop (i : Nat) (acc : Nat) : Option Nat :=
+      if i >= stop then some acc
+      else
+        let b := buf.get! i
+        if b >= 48 && b <= 57 then
+          loop (i + 1) (acc * 10 + (b.toNat - 48))
+        else
+          none
+    loop start 0
+
+private def findByteIndex (buf : ByteArray) (start : Nat) (target : UInt8) : Option Nat :=
+  let rec loop (i : Nat) : Option Nat :=
+    if i >= buf.size then none
+    else if buf.get! i == target then some i
+    else loop (i + 1)
+  loop start
+
+/--
+Attempt to parse one SGR mouse sequence at the given position in `buf`.
+Format: `\x1b[<button;col;rowM`
+Returns `some (button, nextPos)` if a valid SGR press packet was matched, or `none`.
+-/
+def parseSgrMousePacket? (buf : ByteArray) (pos : Nat) : Option (Nat × Nat) := do
+  if pos + 6 > buf.size then none
+  if buf.get! pos != 27 then none
+  if buf.get! (pos + 1) != 91 then none
+  if buf.get! (pos + 2) != 60 then none
+  let semi1 ← findByteIndex buf (pos + 3) 59
+  let button ← parseNatFromBytes buf (pos + 3) semi1
+  let semi2 ← findByteIndex buf (semi1 + 1) 59
+  let _col ← parseNatFromBytes buf (semi1 + 1) semi2
+  let rec findTerm (i : Nat) : Option (UInt8 × Nat) :=
+    if i >= buf.size then none
+    else
+      let b := buf.get! i
+      if b == 77 || b == 109 then some (b, i)
+      else if b >= 48 && b <= 57 then findTerm (i + 1)
+      else none
+  let (term, termPos) ← findTerm (semi2 + 1)
+  if term != 77 then none
+  let _row ← parseNatFromBytes buf (semi2 + 1) termPos
+  return (button, termPos + 1)
+
+/-- Drain consecutive SGR mouse packets matching `targetButton` starting at `pos`. -/
+def drainMatchingWheel (buf : ByteArray) (pos : Nat) (targetButton : Nat) : Nat × Nat :=
+  let rec loop (currPos : Nat) (count : Nat) (fuel : Nat) : Nat × Nat :=
+    match fuel with
+    | 0 => (currPos, count)
+    | fuel + 1 =>
+        match parseSgrMousePacket? buf currPos with
+        | some (btn, nextPos) =>
+            if btn == targetButton && nextPos > currPos then
+              loop nextPos (count + 1) fuel
+            else
+              (currPos, count)
+        | none => (currPos, count)
+  loop pos 0 (buf.size - pos)
+
+/--
+Drain any immediate consecutive wheel scroll events matching the given direction
+from the buffered input queue without waiting for more input.
+Returns the total number of additional events drained (0 if no consecutive wheel events).
+-/
+def drainPendingWheel (direction : Key) : IO Nat := do
+  let targetButton :=
+    match direction with
+    | .up => 64
+    | .down => 65
+    | .left => 66
+    | .right => 67
+    | _ => 0
+  if targetButton == 0 then return 0
+  let state ← inputBufferRef.get
+  if state.pos >= state.data.size then return 0
+  let (newPos, count) := drainMatchingWheel state.data state.pos targetButton
+  if count > 0 then
+    inputBufferRef.set { state with pos := newPos }
+  return count
 
 /--
 Normalize one SGR mouse payload (the bytes after CSI `<` and before `M`/`m`).
@@ -402,6 +504,12 @@ def readKey : IO Key := do
   else
     return .input (Char.ofNat value)
 
+/-- Read one normalized Key, draining any immediately queued identical wheel scroll events. -/
+def readKeyWithRepeat : IO (Key × Nat) := do
+  let key ← readKey
+  let extra ← drainPendingWheel key
+  return (key, 1 + extra)
+
 private def fallbackBounds : Bounds := { width := 80, height := 24 }
 
 /--
@@ -444,11 +552,13 @@ def setButtonMotion (enabled : Bool) : IO Unit := do
   (← IO.getStdout).flush
 
 def enter : IO Unit := do
+  resetInputBuffer
   setTerminalMode "-echo -icanon min 0 time 1"
   IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
 def leave : IO Unit := do
+  resetInputBuffer
   IO.print "\x1b[0m\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"

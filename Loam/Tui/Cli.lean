@@ -261,8 +261,9 @@ def actualWorkspaceEventOfKey
 partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : Loam.Tui.ActualWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
-  let step := Loam.Tui.ActualWorkspace.update snapshot state
-    (actualWorkspaceEventOfKey state (← Loam.Tui.Terminal.readKey))
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let step := Loam.Tui.ActualWorkspace.updateWithRepeat snapshot state
+    (actualWorkspaceEventOfKey state key) repeatCount
   match step.command with
   | .back => return snapshot
   | .openSelected =>
@@ -352,7 +353,7 @@ partial def settlementLoop
     (today : String)
     (state : Loam.Tui.SettlementWorkspace.State)
     (frame : CompiledWidget) : IO Unit := do
-  let key ← Loam.Tui.Terminal.readKey
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   if key = .input 'y' || key = .input 'Y' then
     let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
     let success ← Loam.Tui.Terminal.copyToClipboard text
@@ -371,7 +372,7 @@ partial def settlementLoop
     | .input 'd' | .input 'D' => .toggleDetail
     | .escape | .input 'q' | .input 'Q' => .back
     | _ => .other
-  let step := Loam.Tui.SettlementWorkspace.update state event
+  let step := Loam.Tui.SettlementWorkspace.updateWithRepeat state event repeatCount
   match step.command with
   | .back => return ()
   | .action =>
@@ -436,9 +437,9 @@ partial def dailyPaceTrendLoop : IO Unit := do
 
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
-  let key ← Loam.Tui.Terminal.readKey
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   let state := Loam.Tui.Home.reconcileState bounds snapshot state
-  if let some home := Loam.Tui.Home.navigationKey bounds snapshot state key then
+  if let some home := Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount then
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame

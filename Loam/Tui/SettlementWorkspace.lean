@@ -127,6 +127,21 @@ def update (state : State) (event : Event) : Step :=
   | .back => { state, command := .back }
   | .other => { state }
 
+/-- Update workspace state, optionally scaling directional navigation by repeat count. -/
+def updateWithRepeat (state : State) (event : Event) (repeatCount : Nat := 1) : Step :=
+  if repeatCount <= 1 then update state event
+  else
+    let state := { state with detailOpen := false }
+    match event with
+    | .previous =>
+        let newRow := state.row - min state.row repeatCount
+        { state := { state with row := newRow, notice := "" } }
+    | .next =>
+        let count := (visibleRows state).length
+        let newRow := if count == 0 then 0 else min (count - 1) (state.row + repeatCount)
+        { state := { state with row := newRow, notice := "" } }
+    | other => update state other
+
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 private def blank : Widget := .row []

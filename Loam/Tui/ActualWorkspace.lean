@@ -304,6 +304,15 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .yank => { state, command := .yank }
   | .other => { state }
 
+/-- Update workspace state, optionally scaling directional navigation by repeat count. -/
+def updateWithRepeat (snapshot : Snapshot) (state : State) (event : Event) (repeatCount : Nat := 1) : Step :=
+  if repeatCount <= 1 then update snapshot state event
+  else
+    match event with
+    | .previous => { state := movePageUp snapshot state repeatCount }
+    | .next => { state := movePageDown snapshot state repeatCount }
+    | other => update snapshot state other
+
 private def repeatChar (count : Nat) (char : Char) : String :=
   String.ofList (List.replicate count char)
 

@@ -739,6 +739,42 @@ def updateWithCoverage
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   updateWithCoverage snapshot (.error "coverage unavailable") state event
 
+/-- Update workspace state with coverage evidence, optionally scaling directional navigation by repeat count. -/
+def updateWithCoverageWithRepeat
+    (snapshot : Snapshot) (coverage : CoverageEvidence)
+    (rawState : State) (event : Event) (repeatCount : Nat := 1) : Step :=
+  if repeatCount <= 1 then updateWithCoverage snapshot coverage rawState event
+  else
+    let state := clampPlanDetailState snapshot coverage <| clampCoverageState coverage rawState
+    match event with
+    | .previous =>
+        match state.viewMode with
+        | .coverage =>
+            { state := { state with coverageRow := state.coverageRow - min state.coverageRow repeatCount, notice := "" } }
+        | .planDetail =>
+            { state := { state with planRow := state.planRow - min state.planRow repeatCount, notice := "" } }
+        | .futureBoard => { state := followFutureBoardSelection snapshot (movePageUp snapshot state repeatCount) }
+        | .list => { state := movePageUp snapshot state repeatCount }
+    | .next =>
+        match state.viewMode with
+        | .coverage =>
+            let count := (coverageRows coverage).length
+            let target := if count == 0 then 0 else min (count - 1) (state.coverageRow + repeatCount)
+            { state := { state with coverageRow := target, notice := "" } }
+        | .planDetail =>
+            match selectedCoverageRow? coverage state with
+            | none => { state := { state with notice := "Plan details are unavailable." } }
+            | some row =>
+                let count := (planDetailEntries snapshot row).length
+                let target := if count == 0 then 0 else min (count - 1) (state.planRow + repeatCount)
+                { state := { state with planRow := target, notice := "" } }
+        | .futureBoard => { state := followFutureBoardSelection snapshot (movePageDown snapshot state repeatCount) }
+        | .list => { state := movePageDown snapshot state repeatCount }
+    | other => updateWithCoverage snapshot coverage rawState other
+
+def updateWithRepeat (snapshot : Snapshot) (state : State) (event : Event) (repeatCount : Nat := 1) : Step :=
+  updateWithCoverageWithRepeat snapshot (.error "coverage unavailable") state event repeatCount
+
 private def repeatChar (count : Nat) (char : Char) : String :=
   String.ofList (List.replicate count char)
 

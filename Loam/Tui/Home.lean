@@ -1087,10 +1087,17 @@ def reconcileState (bounds : Bounds) (snapshot : Snapshot) (state : State) : Sta
   let state := normalizeDetailCursor snapshot state
   if state.activePane == .detail then moveDetailCursor bounds snapshot state 0 else state
 
+private def repeatUpdate (state : State) (event : Loam.Tui.Main.Event) (repeatCount : Nat) : State :=
+  let rec loop (st : State) (rem : Nat) : State :=
+    match rem with
+    | 0 => st
+    | rem + 1 => loop (update st event).state rem
+  loop state repeatCount
+
 /-- Pure local navigation. `none` delegates a workspace entrance to the IO shell. -/
 def navigationKey
     (bounds : Bounds) (snapshot : Snapshot) (state : State)
-    (key : Loam.Tui.Terminal.Key) : Option State :=
+    (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1) : Option State :=
   let state := reconcileState bounds snapshot state
   let handled := fun next => some (reconcileState bounds snapshot next)
   if state.jumpPrompt.isSome then
@@ -1151,9 +1158,11 @@ def navigationKey
     | .input 'l' | .input 'L' | .right =>
         handled (if state.activePane == .detail then state else (update state .right).state)
     | .input 'j' | .input 'J' | .down =>
-        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state 1 else (update state .down).state)
+        let delta : Int := repeatCount
+        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state delta else repeatUpdate state .down repeatCount)
     | .input 'k' | .input 'K' | .up =>
-        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state (-1) else (update state .up).state)
+        let delta : Int := - (repeatCount : Int)
+        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state delta else repeatUpdate state .up repeatCount)
     | _ => none
 
 /--
