@@ -46,6 +46,8 @@ private def practicalUsage : String :=
   "  loam explain balances [--machine] [LOAM_DATA_DIR]\n" ++
   "  loam explain household --machine [--at YYYY-MM-DD] [LOAM_DATA_DIR]\n" ++
   "  loam explain actual --machine --month YYYY-MM [LOAM_DATA_DIR]\n\n" ++
+  "Emit explicit-window Household Observation v1 (HOBS1):\n" ++
+  "  loam household-observation DATA_ROOT START END [OBSERVED_AT]\n\n" ++
   "Explicit zero-origin quantity projections:\n" ++
   "  loam balances ACTUAL_FILE COVERAGE_FILE [BALANCE_VIEW]\n" ++
   "  loam current ACTUAL_FILE COVERAGE_FILE\n\n" ++
@@ -224,6 +226,8 @@ def run (args : List String) : IO UInt32 := do
       Loam.HouseholdObservationCli.runCurrentMachine explainArgs
   | "explain" :: "actual" :: explainArgs =>
       Loam.ActualObservationCli.run explainArgs
+  | "household-observation" :: observationArgs =>
+      Loam.HouseholdObservationCli.run observationArgs
   | "movement" :: movementArgs => Loam.MovementCli.run movementArgs
   | "movement-proposal" :: proposalArgs =>
       Loam.MovementProposalCli.run proposalArgs
