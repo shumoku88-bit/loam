@@ -839,7 +839,7 @@ private def dailyFlowResultLines
             "Role classification is complete for selected quantity Effects."
            else
             "Daily totals are partial while unresolved role Effects remain.")
-      , muted "Daily Flow is a projection of the same occurrence-time flow, not stored daily state."
+      , muted "Daily Flow groups the selected recorded flow by activity date; it does not create a separate daily ledger."
       ]
 
 private def dailyMeasureBlockSource
@@ -896,7 +896,7 @@ private def dailyFlowSource
                else
                 "Daily totals are partial while unresolved role Effects remain.")
           , muted
-              "Daily Flow is a projection of the same occurrence-time flow, not stored daily state."
+              "Daily Flow groups the selected recorded flow by activity date; it does not create a separate daily ledger."
           ]
       Loam.Tui.Viewport.concat [intro, body, tail]
 

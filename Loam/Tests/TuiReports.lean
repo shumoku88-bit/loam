@@ -1328,8 +1328,6 @@ def main : IO Unit := do
     "Daily Flow bypassed Measure presentation or whole-window totals"
   expect (contains "omitted dates are not asserted zero" dailyIncomeExpenseText)
     "Daily Flow turned sparse date omission into a zero claim"
-  expect (contains "same occurrence-time flow" dailyIncomeExpenseText)
-    "Daily Flow promoted its projection into stored daily state"
 
   let dailyBounds : Bounds := { width := 100, height := 16 }
   let fullDailyLines := widgetLineTexts (Loam.Tui.Reports.view dailyIncomeExpense)
