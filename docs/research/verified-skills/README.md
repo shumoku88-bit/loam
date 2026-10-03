@@ -177,6 +177,35 @@ Disposition: Candidate | Trialed | Qualified | Retired
 Do not preserve every trajectory. Retain only the evidence needed to explain a
 skill mutation, promotion, or retirement.
 
+## Trial 01 — Scheduled terminal lifecycle canonicality
+
+```text
+Trial: 01
+Date: 2026-10-03
+Repository revision: 0a77c1dc086aa4d5c185146bd2b564be4225f481
+Task: Revisit issue #700 candidate 3: whether Scheduled terminal lifecycle still
+      requires independently retained completion / retirement / replacement
+      runtime representations.
+Skill: Scheduled transition audit
+Baseline outcome: Not run. The same agent had already read the candidate skill,
+                  so a post-hoc baseline would be contaminated.
+Skill outcome: The audit named current-open lifecycle as the protected answer,
+               followed ScheduledTerminal -> currentOpenScheduled -> Review and
+               lifecycle persistence, and then found that PR #706 had already
+               removed the three obsolete runtime memories/codecs while
+               preserving terminal meanings and v1 wire bytes.
+Material difference: The skill routed the investigation toward current owner,
+                     projection, and persistence evidence early enough to detect
+                     that the apparent #700 research candidate was already
+                     graduated. This is useful routing evidence, not a measured
+                     baseline win.
+Regression observed: None. No production or household-data change was made.
+Skill mutation: None. No concrete skill failure was observed.
+Disposition: Trialed
+Promotion evidence: 0 wins counted; this unpaired exploratory trial does not
+                    count toward the Qualified threshold.
+```
+
 ## Extraction rule
 
 Do not create a generic library merely because the experiment has a directory.
