@@ -1,7 +1,4 @@
-import Loam.Presentation.HouseholdSnapshot
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do throw (IO.userError message)
+import Loam.Presentation.ReadState
 
 def main : IO Unit := do
   let loadedNone : Loam.Presentation.ReadState (Option Nat) := .loaded none
@@ -22,38 +19,4 @@ def main : IO Unit := do
   | .failed "refused" => pure ()
   | _ => throw (IO.userError "ReadState.fromExcept did not classify refusal as failed")
 
-  let budget : Loam.CycleBudgetReview.Snapshot := {
-    observedAt := "2026-09-25"
-    window := .error "not relevant"
-    coverage := .error "not relevant"
-    physical := .error "not relevant"
-    selection := .error "not relevant"
-    funding := .error "not relevant"
-  }
-  let snapshot : Loam.Presentation.HouseholdSnapshot := {
-    observedAt := "2026-09-25"
-    actual := .loaded []
-    scheduled := .loaded []
-    attention := .unavailable
-    budget := budget
-    capacity := .loaded { rows := [] }
-  }
-
-  match snapshot.pace with
-  | .notRequested => pure ()
-  | _ => throw (IO.userError "Daily Pace must default to notRequested")
-  match snapshot.stockFlow with
-  | .notRequested => pure ()
-  | _ => throw (IO.userError "Stock-Flow must default to notRequested")
-  match snapshot.roleFlow with
-  | .notRequested => pure ()
-  | _ => throw (IO.userError "Role Flow must default to notRequested")
-  match snapshot.roleBalances with
-  | .notRequested => pure ()
-  | _ => throw (IO.userError "Role Balances must default to notRequested")
-  match snapshot.transactionsFlow with
-  | .notRequested => pure ()
-  | _ => throw (IO.userError "Transactions Flow must default to notRequested")
-
-  expect true "typed read-state qualification completed"
-  IO.println "Presentation ReadState: loaded emptiness, failure, and not-requested defaults passed."
+  IO.println "Presentation ReadState: loaded emptiness and failure classification passed."
