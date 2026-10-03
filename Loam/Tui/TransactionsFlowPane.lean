@@ -125,7 +125,7 @@ def summaryPrefix
     List Widget :=
   [ line ("Window [" ++ snapshot.start ++ ", " ++ snapshot.endExclusive ++ ")")
   , muted (toString activeRows.length ++ " active coordinate(s); zero cells omitted.")
-  , muted "Rows ordered by gross quantity (presentation only)."
+  , muted "Rows are sorted by gross quantity for easier scanning; this is not a priority ranking."
   , blank
   ]
 
