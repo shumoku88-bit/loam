@@ -122,4 +122,4 @@ jobs:
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Run package test driver
-        run: lake test accounting
+        run: lake test -- accounting
