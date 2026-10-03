@@ -22,6 +22,7 @@ inductive Key where
   | escape
   | ctrl (char : Char)
   | input (char : Char)
+  | paste (text : String)
   | pageUp
   | pageDown
   | home
@@ -411,6 +412,64 @@ private def readSgrMousePayload : Nat → String → IO (String × Bool)
 def backspaceText (text : String) : String :=
   String.ofList text.toList.dropLast
 
+/-- Normalize CRLF and CR to LF in pasted text. -/
+def normalizePasteText (text : String) : String :=
+  text.replace "\r\n" "\n" |>.replace "\r" "\n"
+
+/-- Extract the first line of pasted text for single-line input fields. -/
+def singleLinePaste (text : String) : String :=
+  match (normalizePasteText text).splitOn "\n" with
+  | [] => ""
+  | line :: _ => line.trimAsciiEnd.toString
+
+/-- Read remaining bytes of a bracketed paste payload until `\x1b[201~` is encountered. -/
+private def readBracketedPastePayload (fuel : Nat) (acc : ByteArray) : IO String := do
+  match fuel with
+  | 0 => pure (String.fromUTF8? acc |>.getD "")
+  | Nat.succ nextFuel =>
+      let b ← readByte
+      if b == 0 then
+        pure (String.fromUTF8? acc |>.getD "")
+      else if b == 27 then
+        let b2 ← readByte
+        if b2 == 0 then
+          pure (String.fromUTF8? (acc.push 27) |>.getD "")
+        else if b2 == 91 then
+          let b3 ← readByte
+          if b3 == 0 then
+            pure (String.fromUTF8? (acc.push 27 |>.push 91) |>.getD "")
+          else if b3 == 50 then
+            let b4 ← readByte
+            if b4 == 0 then
+              pure (String.fromUTF8? (acc.push 27 |>.push 91 |>.push 50) |>.getD "")
+            else if b4 == 48 then
+              let b5 ← readByte
+              if b5 == 0 then
+                pure (String.fromUTF8? (acc.push 27 |>.push 91 |>.push 50 |>.push 48) |>.getD "")
+              else if b5 == 49 then
+                let b6 ← readByte
+                if b6 == 126 then
+                  pure (String.fromUTF8? acc |>.getD "")
+                else if b6 == 0 then
+                  pure (String.fromUTF8? (acc.push 27 |>.push 91 |>.push 50 |>.push 48 |>.push 49) |>.getD "")
+                else
+                  let acc' := acc.push 27 |>.push 91 |>.push 50 |>.push 48 |>.push 49 |>.push b6
+                  readBracketedPastePayload nextFuel acc'
+              else
+                let acc' := acc.push 27 |>.push 91 |>.push 50 |>.push 48 |>.push b5
+                readBracketedPastePayload nextFuel acc'
+            else
+              let acc' := acc.push 27 |>.push 91 |>.push 50 |>.push b4
+              readBracketedPastePayload nextFuel acc'
+          else
+            let acc' := acc.push 27 |>.push 91 |>.push b3
+            readBracketedPastePayload nextFuel acc'
+        else
+          let acc' := acc.push 27 |>.push b2
+          readBracketedPastePayload nextFuel acc'
+      else
+        readBracketedPastePayload nextFuel (acc.push b)
+
 /-- Read remaining bytes of one CSI parameter sequence until the terminating letter or `~`. -/
 private def readCsiPayload (fuel : Nat) (acc : String) : IO (String × Nat) :=
   match fuel with
@@ -474,7 +533,11 @@ def readKey : IO Key := do
       return decodeCsi "" thirdVal
     else if thirdVal > 0 then
       let (param, finalByte) ← readCsiPayload 16 (String.singleton (Char.ofNat thirdVal))
-      return decodeCsi param finalByte
+      if param == "200" && finalByte == 126 then
+        let text ← readBracketedPastePayload 65536 ByteArray.empty
+        return .paste (normalizePasteText text)
+      else
+        return decodeCsi param finalByte
     else
       return .other
   else if value = 9 then
@@ -554,12 +617,12 @@ def setButtonMotion (enabled : Bool) : IO Unit := do
 def enter : IO Unit := do
   resetInputBuffer
   setTerminalMode "-echo -icanon min 0 time 1"
-  IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[2J\x1b[H"
+  IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[?2004h\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
 def leave : IO Unit := do
   resetInputBuffer
-  IO.print "\x1b[0m\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
+  IO.print "\x1b[0m\x1b[?2004l\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"
 

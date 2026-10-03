@@ -397,6 +397,12 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
                 mode := .originalAmount
                   (editOriginalActive editor (fun text => text.push char))
                 notice := "" } }
+        | .paste text =>
+            let clean := Loam.Tui.Terminal.singleLinePaste text
+            { state := { state with
+                mode := .originalAmount
+                  (editOriginalActive editor (fun curr => curr ++ clean))
+                notice := "" } }
         | .enter =>
             if editor.focus.val = 0 then
               { state := { state with
@@ -447,6 +453,11 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
         | .input char =>
             { state := { state with
                 form := editActive state.form (fun text => text.push char),
+                notice := "", candidateIndex := 0 } }
+        | .paste text =>
+            let clean := Loam.Tui.Terminal.singleLinePaste text
+            { state := { state with
+                form := editActive state.form (fun curr => curr ++ clean),
                 notice := "", candidateIndex := 0 } }
         | .up => { state := moveCandidate state true }
         | .down => { state := moveCandidate state false }

@@ -52,6 +52,7 @@ inductive Event where
   | cycleOrder
   | beginSearch
   | searchInput (char : Char)
+  | searchPaste (text : String)
   | searchBackspace
   | acceptSearch
   | cancelSearch
@@ -272,6 +273,12 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .searchInput char =>
       if state.searchEditing then
         { state := editSearch snapshot state (fun text => text.push char) }
+      else
+        { state }
+  | .searchPaste text =>
+      if state.searchEditing then
+        let clean := Loam.Tui.Terminal.singleLinePaste text
+        { state := editSearch snapshot state (fun curr => curr ++ clean) }
       else
         { state }
   | .searchBackspace =>

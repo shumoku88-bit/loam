@@ -173,6 +173,11 @@ def update
             { state := { state with
                 form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => text.push char)
                 notice := "", candidateIndex := 0 } }
+        | .paste text =>
+            let clean := Loam.Tui.Terminal.singleLinePaste text
+            { state := { state with
+                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun curr => curr ++ clean)
+                notice := "", candidateIndex := 0 } }
         | .up => { state := moveCandidate state true }
         | .down => { state := moveCandidate state false }
         | .right => { state := acceptSelectedCandidate state }

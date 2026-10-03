@@ -1107,6 +1107,10 @@ def navigationKey
     | .enter => executeJump state
     | .input char =>
         if char.isDigit || char == '-' || char == '/' then appendJumpChar state char else state
+    | .paste text =>
+        let clean := Loam.Tui.Terminal.singleLinePaste text
+        let valid := clean.toList.filter fun c => c.isDigit || c == '-' || c == '/'
+        valid.foldl appendJumpChar state
     | _ => state
   else
     match key with

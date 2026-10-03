@@ -130,6 +130,11 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
               { state := { state with
                   form := editActive state.form (fun text => text.push char)
                   notice := "" } }
+          | .paste text =>
+              let clean := Loam.Tui.Terminal.singleLinePaste text
+              { state := { state with
+                  form := editActive state.form (fun curr => curr ++ clean)
+                  notice := "" } }
           | .enter =>
               let focus := state.form.focus
               if focus < 2 then

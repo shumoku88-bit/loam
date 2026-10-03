@@ -235,6 +235,7 @@ def actualWorkspaceEventOfKey
       | .backspace | .delete => .searchBackspace
       | .enter => .acceptSearch
       | .input char => .searchInput char
+      | .paste text => .searchPaste text
       | _ => .other
   else
     fun key =>

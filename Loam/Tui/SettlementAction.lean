@@ -115,6 +115,9 @@ private def editText (text : String) (key : Loam.Tui.Terminal.Key) : String :=
   match key with
   | .backspace => Loam.Tui.Terminal.backspaceText text
   | .input char => if char.isDigit then text.push char else text
+  | .paste pasted =>
+      let digits := (Loam.Tui.Terminal.singleLinePaste pasted).toList.filter (·.isDigit)
+      digits.foldl (fun acc c => acc.push c) text
   | _ => text
 
 private def menuChoiceCount : Nat := 4
@@ -488,6 +491,10 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
               } }
           else
             { state }
+      | .paste text =>
+          let clean := (Loam.Tui.Terminal.singleLinePaste text).toList.filter fun c => c.isDigit || c == '-'
+          let newInput := clean.foldl (fun acc c => acc.push c) input
+          { state := { state with mode := .reduceDate quantity newInput, notice := "" } }
       | _ => { state }
 
   | .reducePreview quantity effectiveOn =>
@@ -542,6 +549,10 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
             { state := { state with mode := .repairDate index quantity (input.push char), notice := "" } }
           else
             { state }
+      | .paste text =>
+          let clean := (Loam.Tui.Terminal.singleLinePaste text).toList.filter fun c => c.isDigit || c == '-'
+          let newInput := clean.foldl (fun acc c => acc.push c) input
+          { state := { state with mode := .repairDate index quantity newInput, notice := "" } }
       | _ => { state }
 
   | .repairPreview index quantity effectiveOn =>

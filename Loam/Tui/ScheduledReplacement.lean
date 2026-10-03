@@ -139,6 +139,11 @@ def update
             { state := { state with
                 form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => text.push char)
                 notice := "" } }
+        | .paste text =>
+            let clean := Loam.Tui.Terminal.singleLinePaste text
+            { state := { state with
+                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun curr => curr ++ clean)
+                notice := "" } }
         | .right => { state := { state with form := acceptCandidate known state.form } }
         | .enter =>
             let action := Loam.Tui.ScheduledPostingForm.firstAction state.form
