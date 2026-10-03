@@ -122,6 +122,7 @@ application_tests=(
 singleton_tests=(
   BoundaryPresetConfig
   MerchantExpenseReview
+  OperationalContinuity
 )
 
 representative_tests=(
@@ -264,6 +265,9 @@ for test_name in "${tests[@]}"; do
       ;;
     MultimeasureRecordingPublishers)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/multimeasure-recording"
+      ;;
+    OperationalContinuity)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/operational-continuity"
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
