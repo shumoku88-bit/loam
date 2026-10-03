@@ -26,8 +26,6 @@ on:
       - 'lean-toolchain'
   push:
     branches:
-      - 'feat/actual-locus-routing-consumption'
-      - 'fix/correction-aware-consumption'
       - main
     paths:
       - '.github/actions/lean-build/**'
