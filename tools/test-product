@@ -71,6 +71,11 @@ attention_tests=(
   TuiAttentionAdministration
 )
 
+event_merchant_tests=(
+  EventMerchantPublisher
+  TuiEventMerchant
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -107,6 +112,9 @@ case "$group" in
   attention)
     tests=("${attention_tests[@]}")
     ;;
+  event-merchant)
+    tests=("${event_merchant_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -119,12 +127,13 @@ case "$group" in
       "${actual_validity_tests[@]}"
       "${purpose_catalog_tests[@]}"
       "${attention_tests[@]}"
+      "${event_merchant_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant" >&2
     exit 2
     ;;
 esac
@@ -171,6 +180,12 @@ for test_name in "${tests[@]}"; do
       ;;
     AttentionPersistence)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/attention-administration"
+      ;;
+    EventMerchantPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/event-merchant-publisher"
+      ;;
+    TuiEventMerchant)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/tui-event-merchant"
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"

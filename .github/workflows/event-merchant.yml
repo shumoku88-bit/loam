@@ -18,6 +18,8 @@ on:
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/EventMerchantPublisher.lean'
       - 'Loam/Tests/TuiEventMerchant.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -42,6 +44,8 @@ on:
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/EventMerchantPublisher.lean'
       - 'Loam/Tests/TuiEventMerchant.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lean-toolchain'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -52,8 +56,8 @@ permissions:
   contents: read
 
 jobs:
-  publisher:
-    name: Build and test Event Merchant publisher
+  qualify:
+    name: Qualify Event Merchant publication and TUI input
     if: github.event_name != 'push' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     steps:
@@ -61,26 +65,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Install Lean and build Merchant publisher dependencies
+      - name: Install Lean and build Event Merchant boundaries
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Publisher.EventMerchantPublisher Loam.Publisher.MovementPublisher Loam.Tests.ActualWorldFixture
+          build-args: Loam.Publisher.EventMerchantPublisher Loam.Publisher.MovementPublisher Loam.Tui.Cli Loam.Tui.EventMerchant Loam.HouseholdCommand Loam.Tests.ActualWorldFixture
 
-      - name: Verify Event Merchant publication
-        run: lake env lean --run Loam/Tests/EventMerchantPublisher.lean "$(mktemp -d)/event-merchant-publisher"
-
-  tui:
-    name: Build and test TUI Event Merchant input
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Install Lean and build TUI Merchant entrance
-        uses: ./.github/actions/lean-build
-        with:
-          build-args: Loam.Tui.Cli Loam.Tui.EventMerchant Loam.HouseholdCommand Loam.Tests.ActualWorldFixture
-
-      - name: Verify TUI Event Merchant classification
-        run: lake env lean --run Loam/Tests/TuiEventMerchant.lean "$(mktemp -d)/tui-event-merchant"
+      - name: Run Event Merchant package test group
+        run: lake test -- event-merchant
