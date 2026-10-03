@@ -22,6 +22,8 @@ on:
       - 'Loam/Tests/ActualObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/application.yml'
   push:
@@ -45,6 +47,8 @@ on:
       - 'Loam/Tests/ActualObservationCli.lean'
       - 'Loam.lean'
       - 'lean-toolchain'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/application.yml'
   workflow_dispatch:
@@ -68,25 +72,8 @@ jobs:
         with:
           build-args: Loam.Application Loam Loam.Cli.ActualObservationCli Loam.Publisher.MovementPublisher Loam.Application.ExchangeAdmission Loam.Publisher.ExchangePublisher Loam.Publisher.OriginalAmountMovementPublisher Loam.HouseholdCommand loamHouseholdObservation Loam.Tests.ActualWorldFixture
 
-      - name: Qualify household path composition
-        run: lake env lean --run Loam/Tests/HouseholdPaths.lean
-
-      - name: Qualify sparse Movement publication
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture="$(mktemp -d)/sparse-movement"
-          lake env lean --run Loam/Tests/SparseMovementPublication.lean "$fixture"
-
-      - name: Qualify atomic multimeasure recording publication
-        shell: bash
-        run: |
-          set -euo pipefail
-          fixture="$(mktemp -d)/multimeasure-recording"
-          lake env lean --run Loam/Tests/MultimeasureRecordingPublishers.lean "$fixture"
-
-      - name: Qualify ACTUAL1 month presentation transport
-        run: lake env lean --run Loam/Tests/ActualObservationCli.lean
+      - name: Run application package test group
+        run: lake test -- application
 
       - name: Qualify HOBS1 cycle funding diagnostics
         shell: bash
