@@ -47,9 +47,6 @@ on:
       - 'lean-toolchain'
   push:
     branches:
-      - 'feat/scheduled-commitment-headroom'
-      - 'feat/scheduled-capacity-pressure'
-      - 'feat/current-capacity-coverage-tui'
       - main
     paths:
       - '.github/actions/lean-build/**'
