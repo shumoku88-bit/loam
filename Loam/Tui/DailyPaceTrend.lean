@@ -60,7 +60,7 @@ def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) : Widget :=
          else
            history.map (paceLine snapshot.actual.today)) ++
     [ blank
-    , muted "Recomputed from current canonical evidence; not stored as daily household state."
+    , muted "Calculated from your current records each time; no separate daily snapshot is kept."
     ]
   let footer := [muted "q / Esc home"]
   .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
