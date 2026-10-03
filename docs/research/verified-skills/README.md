@@ -171,6 +171,11 @@ Prefer deleting a bad instruction to accumulating exceptions.
 These were chosen because they recur, cross meaningful semantic boundaries, and
 have verifier/test surfaces that can provide useful feedback.
 
+Current trial records:
+
+- Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
+- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): skill arm complete, fresh baseline pending.
+
 ## Trial record template
 
 Append a compact record here or in a task-specific research note:
