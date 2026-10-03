@@ -93,6 +93,13 @@ practical_slice_b_tests=(
   CurrentCoverageReview
 )
 
+practical_slice_a2_tests=(
+  Capacity
+  ActualRoutingConsumption
+  CorrectedActualConsumption
+  CapacityHouseholdStory
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -135,6 +142,9 @@ case "$group" in
   practical-slice-b)
     tests=("${practical_slice_b_tests[@]}")
     ;;
+  practical-slice-a2)
+    tests=("${practical_slice_a2_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -149,12 +159,13 @@ case "$group" in
       "${attention_tests[@]}"
       "${event_merchant_tests[@]}"
       "${practical_slice_b_additional_tests[@]}"
+      "${practical_slice_a2_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b, practical-slice-a2" >&2
     exit 2
     ;;
 esac
