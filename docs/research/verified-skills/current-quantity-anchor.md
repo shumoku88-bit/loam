@@ -98,10 +98,25 @@ prior inherited exposure to the baseline's decisive result. That pair is recorde
 as **UNSCORED** and contributes **0** promotion wins. Its source audit remains
 exploratory evidence only.
 
-Counted status remains:
+Trial 05 is the first clean held-out sibling measurement for this skill:
 
+- [Partial re-observation from a legacy v1 anchor](trials/05-v1-partial-reobservation.md)
+- paired result: **SAME**;
+- promotion wins from Trial 05: **0**;
+- semantic regressions: **0**;
+- skill mutation: **none**.
+
+Both arms independently preserved the unobserved coordinate's older reflected-root
+cut, derived the same current quantities, and selected the same focused executable
+regression as the smallest missing direct qualification.
+
+Counted status is now:
+
+- scored comparable paired trials: **2** (Trial 03 and Trial 05);
+- clean held-out sibling trials: **1** (Trial 05);
 - promotion wins: **1**;
 - scored semantic regressions: **0**;
 - skill mutation: **none**.
 
-The skill remains Trialed until the broader promotion rule is satisfied.
+The skill remains Trialed because the promotion rule still requires at least
+three comparable trials and at least two material improvements.
