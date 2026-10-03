@@ -1,6 +1,6 @@
 # Trial 02 — CapacityMovement / CapacityEffective correspondence
 
-Status: **skill arm complete / baseline pending**
+Status: **skill arm complete / first baseline contaminated / clean rerun pending**
 
 Pinned repository revision:
 
@@ -94,15 +94,54 @@ Date: 2026-10-03
 Repository revision: a2a4018168560cabb47a92f3e76c65b0feddb7c7
 Task: #700 candidate 4, CapacityMovement + CapacityEffective retained meaning
 Skill: Correspondence boundary audit
-Baseline outcome: Pending, must be run in a fresh unexposed session
+Baseline outcome: First fresh-session attempt reached the same scoped semantic
+                  result, but the control was contaminated before source audit:
+                  commit metadata exposed forbidden verified-skills diff text,
+                  and issue-comment retrieval exposed post-pin discussion.
 Skill outcome: Split semantic equivalence from physical topology; found semantic
                KEEP plus already-compressed single authority
-Material difference: Pending baseline comparison
-Regression observed: None
-Skill mutation: None
+Material difference: Not scored. Descriptive convergence is recorded, but no
+                     Better / Same / Worse comparison is valid for this attempt.
+Regression observed: None in the semantic audit. Experimental isolation failed.
+Skill mutation: None. The failure was in the trial protocol, not the skill.
+Protocol mutation: Baselines now use pinned-file evidence only and prohibit
+                   commit metadata, unsealed issue/PR discussion, and unpinned
+                   search snippets as evidence.
 Disposition: Trialed
-Promotion evidence: 0 wins counted until baseline is completed
+Promotion evidence: 0 wins counted; clean baseline rerun still required
 ```
+
+## Contaminated baseline attempt
+
+The first fresh-session baseline attempt is retained only as an experimental
+failure record.
+
+Its source-derived conclusion independently converged on:
+
+```text
+semantic meaning:
+  KEEP
+
+physical topology:
+  ALREADY COMPRESSED
+```
+
+It also found the same production-shaped divergence class: identical Capacity
+movement evidence with different effective coordinates changes a time-window
+answer.
+
+However, before that source audit, two control leaks occurred:
+
+1. commit metadata retrieval exposed diff text from the forbidden
+   `docs/research/verified-skills/**` area;
+2. issue-comment retrieval exposed discussion created after the pinned revision.
+
+Because the agent saw later / forbidden text, this run cannot establish
+independence even though the final reasoning was reconstructed from pinned
+production source. It contributes no promotion win, no "same" result, and no
+wrong-turn / cost comparison.
+
+The clean rerun must use the revised baseline card and the pinned-evidence rule.
 
 ## Baseline comparison fields
 
