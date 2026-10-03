@@ -7,12 +7,30 @@ run() {
 }
 
 run lake build \
+  Loam.Tests.RoleFlowReview \
+  Loam.Tests.CurrentBalanceReview \
+  Loam.Tests.RoleBalanceReview \
+  Loam.Tests.RoleBalanceAnswerability \
+  Loam.Tests.HistoricalBalanceReview \
+  Loam.Tests.OpeningPositionReview \
+  Loam.Tests.MultimeasureSpendReview \
   Loam.Tests.CurrentQuantityAnchor \
+  Loam.Tests.CurrentQuantityPresence \
+  Loam.Tests.CurrentQuantityAnchorCli \
   Loam.Tests.BoundedHistorySupport \
   Loam.Tests.BalanceReview \
   Loam.Tests.CapacityReview
 
+run lake env lean --run Loam/Tests/RoleFlowReview.lean
+run lake env lean --run Loam/Tests/CurrentBalanceReview.lean
+run lake env lean --run Loam/Tests/RoleBalanceReview.lean
+run lake env lean --run Loam/Tests/RoleBalanceAnswerability.lean
+run lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
+run lake env lean --run Loam/Tests/OpeningPositionReview.lean
+run lake env lean --run Loam/Tests/MultimeasureSpendReview.lean
 run lake env lean --run Loam/Tests/CurrentQuantityAnchor.lean
+run lake env lean --run Loam/Tests/CurrentQuantityPresence.lean
+run lake env lean --run Loam/Tests/CurrentQuantityAnchorCli.lean
 run lake env lean --run Loam/Tests/BoundedHistorySupport.lean
 run lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
 run lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
