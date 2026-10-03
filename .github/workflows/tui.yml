@@ -372,7 +372,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Tests.Support
+          build-args: loam loamMovementProposal loamMovementProposalRecord loamCapacity loamDoctor loamActualRouting loamScheduledRouting loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
@@ -405,30 +405,11 @@ jobs:
 
           compare_dispatch loamTui tui too many
           compare_dispatch loamDoctor doctor "$(mktemp -d)"
-          compare_dispatch loamMovement movement too many
           compare_dispatch loamMovementProposal movement-proposal
           compare_dispatch loamMovementProposalRecord movement-proposal-record
           compare_dispatch loamCapacity capacity
-          compare_dispatch loamOpenScheduled open-scheduled
           compare_dispatch loamActualRouting actual-routing
           compare_dispatch loamScheduledRouting scheduled-routing
-          compare_dispatch loamBudgetWindow budget-window
-
-          compare_quantity_dispatch() {
-            local command="$1"
-            local combined_out standalone_out combined_status standalone_status
-            set +e
-            combined_out="$(.lake/build/bin/loam "$command" 2>&1)"
-            combined_status=$?
-            standalone_out="$(.lake/build/bin/loamDailyQuantity "$command" 2>&1)"
-            standalone_status=$?
-            set -e
-            test "$combined_status" -eq "$standalone_status"
-            test "$combined_out" = "$standalone_out"
-          }
-
-          compare_quantity_dispatch balances
-          compare_quantity_dispatch current
 
           compare_export_dispatch() {
             local standalone="$1"
@@ -445,8 +426,6 @@ jobs:
             test "$combined_out" = "$standalone_out"
           }
 
-          compare_export_dispatch loamJournalExport journal
-          compare_export_dispatch loamPtaExport pta
           compare_export_dispatch loamBeancountExport beancount
 
       - name: Verify display/history and admission-scoped Locus catalog
@@ -505,7 +484,7 @@ jobs:
           set -euo pipefail
           root="$(mktemp -d)/journal-export"
           lake env lean --run Loam/Tests/JournalExport.lean "$root"
-          ./.lake/build/bin/loamJournalExport "$root/actual.loam" "$root/actual-journal.txt"
+          ./.lake/build/bin/loam export journal "$root/actual.loam" "$root/actual-journal.txt"
           grep -Fq "2026-09-02"$'\t'"journal-replacement" "$root/actual-journal.txt"
           grep -Fq "2026-09-03"$'\t'"journal-untouched" "$root/actual-journal.txt"
           if grep -q "journal-original" "$root/actual-journal.txt"; then
@@ -515,7 +494,7 @@ jobs:
 
           cp "$root/actual.loam" "$root/actual-before-alias-check.loam"
 
-          if ./.lake/build/bin/loamJournalExport \
+          if ./.lake/build/bin/loam export journal \
               "$root/actual.loam" \
               "$root/./actual.loam"; then
             echo "Journal export accepted a dot-path alias of Actual authority" >&2
@@ -524,7 +503,7 @@ jobs:
           cmp "$root/actual-before-alias-check.loam" "$root/actual.loam"
 
           ln -s "$root/actual.loam" "$root/actual-alias.loam"
-          if ./.lake/build/bin/loamJournalExport \
+          if ./.lake/build/bin/loam export journal \
               "$root/actual.loam" \
               "$root/actual-alias.loam"; then
             echo "Journal export accepted a symlink alias of Actual authority" >&2
@@ -538,7 +517,7 @@ jobs:
           root="$(mktemp -d)/pta-export"
           lake env lean --run Loam/Tests/PlainTextAccountingExport.lean
           lake env lean --run Loam/Tests/JournalExport.lean "$root"
-          ./.lake/build/bin/loamPtaExport \
+          ./.lake/build/bin/loam export pta \
             "$root/actual.loam" \
             "$root/accounting-role.loam" \
             "$root/actual.journal"
@@ -555,7 +534,7 @@ jobs:
             exit 1
           fi
 
-          if ./.lake/build/bin/loamPtaExport \
+          if ./.lake/build/bin/loam export pta \
               "$root/actual.loam" \
               "$root/accounting-role.loam" \
               "$root/./actual.loam"; then
@@ -563,7 +542,7 @@ jobs:
             exit 1
           fi
 
-          if ./.lake/build/bin/loamPtaExport \
+          if ./.lake/build/bin/loam export pta \
               "$root/actual.loam" \
               "$root/accounting-role.loam" \
               "$root/config/measure-presentation.tsv"; then
@@ -572,7 +551,7 @@ jobs:
           fi
 
           ln -s "$root/accounting-role.loam" "$root/accounting-role-alias.loam"
-          if ./.lake/build/bin/loamPtaExport \
+          if ./.lake/build/bin/loam export pta \
               "$root/actual.loam" \
               "$root/accounting-role.loam" \
               "$root/accounting-role-alias.loam"; then
@@ -667,7 +646,7 @@ jobs:
           root="$(mktemp -d)/actual-quantity-cli"
           lake env lean --run Loam/Tests/ActualQuantityCliFixture.lean "$root"
 
-          ./.lake/build/bin/loamDailyQuantity current             "$root/actual.loam" "$root/zero-origin-coverage.loam"             >"$root/current.txt"
+          ./.lake/build/bin/loam current             "$root/actual.loam" "$root/zero-origin-coverage.loam"             >"$root/current.txt"
           grep -Fq "wallet: -75 jpy" "$root/current.txt"
           grep -Fq "food: 75 jpy" "$root/current.txt"
           if grep -Fq "cash: 0 jpy" "$root/current.txt"; then
@@ -675,7 +654,7 @@ jobs:
             exit 1
           fi
 
-          ./.lake/build/bin/loamDailyQuantity balances             "$root/actual.loam" "$root/zero-origin-coverage.loam"             "$root/config/balance-view.tsv"             >"$root/balances.txt"
+          ./.lake/build/bin/loam balances             "$root/actual.loam" "$root/zero-origin-coverage.loam"             "$root/config/balance-view.tsv"             >"$root/balances.txt"
           grep -Fq "wallet: -75 jpy" "$root/balances.txt"
           grep -Fq "cash: 0 jpy" "$root/balances.txt"
 
@@ -748,11 +727,11 @@ jobs:
           set -euo pipefail
           fixture="$(mktemp -d)/budget-window-cli"
           lake env lean --run Loam/Tests/BudgetWindowReview.lean "$fixture"
-          jpy_output="$(.lake/build/bin/loamBudgetWindow "$fixture" 2026-08-17 2026-10-15 food)"
+          jpy_output="$(.lake/build/bin/loam budget-window "$fixture" 2026-08-17 2026-10-15 food)"
           grep -Fqx "Entitlement: 100 jpy" <<< "$jpy_output"
           grep -Fqx "Consumption: 40 jpy" <<< "$jpy_output"
           grep -Fqx "Remaining: 60 jpy" <<< "$jpy_output"
-          usd_output="$(LOAM_MEASURE=usd .lake/build/bin/loamBudgetWindow "$fixture" 2026-08-17 2026-10-15 food)"
+          usd_output="$(LOAM_MEASURE=usd .lake/build/bin/loam budget-window "$fixture" 2026-08-17 2026-10-15 food)"
           grep -Fqx "Entitlement: 250 usd" <<< "$usd_output"
           grep -Fqx "Consumption: 70 usd" <<< "$usd_output"
           grep -Fqx "Remaining: 180 usd" <<< "$usd_output"

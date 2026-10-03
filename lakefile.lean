@@ -26,9 +26,6 @@ lean_lib Loam
 lean_exe loam where
   root := `Loam.Cli
 
-lean_exe loamMovement where
-  root := `Loam.Cli.MovementExecutable
-
 lean_exe loamMovementProposal where
   root := `Loam.Cli.MovementProposalExecutable
 
@@ -44,23 +41,8 @@ lean_exe loamActualRouting where
 lean_exe loamScheduledRouting where
   root := `Loam.Cli.ScheduledRoutingExecutable
 
-lean_exe loamBudgetWindow where
-  root := `Loam.Cli.BudgetWindowExecutable
-
-lean_exe loamDailyQuantity where
-  root := `Loam.Cli.DailyQuantityExecutable
-
-lean_exe loamOpenScheduled where
-  root := `Loam.Cli.OpenScheduledExecutable
-
 lean_exe loamScheduledSuppression where
   root := `Loam.Cli.ScheduledSuppressionCli
-
-lean_exe loamJournalExport where
-  root := `Loam.Cli.JournalExportExecutable
-
-lean_exe loamPtaExport where
-  root := `Loam.Cli.PlainTextAccountingExportExecutable
 
 lean_exe loamBeancountExport where
   root := `Loam.Cli.BeancountExportExecutable
