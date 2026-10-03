@@ -110,13 +110,31 @@ Both arms independently preserved the unobserved coordinate's older reflected-ro
 cut, derived the same current quantities, and selected the same focused executable
 regression as the smallest missing direct qualification.
 
-Counted status is now:
+Trial 06 is the final planned paired measurement for this skill:
 
-- scored comparable paired trials: **2** (Trial 03 and Trial 05);
-- clean held-out sibling trials: **1** (Trial 05);
+- [Bounded history versus same stored scalar](trials/06-bounded-history-same-stored-scalar.md)
+- paired result: **SAME**;
+- promotion wins from Trial 06: **0**;
+- semantic regressions: **0**;
+- skill mutation: **none**.
+
+Both clean arms independently compared the fresh observation with the
+correction-aware current answer rather than the old stored scalar and selected
+the same focused executable regression as the smallest missing direct
+qualification.
+
+Final counted status:
+
+- scored comparable paired trials: **3** (Trial 03, Trial 05, Trial 06);
+- clean held-out sibling trials: **2** (Trial 05, Trial 06);
 - promotion wins: **1**;
 - scored semantic regressions: **0**;
 - skill mutation: **none**.
 
-The skill remains Trialed because the promotion rule still requires at least
-three comparable trials and at least two material improvements.
+The skill remains **Trialed**. Its evaluation is **closed** because the promotion
+rule requires at least two material improvements and only one was observed.
+
+No further promotion trials are planned. Reopen only if repository ownership
+changes materially, a new concrete failure exposes a reusable missing step, or a
+substantially different evaluation protocol creates a new question worth
+measuring.
