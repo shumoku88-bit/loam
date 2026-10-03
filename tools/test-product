@@ -42,6 +42,13 @@ scheduled_routing_tests=(
   ScheduledRoutingPublisher
 )
 
+scheduled_lifecycle_tests=(
+  ScheduledLifecyclePersistence
+  ScheduledCreationPublisher
+  ScheduledReplacementPublisher
+  ScheduledTerminalPublisher
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -63,6 +70,9 @@ case "$group" in
   scheduled-routing)
     tests=("${scheduled_routing_tests[@]}")
     ;;
+  scheduled-lifecycle)
+    tests=("${scheduled_lifecycle_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -70,12 +80,13 @@ case "$group" in
       "${capacity_tests[@]}"
       "${actual_routing_tests[@]}"
       "${scheduled_routing_tests[@]}"
+      "${scheduled_lifecycle_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle" >&2
     exit 2
     ;;
 esac
@@ -100,8 +111,20 @@ for test_name in "${tests[@]}"; do
     CurrentCoverageReview)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/current-coverage-review"
       ;;
+    ScheduledCreationPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
+      ;;
+    ScheduledLifecyclePersistence)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-lifecycle"
+      ;;
+    ScheduledReplacementPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-replacement-publisher"
+      ;;
     ScheduledRoutingPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-routing-publisher"
+      ;;
+    ScheduledTerminalPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-terminal-publisher"
       ;;
     *)
       run lake env lean --run "Loam/Tests/$test_name.lean"
