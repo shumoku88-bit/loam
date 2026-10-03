@@ -64,7 +64,11 @@ private def practicalUsage : String :=
   "  loam current-quantity-anchor LOCUS MEASURE QUANTITY [LOCUS MEASURE QUANTITY ...]\n\n" ++
   "Administer one Measure presentation scale:\n" ++
   "  loam measure-scale DATA_ROOT MEASURE SCALE\n\n" ++
-  "Scheduled persistence (read-only here; production Scheduled mutation uses loamTui):\n" ++
+  "Scheduled inspection and persistence (read-only here; production Scheduled mutation uses loamTui):\n" ++
+  "  loam open-scheduled SCHEDULED_FILE ACTUAL_ROOT\n" ++
+  "  loam open-scheduled day-evidence SCHEDULED_FILE ACTUAL_ROOT YYYY-MM-DD\n" ++
+  "  loam open-scheduled balance-effects DATA_ROOT END_EXCLUSIVE\n" ++
+  "  loam open-scheduled suppression DATA_ROOT END_EXCLUSIVE SCHEDULED_ID\n" ++
   "  loam scheduled show SCHEDULED_FILE\n\n" ++
   "Review current records (optional YYYY-MM-DD, /text search, or u for undated):\n" ++
   "  loam review ACTUAL_FILE [QUERY]\n\n" ++
