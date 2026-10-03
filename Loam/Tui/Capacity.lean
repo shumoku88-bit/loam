@@ -267,8 +267,7 @@ def view (state : State) : Widget :=
           state.snapshot.measure.token ++ " Capacity movements.")
       , muted "Order shown is first retained appearance, not priority."
       ] ++ coverageFooter state ++
-      [ muted "t transfer, r rebalance; shared CapacityPublisher owns publication."
-      , muted "unallocated is an allocation boundary, not money available to allocate."
+      [ muted "unallocated is an allocation boundary, not money available to allocate."
       , muted "j/k or ↑/↓ select/scroll   t transfer   r rebalance   q / Esc home"
       , muted state.notice
       ]
