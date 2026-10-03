@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+run() {
+  printf '==> %s\n' "$*"
+  "$@"
+}
+
+run lake build \
+  Loam.Tests.CurrentQuantityAnchor \
+  Loam.Tests.BoundedHistorySupport \
+  Loam.Tests.BalanceReview \
+  Loam.Tests.CapacityReview
+
+run lake env lean --run Loam/Tests/CurrentQuantityAnchor.lean
+run lake env lean --run Loam/Tests/BoundedHistorySupport.lean
+run lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
+run lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
