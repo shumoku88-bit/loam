@@ -25,9 +25,15 @@ cycle_funding_tests=(
   CurrentCoverageReview
 )
 
+capacity_tests=(
+  CapacityPublisher
+  NormalizedCapacityPersistence
+  CapacityDogfood
+  CapacityReview
+)
+
 representative_tests=(
   BoundedHistorySupport
-  CapacityReview
 )
 
 group="${1:-all}"
@@ -38,16 +44,20 @@ case "$group" in
   cycle-funding)
     tests=("${cycle_funding_tests[@]}")
     ;;
+  capacity)
+    tests=("${capacity_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
       "${cycle_funding_tests[@]}"
+      "${capacity_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding" >&2
+    echo "expected: all, accounting, cycle-funding, capacity" >&2
     exit 2
     ;;
 esac
@@ -62,6 +72,9 @@ for test_name in "${tests[@]}"; do
   case "$test_name" in
     BalanceReview)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/balance-review"
+      ;;
+    CapacityPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/capacity-publisher"
       ;;
     CapacityReview)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/capacity-review"
