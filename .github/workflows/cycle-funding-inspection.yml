@@ -58,4 +58,4 @@ jobs:
         with:
           build-args: Loam.Review.CycleFundingInspection Loam.Tests.ActualWorldFixture Loam.Tests.Support
       - name: Run Cycle Funding package test group
-        run: lake test cycle-funding
+        run: lake test -- cycle-funding
