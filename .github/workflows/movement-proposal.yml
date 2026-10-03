@@ -16,6 +16,8 @@ on:
       - 'Loam/Tests/MovementProposal.lean'
       - 'Loam/Tests/MovementProposalRecord.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'tools/loam'
       - 'lakefile.lean'
       - '.github/workflows/movement-proposal.yml'
@@ -25,34 +27,18 @@ permissions:
   contents: read
 
 jobs:
-  transport:
-    name: Qualify read-only proposal transport
+  qualify:
+    name: Qualify Movement proposal transport and publication
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Build proposal executable and fixture boundary
+      - name: Build proposal executables and fixture boundary
         uses: ./.github/actions/lean-build
         with:
-          build-args: loamMovementProposal Loam.Tests.ActualWorldFixture
+          build-args: loamMovementProposal loamMovementProposalRecord Loam.Tests.ActualWorldFixture
 
-      - name: Verify versioned proposal parsing and read-only review
-        run: lake env lean --run Loam/Tests/MovementProposal.lean "$(mktemp -d)/movement-proposal"
-
-  publication:
-    name: Qualify explicit proposal publication
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Build proposal writer and fixture boundary
-        uses: ./.github/actions/lean-build
-        with:
-          build-args: loamMovementProposalRecord Loam.Tests.ActualWorldFixture
-
-      - name: Verify canonical writer reread and refusal atomicity
-        run: lake env lean --run Loam/Tests/MovementProposalRecord.lean "$(mktemp -d)/movement-proposal-record"
+      - name: Run Movement proposal package test group
+        run: lake test -- movement-proposal
