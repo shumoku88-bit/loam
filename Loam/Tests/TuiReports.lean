@@ -819,8 +819,6 @@ def main : IO Unit := do
       [ { coordinate := unsupportedDebt, role := some .liability } ]
   }
   let balancesText := widgetText (Loam.Tui.Reports.view balancesReport)
-  expect (contains "One RoleBalance answer; three presentation projections" balancesText)
-    "Balances surface introduced or hid the shared projection boundary"
   expect (contains "Balance Sheet support: INCOMPLETE" balancesText)
     "Balances surface hid missing stock-role support"
   expect (contains "Known Net Worth subtotal: 12000 jpy" balancesText)
@@ -829,8 +827,6 @@ def main : IO Unit := do
     "Balances surface promoted an incomplete Net Worth to knowledge"
   expect (contains "liability-unsupported" balancesText && contains "balance unsupported" balancesText)
     "Balances surface hid the unsupported liability witness"
-  expect (contains "Trial Balance-shaped frontier" balancesText)
-    "Balances surface did not preserve the coordinate-wide Trial Balance projection"
 
   let pension : Loam.BoundaryPresetConfig.Preset := {
     name := "Pension"

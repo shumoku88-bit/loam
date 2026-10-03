@@ -281,7 +281,7 @@ private def answerabilityMapLines
         toString netWorthBlockers.length ++ " unsupported, " ++
         toString roleBlockers ++ " role blockers)")
   , line
-      ("  Trial Balance frontier   " ++ toString quantitySupported ++ " / " ++
+      ("  All current balances     " ++ toString quantitySupported ++ " / " ++
         toString total ++ " current quantities supported")
   , line
       ("  Flow-role quantity gaps  " ++ toString flowGaps.length ++
@@ -302,7 +302,7 @@ private def answerabilityMapLines
   [ muted "Known-present evidence proves existence, not an arithmetic amount."
   , muted "For an unsupported quantity blocker, explicit support can be zero-origin, opening, or an exact current anchor."
   , muted "Add zero-origin only when retained history really begins at zero; never add it just to erase '?'."
-  , muted "Flow-role gaps remain visible in the Trial Balance frontier but are lower priority for stock reports."
+  , muted "Income / Expense role gaps remain visible here but do not block Balance Sheet or Net Worth."
   ]
 
 private def measureBalanceLines
@@ -372,8 +372,8 @@ private def trialBalanceLines (snapshot : Loam.RoleBalanceReview.Snapshot) : Lis
   let unresolved := roleGaps snapshot
   let knownPresent := classifiedKnownPresent snapshot
   let unsupported := classifiedUnsupported snapshot
-  [ line "Trial Balance-shaped frontier"
-  , muted "Every current coordinate belongs to this support question; role totals are not substituted for rows."
+  [ line "All current balance support"
+  , muted "Each current item is shown separately; role totals are not substituted for individual rows."
   , line
       (if snapshot.knownPresentBalances.isEmpty && snapshot.unsupportedBalances.isEmpty then
         "Exact quantity support: COMPLETE"
@@ -424,9 +424,7 @@ def lines (snapshot : Loam.RoleBalanceReview.Snapshot) : List Widget :=
   [ blank ] ++
   trialBalanceLines snapshot ++
   [ blank
-  , muted "One RoleBalance answer; three presentation projections."
-  , muted "Supported current quantity is not the same claim as zero-origin history."
-  , muted "No retained earnings, period closing, valuation, recognition, or historical as-of semantics are added here."
+  , muted "A known current amount does not prove that the full history is known."
   ]
 
 end Loam.Tui.RoleBalances
