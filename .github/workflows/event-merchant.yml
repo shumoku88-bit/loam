@@ -18,6 +18,12 @@ on:
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/EventMerchantPublisher.lean'
       - 'Loam/Tests/TuiEventMerchant.lean'
+      - 'Loam/Review/MerchantExpenseReview.lean'
+      - 'Loam/Review/ActualReview.lean'
+      - 'Loam/Review/TransactionsFlowReview.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Tests/MerchantExpenseReview.lean'
       - 'tests/TestDriver.lean'
       - 'tools/test-product'
       - 'lean-toolchain'
@@ -44,6 +50,12 @@ on:
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/EventMerchantPublisher.lean'
       - 'Loam/Tests/TuiEventMerchant.lean'
+      - 'Loam/Review/MerchantExpenseReview.lean'
+      - 'Loam/Review/ActualReview.lean'
+      - 'Loam/Review/TransactionsFlowReview.lean'
+      - 'Loam/Core/AccountingRole.lean'
+      - 'Loam/Persistence/AccountingRolePersistence.lean'
+      - 'Loam/Tests/MerchantExpenseReview.lean'
       - 'tests/TestDriver.lean'
       - 'tools/test-product'
       - 'lean-toolchain'
@@ -72,3 +84,20 @@ jobs:
 
       - name: Run Event Merchant package test group
         run: lake test -- event-merchant
+
+  merchant-expense:
+    name: Build and test exact Merchant Expense review
+    if: github.event_name != 'push' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean and build Merchant Expense review
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Review.MerchantExpenseReview
+
+      - name: Verify exact Merchant Expense projection
+        run: lake test -- MerchantExpenseReview
