@@ -110,6 +110,28 @@ If isolation is lost, keep the run only as an exploratory Trialed record:
 
 This prevents skill text from leaking into the control condition.
 
+### Pinned-evidence rule
+
+A baseline pinned to an earlier repository revision must treat only file contents
+fetched explicitly at that revision as repository evidence.
+
+During the control run:
+
+- do not fetch commit metadata or commit diffs;
+- do not fetch issue / PR comments, reviews, or current discussion;
+- do not use current issue / PR bodies as evidence unless their exact text was
+  sealed into the task before the run;
+- do not use default-branch code-search snippets as evidence;
+- avoid unpinned repository search for discovery when it can expose later source
+  text; follow paths, imports, and links from pinned files instead;
+- every source claim must be re-openable from an exact path at the pinned
+  revision.
+
+If any forbidden later text is exposed, mark the control **contaminated** and
+count no Better / Same / Worse result from that run. The audit may still be kept
+as exploratory evidence, but it is not a paired baseline.
+
+
 Record the smallest useful observations:
 
 | Field | Question |
@@ -174,7 +196,7 @@ have verifier/test surfaces that can provide useful feedback.
 Current trial records:
 
 - Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
-- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): skill arm complete, fresh baseline pending.
+- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): skill arm complete; first baseline attempt contaminated; fresh rerun pending.
 
 ## Trial record template
 
