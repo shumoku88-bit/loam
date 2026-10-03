@@ -95,6 +95,21 @@ skill arm
 
 The baseline must not receive the candidate skill text.
 
+### Isolation rule
+
+For a paired trial, run the baseline in a fresh session / agent that has not read
+the candidate skill, and record the baseline before exposing the skill arm to the
+task. Do not ask one already-exposed agent to reconstruct how it "would have"
+worked without the skill.
+
+If isolation is lost, keep the run only as an exploratory Trialed record:
+
+- mark the baseline as contaminated / unavailable;
+- count no promotion win from that run;
+- do not use token, tool-call, or wrong-turn comparisons from it.
+
+This prevents skill text from leaking into the control condition.
+
 Record the smallest useful observations:
 
 | Field | Question |
