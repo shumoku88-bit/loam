@@ -231,9 +231,9 @@ private def coverageFooter (state : State) : List Widget :=
       [ muted
           ("Coverage: observed " ++ coverage.observedAt ++
            " | " ++ source ++ " -> " ++ coverage.endExclusive)
-      , muted "now = Entitlement - correction-frontier Actual; after-known also subtracts managed current-open Scheduled."
+      , muted "Now = Cap minus recorded consumption; After = Now minus known scheduled commitments."
       , muted frontierLine
-      , muted "Coverage labels are presentation only; this is not SafeToSpend authority."
+      , muted "Status labels are guidance only; they do not say how much is safe to spend."
       ]
 
 /-- Render all-retained single-Measure Capacity plus optional shared current coverage evidence. -/
