@@ -273,7 +273,10 @@ private def readByte : IO UInt8 := do
     let b := state.data.get! state.pos
     inputBufferRef.set { state with pos := state.pos + 1 }
     return b
-  let bytes ← (← IO.getStdin).read 1024
+  -- Stream.read uses buffered stdio: requesting a large block on a tty waits
+  -- for the VTIME timeout after a short input, adding ~100ms to every key.
+  -- Read exactly one byte; never wait to fill a wheel-event batch.
+  let bytes ← (← IO.getStdin).read 1
   if bytes.isEmpty then
     inputBufferRef.set { data := ByteArray.empty, pos := 0 }
     return 0
