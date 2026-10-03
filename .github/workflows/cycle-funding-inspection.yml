@@ -6,6 +6,8 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Tests/Support.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'Loam/Review/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
       - 'Loam/Review/BalanceReview.lean'
@@ -21,6 +23,9 @@ on:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/Support.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'Loam/Review/CycleFundingInspection.lean'
       - 'Loam/Tests/CycleFundingInspection.lean'
       - 'Loam/Review/BalanceReview.lean'
@@ -52,9 +57,5 @@ jobs:
         uses: ./.github/actions/lean-build
         with:
           build-args: Loam.Review.CycleFundingInspection Loam.Tests.ActualWorldFixture Loam.Tests.Support
-      - name: Qualify funding arithmetic and explicit evidence selection
-        run: lake env lean --run Loam/Tests/CycleFundingInspection.lean
-      - name: Check neighboring physical balance review
-        run: lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balances"
-      - name: Check neighboring current coverage review
-        run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/coverage"
+      - name: Run Cycle Funding package test group
+        run: lake test cycle-funding
