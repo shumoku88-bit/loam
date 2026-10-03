@@ -1,6 +1,8 @@
 def main (args : List String) : IO Unit := do
-  let output ← IO.Process.run {
+  let child ← IO.Process.spawn {
     cmd := "bash"
     args := #["tools/test-product"] ++ args.toArray
   }
-  IO.print output
+  let exitCode ← child.wait
+  if exitCode != 0 then
+    throw (IO.userError s!"test driver exited with code {exitCode}")

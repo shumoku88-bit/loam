@@ -36,6 +36,12 @@ actual_routing_tests=(
   ActualRoutingPersistence
 )
 
+scheduled_routing_tests=(
+  ScheduledRoutingPersistence
+  ScheduledCommitmentHeadroom
+  ScheduledRoutingPublisher
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -54,18 +60,22 @@ case "$group" in
   actual-routing)
     tests=("${actual_routing_tests[@]}")
     ;;
+  scheduled-routing)
+    tests=("${scheduled_routing_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
       "${cycle_funding_tests[@]}"
       "${capacity_tests[@]}"
       "${actual_routing_tests[@]}"
+      "${scheduled_routing_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing" >&2
     exit 2
     ;;
 esac
@@ -89,6 +99,9 @@ for test_name in "${tests[@]}"; do
       ;;
     CurrentCoverageReview)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/current-coverage-review"
+      ;;
+    ScheduledRoutingPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-routing-publisher"
       ;;
     *)
       run lake env lean --run "Loam/Tests/$test_name.lean"
