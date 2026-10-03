@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/Movement/Proposal.lean'
       - 'Loam/Cli/MovementProposalCli.lean'
       - 'Loam/Cli/MovementProposalRecordCli.lean'
@@ -35,10 +36,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
-      - name: Build proposal executables and fixture boundary
+      - name: Build unified proposal entrance and fixture boundary
         uses: ./.github/actions/lean-build
         with:
-          build-args: loamMovementProposal loamMovementProposalRecord Loam.Tests.ActualWorldFixture
+          build-args: loam Loam.Tests.ActualWorldFixture
 
       - name: Run Movement proposal package test group
         run: lake test -- movement-proposal

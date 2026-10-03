@@ -372,7 +372,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovementProposal loamMovementProposalRecord loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Tests.Support
+          build-args: loam loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
@@ -404,8 +404,6 @@ jobs:
           grep -F "loam movement [LOAM_DATA_DIR]" <<<"$help_out"
 
           compare_dispatch loamTui tui too many
-          compare_dispatch loamMovementProposal movement-proposal
-          compare_dispatch loamMovementProposalRecord movement-proposal-record
 
           compare_export_dispatch() {
             local standalone="$1"

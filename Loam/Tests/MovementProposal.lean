@@ -107,8 +107,8 @@ def main (args : List String) : IO Unit := do
   let usdFile := root / "usd.proposal"
   IO.FS.writeFile usdFile usdProposal
   let usdReviewed ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposal"
-    args := #[usdFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal", usdFile.toString, root.toString]
   }
   expect (usdReviewed.exitCode == 0)
     s!"USD proposal review CLI failed with code {usdReviewed.exitCode}: {usdReviewed.stderr}"
