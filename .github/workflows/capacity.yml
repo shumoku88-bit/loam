@@ -18,6 +18,8 @@ on:
       - 'Loam/Tests/CapacityPublisher.lean'
       - 'Loam/Tests/NormalizedCapacityPersistence.lean'
       - 'Loam/Tests/CapacityDogfood.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'tools/loam'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -43,6 +45,8 @@ on:
       - 'Loam/Tests/CapacityPublisher.lean'
       - 'Loam/Tests/NormalizedCapacityPersistence.lean'
       - 'Loam/Tests/CapacityDogfood.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'tools/loam'
       - 'lean-toolchain'
       - 'lakefile.lean'
@@ -67,11 +71,8 @@ jobs:
         with:
           build-args: Loam.Core.CapacityEvidence Loam.Persistence.NormalizedCapacityPersistence Loam.Authority.CapacityAuthority Loam.Publisher.CapacityPublisher Loam.Review.CapacityReview
 
-      - name: Verify shared Capacity publication
-        run: lake env lean --run Loam/Tests/CapacityPublisher.lean "$(mktemp -d)/capacity-publisher"
-
-      - name: Verify normalized Capacity round trip
-        run: lake env lean --run Loam/Tests/NormalizedCapacityPersistence.lean
+      - name: Run Capacity package test group
+        run: lake test -- capacity
 
   practical:
     name: Build and exercise capacity entrance
@@ -87,10 +88,6 @@ jobs:
         uses: ./.github/actions/lean-build
         with:
           build-args: loamCapacity
-
-      - name: Run Capacity memory and persistence check
-        shell: bash
-        run: lake env lean --run Loam/Tests/CapacityDogfood.lean
 
       - name: Exercise practical capacity entrance
         shell: bash
