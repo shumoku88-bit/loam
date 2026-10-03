@@ -24,7 +24,6 @@ on:
       - '.github/workflows/practical-actual-routing.yml'
   push:
     branches:
-      - 'feat/actual-routing-persistence'
       - main
     paths:
       - '.github/actions/lean-build/**'

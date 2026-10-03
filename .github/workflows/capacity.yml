@@ -28,7 +28,6 @@ on:
   push:
     branches:
       - main
-      - feat/tui
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Authority/CapacityAuthority.lean'

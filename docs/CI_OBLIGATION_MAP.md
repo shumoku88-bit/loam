@@ -93,22 +93,25 @@ ownership of the checks:
 
 This changes *when* expensive evidence is replayed, not which evidence owns a
 boundary. Specialized path-scoped publisher, persistence, UI, and formal-method
-workflows remain independently triggered. Seven narrow consolidation groups share
-union path triggers while preserving independently named jobs: Movement Proposal
-keeps read-only transport separate from explicit publication, Scheduled
-publication keeps Creation, Replacement, and Terminal qualification separate,
-and Actual Routing keeps persistence qualification separate from the practical
-writer. The routing persistence story is executed once and the writer job depends
-on that qualification rather than replaying the same test. Capacity likewise keeps
-publisher qualification separate from the practical CLI entrance; the latter remains
-suppressed on the historical `feat/tui` push lane. Event Merchant keeps canonical
-publisher qualification separate from TUI input qualification; on the historical
-`feat/tui-event-merchant` push lane only the TUI job runs. Runtime shadow
-qualification keeps the redacted projection audit separate from the stateless
-quantity projection while sharing one trigger surface; Observation 078 remains an
-independent axiom-audited proof contract. Scheduled lifecycle qualification keeps
-persistence separate from Creation, Replacement, and Terminal publication while
-sharing the same main / `feat/tui` trigger surface.
+workflows remain independently triggered. Narrow consolidation groups preserve
+independently named jobs where one workflow file owns multiple related obligations.
+Movement Proposal keeps read-only transport separate from explicit publication,
+Scheduled lifecycle keeps persistence and publication qualification together
+without merging their semantic checks, and Actual Routing keeps persistence
+qualification separate from the practical writer. Capacity likewise keeps
+publisher qualification separate from the practical CLI entrance. Event Merchant
+keeps its package qualification separate from the exact Merchant Expense review.
+Runtime shadow qualification keeps the redacted projection audit separate from
+the stateless quantity projection while sharing one trigger surface; Observation
+078 remains an independent axiom-audited proof contract.
+
+A 2026-10-04 branch census found that the historical product push lanes
+`feat/tui`, `feat/tui-event-merchant`, `feat/actual-routing-persistence`,
+the Practical Slice feature/fix branches, and the Practical Scheduled Routing
+feature branches no longer exist in the repository. Those dead product-only
+push lanes were retired from live workflow triggers. Research `experiment/...`
+branch contracts and branch names used by the Lean qualification selector remain
+unchanged.
 
 ## Live obligation families
 
@@ -176,7 +179,7 @@ operational roles differ:
 
 The completed conventional Tauri workbench and its `gui.yml` qualification surface are retired and remain available in Git history. This removes one presentation-only workflow from the live topology; use `python3 tools/audit-ci-topology` for the exact current repository count because later feature work may add or consolidate unrelated workflows. A future Observatory renderer should gain its own presentation-local qualification only when executable code exists; upstream Review / Presentation answers remain the semantic boundary.
 
-## Current stopping point after the 40-workflow audit
+## Current stopping point after the 39-workflow audit
 
 The post-shadow full inventory classified the remaining workflows by current
 evidence rather than by naming similarity. It found one high-confidence GROUP
