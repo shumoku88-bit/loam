@@ -154,6 +154,8 @@ on:
       - 'Loam/Tests/ScheduledContinuationRouting.lean'
       - 'Loam/Tests/TuiScheduledRouting.lean'
       - 'tests/test_cycle_budget_tui.py'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   push:
@@ -300,6 +302,8 @@ on:
       - 'Loam/Tests/ScheduledContinuationRouting.lean'
       - 'Loam/Tests/TuiScheduledRouting.lean'
       - 'tests/test_cycle_budget_tui.py'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/tui.yml'
   workflow_dispatch:
@@ -343,15 +347,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/actual-root"
-          lake env lean --run Loam/Tests/TuiActual.lean
-          lake env lean --run Loam/Tests/TuiScheduledWorkspace.lean
-          lake env lean --run Loam/Tests/TuiCapacity.lean
-          lake env lean --run Loam/Tests/TuiSettlement.lean
-          lake env lean --run Loam/Tests/TuiReports.lean
-          lake env lean --run Loam/Tests/TuiTrendMeasure.lean
-          lake env lean --run Loam/Tests/TuiHelpFooter.lean
-          lake env lean --run Loam/Tests/TuiHomeNavigation.lean
+          lake test -- tui-representative
           lake env lean --run tests/test_date_jump.lean
 
       - name: Verify Cycle Budget and Scheduled startup PTY interactions
