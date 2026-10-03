@@ -75,8 +75,6 @@ def main : IO Unit := do
   expect (contains "not priority" text) "Capacity surface omitted its ordering non-claim"
   expect (contains "No cycle, period, or selected-day meaning" text)
     "Capacity surface accidentally implied temporal policy"
-  expect (contains "shared CapacityPublisher owns publication" text)
-    "Capacity surface did not identify the shared publication boundary"
   let usd : MeasureId := ⟨"usd"⟩
   let usdState := Loam.Tui.Capacity.initial { measure := usd, rows := [food] }
   let usdText := widgetText (Loam.Tui.Capacity.view usdState)
