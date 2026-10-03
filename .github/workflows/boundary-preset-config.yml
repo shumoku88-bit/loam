@@ -6,12 +6,16 @@ on:
       - '.github/actions/lean-build/**'
       - 'Loam/Config/BoundaryPresetConfig.lean'
       - 'Loam/Tests/BoundaryPresetConfig.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/boundary-preset-config.yml'
   push:
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Config/BoundaryPresetConfig.lean'
       - 'Loam/Tests/BoundaryPresetConfig.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/boundary-preset-config.yml'
   workflow_dispatch:
 
@@ -33,4 +37,4 @@ jobs:
           build-args: Loam.Config.BoundaryPresetConfig
 
       - name: Verify strict replaceable preset behavior
-        run: lake env lean --run Loam/Tests/BoundaryPresetConfig.lean
+        run: lake test -- BoundaryPresetConfig
