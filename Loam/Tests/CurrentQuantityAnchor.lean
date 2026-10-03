@@ -1,20 +1,9 @@
 import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Review.RoleBalanceReview
+import Loam.Tests.Support
 
 open Loam.Core
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do throw (IO.userError message)
-
-private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw (IO.userError message)
-
-private def requireOk {α : Type} (value : Except String α) (message : String) : IO α :=
-  match value with
-  | .ok result => pure result
-  | .error error => throw (IO.userError (message ++ ": " ++ error))
+open Loam.Tests.Support
 
 private def effect (key locus : String) (quanta : Int) : Effect :=
   Effect.ofQuantity ⟨key⟩ ⟨locus⟩ ⟨"jpy"⟩ (Quantity.ofQuanta quanta)

@@ -59,7 +59,10 @@ for raw_line in Path("lakefile.lean").read_text(encoding="utf-8").splitlines():
     if current_exe is not None:
         root_match = re.match(r"^\s*root\s*:=\s*`([A-Za-z0-9_.]+)\s*$", raw_line)
         if root_match:
-            executables.append((current_exe, root_match.group(1)))
+            root = root_match.group(1)
+            # Test-only Lake executables are not production entrances.
+            if not root.startswith("tests."):
+                executables.append((current_exe, root))
             current_exe = None
 
 exe_roots = [root for _, root in executables]

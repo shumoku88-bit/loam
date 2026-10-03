@@ -1,14 +1,8 @@
 import Loam.Review.CapacityReview
+import Loam.Tests.Support
 
 open Loam.Core
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do throw (IO.userError message)
-
-private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw (IO.userError message)
+open Loam.Tests.Support
 
 private def yen : MeasureId := ⟨"jpy"⟩
 private def usd : MeasureId := ⟨"usd"⟩
