@@ -14,6 +14,8 @@ on:
       - 'Loam/Tests/MerchantExpenseReview.lean'
       - '.github/workflows/merchant-expense-review.yml'
       - 'lean-toolchain'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - 'lake-manifest.json'
   push:
@@ -31,6 +33,8 @@ on:
       - 'Loam/Tests/MerchantExpenseReview.lean'
       - '.github/workflows/merchant-expense-review.yml'
       - 'lean-toolchain'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - 'lake-manifest.json'
   workflow_dispatch:
@@ -51,4 +55,4 @@ jobs:
         with:
           build-args: Loam.Review.MerchantExpenseReview
       - name: Verify exact Merchant Expense projection
-        run: lake env lean --run Loam/Tests/MerchantExpenseReview.lean
+        run: lake test -- MerchantExpenseReview

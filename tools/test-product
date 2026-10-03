@@ -121,6 +121,7 @@ application_tests=(
 
 singleton_tests=(
   BoundaryPresetConfig
+  MerchantExpenseReview
 )
 
 representative_tests=(
