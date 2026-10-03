@@ -161,7 +161,6 @@ on:
   push:
     branches:
       - main
-      - 'feat/tui'
     paths:
       - 'tests/test_tui_viewport_pty.py'
       - 'tests/TerminalProbe.lean'
