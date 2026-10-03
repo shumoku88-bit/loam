@@ -70,8 +70,8 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile proposalFile ordinaryProposal
 
   let recorded ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposalRecord"
-    args := #[proposalFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal-record", proposalFile.toString, root.toString]
   }
   expect (recorded.exitCode == 0)
     s!"proposal record CLI failed with code {recorded.exitCode}: {recorded.stderr}"
@@ -97,8 +97,8 @@ def main (args : List String) : IO Unit := do
 
   IO.FS.writeFile proposalFile idempotentProposal
   let firstIdempotent ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposalRecord"
-    args := #[proposalFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal-record", proposalFile.toString, root.toString]
   }
   expect (firstIdempotent.exitCode == 0)
     s!"first idempotent proposal failed with code {firstIdempotent.exitCode}: {firstIdempotent.stderr}"
@@ -116,8 +116,8 @@ def main (args : List String) : IO Unit := do
     "first idempotent proposal did not retain the produced Event identity"
 
   let secondIdempotent ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposalRecord"
-    args := #[proposalFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal-record", proposalFile.toString, root.toString]
   }
   expect (secondIdempotent.exitCode == 0)
     s!"idempotent retry failed with code {secondIdempotent.exitCode}: {secondIdempotent.stderr}"
@@ -135,8 +135,8 @@ def main (args : List String) : IO Unit := do
   let actualPath := root / "actual.loam"
   IO.FS.writeFile proposalFile usdProposal
   let usdRecorded ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposalRecord"
-    args := #[proposalFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal-record", proposalFile.toString, root.toString]
   }
   expect (usdRecorded.exitCode == 0)
     s!"USD proposal record CLI failed with code {usdRecorded.exitCode}: {usdRecorded.stderr}"
@@ -155,8 +155,8 @@ def main (args : List String) : IO Unit := do
 
   IO.FS.writeFile proposalFile driftedIdempotentProposal
   let driftedRetry ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposalRecord"
-    args := #[proposalFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal-record", proposalFile.toString, root.toString]
   }
   expect (driftedRetry.exitCode == 0)
     s!"drifted idempotent retry failed with code {driftedRetry.exitCode}: {driftedRetry.stderr}"
@@ -177,8 +177,8 @@ def main (args : List String) : IO Unit := do
 
   IO.FS.writeFile proposalFile unadmittedLocusProposal
   let refused ← IO.Process.output {
-    cmd := ".lake/build/bin/loamMovementProposalRecord"
-    args := #[proposalFile.toString, root.toString]
+    cmd := ".lake/build/bin/loam"
+    args := #["movement-proposal-record", proposalFile.toString, root.toString]
   }
   expect (refused.exitCode == 2)
     s!"unadmitted Locus proposal unexpectedly returned {refused.exitCode}"

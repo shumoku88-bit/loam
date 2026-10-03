@@ -26,12 +26,6 @@ lean_lib Loam
 lean_exe loam where
   root := `Loam.Cli
 
-lean_exe loamMovementProposal where
-  root := `Loam.Cli.MovementProposalExecutable
-
-lean_exe loamMovementProposalRecord where
-  root := `Loam.Cli.MovementProposalRecordExecutable
-
 lean_exe loamScheduledSuppression where
   root := `Loam.Cli.ScheduledSuppressionCli
 

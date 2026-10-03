@@ -249,7 +249,7 @@ esac
 extra_targets=()
 case "$group" in
   movement-proposal|all)
-    extra_targets+=(loamMovementProposal loamMovementProposalRecord)
+    extra_targets+=(loam)
     ;;
 esac
 
