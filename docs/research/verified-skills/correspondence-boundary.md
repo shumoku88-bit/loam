@@ -1,6 +1,6 @@
 # Skill: Correspondence boundary audit
 
-Status: **Candidate**
+Status: **Trialed**
 
 ## Trigger
 
