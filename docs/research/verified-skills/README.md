@@ -198,7 +198,7 @@ Prefer deleting a bad instruction to accumulating exceptions.
 
 ## Current candidates
 
-- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; Trial 03 result BETTER; Trial 04 UNSCORED after skill-arm contamination; 1 promotion win.
+- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; Trial 03 BETTER, Trial 04 UNSCORED, Trial 05 SAME; 1 promotion win.
 - [Scheduled transition audit](scheduled-transition.md)
 - [Correspondence boundary audit](correspondence-boundary.md)
 
@@ -210,7 +210,8 @@ Current trial records:
 - Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
 - [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins;
 - [Trial 03 — Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md): paired trial complete; result BETTER; 1 promotion win;
-- [Trial 04 — Exact anchor across later correction-root change](trials/04-stale-anchor-correction.md): clean baseline + contaminated skill arm; result UNSCORED; 0 promotion wins.
+- [Trial 04 — Exact anchor across later correction-root change](trials/04-stale-anchor-correction.md): clean baseline + contaminated skill arm; result UNSCORED; 0 promotion wins;
+- [Trial 05 — Partial re-observation from a legacy v1 anchor](trials/05-v1-partial-reobservation.md): clean paired held-out trial; result SAME; 0 promotion wins.
 
 ## Trial record template
 
