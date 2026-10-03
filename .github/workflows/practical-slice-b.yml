@@ -39,6 +39,8 @@ on:
       - 'Loam/Tests/FourVoiceCompatibilityV4.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV5.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV6.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -86,6 +88,8 @@ on:
       - 'Loam/Tests/FourVoiceCompatibilityV4.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV5.lean'
       - 'Loam/Tests/FourVoiceCompatibilityV6.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/practical-slice-b.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -111,42 +115,5 @@ jobs:
         with:
           build-args: Loam.Core Loam.Application Loam.Review.CurrentCoverageReview Loam.Application.CurrentQuantityAnchor Loam.Publisher.CurrentQuantityAnchorPublisher Loam.Review.RoleBalanceReview Loam.Tests.ActualWorldFixture
 
-      - name: Run Scheduled Commitment / Headroom practical story
-        shell: bash
-        run: lake env lean --run Loam/Tests/ScheduledCommitmentHeadroom.lean
-
-      - name: Run Current Capacity Coverage practical story
-        shell: bash
-        run: lake env lean --run Loam/Tests/CurrentCoverageInspection.lean
-
-      - name: Run counterpoint five-world research story
-        shell: bash
-        run: lake env lean --run Loam/Tests/CounterpointFiveWorlds.lean
-
-      - name: Run four-voice V1 compatibility story
-        shell: bash
-        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV1.lean
-
-      - name: Run four-voice V2 interpretation story
-        shell: bash
-        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV2.lean
-
-      - name: Run four-voice V3 quantity divergence story
-        shell: bash
-        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV3.lean
-
-      - name: Run four-voice V4 observed-present story
-        shell: bash
-        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV4.lean
-
-      - name: Run four-voice V5 observation-disagreement story
-        shell: bash
-        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV5.lean
-
-      - name: Run four-voice V6 answerability story
-        shell: bash
-        run: lake env lean --run Loam/Tests/FourVoiceCompatibilityV6.lean
-
-      - name: Run production Current Capacity Coverage reader story
-        shell: bash
-        run: lake env lean --run Loam/Tests/CurrentCoverageReview.lean "$(mktemp -d)/current-coverage-review"
+      - name: Run Practical Slice B package test group
+        run: lake test -- practical-slice-b

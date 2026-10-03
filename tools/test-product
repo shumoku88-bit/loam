@@ -76,6 +76,23 @@ event_merchant_tests=(
   TuiEventMerchant
 )
 
+practical_slice_b_additional_tests=(
+  CurrentCoverageInspection
+  CounterpointFiveWorlds
+  FourVoiceCompatibilityV1
+  FourVoiceCompatibilityV2
+  FourVoiceCompatibilityV3
+  FourVoiceCompatibilityV4
+  FourVoiceCompatibilityV5
+  FourVoiceCompatibilityV6
+)
+
+practical_slice_b_tests=(
+  ScheduledCommitmentHeadroom
+  "${practical_slice_b_additional_tests[@]}"
+  CurrentCoverageReview
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -115,6 +132,9 @@ case "$group" in
   event-merchant)
     tests=("${event_merchant_tests[@]}")
     ;;
+  practical-slice-b)
+    tests=("${practical_slice_b_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -128,12 +148,13 @@ case "$group" in
       "${purpose_catalog_tests[@]}"
       "${attention_tests[@]}"
       "${event_merchant_tests[@]}"
+      "${practical_slice_b_additional_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b" >&2
     exit 2
     ;;
 esac
