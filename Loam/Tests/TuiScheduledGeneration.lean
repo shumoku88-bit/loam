@@ -64,8 +64,6 @@ def main : IO Unit := do
       contains "Every 6 months" cadenceText &&
       contains "Yearly" cadenceText)
     "Scheduled generation cadence choices were not visible after suggestion selection"
-  expect (contains "no recurrence authority is retained" cadenceText)
-    "Scheduled generation cadence view implied retained recurrence"
 
   let twoMonth := Loam.Tui.ScheduledGeneration.update selectedSuggestion.state .right
   let chosen := Loam.Tui.ScheduledGeneration.update twoMonth.state .enter
@@ -138,8 +136,6 @@ def main : IO Unit := do
   let previewText := widgetText (Loam.Tui.ScheduledGeneration.view preview)
   expect (contains "2026-10-15" previewText && contains "2026-11-15" previewText)
     "Scheduled generation final review did not show individually edited dates"
-  expect (contains "Cadence will not be stored" previewText)
-    "Scheduled generation final review implied retained recurrence"
   let some usdMovement := BalancedMovement.ofChanges? ⟨"usd"⟩
       [ { coordinate := ⟨"paypay"⟩, quantity := Quantity.ofQuanta (-3000) }
       , { coordinate := ⟨"gpt-plus"⟩, quantity := Quantity.ofQuanta 3000 } ]

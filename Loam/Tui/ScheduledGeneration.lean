@@ -224,10 +224,10 @@ private def horizonView (state : State) (choice : Nat) : Widget :=
     [ line ""
     ] ++
     (if state.presetCadence.isSome then
-      [ line "This one-time extension does not store a recurrence or fill horizon." ]
+      [ line "This extends only the dates you review here; it will not repeat automatically." ]
      else
       [ line "Boundary dates are suggestions only. Custom dates use the same generator."
-      , line "No fill limit, cadence, cycle, or recurrence fact is stored."
+      , line "Only the generated dates are kept; this setup will not repeat automatically."
       ]) ++
     [ line "Arrows / Tab select   Enter continue   Esc cancel"
     , line state.notice
@@ -266,7 +266,7 @@ private def cadenceView (state : State) (choice : Nat) : Widget :=
         , option (choice % 5 = 4) "Yearly"
         ]
     , line ""
-    , line "Cadence is construction input only; no recurrence authority is retained."
+    , line "This pattern is used only to generate the dates you review next; it will not repeat automatically."
     , line "An older source may seed every explicit slot before the chosen fill limit."
     , line "Each generated occurrence will be editable before the final publish review."
     , line "Arrows / Tab select   Enter continue   Esc back"
@@ -298,7 +298,7 @@ private def previewView
     ] ++
     (drafts.zipIdx.map fun (draft, index) => draftSummary index draft) ++
     [ line ""
-    , line "These dates and amounts were individually reviewed. Cadence will not be stored."
+    , line "Only these reviewed dates and amounts will be published; the pattern will not repeat automatically."
     , .row
         [ option (choice % 2 = 0) "Publish all"
         , option (choice % 2 = 1) "Cancel"
