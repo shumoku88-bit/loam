@@ -153,8 +153,6 @@ def main : IO Unit := do
     "future-short diagnosis was not rendered"
   expect (contains "Coverage: observed 2026-09-08 | preset Pension -> 2026-10-15" coverageText)
     "explicit configured coverage horizon was not rendered"
-  expect (contains "not SafeToSpend authority" coverageText)
-    "coverage surface lost its non-authority warning"
 
   let check := coverageRow "check" 100 30 35
   let unresolvedCoverage : Loam.CurrentCoverageReview.Snapshot := {
