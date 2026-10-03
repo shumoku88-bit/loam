@@ -100,6 +100,18 @@ practical_slice_a2_tests=(
   CapacityHouseholdStory
 )
 
+tui_representative_tests=(
+  TuiRecord
+  TuiActual
+  TuiScheduledWorkspace
+  TuiCapacity
+  TuiSettlement
+  TuiReports
+  TuiTrendMeasure
+  TuiHelpFooter
+  TuiHomeNavigation
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -145,6 +157,9 @@ case "$group" in
   practical-slice-a2)
     tests=("${practical_slice_a2_tests[@]}")
     ;;
+  tui-representative)
+    tests=("${tui_representative_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -160,12 +175,13 @@ case "$group" in
       "${event_merchant_tests[@]}"
       "${practical_slice_b_additional_tests[@]}"
       "${practical_slice_a2_tests[@]}"
+      "${tui_representative_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b, practical-slice-a2" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b, practical-slice-a2, tui-representative" >&2
     exit 2
     ;;
 esac
@@ -218,6 +234,9 @@ for test_name in "${tests[@]}"; do
       ;;
     TuiEventMerchant)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/tui-event-merchant"
+      ;;
+    TuiRecord)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/actual-root"
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
