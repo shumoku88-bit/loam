@@ -3,6 +3,7 @@ open Lake DSL
 
 package loam where
   moreLinkObjs := #[`@/terminalNative]
+  testDriver := "loamTests"
 
 -- The terminal needs short POSIX reads and ioctl geometry, not buffered stdio
 -- or a subprocess per key. This object contains no household semantics.
@@ -15,6 +16,9 @@ target terminalNative pkg : System.FilePath := do
 
 lean_exe terminalProbe where
   root := `tests.TerminalProbe
+
+lean_exe loamTests where
+  root := `tests.TestDriver
 
 @[default_target]
 lean_lib Loam

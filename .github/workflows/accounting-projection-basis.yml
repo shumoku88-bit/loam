@@ -40,6 +40,8 @@ on:
       - 'Loam/Tests/OpeningPositionReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
       - 'Loam/Tests/Support.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'Loam/Tests/CurrentQuantityPresence.lean'
       - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
       - 'tools/loam'
@@ -87,6 +89,8 @@ on:
       - 'Loam/Tests/OpeningPositionReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
       - 'Loam/Tests/Support.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'Loam/Tests/CurrentQuantityPresence.lean'
       - 'Loam/Tests/CurrentQuantityAnchorCli.lean'
       - 'tools/loam'
@@ -137,3 +141,5 @@ jobs:
         run: lake env lean --run Loam/Tests/CurrentQuantityPresence.lean
       - name: Qualify current quantity anchor CLI boundary
         run: lake env lean --run Loam/Tests/CurrentQuantityAnchorCli.lean
+      - name: Run package test driver
+        run: lake test
