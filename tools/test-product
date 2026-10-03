@@ -54,6 +54,13 @@ movement_proposal_tests=(
   MovementProposalRecord
 )
 
+actual_validity_tests=(
+  MovementOperationEvidence
+  NormalizedActualPersistenceTest
+  ActualAuthorityDetailed
+  ActualValidityPublisher
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -81,6 +88,9 @@ case "$group" in
   movement-proposal)
     tests=("${movement_proposal_tests[@]}")
     ;;
+  actual-validity)
+    tests=("${actual_validity_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -90,12 +100,13 @@ case "$group" in
       "${scheduled_routing_tests[@]}"
       "${scheduled_lifecycle_tests[@]}"
       "${movement_proposal_tests[@]}"
+      "${actual_validity_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity" >&2
     exit 2
     ;;
 esac
@@ -136,6 +147,9 @@ for test_name in "${tests[@]}"; do
       ;;
     MovementProposalRecord)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/movement-proposal-record"
+      ;;
+    ActualValidityPublisher)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/actual-validity-publisher"
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
