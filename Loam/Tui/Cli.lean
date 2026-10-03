@@ -299,7 +299,7 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
           (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) state.focusDate) catalog)
         measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
       let fresh ← requireReload notice (loadSnapshot dataDir)
       let refreshed := Loam.Tui.ActualWorkspace.refreshed fresh step.state
@@ -452,7 +452,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         loop bounds dataDir root snapshot home nextFrame
     | some day =>
         let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot day)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame dayFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds dayFrame
         let fresh ← Loam.Tui.SelectedDaySession.run
           bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
         let home := Loam.Tui.Home.reconcileState bounds fresh { state with notice := "" }
@@ -467,7 +467,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let catalog ← currentLocusCatalog dataDir world
     let admin := Loam.Tui.LocusAdmissionAdministration.initial catalog
     let adminFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds admin)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
     let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
       bounds dataDir root admin adminFrame
     let home := { state with notice := notice }
@@ -476,7 +476,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'd' || key = .input 'D') then
     let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame paceFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds paceFrame
     dailyPaceTrendLoop
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
@@ -499,7 +499,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       dataDir root snapshot.actual.today 18
     let scheduledFrame := compileWidget
       (Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds snapshot scheduled coverage)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame scheduledFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds scheduledFrame
     let fresh ← Loam.Tui.ScheduledWorkspaceSession.run
       bounds dataDir root (loadSnapshot dataDir) snapshot coverage scheduled scheduledFrame
     let home := { state with notice := "" }
@@ -516,7 +516,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     | .ok evidence =>
         let admin := Loam.Tui.AttentionAdministration.initial evidence snapshot.actual.today
         let adminFrame := compileWidget (Loam.Tui.AttentionAdministration.view admin)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame adminFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
         Loam.Tui.AttentionAdministrationSession.run bounds root admin adminFrame
         let fresh ← requireReload "Attention administration completed." (loadSnapshot dataDir)
         let home := { state with notice := "" }
@@ -542,7 +542,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let settlement := Loam.Tui.SettlementWorkspace.initial settlementSnapshot
         let settlementFrame :=
           compileWidget (Loam.Tui.SettlementWorkspace.view bounds settlement)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame settlementFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds settlementFrame
         settlementLoop bounds root snapshot.actual.today settlement settlementFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
@@ -568,7 +568,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         | .ok balanceSnapshot =>
             let balances := Loam.Tui.Balances.initial balanceSnapshot selected
             let balancesFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds balances)
-            Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
+            Loam.Tui.Terminal.redrawFromBlank bounds balancesFrame
             balancesLoop bounds balances balancesFrame
             let home := { state with notice := "" }
             let nextFrame := compiledFrameFor bounds snapshot home
@@ -588,7 +588,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let budget := Loam.Tui.CycleBudget.withPurposeMetadata purposeMetadata
           ({ snapshot := answer } : Loam.Tui.CycleBudget.State)
         let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame budgetFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds budgetFrame
         Loam.Tui.CycleBudgetSession.run bounds dataDir root budget budgetFrame
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds snapshot home
@@ -605,7 +605,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let administration := Loam.Tui.ActualRoutingAdministration.initial routingSnapshot
         let administrationFrame :=
           compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds administration)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame administrationFrame
+        Loam.Tui.Terminal.redrawFromBlank bounds administrationFrame
         let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
           bounds root administration administrationFrame
         let home := { state with notice := notice }
@@ -640,7 +640,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   else if (key = .input 'o' || key = .input 'O') then
     let editor := Loam.Tui.CurrentQuantityAnchor.initialWithMeasure (← requireConfiguredMeasure)
     let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
     let notice ← currentQuantityAnchorLoop bounds root editor editorFrame
     let home := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home
@@ -695,7 +695,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
       (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate)
       measurePresentation
     let editorFrame := compileWidget (Loam.Tui.Exchange.view editor)
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+    Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
     let notice ← Loam.Tui.ExchangeSession.run bounds root world editor editorFrame
     let fresh ← requireReload notice (loadSnapshot dataDir)
     let destination := { state with notice := notice }
@@ -748,8 +748,7 @@ def run (args : List String) : IO UInt32 := do
   try
     let state := initialState snapshot.actual.today
     let frame := compiledFrameFor bounds snapshot state
-    let blank := compileWidget (.row [])
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 blank frame
+    Loam.Tui.Terminal.redrawFromBlank bounds frame
     loop bounds dataDir root snapshot state frame
     return 0
   finally

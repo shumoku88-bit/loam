@@ -200,7 +200,7 @@ partial def run
       let editor := Loam.Tui.ScheduledCreation.withCatalog
         (Loam.Tui.ScheduledCreation.initial step.state.focusDate) catalog
       let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+      Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
         bounds root known editor editorFrame
       let fresh ← requireReload notice reload
@@ -383,7 +383,7 @@ partial def run
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let completed ← Loam.Tui.ScheduledCompletionSession.run
                 bounds root world known editor editorFrame
               let notice ←
@@ -411,7 +411,7 @@ partial def run
       | some record =>
           let confirmation := Loam.Tui.ScheduledCancellation.initial record
           let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view confirmation)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame confirmationFrame
+          Loam.Tui.Terminal.redrawFromBlank bounds confirmationFrame
           let notice ← Loam.Tui.ScheduledCancellationSession.run
             bounds root confirmation confirmationFrame
           let fresh ← requireReload notice reload
@@ -443,7 +443,7 @@ partial def run
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
               let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
+              Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← Loam.Tui.ScheduledReplacementSession.run
                 bounds root known editor editorFrame
               let fresh ← requireReload notice reload

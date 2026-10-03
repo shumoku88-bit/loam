@@ -200,7 +200,7 @@ def emitDirtyDiff (bounds : Bounds) (top left : Nat)
 
 /-- Clear the physical screen and redraw one compiled frame from an empty structural baseline. -/
 def redrawFromBlank (bounds : Bounds) (frame : CompiledWidget) : IO Unit := do
-  IO.print "\x1b[2J"
+  IO.print "\x1b[2J\x1b[H"
   emitDirtyDiff bounds 0 0 (compileWidget (.row [])) frame
 
 /--
