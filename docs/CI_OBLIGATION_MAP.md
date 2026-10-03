@@ -45,6 +45,10 @@ The item-2 graduation pass therefore reached `97 -> 48`. The later native Web
 frontend retirement brought the live workflow count to `47`. The Movement
 Proposal consolidation then reached `46`; Scheduled publisher consolidation reaches
 `44`; Actual Routing consolidation then reaches `43`; Capacity consolidation reaches `42`; Event Merchant consolidation reaches `41`; runtime shadow consolidation reaches `40`; Scheduled lifecycle qualification consolidation reaches `39`, or 58 retired workflow files in total.
+Subsequent feature work later brought the live workflow count back to 40.
+Grouping the exact Merchant Expense review into `event-merchant.yml` returns the
+current topology to 39 workflow files while retaining independently named jobs.
+
 The surviving `movement-proposal.yml` retains separate read-only transport and
 explicit publication jobs under one shared path-trigger surface. The surviving
 `scheduled-lifecycle.yml` retains separate lifecycle persistence, Creation,
