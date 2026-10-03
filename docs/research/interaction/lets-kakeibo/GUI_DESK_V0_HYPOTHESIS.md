@@ -20,30 +20,19 @@ The remaining Let's家計簿-inspired ideas depend more strongly on direct manip
 
 The next experiment therefore changes **interaction medium**, not household semantics.
 
-## 2. Existing semantic boundary
+## 2. Semantic boundary used by the experiment
 
-LOAM already has the intended surface-neutral boundary:
+At the time of this experiment, the GUI prototype used a broad surface-neutral
+aggregate named `Loam.Presentation.HouseholdSnapshot`. It composed existing
+Review answers so the GUI shell did not read or reinterpret canonical household
+files directly.
 
-```text
-Loam.Presentation.HouseholdSnapshot
-```
-
-Its own module documentation explicitly allows a TUI, Web document, future desktop GUI, or another renderer to present the same read-side evidence without becoming household authority.
-
-It already composes read-side answers such as:
-
-- Actual;
-- Scheduled;
-- Attention;
-- Budget;
-- Capacity;
-- Daily Pace;
-- Stock-Flow;
-- role flow / role balances;
-- Transactions Flow;
-- presentation metadata.
-
-The GUI should consume this family of existing Review / Presentation answers. It must not read or interpret `actual.loam` independently.
+That aggregate was experiment scaffolding, not a production authority or a
+required architecture boundary. After the conventional GUI implementation was
+retired on 2026-10-03, the unused aggregate and its Home projection were later
+distilled from the live product surface. The surviving rule is narrower: a
+renderer consumes existing typed Review answers, plus only the small
+Presentation helpers that have a current production caller.
 
 ## 3. Shell choice
 
