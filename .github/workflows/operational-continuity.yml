@@ -10,6 +10,8 @@ on:
       - 'Loam/Cli/DoctorCli.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
       - 'tools/loam'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/operational-continuity.yml'
   workflow_dispatch:
@@ -32,7 +34,7 @@ jobs:
           build-args: loamDoctor Loam.MovementWorldLoader
 
       - name: Verify fail-closed diagnosis and human explanation
-        run: lake env lean --run Loam/Tests/OperationalContinuity.lean "$(mktemp -d)/operational-continuity"
+        run: lake test -- OperationalContinuity
 
       - name: Verify practical doctor entrance stays read-only and explanatory
         shell: bash
