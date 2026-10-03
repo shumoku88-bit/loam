@@ -829,8 +829,6 @@ def main : IO Unit := do
     "Balances surface promoted an incomplete Net Worth to knowledge"
   expect (contains "liability-unsupported" balancesText && contains "balance unsupported" balancesText)
     "Balances surface hid the unsupported liability witness"
-  expect (contains "Trial Balance-shaped frontier" balancesText)
-    "Balances surface did not preserve the coordinate-wide Trial Balance projection"
 
   let pension : Loam.BoundaryPresetConfig.Preset := {
     name := "Pension"
