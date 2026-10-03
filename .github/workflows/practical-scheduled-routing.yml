@@ -14,6 +14,8 @@ on:
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/practical-scheduled-routing.yml'
   push:
@@ -34,6 +36,8 @@ on:
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledCommitmentHeadroom.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - '.github/workflows/practical-scheduled-routing.yml'
   workflow_dispatch:
@@ -53,13 +57,8 @@ jobs:
         with:
           build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection Loam.Publisher.ScheduledRoutingPublisher
 
-      - name: Check routing persistence feeds existing Commitment semantics
-        shell: bash
-        run: |
-          set -euo pipefail
-          lake env lean --run Loam/Tests/ScheduledRoutingPersistence.lean
-          lake env lean --run Loam/Tests/ScheduledCommitmentHeadroom.lean
-          lake env lean --run Loam/Tests/ScheduledRoutingPublisher.lean "$(mktemp -d)/scheduled-routing-publisher"
+      - name: Run Scheduled routing package test group
+        run: lake test -- scheduled-routing
 
       - name: Exercise practical Scheduled routing entrance
         shell: bash
