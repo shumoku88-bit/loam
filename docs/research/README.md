@@ -92,6 +92,20 @@ Structural/meta falsification has its own subdirectory:
 
 - [`falsification/structural/`](falsification/structural/)
 
+## Verified development skills
+
+`verified-skills/` contains an experimental AI-development skill loop inspired
+by verifier-backed skill evolution research. Candidate procedures are measured
+against ordinary repository-guided work before they can be promoted.
+
+- [`verified-skills/README.md`](verified-skills/README.md) — lifecycle, paired-trial
+  protocol, promotion / mutation / retirement rules, and current candidates.
+
+The directory is research evidence and agent guidance, not production semantics
+or household authority. If the mechanism later proves useful across several
+Qualified skills, extraction into a separate library or project can be evaluated
+then rather than assumed now.
+
 ## Interaction
 
 `interaction/` contains UI/HCI and interaction-design research. It is evidence for evaluating shells and workflows, not a selected UI specification or production semantic boundary.
