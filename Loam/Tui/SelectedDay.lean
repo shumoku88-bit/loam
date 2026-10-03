@@ -37,6 +37,7 @@ inductive Event where
   | cancelScheduled
   | replaceScheduled
   | back
+  | yank
   | other
   deriving Repr, DecidableEq, BEq
 
@@ -53,6 +54,7 @@ inductive Command where
   | cancelScheduled
   | replaceScheduled
   | back
+  | yank
   deriving Repr, DecidableEq, BEq
 
 structure Step where
@@ -233,6 +235,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
                   { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
               | some _ => { state, command := .replaceScheduled }
   | .back => { state, command := .back }
+  | .yank => { state, command := .yank }
   | .other => { state }
 
 private def repeatChar (count : Nat) (char : Char) : String :=
@@ -250,16 +253,13 @@ private def actualSummary (record : ReviewRecord) : String :=
 private def scheduledSummary (record : ScheduledRecord) : String :=
   record.scheduledOn ++ "  " ++ Loam.ScheduledReview.summary record
 
-private def actualWindowStart (state : State) : Nat :=
-  if state.actualRow > 6 then state.actualRow - 5 else 0
-
-private def scheduledWindowStart (state : State) : Nat :=
-  if state.scheduledRow > 6 then state.scheduledRow - 5 else 0
+private def paneWindowStart (selected visibleRows : Nat) : Nat :=
+  Loam.Tui.Layout.trailingWindowStart selected (max 1 visibleRows)
 
 private def paneRow (snapshot : Snapshot) (state : State)
-    (leftWidth rightWidth row : Nat) : Widget :=
-  let actualIndex := actualWindowStart state + row
-  let scheduledIndex := scheduledWindowStart state + row
+    (leftWidth rightWidth visibleRows row : Nat) : Widget :=
+  let actualIndex := paneWindowStart state.actualRow visibleRows + row
+  let scheduledIndex := paneWindowStart state.scheduledRow visibleRows + row
   let actualPrefix :=
     if actualIndex = state.actualRow && !(actualRecords snapshot state).isEmpty then
       if state.pane == .actual then " > " else " * "
@@ -325,28 +325,43 @@ private def scheduledDetail (snapshot : Snapshot) (state : State) : List Widget 
       (record.movement.changes.map fun change =>
         plainLine ("     " ++ fit 28 change.coordinate.token ++ " " ++ toString change.quantity.quanta ++ " " ++ record.measure.token))
 
-private def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
-  match state.pane with
-  | .actual => actualDetail snapshot state
-  | .scheduled => scheduledDetail snapshot state
+/--
+Stable details presentation across bounds heights, preventing whole-screen layout
+jitter and desynchronization when moving between records.
+-/
+def detailCapacityForBounds (bounds : Bounds) : Nat :=
+  if bounds.height ≥ 48 then 10 else if bounds.height ≥ 36 then 8 else 6
+
+private def fixedDetailLines
+    (snapshot : Snapshot) (state : State) (capacity : Nat) : List Widget :=
+  let rawLines :=
+    match state.pane with
+    | .actual => actualDetail snapshot state
+    | .scheduled => scheduledDetail snapshot state
+  let visible := rawLines.take capacity
+  let padding := capacity - visible.length
+  visible ++ List.replicate padding blankLine
+
+def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
+  fixedDetailLines snapshot state 6
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   match state.pane with
   | .actual =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Actual  [c] correct  [r] reverse  [d] date  [m] merchant  [g] loci  [q] back"
-      let compact := "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [d] date [m] merchant [g] loci [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c] correct  [r] reverse  [d] date  [m] merchant  [g] loci  [y] copy  [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else
-        [mutedLine compact]
+        [ mutedLine "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [y] copy [q] back"
+        , mutedLine "[d] date [m] merchant [g] loci"
+        ]
   | .scheduled =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new Scheduled  [c/Enter] complete  [r] supersede  [x] cancel  [q] back"
-      let compact := "[j/k] select [h/l] pane [n] new [c/Enter] complete [r] supersede [x] cancel [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c/Enter] complete  [r] supersede  [x] cancel  [y] copy  [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else
-        [mutedLine compact]
+        [ mutedLine "[j/k] select [h/l] pane [n] new [c/Enter] complete [r] supersede [x] cancel [y] copy [q] back" ]
 
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read
@@ -370,6 +385,13 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     | .ok _ => fit rightWidth
         (if state.pane == .scheduled then " Scheduled [active] (" ++ toString scheduledCount ++ ")"
          else " Scheduled (" ++ toString scheduledCount ++ ")")
+  let footerLines := footer bounds state
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
+  let detailCap := detailCapacityForBounds bounds
+  let details := fixedDetailLines snapshot state detailCap
+  let noticeRows := if state.notice.isEmpty then 0 else 1
+  let fixedBodyRows := 6 + detailCap + noticeRows
+  let paneRows := max 1 (bodyCapacity - fixedBodyRows)
   let body :=
     [ rule bounds '='
     , plainLine " Household Day Workspace"
@@ -377,9 +399,9 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     , rule bounds '='
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++
-    (List.range 8).map (paneRow snapshot state leftWidth rightWidth) ++
-    [rule bounds '-'] ++ detailLines snapshot state ++
+    (List.range paneRows).map (paneRow snapshot state leftWidth rightWidth paneRows) ++
+    [rule bounds '-'] ++ details ++
     (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (Loam.Tui.Layout.fitWithFooter bounds body (footer bounds state))
+  .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
 
 end Loam.Tui.SelectedDay

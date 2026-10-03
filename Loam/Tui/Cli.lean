@@ -250,6 +250,7 @@ def actualWorkspaceEventOfKey
       | .input 'n' | .input 'N' => .recordNew
       | .escape | .input 'q' | .input 'Q' => .back
       | .ctrl 'l' => .redraw
+      | .input 'y' | .input 'Y' => .yank
       | _ => .other
 
 /-- Actual workspace session. `q` returns to Home; `n` reuses the shared Movement writer. -/
@@ -310,24 +311,37 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
       let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot step.state)
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       actualWorkspaceLoop bounds dataDir root snapshot step.state nextFrame
+  | .yank =>
+      let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+      let success ← Loam.Tui.Terminal.copyToClipboard text
+      let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
+      let next := { step.state with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot next)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      actualWorkspaceLoop bounds dataDir root snapshot next nextFrame
   | .stay =>
       let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualWorkspaceLoop bounds dataDir root snapshot step.state nextFrame
 
-/-- Read-only balance-view session; q/Esc returns to Home. -/
+/-- Read-only balance-view session; q/Esc returns to Home; y copies screen to clipboard. -/
 partial def balancesLoop (bounds : Bounds)
     (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
-  let back := key = .escape || key = .input 'q' || key = .input 'Q'
-  match Loam.Tui.Balances.update state back with
-  | .back => return ()
-  | .stay next =>
-      let nextFrame := compileWidget (Loam.Tui.Balances.view next)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      balancesLoop bounds next nextFrame
+  if key = .input 'y' || key = .input 'Y' then
+    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+    discard <| Loam.Tui.Terminal.copyToClipboard text
+    balancesLoop bounds state frame
+  else
+    let back := key = .escape || key = .input 'q' || key = .input 'Q'
+    match Loam.Tui.Balances.update state back with
+    | .back => return ()
+    | .stay next =>
+        let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        balancesLoop bounds next nextFrame
 
-/-- Read-only settlement review session; q/Esc returns to Home. -/
+/-- Read-only settlement review session; q/Esc returns to Home; y copies screen to clipboard. -/
 partial def settlementLoop
     (bounds : Bounds)
     (root : System.FilePath)
@@ -335,6 +349,15 @@ partial def settlementLoop
     (state : Loam.Tui.SettlementWorkspace.State)
     (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
+  if key = .input 'y' || key = .input 'Y' then
+    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+    let success ← Loam.Tui.Terminal.copyToClipboard text
+    let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
+    let next := { state with notice := notice }
+    let nextFrame := compileWidget (Loam.Tui.SettlementWorkspace.view bounds next)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    settlementLoop bounds root today next nextFrame
+    return ()
   let event : Loam.Tui.SettlementWorkspace.Event :=
     match key with
     | .up | .input 'k' | .input 'K' => .previous
@@ -500,6 +523,14 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds fresh home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root fresh home nextFrame
+  else if (key = .input 'y' || key = .input 'Y') then
+    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+    let success ← Loam.Tui.Terminal.copyToClipboard text
+    let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
+    let home := { state with notice := notice }
+    let nextFrame := compiledFrameFor bounds snapshot home
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'u' || key = .input 'U') then
     match ← Loam.SettlementReview.loadSnapshot root with
     | .error message =>
@@ -536,7 +567,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             loop bounds dataDir root snapshot home nextFrame
         | .ok balanceSnapshot =>
             let balances := Loam.Tui.Balances.initial balanceSnapshot selected
-            let balancesFrame := compileWidget (Loam.Tui.Balances.view balances)
+            let balancesFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds balances)
             Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame balancesFrame
             balancesLoop bounds balances balancesFrame
             let home := { state with notice := "" }

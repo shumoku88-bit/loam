@@ -160,13 +160,13 @@ private def rowText
     " " ++ Loam.Tui.Layout.padRight 9 row.measure.token ++
     status
 
-private def listLines (state : State) : List Widget :=
+private def listLines (state : State) (maxRows : Nat) : List Widget :=
   let rows := visibleRows state
-  let start := windowStart state
+  let start := Loam.Tui.Layout.trailingWindowStart state.row maxRows
   if rows.isEmpty then
     [muted "  (nothing to show in this view)"]
   else
-    (List.range 11).filterMap fun offset => do
+    (List.range maxRows).filterMap fun offset => do
       let index := start + offset
       let row ← rows[index]?
       some (line (rowText (index = state.row) row))
@@ -238,6 +238,14 @@ private def detailLines (state : State) : List Widget :=
 
 def view (bounds : Bounds) (state : State) : Widget :=
   let count := (visibleRows state).length
+  let footer :=
+    [ muted "[j/k] select   [f] open/all   [a] action   [d] details   [y] copy   [q/Esc] home"
+    , muted "Routine view hides internal IDs and provenance."
+    ]
+  let detail := if state.detailOpen then detailLines state else summaryLines state
+  let fixedRows := 6 + detail.length + (if state.notice.isEmpty then 0 else 1)
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let maxRows := max 5 (bodyCapacity - fixedRows)
   let body :=
     [ line " Settlement"
     , muted "Home > Settlement"
@@ -245,14 +253,10 @@ def view (bounds : Bounds) (state : State) : Widget :=
     , blank
     , muted "   Item                                      remaining measure"
     ] ++
-    listLines state ++
+    listLines state maxRows ++
     [blank] ++
-    (if state.detailOpen then detailLines state else summaryLines state) ++
+    detail ++
     (if state.notice.isEmpty then [] else [line state.notice])
-  let footer :=
-    [ muted "[j/k] select   [f] open/all   [a] action   [d] details   [q/Esc] home"
-    , muted "Routine view hides internal IDs and provenance."
-    ]
   .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
 
 end Loam.Tui.SettlementWorkspace

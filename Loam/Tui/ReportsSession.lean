@@ -77,6 +77,10 @@ private partial def loop (bounds : Bounds)
     (prepared : Option Loam.Tui.Reports.PreparedScrollView)
     (frame : Loam.Tui.Runtime.CompiledWidget) : IO Bounds := do
   let key ← Loam.Tui.Terminal.readKey
+  if key = .input 'y' || key = .input 'Y' then
+    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+    discard <| Loam.Tui.Terminal.copyToClipboard text
+    return (← loop bounds dataDir root state prepared frame)
   match prepared, scrollDirection? key with
   | some cached, some forward =>
       let next := Loam.Tui.Reports.scrollPrepared state cached forward

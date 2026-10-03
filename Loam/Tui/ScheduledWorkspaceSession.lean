@@ -174,6 +174,7 @@ def eventOfKey
           | .occurrences => .completeScheduled
   | .input 'r' | .input 'R' => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
+  | .input 'y' | .input 'Y' => .yank
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
@@ -453,6 +454,14 @@ partial def run
               let nextFrame := workspaceFrame bounds fresh freshCoverage next
               Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               run bounds dataDir root reload fresh freshCoverage next nextFrame
+  | .yank =>
+      let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+      let success ← Loam.Tui.Terminal.copyToClipboard text
+      let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
+      let next := { step.state with notice := notice }
+      let nextFrame := workspaceFrame bounds snapshot coverage next
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      run bounds dataDir root reload snapshot coverage next nextFrame
   | .stay =>
       let nextFrame := workspaceFrame bounds snapshot coverage step.state
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame

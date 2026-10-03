@@ -952,10 +952,13 @@ private def navigationHelp (state : State) : String × List HelpItem :=
 
 private def viewHelp (state : State) : List HelpItem :=
   if state.activePane == .detail then
-    [{ key := "[Esc/Tab/w]", label := "calendar" }]
+    [ { key := "[Esc/Tab/w]", label := "calendar" }
+    , { key := "[y]", label := "copy" }
+    ]
   else
     [ { key := "[Tab/w]", label := "transactions" }
     , { key := "[Ctrl-u/d]", label := "scroll" }
+    , { key := "[y]", label := "copy" }
     ]
 
 private def actionHelp (state : State) : List HelpItem :=

@@ -99,6 +99,7 @@ def eventOfKey
   | .input 'd' | .input 'D' => .correctDate
   | .input 'm' | .input 'M' => .classifyMerchant
   | .input 'g' | .input 'G' => .manageLoci
+  | .input 'y' | .input 'Y' => .yank
   | .escape | .input 'q' | .input 'Q' => .back
   | _ => .other
 
@@ -421,6 +422,14 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       run bounds dataDir root reload fresh next nextFrame
+  | .yank =>
+      let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
+      let success ← Loam.Tui.Terminal.copyToClipboard text
+      let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
+      let next := { step.state with notice := notice }
+      let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot next)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      run bounds dataDir root reload snapshot next nextFrame
   | .stay =>
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame

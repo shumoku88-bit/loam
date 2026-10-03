@@ -55,6 +55,7 @@ inductive Event where
   | recordNew
   | back
   | redraw
+  | yank
   | other
   deriving Repr, DecidableEq, BEq
 
@@ -64,6 +65,7 @@ inductive Command where
   | recordNew
   | back
   | redraw
+  | yank
   deriving Repr, DecidableEq, BEq
 
 structure Step where
@@ -256,6 +258,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .recordNew => { state, command := .recordNew }
   | .back => { state, command := .back }
   | .redraw => { state, command := .redraw }
+  | .yank => { state, command := .yank }
   | .other => { state }
 
 private def repeatChar (count : Nat) (char : Char) : String :=
@@ -331,7 +334,7 @@ vertical geometry (divider position and pane rows) remains stationary during
 scrolling, preventing whole-screen layout jitter and dirty-diff desynchronization.
 -/
 def detailCapacityForBounds (bounds : Bounds) : Nat :=
-  if bounds.height ≥ 36 then 10 else 8
+  if bounds.height ≥ 48 then 12 else if bounds.height ≥ 36 then 10 else 8
 
 private def fixedDetailLines
     (state : State) (record? : Option ReviewRecord) (capacity : Nat) : List Widget :=
@@ -377,13 +380,13 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
     , mutedLine "Matches update live across all current Actual evidence."
     ]
   else
-    let detailedRow1 := "[j/k] select  [h/l] pane  [f] filter  [s] sort  [/] search"
+    let detailedRow1 := "[j/k] select  [h/l] pane  [f] filter  [s] sort  [/] search  [y] copy"
     if Loam.Tui.Layout.displayWidth detailedRow1 ≤ Loam.Tui.Layout.contentWidth bounds then
       [ mutedLine detailedRow1
       , mutedLine "[Enter] open selected  [n] new  [q] back"
       ]
     else
-      [ mutedLine "[j/k] sel [h/l] pane [f] filter [s] sort [/] search"
+      [ mutedLine "[j/k] sel [h/l] pane [f] filter [s] sort [/] search [y] copy"
       , mutedLine "[Enter] open [n] new [q] back"
       ]
 

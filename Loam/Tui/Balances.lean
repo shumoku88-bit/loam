@@ -92,9 +92,17 @@ private def rowLine : Row → Widget
   | .knownPresent coordinate => knownPresentLine coordinate
   | .unsupported coordinate => unsupportedLine coordinate
 
-/-- Render selected current balances without strengthening their evidence. -/
-def view (state : State) : Widget :=
-  .column <|
+def viewForBounds (bounds : Bounds) (state : State) : Widget :=
+  let footer :=
+    [ blank
+    , muted "Exact, amount-unknown, and unsupported states preserve current evidence."
+    , muted "Rows follow balance-view order only."
+    , muted "[y] copy   q / Esc home"
+    ]
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let fixedRows := 5
+  let maxRows := max 8 (bodyCapacity - fixedRows)
+  let body :=
     [ line "Balances / Current"
     , muted "Home > Balances"
     , muted "Selected neutral Locus × Measure coordinates; not an Account taxonomy."
@@ -103,11 +111,11 @@ def view (state : State) : Widget :=
     (if state.rows.isEmpty then
       [muted "No balances are selected in the current balance view."]
     else
-      (state.rows.take 12).map rowLine) ++
-    [ blank
-    , muted "Exact, amount-unknown, and unsupported states preserve current evidence."
-    , muted "Rows follow balance-view order only."
-    , muted "q / Esc home"
-    ]
+      (state.rows.take maxRows).map rowLine)
+  .column (Loam.Tui.Layout.fitWithFooter bounds body footer)
+
+/-- Render selected current balances without strengthening their evidence. -/
+def view (state : State) : Widget :=
+  viewForBounds { width := 80, height := 24 } state
 
 end Loam.Tui.Balances
