@@ -10,9 +10,9 @@ set_option autoImplicit false
 private def usage : String :=
   "LOAM Scheduled routing evidence\n\n" ++
   "Route one Scheduled locus to a managed Purpose from an effective date:\n" ++
-  "  loamScheduledRouting ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS managed PURPOSE\n\n" ++
+  "  loam scheduled-routing ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS managed PURPOSE\n\n" ++
   "Mark one Scheduled locus explicitly unmanaged from an effective date:\n" ++
-  "  loamScheduledRouting ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS unmanaged"
+  "  loam scheduled-routing ROUTING_FILE SCHEDULED_FILE YYYY-MM-DD SCHEDULED_ID LOCUS unmanaged"
 
 private def draftFromArgs?
     (effectiveOn scheduledToken locusToken mode : String)

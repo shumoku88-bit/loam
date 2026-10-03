@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/actions/lean-build/**'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/ActualRoutingCli.lean'
       - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
@@ -27,6 +28,7 @@ on:
       - main
     paths:
       - '.github/actions/lean-build/**'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/ActualRoutingCli.lean'
       - 'Loam/Publisher/ActualRoutingPublisher.lean'
       - 'Loam/Core/HistoricalRouting.lean'
@@ -82,7 +84,7 @@ jobs:
       - name: Build Actual routing executable
         uses: ./.github/actions/lean-build
         with:
-          build-args: loamActualRouting
+          build-args: loam
 
       - name: Exercise practical routing writer
         shell: bash
@@ -93,11 +95,11 @@ jobs:
           routing="$tmpdir/actual-routing.loam"
           rejected="$tmpdir/rejected.log"
 
-          .lake/build/bin/loamActualRouting \
+          .lake/build/bin/loam actual-routing \
             initial "$routing" expenses:food managed food
-          .lake/build/bin/loamActualRouting \
+          .lake/build/bin/loam actual-routing \
             initial "$routing" expenses:coffee unmanaged
-          .lake/build/bin/loamActualRouting \
+          .lake/build/bin/loam actual-routing \
             from "$routing" 2026-08-17 expenses:food managed household
 
           grep -Fx $'LOAM-ACTUAL-ROUTING\t1' "$routing"
@@ -105,14 +107,14 @@ jobs:
           grep -Fx $'ROUTE\texpenses:coffee\tINITIAL\tUNMANAGED' "$routing"
           grep -Fx $'ROUTE\texpenses:food\tFROM\t2026-08-17\tMANAGED\thousehold' "$routing"
 
-          if .lake/build/bin/loamActualRouting \
+          if .lake/build/bin/loam actual-routing \
               initial "$routing" expenses:food managed another >"$rejected" 2>&1; then
             echo 'duplicate initial routing coordinate was admitted' >&2
             exit 1
           fi
           grep -F 'already has evidence at this locus/effective coordinate' "$rejected"
 
-          if .lake/build/bin/loamActualRouting \
+          if .lake/build/bin/loam actual-routing \
               from "$routing" 2026-02-29 expenses:other managed food >"$rejected" 2>&1; then
             echo 'impossible routing date was admitted' >&2
             exit 1

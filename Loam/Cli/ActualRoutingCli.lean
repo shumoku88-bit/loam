@@ -10,13 +10,13 @@ set_option autoImplicit false
 private def usage : String :=
   "LOAM Actual routing evidence\n\n" ++
   "Add initial managed routing:\n" ++
-  "  loamActualRouting initial ROUTING_FILE LOCUS managed PURPOSE\n\n" ++
+  "  loam actual-routing initial ROUTING_FILE LOCUS managed PURPOSE\n\n" ++
   "Add initial explicitly-unmanaged routing:\n" ++
-  "  loamActualRouting initial ROUTING_FILE LOCUS unmanaged\n\n" ++
+  "  loam actual-routing initial ROUTING_FILE LOCUS unmanaged\n\n" ++
   "Add dated managed routing:\n" ++
-  "  loamActualRouting from ROUTING_FILE YYYY-MM-DD LOCUS managed PURPOSE\n\n" ++
+  "  loam actual-routing from ROUTING_FILE YYYY-MM-DD LOCUS managed PURPOSE\n\n" ++
   "Add dated explicitly-unmanaged routing:\n" ++
-  "  loamActualRouting from ROUTING_FILE YYYY-MM-DD LOCUS unmanaged"
+  "  loam actual-routing from ROUTING_FILE YYYY-MM-DD LOCUS unmanaged"
 
 private def parseTarget?
     (mode : String)
