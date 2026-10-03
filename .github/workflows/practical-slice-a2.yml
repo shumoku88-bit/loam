@@ -18,6 +18,8 @@ on:
       - 'Loam/Tests/ActualRoutingConsumption.lean'
       - 'Loam/Tests/CorrectedActualConsumption.lean'
       - 'Loam/Tests/CapacityHouseholdStory.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/practical-slice-a2.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -43,6 +45,8 @@ on:
       - 'Loam/Tests/ActualRoutingConsumption.lean'
       - 'Loam/Tests/CorrectedActualConsumption.lean'
       - 'Loam/Tests/CapacityHouseholdStory.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - '.github/workflows/practical-slice-a2.yml'
       - 'lakefile.lean'
       - 'lake-manifest.json'
@@ -68,18 +72,5 @@ jobs:
         with:
           build-args: Loam.Core Loam.Application
 
-      - name: Run capacity boundary check
-        shell: bash
-        run: lake env lean --run Loam/Tests/Capacity.lean
-
-      - name: Run actual routing consumption boundary check
-        shell: bash
-        run: lake env lean --run Loam/Tests/ActualRoutingConsumption.lean
-
-      - name: Run correction-aware consumption boundary check
-        shell: bash
-        run: lake env lean --run Loam/Tests/CorrectedActualConsumption.lean
-
-      - name: Run household capacity development story
-        shell: bash
-        run: lake env lean --run Loam/Tests/CapacityHouseholdStory.lean
+      - name: Run Practical Slice A2 package test group
+        run: lake test -- practical-slice-a2
