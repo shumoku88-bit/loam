@@ -16,6 +16,8 @@ on:
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence/WriterOwnership.lean'
       - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -38,6 +40,8 @@ on:
       - 'Loam/ActualDate.lean'
       - 'Loam/Persistence/WriterOwnership.lean'
       - 'Loam/Tests/ActualRoutingPersistence.lean'
+      - 'tests/TestDriver.lean'
+      - 'tools/test-product'
       - 'lakefile.lean'
       - 'lake-manifest.json'
       - 'lean-toolchain'
@@ -62,9 +66,8 @@ jobs:
         with:
           build-args: Loam.Core Loam.Application Loam.Persistence.ActualRoutingPersistence
 
-      - name: Run Actual routing persistence story
-        shell: bash
-        run: lake env lean --run Loam/Tests/ActualRoutingPersistence.lean
+      - name: Run Actual routing package test group
+        run: lake test -- actual-routing
 
   writer:
     name: Write and reload Actual routing
