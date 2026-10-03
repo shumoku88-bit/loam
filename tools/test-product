@@ -112,6 +112,13 @@ tui_representative_tests=(
   TuiHomeNavigation
 )
 
+application_tests=(
+  HouseholdPaths
+  SparseMovementPublication
+  MultimeasureRecordingPublishers
+  ActualObservationCli
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -160,6 +167,9 @@ case "$group" in
   tui-representative)
     tests=("${tui_representative_tests[@]}")
     ;;
+  application)
+    tests=("${application_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -176,12 +186,13 @@ case "$group" in
       "${practical_slice_b_additional_tests[@]}"
       "${practical_slice_a2_tests[@]}"
       "${tui_representative_tests[@]}"
+      "${application_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b, practical-slice-a2, tui-representative" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b, practical-slice-a2, tui-representative, application" >&2
     exit 2
     ;;
 esac
@@ -237,6 +248,12 @@ for test_name in "${tests[@]}"; do
       ;;
     TuiRecord)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/actual-root"
+      ;;
+    SparseMovementPublication)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/sparse-movement"
+      ;;
+    MultimeasureRecordingPublishers)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/multimeasure-recording"
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
