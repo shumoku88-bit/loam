@@ -9,6 +9,7 @@ on:
       - 'tests/test_terminal_input_latency.py'
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/Support.lean'
       - 'tools/loam'
       - 'Loam/Presentation/**'
       - 'Loam/Tests/PresentationReadState.lean'
@@ -166,6 +167,7 @@ on:
       - 'tests/test_terminal_input_latency.py'
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
+      - 'Loam/Tests/Support.lean'
       - 'tools/loam'
       - 'Loam/Presentation/**'
       - 'Loam/Tests/PresentationReadState.lean'
@@ -324,7 +326,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Review.MovementDraftReview
+          build-args: loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Tests.Support Loam.Review.MovementDraftReview
           test: false
           lint: false
           use-mathlib-cache: false
@@ -375,7 +377,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture
+          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
