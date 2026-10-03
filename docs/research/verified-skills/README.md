@@ -95,6 +95,21 @@ skill arm
 
 The baseline must not receive the candidate skill text.
 
+### Isolation rule
+
+For a paired trial, run the baseline in a fresh session / agent that has not read
+the candidate skill, and record the baseline before exposing the skill arm to the
+task. Do not ask one already-exposed agent to reconstruct how it "would have"
+worked without the skill.
+
+If isolation is lost, keep the run only as an exploratory Trialed record:
+
+- mark the baseline as contaminated / unavailable;
+- count no promotion win from that run;
+- do not use token, tool-call, or wrong-turn comparisons from it.
+
+This prevents skill text from leaking into the control condition.
+
 Record the smallest useful observations:
 
 | Field | Question |
@@ -176,6 +191,35 @@ Disposition: Candidate | Trialed | Qualified | Retired
 
 Do not preserve every trajectory. Retain only the evidence needed to explain a
 skill mutation, promotion, or retirement.
+
+## Trial 01 — Scheduled terminal lifecycle canonicality
+
+```text
+Trial: 01
+Date: 2026-10-03
+Repository revision: 0a77c1dc086aa4d5c185146bd2b564be4225f481
+Task: Revisit issue #700 candidate 3: whether Scheduled terminal lifecycle still
+      requires independently retained completion / retirement / replacement
+      runtime representations.
+Skill: Scheduled transition audit
+Baseline outcome: Not run. The same agent had already read the candidate skill,
+                  so a post-hoc baseline would be contaminated.
+Skill outcome: The audit named current-open lifecycle as the protected answer,
+               followed ScheduledTerminal -> currentOpenScheduled -> Review and
+               lifecycle persistence, and then found that PR #706 had already
+               removed the three obsolete runtime memories/codecs while
+               preserving terminal meanings and v1 wire bytes.
+Material difference: The skill routed the investigation toward current owner,
+                     projection, and persistence evidence early enough to detect
+                     that the apparent #700 research candidate was already
+                     graduated. This is useful routing evidence, not a measured
+                     baseline win.
+Regression observed: None. No production or household-data change was made.
+Skill mutation: None. No concrete skill failure was observed.
+Disposition: Trialed
+Promotion evidence: 0 wins counted; this unpaired exploratory trial does not
+                    count toward the Qualified threshold.
+```
 
 ## Extraction rule
 
