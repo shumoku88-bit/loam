@@ -17,7 +17,7 @@ open Loam.Core
 set_option autoImplicit false
 
 private def usage : String :=
-  "Usage: loamHouseholdObservation DATA_ROOT START END [OBSERVED_AT]\n" ++
+  "Usage: loam household-observation DATA_ROOT START END [OBSERVED_AT]\n" ++
   "\n" ++
   "Emits Household Observation v1 (HOBS1) records for Balance, Budget, and\n" ++
   "Capacity over the explicit half-open budget window [START, END). When\n" ++
@@ -393,7 +393,7 @@ def runCurrentMachine (args : List String) : IO UInt32 := do
       return 2
 
 
-/-- Command dispatcher for the standalone Household Observation executable. -/
+/-- Command dispatcher for the explicit-window Household Observation projection. -/
 def run (args : List String) : IO UInt32 :=
   match args with
   | [rootPath, start, end_] =>

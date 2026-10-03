@@ -32,9 +32,6 @@ lean_exe loamShadowAudit where
 lean_exe loamShadowQuantity where
   root := `Loam.Cli.ShadowQuantityCli
 
-lean_exe loamHouseholdObservation where
-  root := `Loam.Cli.HouseholdObservationCli
-
 lean_exe loamTui where
   root := `Loam.Tui.Executable
 
