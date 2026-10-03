@@ -21,9 +21,6 @@ on:
   push:
     branches:
       - main
-      - 'feat/practical-scheduled-routing'
-      - 'feat/scheduled-capacity-pressure'
-      - 'feat/scheduled-routing-publisher'
     paths:
       - '.github/actions/lean-build/**'
       - 'Loam/Core/AccountingRole.lean'
