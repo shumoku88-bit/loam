@@ -119,6 +119,10 @@ application_tests=(
   ActualObservationCli
 )
 
+singleton_tests=(
+  BoundaryPresetConfig
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -187,13 +191,18 @@ case "$group" in
       "${practical_slice_a2_tests[@]}"
       "${tui_representative_tests[@]}"
       "${application_tests[@]}"
+      "${singleton_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
-    echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention, event-merchant, practical-slice-b, practical-slice-a2, tui-representative, application" >&2
-    exit 2
+    if [[ "$group" =~ ^[A-Za-z0-9_]+$ ]] && [[ -f "Loam/Tests/$group.lean" ]]; then
+      tests=("$group")
+    else
+      echo "unknown test group or test: $group" >&2
+      echo "expected a named group or a Loam/Tests/<TestName>.lean module" >&2
+      exit 2
+    fi
     ;;
 esac
 
