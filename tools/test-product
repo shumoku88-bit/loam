@@ -61,6 +61,16 @@ actual_validity_tests=(
   ActualValidityPublisher
 )
 
+purpose_catalog_tests=(
+  PurposeCatalog
+  TuiPurposeLabels
+)
+
+attention_tests=(
+  AttentionPersistence
+  TuiAttentionAdministration
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -91,6 +101,12 @@ case "$group" in
   actual-validity)
     tests=("${actual_validity_tests[@]}")
     ;;
+  purpose-catalog)
+    tests=("${purpose_catalog_tests[@]}")
+    ;;
+  attention)
+    tests=("${attention_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
@@ -101,12 +117,14 @@ case "$group" in
       "${scheduled_lifecycle_tests[@]}"
       "${movement_proposal_tests[@]}"
       "${actual_validity_tests[@]}"
+      "${purpose_catalog_tests[@]}"
+      "${attention_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing, scheduled-routing, scheduled-lifecycle, movement-proposal, actual-validity, purpose-catalog, attention" >&2
     exit 2
     ;;
 esac
@@ -150,6 +168,9 @@ for test_name in "${tests[@]}"; do
       ;;
     ActualValidityPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/actual-validity-publisher"
+      ;;
+    AttentionPersistence)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/attention-administration"
       ;;
     ScheduledCreationPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-creation-publisher"
