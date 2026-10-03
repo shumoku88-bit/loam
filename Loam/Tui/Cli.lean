@@ -263,6 +263,9 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
     (snapshot : Snapshot) (state : Loam.Tui.ActualWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.ActualWorkspace.view active snapshot state)
+  if key == .other then return (← actualWorkspaceLoop bounds dataDir root snapshot state frame)
   let step := Loam.Tui.ActualWorkspace.updateWithRepeat snapshot state
     (actualWorkspaceEventOfKey state key) repeatCount
   match step.command with
@@ -318,8 +321,7 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
       Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
       actualWorkspaceLoop bounds dataDir root snapshot step.state nextFrame
   | .yank =>
-      let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
-      let success ← Loam.Tui.Terminal.copyToClipboard text
+      let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
       let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
       let next := { step.state with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot next)
@@ -334,10 +336,14 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
 partial def balancesLoop (bounds : Bounds)
     (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.Balances.viewForBounds active state)
   if key = .input 'y' || key = .input 'Y' then
-    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
-    discard <| Loam.Tui.Terminal.copyToClipboard text
-    balancesLoop bounds state frame
+    let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
+    let next := { state with notice := if success then "Copied visible screen." else "Clipboard unavailable." }
+    let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    balancesLoop bounds next nextFrame
   else
     let back := key = .escape || key = .input 'q' || key = .input 'Q'
     match Loam.Tui.Balances.update state back with
@@ -355,9 +361,10 @@ partial def settlementLoop
     (state : Loam.Tui.SettlementWorkspace.State)
     (frame : CompiledWidget) : IO Unit := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.SettlementWorkspace.view active state)
   if key = .input 'y' || key = .input 'Y' then
-    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
-    let success ← Loam.Tui.Terminal.copyToClipboard text
+    let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
     let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
     let next := { state with notice := notice }
     let nextFrame := compileWidget (Loam.Tui.SettlementWorkspace.view bounds next)
@@ -439,6 +446,9 @@ partial def dailyPaceTrendLoop : IO Unit := do
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compiledFrameFor active snapshot (Loam.Tui.Home.reconcileState active snapshot state)
+  if key == .other then return (← loop bounds dataDir root snapshot state frame)
   let state := Loam.Tui.Home.reconcileState bounds snapshot state
   if let some home := Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount then
     let nextFrame := compiledFrameFor bounds snapshot home
@@ -530,8 +540,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root fresh home nextFrame
   else if (key = .input 'y' || key = .input 'Y') then
-    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
-    let success ← Loam.Tui.Terminal.copyToClipboard text
+    let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
     let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
     let home := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds snapshot home

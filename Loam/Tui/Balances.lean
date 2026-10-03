@@ -35,6 +35,7 @@ inductive Row where
 
 structure State where
   rows : List Row
+  notice : String := ""
   deriving Repr, DecidableEq
 
 inductive Step where
@@ -96,8 +97,8 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
   let footer :=
     [ blank
     , muted "Exact, amount-unknown, and unsupported states preserve current evidence."
-    , muted "Rows follow balance-view order only."
-    , muted "[y] copy   q / Esc home"
+    , muted (if state.notice.isEmpty then "Rows follow balance-view order only." else state.notice)
+    , muted "[y] copy screen   Shift+drag select   q / Esc home"
     ]
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let fixedRows := 5

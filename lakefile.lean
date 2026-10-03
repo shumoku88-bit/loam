@@ -1,7 +1,20 @@
 import Lake
 open Lake DSL
 
-package loam
+package loam where
+  moreLinkObjs := #[`@/terminalNative]
+
+-- The terminal needs short POSIX reads and ioctl geometry, not buffered stdio
+-- or a subprocess per key. This object contains no household semantics.
+target terminalNative pkg : System.FilePath := do
+  let src ← inputFile (pkg.dir / "Loam" / "Tui" / "terminal_native.c") true
+  let lean ← getLeanInstall
+  let obj ← buildO (pkg.buildDir / "native" / "terminal_native.o") src
+    #["-I", lean.includeDir.toString] #["-O2", "-fPIC"]
+  buildStaticLib (pkg.buildDir / "native" / nameToStaticLib "loam_terminal") #[obj]
+
+lean_exe terminalProbe where
+  root := `tests.TerminalProbe
 
 @[default_target]
 lean_lib Loam

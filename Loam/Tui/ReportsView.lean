@@ -1270,6 +1270,11 @@ private structure ViewParts where
   body : Loam.Tui.Viewport.Source Widget
   footer : List Widget
 
+private def withCopyHelp (footer : List Widget) : List Widget :=
+  -- Keep the essential back row immediately before notice for tiny terminals.
+  footer.take (footer.length - 2) ++
+    [muted "[y] copy screen   Shift+drag select"] ++ footer.drop (footer.length - 2)
+
 private def staticViewParts
     (state : State) (bounds : Option Bounds) : ViewParts :=
   match fullView state bounds with
@@ -1278,7 +1283,7 @@ private def staticViewParts
       let bodySize := children.length - footerSize
       {
         body := Loam.Tui.Viewport.ofList (children.take bodySize)
-        footer := children.drop bodySize
+        footer := withCopyHelp (children.drop bodySize)
       }
   | other =>
       { body := Loam.Tui.Viewport.ofList [other], footer := [] }
@@ -1292,7 +1297,7 @@ private def dailyIncomeExpenseViewParts
         , dailyFlowSource state bounds
         , Loam.Tui.Viewport.ofList [blank]
         ]
-    footer := incomeExpenseFooterLines state
+    footer := withCopyHelp (incomeExpenseFooterLines state)
   }
 
 private def viewParts
@@ -1395,9 +1400,10 @@ Clamp a pure vertical scroll move against a prepared body without rebuilding
 the report presentation.
 -/
 def scrollPrepared
-    (state : State) (prepared : PreparedScrollView) (forward : Bool) : State :=
+    (state : State) (prepared : PreparedScrollView) (forward : Bool)
+    (distance : Nat := 1) : State :=
   let requested :=
-    if forward then state.scroll + 1 else state.scroll - 1
+    if forward then state.scroll + distance else state.scroll - distance
   { state with
       scroll := Loam.Tui.Scroll.clamp prepared.extent prepared.page requested }
 
@@ -1453,6 +1459,14 @@ def updateForBounds
     let page := bodyPageSize bounds parts.footer
     { step with state := { step.state with
         scroll := Loam.Tui.Scroll.clamp parts.body.extent page step.state.scroll } }
+
+/-- Coalesced wheel events retain the same pure navigation result with one redraw. -/
+def updateForBoundsWithRepeat (bounds : Bounds) (state : State)
+    (key : Loam.Tui.Terminal.Key) (count : Nat) : Step :=
+  if key == .up || key == .down then
+    (List.range (max 1 count)).foldl
+      (fun step _ => updateForBounds bounds step.state key) { state := state }
+  else updateForBounds bounds state key
 
 /-- Unbounded compatibility view used by existing pure presentation tests. -/
 def view (state : State) : Widget := fullView state none

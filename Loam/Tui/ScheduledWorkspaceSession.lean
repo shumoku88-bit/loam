@@ -191,6 +191,8 @@ partial def run
     (state : Loam.Tui.ScheduledWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    workspaceFrame active snapshot coverage state
   let step := Loam.Tui.ScheduledWorkspace.updateWithCoverageWithRepeat snapshot coverage state
     (eventOfKey state.viewMode state.pane key) repeatCount
   match step.command with
@@ -460,8 +462,7 @@ partial def run
               Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
               run bounds dataDir root reload fresh freshCoverage next nextFrame
   | .yank =>
-      let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
-      let success ← Loam.Tui.Terminal.copyToClipboard text
+      let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
       let notice := if success then "Copied screen to clipboard." else "Failed to copy screen to clipboard."
       let next := { step.state with notice := notice }
       let nextFrame := workspaceFrame bounds snapshot coverage next

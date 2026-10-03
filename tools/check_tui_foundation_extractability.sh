@@ -13,6 +13,7 @@ foundation_files=(
   "Loam/Tui/CyclicIndex.lean"
   "Loam/Tui/Chart.lean"
   "Loam/Tui/Terminal.lean"
+  "Loam/Tui/terminal_native.c"
 )
 
 for path in "${foundation_files[@]}"; do
@@ -28,9 +29,20 @@ cat > "$tmp/lakefile.lean" <<'EOF'
 import Lake
 open Lake DSL
 
-package tuiFoundation
+package tuiFoundation where
+  moreLinkObjs := #[`@/terminalNative]
+
+target terminalNative pkg : System.FilePath := do
+  let src ← inputFile (pkg.dir / "Loam" / "Tui" / "terminal_native.c") true
+  let lean ← getLeanInstall
+  let obj ← buildO (pkg.buildDir / "native" / "terminal_native.o") src
+    #["-I", lean.includeDir.toString] #["-O2", "-fPIC"]
+  buildStaticLib (pkg.buildDir / "native" / nameToStaticLib "loam_terminal") #[obj]
 
 lean_lib Loam
+
+lean_exe foundationSmoke where
+  root := `FoundationSmoke
 EOF
 
 (
@@ -42,7 +54,7 @@ EOF
     Loam.Tui.Scroll \
     Loam.Tui.CyclicIndex \
     Loam.Tui.Chart \
-    Loam.Tui.Terminal
-  lake env lean --run FoundationSmoke.lean
+    Loam.Tui.Terminal foundationSmoke
+  .lake/build/bin/foundationSmoke
   lake env lean --run ChartSmoke.lean
 )

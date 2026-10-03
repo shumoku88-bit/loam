@@ -3,7 +3,9 @@ name: Production TUI
 on:
   pull_request:
     paths:
-      - 'tests/terminal_input_probe.lean'
+      - 'tests/test_tui_viewport_pty.py'
+      - 'tests/TerminalProbe.lean'
+      - 'tests/test_terminal_mechanics_pty.py'
       - 'tests/test_terminal_input_latency.py'
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
@@ -158,7 +160,9 @@ on:
       - main
       - 'feat/tui'
     paths:
-      - 'tests/terminal_input_probe.lean'
+      - 'tests/test_tui_viewport_pty.py'
+      - 'tests/TerminalProbe.lean'
+      - 'tests/test_terminal_mechanics_pty.py'
       - 'tests/test_terminal_input_latency.py'
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Tests/ActualWorldFixture.lean'
@@ -320,7 +324,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamTui Loam.Tests.ActualWorldFixture Loam.Review.MovementDraftReview
+          build-args: loamTui terminalProbe Loam.Tests.ActualWorldFixture Loam.Review.MovementDraftReview
           test: false
           lint: false
           use-mathlib-cache: false
@@ -328,8 +332,10 @@ jobs:
           axiom-audit: false
           use-github-cache: true
 
-      - name: Verify terminal short-read latency
-        run: python3 tests/test_terminal_input_latency.py
+      - name: Verify native terminal latency, batching and resize safety
+        run: |
+          python3 tests/test_terminal_input_latency.py
+          python3 tests/test_terminal_mechanics_pty.py
 
       - name: Verify representative TUI mechanics
         shell: bash
@@ -353,6 +359,7 @@ jobs:
           FIXTURE_DIR="$(mktemp -d)/cycle-budget-pty"
           lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
           python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
+          python3 tests/test_tui_viewport_pty.py "$FIXTURE_DIR" .lake/build/bin/loamTui
 
   full:
     name: Full production household TUI qualification
@@ -368,7 +375,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui Loam.Tests.ActualWorldFixture
+          build-args: loam loamMovement loamMovementProposal loamMovementProposalRecord loamCapacity loamOpenScheduled loamDoctor loamDailyQuantity loamActualRouting loamScheduledRouting loamBudgetWindow loamJournalExport loamPtaExport loamBeancountExport loamTui terminalProbe Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
@@ -830,9 +837,12 @@ jobs:
           FIXTURE_DIR="$(mktemp -d)/cycle-budget-pty"
           lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
           python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
+          python3 tests/test_tui_viewport_pty.py "$FIXTURE_DIR" .lake/build/bin/loamTui
 
-      - name: Verify terminal short-read latency
-        run: python3 tests/test_terminal_input_latency.py
+      - name: Verify native terminal latency, batching and resize safety
+        run: |
+          python3 tests/test_terminal_input_latency.py
+          python3 tests/test_terminal_mechanics_pty.py
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py

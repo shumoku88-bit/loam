@@ -99,6 +99,50 @@ The Home labels distinguish the user-facing action from the narrower implementat
 module name. `p` edits Actual-to-Purpose routing, `m` admits new Locus identities, and
 `o` publishes one complete current quantity observation image.
 
+## Copy and terminal selection
+
+On Home, Actual, Selected Day, Scheduled, Balances, Settlement, and Reports,
+`y` copies **the visible screen** as plain text: no ANSI styling, hidden report
+rows, or columns clipped beyond the terminal. Home and Reports advertise
+`[y] copy screen`; clipboard success/failure is reported in the workspace notice.
+The clipboard backend is `pbcopy` on macOS, or `wl-copy` / `xclip` on Linux.
+
+For a partial copy, use the terminal's own text selection and copy command.
+With application mouse reporting enabled, many terminals use **Shift+drag** to
+select text instead of sending a pointer event to LOAM. The exact modifier is
+terminal/profile-dependent; the footer is a hint, not a LOAM-owned selection
+engine. LOAM does not implement an independent drag-selection buffer.
+
+## Resize and scroll mechanics
+
+Home, Actual, Selected Day, Scheduled, Balances, Settlement, Capacity, Budget,
+and Reports refresh their presentation geometry after input or the idle input
+poll. A resize rebuilds the frame/diff baseline; Reports also rebuilds its
+geometry-dependent Daily scroll cache. This does not reload household evidence
+or change query coordinates. Every emitted frame is additionally clipped to the
+live physical tty, protecting against a resize between input and drawing.
+
+Compiled macOS/Linux builds use the small POSIX adapter
+`Loam/Tui/terminal_native.c`: `read` returns an available input chunk without the
+stdio short-read fill delay, and `ioctl` observes geometry without spawning
+`stty` per key. Consecutive same-direction wheel packets in that chunk can share
+one redraw; keyboard arrows, direction changes, and following commands remain
+separate. The Lean interpreter retains a one-byte input / `stty` fallback for
+source-level tests, not production performance claims.
+
+Reports uses dirty-row output for ordinary updates rather than overwriting the
+whole terminal on each scroll. Frame text cannot emit control bytes that move
+the terminal cursor. Auto-wrap is disabled while the TUI owns the alternate
+screen and re-enabled on exit, so a glyph-width disagreement cannot wrap the
+bottom row and scroll the entire terminal. Unicode width remains the qualified
+approximation in `Loam.Tui.Layout`, not a claim of identical glyph behavior in
+every terminal.
+
+Qualification includes `tests/test_terminal_input_latency.py`,
+`tests/test_terminal_mechanics_pty.py`, and `tests/test_tui_viewport_pty.py`.
+The PTY tests use compiled binaries and synthetic evidence only. Foundation
+extractability also compiles the native adapter without LOAM domain modules.
+
 ## Surface map
 
 ```text

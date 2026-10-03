@@ -30,6 +30,8 @@ shared Review answers without defining household semantics or publication rules.
 partial def run (bounds : Bounds) (dataDir root : System.FilePath)
     (state : Loam.Tui.CycleBudget.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.CycleBudget.view active state)
   let (next, intent) := Loam.Tui.CycleBudget.update bounds state key
   match intent with
   | .home => return ()

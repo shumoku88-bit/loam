@@ -32,22 +32,6 @@ shared Review answer and redraws the Reports workspace. Household semantics,
 query meaning, and report rendering remain in their existing owners.
 -/
 
-/--
-High-frequency vertical navigation reuses the already observed terminal bounds.
-
-Mouse-wheel input is normalized to Up/Down before it reaches this session, and
-j/k are the keyboard aliases for the same high-frequency vertical navigation.
-Running `stty size` for every wheel notch or j/k repeat can queue subprocess
-latency behind ordinary scrolling, especially on long report surfaces. Other
-actionable keys still refresh the terminal geometry, so a resize is picked up at
-the next non-scroll interaction.
--/
-def refreshBoundsForKey : Loam.Tui.Terminal.Key → Bool
-  | .up | .down
-  | .input 'j' | .input 'J' | .input 'k' | .input 'K' => false
-  | .other | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ => false
-  | _ => true
-
 private def scrollDirection? : Loam.Tui.Terminal.Key → Option Bool
   | .up | .input 'k' | .input 'K' => some false
   | .down | .input 'j' | .input 'J' => some true
@@ -76,25 +60,42 @@ private partial def loop (bounds : Bounds)
     (state : Loam.Tui.Reports.State)
     (prepared : Option Loam.Tui.Reports.PreparedScrollView)
     (frame : Loam.Tui.Runtime.CompiledWidget) : IO Bounds := do
-  let key ← Loam.Tui.Terminal.readKey
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let activeBounds ← Loam.Tui.Terminal.currentBounds
+  let prepared :=
+    if activeBounds == bounds then prepared
+    else Loam.Tui.Reports.prepareScrollView? activeBounds state
+  let frame ←
+    if activeBounds == bounds then pure frame
+    else do
+      let view := match prepared with
+        | some cached => Loam.Tui.Reports.viewPreparedScroll activeBounds state cached
+        | none => Loam.Tui.Reports.viewForBounds activeBounds state
+      let next := Loam.Tui.Runtime.compileWidget view
+      Loam.Tui.Terminal.redrawFromBlank activeBounds next
+      pure next
+  let bounds := activeBounds
+  if key == .other then return (← loop bounds dataDir root state prepared frame)
   if key = .input 'y' || key = .input 'Y' then
-    let text := Loam.Tui.Terminal.compiledWidgetToCleanText frame
-    discard <| Loam.Tui.Terminal.copyToClipboard text
-    return (← loop bounds dataDir root state prepared frame)
+    let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
+    let next := { state with notice := if success then "Copied visible screen." else "Clipboard unavailable." }
+    let prepared := Loam.Tui.Reports.prepareScrollView? bounds next
+    let view := match prepared with
+      | some cached => Loam.Tui.Reports.viewPreparedScroll bounds next cached
+      | none => Loam.Tui.Reports.viewForBounds bounds next
+    let nextFrame := Loam.Tui.Runtime.compileWidget view
+    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+    return (← loop bounds dataDir root next prepared nextFrame)
   match prepared, scrollDirection? key with
   | some cached, some forward =>
-      let next := Loam.Tui.Reports.scrollPrepared state cached forward
+      let next := Loam.Tui.Reports.scrollPrepared state cached forward repeatCount
       let nextView := Loam.Tui.Reports.viewPreparedScroll bounds next cached
       let nextFrame := Loam.Tui.Runtime.compileWidget nextView
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       loop bounds dataDir root next prepared nextFrame
   | _, _ =>
-      let activeBounds ←
-        if refreshBoundsForKey key then
-          Loam.Tui.Terminal.currentBounds
-        else
-          pure bounds
-      let step := Loam.Tui.Reports.updateForBounds activeBounds state key
+      let activeBounds := bounds
+      let step := Loam.Tui.Reports.updateForBoundsWithRepeat activeBounds state key repeatCount
       if step.back then return activeBounds
       let next ←
         match step.query with
@@ -180,8 +181,8 @@ private partial def loop (bounds : Bounds)
         match nextPrepared with
         | some cached => Loam.Tui.Reports.viewPreparedScroll activeBounds next cached
         | none => Loam.Tui.Reports.viewForBounds activeBounds next
-      Loam.Tui.Terminal.redrawWidgetDirect activeBounds nextView
       let nextFrame := Loam.Tui.Runtime.compileWidget nextView
+      Loam.Tui.Terminal.emitDirtyDiff activeBounds 0 0 frame nextFrame
       loop activeBounds dataDir root next nextPrepared nextFrame
 
 /-- Reports session; q/Esc moves back one level and eventually returns Home. -/

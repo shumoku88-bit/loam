@@ -951,15 +951,16 @@ private def navigationHelp (state : State) : String × List HelpItem :=
           ])
 
 private def viewHelp (state : State) : List HelpItem :=
-  if state.activePane == .detail then
-    [ { key := "[Esc/Tab/w]", label := "calendar" }
-    , { key := "[y]", label := "copy" }
+  let copyHelp :=
+    [ { key := "[y]", label := "copy screen" }
+    , { key := "[Shift+drag]", label := "select text" }
     ]
+  if state.activePane == .detail then
+    [ { key := "[Esc/Tab/w]", label := "calendar" } ] ++ copyHelp
   else
     [ { key := "[Tab/w]", label := "transactions" }
     , { key := "[Ctrl-u/d]", label := "scroll" }
-    , { key := "[y]", label := "copy" }
-    ]
+    ] ++ copyHelp
 
 private def actionHelp (state : State) : List HelpItem :=
   if state.activePane == .detail then

@@ -50,6 +50,8 @@ partial def loop
     (observedAt : String)
     (state : Loam.Tui.Capacity.State) (frame : CompiledWidget) : IO Unit := do
   let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun _ =>
+    compileWidget (Loam.Tui.Capacity.view state)
   let backKey := key = .escape || key = .input 'q' || key = .input 'Q'
   let event : Loam.Tui.Capacity.Event :=
     if backKey then .back

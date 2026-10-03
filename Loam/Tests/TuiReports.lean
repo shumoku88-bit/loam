@@ -68,15 +68,12 @@ private def dayPoints
 
 
 def main : IO Unit := do
-  expect (!Loam.Tui.ReportsSession.refreshBoundsForKey .up &&
-      !Loam.Tui.ReportsSession.refreshBoundsForKey .down &&
-      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'j') &&
-      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'J') &&
-      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'k') &&
-      !Loam.Tui.ReportsSession.refreshBoundsForKey (.input 'K'))
-    "high-frequency report navigation unexpectedly probes terminal bounds"
-  expect (Loam.Tui.ReportsSession.refreshBoundsForKey .enter)
-    "ordinary report interaction no longer refreshes terminal bounds"
+  expect (Loam.Tui.Terminal.plainTerminalText "a\n\r\x1b\tb" == "ab")
+    "presentation text retained terminal control characters"
+  let copyHelp := widgetText (Loam.Tui.Reports.viewForBounds
+    { width := 120, height := 24 } Loam.Tui.Reports.initial)
+  expect (contains "[y] copy screen" copyHelp && contains "Shift+drag select" copyHelp)
+    "Reports did not advertise visible-screen copy and native text selection"
 
   let styledCells : List Cell :=
     [ { glyph := 'a', style := .normal }
@@ -1342,11 +1339,12 @@ def main : IO Unit := do
 
   let dailyBounds : Bounds := { width := 100, height := 16 }
   let fullDailyLines := widgetLineTexts (Loam.Tui.Reports.view dailyIncomeExpense)
-  let dailyFooterSize := 4
-  let dailyBodySize := fullDailyLines.length - dailyFooterSize
+  let dailyBodySize := fullDailyLines.length - 4
   let fullDailyBody := fullDailyLines.take dailyBodySize
-  let fullDailyFooter := fullDailyLines.drop dailyBodySize
-  let dailyPage := dailyBounds.height - (dailyFooterSize + 1)
+  let originalFooter := fullDailyLines.drop dailyBodySize
+  let fullDailyFooter := originalFooter.take (originalFooter.length - 2) ++
+    ["[y] copy screen   Shift+drag select"] ++ originalFooter.drop (originalFooter.length - 2)
+  let dailyPage := dailyBounds.height - (fullDailyFooter.length + 1)
   expect
     (Loam.Tui.Reports.scrollLimit dailyBounds dailyIncomeExpense ==
       dailyBodySize - dailyPage)
@@ -1384,6 +1382,13 @@ def main : IO Unit := do
     Loam.Tui.Reports.scrollPrepared preparedDown preparedDaily false
   expect (preparedDown.scroll == 1 && preparedUp.scroll == 0)
     "prepared Daily scroll did not preserve one-line navigation semantics"
+  let batchedDaily := Loam.Tui.Reports.scrollPrepared dailyIncomeExpense preparedDaily true 7
+  expect (batchedDaily.scroll == scrolledDaily.scroll)
+    "coalesced Daily wheel did not preserve the number of navigation steps"
+  let resizedDaily := Loam.Tui.Reports.prepareScrollView?
+    { width := 48, height := 10 } scrolledDaily
+  expect (resizedDaily.any fun prepared => prepared.page == 10 - (prepared.footer.length + 1))
+    "Daily cache did not rebuild its page geometry after resize"
 
   let summaryAgain :=
     (Loam.Tui.Reports.update dailyIncomeExpense (.input 'g')).state

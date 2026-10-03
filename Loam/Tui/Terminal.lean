@@ -9,6 +9,44 @@ open Loam.Tui.Runtime
 
 set_option autoImplicit false
 
+private def fallbackBounds : Bounds := { width := 80, height := 24 }
+
+/-- Interpreter fallback; compiled terminals use ioctl without spawning a process. -/
+@[extern "loam_terminal_size"]
+private def terminalSize : IO UInt64 := do
+  try
+    let output ← IO.Process.output {
+      cmd := "sh"
+      args := #["-c", "stty size < /dev/tty"]
+    }
+    if output.exitCode != 0 then return 0
+    let parts := (output.stdout.trimAscii.toString.splitOn " ").filter (! ·.isEmpty)
+    match parts with
+    | [rows, cols] =>
+        match rows.toNat?, cols.toNat? with
+        | some rows, some cols => return (rows.toUInt64 <<< 32) ||| cols.toUInt64
+        | _, _ => return 0
+    | _ => return 0
+  catch _ => return 0
+
+/-- The physical tty owns geometry. Querying it is cheap enough for every frame. -/
+def currentBounds : IO Bounds := do
+  let packed ← terminalSize
+  let rows := (packed >>> 32).toNat
+  let cols := (packed &&& 0xffffffff).toNat
+  if rows == 0 || cols == 0 then return fallbackBounds
+  return { width := cols, height := rows }
+
+/-- Clip even a stale frame to the live tty, including resize races between input and output. -/
+private def visibleBounds (bounds : Bounds) : IO Bounds := do
+  let physical ← currentBounds
+  return { width := min bounds.width physical.width, height := min bounds.height physical.height }
+
+/-- Household labels cannot inject terminal movement or escape sequences. -/
+def plainTerminalText (text : String) : String :=
+  String.ofList <| text.toList.filter fun char =>
+    char.toNat >= 32 && !(char.toNat >= 0x7f && char.toNat <= 0x9f)
+
 /-- Normalized terminal input. Surface-specific meaning stays in the pure TUI update function. -/
 inductive Key where
   | left
@@ -85,7 +123,7 @@ style run rather than one prefix per glyph.
 def renderCellsAnsi (cells : List Cell) : String :=
   let chunks :=
     (cellsToStyleRuns cells).map fun run =>
-      ansiStyle run.style ++ run.text
+      ansiStyle run.style ++ plainTerminalText run.text
   String.intercalate "" chunks
 
 /--
@@ -115,7 +153,7 @@ private def clipSpanLine : List Span → Nat → List Span
 /-- Render one semantic Widget row directly from styled spans. -/
 def renderSpansAnsi (columns : Nat) (spans : List Span) : String :=
   let chunks :=
-    (clipSpanLine spans columns).map fun run =>
+    (clipSpanLine (spans.map fun run => { run with text := plainTerminalText run.text }) columns).map fun run =>
       ansiStyle run.style ++ run.text
   String.intercalate "" chunks
 
@@ -140,6 +178,7 @@ def directFrameAnsi (bounds : Bounds) (widget : Widget) : String :=
 
 /-- Overwrite the complete visible terminal from semantic Widget spans. -/
 def redrawWidgetDirect (bounds : Bounds) (widget : Widget) : IO Unit := do
+  let bounds ← visibleBounds bounds
   IO.print (directFrameAnsi bounds widget)
   (← IO.getStdout).flush
 
@@ -186,6 +225,7 @@ def dirtyRegionAnsi
 def emitDirtyRegion
     (bounds : Bounds) (top left width : Nat)
     (old new : CompiledWidget) : IO Unit := do
+  let bounds ← visibleBounds bounds
   IO.print (dirtyRegionAnsi bounds top left width old new)
   (← IO.getStdout).flush
 
@@ -197,6 +237,7 @@ line can never arm terminal auto-wrap and spill into the following TUI row.
 -/
 def emitDirtyDiff (bounds : Bounds) (top left : Nat)
     (old new : CompiledWidget) : IO Unit := do
+  let bounds ← visibleBounds bounds
   let output :=
     String.intercalate "" <|
       (dirtyRows bounds top old new).map fun row =>
@@ -208,6 +249,15 @@ def emitDirtyDiff (bounds : Bounds) (top left : Nat)
 def redrawFromBlank (bounds : Bounds) (frame : CompiledWidget) : IO Unit := do
   IO.print "\x1b[2J\x1b[H"
   emitDirtyDiff bounds 0 0 (compileWidget (.row [])) frame
+
+/-- Refresh presentation geometry and its diff baseline without reloading household evidence. -/
+def refreshFrame (bounds : Bounds) (frame : CompiledWidget)
+    (view : Bounds → CompiledWidget) : IO (Bounds × CompiledWidget) := do
+  let active ← currentBounds
+  if active == bounds then return (bounds, frame)
+  let next := view active
+  redrawFromBlank active next
+  return (active, next)
 
 /--
 Extract clean plain text from a compiled terminal frame.
@@ -256,16 +306,36 @@ def copyToClipboard (text : String) : IO Bool := do
     return true
   return false
 
+/-- Plain text of the visible rows/columns, never the hidden remainder of a report. -/
+def visibleWidgetText (bounds : Bounds) (frame : CompiledWidget) : String :=
+  let lines := frame.lines.toList.take bounds.height |>.map fun row =>
+    let cells := Loam.Tui.Layout.clipCells (Loam.Tui.Layout.contentWidth bounds) row.toList
+    (plainTerminalText (String.ofList (cells.map (·.glyph)))).trimAsciiEnd.toString
+  let trimmed := lines.reverse.dropWhile String.isEmpty |>.reverse
+  String.intercalate "\n" trimmed
+
+/-- Copy only the physically visible rows and columns, not hidden report data. -/
+def copyScreenToClipboard (bounds : Bounds) (frame : CompiledWidget) : IO Bool := do
+  let active ← visibleBounds bounds
+  copyToClipboard (visibleWidgetText active frame)
+
 structure InputBuffer where
   data : ByteArray := ByteArray.empty
   pos  : Nat := 0
 deriving Inhabited
 
 initialize inputBufferRef : IO.Ref InputBuffer ← IO.mkRef {}
+initialize lastInputWasWheel : IO.Ref Bool ← IO.mkRef false
 
 /-- Reset any buffered terminal input bytes. -/
 def resetInputBuffer : IO Unit := do
   inputBufferRef.set {}
+
+/-- POSIX read returns the available chunk immediately, unlike stdio fread.
+The interpreter fallback retains the qualified one-byte path. -/
+@[extern "loam_terminal_read"]
+private def readInputChunk : IO ByteArray := do
+  (← IO.getStdin).read 1
 
 private def readByte : IO UInt8 := do
   let state ← inputBufferRef.get
@@ -273,10 +343,7 @@ private def readByte : IO UInt8 := do
     let b := state.data.get! state.pos
     inputBufferRef.set { state with pos := state.pos + 1 }
     return b
-  -- Stream.read uses buffered stdio: requesting a large block on a tty waits
-  -- for the VTIME timeout after a short input, adding ~100ms to every key.
-  -- Read exactly one byte; never wait to fill a wheel-event batch.
-  let bytes ← (← IO.getStdin).read 1
+  let bytes ← readInputChunk
   if bytes.isEmpty then
     inputBufferRef.set { data := ByteArray.empty, pos := 0 }
     return 0
@@ -507,6 +574,7 @@ def decodeCsi (param : String) (finalByte : Nat) : Key :=
 
 /-- Small input decoder shared by all production TUI surfaces. -/
 def readKey : IO Key := do
+  lastInputWasWheel.set false
   let first ← readByte
   let value := first.toNat
   if value = 27 then
@@ -529,7 +597,9 @@ def readKey : IO Key := do
     if thirdVal = 60 then
       let (payload, active) ← readSgrMousePayload 32 ""
       if active then
-        return decodeSgrMousePayload payload
+        let key := decodeSgrMousePayload payload
+        lastInputWasWheel.set (key == .up || key == .down || key == .left || key == .right)
+        return key
       else
         return .other
     else if thirdVal >= 64 && thirdVal <= 126 then
@@ -573,35 +643,8 @@ def readKey : IO Key := do
 /-- Read one normalized Key, draining any immediately queued identical wheel scroll events. -/
 def readKeyWithRepeat : IO (Key × Nat) := do
   let key ← readKey
-  let extra ← drainPendingWheel key
+  let extra ← if ← lastInputWasWheel.get then drainPendingWheel key else pure 0
   return (key, 1 + extra)
-
-private def fallbackBounds : Bounds := { width := 80, height := 24 }
-
-/--
-Read the active tty geometry. The physical terminal owns this fact; callers use
-it only as presentation geometry. Failure falls back to the historical 80×24
-viewport rather than changing household semantics.
--/
-def currentBounds : IO Bounds := do
-  try
-    let output ← IO.Process.output {
-      cmd := "sh"
-      args := #["-c", "stty size < /dev/tty"]
-    }
-    if output.exitCode != 0 then return fallbackBounds
-    let text := output.stdout.trimAsciiEnd.toString.trimAsciiStart.toString
-    let parts := (text.splitOn " ").filter fun part => !part.isEmpty
-    match parts with
-    | [rowsText, colsText] =>
-        match rowsText.toNat?, colsText.toNat? with
-        | some rows, some cols =>
-            if rows = 0 || cols = 0 then return fallbackBounds
-            return { width := cols, height := rows }
-        | _, _ => return fallbackBounds
-    | _ => return fallbackBounds
-  catch _ =>
-    return fallbackBounds
 
 def setTerminalMode (mode : String) : IO Unit := do
   discard <| IO.Process.run
@@ -620,12 +663,14 @@ def setButtonMotion (enabled : Bool) : IO Unit := do
 def enter : IO Unit := do
   resetInputBuffer
   setTerminalMode "-echo -icanon min 0 time 1"
-  IO.print "\x1b[?1049h\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[?2004h\x1b[2J\x1b[H"
+  -- Width is approximate (especially ambiguous Unicode). Never let a physical
+  -- glyph-width disagreement wrap the bottom row and scroll the entire screen.
+  IO.print "\x1b[?1049h\x1b[?7l\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[?2004h\x1b[2J\x1b[H"
   (← IO.getStdout).flush
 
 def leave : IO Unit := do
   resetInputBuffer
-  IO.print "\x1b[0m\x1b[?2004l\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?1049l"
+  IO.print "\x1b[0m\x1b[?2004l\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?7h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"
 

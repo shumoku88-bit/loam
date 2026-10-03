@@ -77,6 +77,8 @@ See [Household operating mode](docs/HOUSEHOLD_OPERATING_MODE.md) for the current
 ## Development
 
 For repository development, install Lean through `elan` and make sure `lake` is on `PATH`.
+A system C compiler (`cc`; Xcode command-line tools on macOS) builds the small
+POSIX terminal adapter. Distributed binaries do not require a compiler.
 
 Run the checkout through:
 
