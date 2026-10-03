@@ -6,31 +6,71 @@ run() {
   "$@"
 }
 
-run lake build \
-  Loam.Tests.RoleFlowReview \
-  Loam.Tests.CurrentBalanceReview \
-  Loam.Tests.RoleBalanceReview \
-  Loam.Tests.RoleBalanceAnswerability \
-  Loam.Tests.HistoricalBalanceReview \
-  Loam.Tests.OpeningPositionReview \
-  Loam.Tests.MultimeasureSpendReview \
-  Loam.Tests.CurrentQuantityAnchor \
-  Loam.Tests.CurrentQuantityPresence \
-  Loam.Tests.CurrentQuantityAnchorCli \
-  Loam.Tests.BoundedHistorySupport \
-  Loam.Tests.BalanceReview \
-  Loam.Tests.CapacityReview
+accounting_tests=(
+  RoleFlowReview
+  CurrentBalanceReview
+  RoleBalanceReview
+  RoleBalanceAnswerability
+  HistoricalBalanceReview
+  OpeningPositionReview
+  MultimeasureSpendReview
+  CurrentQuantityAnchor
+  CurrentQuantityPresence
+  CurrentQuantityAnchorCli
+)
 
-run lake env lean --run Loam/Tests/RoleFlowReview.lean
-run lake env lean --run Loam/Tests/CurrentBalanceReview.lean
-run lake env lean --run Loam/Tests/RoleBalanceReview.lean
-run lake env lean --run Loam/Tests/RoleBalanceAnswerability.lean
-run lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
-run lake env lean --run Loam/Tests/OpeningPositionReview.lean
-run lake env lean --run Loam/Tests/MultimeasureSpendReview.lean
-run lake env lean --run Loam/Tests/CurrentQuantityAnchor.lean
-run lake env lean --run Loam/Tests/CurrentQuantityPresence.lean
-run lake env lean --run Loam/Tests/CurrentQuantityAnchorCli.lean
-run lake env lean --run Loam/Tests/BoundedHistorySupport.lean
-run lake env lean --run Loam/Tests/BalanceReview.lean "$(mktemp -d)/balance-review"
-run lake env lean --run Loam/Tests/CapacityReview.lean "$(mktemp -d)/capacity-review"
+cycle_funding_tests=(
+  CycleFundingInspection
+  BalanceReview
+  CurrentCoverageReview
+)
+
+representative_tests=(
+  BoundedHistorySupport
+  CapacityReview
+)
+
+group="${1:-all}"
+case "$group" in
+  accounting)
+    tests=("${accounting_tests[@]}")
+    ;;
+  cycle-funding)
+    tests=("${cycle_funding_tests[@]}")
+    ;;
+  all)
+    tests=(
+      "${accounting_tests[@]}"
+      "${cycle_funding_tests[@]}"
+      "${representative_tests[@]}"
+    )
+    ;;
+  *)
+    echo "unknown test group: $group" >&2
+    echo "expected: all, accounting, cycle-funding" >&2
+    exit 2
+    ;;
+esac
+
+modules=()
+for test_name in "${tests[@]}"; do
+  modules+=("Loam.Tests.$test_name")
+done
+run lake build "${modules[@]}"
+
+for test_name in "${tests[@]}"; do
+  case "$test_name" in
+    BalanceReview)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/balance-review"
+      ;;
+    CapacityReview)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/capacity-review"
+      ;;
+    CurrentCoverageReview)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/current-coverage-review"
+      ;;
+    *)
+      run lake env lean --run "Loam/Tests/$test_name.lean"
+      ;;
+  esac
+done
