@@ -198,7 +198,7 @@ Prefer deleting a bad instruction to accumulating exceptions.
 
 ## Current candidates
 
-- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; Trial 03 BETTER, Trial 04 UNSCORED, Trial 05 SAME; 1 promotion win.
+- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; evaluation closed after Trial 06; Trial 03 BETTER, Trial 04 UNSCORED, Trials 05/06 SAME; 1 promotion win; not Qualified.
 - [Scheduled transition audit](scheduled-transition.md)
 - [Correspondence boundary audit](correspondence-boundary.md)
 
@@ -211,7 +211,34 @@ Current trial records:
 - [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins;
 - [Trial 03 — Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md): paired trial complete; result BETTER; 1 promotion win;
 - [Trial 04 — Exact anchor across later correction-root change](trials/04-stale-anchor-correction.md): clean baseline + contaminated skill arm; result UNSCORED; 0 promotion wins;
-- [Trial 05 — Partial re-observation from a legacy v1 anchor](trials/05-v1-partial-reobservation.md): clean paired held-out trial; result SAME; 0 promotion wins.
+- [Trial 05 — Partial re-observation from a legacy v1 anchor](trials/05-v1-partial-reobservation.md): clean paired held-out trial; result SAME; 0 promotion wins;
+- [Trial 06 — Bounded history versus same stored scalar](trials/06-bounded-history-same-stored-scalar.md): clean paired final evaluation; result SAME; 0 promotion wins.
+
+## Closed CurrentQuantityAnchor evaluation
+
+The CurrentQuantityAnchor candidate completed its planned promotion experiment
+after Trial 06.
+
+Counted result:
+
+```text
+Trial 03   BETTER    1 promotion win
+Trial 04   UNSCORED  contaminated skill arm
+Trial 05   SAME      clean held-out sibling
+Trial 06   SAME      clean held-out sibling
+```
+
+It satisfies the comparable-trial and held-out requirements but has only one
+material improvement, below the two required for Qualified status. No scored
+trial produced a serious semantic regression.
+
+The lifecycle remains **Trialed** rather than Qualified or Retired. Further
+promotion trials are not planned unless repository ownership changes materially,
+a new concrete failure exposes a reusable skill defect, or a different evaluation
+protocol creates a genuinely new question.
+
+This is intentionally a stop point rather than an invitation to accumulate more
+near-duplicate trials.
 
 ## Trial record template
 
