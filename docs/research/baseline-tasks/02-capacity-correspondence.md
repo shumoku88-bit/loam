@@ -19,8 +19,21 @@ docs/research/verified-skills/
 Do not inspect that directory during the baseline run.
 
 Use the ordinary LOAM development entrances and repository evidence available at
-the pinned revision, including `AGENTS.md`, `docs/AI_WORKBENCH.md`, source,
-tests, research owners, and issue #700.
+the pinned revision, including `AGENTS.md`, `docs/AI_WORKBENCH.md`, pinned
+source, pinned tests, and pinned research owners.
+
+The task statement below is the complete issue context needed for the baseline.
+Do **not** fetch issue #700, its comments, PR discussion, commit metadata, or
+commit diffs.
+
+Use only repository file contents fetched with the explicit pinned revision.
+Do not use default-branch search snippets as evidence. Prefer following exact
+paths, imports, and links from already-open pinned files. If an unpinned search is
+unavoidable for path discovery, do not rely on its snippet and re-open the exact
+file at the pinned revision before using any fact.
+
+If forbidden or later text is exposed at any point, stop treating the run as a
+clean control and report it as contaminated.
 
 Do not use later commits to answer the task.
 
@@ -60,5 +73,10 @@ This file contains only the sealed baseline task. It intentionally contains no
 skill-arm result, no expected answer, and no comparison rubric beyond the fields
 needed to compare the two runs later.
 
-After the baseline answer is complete, it may be compared against Trial 02 by a
-different review step.
+The first baseline attempt exposed two leakage channels: commit metadata that
+included later diff text, and issue comments not safely bounded to the pinned
+revision. Those channels are now explicitly prohibited. This note describes
+control hygiene only; it does not reveal the skill-arm answer.
+
+After a clean baseline answer is complete, it may be compared against Trial 02 by
+a different review step.
