@@ -186,7 +186,7 @@ Prefer deleting a bad instruction to accumulating exceptions.
 
 ## Current candidates
 
-- [CurrentQuantityAnchor change audit](current-quantity-anchor.md)
+- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; Trial 03 result BETTER; 1 promotion win.
 - [Scheduled transition audit](scheduled-transition.md)
 - [Correspondence boundary audit](correspondence-boundary.md)
 
@@ -196,7 +196,8 @@ have verifier/test surfaces that can provide useful feedback.
 Current trial records:
 
 - Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
-- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins.
+- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins;
+- [Trial 03 — Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md): paired trial complete; result BETTER; 1 promotion win.
 
 ## Trial record template
 

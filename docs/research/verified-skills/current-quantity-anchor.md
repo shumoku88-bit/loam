@@ -1,6 +1,6 @@
 # Skill: CurrentQuantityAnchor change audit
 
-Status: **Candidate**
+Status: **Trialed**
 
 ## Trigger
 
@@ -79,3 +79,17 @@ cannot affect retained quantity meaning.
 
 Retire or rewrite the skill if repository ownership changes enough that these
 steps route agents to obsolete files or duplicate a stronger current instrument.
+
+## Trial evidence
+
+Trial 03 is the first paired measurement for this skill:
+
+- [Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md)
+- paired result: **BETTER**;
+- promotion wins: **1**;
+- semantic regressions: **0**;
+- skill mutation: **none**.
+
+The improvement was one avoided material ownership/topology backtrack, not a
+different final semantic answer. The skill remains Trialed until the broader
+promotion rule is satisfied.
