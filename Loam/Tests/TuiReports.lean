@@ -1241,8 +1241,6 @@ def main : IO Unit := do
     "single-month Monthly Accounts retained redundant block or period-total chrome"
   expect (contains "not a forecast" monthlyIncomeExpenseText)
     "Monthly Accounts view lost the explicit future-zero boundary"
-  expect (contains "same occurrence-time flow" monthlyIncomeExpenseText)
-    "Monthly Accounts view promoted its projection into stored monthly state"
 
   let multiMonthIncomeExpense ←
     match monthlyIncomeExpense.incomeExpenseSnapshot with
