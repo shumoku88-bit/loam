@@ -141,11 +141,10 @@ operational or trust boundary:
 - `application.yml`
 - `accounting-projection-basis.yml`
 - `cycle-funding-inspection.yml`
-- `merchant-expense-review.yml`
 - `boundary-preset-config.yml`
 - `actual-validity-publisher.yml`
 - `capacity.yml` (separate publisher and practical-entrance jobs)
-- `event-merchant.yml` (separate publisher and TUI-input jobs)
+- `event-merchant.yml` (separate Event Merchant package and exact Merchant Expense review jobs)
 - `scheduled-lifecycle.yml` (separate persistence, Creation, Replacement, and Terminal jobs)
 - `practical-actual-routing.yml` (separate persistence and practical-writer jobs)
 - `practical-scheduled-routing.yml`
