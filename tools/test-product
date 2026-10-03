@@ -32,6 +32,10 @@ capacity_tests=(
   CapacityReview
 )
 
+actual_routing_tests=(
+  ActualRoutingPersistence
+)
+
 representative_tests=(
   BoundedHistorySupport
 )
@@ -47,17 +51,21 @@ case "$group" in
   capacity)
     tests=("${capacity_tests[@]}")
     ;;
+  actual-routing)
+    tests=("${actual_routing_tests[@]}")
+    ;;
   all)
     tests=(
       "${accounting_tests[@]}"
       "${cycle_funding_tests[@]}"
       "${capacity_tests[@]}"
+      "${actual_routing_tests[@]}"
       "${representative_tests[@]}"
     )
     ;;
   *)
     echo "unknown test group: $group" >&2
-    echo "expected: all, accounting, cycle-funding, capacity" >&2
+    echo "expected: all, accounting, cycle-funding, capacity, actual-routing" >&2
     exit 2
     ;;
 esac
