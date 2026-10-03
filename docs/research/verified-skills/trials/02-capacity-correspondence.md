@@ -1,6 +1,6 @@
 # Trial 02 — CapacityMovement / CapacityEffective correspondence
 
-Status: **skill arm complete / first baseline contaminated / clean rerun pending**
+Status: **paired trial complete / result: same**
 
 Pinned repository revision:
 
@@ -94,21 +94,24 @@ Date: 2026-10-03
 Repository revision: a2a4018168560cabb47a92f3e76c65b0feddb7c7
 Task: #700 candidate 4, CapacityMovement + CapacityEffective retained meaning
 Skill: Correspondence boundary audit
-Baseline outcome: First fresh-session attempt reached the same scoped semantic
-                  result, but the control was contaminated before source audit:
-                  commit metadata exposed forbidden verified-skills diff text,
-                  and issue-comment retrieval exposed post-pin discussion.
+Baseline outcome: Clean rerun independently reached the same scoped conclusion:
+                  semantic KEEP, physical topology ALREADY COMPRESSED, no new
+                  formal work required, and no materially wrong analytical path.
 Skill outcome: Split semantic equivalence from physical topology; found semantic
-               KEEP plus already-compressed single authority
-Material difference: Not scored. Descriptive convergence is recorded, but no
-                     Better / Same / Worse comparison is valid for this attempt.
-Regression observed: None in the semantic audit. Experimental isolation failed.
-Skill mutation: None. The failure was in the trial protocol, not the skill.
-Protocol mutation: Baselines now use pinned-file evidence only and prohibit
-                   commit metadata, unsealed issue/PR discussion, and unpinned
-                   search snippets as evidence.
+               KEEP plus already-compressed single authority.
+Material difference: SAME. Both arms found the same retained meanings, the same
+                     single-authority topology, the same divergence class, and
+                     the same no-new-formal-work conclusion. The baseline
+                     inspected more repository surfaces, but tool/token cost was
+                     not comparable enough to count that as a material win.
+Regression observed: None.
+Skill mutation: None. Trial 02 exposes no missing reusable step in the skill.
+Protocol mutation: The earlier contaminated attempt already produced the
+                   pinned-file-only baseline rule; the clean rerun validates that
+                   repaired control protocol.
 Disposition: Trialed
-Promotion evidence: 0 wins counted; clean baseline rerun still required
+Promotion evidence: 0 wins counted; this paired trial is SAME, not a material
+                    skill improvement.
 ```
 
 ## Contaminated baseline attempt
@@ -142,6 +145,64 @@ production source. It contributes no promotion win, no "same" result, and no
 wrong-turn / cost comparison.
 
 The clean rerun must use the revised baseline card and the pinned-evidence rule.
+
+## Clean baseline rerun
+
+The repaired control completed cleanly at the pinned revision.
+
+The baseline did not read `docs/research/verified-skills/**`, commit metadata,
+commit diffs, issue / PR discussion, or default-branch search snippets as
+repository evidence. After the sealed task, repository claims were grounded only
+in files explicitly fetched at the pinned revision.
+
+Its conclusion independently matched the skill arm:
+
+```text
+semantic meaning:
+  KEEP
+
+physical topology:
+  ALREADY COMPRESSED
+
+new formal work:
+  NOT REQUIRED
+```
+
+It also found the same decisive distinction: identical Capacity movement content
+with a different effective coordinate can change a windowed / historical answer,
+while effective evidence alone cannot reconstruct movement Measure, coordinates,
+or signed quantities.
+
+The baseline reported no materially wrong analytical path. One non-material
+retrieval retry occurred when the sealed control task was requested at the pinned
+revision even though that task file did not yet exist there; the 404 exposed no
+repository evidence and the task was then read from the current sealed control
+input as intended.
+
+## Paired result
+
+```text
+Result: SAME
+```
+
+Both arms reached the same scoped boundary and selected existing evidence rather
+than inventing new formal work.
+
+The correspondence skill may have made the semantic-vs-physical split more
+explicit earlier, while the clean baseline inspected a broader set of ordinary
+repository surfaces before reaching the same answer. Because tool-call, token,
+and elapsed-work data are not comparable, that routing difference is not counted
+as a material improvement.
+
+Therefore Trial 02 contributes:
+
+- one clean paired trial;
+- zero promotion wins;
+- zero semantic regressions;
+- no skill mutation.
+
+This is evidence that the skill is at least non-disruptive on this task, not yet
+evidence that it improves agent performance.
 
 ## Baseline comparison fields
 
