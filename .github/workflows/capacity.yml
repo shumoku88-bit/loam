@@ -14,6 +14,7 @@ on:
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Core.lean'
       - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Tests/CapacityPublisher.lean'
       - 'Loam/Tests/NormalizedCapacityPersistence.lean'
@@ -40,6 +41,7 @@ on:
       - 'Loam/Core/CapacityMemory.lean'
       - 'Loam/Core.lean'
       - 'Loam/Persistence/NormalizedCapacityPersistence.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/CapacityCli.lean'
       - 'Loam/Tests/CapacityPublisher.lean'
       - 'Loam/Tests/NormalizedCapacityPersistence.lean'
@@ -86,7 +88,7 @@ jobs:
       - name: Build Capacity executable
         uses: ./.github/actions/lean-build
         with:
-          build-args: loamCapacity
+          build-args: loam
 
       - name: Exercise practical capacity entrance
         shell: bash
@@ -97,16 +99,16 @@ jobs:
           capacity="$tmpdir/capacity.loam"
           rejected="$tmpdir/rejected.log"
 
-          printf 'unallocated\nfood\n100\n' | .lake/build/bin/loamCapacity "$capacity"
-          printf 'food\ngroceries\n40\n' | .lake/build/bin/loamCapacity "$capacity"
+          printf 'unallocated\nfood\n100\n' | .lake/build/bin/loam capacity "$capacity"
+          printf 'food\ngroceries\n40\n' | .lake/build/bin/loam capacity "$capacity"
 
-          if printf 'food\ngroceries\n61\n' | .lake/build/bin/loamCapacity "$capacity" >"$rejected" 2>&1; then
+          if printf 'food\ngroceries\n61\n' | .lake/build/bin/loam capacity "$capacity" >"$rejected" 2>&1; then
             echo 'capacity entrance admitted a named-source overdraft' >&2
             exit 1
           fi
           grep -F 'insufficient current entitlement' "$rejected"
 
-          output="$(.lake/build/bin/loamCapacity show "$capacity")"
+          output="$(.lake/build/bin/loam capacity show "$capacity")"
           printf '%s\n' "$output"
           grep -F 'food: 60 jpy' <<<"$output"
           grep -F 'groceries: 40 jpy' <<<"$output"
@@ -118,23 +120,23 @@ jobs:
           grep -F $'LOAM-NORMALIZED-CAPACITY\t1' "$capacity"
           test ! -e "$capacity.effective"
 
-          window="$(.lake/build/bin/loamCapacity show-window "$capacity" 2026-01-01 2099-01-01)"
+          window="$(.lake/build/bin/loam capacity show-window "$capacity" 2026-01-01 2099-01-01)"
           printf '%s\n' "$window"
           grep -F 'food: 60 jpy' <<<"$window"
           grep -F 'groceries: 40 jpy' <<<"$window"
 
           usd_capacity="$tmpdir/capacity-usd.loam"
-          usd_recorded="$(printf 'unallocated\ntravel\n75\n' | LOAM_MEASURE=usd .lake/build/bin/loamCapacity "$usd_capacity")"
+          usd_recorded="$(printf 'unallocated\ntravel\n75\n' | LOAM_MEASURE=usd .lake/build/bin/loam capacity "$usd_capacity")"
           printf '%s\n' "$usd_recorded"
           grep -F '75 usd' <<<"$usd_recorded"
           ! grep -F ' jpy' <<<"$usd_recorded"
 
-          usd_output="$(LOAM_MEASURE=usd .lake/build/bin/loamCapacity show "$usd_capacity")"
+          usd_output="$(LOAM_MEASURE=usd .lake/build/bin/loam capacity show "$usd_capacity")"
           printf '%s\n' "$usd_output"
           grep -F 'travel: 75 usd' <<<"$usd_output"
           ! grep -F ' jpy' <<<"$usd_output"
 
-          usd_window="$(LOAM_MEASURE=usd .lake/build/bin/loamCapacity show-window "$usd_capacity" 2026-01-01 2099-01-01)"
+          usd_window="$(LOAM_MEASURE=usd .lake/build/bin/loam capacity show-window "$usd_capacity" 2026-01-01 2099-01-01)"
           printf '%s\n' "$usd_window"
           grep -F 'travel: 75 usd' <<<"$usd_window"
           ! grep -F ' jpy' <<<"$usd_window"

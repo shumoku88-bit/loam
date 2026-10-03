@@ -138,16 +138,16 @@ def main (args : List String) : IO Unit := do
     "pre-effective query did not retain unrouted"
 
   let cliManaged ← IO.Process.output {
-    cmd := ".lake/build/bin/loamScheduledRouting"
-    args := #[routingFile.toString, scheduledFile.toString, "2026-09-12", "scheduled-1", "groceries", "managed", "cli-food"]
+    cmd := ".lake/build/bin/loam"
+    args := #["scheduled-routing", routingFile.toString, scheduledFile.toString, "2026-09-12", "scheduled-1", "groceries", "managed", "cli-food"]
   }
   expect (cliManaged.exitCode == 0) s!"CLI managed route failed with code {cliManaged.exitCode}: {cliManaged.stderr}"
   expect (cliManaged.stdout.contains "Recorded Scheduled route: scheduled-1 / groceries @ 2026-09-12 = managed -> cli-food.")
     "CLI managed stdout mismatch"
 
   let cliUnmanaged ← IO.Process.output {
-    cmd := ".lake/build/bin/loamScheduledRouting"
-    args := #[routingFile.toString, scheduledFile.toString, "2026-09-12", "scheduled-1", "coffee", "unmanaged"]
+    cmd := ".lake/build/bin/loam"
+    args := #["scheduled-routing", routingFile.toString, scheduledFile.toString, "2026-09-12", "scheduled-1", "coffee", "unmanaged"]
   }
   expect (cliUnmanaged.exitCode == 0) s!"CLI unmanaged route failed with code {cliUnmanaged.exitCode}: {cliUnmanaged.stderr}"
   expect (cliUnmanaged.stdout.contains "Recorded Scheduled route: scheduled-1 / coffee @ 2026-09-12 = unmanaged.")

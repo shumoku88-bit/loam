@@ -32,15 +32,6 @@ lean_exe loamMovementProposal where
 lean_exe loamMovementProposalRecord where
   root := `Loam.Cli.MovementProposalRecordExecutable
 
-lean_exe loamCapacity where
-  root := `Loam.Cli.CapacityExecutable
-
-lean_exe loamActualRouting where
-  root := `Loam.Cli.ActualRoutingExecutable
-
-lean_exe loamScheduledRouting where
-  root := `Loam.Cli.ScheduledRoutingExecutable
-
 lean_exe loamScheduledSuppression where
   root := `Loam.Cli.ScheduledSuppressionCli
 
@@ -52,9 +43,6 @@ lean_exe loamShadowAudit where
 
 lean_exe loamShadowQuantity where
   root := `Loam.Cli.ShadowQuantityCli
-
-lean_exe loamDoctor where
-  root := `Loam.Cli.DoctorExecutable
 
 lean_exe loamHouseholdObservation where
   root := `Loam.Cli.HouseholdObservationCli

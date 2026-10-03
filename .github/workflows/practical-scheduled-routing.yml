@@ -9,6 +9,7 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
       - 'Loam/Publisher/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
@@ -28,6 +29,7 @@ on:
       - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/ScheduledRoutingCli.lean'
       - 'Loam/Publisher/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPersistence.lean'
@@ -52,7 +54,7 @@ jobs:
       - name: Build practical Scheduled routing utility and projection dependency
         uses: ./.github/actions/lean-build
         with:
-          build-args: loamScheduledRouting Loam.Application.ScheduledCommitmentInspection Loam.Publisher.ScheduledRoutingPublisher
+          build-args: loam Loam.Application.ScheduledCommitmentInspection Loam.Publisher.ScheduledRoutingPublisher
 
       - name: Run Scheduled routing package test group
         run: lake test -- scheduled-routing
@@ -86,7 +88,7 @@ jobs:
 
           printf 'LOAM-SCHEDULED-ROUTING\t1\n' >"$routing"
 
-          .lake/build/bin/loamScheduledRouting \
+          .lake/build/bin/loam scheduled-routing \
             "$routing" "$scheduled" 2026-09-06 scheduled-1 groceries managed food \
             >"$tmp/managed.out"
           grep -Fq 'Recorded Scheduled route: scheduled-1 / groceries @ 2026-09-06 = managed -> food.' \
@@ -94,17 +96,17 @@ jobs:
           grep -Fxq $'LOAM-SCHEDULED-ROUTING\t1' "$routing"
           grep -Fxq $'ROUTE\tscheduled-1\tgroceries\tFROM\t2026-09-06\tMANAGED\tfood' "$routing"
 
-          .lake/build/bin/loamScheduledRouting \
+          .lake/build/bin/loam scheduled-routing \
             "$routing" "$scheduled" 2026-09-07 scheduled-1 groceries unmanaged \
             >"$tmp/unmanaged.out"
           grep -Fxq $'ROUTE\tscheduled-1\tgroceries\tFROM\t2026-09-07\tUNMANAGED' "$routing"
 
           set +e
-          .lake/build/bin/loamScheduledRouting \
+          .lake/build/bin/loam scheduled-routing \
             "$routing" "$scheduled" 2026-09-07 scheduled-1 groceries managed food \
             >"$tmp/duplicate.out" 2>"$tmp/duplicate.err"
           duplicate_status=$?
-          .lake/build/bin/loamScheduledRouting \
+          .lake/build/bin/loam scheduled-routing \
             "$routing" "$scheduled" 2026-09-08 scheduled-1 unknown managed food \
             >"$tmp/unknown.out" 2>"$tmp/unknown.err"
           unknown_status=$?
