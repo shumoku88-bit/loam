@@ -91,5 +91,17 @@ Trial 03 is the first paired measurement for this skill:
 - skill mutation: **none**.
 
 The improvement was one avoided material ownership/topology backtrack, not a
-different final semantic answer. The skill remains Trialed until the broader
-promotion rule is satisfied.
+different final semantic answer.
+
+Trial 04 attempted a held-out sibling measurement, but the skill-arm session had
+prior inherited exposure to the baseline's decisive result. That pair is recorded
+as **UNSCORED** and contributes **0** promotion wins. Its source audit remains
+exploratory evidence only.
+
+Counted status remains:
+
+- promotion wins: **1**;
+- scored semantic regressions: **0**;
+- skill mutation: **none**.
+
+The skill remains Trialed until the broader promotion rule is satisfied.

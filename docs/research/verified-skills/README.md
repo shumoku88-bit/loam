@@ -97,18 +97,30 @@ The baseline must not receive the candidate skill text.
 
 ### Isolation rule
 
-For a paired trial, run the baseline in a fresh session / agent that has not read
-the candidate skill, and record the baseline before exposing the skill arm to the
-task. Do not ask one already-exposed agent to reconstruct how it "would have"
-worked without the skill.
+For a paired trial, seal the task and both arm prompts before either run starts.
 
-If isolation is lost, keep the run only as an exploratory Trialed record:
+Run baseline and skill arm in independent contexts that cannot see the other
+arm's result. A fresh chat name or nominally separate session is not sufficient
+if inherited conversation summaries, memory, prior-turn context, or another
+shared context surface can expose the other arm.
 
-- mark the baseline as contaminated / unavailable;
-- count no promotion win from that run;
-- do not use token, tool-call, or wrong-turn comparisons from it.
+Do not bring either result into a shared evaluator until both arms are complete.
+Do not ask one already-exposed agent to reconstruct how it "would have" worked
+without the missing information.
 
-This prevents skill text from leaking into the control condition.
+If either arm reports prior exposure to the other arm's decisive result, mark the
+pair **contaminated / unscored** even when repository claims are independently
+rechecked:
+
+- keep a clean arm as valid standalone audit evidence;
+- keep the contaminated arm only as exploratory evidence;
+- count no Better / Same / Worse result from the pair;
+- count no promotion win from the pair;
+- do not use token, tool-call, elapsed-work, or wrong-turn differences as causal
+  evidence for the skill.
+
+This prevents both candidate-skill leakage into the control condition and result
+leakage between otherwise separate arms.
 
 ### Pinned-evidence rule
 
@@ -186,7 +198,7 @@ Prefer deleting a bad instruction to accumulating exceptions.
 
 ## Current candidates
 
-- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; Trial 03 result BETTER; 1 promotion win.
+- [CurrentQuantityAnchor change audit](current-quantity-anchor.md) — Trialed; Trial 03 result BETTER; Trial 04 UNSCORED after skill-arm contamination; 1 promotion win.
 - [Scheduled transition audit](scheduled-transition.md)
 - [Correspondence boundary audit](correspondence-boundary.md)
 
@@ -197,7 +209,8 @@ Current trial records:
 
 - Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
 - [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins;
-- [Trial 03 — Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md): paired trial complete; result BETTER; 1 promotion win.
+- [Trial 03 — Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md): paired trial complete; result BETTER; 1 promotion win;
+- [Trial 04 — Exact anchor across later correction-root change](trials/04-stale-anchor-correction.md): clean baseline + contaminated skill arm; result UNSCORED; 0 promotion wins.
 
 ## Trial record template
 
