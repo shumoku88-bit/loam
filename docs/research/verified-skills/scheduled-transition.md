@@ -1,6 +1,6 @@
 # Skill: Scheduled transition audit
 
-Status: **Candidate**
+Status: **Trialed**
 
 ## Trigger
 
