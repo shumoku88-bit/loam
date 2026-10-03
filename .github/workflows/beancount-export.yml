@@ -5,6 +5,7 @@ on:
     paths:
       - 'Loam/Export/BeancountExport.lean'
       - 'Loam/Presentation/MeasurePresentation.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
@@ -22,6 +23,7 @@ on:
     paths:
       - 'Loam/Export/BeancountExport.lean'
       - 'Loam/Presentation/MeasurePresentation.lean'
+      - 'Loam/Cli.lean'
       - 'Loam/Cli/BeancountExportCli.lean'
       - 'Loam/Tests/BeancountExport.lean'
       - 'Loam/Tests/BeancountExportFixture.lean'
@@ -50,7 +52,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamBeancountExport Loam.Tests.BeancountExport Loam.Tests.JournalExport Loam.Tests.ActualJournalProjection Loam.Tests.BeancountExportFixture
+          build-args: loam Loam.Tests.BeancountExport Loam.Tests.JournalExport Loam.Tests.ActualJournalProjection Loam.Tests.BeancountExportFixture
           test: false
           lint: false
           use-mathlib-cache: false
@@ -71,7 +73,7 @@ jobs:
           root="$(mktemp -d)/beancount-export"
           echo "$root" > /tmp/loam-beancount-root
           lake env lean --run Loam/Tests/JournalExport.lean "$root"
-          ./.lake/build/bin/loamBeancountExport \
+          ./.lake/build/bin/loam export beancount \
             "$root/actual.loam" \
             "$root/accounting-role.loam" \
             "$root/actual.beancount"
@@ -92,7 +94,7 @@ jobs:
             exit 1
           fi
 
-          if ./.lake/build/bin/loamBeancountExport \
+          if ./.lake/build/bin/loam export beancount \
               "$root/actual.loam" \
               "$root/accounting-role.loam" \
               "$root/./actual.loam"; then
@@ -109,7 +111,7 @@ jobs:
           lake env lean --run Loam/Tests/BeancountExportFixture.lean "$partial_root"
 
           # Strict mode must fail-closed when any Locus is unresolved
-          if ./.lake/build/bin/loamBeancountExport \
+          if ./.lake/build/bin/loam export beancount \
               "$partial_root/actual.loam" \
               "$partial_root/accounting-role.loam" \
               "$partial_root/strict.beancount"; then
@@ -118,7 +120,7 @@ jobs:
           fi
 
           # Partial mode succeeds and writes both beancount view and report
-          ./.lake/build/bin/loamBeancountExport --partial \
+          ./.lake/build/bin/loam export beancount --partial \
             "$partial_root/actual.loam" \
             "$partial_root/accounting-role.loam" \
             "$partial_root/partial.beancount" \
@@ -143,7 +145,7 @@ jobs:
           grep -Fq 'event-unknown (2026-09-02): unknown_locus' "$partial_root/partial-report.txt"
 
           # Collision checks
-          if ./.lake/build/bin/loamBeancountExport --partial \
+          if ./.lake/build/bin/loam export beancount --partial \
               "$partial_root/actual.loam" \
               "$partial_root/accounting-role.loam" \
               "$partial_root/actual.loam" \
@@ -151,7 +153,7 @@ jobs:
             echo "Beancount partial export accepted output alias of Actual authority" >&2
             exit 1
           fi
-          if ./.lake/build/bin/loamBeancountExport --partial \
+          if ./.lake/build/bin/loam export beancount --partial \
               "$partial_root/actual.loam" \
               "$partial_root/accounting-role.loam" \
               "$partial_root/partial.beancount" \
@@ -159,7 +161,7 @@ jobs:
             echo "Beancount partial export accepted report alias of AccountingRole authority" >&2
             exit 1
           fi
-          if ./.lake/build/bin/loamBeancountExport --partial \
+          if ./.lake/build/bin/loam export beancount --partial \
               "$partial_root/actual.loam" \
               "$partial_root/accounting-role.loam" \
               "$partial_root/same.txt" \
@@ -177,7 +179,7 @@ jobs:
           lake env lean --run Loam/Tests/BeancountExportFixture.lean "$suspense_root"
 
           # Suspense mode succeeds and projects unresolved effects to Equity:Loam-Unresolved
-          ./.lake/build/bin/loamBeancountExport --suspense \
+          ./.lake/build/bin/loam export beancount --suspense \
             "$suspense_root/actual.loam" \
             "$suspense_root/accounting-role.loam" \
             "$suspense_root/suspense.beancount" \
@@ -197,7 +199,7 @@ jobs:
           grep -Fq "unknown_locus: 1 Effects" "$suspense_root/suspense-report.txt"
 
           # Collision checks
-          if ./.lake/build/bin/loamBeancountExport --suspense \
+          if ./.lake/build/bin/loam export beancount --suspense \
               "$suspense_root/actual.loam" \
               "$suspense_root/accounting-role.loam" \
               "$suspense_root/actual.loam" \
@@ -205,7 +207,7 @@ jobs:
             echo "Beancount suspense export accepted output alias of Actual authority" >&2
             exit 1
           fi
-          if ./.lake/build/bin/loamBeancountExport --suspense \
+          if ./.lake/build/bin/loam export beancount --suspense \
               "$suspense_root/actual.loam" \
               "$suspense_root/accounting-role.loam" \
               "$suspense_root/suspense.beancount" \
@@ -213,7 +215,7 @@ jobs:
             echo "Beancount suspense export accepted report alias of AccountingRole authority" >&2
             exit 1
           fi
-          if ./.lake/build/bin/loamBeancountExport --suspense \
+          if ./.lake/build/bin/loam export beancount --suspense \
               "$suspense_root/actual.loam" \
               "$suspense_root/accounting-role.loam" \
               "$suspense_root/same.txt" \
