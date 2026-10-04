@@ -1,4 +1,5 @@
 import Loam.Authority.HouseholdAuthority
+import Loam.HouseholdCommand
 import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
 import Loam.Persistence.NormalizedCapacityPersistence
@@ -63,9 +64,12 @@ def main (args : List String) : IO Unit := do
   let root := System.FilePath.mk rootPath
   let legacyRoot := root / "legacy"
   let imageRoot := root / "image"
+  let commandRoot := root / "command"
   IO.FS.createDirAll legacyRoot
   IO.FS.createDirAll imageRoot
+  IO.FS.createDirAll commandRoot
   installFutureOnly imageRoot
+  installFutureOnly commandRoot
 
   let legacyPath := legacyRoot / "capacity.loam"
   let imageLegacyPath := imageRoot / "capacity.loam"
@@ -176,8 +180,49 @@ def main (args : List String) : IO Unit := do
   expect (!(← imageLegacyPath.pathExists))
     "Household Capacity adapter created legacy capacity.loam"
 
+  -- Production cutover: high-level commands and household-root review must use
+  -- HouseholdImage even when a stale but valid legacy capacity.loam remains.
+  let staleLegacyPath := commandRoot / "capacity.loam"
+  let staleLegacy :=
+    "LOAM-NORMALIZED-CAPACITY\t1\n" ++
+    "MOVEMENT\tcapacity-99\t2026-09-01\tjpy\n" ++
+    "CHANGE\tUNALLOCATED\t-777\n" ++
+    "CHANGE\tPURPOSE\tlegacy-only\t777\n" ++
+    "ENDMOVEMENT\n"
+  IO.FS.writeFile staleLegacyPath staleLegacy
+  let staleBefore ← IO.FS.readFile staleLegacyPath
+
+  let commandId ← requireOk
+    (← Loam.HouseholdCommand.moveCapacity commandRoot grant)
+    "HouseholdCommand Capacity grant failed"
+  expect (commandId == ⟨"capacity-1"⟩)
+    "HouseholdCommand Capacity identity changed after cutover"
+  expect ((← IO.FS.readFile staleLegacyPath) == staleBefore)
+    "HouseholdCommand mutated frozen legacy capacity.loam"
+
+  let commandSnapshot ← requireOk
+    (← Loam.CapacityReview.loadSnapshotFromHouseholdRootForMeasure jpy commandRoot)
+    "production Capacity review failed after cutover"
+  expect (snapshotRows commandSnapshot == [("food", 5000)])
+    "production Capacity review consumed stale legacy evidence"
+
+  let commandCurrent ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? commandRoot)
+    "command HouseholdImage disappeared"
+  expect
+    (body? commandCurrent.image "Securities" ==
+      some "FUTURE\t1\nopaque\tunknown\n")
+    "production Capacity cutover changed unknown future evidence"
+  let commandPreviousWire ←
+    IO.FS.readFile (Loam.HouseholdAuthority.previousPath commandRoot)
+  let some commandPrevious :=
+      Loam.Persistence.HouseholdImage.decode? commandPreviousWire
+    | throw (IO.userError "command previous HouseholdImage did not decode")
+  expect (body? commandPrevious "Capacity" == none)
+    "command previous generation did not retain pre-Capacity state"
+
   IO.println
-    "Household Capacity adapter: legacy byte/id/read equivalence, missing-empty policy, balanced publication, previous-generation retention, refusal, and unknown preservation passed."
+    "Household Capacity adapter: legacy equivalence plus production command/read cutover, frozen-legacy isolation, previous-generation retention, refusal, and unknown preservation passed."
 
 end Loam.Tests.HouseholdCapacityAdapter
 
