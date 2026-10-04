@@ -75,7 +75,7 @@ private def loadBalanceRows
     | .ok snapshot => pure snapshot
 
   let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage root) with
+    match ← Loam.BalanceReview.loadHouseholdCoverage root with
     | .error message => return .error message
     | .ok coverage => pure coverage
 
