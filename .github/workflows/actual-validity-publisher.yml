@@ -22,6 +22,7 @@ on:
       - 'Loam/Tests/MovementOperationEvidence.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualAuthorityDetailed.lean'
+      - 'Loam/Tests/HouseholdActualAuthority.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - 'tests/TestDriver.lean'
       - 'tools/test-product'
@@ -52,6 +53,7 @@ on:
       - 'Loam/Tests/MovementOperationEvidence.lean'
       - 'Loam/Cli/EffectiveCli.lean'
       - 'Loam/Tests/ActualAuthorityDetailed.lean'
+      - 'Loam/Tests/HouseholdActualAuthority.lean'
       - 'Loam/Tests/ActualValidityPublisher.lean'
       - 'tests/TestDriver.lean'
       - 'tools/test-product'
@@ -75,6 +77,8 @@ jobs:
       - name: Install Lean and build shared publisher test dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Publisher.CorrectionPublisher Loam.Publisher.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed
+          build-args: Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Publisher.CorrectionPublisher Loam.Publisher.MovementPublisher Loam.Tests.ActualWorldFixture Loam.Tests.ActualAuthorityDetailed Loam.Tests.HouseholdActualAuthority
       - name: Run Actual validity package test group
         run: lake test -- actual-validity
+      - name: Qualify Household Actual authority adapter
+        run: lake env lean --run Loam/Tests/HouseholdActualAuthority.lean
