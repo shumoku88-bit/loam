@@ -1,4 +1,5 @@
 import Loam.Review.CycleSpendingPaceReview
+import Loam.Tests.ActualWorldFixture
 import Loam.Config.DailyPaceConfig
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
@@ -294,10 +295,18 @@ def main : IO Unit := do
   IO.FS.writeFile
     (root / "config" / "daily-pace.tsv")
     "wallet\tjpy\ncash\tjpy\n"
+  let zeroOriginBody ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? zeroOrigin)
+    "encode Daily Pace Household zero-origin coverage"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ZeroOrigin" zeroOriginBody
+    | throw (IO.userError "install Daily Pace Household zero-origin coverage")
   expect
     (← Loam.Persistence.saveZeroOriginCoverage?
-      (Loam.HouseholdPaths.zeroOriginCoverage root) zeroOrigin)
-    "save Daily Pace history zero-origin coverage"
+      (Loam.HouseholdPaths.zeroOriginCoverage root) ZeroOriginCoverage.empty)
+    "save Daily Pace stale legacy zero-origin coverage"
+  let frozenLegacyZero ←
+    IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)
   expect
     (← Loam.Persistence.saveCurrentQuantityAnchor?
       (Loam.HouseholdPaths.currentQuantityAnchor root) anchor)
@@ -320,6 +329,10 @@ def main : IO Unit := do
     | .ok points => pure points
   expect (loadedHistory == history)
     "canonical Daily Pace history loader diverged from the shared historical projection"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)) ==
+      frozenLegacyZero)
+    "Daily Pace history read changed frozen legacy zero-origin evidence"
 
   -- A retained Scheduled completion remains active when its Actual endpoint is
   -- later corrected. Correction changes current Event interpretation but does
