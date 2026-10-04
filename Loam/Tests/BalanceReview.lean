@@ -54,10 +54,18 @@ def main (args : List String) : IO Unit := do
   let actualRoot := root
   IO.FS.createDirAll (root / "config")
 
+  let validCoverageBody ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? validCoverage)
+    "encode Household zero-origin coverage"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ZeroOrigin" validCoverageBody
+    | throw (IO.userError "install Household zero-origin coverage")
   expect
     (← Loam.Persistence.saveZeroOriginCoverage?
-      (root / "zero-origin-coverage.loam") validCoverage)
-    "save zero-origin coverage"
+      (root / "zero-origin-coverage.loam") ZeroOriginCoverage.empty)
+    "save stale legacy zero-origin coverage"
+  let frozenLegacyCoverage ← IO.FS.readFile (root / "zero-origin-coverage.loam")
   IO.FS.writeFile (root / "config" / "balance-view.tsv")
     "wallet\tjpy\ncash\tjpy\nwallet\tjpy\n"
 
@@ -168,20 +176,26 @@ def main (args : List String) : IO Unit := do
   let missingCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!missingCoverage.isOk) "Event activity outside zero-origin coverage became known"
 
-  -- Duplicate coverage is malformed evidence, not a set-normalization hint.
-  IO.FS.writeFile (root / "zero-origin-coverage.loam")
-    "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\nCOORDINATE\twallet\tjpy\n"
+  -- Duplicate Household coverage is malformed evidence, not a
+  -- set-normalization hint. Frozen legacy coverage remains irrelevant.
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ZeroOrigin"
+      "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\nCOORDINATE\twallet\tjpy\n"
+    | throw (IO.userError "install duplicate Household zero-origin fixture")
   let duplicateCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
-  expect (!duplicateCoverage.isOk) "duplicate zero-origin coverage did not fail closed"
+  expect (!duplicateCoverage.isOk) "duplicate Household zero-origin coverage did not fail closed"
 
-  IO.FS.writeFile (root / "zero-origin-coverage.loam") "BROKEN\n"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ZeroOrigin" "BROKEN\n"
+    | throw (IO.userError "install malformed Household zero-origin fixture")
   let malformedCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
-  expect (!malformedCoverage.isOk) "malformed zero-origin coverage did not fail closed"
+  expect (!malformedCoverage.isOk) "malformed Household zero-origin coverage did not fail closed"
 
-  expect
-    (← Loam.Persistence.saveZeroOriginCoverage?
-      (root / "zero-origin-coverage.loam") validCoverage)
-    "restore zero-origin coverage"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ZeroOrigin" validCoverageBody
+    | throw (IO.userError "restore Household zero-origin coverage")
+  expect ((← IO.FS.readFile (root / "zero-origin-coverage.loam")) == frozenLegacyCoverage)
+    "production BalanceReview changed frozen legacy zero-origin evidence"
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "wallet\tjpy\n"
   IO.FS.writeFile (actualRoot / "actual.loam")
     "LOAM_ACTUAL_v1\nTX\tactual-2\t2026-09-08\treplaces:missing\n  wallet\t-10\tjpy\n  food\t10\tjpy\n"
