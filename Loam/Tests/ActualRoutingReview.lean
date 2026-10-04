@@ -58,14 +58,24 @@ def main (args : List String) : IO Unit := do
 
   publishWorld actualRoot ["coffee", "shipping", "cash", "yucho", "pension", "debt", "mystery"]
 
-  IO.FS.writeFile (dataDir / "accounting-role.loam")
+  let roleBody :=
+    "LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
+    "ROLE\tcoffee\tEXPENSE\n" ++
+    "ROLE\tshipping\tEXPENSE\n" ++
+    "ROLE\tcash\tASSET\n" ++
+    "ROLE\tyucho\tASSET\n" ++
+    "ROLE\tpension\tINCOME\n" ++
+    "ROLE\tdebt\tLIABILITY\n"
+  match ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      dataDir "AccountingRole" roleBody with
+  | .ok _ => pure ()
+  | .error message => throw (IO.userError message)
+
+  let staleLegacyRole := dataDir / "accounting-role.loam"
+  IO.FS.writeFile staleLegacyRole
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
-     "ROLE\tcoffee\tEXPENSE\n" ++
-     "ROLE\tshipping\tEXPENSE\n" ++
-     "ROLE\tcash\tASSET\n" ++
-     "ROLE\tyucho\tASSET\n" ++
-     "ROLE\tpension\tINCOME\n" ++
-     "ROLE\tdebt\tLIABILITY\n")
+     "ROLE\tcoffee\tASSET\n")
+  let staleLegacyRoleBefore ← IO.FS.readFile staleLegacyRole
 
   let actualRoutingBody :=
     "LOAM-ACTUAL-ROUTING\t1\n" ++
@@ -175,6 +185,8 @@ def main (args : List String) : IO Unit := do
     "Purpose candidates come from retained Capacity evidence"
   expect ((← IO.FS.readFile staleLegacyRouting) == staleLegacyBefore)
     "Actual routing review mutated frozen legacy evidence"
+  expect ((← IO.FS.readFile staleLegacyRole) == staleLegacyRoleBefore)
+    "Actual routing review mutated frozen legacy AccountingRole evidence"
 
   match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-02-29" with
   | .error _ => pure ()
