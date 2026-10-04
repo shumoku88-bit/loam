@@ -72,6 +72,7 @@ capacity_tests=(
 
 actual_routing_tests=(
   ActualRoutingPersistence
+  HouseholdActualRoutingAdapter
 )
 
 scheduled_routing_tests=(
@@ -342,6 +343,9 @@ for test_name in "${tests[@]}"; do
       ;;
     HouseholdScheduledRoutingAdapter)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-scheduled-routing-adapter"
+      ;;
+    HouseholdActualRoutingAdapter)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-actual-routing-adapter"
       ;;
     ScheduledTerminalPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-terminal-publisher"
