@@ -34,6 +34,7 @@ def main : IO Unit := do
   let actualA := wire "ev-a" 100
   let actualB := wire "ev-b" 200
   let actualC := wire "ev-c" 300
+  let actualD := wire "ev-d" 400
   let futureBody := "FUTURE\t1\nopaque\tkeep-me\n"
 
   let installed ←
@@ -99,20 +100,20 @@ def main : IO Unit := do
     ((← IO.FS.readFile (Loam.ActualAuthority.actualPath root)) == frozenLegacy)
     "Household Actual publication changed frozen standalone actual.loam"
 
-  let evidenceA ←
+  let evidenceD ←
     requireSome
-      (Loam.Persistence.decodeNormalizedActual? actualA)
-      "decode production root publication Actual A"
+      (Loam.Persistence.decodeNormalizedActual? actualD)
+      "decode production root publication Actual D"
   let _ ←
     requireOk
-      (← Loam.ActualAuthority.publishActual? root evidenceA)
+      (← Loam.ActualAuthority.publishActual? root evidenceD)
       "publish production Actual through root authority"
   let afterRootPublish ←
     requireOk
       (← Loam.ActualAuthority.loadImage? root)
       "reload production Actual after root publication"
   expect
-    ((afterRootPublish.currentEvents.findById? ⟨"ev-a"⟩).isSome)
+    ((afterRootPublish.currentEvents.findById? ⟨"ev-d"⟩).isSome)
     "production root publication did not update Household Actual"
   expect
     ((← IO.FS.readFile (Loam.ActualAuthority.actualPath root)) == frozenLegacy)
