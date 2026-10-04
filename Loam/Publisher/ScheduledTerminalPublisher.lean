@@ -276,7 +276,8 @@ private def publishHouseholdCompletionUnderActualOwnership
           root observed updatedLifecycle with
       | .ok _ => pure ()
       | .error message =>
-          return .error "loam: Scheduled completion lifecycle could not be published: " ++ message
+          return .error
+            ("loam: Scheduled completion lifecycle could not be published: " ++ message)
   | some _ => pure ()
   let updatedEvidence : ActualEvidence := {
     evidence with
@@ -329,7 +330,8 @@ private def publishHouseholdCancellationUnderActualOwnership
       root observed updatedLifecycle with
   | .ok _ => return .ok ()
   | .error message =>
-      return .error "loam: Scheduled retirement lifecycle could not be published: " ++ message
+      return .error
+        ("loam: Scheduled retirement lifecycle could not be published: " ++ message)
 
 /--
 Complete one production household Scheduled occurrence through HouseholdImage,
