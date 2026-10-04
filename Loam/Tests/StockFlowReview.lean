@@ -85,7 +85,7 @@ private def boundedIntegration : IO Unit := do
   }
 
   let root ← IO.FS.createTempDir
-  let .ok () ← Loam.ActualAuthority.publishActual? root actual
+  let .ok () ← Loam.Tests.ActualWorldFixture.publishActualEvidence? root actual
     | throw (IO.userError "publish bounded Stock-Flow Actual")
   IO.FS.createDirAll (root / "config")
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "cash\tjpy\n"
