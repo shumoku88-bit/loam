@@ -2,6 +2,8 @@ import Loam.Tests.ActualWorldFixture
 import Loam.Publisher.ScheduledCreationPublisher
 import Loam.Review.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Authority.ScheduledLifecycleAuthority
+import Loam.Authority.HouseholdAuthority
 
 import Lean.Elab.Tactic.Omega
 
@@ -33,6 +35,16 @@ private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some terminals := ScheduledTerminalMemory.ofTerminals? []
     | throw (IO.userError "empty terminal memory")
   return { scheduled, terminals }
+
+private def publishLifecycle
+    (root : System.FilePath)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage) : IO Unit := do
+  let some body := Loam.Persistence.encodeScheduledLifecycleImage? lifecycle
+    | throw (IO.userError "encode Household Scheduled lifecycle fixture")
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" body
+    | throw (IO.userError "publish Household Scheduled lifecycle fixture")
+  pure ()
 
 private def movementForMeasure
     (measure : MeasureId)
@@ -73,41 +85,39 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
   let root := dataDir
-  let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
     | throw (IO.userError "initialize Actual fixture")
 
-  expect (!(← scheduledFile.pathExists))
+  expect (!(← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root).isOk)
     "Scheduled fixture unexpectedly existed before authority initialization"
-  let missingAuthority ← Loam.ScheduledCreationPublisher.publishCreation
-    scheduledFile.toString root.toString
+  let missingAuthority ← Loam.ScheduledCreationPublisher.publishHousehold
+    root
     (draft "2026-09-10" "paypay" "rent" 1000)
   expect (!missingAuthority.isOk)
     "missing Scheduled lifecycle authority was interpreted as explicit empty"
 
   let lifecycle0 ← emptyLifecycle
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
-    "initialize explicit empty Scheduled lifecycle authority"
+  publishLifecycle root lifecycle0
 
-  let beforeUnapproved ← IO.FS.readFile scheduledFile
-  let unapproved ← Loam.ScheduledCreationPublisher.publishCreation
-    scheduledFile.toString root.toString
+  let beforeUnapproved ← IO.FS.readFile (Loam.HouseholdAuthority.path root)
+  let unapproved ← Loam.ScheduledCreationPublisher.publishHousehold
+    root
     (draft "2026-09-10" "paypay" "coffee" 1000)
   expect (!unapproved.isOk)
     "Scheduled creation admitted an Effect on a Locus outside current LocusAdmission"
-  expect ((← IO.FS.readFile scheduledFile) == beforeUnapproved)
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path root)) == beforeUnapproved)
     "refused unapproved-Locus Scheduled creation changed lifecycle authority"
 
-  let .ok first ← Loam.ScheduledCreationPublisher.publishCreation
-      scheduledFile.toString root.toString
+  let .ok first ← Loam.ScheduledCreationPublisher.publishHousehold
+      root
       (draft "2026-09-10" "paypay" "rent" 1000)
     | throw (IO.userError "publish first Scheduled creation")
   expect (first.token == "scheduled-1")
     "first Scheduled creation did not choose the first fresh identity"
 
-  let .ok afterFirst ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
+  let .ok afterFirst ← Loam.ScheduledReview.loadHouseholdEvidence root root
     | throw (IO.userError "reload Scheduled review after first creation")
   let .ok firstDayEvidence := Loam.ScheduledReview.dayEvidence afterFirst "2026-09-10"
     | throw (IO.userError "fresh Scheduled day evidence refused valid creation")
@@ -115,54 +125,53 @@ def main (args : List String) : IO Unit := do
   expect (hasScheduled firstDay first)
     "fresh Scheduled creation did not become current-open on its explicit date"
 
-  let invalid ← Loam.ScheduledCreationPublisher.publishCreation
-    scheduledFile.toString root.toString
+  let invalid ← Loam.ScheduledCreationPublisher.publishHousehold
+    root
     (draft "2026-02-29" "paypay" "food" 200)
   expect (!invalid.isOk) "impossible Scheduled date was admitted"
-  let some afterInvalid ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok afterInvalid ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload Scheduled lifecycle after invalid draft")
   expect (afterInvalid.scheduled.occurrences.length == 1)
     "refused Scheduled creation changed retained occurrence count"
 
-  let .ok second ← Loam.ScheduledCreationPublisher.publishCreation
-      scheduledFile.toString root.toString
+  let .ok second ← Loam.ScheduledCreationPublisher.publishHousehold
+      root
       (draft "2026-09-11" "smbc" "food" 300)
     | throw (IO.userError "publish second Scheduled creation")
   expect (second.token == "scheduled-2")
     "second Scheduled creation did not advance fresh identity"
   let usd : MeasureId := ⟨"usd"⟩
-  let .ok third ← Loam.ScheduledCreationPublisher.publishCreation
-      scheduledFile.toString root.toString
+  let .ok third ← Loam.ScheduledCreationPublisher.publishHousehold
+      root
       (draftForMeasure usd "2026-09-12" "paypay" "food" 450)
     | throw (IO.userError "publish USD Scheduled creation")
   expect (third.token == "scheduled-3")
     "USD Scheduled creation did not advance fresh identity"
-  let some afterUsd ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok afterUsd ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload lifecycle after USD creation")
   let some usdOccurrence := ScheduledMemory.findById? afterUsd.scheduled third
     | throw (IO.userError "USD Scheduled creation missing from lifecycle")
   expect (usdOccurrence.movement.measure == usd)
     "Scheduled creation rewrote a non-JPY movement as JPY"
 
-  let some current ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok current ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload lifecycle before orphan fixture")
   let orphan : ScheduledTerminal := { source := ⟨"scheduled-4"⟩, target := none }
   let some orphanMemory := ScheduledTerminalMemory.ofTerminals? [orphan]
     | throw (IO.userError "orphan terminal fixture")
   let brokenLifecycle := { current with terminals := orphanMemory }
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
-    "save orphan retirement inside complete lifecycle fixture"
+  publishLifecycle root brokenLifecycle
 
-  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
+  let brokenRead ← Loam.ScheduledReview.loadHouseholdEvidence root root
   expect (!brokenRead.isOk)
     "unknown retirement identity did not make Scheduled read fail closed"
 
-  let refused ← Loam.ScheduledCreationPublisher.publishCreation
-    scheduledFile.toString root.toString
+  let refused ← Loam.ScheduledCreationPublisher.publishHousehold
+    root
     (draft "2026-09-12" "paypay" "food" 400)
   expect (!refused.isOk)
     "Scheduled creation silently healed orphan lifecycle evidence by recycling its identity"
-  let some afterRefusal ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok afterRefusal ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload Scheduled lifecycle after lifecycle refusal")
   expect (afterRefusal.scheduled.occurrences.length == 3 &&
       (ScheduledMemory.findById? afterRefusal.scheduled ⟨"scheduled-4"⟩).isNone)
