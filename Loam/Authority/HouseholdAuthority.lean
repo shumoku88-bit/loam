@@ -23,11 +23,12 @@ set_option autoImplicit false
 /-!
 # Household generation authority
 
-This boundary owns only the physical authority mechanics for a future
+This boundary owns the physical authority mechanics for the installed
 `household.loam` generation.
 
-It does not yet select this file as production household truth. Existing
-thirteen-file readers and publishers remain authoritative until a later cutover.
+Production semantic families move here incrementally. A family is authoritative
+here only after its explicit read/write cutover; untouched families continue to
+use their legacy authorities until their own qualified cutover.
 
 The boundary centralizes the mechanics qualified by the HouseholdImage research:
 
@@ -50,6 +51,19 @@ def path (root : System.FilePath) : System.FilePath :=
 
 def previousPath (root : System.FilePath) : System.FilePath :=
   root / (fileName ++ ".prev")
+
+/--
+Run one cross-family operation under the same writer ownership used by
+HouseholdImage publication.
+
+This is exposed only for operations that must serialize a read-only admission
+check against HouseholdImage writers, such as Measure presentation scale
+changes. Semantic publishers should continue to use `publishObserved?`.
+-/
+def withOwnership {α : Type}
+    (root : System.FilePath)
+    (action : IO α) : IO α :=
+  Loam.WriterOwnership.withOwnership (path root) action
 
 private def stagePath (target : System.FilePath) : System.FilePath :=
   System.FilePath.mk (target.toString ++ ".loam-stage")
