@@ -1,9 +1,8 @@
 import Loam.HouseholdPaths
 import Loam.Publisher.AccountingRolePublisher
 import Loam.MovementWorldLoader
-import Loam.Publisher.CurrentQuantityAnchorPublisher
+import Loam.Authority.CurrentSupportAuthority
 import Loam.Persistence.AccountingRolePersistence
-import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 namespace Loam.AccountingRoleReview
@@ -25,16 +24,6 @@ only the canonical household evidence loading needed to ask that question. It
 does not create role history, infer roles, or add a second source of truth.
 -/
 
-private def loadCurrentAnchor
-    (dataDir : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  let anchorFile := Loam.CurrentQuantityAnchorPublisher.path dataDir
-  if ← anchorFile.pathExists then
-    match ← Loam.Persistence.loadCurrentQuantityAnchor? anchorFile with
-    | some anchor => return .ok anchor
-    | none => return .error "loam: current quantity anchor authority is malformed or unsupported"
-  else
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
-
 /--
 Load the current initial-role candidate set from canonical household evidence.
 The Actual source remains explicit so callers do not lose the existing selected
@@ -53,8 +42,8 @@ def loadInitialCandidates
   let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
     | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
   let anchor ←
-    match ← loadCurrentAnchor dataDir with
-    | .ok value => pure value
+    match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
+    | .ok observed => pure observed.snapshot.anchor
     | .error message => return .error message
   if !(← roleFile.pathExists) then
     return .error "loam: AccountingRole authority file is missing"
