@@ -2,31 +2,16 @@ import Loam.Authority.HouseholdAuthority
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Publisher.LocusAdmissionPublisher
 import Loam.Persistence.LocusAdmissionPersistence
+import Loam.Tests.Support
 
 namespace Loam.Tests.HouseholdLocusAdmissionAdapter
 
 open Loam.Core
 open Loam.Persistence.HouseholdImage
 
+open Loam.Tests.Support
+
 set_option autoImplicit false
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do
-    throw (IO.userError message)
-
-private def requireSome {α : Type}
-    (value : Option α)
-    (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw (IO.userError message)
-
-private def requireOk {α : Type}
-    (value : Except String α)
-    (message : String) : IO α :=
-  match value with
-  | .ok result => pure result
-  | .error detail => throw (IO.userError (message ++ ": " ++ detail))
 
 private def tokens (vocabulary : LocusAdmissionVocabulary) : List String :=
   vocabulary.approved.map LocusId.token
