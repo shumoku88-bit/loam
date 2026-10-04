@@ -249,10 +249,6 @@ def publishActual? (root : System.FilePath) (evidence : ActualEvidence) : IO (Ex
   | .ok _ => return .ok ()
   | .error message => return .error message
 
-/-- Initialize an empty Actual authority at an explicit file path. -/
-def initActualFile? (path : System.FilePath) : IO (Except String Unit) :=
-  publishActualFile? path ActualEvidence.empty
-
 /-- Run an IO action under exclusive writer ownership for an explicit actual file path. -/
 def withActualFileOwnership {α : Type} (path : System.FilePath) (action : IO α) : IO α :=
   Loam.WriterOwnership.withOwnership path action
