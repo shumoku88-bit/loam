@@ -1,5 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Publisher.CapacityPublisher
+import Loam.Authority.HouseholdAuthority
+import Loam.HouseholdCommand
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
 import Loam.Review.CycleBudgetReview
@@ -48,9 +50,15 @@ def main (args : List String) : IO Unit := do
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates? [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]) "zero-origin"
   expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero) "save zero"
 
-  let capacityFile := root / "capacity.loam"
-  IO.FS.writeFile capacityFile
+  let capacityFixture :=
     "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-08-14\tjpy\nCHANGE\tUNALLOCATED\t-17108\nCHANGE\tPURPOSE\t固定費予定\t17108\nENDMOVEMENT\n"
+  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
+    sections := [{ name := "Capacity", body := capacityFixture }]
+  }
+  let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
+    | throw (IO.userError "install TUI Cycle Grant Household Capacity")
+  expect (!(← (root / "capacity.loam").pathExists))
+    "TUI Cycle Grant fixture unexpectedly retained legacy Capacity"
   IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
@@ -103,7 +111,7 @@ def main (args : List String) : IO Unit := do
 
   -- Test 7, 8, 9, 10, 11: grant preset
   -- source = unallocated, destination = selected Purpose, effective = observedAt
-  let .ok capSnap0 ← Loam.CapacityReview.loadSnapshot capacityFile | throw (IO.userError "capSnap0")
+  let .ok capSnap0 ← Loam.CapacityReview.loadHouseholdSnapshot root | throw (IO.userError "capSnap0")
   let residual0 := match snap0.funding with | .ok f => some f.residualBeforeUnresolved | .error _ => none
   let grantEditor := Loam.Tui.CapacityTransfer.initialGrant capSnap0 observedAt row0 residual0
   expect (grantEditor.form.source == "unallocated") "Test 7: source prefill unallocated"
@@ -208,9 +216,11 @@ def main (args : List String) : IO Unit := do
   let some draftToPublish := stepPublish.publish | throw (IO.userError "publish draft missing")
   expect (draftToPublish.quanta == 3828) "publish quanta 3828"
 
-  let .ok movementId ← Loam.CapacityPublisher.publish capacityFile.toString draftToPublish
-    | throw (IO.userError "shared CapacityPublisher.publish failed")
+  let .ok movementId ← Loam.HouseholdCommand.moveCapacity root draftToPublish
+    | throw (IO.userError "Household Capacity publication failed")
   expect (movementId.token == "capacity-2") "fresh capacity identity allocated"
+  expect (!(← (root / "capacity.loam").pathExists))
+    "Cycle Grant production write recreated legacy capacity.loam"
 
   -- Invariants check:
   -- 17. Physical balances unchanged (movement authority untouched)
