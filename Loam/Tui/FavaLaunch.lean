@@ -153,11 +153,10 @@ def launch
     (outputFile : System.FilePath := defaultOutputPath)
     (reportFile : System.FilePath := defaultReportPath) : IO String := do
   let actualPath := Loam.HouseholdPaths.actual root
-  let rolePath := Loam.HouseholdPaths.accountingRole dataDir
-
   -- Protect against dirty reads or concurrent stage replacement
   let exportResult ← Loam.WriterOwnership.withOwnership actualPath do
-    Loam.BeancountExportPipeline.exportSuspense actualPath rolePath outputFile reportFile
+    Loam.BeancountExportPipeline.exportSuspenseHousehold
+      actualPath dataDir outputFile reportFile
 
   match exportResult with
   | .error message =>
