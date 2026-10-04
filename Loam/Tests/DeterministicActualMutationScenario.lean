@@ -134,7 +134,7 @@ private def prepareRoot (root : System.FilePath) : IO (List EventId) := do
   IO.FS.createDirAll root
 
   let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root ActualEvidence.empty)
+    (do publishInitialActual root ActualEvidence.empty; pure (.ok ()))
     "initialize empty Actual authority"
 
   let loci ← requireSome
@@ -146,7 +146,7 @@ private def prepareRoot (root : System.FilePath) : IO (List EventId) := do
     ])
     "deterministic mutation Locus vocabulary was not unique"
   let _ ← requireOk
-    (← Loam.LocusAdmissionAuthority.publishCurrent? root loci)
+    (do publishInitialLocusAdmission root loci; pure (.ok ()))
     "publish deterministic mutation Locus policy"
 
   let lifecycle ← emptyLifecycle
