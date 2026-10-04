@@ -290,10 +290,67 @@ authority topology changes underneath them.
 
 ### H3 — publication cost
 
-Measure complete-image publication with realistic and adversarial Actual sizes.
-The current normalized Actual encoder is already near-linear after E3.3, so the
-experiment must measure the current implementation rather than reuse the old
-pre-linearization result.
+**Executable benchmark added on the follow-up branch.**
+
+H3 does not repeat the old SQLite / Actual encoder benchmark. E3.3 already
+established that normalized Actual encoding is near-linear after the production
+encoder repair. The HouseholdImage question is narrower:
+
+> If only Attention changes, what extra cost comes from carrying a large,
+> unchanged Actual payload inside the same physical file?
+
+The benchmark uses synthetic canonical Actual histories at:
+
+~~~text
+1,000 Events
+10,000 Events
+100,000 Events
+~~~
+
+Fixture generation and initial canonical qualification happen outside the timed
+publication windows.
+
+Four costs are measured separately, each averaged over three runs after warmup:
+
+~~~text
+split_publish
+  current Attention-only sibling-stage publication
+
+whole_publish
+  replace only the Attention payload
+  encode the complete outer HouseholdImage
+  sibling-stage the complete image
+
+selective_reopen
+  read the complete HouseholdImage
+  decode outer framing
+  require exact intended generation
+  decode only the changed Attention section
+
+full_reopen
+  read the complete HouseholdImage
+  decode outer framing
+  re-admit all thirteen known semantic sections
+~~~
+
+The distinction between the last two paths is intentional. Whole-image storage
+does not logically require re-decoding a large unchanged Actual on every small
+publication if the writer starts from an already-admitted generation and proves
+unchanged payload preservation. Full re-admission is therefore measured as a
+conservative upper bound rather than silently baked into the design.
+
+The benchmark also reports complete HouseholdImage character count and the tiny
+Attention payload character count so write amplification is explicit.
+
+Interpretation rule:
+
+- if `whole_publish` itself becomes operationally expensive at household-like
+  scale, the single-image design is weakened;
+- if only `full_reopen` is expensive while selective reopen remains small,
+  the next question is whether unchanged-section preservation can be made a
+  qualified production invariant;
+- the 100,000-Event case is adversarial for household use and should not be
+  treated as a normal expected history size.
 
 ### H4 — failure boundary
 
