@@ -31,6 +31,7 @@ on:
       - 'Loam/Persistence/ZeroOriginCoveragePersistence.lean'
       - 'Loam/Authority/ZeroOriginCoverageAuthority.lean'
       - 'Loam/Authority/OpeningSupportAuthority.lean'
+      - 'Loam/Authority/CurrentSupportAuthority.lean'
       - 'Loam/Core/OpeningSupport.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
@@ -41,6 +42,7 @@ on:
       - 'Loam/Tests/CurrentBalanceReview.lean'
       - 'Loam/Tests/HouseholdZeroOriginCoverageAdapter.lean'
       - 'Loam/Tests/HouseholdOpeningSupportAdapter.lean'
+      - 'Loam/Tests/HouseholdCurrentSupportAuthority.lean'
       - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'Loam/Tests/OpeningPositionReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
@@ -85,6 +87,7 @@ on:
       - 'Loam/Persistence/ZeroOriginCoveragePersistence.lean'
       - 'Loam/Authority/ZeroOriginCoverageAuthority.lean'
       - 'Loam/Authority/OpeningSupportAuthority.lean'
+      - 'Loam/Authority/CurrentSupportAuthority.lean'
       - 'Loam/Core/OpeningSupport.lean'
       - 'Loam/Application/CorrectionFrontier.lean'
       - 'Loam/Application/ZeroOriginQuantity.lean'
@@ -95,6 +98,7 @@ on:
       - 'Loam/Tests/CurrentBalanceReview.lean'
       - 'Loam/Tests/HouseholdZeroOriginCoverageAdapter.lean'
       - 'Loam/Tests/HouseholdOpeningSupportAdapter.lean'
+      - 'Loam/Tests/HouseholdCurrentSupportAuthority.lean'
       - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'Loam/Tests/OpeningPositionReview.lean'
       - 'Loam/Tests/CurrentQuantityAnchor.lean'
@@ -128,7 +132,7 @@ jobs:
       - name: Build accounting projection basis
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Authority.OpeningSupportAuthority Loam.Review.RoleFlowReview Loam.Review.CurrentBalanceReview Loam.Review.HistoricalBalanceReview Loam.Review.OpeningPositionReview Loam.Review.RoleBalanceReview Loam.Review.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.Review.MultimeasureSpendReview Loam.Publisher.CurrentQuantityAnchorPublisher Loam.Application.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Tests.Support Loam.Cli
+          build-args: Loam.Authority.OpeningSupportAuthority Loam.Authority.CurrentSupportAuthority Loam.Review.RoleFlowReview Loam.Review.CurrentBalanceReview Loam.Review.HistoricalBalanceReview Loam.Review.OpeningPositionReview Loam.Review.RoleBalanceReview Loam.Review.RoleBalanceAnswerability Loam.Cli.ExplainCli Loam.Review.MultimeasureSpendReview Loam.Publisher.CurrentQuantityAnchorPublisher Loam.Application.CurrentQuantityPresence Loam.Persistence.CurrentQuantityPresencePersistence Loam.Tests.Support Loam.Cli
       - name: Check practical wrapper syntax
         run: bash -n tools/loam
       - name: Run package test driver
