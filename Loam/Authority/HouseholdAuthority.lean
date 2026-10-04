@@ -317,10 +317,9 @@ def restorePrevious?
     if !(← previous.pathExists) then
       return .error "loam: previous HouseholdImage generation is missing"
     let wire ← IO.FS.readFile previous
-    let generation ←
-      match decodeGeneration wire with
-      | .ok generation => pure generation
-      | .error message => return .error message
+    match decodeGeneration wire with
+    | .ok _ => pure ()
+    | .error message => return .error message
 
     if let some parent := current.parent then
       IO.FS.createDirAll parent
