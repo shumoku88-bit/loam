@@ -150,6 +150,7 @@ tui_representative_tests=(
 )
 
 application_tests=(
+  HouseholdAuthority
   HouseholdImagePersistence
   HouseholdPaths
   SparseMovementPublication
@@ -289,6 +290,9 @@ for test_name in "${tests[@]}"; do
       ;;
     AttentionPersistence)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/attention-administration"
+      ;;
+    HouseholdAuthority)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-authority"
       ;;
     EventMerchantPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/event-merchant-publisher"
