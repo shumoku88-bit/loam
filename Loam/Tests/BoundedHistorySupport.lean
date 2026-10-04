@@ -150,10 +150,24 @@ def main : IO Unit := do
     "publish stale legacy zero-origin authority"
   let frozenLegacyZero ←
     IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)
+  let emptyOpeningBody ← requireSome
+    (Loam.Persistence.encodeOpeningSupportMap? OpeningSupportMap.empty)
+    "encode empty Household opening-support authority"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "OpeningSupport" emptyOpeningBody
+    | throw (IO.userError "publish empty Household opening-support authority")
+  let staleLegacyOpening ← requireSome
+    (OpeningSupportMap.ofSupports? [{
+      coordinate := cash
+      openingEvent := ⟨"legacy-opening"⟩
+    }])
+    "stale legacy opening-support fixture"
   expect
     (← Loam.Persistence.saveOpeningSupportMap?
-      (Loam.HouseholdPaths.openingSupport root) OpeningSupportMap.empty)
-    "publish empty opening-support authority"
+      (Loam.HouseholdPaths.openingSupport root) staleLegacyOpening)
+    "publish stale legacy opening-support authority"
+  let frozenLegacyOpening ←
+    IO.FS.readFile (Loam.HouseholdPaths.openingSupport root)
 
   let .ok () ← Loam.BoundedHistorySupportPublisher.publish root draft
     | throw (IO.userError "publish bounded history support authority")
@@ -175,6 +189,10 @@ def main : IO Unit := do
     ((← IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)) ==
       frozenLegacyZero)
     "CurrentQuantityAnchor publisher changed frozen legacy zero-origin evidence"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.openingSupport root)) ==
+      frozenLegacyOpening)
+    "CurrentQuantityAnchor publisher changed frozen legacy opening-support evidence"
 
   expect
     (!(← Loam.CurrentQuantityAnchorPublisher.publish root.toString

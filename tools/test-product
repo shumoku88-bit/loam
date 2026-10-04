@@ -47,6 +47,7 @@ accounting_tests=(
   RoleFlowReview
   CurrentBalanceReview
   HouseholdZeroOriginCoverageAdapter
+  HouseholdOpeningSupportAdapter
   RoleBalanceReview
   RoleBalanceAnswerability
   HistoricalBalanceReview
@@ -290,6 +291,9 @@ for test_name in "${tests[@]}"; do
       ;;
     HouseholdZeroOriginCoverageAdapter)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-zero-origin-adapter"
+      ;;
+    HouseholdOpeningSupportAdapter)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-opening-support-adapter"
       ;;
     MovementProposal)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/movement-proposal"

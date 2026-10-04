@@ -2,11 +2,11 @@ import Loam.Authority.ActualAuthority
 import Loam.Core.BoundedHistorySupport
 import Loam.Application.CurrentQuantityAnchor
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.OpeningSupportAuthority
 import Loam.HouseholdPaths
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.CurrentQuantityPresencePersistence
-import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
 import Loam.Authority.ZeroOriginCoverageAuthority
 import Loam.Persistence.WriterOwnership
@@ -141,13 +141,8 @@ private def loadCoverage
   Loam.ZeroOriginCoverageAuthority.loadHouseholdRequired? root
 
 private def loadOpening
-    (root : System.FilePath) : IO (Except String OpeningSupportMap) := do
-  let openingPath := Loam.HouseholdPaths.openingSupport root
-  if !(← openingPath.pathExists) then
-    return .error "loam: opening-support authority is missing"
-  let some opening ← Loam.Persistence.loadOpeningSupportMap? openingPath
-    | return .error "loam: opening-support authority is malformed or unsupported"
-  return .ok opening
+    (root : System.FilePath) : IO (Except String OpeningSupportMap) :=
+  Loam.OpeningSupportAuthority.loadHouseholdRequired? root
 
 private def loadExistingAnchor
     (anchorPath : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do

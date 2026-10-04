@@ -3,10 +3,10 @@ import Loam.ActualDate
 import Loam.Review.BalanceReview
 import Loam.Core.BoundedHistorySupport
 import Loam.Application.CurrentQuantityAnchor
+import Loam.Authority.OpeningSupportAuthority
 import Loam.HouseholdPaths
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
-import Loam.Persistence.OpeningSupportPersistence
 
 namespace Loam.HistoricalBalanceReview
 
@@ -265,14 +265,6 @@ def projectStartOfDay
         return row
   return { startOfDay := startOfDay, rows := rows }
 
-private def loadOpening
-    (path : System.FilePath) : IO (Except String OpeningSupportMap) := do
-  if !(← path.pathExists) then
-    return .ok OpeningSupportMap.empty
-  let some evidence ← Loam.Persistence.loadOpeningSupportMap? path
-    | return .error "loam: malformed or unsupported opening support evidence"
-  return .ok evidence
-
 private def loadAnchor
     (path : System.FilePath) :
     IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
@@ -298,7 +290,7 @@ def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
     | .error message => return .error message
     | .ok evidence => pure evidence
   let opening ←
-    match ← loadOpening (Loam.HouseholdPaths.openingSupport dataDir) with
+    match ← Loam.OpeningSupportAuthority.loadHouseholdOrEmpty? dataDir with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let bounded ←
