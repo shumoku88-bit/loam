@@ -137,9 +137,7 @@ private def prepareRoot (root : System.FilePath) : IO Unit := do
   cleanupDir root
   IO.FS.createDirAll root
   let initial ← initialActual
-  let _ ← requireOk
-    (do publishInitialActual root initial; pure (.ok ()))
-    "settlement scenario initial Actual publication failed"
+  publishInitialActual root initial
   let _ ← requireOk
     (← Loam.HouseholdCommand.recordSettlementEvidence root seedBatch)
     "settlement scenario seed publication failed"
