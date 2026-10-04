@@ -194,8 +194,8 @@ def inheritScheduledRouting
     (predecessor created : Loam.Core.ScheduledId)
     (effectiveOn : String) :
     IO (Except String Loam.ScheduledContinuationRouting.Report) :=
-  Loam.ScheduledContinuationRouting.inherit
-    (Loam.HouseholdPaths.scheduledRouting root) (Loam.HouseholdPaths.scheduled root) predecessor created effectiveOn
+  Loam.ScheduledContinuationRouting.inheritHousehold
+    root (Loam.HouseholdPaths.scheduled root) predecessor created effectiveOn
 
 /-- Add one current-open household Attention item. -/
 def addAttention
@@ -237,8 +237,8 @@ def routeScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledRoutingPublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.ScheduledRoutingPublisher.publish
-    (Loam.HouseholdPaths.scheduledRouting root).toString (Loam.HouseholdPaths.scheduled root).toString draft
+  Loam.ScheduledRoutingPublisher.publishHousehold
+    root (Loam.HouseholdPaths.scheduled root).toString draft
 
 /-- Admit one new Locus for future publication. -/
 def admitLocus
