@@ -1,8 +1,7 @@
-import Loam.HouseholdPaths
 import Loam.Publisher.AccountingRolePublisher
 import Loam.MovementWorldLoader
 import Loam.Authority.CurrentSupportAuthority
-import Loam.Persistence.AccountingRolePersistence
+import Loam.Authority.AccountingRoleAuthority
 import Loam.Authority.ScheduledLifecycleAuthority
 
 namespace Loam.AccountingRoleReview
@@ -33,7 +32,6 @@ authorities under writer ownership.
 -/
 def loadInitialCandidates
     (dataDir actualRoot : System.FilePath) : IO (Except String (List LocusId)) := do
-  let roleFile := Loam.HouseholdPaths.accountingRole dataDir
   let world ←
     match ← Loam.MovementWorldLoader.loadSelectedWorld? actualRoot with
     | .ok world => pure world
@@ -46,10 +44,10 @@ def loadInitialCandidates
     match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
     | .ok observed => pure observed.snapshot.anchor
     | .error message => return .error message
-  if !(← roleFile.pathExists) then
-    return .error "loam: AccountingRole authority file is missing"
-  let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
-    | return .error "loam: AccountingRole authority is malformed or unsupported"
+  let roles ←
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok roles => pure roles
+    | .error message => return .error message
   return .ok <| Loam.AccountingRolePublisher.eligibleInitialLoci
     world.locusAdmission world.events lifecycle.scheduled anchor roles
 
