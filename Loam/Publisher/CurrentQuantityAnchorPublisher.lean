@@ -8,6 +8,7 @@ import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.CurrentQuantityPresencePersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
+import Loam.Authority.ZeroOriginCoverageAuthority
 import Loam.Persistence.WriterOwnership
 
 namespace Loam.CurrentQuantityAnchorPublisher
@@ -136,13 +137,8 @@ def refinePresenceForExact?
   return refined
 
 private def loadCoverage
-    (root : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
-  let coveragePath := Loam.HouseholdPaths.zeroOriginCoverage root
-  if !(← coveragePath.pathExists) then
-    return .error "loam: zero-origin coverage authority is missing"
-  let some coverage ← Loam.Persistence.loadZeroOriginCoverage? coveragePath
-    | return .error "loam: zero-origin coverage authority is malformed or unsupported"
-  return .ok coverage
+    (root : System.FilePath) : IO (Except String ZeroOriginCoverage) :=
+  Loam.ZeroOriginCoverageAuthority.loadHouseholdRequired? root
 
 private def loadOpening
     (root : System.FilePath) : IO (Except String OpeningSupportMap) := do
