@@ -1,5 +1,6 @@
 import Loam.HouseholdCommand
 import Loam.Authority.ScheduledLifecycleAuthority
+import Loam.Review.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.ActualWorldFixture
 
