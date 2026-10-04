@@ -198,11 +198,21 @@ def main (args : List String) : IO Unit := do
     ("LOAM-SCHEDULED-ROUTING\t1\n" ++
      "ROUTE\tscheduled-1\tfixed-expense\tFROM\t2026-09-08\tUNMANAGED\n")
 
+  let roleBody :=
+    "LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
+    "ROLE\tpaypay\tASSET\n" ++
+    "ROLE\texpenses:food\tEXPENSE\n" ++
+    "ROLE\tfixed-expense\tEXPENSE\n"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "AccountingRole" roleBody
+    | throw (IO.userError "install Household AccountingRole")
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
      "ROLE\tpaypay\tASSET\n" ++
-     "ROLE\texpenses:food\tEXPENSE\n" ++
-     "ROLE\tfixed-expense\tEXPENSE\n")
+     "ROLE\texpenses:food\tASSET\n" ++
+     "ROLE\tfixed-expense\tASSET\n")
+  let frozenLegacyRole ← IO.FS.readFile (root / "accounting-role.loam")
 
   let .ok snapshot ←
       Loam.CurrentCoverageReview.loadSnapshotAt
@@ -229,6 +239,8 @@ def main (args : List String) : IO Unit := do
     "baseline invented unrouted Actual Expense rows"
   expect (snapshot.actualRoutingFrontier.unresolvedRole.isEmpty)
     "baseline invented role-unresolved Actual rows"
+  expect ((← IO.FS.readFile (root / "accounting-role.loam")) == frozenLegacyRole)
+    "CurrentCoverage production read changed frozen legacy AccountingRole evidence"
 
   let .ok usdSnapshot ←
       Loam.CurrentCoverageReview.loadSnapshotAtForMeasure ⟨"usd"⟩
