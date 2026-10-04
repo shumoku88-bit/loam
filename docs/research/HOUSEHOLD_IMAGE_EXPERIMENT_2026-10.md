@@ -352,6 +352,62 @@ Interpretation rule:
 - the 100,000-Event case is adversarial for household use and should not be
   treated as a normal expected history size.
 
+
+#### H3 CI result
+
+Representative GitHub Actions measurements from the first passing H3 run:
+
+| Events | HouseholdImage chars | split Attention publish | whole-image publish | selective reopen | full semantic reopen |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 1,000 | 75,713 | 0.241 ms | 0.288 ms | 1.615 ms | 6.281 ms |
+| 10,000 | 750,714 | 0.222 ms | 0.578 ms | 14.117 ms | 63.447 ms |
+| 100,000 | 7,590,715 | 0.234 ms | 5.286 ms | 140.677 ms | 955.486 ms |
+
+The Attention payload itself is only 126 characters in all three cases.
+
+Absolute timings are runner-specific. The scale shape and decomposition are the
+useful evidence.
+
+The result separates three different effects that would otherwise be easy to
+conflate:
+
+1. **Physical whole-image rewrite is cheap in this experiment.** At the
+   adversarial 100,000-Event scale, replacing Attention and sibling-staging the
+   roughly 7.6-million-character image averaged about 5.3 ms.
+2. **Reading and parsing the whole outer image is visible but still modest at
+   ordinary scales.** Selective reopen was about 14 ms at 10,000 Events and
+   about 141 ms at 100,000 Events.
+3. **Re-decoding every unchanged semantic family is the expensive choice.**
+   Conservative full reopen reached about 955 ms at 100,000 Events, compared
+   with about 141 ms when unchanged section bytes were preserved and only the
+   changed Attention payload was semantically decoded.
+
+A conservative staged publication that combines whole-image rewrite with the
+selective verification path would therefore be roughly the sum of those two
+measured components on this runner:
+
+~~~text
+1,000 Events    ~1.9 ms
+10,000 Events  ~14.7 ms
+100,000 Events ~146.0 ms
+~~~
+
+This is not yet a production crash protocol, and simple addition of separately
+timed components is not a latency guarantee. It is sufficient to falsify the
+strong version of the write-amplification concern for this fixture: copying the
+large unchanged Actual payload is not the measured bottleneck.
+
+The result instead makes one future production invariant important:
+
+> A writer starting from an already-admitted HouseholdImage generation should
+> be able to prove all untouched section payloads were preserved exactly and
+> re-admit only the section whose semantics changed.
+
+If that invariant cannot be qualified safely, the full-reopen numbers become
+the relevant upper bound. H4 must therefore test the selective staged-validation
+story under interruption, malformed section, stale writer, and recovery rather
+than assuming it.
+
 ### H4 — failure boundary
 
 Compare:
