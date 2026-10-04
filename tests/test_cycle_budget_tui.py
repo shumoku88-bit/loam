@@ -31,23 +31,12 @@ subprocess.run(
     check=True,
 )
 sched_date = today + datetime.timedelta(days=5)
-(root / "scheduled.loam").write_text(f"""LOAM-SCHEDULED-LIFECYCLE\t1
-BEGIN\tScheduled
-LOAM-SCHEDULED-MEMORY\t1
-SCHEDULED\tscheduled-1\t{sched_date}\tjpy
-CHANGE\tcash\t-250
-CHANGE\twifi\t250
-END\tScheduled
-BEGIN\tCompletion
-LOAM-SCHEDULED-COMPLETION-MEMORY\t1
-END\tCompletion
-BEGIN\tRetirement
-LOAM-SCHEDULED-RETIREMENT-MEMORY\t1
-END\tRetirement
-BEGIN\tReplacement
-LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1
-END\tReplacement
-""")
+subprocess.run(
+    ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+     str(root), "set-scheduled", str(sched_date)],
+    cwd=repo_root,
+    check=True,
+)
 subprocess.run(
     ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
      str(root), "set-scheduled-routing", str(start)],
