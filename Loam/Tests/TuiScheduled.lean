@@ -124,7 +124,7 @@ def main : IO Unit := do
           contains "2026-09-07" paceTrendText &&
           contains "170 jpy/day  current" paceTrendText)
     "Daily Pace trend did not preserve the reconstructed current-truth series"
-  expect (contains "not stored as daily household state" paceTrendText)
+  expect (contains "no separate daily snapshot is kept" paceTrendText)
     "Daily Pace trend lost its reconstruction disclosure"
   let usd : MeasureId := ⟨"usd"⟩
   let .loaded basePace := snapshot.pace
