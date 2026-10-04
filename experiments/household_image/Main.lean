@@ -100,11 +100,11 @@ This boundary checks only outer framing. Inner semantic validity is checked
 separately through the existing production decoders.
 -/
 def decode? (input : String) : Option Sections := do
-  let prefix := householdImageHeader ++ "\n"
-  if !input.startsWith prefix then
+  let headerPrefix := householdImageHeader ++ "\n"
+  if !input.startsWith headerPrefix then
     none
   else
-    let rest0 := (input.drop prefix.length).toString
+    let rest0 := (input.drop headerPrefix.length).toString
     let (actual, rest1) ← takeSection? "Actual" rest0
     let (scheduled, rest2) ← takeSection? "Scheduled" rest1
     let (capacity, rest3) ← takeSection? "Capacity" rest2
