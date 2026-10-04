@@ -270,7 +270,7 @@ private def scheduledAnswer
     match ← Loam.ActualAuthority.loadImage? root with
     | .ok image => pure image
     | .error message => return .error message
-  let some scheduled :=
+  let some scheduled ←
       Loam.Persistence.loadScheduledLifecycleImage?
         (Loam.HouseholdPaths.scheduled root)
     | return .error "loam: dry-run H2 Scheduled lifecycle unavailable"
@@ -300,7 +300,9 @@ private def compareExceptBy {α : Type}
         .ok ()
       else
         .error ("loam: dry-run H2 Review mismatch: " ++ label)
-  | .error _, .error _ => .ok ()
+  | .error _, .error _ =>
+      .error
+        ("loam: dry-run H2 Review unavailable in both layouts: " ++ label)
   | .error _, .ok _ =>
       .error
         ("loam: dry-run H2 availability changed from refusal to answer: " ++ label)
@@ -438,8 +440,11 @@ def run
   if !(← legacyRoot.pathExists) then
     return .error
       ("loam: dry-run legacy root is missing: " ++ legacyRoot.toString)
-  if legacyRoot.toString == scratchRoot.toString then
-    return .error "loam: dry-run scratch root must differ from the legacy root"
+  let legacyText := legacyRoot.toString
+  let scratchText := scratchRoot.toString
+  if scratchText == legacyText || scratchText.startsWith (legacyText ++ "/") then
+    return .error
+      "loam: dry-run scratch root must be outside the legacy source tree"
   if ← scratchRoot.pathExists then
     return .error
       ("loam: dry-run scratch root already exists: " ++ scratchRoot.toString)
