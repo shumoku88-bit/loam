@@ -10,6 +10,8 @@ on:
       - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
       - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Authority/HouseholdAuthority.lean'
+      - 'Loam/Authority/ScheduledLifecycleAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/MovementAdmission.lean'
       - 'Loam/Application/MovementWorldAdapter.lean'
@@ -18,6 +20,7 @@ on:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Tests/HouseholdScheduledLifecycleAuthority.lean'
       - 'Loam/Tests/ScheduledCreationPublisher.lean'
       - 'Loam/Tests/ScheduledReplacementPublisher.lean'
       - 'Loam/Tests/ScheduledTerminalPublisher.lean'
@@ -38,6 +41,8 @@ on:
       - 'Loam/Publisher/ScheduledTerminalPublisher.lean'
       - 'Loam/Review/ScheduledReview.lean'
       - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Authority/HouseholdAuthority.lean'
+      - 'Loam/Authority/ScheduledLifecycleAuthority.lean'
       - 'Loam/Application/ScheduledInspection.lean'
       - 'Loam/Application/MovementAdmission.lean'
       - 'Loam/Application/MovementWorldAdapter.lean'
@@ -46,6 +51,7 @@ on:
       - 'Loam/Persistence/ScheduledLifecyclePersistence.lean'
       - 'Loam/Persistence/ScheduledPersistence.lean'
       - 'Loam/Tests/ScheduledLifecyclePersistence.lean'
+      - 'Loam/Tests/HouseholdScheduledLifecycleAuthority.lean'
       - 'Loam/Tests/ScheduledCreationPublisher.lean'
       - 'Loam/Tests/ScheduledReplacementPublisher.lean'
       - 'Loam/Tests/ScheduledTerminalPublisher.lean'
@@ -72,7 +78,7 @@ jobs:
       - name: Install Lean and build shared Scheduled lifecycle dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Persistence.ScheduledLifecyclePersistence Loam.Publisher.ScheduledCreationPublisher Loam.Publisher.ScheduledReplacementPublisher Loam.Publisher.ScheduledTerminalPublisher Loam.Review.ScheduledReview Loam.Review.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
+          build-args: Loam.Persistence.ScheduledLifecyclePersistence Loam.Authority.ScheduledLifecycleAuthority Loam.Publisher.ScheduledCreationPublisher Loam.Publisher.ScheduledReplacementPublisher Loam.Publisher.ScheduledTerminalPublisher Loam.Review.ScheduledReview Loam.Review.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
 
       - name: Run Scheduled lifecycle package test group
         run: lake test -- scheduled-lifecycle
