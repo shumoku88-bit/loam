@@ -2,6 +2,7 @@ import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.NormalizedCapacityPersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledRoutingPersistence
+import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 
 namespace Loam.Tests.TuiHouseholdCutoverFixture
@@ -124,6 +125,39 @@ private def installActualRouting
     "PTY Household Actual routing publication failed"
   pure ()
 
+private def installDynamicScheduled
+    (root : System.FilePath)
+    (scheduledOn : String) : IO Unit := do
+  let movement ← requireSome
+    (BalancedMovement.ofChanges? (⟨"jpy"⟩ : MeasureId)
+      [ { coordinate := (⟨"cash"⟩ : LocusId), quantity := Quantity.ofQuanta (-250) }
+      , { coordinate := (⟨"wifi"⟩ : LocusId), quantity := Quantity.ofQuanta 250 }
+      ])
+    "PTY Scheduled movement was not balanced"
+  let occurrence : ScheduledOccurrence String := {
+    id := ⟨"scheduled-1"⟩
+    scheduledOn := scheduledOn
+    movement := movement
+  }
+  let scheduled ← requireSome
+    (ScheduledMemory.ofOccurrences? [occurrence])
+    "PTY Scheduled memory was rejected"
+  let terminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals? [])
+    "PTY Scheduled terminal memory was rejected"
+  let body ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? { scheduled, terminals })
+    "PTY Scheduled lifecycle did not encode"
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "PTY HouseholdImage did not load"
+  let candidate ← replaceOrAppendBody generation.image "Scheduled" body
+  let _ ← requireOk
+    (← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["Scheduled"] candidate)
+    "PTY Household Scheduled publication failed"
+  pure ()
+
 private def installDynamicScheduledRouting
     (root : System.FilePath)
     (effectiveOn : String) : IO Unit := do
@@ -171,6 +205,8 @@ def main (args : List String) : IO Unit := do
   match args with
   | [rootText, "set-capacity", effectiveOn] =>
       installDynamicCapacity (System.FilePath.mk rootText) effectiveOn
+  | [rootText, "set-scheduled", scheduledOn] =>
+      installDynamicScheduled (System.FilePath.mk rootText) scheduledOn
   | [rootText, "set-scheduled-routing", effectiveOn] =>
       installDynamicScheduledRouting (System.FilePath.mk rootText) effectiveOn
   | [rootText, "set-actual-routing"] =>
@@ -189,7 +225,7 @@ def main (args : List String) : IO Unit := do
         (System.FilePath.mk rootText) "ActualRouting" "not-actual-routing\n"
   | _ =>
       throw (IO.userError
-        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT set-actual-routing | ROOT set-current-anchor LOCUS MEASURE QUANTITY | ROOT malform Capacity|Attention|ActualRouting")
+        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled SCHEDULED_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT set-actual-routing | ROOT set-current-anchor LOCUS MEASURE QUANTITY | ROOT malform Capacity|Attention|ActualRouting")
 
 end Loam.Tests.TuiHouseholdCutoverFixture
 
