@@ -72,6 +72,8 @@ def main (args : List String) : IO Unit := do
   let world ← movementWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? actualRoot world
     | throw (IO.userError "publish selected Movement world")
+  let validHouseholdWire ←
+    IO.FS.readFile (Loam.HouseholdAuthority.path root)
 
   -- Frozen pre-cutover Movement sidecars must not influence the production balance view.
   IO.FS.writeFile (root / "memory.loam") "THIS FROZEN SIDECAR MUST NOT BE READ\n"
@@ -177,23 +179,35 @@ def main (args : List String) : IO Unit := do
   expect (!missingCoverage.isOk) "Event activity outside zero-origin coverage became known"
 
   -- Duplicate Household coverage is malformed evidence, not a
-  -- set-normalization hint. Frozen legacy coverage remains irrelevant.
-  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
-      root "ZeroOrigin"
-      "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\nCOORDINATE\twallet\tjpy\n"
-    | throw (IO.userError "install duplicate Household zero-origin fixture")
+  -- set-normalization hint. Write malformed inner evidence directly because
+  -- the qualified Household publisher correctly refuses such a candidate.
+  let validHouseholdImage ← requireSome
+    (Loam.Persistence.HouseholdImage.decode? validHouseholdWire)
+    "decode valid Household fixture"
+  let duplicateHouseholdImage ← requireSome
+    (Loam.Persistence.HouseholdImage.replaceBody?
+      validHouseholdImage "ZeroOrigin"
+      "LOAM-ZERO-ORIGIN-COVERAGE\t1\nCOORDINATE\twallet\tjpy\nCOORDINATE\twallet\tjpy\n")
+    "construct duplicate Household zero-origin fixture"
+  let duplicateHouseholdWire ← requireSome
+    (Loam.Persistence.HouseholdImage.encode? duplicateHouseholdImage)
+    "encode duplicate Household zero-origin fixture"
+  IO.FS.writeFile (Loam.HouseholdAuthority.path root) duplicateHouseholdWire
   let duplicateCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!duplicateCoverage.isOk) "duplicate Household zero-origin coverage did not fail closed"
 
-  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
-      root "ZeroOrigin" "BROKEN\n"
-    | throw (IO.userError "install malformed Household zero-origin fixture")
+  let malformedHouseholdImage ← requireSome
+    (Loam.Persistence.HouseholdImage.replaceBody?
+      validHouseholdImage "ZeroOrigin" "BROKEN\n")
+    "construct malformed Household zero-origin fixture"
+  let malformedHouseholdWire ← requireSome
+    (Loam.Persistence.HouseholdImage.encode? malformedHouseholdImage)
+    "encode malformed Household zero-origin fixture"
+  IO.FS.writeFile (Loam.HouseholdAuthority.path root) malformedHouseholdWire
   let malformedCoverage ← Loam.BalanceReview.loadSnapshot root actualRoot
   expect (!malformedCoverage.isOk) "malformed Household zero-origin coverage did not fail closed"
 
-  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
-      root "ZeroOrigin" validCoverageBody
-    | throw (IO.userError "restore Household zero-origin coverage")
+  IO.FS.writeFile (Loam.HouseholdAuthority.path root) validHouseholdWire
   expect ((← IO.FS.readFile (root / "zero-origin-coverage.loam")) == frozenLegacyCoverage)
     "production BalanceReview changed frozen legacy zero-origin evidence"
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "wallet\tjpy\n"
