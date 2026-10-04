@@ -69,6 +69,10 @@ def main (args : List String) : IO Unit := do
       Loam.Tests.ActualWorldFixture.publishHouseholdSection?
         root "ScheduledRouting" "LOAM-SCHEDULED-ROUTING\t1\n"
     | throw (IO.userError "install CycleBudget Household Scheduled routing")
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ActualRouting" "LOAM-ACTUAL-ROUTING\t1\n"
+    | throw (IO.userError "install CycleBudget Household Actual routing")
   let capacityGeneration ←
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
@@ -77,7 +81,8 @@ def main (args : List String) : IO Unit := do
     "CycleBudget fixture unexpectedly retained legacy Capacity"
   expect (!(← (root / "scheduled-routing.loam").pathExists))
     "CycleBudget fixture unexpectedly retained legacy Scheduled routing"
-  IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
+  expect (!(← (root / "actual-routing.loam").pathExists))
+    "CycleBudget fixture unexpectedly retained legacy Actual routing"
   IO.FS.writeFile (root / "accounting-role.loam") "LOAM-ACCOUNTING-ROLE-MAP\t1\n"
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "scheduled"
   let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"

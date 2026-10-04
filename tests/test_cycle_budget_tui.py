@@ -59,6 +59,9 @@ subprocess.run(
 (root / "scheduled-routing.loam").write_text(f"""LOAM-SCHEDULED-ROUTING\t1
 ROUTE\tscheduled-1\twifi\tFROM\t{start}\tUNMANAGED
 """)
+(root / "actual-routing.loam").write_text("""LOAM-ACTUAL-ROUTING\t1
+ROUTE\twifi\tINITIAL\tMANAGED\tlegacy-only
+""")
 (root / "accounting-role.loam").write_text("""LOAM-ACCOUNTING-ROLE-MAP\t1
 ROLE\tcash\tASSET
 ROLE\twifi\tEXPENSE
@@ -244,11 +247,16 @@ try:
     expect_local_unavailability(b"b", "Balances")
     balance_view_path.write_bytes(balance_view)
 
-    routing_path = root / "actual-routing.loam"
-    routing = routing_path.read_bytes()
-    routing_path.write_text("not-routing-evidence\n")
+    household_path = root / "household.loam"
+    household = household_path.read_bytes()
+    subprocess.run(
+        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+         str(root), "malform", "ActualRouting"],
+        cwd=repo_root,
+        check=True,
+    )
     expect_local_unavailability(b"p", "Purpose routes")
-    routing_path.write_bytes(routing)
+    household_path.write_bytes(household)
 
     household_path = root / "household.loam"
     household = household_path.read_bytes()

@@ -2,6 +2,7 @@ import Loam.Authority.HouseholdAuthority
 import Loam.HouseholdPaths
 import Loam.Authority.ActualRoutingAuthority
 import Loam.Publisher.ActualRoutingPublisher
+import Loam.HouseholdCommand
 import Loam.Persistence.ActualRoutingPersistence
 
 namespace Loam.Tests.HouseholdActualRoutingAdapter
@@ -165,6 +166,26 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile imageLegacyRouting) == frozenLegacyBefore)
     "refused Household Actual route changed frozen legacy evidence"
 
+  -- Production cutover: the high-level household command must publish only to
+  -- HouseholdImage and leave the stale legacy routing file frozen.
+  let productionDraft : Loam.ActualRoutingPublisher.Draft := {
+    locus := groceries
+    effectiveOn := .dated "2026-10-02"
+    target := .managed ⟨"household"⟩
+  }
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.routeActual imageRoot productionDraft)
+    "HouseholdCommand Actual route failed"
+  let productionHistory ← requireOk
+    (← Loam.ActualRoutingAuthority.loadHouseholdRequired? imageRoot)
+    "production Household Actual routing did not load"
+  expect
+    (productionHistory.statusAt groceries (.dated "2026-10-02") ==
+      .managed ⟨"household"⟩)
+    "HouseholdCommand Actual route did not reach HouseholdImage"
+  expect ((← IO.FS.readFile imageLegacyRouting) == frozenLegacyBefore)
+    "HouseholdCommand mutated frozen legacy actual-routing.loam"
+
   -- Required reads preserve absence as absence, while the writer retains the
   -- existing first-write-from-empty behavior.
   let _ ← requireOk
@@ -218,7 +239,7 @@ def main (args : List String) : IO Unit := do
     "refused malformed Actual routing publication changed HouseholdImage"
 
   IO.println
-    "Household Actual routing adapter: absent-first-write equivalence, required-read absence, canonical byte/status equivalence, frozen-legacy isolation, previous-generation retention, refusal, malformed fail-closed, and unknown preservation passed."
+    "Household Actual routing adapter: absent-first-write equivalence plus production command cutover, required-read absence, canonical byte/status equivalence, frozen-legacy isolation, previous-generation retention, refusal, malformed fail-closed, and unknown preservation passed."
 
 end Loam.Tests.HouseholdActualRoutingAdapter
 

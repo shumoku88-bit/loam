@@ -120,8 +120,17 @@ def main (args : List String) : IO Unit := do
          effectiveOn := (RoutingEffective.initial : RoutingEffective String),
          purpose := some ⟨"food"⟩ }])
     "routing history"
-  expect (← Loam.Persistence.saveActualRoutingHistory? (root / "actual-routing.loam") routing)
-    "save routing"
+  let routingBody ← requireSome
+    (Loam.Persistence.encodeActualRoutingHistory? routing)
+    "encode Household Actual routing"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ActualRouting" routingBody
+    | throw (IO.userError "install Household Actual routing")
+  let staleLegacyRouting := root / "actual-routing.loam"
+  IO.FS.writeFile staleLegacyRouting
+    ("LOAM-ACTUAL-ROUTING\t1\n" ++
+     "ROUTE\texpenses:food\tINITIAL\tUNMANAGED\n")
+  let staleLegacyBefore ← IO.FS.readFile staleLegacyRouting
 
   let world ← movementWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? actualRoot world
@@ -144,6 +153,8 @@ def main (args : List String) : IO Unit := do
   expect (generalRow.entitlement.quanta == 50) "general entitlement"
   expect (generalRow.consumption.quanta == 0) "general consumption"
   expect (generalRow.remaining.quanta == 50) "general remaining"
+  expect ((← IO.FS.readFile staleLegacyRouting) == staleLegacyBefore)
+    "Budget Window mutated frozen legacy Actual routing evidence"
   expect (snapshot.measure == (⟨"jpy"⟩ : MeasureId))
     "compatibility Budget Window lost its JPY Measure"
   let .ok usdSnapshot ←

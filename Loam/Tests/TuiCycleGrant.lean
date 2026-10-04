@@ -59,7 +59,12 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "install TUI Cycle Grant Household Capacity")
   expect (!(← (root / "capacity.loam").pathExists))
     "TUI Cycle Grant fixture unexpectedly retained legacy Capacity"
-  IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ActualRouting" "LOAM-ACTUAL-ROUTING\t1\n"
+    | throw (IO.userError "install TUI Cycle Grant Household Actual routing")
+  expect (!(← (root / "actual-routing.loam").pathExists))
+    "TUI Cycle Grant fixture unexpectedly retained legacy Actual routing"
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
      "ROLE\tpaypay\tASSET\n" ++

@@ -2,6 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CapacityWindowInspection
 import Loam.Authority.CapacityAuthority
+import Loam.Authority.ActualRoutingAuthority
 import Loam.Review.CapacityReview
 import Loam.HouseholdPaths
 import Loam.Persistence.ActualRoutingPersistence
@@ -21,7 +22,7 @@ It consumes selected semantic authorities without exposing physical placement:
 
 - Event / ActualValidity / EventCorrection come through `ActualAuthority`;
 - Capacity / CapacityEffective come from HouseholdImage through `CapacityAuthority`;
-- ActualRouting remains its independent canonical stream.
+- ActualRouting comes from the required HouseholdImage section.
 
 The caller supplies `[start, end)` explicitly. This module does not choose a
 cycle, month, selected-day window, or retained Period identity. Remaining is
@@ -49,10 +50,6 @@ private structure Evidence where
   capacity : Loam.CapacityAuthority.Image
   actual : Loam.ActualAuthority.Image
   routing : Loam.Persistence.ActualRoutingHistory
-
-private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
-  if ← path.pathExists then return .ok ()
-  return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
 
 private def validateWindow (start end_ : String) : Except String Unit :=
   if !Loam.ActualDate.validIsoDate start || !Loam.ActualDate.validIsoDate end_ then
@@ -88,15 +85,10 @@ private def projectPurpose?
 
 private def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
-  let routingPath := Loam.HouseholdPaths.actualRouting dataDir
-
   let capacityImage ←
     match ← Loam.CapacityAuthority.loadHouseholdRequired dataDir with
     | .ok image => pure image
     | .error message => return .error message
-  match ← requireFile routingPath "Actual routing evidence" with
-  | .error message => return .error message
-  | .ok _ => pure ()
 
   let actualImage ←
     match ← Loam.ActualAuthority.loadImageFile?
@@ -104,9 +96,9 @@ private def loadEvidence
     | .ok image => pure image
     | .error message => return .error message
   let routing ←
-    match ← Loam.Persistence.loadActualRoutingHistory? routingPath with
-    | some history => pure history
-    | none => return .error "loam: malformed or unsupported Actual routing evidence"
+    match ← Loam.ActualRoutingAuthority.loadHouseholdRequired? dataDir with
+    | .ok history => pure history
+    | .error message => return .error message
 
   return .ok {
     capacity := capacityImage

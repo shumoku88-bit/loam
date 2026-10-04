@@ -230,7 +230,7 @@ def routeActual
     (root : System.FilePath)
     (draft : Loam.ActualRoutingPublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.ActualRoutingPublisher.publish (Loam.HouseholdPaths.actualRouting root).toString draft
+  Loam.ActualRoutingPublisher.publishHousehold root draft
 
 /-- Publish one Scheduled routing assertion. -/
 def routeScheduled

@@ -67,11 +67,24 @@ def main (args : List String) : IO Unit := do
      "ROLE\tpension\tINCOME\n" ++
      "ROLE\tdebt\tLIABILITY\n")
 
-  IO.FS.writeFile (dataDir / "actual-routing.loam")
+  let actualRoutingBody :=
+    "LOAM-ACTUAL-ROUTING\t1\n" ++
+    "ROUTE\tcoffee\tINITIAL\tMANAGED\tfood\n" ++
+    "ROUTE\tyucho\tINITIAL\tMANAGED\tsavings\n" ++
+    "ROUTE\told-expense\tINITIAL\tMANAGED\tfood\n"
+  match ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      dataDir "ActualRouting" actualRoutingBody with
+  | .ok _ => pure ()
+  | .error message => throw (IO.userError message)
+
+  -- Frozen rollback evidence may disagree with HouseholdImage. Production
+  -- review must ignore it.
+  let staleLegacyRouting := dataDir / "actual-routing.loam"
+  IO.FS.writeFile staleLegacyRouting
     ("LOAM-ACTUAL-ROUTING\t1\n" ++
-     "ROUTE\tcoffee\tINITIAL\tMANAGED\tfood\n" ++
-     "ROUTE\tyucho\tINITIAL\tMANAGED\tsavings\n" ++
-     "ROUTE\told-expense\tINITIAL\tMANAGED\tfood\n")
+     "ROUTE\tcoffee\tINITIAL\tUNMANAGED\n" ++
+     "ROUTE\tshipping\tINITIAL\tMANAGED\tlegacy-only\n")
+  let staleLegacyBefore ← IO.FS.readFile staleLegacyRouting
 
   let food : PurposeId := ⟨"food"⟩
   let general : PurposeId := ⟨"general"⟩
@@ -160,6 +173,8 @@ def main (args : List String) : IO Unit := do
     "historical route outside current admission stays separately visible"
   expect (snapshot.purposes.map (fun purpose => purpose.token) == ["food", "general", "savings"])
     "Purpose candidates come from retained Capacity evidence"
+  expect ((← IO.FS.readFile staleLegacyRouting) == staleLegacyBefore)
+    "Actual routing review mutated frozen legacy evidence"
 
   match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-02-29" with
   | .error _ => pure ()
