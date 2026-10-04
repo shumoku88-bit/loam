@@ -4,6 +4,7 @@ import Loam.Persistence.TextEscape
 import Loam.Core.ActualEvidence
 import Loam.Authority.ActualAuthority
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.Persistence.HouseholdImagePersistence
 import Loam.Application.MovementWorldAdapter
 import Loam.MovementWorldLoader
 import Loam.Application.PtaMigration
