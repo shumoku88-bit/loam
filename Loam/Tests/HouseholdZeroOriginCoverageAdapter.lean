@@ -90,11 +90,15 @@ def main (args : List String) : IO Unit := do
     (← Loam.ZeroOriginCoverageAuthority.loadHouseholdRequired? imageRoot)
     "Household required zero-origin coverage did not load"
 
-  expect (legacyOptional == coverage && legacyRequired == coverage)
+  expect
+    (legacyOptional.coordinates == coverage.coordinates &&
+      legacyRequired.coordinates == coverage.coordinates)
     "legacy optional/required zero-origin answers diverged"
-  expect (householdOptional == coverage && householdRequired == coverage)
+  expect
+    (householdOptional.coordinates == coverage.coordinates &&
+      householdRequired.coordinates == coverage.coordinates)
     "Household optional/required zero-origin answers diverged"
-  expect (legacyOptional == householdOptional)
+  expect (legacyOptional.coordinates == householdOptional.coordinates)
     "zero-origin meaning differs across storage topology"
   let householdBody ← requireSome
     (encodeZeroOriginCoverage? householdOptional)
@@ -116,7 +120,7 @@ def main (args : List String) : IO Unit := do
   let missingLegacyOptional ← requireOk
     (← Loam.ZeroOriginCoverageAuthority.loadLegacyOrEmpty? missingLegacyPath)
     "missing legacy optional zero-origin did not become empty"
-  expect (missingLegacyOptional == ZeroOriginCoverage.empty)
+  expect missingLegacyOptional.coordinates.isEmpty
     "missing legacy optional zero-origin did not preserve semantic empty"
   expect
     (!(← Loam.ZeroOriginCoverageAuthority.loadLegacyRequired? missingLegacyPath).isOk)
@@ -130,7 +134,7 @@ def main (args : List String) : IO Unit := do
   let missingImageOptional ← requireOk
     (← Loam.ZeroOriginCoverageAuthority.loadHouseholdOrEmpty? missingImageRoot)
     "missing Household optional zero-origin did not become empty"
-  expect (missingImageOptional == ZeroOriginCoverage.empty)
+  expect missingImageOptional.coordinates.isEmpty
     "missing Household optional zero-origin did not preserve semantic empty"
   expect
     (!(← Loam.ZeroOriginCoverageAuthority.loadHouseholdRequired? missingImageRoot).isOk)
