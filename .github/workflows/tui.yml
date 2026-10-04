@@ -149,6 +149,7 @@ on:
       - 'Loam/Tests/CycleBudgetReview.lean'
       - 'Loam/Tests/TuiCycleBudget.lean'
       - 'Loam/Tests/TuiCycleGrant.lean'
+      - 'Loam/Tests/TuiCycleGrant.lean'
       - 'Loam/Tests/TuiHouseholdCutoverFixture.lean'
       - 'Loam/Publisher/ScheduledRoutingPublisher.lean'
       - 'Loam/Tests/ScheduledRoutingPublisher.lean'
