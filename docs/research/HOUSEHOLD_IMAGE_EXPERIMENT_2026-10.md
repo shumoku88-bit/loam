@@ -1,6 +1,6 @@
 # Household image experiment — 2026-10
 
-Status: **research checkpoint — no production persistence change authorized**
+Status: **historical research checkpoint — experiment retired after HouseholdImage production cutover**
 
 Baseline:
 
@@ -21,7 +21,7 @@ This experiment asks a deliberately narrower question:
 > household image without merging their semantic types or changing their inner
 > wire formats?
 
-This is not yet a proposal to replace production persistence.
+This was an exploratory checkpoint. Production later adopted HouseholdImage; the isolated experiment code has now been retired while this research record is preserved.
 
 ## Hypothesis
 
