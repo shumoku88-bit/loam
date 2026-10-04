@@ -1,11 +1,10 @@
-import Loam.HouseholdPaths
 import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CurrentCoverageInspection
 import Loam.Authority.CapacityAuthority
 import Loam.Authority.ActualRoutingAuthority
 import Loam.Review.CapacityReview
-import Loam.Persistence.AccountingRolePersistence
+import Loam.Authority.AccountingRoleAuthority
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Authority.ScheduledRoutingAuthority
@@ -110,10 +109,6 @@ def Snapshot.rowFor?
     (snapshot : Snapshot) (purpose : PurposeId) : Option Row :=
   snapshot.rows.find? fun row => row.purpose == purpose
 
-private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
-  if ← path.pathExists then return .ok ()
-  return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
-
 private def projectPurposeFromImage?
     (measure : MeasureId)
     (capacity : Loam.CapacityAuthority.Image)
@@ -158,16 +153,10 @@ def loadSnapshotAtForMeasure
   if !(observedAt < endExclusive) then
     return .error "loam: current coverage horizon must be later than the observation date"
 
-  let accountingRolePath := Loam.HouseholdPaths.accountingRole dataDir
-
   let capacityImage ←
     match ← Loam.CapacityAuthority.loadHouseholdRequired dataDir with
     | .ok image => pure image
     | .error message => return .error message
-  match ← requireFile accountingRolePath "AccountingRole evidence" with
-  | .error message => return .error message
-  | .ok _ => pure ()
-
   let capacity := capacityImage.movements
   let path := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   let actualImage ←
@@ -187,9 +176,9 @@ def loadSnapshotAtForMeasure
     | .ok history => pure history
     | .error message => return .error message
   let roles ←
-    match ← Loam.Persistence.loadAccountingRoleMap? accountingRolePath with
-    | some roleMap => pure roleMap
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok roleMap => pure roleMap
+    | .error message => return .error message
 
   let actualUnrouted ←
     match unroutedActualRows?

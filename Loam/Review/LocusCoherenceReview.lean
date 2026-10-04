@@ -1,9 +1,8 @@
-import Loam.HouseholdPaths
 import Loam.Presentation.LocusCatalog
 import Loam.Authority.ActualAuthority
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.ActualRoutingAuthority
-import Loam.Persistence.AccountingRolePersistence
+import Loam.Authority.AccountingRoleAuthority
 import Loam.Persistence.ActualRoutingPersistence
 
 namespace Loam.LocusCoherenceReview
@@ -127,13 +126,10 @@ def loadSnapshot
     | .ok admission => pure admission
     | .error message => return .error message
 
-  let rolePath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolePath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
   let roles ←
-    match ← loadAccountingRoleMap? rolePath with
-    | some roles => pure roles
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok roles => pure roles
+    | .error message => return .error message
 
   let routing ←
     match ← Loam.ActualRoutingAuthority.loadHouseholdRequired? dataDir with

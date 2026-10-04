@@ -1,8 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualReview
-import Loam.HouseholdPaths
 import Loam.Review.TransactionsFlowReview
-import Loam.Persistence.AccountingRolePersistence
+import Loam.Authority.AccountingRoleAuthority
 
 namespace Loam.RoleFlowReview
 
@@ -86,13 +85,8 @@ def project
 
 /-- Load the explicit current AccountingRole relation used by role-aware reviews. -/
 def loadRoleMap
-    (dataDir : System.FilePath) : IO (Except String AccountingRoleMap) := do
-  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolesPath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
-  match ← loadAccountingRoleMap? rolesPath with
-  | some roles => return .ok roles
-  | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+    (dataDir : System.FilePath) : IO (Except String AccountingRoleMap) :=
+  Loam.AccountingRoleAuthority.loadHouseholdCurrent? dataDir
 
 /--
 Overlay AccountingRole authority on one already-computed Transactions-Flow result.
@@ -118,7 +112,7 @@ def loadSnapshotFromTransactionsFlowResult
 /--
 Load one role-aware flow answer from a caller-supplied admitted Actual image.
 
-The explicit AccountingRole authority remains independently loaded. The selected
+The Household AccountingRole authority is loaded independently. The selected
 window is projected from the same Actual generation already owned by the caller.
 -/
 def loadSnapshotFromActualImage
@@ -130,7 +124,7 @@ def loadSnapshotFromActualImage
       (Loam.ActualReview.recordsFromActualImage image) start endExclusive
 
 /--
-Load existing production flow evidence and the explicit AccountingRole authority,
+Load existing production flow evidence and Household AccountingRole authority,
 then compose them. Missing or malformed role evidence fails closed.
 -/
 def loadSnapshot

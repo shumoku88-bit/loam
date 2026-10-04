@@ -3,6 +3,9 @@ import Loam.MovementWorldLoader
 import Loam.Publisher.AccountingRolePublisher
 import Loam.Authority.CurrentSupportAuthority
 import Loam.Authority.ScheduledLifecycleAuthority
+import Loam.Authority.AccountingRoleAuthority
+import Loam.Authority.HouseholdAuthority
+import Loam.Persistence.HouseholdImagePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
@@ -90,6 +93,32 @@ def main (args : List String) : IO Unit := do
   let anchor ← anchorEvidence
   let emptyAnchor := Loam.CurrentQuantityAnchor.Evidence.empty
 
+  let missingRoleRoot := dataDir / "missing-role"
+  IO.FS.createDirAll missingRoleRoot
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? missingRoleRoot w
+    | throw (IO.userError "publish missing-role Household fixture")
+  expect (!(← Loam.AccountingRoleAuthority.loadHouseholdCurrent? missingRoleRoot).isOk)
+    "missing Household AccountingRole section was treated as empty"
+
+  let malformedRoleRoot := dataDir / "malformed-role"
+  IO.FS.createDirAll malformedRoleRoot
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? malformedRoleRoot w
+    | throw (IO.userError "publish malformed-role Household fixture")
+  let malformedGeneration ←
+    match ← Loam.HouseholdAuthority.loadCurrent? malformedRoleRoot with
+    | .ok generation => pure generation
+    | .error message => throw (IO.userError message)
+  let some malformedImage :=
+      Loam.Persistence.HouseholdImage.appendSection?
+        malformedGeneration.image
+        { name := "AccountingRole", body := "not-accounting-role-evidence\n" }
+    | throw (IO.userError "append malformed AccountingRole fixture")
+  let some malformedWire := Loam.Persistence.HouseholdImage.encode? malformedImage
+    | throw (IO.userError "encode malformed AccountingRole fixture")
+  IO.FS.writeFile (Loam.HouseholdAuthority.path malformedRoleRoot) malformedWire
+  expect (!(← Loam.AccountingRoleAuthority.loadHouseholdCurrent? malformedRoleRoot).isOk)
+    "malformed present Household AccountingRole section did not fail closed"
+
   let .ok proposed := Loam.AccountingRolePublisher.propose?
       w.locusAdmission w.events scheduled emptyAnchor roles
       { locus := ⟨"fresh"⟩, role := .expense }
@@ -146,8 +175,18 @@ def main (args : List String) : IO Unit := do
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
     "publish frozen legacy Scheduled lifecycle fixture"
   let frozenLegacyScheduled ← IO.FS.readFile scheduledFile
-  expect (← Loam.Persistence.saveAccountingRoleMap? roleFile roles)
-    "publish AccountingRole fixture"
+  let roleBody ←
+    match Loam.Persistence.encodeAccountingRoleMap? roles with
+    | some body => pure body
+    | none => throw (IO.userError "encode Household AccountingRole fixture")
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "AccountingRole" roleBody
+    | throw (IO.userError "publish Household AccountingRole fixture")
+
+  let staleObserved ←
+    match ← Loam.AccountingRoleAuthority.loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => throw (IO.userError message)
   let anchorBody ←
     match Loam.Persistence.encodeCurrentQuantityAnchor? anchor with
     | some body => pure body
@@ -155,6 +194,16 @@ def main (args : List String) : IO Unit := do
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
       root "CurrentQuantityAnchor" anchorBody
     | throw (IO.userError "publish Household current quantity anchor fixture")
+
+  expect (!(← Loam.AccountingRoleAuthority.publishObserved?
+      root staleObserved proposed).isOk)
+    "stale Household AccountingRole generation was accepted"
+  let afterStaleRefusal ←
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? root with
+    | .ok roles => pure roles
+    | .error message => throw (IO.userError message)
+  expect ((afterStaleRefusal.roleOf? ⟨"fresh"⟩).isNone)
+    "stale AccountingRole publication changed current Household evidence"
   let staleAnchor ←
     match Loam.CurrentQuantityAnchor.Evidence.ofLists? [] [{
       coordinate := ⟨⟨"legacy-only"⟩, ⟨"jpy"⟩⟩
@@ -169,26 +218,67 @@ def main (args : List String) : IO Unit := do
   let frozenLegacyAnchor ←
     IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)
 
+  let some staleLegacyRoles := AccountingRoleMap.ofAssignments?
+      (roles.assignments ++ [{ locus := ⟨"fresh"⟩, role := .income }])
+    | throw (IO.userError "stale legacy AccountingRole fixture")
+  expect (← Loam.Persistence.saveAccountingRoleMap? roleFile staleLegacyRoles)
+    "publish stale legacy AccountingRole fixture"
+  let frozenLegacyRole ← IO.FS.readFile roleFile
+
+  let generationWithRole ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => throw (IO.userError message)
+  let some withUnknown :=
+      Loam.Persistence.HouseholdImage.appendSection?
+        generationWithRole.image { name := "FutureEvidence", body := "opaque-future-section\n" }
+    | throw (IO.userError "append unknown Household section fixture")
+  let some withUnknownWire := Loam.Persistence.HouseholdImage.encode? withUnknown
+    | throw (IO.userError "encode unknown Household section fixture")
+  IO.FS.writeFile (Loam.HouseholdAuthority.path root) withUnknownWire
+
   let .ok () ← Loam.AccountingRolePublisher.publishInitialRoleHousehold
-      root roleFile.toString
-      { locus := ⟨"fresh"⟩, role := .expense }
+      root { locus := ⟨"fresh"⟩, role := .expense }
     | throw (IO.userError "publish virgin Locus AccountingRole")
 
-  let some loadedRoles ← Loam.Persistence.loadAccountingRoleMap? roleFile
-    | throw (IO.userError "reload AccountingRole authority")
+  let loadedRoles ←
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? root with
+    | .ok roles => pure roles
+    | .error message => throw (IO.userError message)
   expect (hasRole loadedRoles "fresh" .expense)
     "published AccountingRole was not retained"
+  expect ((← IO.FS.readFile roleFile) == frozenLegacyRole)
+    "production AccountingRole publication changed frozen legacy authority"
+  let currentGeneration ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => throw (IO.userError message)
+  expect
+    (Loam.Persistence.HouseholdImage.body?
+      currentGeneration.image "FutureEvidence" == some "opaque-future-section\n")
+    "AccountingRole publication did not preserve unknown Household section"
+
+  let previousWire ← IO.FS.readFile (Loam.HouseholdAuthority.previousPath root)
+  let some previousImage := Loam.Persistence.HouseholdImage.decode? previousWire
+    | throw (IO.userError "decode previous Household generation")
+  let some previousRoleBody :=
+      Loam.Persistence.HouseholdImage.body? previousImage "AccountingRole"
+    | throw (IO.userError "previous Household generation lost AccountingRole")
+  let some previousRoles := Loam.Persistence.decodeAccountingRoleMap? previousRoleBody
+    | throw (IO.userError "decode previous Household AccountingRole")
+  expect ((previousRoles.roleOf? ⟨"fresh"⟩).isNone)
+    ".prev did not retain the pre-publication AccountingRole generation"
   expect (!(← Loam.AccountingRolePublisher.publishInitialRoleHousehold
-      root roleFile.toString
-      { locus := ⟨"fresh"⟩, role := .income }).isOk)
+      root { locus := ⟨"fresh"⟩, role := .income }).isOk)
     "publisher allowed role replacement after first assignment"
   expect (!(← Loam.AccountingRolePublisher.publishInitialRoleHousehold
-      root roleFile.toString
-      { locus := ⟨"anchor-used"⟩, role := .expense }).isOk)
+      root { locus := ⟨"anchor-used"⟩, role := .expense }).isOk)
     "publisher classified retained current-anchor quantity retroactively"
 
-  let some rolesAfterAnchorRefusal ← Loam.Persistence.loadAccountingRoleMap? roleFile
-    | throw (IO.userError "reload AccountingRole authority after anchor refusal")
+  let rolesAfterAnchorRefusal ←
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? root with
+    | .ok roles => pure roles
+    | .error message => throw (IO.userError message)
   expect ((rolesAfterAnchorRefusal.roleOf? ⟨"anchor-used"⟩).isNone)
     "anchor-backed refusal changed AccountingRole authority"
   let currentSupportAfter ←

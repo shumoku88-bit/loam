@@ -97,7 +97,13 @@ def main (args : List String) : IO Unit := do
     "CycleBudget fixture unexpectedly retained legacy Scheduled routing"
   expect (!(← (root / "actual-routing.loam").pathExists))
     "CycleBudget fixture unexpectedly retained legacy Actual routing"
-  IO.FS.writeFile (root / "accounting-role.loam") "LOAM-ACCOUNTING-ROLE-MAP\t1\n"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "AccountingRole" "LOAM-ACCOUNTING-ROLE-MAP\t1\n"
+    | throw (IO.userError "install CycleBudget Household AccountingRole")
+  IO.FS.writeFile (root / "accounting-role.loam")
+    "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\tlegacy-only\tEXPENSE\n"
+  let frozenLegacyRole ← IO.FS.readFile (root / "accounting-role.loam")
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "scheduled"
   let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
   let lifecycle : Loam.Persistence.ScheduledLifecycleImage := { scheduled, terminals }
@@ -127,6 +133,8 @@ def main (args : List String) : IO Unit := do
     ((← IO.FS.readFile (root / "current-quantity-anchor.loam")) ==
       frozenLegacyAnchor)
     "CycleBudget production read changed frozen legacy current-anchor evidence"
+  expect ((← IO.FS.readFile (root / "accounting-role.loam")) == frozenLegacyRole)
+    "CycleBudget production read changed frozen legacy AccountingRole evidence"
   expect (summary.budgetableBacking.quanta == 0 && summary.remainingAssigned.quanta == 100 &&
     summary.residualBeforeUnresolved.quanta == -100) "shared projection changed"
   IO.FS.writeFile fundingPath "cash\tusd\n"

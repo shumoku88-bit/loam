@@ -1,7 +1,6 @@
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualReview
-import Loam.HouseholdPaths
-import Loam.Persistence.AccountingRolePersistence
+import Loam.Authority.AccountingRoleAuthority
 import Loam.Review.TransactionsFlowReview
 
 namespace Loam.MerchantExpenseReview
@@ -193,7 +192,7 @@ Load one normalized Actual generation and current AccountingRole authority, then
 compose the existing correction/date window projection with Merchant evidence.
 
 Actual is decoded once so Event selection and Merchant disposition come from the
-same retained generation. AccountingRole remains its independent authority.
+same retained generation. AccountingRole comes from the production HouseholdImage.
 -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath)
@@ -214,13 +213,10 @@ def loadSnapshot
     | .ok value => pure value
     | .error message => return .error message
 
-  let rolePath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolePath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
   let roles ←
-    match ← Loam.Persistence.loadAccountingRoleMap? rolePath with
-    | some value => pure value
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok value => pure value
+    | .error message => return .error message
 
   return .ok (project flow evidence.merchants roles party measure)
 
