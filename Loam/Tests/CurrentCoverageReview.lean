@@ -170,9 +170,16 @@ def main (args : List String) : IO Unit := do
          effectiveOn := "2026-09-08"
          purpose := some ⟨"food"⟩ }])
     "Scheduled routing history"
-  expect (← Loam.Persistence.saveScheduledRoutingHistory?
-      (root / "scheduled-routing.loam") scheduledRouting)
-    "save Scheduled routing"
+  let scheduledRoutingBody ← requireSome
+    (Loam.Persistence.encodeScheduledRoutingHistory? scheduledRouting)
+    "encode Household Scheduled routing"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ScheduledRouting" scheduledRoutingBody
+    | throw (IO.userError "install Household Scheduled routing")
+  IO.FS.writeFile (root / "scheduled-routing.loam")
+    ("LOAM-SCHEDULED-ROUTING\t1\n" ++
+     "ROUTE\tscheduled-1\tfixed-expense\tFROM\t2026-09-08\tUNMANAGED\n")
 
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
