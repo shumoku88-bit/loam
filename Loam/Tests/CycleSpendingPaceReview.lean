@@ -327,11 +327,20 @@ def main : IO Unit := do
     (← Loam.Persistence.saveBoundedHistorySupport?
       (Loam.HouseholdPaths.boundedHistorySupport root) bounded)
     "save Daily Pace history bounded support"
+  let historyLifecycle : Loam.Persistence.ScheduledLifecycleImage := {
+    scheduled := historyScheduledMemory
+    terminals := historyTerminals
+  }
+  let historyScheduledBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? historyLifecycle)
+    "encode Daily Pace Household Scheduled lifecycle"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" historyScheduledBody
+    | throw (IO.userError "install Daily Pace Household Scheduled lifecycle")
   expect
     (← Loam.Persistence.saveScheduledLifecycleImage?
-      (Loam.HouseholdPaths.scheduled root)
-      { scheduled := historyScheduledMemory, terminals := historyTerminals })
-    "save Daily Pace history Scheduled lifecycle"
+      (Loam.HouseholdPaths.scheduled root) historyLifecycle)
+    "save Daily Pace frozen legacy Scheduled lifecycle"
 
   let loadedHistory ←
     match ← Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt
