@@ -353,6 +353,7 @@ jobs:
         run: |
           set -euo pipefail
           lake test -- tui-representative
+          lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
           lake env lean --run tests/test_date_jump.lean
 
       - name: Verify Cycle Budget and Scheduled startup PTY interactions
