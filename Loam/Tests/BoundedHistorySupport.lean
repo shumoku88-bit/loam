@@ -128,7 +128,7 @@ def main : IO Unit := do
 
   -- Exercise the real authority files and shared writer ownership.
   let root ← IO.FS.createTempDir
-  let .ok () ← Loam.ActualAuthority.publishActual? root Loam.ActualEvidence.empty
+  let .ok () ← Loam.Tests.ActualWorldFixture.publishActualEvidence? root Loam.ActualEvidence.empty
     | throw (IO.userError "publish empty Actual authority")
   let .ok () ← Loam.LocusAdmissionAuthority.publishCurrent? root admission
     | throw (IO.userError "publish Locus admission authority")
