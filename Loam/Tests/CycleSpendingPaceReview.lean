@@ -301,6 +301,18 @@ def main : IO Unit := do
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
       root "ZeroOrigin" zeroOriginBody
     | throw (IO.userError "install Daily Pace Household zero-origin coverage")
+  let anchorBody ← requireSome
+    (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
+    "encode Daily Pace Household current quantity anchor"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "CurrentQuantityAnchor" anchorBody
+    | throw (IO.userError "install Daily Pace Household current quantity anchor")
+  let boundedBody ← requireSome
+    (Loam.Persistence.encodeBoundedHistorySupport? bounded)
+    "encode Daily Pace Household bounded history support"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "BoundedHistorySupport" boundedBody
+    | throw (IO.userError "install Daily Pace Household bounded history support")
   expect
     (← Loam.Persistence.saveZeroOriginCoverage?
       (Loam.HouseholdPaths.zeroOriginCoverage root) ZeroOriginCoverage.empty)
