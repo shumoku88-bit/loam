@@ -214,7 +214,7 @@ def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
   let coverage ←
-    match ← Loam.BalanceReview.loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+    match ← Loam.BalanceReview.loadHouseholdCoverage dataDir with
     | .error message => return .error message
     | .ok coverage => pure coverage
   let openingSupport ←
