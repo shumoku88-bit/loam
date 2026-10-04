@@ -44,6 +44,11 @@ def main (args : List String) : IO Unit := do
       malformedLegacyRoot, malformedImageRoot] do
     IO.FS.createDirAll root
 
+  expect (Loam.HouseholdAuthority.knownSectionNames.contains "ZeroOrigin")
+    "HouseholdAuthority lost canonical ZeroOrigin section name"
+  expect (!(Loam.HouseholdAuthority.knownSectionNames.contains "ZeroOriginCoverage"))
+    "noncanonical ZeroOriginCoverage section name became known"
+
   let wallet : EffectCoordinate := ⟨⟨"wallet"⟩, ⟨"jpy"⟩⟩
   let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
   let coverage ← requireSome
@@ -59,7 +64,7 @@ def main (args : List String) : IO Unit := do
 
   let image : Image := {
     sections := [
-      { name := "ZeroOriginCoverage", body := body },
+      { name := "ZeroOrigin", body := body },
       { name := "FutureEvidence", body := "FUTURE\t1\nopaque\n" }
     ]
   }
@@ -155,7 +160,7 @@ def main (args : List String) : IO Unit := do
 
   let malformedWire ← requireSome
     (Loam.Persistence.HouseholdImage.encode? {
-      sections := [{ name := "ZeroOriginCoverage", body := "not-zero-origin\n" }]
+      sections := [{ name := "ZeroOrigin", body := "not-zero-origin\n" }]
     })
     "malformed-inner HouseholdImage did not outer-encode"
   IO.FS.writeFile (Loam.HouseholdAuthority.path malformedImageRoot) malformedWire
