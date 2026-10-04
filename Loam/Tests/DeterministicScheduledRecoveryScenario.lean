@@ -168,14 +168,10 @@ private def prepareRoot
   cleanupDir root
   IO.FS.createDirAll root
 
-  let _ ← requireOk
-    (do publishInitialActual root ActualEvidence.empty; pure (.ok ()))
-    "initialize empty Actual authority"
+  publishInitialActual root ActualEvidence.empty
 
   let loci ← approvedLoci
-  let _ ← requireOk
-    (do publishInitialLocusAdmission root loci; pure (.ok ()))
-    "publish Scheduled recovery Locus policy"
+  publishInitialLocusAdmission root loci
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
   let s2 ← occurrence "scheduled-2" "2026-09-10" "paypay" "food" 200
