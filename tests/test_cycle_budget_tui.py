@@ -25,8 +25,8 @@ end = today + datetime.timedelta(days=37)
 # helper rather than reimplementing the outer wire framing in Python.
 repo_root = Path(__file__).resolve().parents[1]
 subprocess.run(
-    ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCapacityFixture.lean",
-     str(root), "set", str(start)],
+    ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+     str(root), "set-capacity", str(start)],
     cwd=repo_root,
     check=True,
 )
@@ -221,10 +221,16 @@ try:
     # Independent malformed workspace evidence stays fail-closed, but no longer
     # terminates the whole TUI. Restore every fixture after observing refusal so
     # this remains a navigation/read test with no canonical mutation.
-    attention_path = root / "attention.loam"
-    attention_path.write_text("not-attention-evidence\n")
+    household_path = root / "household.loam"
+    household = household_path.read_bytes()
+    subprocess.run(
+        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+         str(root), "malform", "Attention"],
+        cwd=repo_root,
+        check=True,
+    )
     expect_local_unavailability(b"i", "Attention")
-    attention_path.unlink()
+    household_path.write_bytes(household)
 
     balance_view_path.write_text("bad row\n")
     expect_local_unavailability(b"b", "Balances")
@@ -239,8 +245,8 @@ try:
     household_path = root / "household.loam"
     household = household_path.read_bytes()
     subprocess.run(
-        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCapacityFixture.lean",
-         str(root), "malform"],
+        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+         str(root), "malform", "Capacity"],
         cwd=repo_root,
         check=True,
     )
