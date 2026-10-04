@@ -105,19 +105,35 @@ private def boundedIntegration : IO Unit := do
       roots
       [{ coordinate := cash, quantity := Quantity.ofQuanta 90 }])
     "bounded Stock-Flow current anchor"
+  let anchorBody ← requireSome
+    (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
+    "encode bounded Stock-Flow Household current anchor"
+  let .ok () ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "CurrentQuantityAnchor" anchorBody
+    | throw (IO.userError "publish bounded Stock-Flow Household current anchor")
   expect
     (← Loam.Persistence.saveCurrentQuantityAnchor?
       (Loam.HouseholdPaths.currentQuantityAnchor root) anchor)
-    "save bounded Stock-Flow current anchor"
+    "save bounded Stock-Flow frozen legacy current anchor"
+  let frozenLegacyAnchor ←
+    IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)
 
   let bounded ← requireSome
     (Loam.BoundedHistorySupport.Evidence.ofSupports?
       [{ coordinate := cash, startDay := "2026-06-01" }])
     "bounded Stock-Flow support"
+  let boundedBody ← requireSome
+    (Loam.Persistence.encodeBoundedHistorySupport? bounded)
+    "encode bounded Stock-Flow Household historical support"
+  let .ok () ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "BoundedHistorySupport" boundedBody
+    | throw (IO.userError "publish bounded Stock-Flow Household historical support")
   expect
     (← Loam.Persistence.saveBoundedHistorySupport?
       (Loam.HouseholdPaths.boundedHistorySupport root) bounded)
-    "save bounded Stock-Flow historical support"
+    "save bounded Stock-Flow frozen legacy historical support"
+  let frozenLegacyBounded ←
+    IO.FS.readFile (Loam.HouseholdPaths.boundedHistorySupport root)
 
   let snapshot ← requireOk
     (← Loam.StockFlowReview.loadSnapshot
@@ -133,6 +149,14 @@ private def boundedIntegration : IO Unit := do
     "bounded Stock-Flow closing boundary did not equal start plus flow"
   expect (snapshot.currentTracked.quanta == 90)
     "bounded Stock-Flow current context did not use the exact current anchor"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)) ==
+      frozenLegacyAnchor)
+    "Stock-Flow production read changed frozen legacy current anchor"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.boundedHistorySupport root)) ==
+      frozenLegacyBounded)
+    "Stock-Flow production read changed frozen legacy bounded support"
 
   let beforeStart ←
     Loam.StockFlowReview.loadSnapshot root root "2026-05-31" "2026-06-09"
