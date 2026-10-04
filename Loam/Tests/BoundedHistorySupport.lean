@@ -4,6 +4,7 @@ import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.CurrentSupportAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence
+import Loam.Persistence.LocusAdmissionPersistence
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
@@ -130,8 +131,12 @@ def main : IO Unit := do
   let root ← IO.FS.createTempDir
   let .ok () ← Loam.Tests.ActualWorldFixture.publishActualEvidence? root Loam.ActualEvidence.empty
     | throw (IO.userError "publish empty Actual authority")
-  let .ok () ← Loam.LocusAdmissionAuthority.publishCurrent? root admission
-    | throw (IO.userError "publish Locus admission authority")
+  let admissionBody ← requireSome
+    (Loam.Persistence.encodeLocusAdmissionVocabulary? admission)
+    "encode Household Locus admission authority"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "LocusAdmission" admissionBody
+    | throw (IO.userError "publish Household Locus admission authority")
   let anchorBody ← requireSome
     (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
     "encode Household exact current anchor authority"
