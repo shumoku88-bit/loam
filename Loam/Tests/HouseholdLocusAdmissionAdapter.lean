@@ -58,6 +58,7 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "supply isolated Household Locus admission adapter directory")
   let root := System.FilePath.mk rootText
   let legacyRoot := root / "legacy"
+  let legacyPath := Loam.HouseholdPaths.locusAdmission legacyRoot
   let imageRoot := root / "image"
   let missingRoot := root / "missing"
   let malformedRoot := root / "malformed"
@@ -72,8 +73,7 @@ def main (args : List String) : IO Unit := do
     "initial Locus admission policy did not encode"
 
   expect
-    (← Loam.Persistence.saveLocusAdmissionVocabulary?
-      (Loam.HouseholdPaths.locusAdmission legacyRoot) initial)
+    (← Loam.Persistence.saveLocusAdmissionVocabulary? legacyPath initial)
     "legacy initial Locus admission publication failed"
 
   let initialImage : Image := {
@@ -86,42 +86,56 @@ def main (args : List String) : IO Unit := do
     (← Loam.HouseholdAuthority.installInitial? imageRoot initialImage)
     "initial HouseholdImage installation failed"
 
+  -- Explicit legacy filepath remains a diagnostic/migration entrance.
   let legacyLoaded ← requireOk
-    (← Loam.LocusAdmissionAuthority.loadCurrent? legacyRoot)
-    "legacy Locus admission did not load"
+    (← Loam.LocusAdmissionAuthority.loadCurrent? legacyPath)
+    "explicit legacy Locus admission did not load"
+
+  -- Root selection is now production HouseholdImage selection.
+  let staleLegacy ← requireSome
+    (LocusAdmissionVocabulary.ofLoci? [⟨"legacy-only"⟩])
+    "stale legacy Locus admission vocabulary"
+  expect
+    (← Loam.Persistence.saveLocusAdmissionVocabulary?
+      (Loam.HouseholdPaths.locusAdmission imageRoot) staleLegacy)
+    "stale legacy Locus admission fixture did not publish"
+  let staleLegacyBefore ←
+    IO.FS.readFile (Loam.HouseholdPaths.locusAdmission imageRoot)
+
   let imageLoaded ← requireOk
-    (← Loam.LocusAdmissionAuthority.loadHouseholdCurrent? imageRoot)
-    "HouseholdImage Locus admission did not load"
+    (← Loam.LocusAdmissionAuthority.loadCurrent? imageRoot)
+    "production HouseholdImage Locus admission did not load"
   expect (tokens legacyLoaded == tokens imageLoaded)
     "Locus admission load answer differs across storage topology"
 
   let _ ← requireOk
     (← Loam.LocusAdmissionAuthority.updateCurrent?
-      legacyRoot (fun vocabulary => proposed vocabulary "stationery"))
-    "legacy Locus admission update failed"
+      legacyPath (fun vocabulary => proposed vocabulary "stationery"))
+    "explicit legacy Locus admission update failed"
   let _ ← requireOk
-    (← Loam.LocusAdmissionAuthority.updateHouseholdCurrent?
+    (← Loam.LocusAdmissionAuthority.updateCurrent?
       imageRoot (fun vocabulary => proposed vocabulary "stationery"))
-    "HouseholdImage Locus admission update failed"
+    "production HouseholdImage Locus admission update failed"
 
   let legacyAfter ← requireOk
-    (← Loam.LocusAdmissionAuthority.loadCurrent? legacyRoot)
-    "updated legacy Locus admission did not load"
+    (← Loam.LocusAdmissionAuthority.loadCurrent? legacyPath)
+    "updated explicit legacy Locus admission did not load"
   let imageAfter ← requireOk
-    (← Loam.LocusAdmissionAuthority.loadHouseholdCurrent? imageRoot)
-    "updated HouseholdImage Locus admission did not load"
+    (← Loam.LocusAdmissionAuthority.loadCurrent? imageRoot)
+    "updated production HouseholdImage Locus admission did not load"
   expect (tokens legacyAfter == ["book", "misc", "stationery"])
     "legacy Locus admission answer changed unexpectedly"
   expect (tokens imageAfter == tokens legacyAfter)
     "updated Locus admission answer differs across storage topology"
 
-  let legacyBody ←
-    IO.FS.readFile (Loam.HouseholdPaths.locusAdmission legacyRoot)
+  let legacyBody ← IO.FS.readFile legacyPath
   let imageBody ← householdBody imageRoot
   expect (legacyBody == imageBody)
     "canonical Locus admission bytes differ across storage topology"
-  expect (!(← (Loam.HouseholdPaths.locusAdmission imageRoot).pathExists))
-    "HouseholdImage adapter wrote legacy locus-admission.loam"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.locusAdmission imageRoot)) ==
+      staleLegacyBefore)
+    "production Locus admission update mutated frozen legacy locus-admission.loam"
 
   let current ← requireOk
     (← Loam.HouseholdAuthority.loadCurrent? imageRoot)
@@ -144,7 +158,7 @@ def main (args : List String) : IO Unit := do
     "previous HouseholdImage changed unknown future evidence"
 
   let beforeRefusal := current.wire
-  match ← Loam.LocusAdmissionAuthority.updateHouseholdCurrent?
+  match ← Loam.LocusAdmissionAuthority.updateCurrent?
       imageRoot (fun vocabulary => proposed vocabulary "stationery") with
   | .error _ => pure ()
   | .ok _ =>
@@ -161,10 +175,10 @@ def main (args : List String) : IO Unit := do
     })
     "missing-section HouseholdImage installation failed"
   expect
-    (!(← Loam.LocusAdmissionAuthority.loadHouseholdCurrent? missingRoot).isOk)
+    (!(← Loam.LocusAdmissionAuthority.loadCurrent? missingRoot).isOk)
     "missing HouseholdImage Locus admission section became implicit empty policy"
   expect
-    (!(← Loam.LocusAdmissionAuthority.updateHouseholdCurrent?
+    (!(← Loam.LocusAdmissionAuthority.updateCurrent?
       missingRoot (fun vocabulary => proposed vocabulary "stationery")).isOk)
     "missing HouseholdImage Locus admission section accepted an update"
   expect (!(← (Loam.HouseholdAuthority.previousPath missingRoot).pathExists))
@@ -178,10 +192,10 @@ def main (args : List String) : IO Unit := do
     "malformed-inner HouseholdImage did not outer-encode"
   IO.FS.writeFile (Loam.HouseholdAuthority.path malformedRoot) malformedWire
   expect
-    (!(← Loam.LocusAdmissionAuthority.loadHouseholdCurrent? malformedRoot).isOk)
+    (!(← Loam.LocusAdmissionAuthority.loadCurrent? malformedRoot).isOk)
     "malformed HouseholdImage Locus admission policy did not fail closed"
   expect
-    (!(← Loam.LocusAdmissionAuthority.updateHouseholdCurrent?
+    (!(← Loam.LocusAdmissionAuthority.updateCurrent?
       malformedRoot (fun vocabulary => proposed vocabulary "stationery")).isOk)
     "malformed HouseholdImage Locus admission policy accepted an update"
   expect
@@ -190,7 +204,7 @@ def main (args : List String) : IO Unit := do
     "refused malformed Locus admission update changed HouseholdImage"
 
   IO.println
-    "Household Locus admission adapter: legacy read/update/byte equivalence, required-section semantics, previous-generation retention, refusal, and unknown preservation passed."
+    "Household Locus admission cutover: explicit legacy diagnostics, production HouseholdImage selection, frozen-legacy isolation, byte equivalence, required-section semantics, previous-generation retention, refusal, and unknown preservation passed."
 
 end Loam.Tests.HouseholdLocusAdmissionAdapter
 
