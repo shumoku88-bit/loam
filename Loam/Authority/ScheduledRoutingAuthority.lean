@@ -17,9 +17,9 @@ set_option autoImplicit false
 This boundary qualifies the existing Scheduled routing payload for two physical
 topologies without changing routing semantics.
 
-Production selection has not moved yet. Explicit standalone paths retain the
-legacy diagnostic/migration entrance, while HouseholdImage-specific functions
-operate only on the required `ScheduledRouting` section.
+Production household selection uses the required `ScheduledRouting` section
+of HouseholdImage. Explicit standalone paths remain only for legacy diagnostics
+and migration qualification.
 
 A missing HouseholdImage section is unavailable, not implicit empty history.
 -/
