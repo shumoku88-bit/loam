@@ -93,6 +93,32 @@ def main (args : List String) : IO Unit := do
   let anchor ← anchorEvidence
   let emptyAnchor := Loam.CurrentQuantityAnchor.Evidence.empty
 
+  let missingRoleRoot := dataDir / "missing-role"
+  IO.FS.createDirAll missingRoleRoot
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? missingRoleRoot w
+    | throw (IO.userError "publish missing-role Household fixture")
+  expect (!(← Loam.AccountingRoleAuthority.loadHouseholdCurrent? missingRoleRoot).isOk)
+    "missing Household AccountingRole section was treated as empty"
+
+  let malformedRoleRoot := dataDir / "malformed-role"
+  IO.FS.createDirAll malformedRoleRoot
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? malformedRoleRoot w
+    | throw (IO.userError "publish malformed-role Household fixture")
+  let malformedGeneration ←
+    match ← Loam.HouseholdAuthority.loadCurrent? malformedRoleRoot with
+    | .ok generation => pure generation
+    | .error message => throw (IO.userError message)
+  let some malformedImage :=
+      Loam.Persistence.HouseholdImage.appendSection?
+        malformedGeneration.image
+        { name := "AccountingRole", body := "not-accounting-role-evidence\n" }
+    | throw (IO.userError "append malformed AccountingRole fixture")
+  let some malformedWire := Loam.Persistence.HouseholdImage.encode? malformedImage
+    | throw (IO.userError "encode malformed AccountingRole fixture")
+  IO.FS.writeFile (Loam.HouseholdAuthority.path malformedRoleRoot) malformedWire
+  expect (!(← Loam.AccountingRoleAuthority.loadHouseholdCurrent? malformedRoleRoot).isOk)
+    "malformed present Household AccountingRole section did not fail closed"
+
   let .ok proposed := Loam.AccountingRolePublisher.propose?
       w.locusAdmission w.events scheduled emptyAnchor roles
       { locus := ⟨"fresh"⟩, role := .expense }
