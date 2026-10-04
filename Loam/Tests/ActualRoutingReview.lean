@@ -104,10 +104,8 @@ def main (args : List String) : IO Unit := do
   let capacityBody ← requireSome
     (Loam.Persistence.encodeNormalizedCapacity? evidence)
     "encode Household Capacity evidence"
-  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
-    sections := [{ name := "Capacity", body := capacityBody }]
-  }
-  match ← Loam.HouseholdAuthority.installInitial? dataDir capacityImage with
+  match ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      dataDir "Capacity" capacityBody with
   | .ok _ => pure ()
   | .error message => throw (IO.userError message)
   expect (!(← (dataDir / "capacity.loam").pathExists))
