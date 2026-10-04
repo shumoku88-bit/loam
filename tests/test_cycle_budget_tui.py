@@ -209,12 +209,14 @@ try:
     # from ZeroOriginCoverage and Actual.
     balance_view_path = root / "config" / "balance-view.tsv"
     balance_view = balance_view_path.read_bytes()
-    current_anchor_path = root / "current-quantity-anchor.loam"
-    previous_anchor = current_anchor_path.read_bytes() if current_anchor_path.exists() else None
+    household_path = root / "household.loam"
+    household_before_anchor = household_path.read_bytes()
     balance_view_path.write_text("anchored-wallet\tjpy\n")
-    current_anchor_path.write_text(
-        "LOAM-CURRENT-QUANTITY-ANCHOR\t1\n"
-        "ASSERT\tanchored-wallet\tjpy\t42\n"
+    subprocess.run(
+        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+         str(root), "set-current-anchor", "anchored-wallet", "jpy", "42"],
+        cwd=repo_root,
+        check=True,
     )
     os.write(master, b"b")
     anchored_balances = wait_for("Balances / Current")
@@ -224,10 +226,7 @@ try:
     os.write(master, b"q")
     wait_for("LOAM Home")
     balance_view_path.write_bytes(balance_view)
-    if previous_anchor is None:
-        current_anchor_path.unlink()
-    else:
-        current_anchor_path.write_bytes(previous_anchor)
+    household_path.write_bytes(household_before_anchor)
 
     # Independent malformed workspace evidence stays fail-closed, but no longer
     # terminates the whole TUI. Restore every fixture after observing refusal so
