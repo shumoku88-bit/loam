@@ -46,6 +46,7 @@ run_measure_scale_administration() {
 accounting_tests=(
   RoleFlowReview
   CurrentBalanceReview
+  HouseholdZeroOriginCoverageAdapter
   RoleBalanceReview
   RoleBalanceAnswerability
   HistoricalBalanceReview
@@ -286,6 +287,9 @@ for test_name in "${tests[@]}"; do
       ;;
     CurrentCoverageReview)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/current-coverage-review"
+      ;;
+    HouseholdZeroOriginCoverageAdapter)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-zero-origin-adapter"
       ;;
     MovementProposal)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/movement-proposal"
