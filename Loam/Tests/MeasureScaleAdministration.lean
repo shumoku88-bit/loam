@@ -1,5 +1,6 @@
 import Loam.Authority.MeasurePresentationAuthority
-import Loam.Authority.CapacityAuthority
+import Loam.Authority.HouseholdAuthority
+import Loam.Publisher.CapacityPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.ActualWorldFixture
 import Loam.Publisher.MovementPublisher
@@ -81,6 +82,8 @@ private def initBase (root : System.FilePath) : IO Unit := do
   let scheduled ← emptyScheduledImage
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") scheduled)
     "initialize Scheduled"
+  let .ok _ ← Loam.HouseholdAuthority.installInitial? root { sections := [] }
+    | throw (IO.userError "initialize HouseholdImage")
 
 private def writePresentation
     (root : System.FilePath)
@@ -128,30 +131,18 @@ private def publishScheduledMeasure
 private def publishCapacityMeasure
     (root : System.FilePath)
     (measureToken : String) : IO Unit := do
-  let balanced : BalancedMovement CapacityCoordinate ←
-    requireSome
-      (BalancedMovement.ofChanges? ⟨measureToken⟩
-        [ { coordinate := .unallocated, quantity := Quantity.ofQuanta (-100) }
-        , { coordinate := .purpose ⟨"capacity-purpose"⟩,
-            quantity := Quantity.ofQuanta 100 } ])
-      "Capacity balanced movement"
-  let movement : CapacityMovement := {
-    id := ⟨"capacity-used"⟩
-    movement := balanced
+  let draft : Loam.CapacityPublisher.Draft := {
+    measure := ⟨measureToken⟩
+    effectiveOn := "2026-09-24"
+    source := .unallocated
+    destination := .purpose ⟨"capacity-purpose"⟩
+    quanta := 100
   }
-  let movements ←
-    requireSome (CapacityMemory.ofMovements? [movement])
-      "Capacity movement memory"
-  let effective ←
-    requireSome
-      (CapacityEffectiveMemory.ofEntries?
-        [{ movement := movement.id, effectiveOn := "2026-09-24" }])
-      "Capacity effective memory"
-  let image ←
-    requireSome (Loam.CapacityEvidence.ofParts? movements effective)
-      "Capacity complete image"
-  requireOk (← Loam.CapacityAuthority.publishImage? (root / "capacity.loam") image)
-    "publish Capacity fixture"
+  let _ ← requireOk
+    (← Loam.CapacityPublisher.publishHousehold root draft)
+    "publish Household Capacity fixture"
+  expect (!(← (root / "capacity.loam").pathExists))
+    "Household Capacity first use wrote legacy capacity.loam"
 
 private def publishAnchorMeasure
     (root : System.FilePath)

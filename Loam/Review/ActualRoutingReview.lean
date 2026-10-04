@@ -130,7 +130,7 @@ def loadSnapshot
     | some roles => pure roles
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
   let capacity ←
-    match ← Loam.CapacityReview.loadSnapshot (Loam.HouseholdPaths.capacity dataDir) with
+    match ← Loam.CapacityReview.loadHouseholdSnapshot dataDir with
     | .ok snapshot => pure snapshot
     | .error message => return .error message
 

@@ -20,7 +20,7 @@ This is the production read boundary for explicit half-open budget-window querie
 It consumes selected semantic authorities without exposing physical placement:
 
 - Event / ActualValidity / EventCorrection come through `ActualAuthority`;
-- Capacity / CapacityEffective come through `CapacityAuthority`;
+- Capacity / CapacityEffective come from HouseholdImage through `CapacityAuthority`;
 - ActualRouting remains its independent canonical stream.
 
 The caller supplies `[start, end)` explicitly. This module does not choose a
@@ -88,11 +88,10 @@ private def projectPurpose?
 
 private def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
-  let capacityPath := Loam.HouseholdPaths.capacity dataDir
   let routingPath := Loam.HouseholdPaths.actualRouting dataDir
 
   let capacityImage ←
-    match ← Loam.CapacityAuthority.loadRequired capacityPath with
+    match ← Loam.CapacityAuthority.loadHouseholdRequired dataDir with
     | .ok image => pure image
     | .error message => return .error message
   match ← requireFile routingPath "Actual routing evidence" with

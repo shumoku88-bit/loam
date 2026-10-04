@@ -1,6 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Review.ActualRoutingReview
-import Loam.Authority.CapacityAuthority
+import Loam.Authority.HouseholdAuthority
+import Loam.Persistence.NormalizedCapacityPersistence
 import Loam.Core.Capacity
 
 open Loam.Core
@@ -100,9 +101,17 @@ def main (args : List String) : IO Unit := do
     "Capacity effective memory"
   let evidence ← requireSome (Loam.CapacityEvidence.ofParts? capacity effective)
     "complete Capacity evidence"
-  match ← Loam.CapacityAuthority.publishImage? (dataDir / "capacity.loam") evidence with
+  let capacityBody ← requireSome
+    (Loam.Persistence.encodeNormalizedCapacity? evidence)
+    "encode Household Capacity evidence"
+  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
+    sections := [{ name := "Capacity", body := capacityBody }]
+  }
+  match ← Loam.HouseholdAuthority.installInitial? dataDir capacityImage with
   | .ok _ => pure ()
   | .error message => throw (IO.userError message)
+  expect (!(← (dataDir / "capacity.loam").pathExists))
+    "ActualRouting fixture unexpectedly retained legacy Capacity"
 
   let snapshot ←
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir actualRoot "2026-09-09" with

@@ -1,7 +1,8 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Authority.ActualAuthority
 import Loam.Review.BudgetWindowReview
-import Loam.Authority.CapacityAuthority
+import Loam.Authority.HouseholdAuthority
+import Loam.Persistence.NormalizedCapacityPersistence
 import Loam.Persistence.ActualRoutingPersistence
 
 open Loam.Core
@@ -102,8 +103,16 @@ def main (args : List String) : IO Unit := do
     "capacity effective memory"
   let evidence ← requireSome
     (Loam.CapacityEvidence.ofParts? capacity effective) "capacity evidence"
-  let .ok _ ← Loam.CapacityAuthority.publishImage? (root / "capacity.loam") evidence
-    | throw (IO.userError "publish capacity image")
+  let capacityBody ← requireSome
+    (Loam.Persistence.encodeNormalizedCapacity? evidence)
+    "encode Household Capacity evidence"
+  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
+    sections := [{ name := "Capacity", body := capacityBody }]
+  }
+  let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
+    | throw (IO.userError "install Household Capacity evidence")
+  expect (!(← (root / "capacity.loam").pathExists))
+    "BudgetWindow fixture unexpectedly retained legacy Capacity"
 
   let routing ← requireSome
     (RoutingHistory.ofEntries?

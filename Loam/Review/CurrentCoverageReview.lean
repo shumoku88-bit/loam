@@ -30,8 +30,8 @@ explicit future `endExclusive` horizon.
 
 `currentWindowStart` is retained from the selected boundary preset rather than
 being discarded. Scheduled lifecycle state is current-open only; it is not
-replayed into the past. Capacity movement and effective-coordinate meanings are loaded through one
-proof-carrying `CapacityAuthority` image. Actual Consumption reuses the current
+replayed into the past. Capacity movement and effective-coordinate meanings are loaded from the
+HouseholdImage Capacity section through one proof-carrying `CapacityAuthority` image. Actual Consumption reuses the current
 Event frontier and current validity memory carried by `ActualAuthority.Image`;
 the report performs no second Correction or ActualValidity admission.
 
@@ -156,14 +156,13 @@ def loadSnapshotAtForMeasure
   if !(observedAt < endExclusive) then
     return .error "loam: current coverage horizon must be later than the observation date"
 
-  let capacityPath := Loam.HouseholdPaths.capacity dataDir
   let actualRoutingPath := Loam.HouseholdPaths.actualRouting dataDir
   let scheduledPath := Loam.HouseholdPaths.scheduled dataDir
   let scheduledRoutingPath := Loam.HouseholdPaths.scheduledRouting dataDir
   let accountingRolePath := Loam.HouseholdPaths.accountingRole dataDir
 
   let capacityImage ←
-    match ← Loam.CapacityAuthority.loadRequired capacityPath with
+    match ← Loam.CapacityAuthority.loadHouseholdRequired dataDir with
     | .ok image => pure image
     | .error message => return .error message
   match ← requireFile actualRoutingPath "Actual routing evidence" with
