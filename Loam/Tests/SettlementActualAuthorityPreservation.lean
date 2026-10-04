@@ -2,6 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.Publisher.ActualValidityPublisher
 import Loam.Publisher.EventMerchantPublisher
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.Tests.ActualWorldFixture
 
 namespace Loam.Tests.SettlementActualAuthorityPreservation
 
@@ -125,10 +126,18 @@ private def expectSettlementPreserved
   expect (decide (evidence.settlements = settlementEvidence))
     s!"{label}: retained settlement evidence changed"
 
+private def actualWire (root : System.FilePath) (label : String) : IO String := do
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    s!"{label}: load Household generation"
+  requireSome
+    (Loam.Persistence.HouseholdImage.body? generation.image "Actual")
+    s!"{label}: Household Actual section missing"
+
 private def expectV2 (root : System.FilePath) (label : String) : IO Unit := do
-  let wire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let wire ← actualWire root label
   expect (wire.startsWith (normalizedActualHeaderV2 ++ "\n"))
-    s!"{label}: settlement-bearing Actual authority did not remain v2"
+    s!"{label}: settlement-bearing Household Actual did not remain v2"
   expect (wire.contains "SETTLEMENT-COMMITMENT\td4-card-commitment")
     s!"{label}: v2 authority lost settlement commitment row"
   expect (wire.contains "SETTLEMENT-CORRESPONDENCE\td4-card-correspondence")
@@ -147,23 +156,27 @@ def runAll : IO Unit := do
   cleanupDir root
   IO.FS.createDirAll root
 
-  let actualPath := Loam.ActualAuthority.actualPath root
-  let stagePath := System.FilePath.mk (actualPath.toString ++ ".loam-stage")
+  let householdPath := Loam.HouseholdAuthority.path root
+  let stagePath := System.FilePath.mk (householdPath.toString ++ ".loam-stage")
 
   let initial ← initialEvidence
 
-  -- D4-A: first settlement-bearing publication switches the authority to v2.
+  -- D4-A: first settlement-bearing Household Actual is v2.
+  let initialBody ← requireSome
+    (encodeNormalizedActual? initial)
+    "D4-A initial v2 Actual failed to encode"
   let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root initial)
-    "D4-A initial v2 publish failed"
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Actual" initialBody)
+    "D4-A initial Household Actual publication failed"
   let loadedInitial ← loadActual root "D4-A load"
   expectSettlementPreserved loadedInitial "D4-A"
   expectV2 root "D4-A"
   expectSettled root "D4-A"
 
-  -- D4-B: a torn/corrupt stage is off-authority and cannot affect readers.
+  -- D4-B: a torn/corrupt Household stage is off-authority and cannot affect readers.
   IO.FS.writeFile stagePath
-    (normalizedActualHeaderV2 ++ "\nSETTLEMENT-COMMITMENT\tpartial")
+    "LOAM-HOUSEHOLD-IMAGE\t2\nSECTION\tActual\t999\npartial"
   let afterTornStage ← loadActual root "D4-B load after torn stage"
   expectSettlementPreserved afterTornStage "D4-B"
   expectV2 root "D4-B"
@@ -180,17 +193,27 @@ def runAll : IO Unit := do
     loadedInitial with
     descriptions := descriptions
   }
-  let stageWire ← requireSome
+  let nextActualBody ← requireSome
     (encodeNormalizedActual? preRenameCandidate)
-    "D4-C candidate failed to encode"
+    "D4-C candidate Actual failed to encode"
+  let currentGeneration ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "D4-C load current Household generation"
+  let nextImage ← requireSome
+    (Loam.Persistence.HouseholdImage.replaceBody?
+      currentGeneration.image "Actual" nextActualBody)
+    "D4-C replace Household Actual section"
+  let stageWire ← requireSome
+    (Loam.Persistence.HouseholdImage.encode? nextImage)
+    "D4-C candidate Household generation failed to encode"
   IO.FS.writeFile stagePath stageWire
 
   let beforeRename ← loadActual root "D4-C pre-rename load"
   expectSettlementPreserved beforeRename "D4-C pre-rename"
   expect (beforeRename.descriptions.findText? sourceEventId).isNone
-    "D4-C: stage content became visible before authority rename"
+    "D4-C: staged Household content became visible before authority rename"
 
-  IO.FS.rename stagePath actualPath
+  IO.FS.rename stagePath householdPath
 
   let afterRename ← loadActual root "D4-C post-rename load"
   expectSettlementPreserved afterRename "D4-C post-rename"
@@ -269,7 +292,7 @@ def runAll : IO Unit := do
   expectSettled root "D4-F"
 
   cleanupDir root
-  IO.println "Settlement D4 Actual-authority preservation qualification succeeded."
+  IO.println "Settlement D4 Household Actual-authority preservation qualification succeeded."
 
 end Loam.Tests.SettlementActualAuthorityPreservation
 
