@@ -88,8 +88,9 @@ def main (args : List String) : IO Unit := do
       throw (IO.userError "explicit household root silently paired with parent Locus admission authority")
   | .error message =>
       expect
-        (message == s!"loam: required Locus admission authority not found: {Loam.LocusAdmissionAuthority.locusAdmissionPath selectedRoot}")
-        "selected household root did not fail at its own Locus admission authority"
+        (message ==
+          s!"loam: HouseholdImage authority is missing: {Loam.HouseholdAuthority.path selectedRoot}")
+        "selected household root did not fail at its own HouseholdImage Locus admission authority"
 
   expect
     (Loam.OperationalContinuity.renderReady.startsWith
