@@ -132,12 +132,12 @@ def main : IO Unit := do
   | .ok _ =>
       throw (IO.userError "stale Household Actual writer unexpectedly published")
 
-  let stillB ←
+  let stillD ←
     requireOk
       (← Loam.ActualAuthority.loadHouseholdImage? root)
       "reload Household Actual after stale refusal"
   expect
-    ((stillB.currentEvents.findById? ⟨"ev-b"⟩).isSome)
+    ((stillD.currentEvents.findById? ⟨"ev-d"⟩).isSome)
     "stale Household Actual writer changed current generation"
 
   let missingRoot ← IO.FS.createTempDir
