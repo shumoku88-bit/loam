@@ -4,9 +4,8 @@ import Loam.Review.BalanceReview
 import Loam.Application.CurrentQuantityAnchor
 import Loam.Application.CurrentQuantityPresence
 import Loam.Authority.OpeningSupportAuthority
+import Loam.Authority.CurrentSupportAuthority
 import Loam.HouseholdPaths
-import Loam.Persistence.CurrentQuantityAnchorPersistence
-import Loam.Persistence.CurrentQuantityPresencePersistence
 
 namespace Loam.CurrentBalanceReview
 
@@ -182,24 +181,6 @@ def projectImage
     currentAnchor
     currentPresence
 
-private def loadCurrentAnchor
-    (path : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  if ← path.pathExists then
-    match ← loadCurrentQuantityAnchor? path with
-    | some anchor => return .ok anchor
-    | none => return .error "loam: malformed or unsupported current quantity anchor evidence"
-  else
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
-
-private def loadCurrentPresence
-    (path : System.FilePath) : IO (Except String Loam.CurrentQuantityPresence.Evidence) := do
-  if ← path.pathExists then
-    match ← loadCurrentQuantityPresence? path with
-    | some presence => return .ok presence
-    | none => return .error "loam: malformed or unsupported current quantity presence evidence"
-  else
-    return .ok Loam.CurrentQuantityPresence.Evidence.empty
-
 /-- Load neutral current-balance support from a caller-owned Actual image. -/
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
@@ -212,15 +193,12 @@ def loadSnapshotFromActualImage
     match ← Loam.OpeningSupportAuthority.loadHouseholdOrEmpty? dataDir with
     | .error message => return .error message
     | .ok support => pure support
-  let currentAnchor ←
-    match ← loadCurrentAnchor (Loam.HouseholdPaths.currentQuantityAnchor dataDir) with
+  let currentSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
     | .error message => return .error message
-    | .ok anchor => pure anchor
-  let currentPresence ←
-    match ← loadCurrentPresence (Loam.HouseholdPaths.currentQuantityPresence dataDir) with
-    | .error message => return .error message
-    | .ok presence => pure presence
-  return projectImage image coverage openingSupport currentAnchor currentPresence
+    | .ok observed => pure observed.snapshot
+  return projectImage
+    image coverage openingSupport currentSupport.anchor currentSupport.presence
 
 /-- Load one admitted Actual image and compose neutral current-balance support. -/
 def loadSnapshot
