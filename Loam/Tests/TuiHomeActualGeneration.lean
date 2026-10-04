@@ -55,7 +55,7 @@ private def publishActualGeneration
     validity := validity
   }
   let _ ←
-    requireOk (← Loam.ActualAuthority.publishActual? root evidence)
+    requireOk (← Loam.Tests.ActualWorldFixture.publishActualEvidence? root evidence)
       "publish Home Actual generation"
   pure ()
 
