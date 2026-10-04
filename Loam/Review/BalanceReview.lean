@@ -2,6 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.Application.CorrectionFrontier
 import Loam.Config.BalanceViewConfig
 import Loam.HouseholdPaths
+import Loam.Authority.ZeroOriginCoverageAuthority
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
 namespace Loam.BalanceReview
@@ -135,15 +136,20 @@ def project
       else
         .error (coverageError first)
 
-/-- Load independent zero-origin coverage for production readers. -/
+/--
+Load optional zero-origin coverage from one explicit standalone path.
+
+This remains a low-level legacy/diagnostic entrance. Production household reads
+select the HouseholdImage `ZeroOrigin` section through `loadHouseholdCoverage`.
+-/
 def loadCoverage
-    (path : System.FilePath) : IO (Except String ZeroOriginCoverage) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadZeroOriginCoverage? path with
-    | some coverage => return .ok coverage
-    | none => return .error "loam: malformed or unsupported zero-origin coverage file"
-  else
-    return .ok ZeroOriginCoverage.empty
+    (path : System.FilePath) : IO (Except String ZeroOriginCoverage) :=
+  Loam.ZeroOriginCoverageAuthority.loadLegacyOrEmpty? path
+
+/-- Load optional production zero-origin coverage from HouseholdImage. -/
+def loadHouseholdCoverage
+    (root : System.FilePath) : IO (Except String ZeroOriginCoverage) :=
+  Loam.ZeroOriginCoverageAuthority.loadHouseholdOrEmpty? root
 
 /-- Shared physical evidence, independent of display or funding selection. -/
 structure Evidence where
@@ -160,7 +166,7 @@ def loadEvidence
     | .ok ev => pure ev
     | .error message => return .error message
   let coverage ←
-    match ← loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+    match ← loadHouseholdCoverage dataDir with
     | .error message => return .error message
     | .ok evidence => pure evidence
   return .ok {
@@ -181,7 +187,7 @@ def loadSnapshot
     | .ok image => pure image
     | .error message => return .error message
   let coverage ←
-    match ← loadCoverage (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+    match ← loadHouseholdCoverage dataDir with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let coordinates ←

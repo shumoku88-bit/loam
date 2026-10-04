@@ -294,8 +294,7 @@ private def loadBounded
 /-- Load the independent support families needed by historical reconstruction. -/
 def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
   let zeroOrigin ←
-    match ← Loam.BalanceReview.loadCoverage
-        (Loam.HouseholdPaths.zeroOriginCoverage dataDir) with
+    match ← Loam.BalanceReview.loadHouseholdCoverage dataDir with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let opening ←

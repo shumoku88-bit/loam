@@ -6,6 +6,7 @@ import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
+import Loam.Tests.ActualWorldFixture
 import Loam.Tests.Support
 
 open Loam.Core
@@ -134,10 +135,21 @@ def main : IO Unit := do
     (← Loam.Persistence.saveCurrentQuantityAnchor?
       (Loam.HouseholdPaths.currentQuantityAnchor root) anchor)
     "publish exact current anchor authority"
+  let emptyZeroBody ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? ZeroOriginCoverage.empty)
+    "encode empty Household zero-origin authority"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ZeroOrigin" emptyZeroBody
+    | throw (IO.userError "publish empty Household zero-origin authority")
+  let staleZero ← requireSome
+    (ZeroOriginCoverage.ofCoordinates? [cash])
+    "stale legacy zero-origin fixture"
   expect
     (← Loam.Persistence.saveZeroOriginCoverage?
-      (Loam.HouseholdPaths.zeroOriginCoverage root) ZeroOriginCoverage.empty)
-    "publish empty zero-origin authority"
+      (Loam.HouseholdPaths.zeroOriginCoverage root) staleZero)
+    "publish stale legacy zero-origin authority"
+  let frozenLegacyZero ←
+    IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)
   expect
     (← Loam.Persistence.saveOpeningSupportMap?
       (Loam.HouseholdPaths.openingSupport root) OpeningSupportMap.empty)
@@ -159,6 +171,10 @@ def main : IO Unit := do
   let .ok () ←
       Loam.CurrentQuantityAnchorPublisher.publish root.toString [sameObservation]
     | throw (IO.userError "same exact current quantity re-observation was refused")
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)) ==
+      frozenLegacyZero)
+    "CurrentQuantityAnchor publisher changed frozen legacy zero-origin evidence"
 
   expect
     (!(← Loam.CurrentQuantityAnchorPublisher.publish root.toString

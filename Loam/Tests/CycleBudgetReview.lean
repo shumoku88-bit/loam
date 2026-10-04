@@ -45,8 +45,18 @@ def main (args : List String) : IO Unit := do
   -- require historical completeness for cash.
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates?
     [⟨⟨"yucho"⟩, ⟨"jpy"⟩⟩]) "coverage"
-  expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero)
-    "save zero-origin"
+  let zeroBody ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? zero)
+    "encode CycleBudget Household zero-origin"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ZeroOrigin" zeroBody
+    | throw (IO.userError "install CycleBudget Household zero-origin")
+  expect
+    (← Loam.Persistence.saveZeroOriginCoverage?
+      (root / "zero-origin-coverage.loam") ZeroOriginCoverage.empty)
+    "save CycleBudget stale legacy zero-origin"
+  let frozenLegacyZero ← IO.FS.readFile (root / "zero-origin-coverage.loam")
   IO.FS.writeFile (root / "current-quantity-anchor.loam")
     ("LOAM-CURRENT-QUANTITY-ANCHOR\t1\n" ++
      "ASSERT\tcash\tjpy\t0\n" ++
@@ -95,6 +105,8 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile fundingPath config
   let good ← load
   let .ok summary := good.funding | throw (IO.userError "valid funding unavailable")
+  expect ((← IO.FS.readFile (root / "zero-origin-coverage.loam")) == frozenLegacyZero)
+    "CycleBudget production read changed frozen legacy zero-origin evidence"
   expect (summary.budgetableBacking.quanta == 0 && summary.remainingAssigned.quanta == 100 &&
     summary.residualBeforeUnresolved.quanta == -100) "shared projection changed"
   IO.FS.writeFile fundingPath "cash\tusd\n"

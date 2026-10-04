@@ -1,4 +1,5 @@
 import Loam.Tui.Cli
+import Loam.Tests.ActualWorldFixture
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
 
@@ -72,10 +73,19 @@ private def initializeIndependentEvidence (root : System.FilePath) : IO Unit := 
       (ZeroOriginCoverage.ofCoordinates?
         [⟨⟨"wallet"⟩, ⟨"jpy"⟩⟩])
       "Home generation zero-origin coverage"
+  let coverageBody ←
+    requireSome
+      (Loam.Persistence.encodeZeroOriginCoverage? coverage)
+      "encode Home generation Household zero-origin coverage"
+  let _ ←
+    requireOk
+      (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ZeroOrigin" coverageBody)
+      "install Home generation Household zero-origin coverage"
   expect
     (← Loam.Persistence.saveZeroOriginCoverage?
-      (root / "zero-origin-coverage.loam") coverage)
-    "save Home generation zero-origin coverage"
+      (root / "zero-origin-coverage.loam") ZeroOriginCoverage.empty)
+    "save Home generation stale legacy zero-origin coverage"
 
   let scheduled ←
     requireSome

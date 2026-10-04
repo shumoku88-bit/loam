@@ -49,7 +49,18 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "publish fixture world")
 
   let zero ← requireSome (ZeroOriginCoverage.ofCoordinates? [⟨⟨"cash"⟩, ⟨"jpy"⟩⟩]) "zero-origin"
-  expect (← Loam.Persistence.saveZeroOriginCoverage? (root / "zero-origin-coverage.loam") zero) "save zero"
+  let zeroBody ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? zero)
+    "encode TUI Cycle Grant Household zero-origin"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ZeroOrigin" zeroBody
+    | throw (IO.userError "install TUI Cycle Grant Household zero-origin")
+  expect
+    (← Loam.Persistence.saveZeroOriginCoverage?
+      (root / "zero-origin-coverage.loam") ZeroOriginCoverage.empty)
+    "save TUI Cycle Grant stale legacy zero-origin"
+  let frozenLegacyZero ← IO.FS.readFile (root / "zero-origin-coverage.loam")
 
   let capacityFixture :=
     "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-08-14\tjpy\nCHANGE\tUNALLOCATED\t-17108\nCHANGE\tPURPOSE\t固定費予定\t17108\nENDMOVEMENT\n"
@@ -109,6 +120,8 @@ def main (args : List String) : IO Unit := do
   let observedAt := "2026-09-09"
   let snap0 ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
   let .ok cov0 := snap0.coverage | throw (IO.userError "cov0 unavailable")
+  expect ((← IO.FS.readFile (root / "zero-origin-coverage.loam")) == frozenLegacyZero)
+    "TUI Cycle Grant production read changed frozen legacy zero-origin evidence"
   let some row0 := cov0.rows.find? (fun r => r.purpose.token == "固定費予定")
     | throw (IO.userError "missing row0")
   expect (row0.entitlement.quanta == 17108) "initial cap"
