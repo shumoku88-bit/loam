@@ -1,6 +1,7 @@
 import Loam.Authority.HouseholdAuthority
 import Loam.HouseholdCommand
 import Loam.Publisher.AttentionPublisher
+import Loam.Review.AttentionReview
 import Loam.Persistence.AttentionPersistence
 
 namespace Loam.Tests.HouseholdAttentionAdapter
@@ -35,6 +36,27 @@ private def attentionBodyFromHousehold
     "HouseholdImage did not load"
   pure (body? generation.image "Attention")
 
+
+private def availabilitySummaries
+    (availability : Loam.AttentionReview.Availability) : Option (List String) :=
+  match availability with
+  | .unavailable => none
+  | .available snapshot =>
+      some (snapshot.openItems.map Loam.AttentionReview.summary)
+
+private def expectReviewEquivalent
+    (legacyPath : System.FilePath)
+    (imageRoot : System.FilePath)
+    (message : String) : IO Unit := do
+  let legacy ← requireOk
+    (← Loam.AttentionReview.loadEvidence legacyPath)
+    (message ++ " legacy")
+  let household ← requireOk
+    (← Loam.AttentionReview.loadHouseholdEvidence imageRoot)
+    (message ++ " household")
+  expect (availabilitySummaries legacy == availabilitySummaries household)
+    message
+
 private def installFutureOnly (root : System.FilePath) : IO Unit := do
   let initial : Image := {
     sections := [
@@ -53,12 +75,16 @@ def main (args : List String) : IO Unit := do
   let legacyRoot := root / "legacy"
   let imageRoot := root / "image"
   let missingRoot := root / "missing"
+  let emptyLegacyRoot := root / "empty-legacy"
+  let emptyImageRoot := root / "empty-image"
   let commandRoot := root / "command"
 
   cleanupDir root
   IO.FS.createDirAll legacyRoot
   IO.FS.createDirAll imageRoot
   IO.FS.createDirAll missingRoot
+  IO.FS.createDirAll emptyLegacyRoot
+  IO.FS.createDirAll emptyImageRoot
   IO.FS.createDirAll commandRoot
 
   installFutureOnly imageRoot
@@ -76,6 +102,27 @@ def main (args : List String) : IO Unit := do
 
   let legacyPath := legacyRoot / "attention.loam"
 
+  -- Missing legacy file and missing HouseholdImage section are both unavailable.
+  let missingLegacyPath := missingRoot / "attention.loam"
+  expectReviewEquivalent missingLegacyPath missingRoot
+    "missing Attention availability differs across storage topology"
+
+  -- Explicitly present empty Attention is available-empty, not unavailable.
+  let emptyBody := Loam.Persistence.attentionMemoryHeader ++ "\n"
+  let emptyLegacyPath := emptyLegacyRoot / "attention.loam"
+  IO.FS.writeFile emptyLegacyPath emptyBody
+  let emptyImage : Image := {
+    sections := [
+      { name := "Attention", body := emptyBody },
+      { name := "Securities", body := "FUTURE\t1\nopaque\tunknown\n" }
+    ]
+  }
+  let _ ← requireOk
+    (← Loam.HouseholdAuthority.installInitial? emptyImageRoot emptyImage)
+    "explicit-empty HouseholdImage installation failed"
+  expectReviewEquivalent emptyLegacyPath emptyImageRoot
+    "present-empty Attention availability differs across storage topology"
+
   let legacyFirst ← requireOk
     (← Loam.AttentionPublisher.add legacyPath.toString first)
     "legacy first Attention add failed"
@@ -88,6 +135,9 @@ def main (args : List String) : IO Unit := do
   expect ((← attentionBodyFromHousehold imageRoot) == some legacyFirstWire)
     "first Attention canonical bytes differ across storage topology"
 
+  expectReviewEquivalent legacyPath imageRoot
+    "first Attention Review differs across storage topology"
+
   let legacySecond ← requireOk
     (← Loam.AttentionPublisher.add legacyPath.toString second)
     "legacy second Attention add failed"
@@ -99,6 +149,9 @@ def main (args : List String) : IO Unit := do
   let legacySecondWire ← IO.FS.readFile legacyPath
   expect ((← attentionBodyFromHousehold imageRoot) == some legacySecondWire)
     "second Attention canonical bytes differ across storage topology"
+
+  expectReviewEquivalent legacyPath imageRoot
+    "second Attention Review differs across storage topology"
 
   let closeFirst : Loam.AttentionPublisher.CloseDraft := {
     attention := legacyFirst
@@ -114,6 +167,9 @@ def main (args : List String) : IO Unit := do
   let legacyClosedWire ← IO.FS.readFile legacyPath
   expect ((← attentionBodyFromHousehold imageRoot) == some legacyClosedWire)
     "closed Attention canonical bytes differ across storage topology"
+
+  expectReviewEquivalent legacyPath imageRoot
+    "closed Attention Review differs across storage topology"
 
   match ← Loam.AttentionPublisher.close legacyPath.toString closeFirst with
   | .error _ => pure ()
@@ -179,7 +235,7 @@ def main (args : List String) : IO Unit := do
 
   cleanupDir root
   IO.println
-    "Household Attention adapter: legacy byte equivalence, bootstrap/missing semantics, unknown preservation, and pre-cutover command isolation passed."
+    "Household Attention adapter: legacy byte/read equivalence, missing vs present-empty semantics, unknown preservation, and pre-cutover command isolation passed."
 
 end Loam.Tests.HouseholdAttentionAdapter
 
