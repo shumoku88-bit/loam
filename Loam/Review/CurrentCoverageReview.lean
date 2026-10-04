@@ -3,6 +3,7 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Application.CurrentCoverageInspection
 import Loam.Authority.CapacityAuthority
+import Loam.Authority.ActualRoutingAuthority
 import Loam.Review.CapacityReview
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
@@ -157,7 +158,6 @@ def loadSnapshotAtForMeasure
   if !(observedAt < endExclusive) then
     return .error "loam: current coverage horizon must be later than the observation date"
 
-  let actualRoutingPath := Loam.HouseholdPaths.actualRouting dataDir
   let scheduledPath := Loam.HouseholdPaths.scheduled dataDir
   let accountingRolePath := Loam.HouseholdPaths.accountingRole dataDir
 
@@ -165,9 +165,6 @@ def loadSnapshotAtForMeasure
     match ← Loam.CapacityAuthority.loadHouseholdRequired dataDir with
     | .ok image => pure image
     | .error message => return .error message
-  match ← requireFile actualRoutingPath "Actual routing evidence" with
-  | .error message => return .error message
-  | .ok _ => pure ()
   match ← requireFile scheduledPath "Scheduled lifecycle authority" with
   | .error message => return .error message
   | .ok _ => pure ()
@@ -182,9 +179,9 @@ def loadSnapshotAtForMeasure
     | .ok image => pure image
     | .error message => return .error message
   let actualRouting ←
-    match ← Loam.Persistence.loadActualRoutingHistory? actualRoutingPath with
-    | some history => pure history
-    | none => return .error "loam: malformed or unsupported Actual routing evidence"
+    match ← Loam.ActualRoutingAuthority.loadHouseholdRequired? dataDir with
+    | .ok history => pure history
+    | .error message => return .error message
   let scheduled ←
     match ← Loam.Persistence.loadScheduledLifecycleImage? scheduledPath with
     | some image => pure image
