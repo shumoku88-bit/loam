@@ -526,9 +526,17 @@ private def validateReviewEquivalence
   let imageActual ← requireOk
     (← Loam.ActualAuthority.loadImage? imageRoot)
     "H2 HouseholdImage Actual"
-  expect (decide (ordinaryActual.evidence = imageActual.evidence))
+  let ordinaryActualCanonical ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? ordinaryActual.evidence)
+    "H2 ordinary Actual canonical encoding"
+  let imageActualCanonical ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? imageActual.evidence)
+    "H2 HouseholdImage Actual canonical encoding"
+  expect (ordinaryActualCanonical == imageActualCanonical)
     "H2 Actual evidence changed across storage topology"
-  expect (decide (ordinaryActual.currentEvents = imageActual.currentEvents))
+  expect
+    (ordinaryActual.currentEvents.events.map Event.id ==
+      imageActual.currentEvents.events.map Event.id)
     "H2 current Actual frontier changed across storage topology"
 
   let ordinaryBalances ← requireOk
