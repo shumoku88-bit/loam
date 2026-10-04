@@ -109,10 +109,6 @@ def Snapshot.rowFor?
     (snapshot : Snapshot) (purpose : PurposeId) : Option Row :=
   snapshot.rows.find? fun row => row.purpose == purpose
 
-private def requireFile (path : System.FilePath) (label : String) : IO (Except String Unit) := do
-  if ← path.pathExists then return .ok ()
-  return .error ("loam: required " ++ label ++ " not found: " ++ path.toString)
-
 private def projectPurposeFromImage?
     (measure : MeasureId)
     (capacity : Loam.CapacityAuthority.Image)
