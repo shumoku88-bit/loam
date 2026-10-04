@@ -216,14 +216,14 @@ def moveCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.Draft) :
     IO (Except String Loam.Core.CapacityMovementId) :=
-  Loam.CapacityPublisher.publish (Loam.HouseholdPaths.capacity root).toString draft
+  Loam.CapacityPublisher.publishHousehold root draft
 
 /-- Publish one balanced multi-coordinate Capacity movement. -/
 def rebalanceCapacity
     (root : System.FilePath)
     (draft : Loam.CapacityPublisher.BalancedDraft) :
     IO (Except String Loam.Core.CapacityMovementId) :=
-  Loam.CapacityPublisher.publishBalanced (Loam.HouseholdPaths.capacity root).toString draft
+  Loam.CapacityPublisher.publishBalancedHousehold root draft
 
 /-- Publish one Actual routing assertion. -/
 def routeActual
