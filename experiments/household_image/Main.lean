@@ -809,7 +809,7 @@ def run : IO Unit := do
 
   let ordinaryRoot := System.FilePath.mk ".household-image-h2-ordinary"
   let imageRoot := System.FilePath.mk ".household-image-h2-recovered"
-  validateReviewEquivalence ordinaryRoot imageRoot reopened
+  validateReviewEquivalence ordinaryRoot imageRoot imageWithFuture
 
   let duplicate : Image := {
     sections := reopened.sections ++
