@@ -2,6 +2,8 @@ import Loam.Persistence.HouseholdImagePersistence
 
 namespace Loam.Tests.HouseholdImagePersistence
 
+open Loam.Persistence.HouseholdImage
+
 set_option autoImplicit false
 
 private def expect (condition : Bool) (message : String) : IO Unit := do
@@ -14,7 +16,6 @@ private def requireSome {α : Type} (value : Option α) (message : String) : IO 
   | none => throw (IO.userError message)
 
 def main : IO Unit := do
-  let open Loam.Persistence.HouseholdImage in
   let base : Image := {
     sections := [
       { name := "Actual", body := "LOAM-NORMALIZED-ACTUAL\t4\n" },
