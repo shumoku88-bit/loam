@@ -99,8 +99,12 @@ def main (args : List String) : IO Unit := do
   let legacyRouting := Loam.HouseholdPaths.scheduledRouting legacyRoot
   IO.FS.writeFile legacyRouting emptyBody
 
+  let lifecycleBody ← requireSome
+    (encodeScheduledLifecycleImage? lifecycleImage)
+    "Household adapter Scheduled lifecycle did not encode"
   let initialImage : Image := {
     sections := [
+      { name := "Scheduled", body := lifecycleBody },
       { name := "ScheduledRouting", body := emptyBody },
       { name := "Securities", body := "FUTURE\t1\nopaque\tunknown\n" }
     ]
@@ -136,7 +140,7 @@ def main (args : List String) : IO Unit := do
     "legacy managed Scheduled route failed"
   let _ ← requireOk
     (← Loam.ScheduledRoutingPublisher.publishHousehold
-      imageRoot imageScheduled.toString managed)
+      imageRoot managed)
     "Household managed Scheduled route failed"
 
   let firstLegacyBody ← IO.FS.readFile legacyRouting
@@ -154,7 +158,7 @@ def main (args : List String) : IO Unit := do
     "legacy unmanaged Scheduled route failed"
   let _ ← requireOk
     (← Loam.ScheduledRoutingPublisher.publishHousehold
-      imageRoot imageScheduled.toString unmanaged)
+      imageRoot unmanaged)
     "Household unmanaged Scheduled route failed"
 
   let secondLegacyBody ← IO.FS.readFile legacyRouting
@@ -194,7 +198,7 @@ def main (args : List String) : IO Unit := do
 
   let beforeRefusal := current.wire
   match ← Loam.ScheduledRoutingPublisher.publishHousehold
-      imageRoot imageScheduled.toString managed with
+      imageRoot managed with
   | .error _ => pure ()
   | .ok _ =>
       throw (IO.userError "duplicate Household Scheduled route unexpectedly succeeded")
