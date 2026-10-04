@@ -160,10 +160,10 @@ def main (args : List String) : IO Unit := do
   let snapshot ← requireOk
     (← Loam.ScheduledReview.loadHouseholdEvidence root root)
     "production Scheduled review failed after cutover mutations"
-  let open ← requireOk
+  let openRecords ← requireOk
     (Loam.ScheduledReview.currentOpenRecords snapshot)
     "production Scheduled frontier failed after cutover mutations"
-  expect open.isEmpty
+  expect openRecords.isEmpty
     "completed replacement/cancellation chain left a current-open occurrence"
 
   IO.println
