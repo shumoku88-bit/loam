@@ -3,6 +3,7 @@ import Loam.ActualDate
 import Loam.Core.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledActualOwnership
@@ -126,6 +127,77 @@ private def publishUnderOwnership
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled replacement lifecycle could not be published"
   return .ok ()
+
+private def publishHouseholdUnderActualOwnership
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String Unit) := do
+  match validateDraft draft with
+  | .error message => return .error message
+  | .ok () => pure ()
+  let observed ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => return .error message
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
+    | .error message => return .error message
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
+    | .error message => return .error message
+  if !draft.movement.changes.all (fun change =>
+      locusAdmission.allows change.coordinate) then
+    return .error "loam: Scheduled replacement uses a Locus not approved for new publication"
+  if (ScheduledMemory.findById? observed.lifecycle.scheduled draft.source).isNone then
+    return .error "loam: selected Scheduled identity is not retained"
+  if (observed.lifecycle.terminals.replacementFor? draft.source).isSome then
+    return .error "loam: selected Scheduled identity is already replaced"
+  let openOccurrences ←
+    match currentOpen? observed.lifecycle evidence.events with
+    | .ok occurrences => pure occurrences
+    | .error message => return .error message
+  if !containsScheduled openOccurrences draft.source then
+    return .error "loam: only a currently open Scheduled identity can be replaced"
+  let replacementId :=
+    Loam.ScheduledOccurrenceConstruction.freshId observed.lifecycle.scheduled
+  let occurrence : ScheduledOccurrence String := {
+    id := replacementId
+    scheduledOn := draft.scheduledOn
+    movement := draft.movement
+  }
+  let updatedScheduled :=
+    ScheduledMemory.addFresh observed.lifecycle.scheduled occurrence (by
+      change replacementId ∉ observed.lifecycle.scheduled.occurrences.map ScheduledOccurrence.id
+      exact Loam.ScheduledOccurrenceConstruction.freshId_fresh observed.lifecycle.scheduled)
+  let relation : ScheduledTerminal := {
+    source := draft.source
+    target := some (.scheduled replacementId)
+  }
+  let updatedTerminals ←
+    match observed.lifecycle.terminals.add? relation with
+    | some terminals => pure terminals
+    | none => return .error "loam: replacement relation violates one-to-one endpoint ownership"
+  let updatedLifecycle := {
+    observed.lifecycle with
+    scheduled := updatedScheduled
+    terminals := updatedTerminals
+  }
+  match ← Loam.ScheduledLifecycleAuthority.publishObserved?
+      root observed updatedLifecycle with
+  | .ok _ => return .ok ()
+  | .error message => return .error message
+
+/--
+Publish one production household Scheduled replacement through HouseholdImage.
+-/
+def publishHousehold
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String Unit) := do
+  if root.toString.isEmpty then
+    return .error "loam: data directory must not be empty"
+  Loam.ActualAuthority.withActualOwnership root
+    (publishHouseholdUnderActualOwnership root draft)
 
 /--
 Publish one Scheduled replacement into the complete lifecycle image.
