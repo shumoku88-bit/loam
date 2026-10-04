@@ -32,6 +32,8 @@ def publishHouseholdSection?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
+  if Loam.Persistence.HouseholdImage.body? generation.image name == some body then
+    return .ok ()
   let candidate? :=
     if Loam.Persistence.HouseholdImage.contains generation.image name then
       Loam.Persistence.HouseholdImage.replaceBody? generation.image name body
