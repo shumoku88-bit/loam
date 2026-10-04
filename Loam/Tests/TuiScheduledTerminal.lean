@@ -1,6 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Review.ActualReview
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Review.ScheduledReview
 import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.Publisher.ScheduledTerminalPublisher
@@ -52,10 +53,10 @@ private def occurrence (id toLocus : String) (amount : Int) : IO (ScheduledOccur
     movement := movement }
 
 private def loadSnapshot
-    (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
+    (root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load Actual review")
-  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
+  let .ok scheduled ← Loam.ScheduledReview.loadHouseholdEvidence root root
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-08"
@@ -77,7 +78,6 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
   let root := dataDir
-  let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initialWorld
@@ -89,12 +89,18 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "scheduled memory")
   let some terminals := ScheduledTerminalMemory.ofTerminals? []
     | throw (IO.userError "empty terminal memory")
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile {
-      scheduled := scheduledMemory
-      terminals := terminals })
-    "save Scheduled lifecycle fixture"
+  let initialLifecycle : Loam.Persistence.ScheduledLifecycleImage := {
+    scheduled := scheduledMemory
+    terminals := terminals
+  }
+  let lifecycleBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? initialLifecycle)
+    "encode Household Scheduled lifecycle fixture"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" lifecycleBody
+    | throw (IO.userError "save Household Scheduled lifecycle fixture")
 
-  let snapshot ← loadSnapshot scheduledFile root
+  let snapshot ← loadSnapshot root
   let actualState := Loam.Tui.SelectedDay.initial "2026-09-10"
   let scheduledState :=
     (Loam.Tui.SelectedDay.update snapshot actualState .focusRight).state
@@ -163,16 +169,16 @@ def main (args : List String) : IO Unit := do
     "completion preview did not emit shared publisher intent"
   expect (completionIntent.scheduled.token == "scheduled-1")
     "completion editor lost selected Scheduled identity"
-  let .ok () ← Loam.ScheduledTerminalPublisher.publishCompletion
-      scheduledFile.toString root.toString completionIntent
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishHouseholdCompletion
+      root completionIntent
     | throw (IO.userError "publish selected Scheduled completion")
-  let some completionLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | throw (IO.userError "reload canonical Scheduled lifecycle after completion")
+  let .ok completionLifecycle ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
+    | throw (IO.userError "reload canonical Household Scheduled lifecycle after completion")
   let completionActual ← requireSome
     (completionLifecycle.terminals.completionActualFor? completionIntent.scheduled)
     "canonical Scheduled completion relation lost its Actual endpoint"
 
-  let afterCompletion ← loadSnapshot scheduledFile root
+  let afterCompletion ← loadSnapshot root
   let afterCompletionScheduled ← requireScheduled afterCompletion
   let .ok dueAfterCompletionEvidence :=
       Loam.ScheduledReview.dayEvidence afterCompletionScheduled "2026-09-10"
@@ -210,11 +216,11 @@ def main (args : List String) : IO Unit := do
   let cancelIntentStep := Loam.Tui.ScheduledCancellation.update armed.state .enter
   let cancelIntent ← requireSome cancelIntentStep.publish
     "explicit cancellation confirmation did not emit publisher intent"
-  let .ok () ← Loam.ScheduledTerminalPublisher.publishCancellation
-      scheduledFile.toString root.toString cancelIntent
+  let .ok () ← Loam.ScheduledTerminalPublisher.publishHouseholdCancellation
+      root cancelIntent
     | throw (IO.userError "publish selected Scheduled cancellation")
 
-  let afterCancellation ← loadSnapshot scheduledFile root
+  let afterCancellation ← loadSnapshot root
   let afterCancellationScheduled ← requireScheduled afterCancellation
   let .ok afterCancellationDayEvidence :=
       Loam.ScheduledReview.dayEvidence afterCancellationScheduled "2026-09-10"
@@ -268,18 +274,18 @@ def main (args : List String) : IO Unit := do
       Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta
         replacementIntent.movement == 300)
     "replacement editor lost selected source or edited content"
-  let .ok () ← Loam.ScheduledReplacementPublisher.publishReplacement
-      scheduledFile.toString root.toString replacementIntent
+  let .ok () ← Loam.ScheduledReplacementPublisher.publishHousehold
+      root replacementIntent
     | throw (IO.userError "publish selected Scheduled replacement")
 
-  let some lifecycle ←
-      Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | throw (IO.userError "reload lifecycle after replacement")
+  let .ok lifecycle ←
+      Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
+    | throw (IO.userError "reload Household lifecycle after replacement")
   let some replacementId :=
       ScheduledTerminalMemory.replacementFor? lifecycle.terminals replacementIntent.source
     | throw (IO.userError "find replacement endpoint from canonical lifecycle relation")
 
-  let afterReplacement ← loadSnapshot scheduledFile root
+  let afterReplacement ← loadSnapshot root
   let afterReplacementScheduled ← requireScheduled afterReplacement
   let .ok oldDayEvidence :=
       Loam.ScheduledReview.dayEvidence afterReplacementScheduled "2026-09-10"
