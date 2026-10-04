@@ -7,6 +7,7 @@ import Loam.Publisher.ActualValidityPublisher
 import Loam.Application.ActualValidityFrontier
 import Loam.Publisher.CorrectionPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Authority.HouseholdAuthority
 
 open Loam.Core
 
@@ -19,6 +20,16 @@ private def emptyLifecycle : IO Loam.Persistence.ScheduledLifecycleImage := do
   let some terminals := ScheduledTerminalMemory.ofTerminals? []
     | throw (IO.userError "empty Scheduled terminal memory")
   return { scheduled, terminals }
+
+private def publishLifecycle
+    (root : System.FilePath)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage) : IO Unit := do
+  let some body := Loam.Persistence.encodeScheduledLifecycleImage? lifecycle
+    | throw (IO.userError "encode Household Scheduled lifecycle fixture")
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" body
+    | throw (IO.userError "publish Household Scheduled lifecycle fixture")
+  pure ()
 
 private def completedLifecycle
     (actual : EventId) : IO Loam.Persistence.ScheduledLifecycleImage := do
@@ -149,20 +160,16 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
   let root := dataDir
-  let scheduledFile := dataDir / "scheduled.loam"
-
   let world ← initialWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root world
     | throw (IO.userError "publish initial Actual world")
   let lifecycle ← emptyLifecycle
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
-    "publish explicit empty Scheduled lifecycle"
+  publishLifecycle root lifecycle
 
   let draft : Loam.ActualReversalPublisher.Draft := {
     target := ⟨"actual-1"⟩
     validOn := "2026-09-08" }
-  let .ok () ← Loam.ActualReversalPublisher.publishReversal
-      scheduledFile.toString root.toString draft
+  let .ok () ← Loam.ActualReversalPublisher.publishHousehold root draft
     | throw (IO.userError "publish Actual reversal")
 
   let .ok actualEvidence ← Loam.ActualAuthority.loadActual? root
@@ -235,29 +242,24 @@ def main (args : List String) : IO Unit := do
   expect (!correctInverse.isOk)
     "Correction changed a Reversal inverse and invalidated exact inverse provenance"
 
-  let second ← Loam.ActualReversalPublisher.publishReversal
-    scheduledFile.toString root.toString draft
+  let second ← Loam.ActualReversalPublisher.publishHousehold root draft
   expect (!second.isOk)
     "a second reversal of the same Actual was not rejected"
 
   let reverseAgain : Loam.ActualReversalPublisher.Draft := {
     target := relation.reversal
     validOn := "2026-09-08" }
-  let reverseAgainResult ← Loam.ActualReversalPublisher.publishReversal
-    scheduledFile.toString root.toString reverseAgain
+  let reverseAgainResult ← Loam.ActualReversalPublisher.publishHousehold root reverseAgain
   expect (!reverseAgainResult.isOk)
     "reversal-of-reversal chain was admitted before its semantics were qualified"
 
   let usdRoot := dataDir / "usd-reversal"
   IO.FS.createDirAll usdRoot
-  let usdScheduledFile := usdRoot / "scheduled.loam"
   let usdWorld ← initialWorldForMeasure ⟨"usd"⟩
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? usdRoot usdWorld
     | throw (IO.userError "publish USD Actual world")
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? usdScheduledFile lifecycle)
-    "publish empty lifecycle for USD reversal"
-  let .ok () ← Loam.ActualReversalPublisher.publishReversal
-      usdScheduledFile.toString usdRoot.toString draft
+  publishLifecycle usdRoot lifecycle
+  let .ok () ← Loam.ActualReversalPublisher.publishHousehold usdRoot draft
     | throw (IO.userError "publish USD Actual reversal")
   let .ok usdEvidence ← Loam.ActualAuthority.loadActual? usdRoot
     | throw (IO.userError "reload USD Actual authority")
@@ -282,20 +284,17 @@ def main (args : List String) : IO Unit := do
 
   let mixedRoot := dataDir / "mixed-measure-reversal"
   IO.FS.createDirAll mixedRoot
-  let mixedScheduledFile := mixedRoot / "scheduled.loam"
   let exchangeBase ← exchangeWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? mixedRoot exchangeBase
     | throw (IO.userError "initialize exchange Actual world")
   let .ok exchangeEvent ← Loam.ExchangePublisher.publish mixedRoot.toString exchangeDraft
     | throw (IO.userError "publish qualified mixed-Measure exchange")
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? mixedScheduledFile lifecycle)
-    "publish empty lifecycle for mixed-Measure reversal"
+  publishLifecycle mixedRoot lifecycle
   let mixedDraft : Loam.ActualReversalPublisher.Draft := {
     target := exchangeEvent
     validOn := "2026-09-08"
   }
-  let mixedResult ← Loam.ActualReversalPublisher.publishReversal
-    mixedScheduledFile.toString mixedRoot.toString mixedDraft
+  let mixedResult ← Loam.ActualReversalPublisher.publishHousehold mixedRoot mixedDraft
   expect (!mixedResult.isOk)
     "qualified cross-Measure Exchange was admitted by the single-Measure reversal entrance"
   let .ok mixedAfter ← Loam.ActualAuthority.loadActual? mixedRoot
@@ -306,16 +305,12 @@ def main (args : List String) : IO Unit := do
 
   let dischargeRoot := dataDir / "relation-discharge-guard"
   IO.FS.createDirAll dischargeRoot
-  let dischargeScheduledFile := dischargeRoot / "scheduled.loam"
   let retainedDischargeWorld ← dischargeWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? dischargeRoot retainedDischargeWorld
     | throw (IO.userError "publish Relation-discharge Actual world")
   let dischargeLifecycle ← emptyLifecycle
-  expect (← Loam.Persistence.saveScheduledLifecycleImage?
-      dischargeScheduledFile dischargeLifecycle)
-    "publish empty lifecycle for Relation-discharge reversal guard"
-  let blockedDischarge ← Loam.ActualReversalPublisher.publishReversal
-    dischargeScheduledFile.toString dischargeRoot.toString draft
+  publishLifecycle dischargeRoot dischargeLifecycle
+  let blockedDischarge ← Loam.ActualReversalPublisher.publishHousehold dischargeRoot draft
   expect (!blockedDischarge.isOk)
     "Relation-discharge Event was accepted by the reversal entrance before discharge reversal semantics were qualified"
   let .ok afterDischargeBlocked ← Loam.ActualAuthority.loadActual? dischargeRoot
@@ -328,13 +323,12 @@ def main (args : List String) : IO Unit := do
   let relationSourceDraft : Loam.ActualReversalPublisher.Draft := {
     target := ⟨"actual-source"⟩
     validOn := "2026-09-08" }
-  let beforeRelationRefusal ← IO.FS.readFile (dischargeRoot / "actual.loam")
-  let blockedRelation ← Loam.ActualReversalPublisher.publishReversal
-    dischargeScheduledFile.toString dischargeRoot.toString relationSourceDraft
+  let beforeRelationRefusal ← IO.FS.readFile (Loam.HouseholdAuthority.path dischargeRoot)
+  let blockedRelation ← Loam.ActualReversalPublisher.publishHousehold dischargeRoot relationSourceDraft
   expect (!blockedRelation.isOk)
     "Relation source Event was accepted by the reversal entrance before relation-reversal semantics were qualified"
-  expect ((← IO.FS.readFile (dischargeRoot / "actual.loam")) == beforeRelationRefusal)
-    "refused Relation-source reversal changed Actual authority"
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path dischargeRoot)) == beforeRelationRefusal)
+    "refused Relation-source reversal changed Household authority"
   let .ok afterRelationBlocked ← Loam.ActualAuthority.loadActual? dischargeRoot
     | throw (IO.userError "reload Actual after refused Relation-source reversal")
   expect ((afterRelationBlocked.reversals.findByTarget? relationSourceDraft.target).isNone)
@@ -344,16 +338,12 @@ def main (args : List String) : IO Unit := do
 
   let completionRoot := dataDir / "scheduled-completion-guard"
   IO.FS.createDirAll completionRoot
-  let completionScheduledFile := completionRoot / "scheduled.loam"
   let completionWorld ← initialWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? completionRoot completionWorld
     | throw (IO.userError "publish Scheduled-completion Actual world")
   let completionLifecycle ← completedLifecycle ⟨"actual-1"⟩
-  expect (← Loam.Persistence.saveScheduledLifecycleImage?
-      completionScheduledFile completionLifecycle)
-    "publish Scheduled completion provenance"
-  let blocked ← Loam.ActualReversalPublisher.publishReversal
-    completionScheduledFile.toString completionRoot.toString draft
+  publishLifecycle completionRoot completionLifecycle
+  let blocked ← Loam.ActualReversalPublisher.publishHousehold completionRoot draft
   expect (!blocked.isOk)
     "Scheduled-completion Actual was accepted by the reversal entrance"
   let .ok afterBlocked ← Loam.ActualAuthority.loadActual? completionRoot
