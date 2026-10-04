@@ -87,6 +87,7 @@ scheduled_routing_tests=(
 
 scheduled_lifecycle_tests=(
   ScheduledLifecyclePersistence
+  HouseholdScheduledLifecycleAuthority
   ScheduledCreationPublisher
   ScheduledReplacementPublisher
   ScheduledTerminalPublisher
@@ -346,6 +347,9 @@ for test_name in "${tests[@]}"; do
       ;;
     ScheduledLifecyclePersistence)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-lifecycle"
+      ;;
+    HouseholdScheduledLifecycleAuthority)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-scheduled-lifecycle-authority"
       ;;
     ScheduledReplacementPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-replacement-publisher"
