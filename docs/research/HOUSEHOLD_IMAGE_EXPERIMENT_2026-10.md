@@ -191,6 +191,58 @@ No cross-family rule is added to HouseholdImage itself. The outer envelope still
 owns framing only; coherence is demonstrated by existing LOAM application
 boundaries.
 
+### H1.5 — extensible named sections
+
+The outer experiment now has a version-2 container contract:
+
+~~~text
+LOAM-HOUSEHOLD-IMAGE<TAB>2
+
+SECTION<TAB>Actual<TAB><length>
+<opaque payload>
+
+SECTION<TAB>Scheduled<TAB><length>
+<opaque payload>
+
+...
+
+SECTION<TAB>Securities<TAB><length>
+<opaque payload unknown to this semantic version>
+~~~
+
+The physical image is an ordered collection of uniquely named opaque sections.
+The thirteen currently understood household families are projected out of that
+container only when semantic work is required.
+
+This checkpoint adds a synthetic future `Securities` section that the current
+household semantics do not understand. It requires:
+
+~~~text
+decode / encode preserves the unknown section exactly
+
+change only Attention
+re-encode the whole image
+decode again
+
+unknown Securities bytes are unchanged
+unknown Securities position is unchanged
+all thirteen known sections remain canonically valid
+the H1 coherent household answers remain unchanged
+~~~
+
+Duplicate section identity is refused. A missing currently required known
+section also fails closed rather than being interpreted as empty evidence.
+
+This is the intended forward-extension rule: adding a future authority family
+does not require a new outer format version merely because a new section name
+exists. The outer version changes only when the framing contract itself changes.
+
+This does not mean arbitrary large artifacts belong in the household image.
+Raw media, telemetry, caches, disposable projections, downloaded statements,
+and similarly large or independently managed material remain outside the
+candidate canonical state unless a later experiment demonstrates a need for
+atomic household publication.
+
 ### H2 — answer equivalence
 
 Compare selected current production answers on:
