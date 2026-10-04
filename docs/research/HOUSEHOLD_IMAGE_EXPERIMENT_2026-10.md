@@ -410,18 +410,137 @@ than assuming it.
 
 ### H4 — failure boundary
 
-Compare:
+**Executable failure-boundary experiment added on the follow-up branch.**
+
+The candidate publication protocol is intentionally narrow:
 
 ~~~text
-current split authorities
-vs
-one household generation
+observe admitted current bytes A
+acquire one HouseholdImage writer ownership
+re-read current
+require current bytes == A
+change exactly one semantic section
+prove every other known and unknown section byte-identical
+admit the changed section
+stage complete candidate B
+typed re-read of staged B
+
+stage current A as previous candidate
+validate previous candidate
+rename previous candidate -> household.loam.prev
+
+rename staged B -> household.loam
 ~~~
 
-under interruption, malformed section, stale writer, and partial migration.
+The final rename is the only current-generation switch. If interruption occurs
+before it, `household.loam` still names the old complete generation.
 
-The single-image design wins only if reduced split-publication complexity
-outweighs the larger corruption / rewrite blast radius.
+H4 exercises:
+
+- partial/corrupt candidate stage;
+- complete candidate stage before final rename;
+- interruption after the previous-generation switch but before current switch;
+- successful selective Attention publication;
+- stale writer rejection after ownership and re-read;
+- malformed changed-section rejection without mutation;
+- malformed outer current image with explicit previous-generation fallback;
+- valid outer framing containing malformed inner semantic evidence;
+- explicit restoration from the qualified previous generation;
+- partial migration from the existing thirteen-file topology.
+
+Recovery does not silently relabel previous evidence as current. The recovery
+reader returns whether the usable image came from `current` or `previous`,
+and restoration is a separate explicit operation.
+
+The migration checkpoint keeps the existing split authorities untouched while
+the HouseholdImage candidate is staged. A partial migration stage therefore
+does not change existing Review answers or create a current HouseholdImage.
+Only a complete typed image is atomically installed.
+
+This is still a research protocol, not a durability guarantee. In particular,
+the experiment tests malformed framing and malformed inner semantic evidence;
+it does not yet add a cryptographic checksum or claim detection of an arbitrary
+bit mutation that accidentally remains a different valid LOAM document.
+
+
+#### H4 CI result
+
+The first complete H4 GitHub Actions run passed every exercised failure shape:
+
+~~~text
+[ok] partial stage left current generation intact
+[ok] complete pre-rename stage left current generation intact
+[ok] previous switch before final rename still left old current intact
+[ok] final rename installed B and retained A as previous
+[ok] stale observed generation was refused without mutation
+[ok] malformed changed section failed closed
+[ok] malformed current fell back explicitly to previous and restored
+[ok] outer-valid but inner-malformed current fell back to previous
+[ok] partial migration remained inert and preserved split Review answers
+~~~
+
+The important architectural result is that the candidate does not need a
+multi-file transaction log to preserve one complete household generation during
+the tested interruption points.
+
+The selected ordering is:
+
+~~~text
+current = A
+stage B completely
+qualify B completely
+
+stage/certify A as previous
+rename previous-stage -> previous
+
+current is still A here
+
+rename B-stage -> current
+
+current = B
+previous = A
+~~~
+
+An interruption before the final rename leaves A as current. An interruption
+after the final rename leaves B as current and A as previous.
+
+Stale-writer protection also collapses to one identity boundary: the writer
+holds one household lock, re-reads the current complete image, and requires the
+bytes to equal the admitted generation it originally observed. A writer based
+on A cannot silently replace B.
+
+The larger corruption blast radius remains real, but the tested recovery
+contract is sharper than silent best-effort fallback:
+
+~~~text
+current valid
+  -> return current
+
+current invalid + previous valid
+  -> return source = previous explicitly
+
+current invalid + previous invalid/missing
+  -> fail closed
+~~~
+
+Restoring previous is a separate explicit mutation under writer ownership.
+
+For migration, a partially written HouseholdImage stage does not affect the
+existing thirteen-file authority or its Review answers. This supports a future
+migration design in which split authority remains authoritative until a complete
+HouseholdImage has been constructed and explicitly selected.
+
+### H4 limitation discovered rather than hidden
+
+The format still has no independent integrity digest. Therefore H4 demonstrates
+detection of malformed outer framing and malformed inner semantic documents,
+but not arbitrary storage mutation that happens to produce a different,
+fully-valid LOAM document.
+
+That limitation also exists for the current plain-text authorities unless an
+external integrity mechanism is used. A production HouseholdImage decision
+should therefore treat per-generation or per-section integrity metadata as a
+separate durability feature, not pretend semantic decoding is a checksum.
 
 ## Decision rule
 

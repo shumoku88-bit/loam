@@ -14,6 +14,7 @@ import Loam.Persistence.OpeningSupportPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
+import Loam.Persistence.WriterOwnership
 import Loam.Publisher.BoundedHistorySupportPublisher
 import Loam.Review.AccountingRoleReview
 import Loam.Review.ActualRoutingReview
@@ -981,6 +982,368 @@ def runH3 : IO Unit := do
   IO.println s!"[info] H3 largest synthetic Actual: {largest.events} Events / {largest.imageChars} image characters"
   IO.println "[result] H3 publication cost measured; interpret the CI numbers before production promotion"
 
+
+private def householdPath (root : System.FilePath) : System.FilePath :=
+  root / "household.loam"
+
+private def householdStagePath (path : System.FilePath) : System.FilePath :=
+  System.FilePath.mk (path.toString ++ ".loam-stage")
+
+private def householdPreviousPath (path : System.FilePath) : System.FilePath :=
+  System.FilePath.mk (path.toString ++ ".prev")
+
+private def householdPreviousStagePath (path : System.FilePath) : System.FilePath :=
+  System.FilePath.mk (path.toString ++ ".prev.loam-stage")
+
+private def h4AttentionB : String :=
+  String.intercalate "\n" [
+    Loam.Persistence.attentionMemoryHeader,
+    "ITEM\tattention-1\tDUE_ON\t2026-10-31\trenew-insurance",
+    "ITEM\tattention-2\tNO_DUE_DATE\t-\tcheck-future-refund"
+  ] ++ "\n"
+
+private def h4AttentionC : String :=
+  String.intercalate "\n" [
+    Loam.Persistence.attentionMemoryHeader,
+    "ITEM\tattention-1\tDUE_ON\t2026-10-31\trenew-insurance",
+    "ITEM\tattention-3\tDUE_UNDETERMINED\t-\tfuture-follow-up"
+  ] ++ "\n"
+
+private def decodableKnownSections (sections : Sections) : Bool :=
+  (Loam.Persistence.decodeNormalizedActual? sections.actual).isSome &&
+  (Loam.Persistence.decodeScheduledLifecycleImage? sections.scheduled).isSome &&
+  (Loam.Persistence.decodeNormalizedCapacity? sections.capacity).isSome &&
+  (Loam.Persistence.decodeAttentionMemory? sections.attention).isSome &&
+  (Loam.Persistence.decodeActualRoutingHistory? sections.actualRouting).isSome &&
+  (Loam.Persistence.decodeScheduledRoutingHistory? sections.scheduledRouting).isSome &&
+  (Loam.Persistence.decodeAccountingRoleMap? sections.accountingRole).isSome &&
+  (Loam.Persistence.decodeLocusAdmissionVocabulary? sections.locusAdmission).isSome &&
+  (Loam.Persistence.decodeZeroOriginCoverage? sections.zeroOrigin).isSome &&
+  (Loam.Persistence.decodeOpeningSupportMap? sections.openingSupport).isSome &&
+  (Loam.Persistence.decodeCurrentQuantityAnchor? sections.currentQuantityAnchor).isSome &&
+  (Loam.Persistence.decodeCurrentQuantityPresence? sections.currentQuantityPresence).isSome &&
+  (Loam.Persistence.decodeBoundedHistorySupport? sections.boundedHistorySupport).isSome
+
+private def fullyDecodableImage? (wire : String) : Option Image := do
+  let image ← decode? wire
+  let known ← knownSections? image
+  if decodableKnownSections known then some image else none
+
+private def unchangedExceptAttention (base candidate : Image) : Bool :=
+  base.sections.length == candidate.sections.length &&
+    (base.sections.zip candidate.sections).all fun pair =>
+      pair.1.name == pair.2.name &&
+        (if pair.1.name == "Attention" then true else pair.1.body == pair.2.body)
+
+private def validateAttentionTransition
+    (base candidate : Image) : Except String Unit := do
+  if !unchangedExceptAttention base candidate then
+    throw "H4: a supposedly Attention-only transition changed another section"
+  let before ←
+    match findBody? base "Attention" with
+    | some body => pure body
+    | none => throw "H4: base image has no Attention section"
+  let after ←
+    match findBody? candidate "Attention" with
+    | some body => pure body
+    | none => throw "H4: candidate image has no Attention section"
+  if before == after then
+    throw "H4: Attention-only transition did not change Attention"
+  let pair ←
+    match Loam.Persistence.decodeAttentionMemory? after with
+    | some pair => pure pair
+    | none => throw "H4: changed Attention section is malformed"
+  let canonical ←
+    match Loam.Persistence.encodeAttentionMemory? pair.1 pair.2 with
+    | some text => pure text
+    | none => throw "H4: changed Attention section cannot be canonically encoded"
+  if canonical != after then
+    throw "H4: changed Attention section is not canonical"
+  pure ()
+
+/--
+Research candidate for one selective HouseholdImage publication.
+
+The caller supplies the exact admitted bytes it observed. Ownership is acquired
+before the current authority is re-read; a byte mismatch rejects a stale writer.
+Only Attention may change. Untouched known and unknown sections must remain
+byte-identical.
+
+The old current image is first staged and atomically installed as the previous
+generation. Only then is the already-validated candidate atomically renamed over
+current. If interruption happens before the last rename, current still names the
+old complete generation.
+-/
+private def publishAttentionFromObserved?
+    (path : System.FilePath)
+    (observedWire newAttention : String) : IO (Except String String) :=
+  Loam.WriterOwnership.withOwnership path do
+    if !(← path.pathExists) then
+      return .error "H4: household authority is missing"
+    let currentWire ← IO.FS.readFile path
+    if currentWire != observedWire then
+      return .error "H4: stale household generation"
+
+    let some base := fullyDecodableImage? currentWire
+      | return .error "H4: current household generation is malformed"
+    let some candidate := replaceBody? base "Attention" newAttention
+      | return .error "H4: current household generation has no Attention section"
+
+    match validateAttentionTransition base candidate with
+    | .error message => return .error message
+    | .ok () => pure ()
+
+    let some candidateWire := encode? candidate
+      | return .error "H4: candidate household image cannot be encoded"
+
+    let stage := householdStagePath path
+    IO.FS.writeFile stage candidateWire
+    let stagedWire ← IO.FS.readFile stage
+    if stagedWire != candidateWire then
+      return .error "H4: staged household bytes differ from candidate"
+    let some staged := fullyDecodableImage? stagedWire
+      | return .error "H4: staged household image failed typed decoding"
+    if staged != candidate then
+      return .error "H4: staged household image changed during round-trip"
+    match validateAttentionTransition base staged with
+    | .error message => return .error message
+    | .ok () => pure ()
+
+    let previousStage := householdPreviousStagePath path
+    IO.FS.writeFile previousStage currentWire
+    let previousStaged ← IO.FS.readFile previousStage
+    if previousStaged != currentWire then
+      return .error "H4: previous-generation staging mismatch"
+    let some _ := fullyDecodableImage? previousStaged
+      | return .error "H4: previous generation stopped being decodable"
+
+    IO.FS.rename previousStage (householdPreviousPath path)
+    IO.FS.rename stage path
+    return .ok candidateWire
+
+inductive H4RecoverySource where
+  | current
+  | previous
+deriving Repr, DecidableEq
+
+structure H4Recovered where
+  source : H4RecoverySource
+  wire : String
+  image : Image
+deriving Repr, BEq
+
+/--
+Fail closed on an invalid current generation, but expose a fully decoded previous
+generation explicitly when one exists. Falling back is observable in the result;
+the caller never receives previous evidence disguised as current evidence.
+-/
+private def loadRecoverable?
+    (path : System.FilePath) : IO (Except String H4Recovered) := do
+  if ← path.pathExists then
+    let wire ← IO.FS.readFile path
+    match fullyDecodableImage? wire with
+    | some image =>
+        return .ok { source := .current, wire := wire, image := image }
+    | none => pure ()
+
+  let previous := householdPreviousPath path
+  if ← previous.pathExists then
+    let wire ← IO.FS.readFile previous
+    match fullyDecodableImage? wire with
+    | some image =>
+        return .ok { source := .previous, wire := wire, image := image }
+    | none => pure ()
+
+  return .error "H4: neither current nor previous household generation is usable"
+
+/-- Explicitly restore a qualified previous generation through the same final rename boundary. -/
+private def restorePrevious?
+    (path : System.FilePath) : IO (Except String Unit) :=
+  Loam.WriterOwnership.withOwnership path do
+    let previous := householdPreviousPath path
+    if !(← previous.pathExists) then
+      return .error "H4: previous household generation is missing"
+    let previousWire ← IO.FS.readFile previous
+    let some _ := fullyDecodableImage? previousWire
+      | return .error "H4: previous household generation is malformed"
+    let stage := householdStagePath path
+    IO.FS.writeFile stage previousWire
+    let staged ← IO.FS.readFile stage
+    if staged != previousWire then
+      return .error "H4: recovery stage mismatch"
+    let some _ := fullyDecodableImage? staged
+      | return .error "H4: recovery stage failed typed decoding"
+    IO.FS.rename stage path
+    return .ok ()
+
+private def expectFileBytes
+    (path : System.FilePath)
+    (expected : String)
+    (message : String) : IO Unit := do
+  let actual ← IO.FS.readFile path
+  expect (actual == expected) message
+
+def runH4 : IO Unit := do
+  let root := System.FilePath.mk ".household-image-h4"
+  cleanupDir root
+  IO.FS.createDirAll root
+  let path := householdPath root
+  let stage := householdStagePath path
+  let previous := householdPreviousPath path
+  let previousStage := householdPreviousStagePath path
+
+  let futureBody :=
+    "LOAM-SECURITIES\t1\nPOSITION\tglobal-index\t42\nNOTE\tfuture opaque evidence\n"
+  let baseImage ← requireSome
+    (appendSection? (imageFromKnown coherentSections)
+      { name := "Securities", body := futureBody })
+    "H4 base future section"
+  let baseWire ← requireSome (encode? baseImage)
+    "H4 base image encoding"
+  let some _ := fullyDecodableImage? baseWire
+    | throw <| IO.userError "H4 base image was not fully decodable"
+  IO.FS.writeFile path baseWire
+
+  -- A. Partial/corrupt stage must not affect current.
+  IO.FS.writeFile stage "LOAM-HOUSEHOLD-IMAGE\t2\nSECTION\tAttention\t999\npartial"
+  expectFileBytes path baseWire
+    "H4 A: partial stage changed current household generation"
+  IO.println "[h4-ok] partial stage left current generation intact"
+
+  -- B. A complete valid candidate sitting pre-rename is still inert.
+  let candidateB ← requireSome
+    (replaceBody? baseImage "Attention" h4AttentionB)
+    "H4 candidate B"
+  let candidateBWire ← requireSome (encode? candidateB)
+    "H4 candidate B encoding"
+  IO.FS.writeFile stage candidateBWire
+  expectFileBytes path baseWire
+    "H4 B: completed pre-rename stage changed current generation"
+  IO.println "[h4-ok] complete pre-rename stage left current generation intact"
+
+  -- C. Even after previous has switched, interruption before the final rename
+  -- leaves current on the old complete generation.
+  IO.FS.writeFile previousStage baseWire
+  IO.FS.rename previousStage previous
+  expectFileBytes previous baseWire
+    "H4 C: previous generation did not retain old current"
+  expectFileBytes path baseWire
+    "H4 C: pre-final-rename interruption changed current"
+  IO.println "[h4-ok] previous switch before final rename still left old current intact"
+
+  -- D. Qualified selective publication installs B and retains A as previous.
+  let publishedB ← requireOk
+    (← publishAttentionFromObserved? path baseWire h4AttentionB)
+    "H4 D selective publication"
+  expectFileBytes path publishedB
+    "H4 D: current did not switch to generation B"
+  expectFileBytes previous baseWire
+    "H4 D: previous did not retain generation A"
+  let some publishedBImage := fullyDecodableImage? publishedB
+    | throw <| IO.userError "H4 D: published B was not fully decodable"
+  expect (findBody? publishedBImage "Securities" == some futureBody)
+    "H4 D: unknown future section was not preserved"
+  IO.println "[h4-ok] final rename installed B and retained A as previous"
+
+  -- E. Writer 2 observed A before writer 1 installed B. It must fail stale
+  -- after ownership/re-read rather than publishing over B.
+  let stale ← publishAttentionFromObserved? path baseWire h4AttentionC
+  match stale with
+  | .ok _ =>
+      throw <| IO.userError "H4 E: stale writer unexpectedly published"
+  | .error _ => pure ()
+  expectFileBytes path publishedB
+    "H4 E: stale writer changed current generation"
+  IO.println "[h4-ok] stale observed generation was refused without mutation"
+
+  -- F. Malformed changed semantics must fail before authority replacement.
+  let malformedAttention :=
+    "LOAM-ATTENTION-MEMORY\t1\nITEM\tbroken\tDUE_ON\t2026-99-99\tbad\n"
+  let malformed ← publishAttentionFromObserved? path publishedB malformedAttention
+  match malformed with
+  | .ok _ =>
+      throw <| IO.userError "H4 F: malformed Attention unexpectedly published"
+  | .error _ => pure ()
+  expectFileBytes path publishedB
+    "H4 F: malformed changed section altered current generation"
+  IO.println "[h4-ok] malformed changed section failed closed"
+
+  -- G. Whole-current outer corruption is observable and previous is returned
+  -- explicitly, never disguised as current.
+  IO.FS.writeFile path "LOAM-HOUSEHOLD-IMAGE\t2\nSECTION\tActual\t999\ntruncated"
+  let recoveredOuter ← requireOk
+    (← loadRecoverable? path)
+    "H4 G outer-corruption recovery read"
+  expect (recoveredOuter.source == .previous)
+    "H4 G: outer corruption did not select explicit previous generation"
+  expect (recoveredOuter.wire == baseWire)
+    "H4 G: outer corruption selected unexpected previous bytes"
+  let _ ← requireOk (← restorePrevious? path)
+    "H4 G restore previous"
+  expectFileBytes path baseWire
+    "H4 G: explicit restore did not recover A"
+  IO.println "[h4-ok] malformed current fell back explicitly to previous and restored"
+
+  -- H. Corruption can preserve valid outer framing while breaking one inner
+  -- semantic section. Full recovery qualification must still reject it.
+  let badInnerImage ← requireSome
+    (replaceBody? baseImage "Attention" malformedAttention)
+    "H4 H malformed inner candidate"
+  let badInnerWire ← requireSome (encode? badInnerImage)
+    "H4 H malformed inner outer encoding"
+  expect (decode? badInnerWire).isSome
+    "H4 H: test fixture did not preserve valid outer framing"
+  expect (fullyDecodableImage? badInnerWire).isNone
+    "H4 H: malformed inner section passed full recovery qualification"
+  IO.FS.writeFile path badInnerWire
+  let recoveredInner ← requireOk
+    (← loadRecoverable? path)
+    "H4 H inner-corruption recovery read"
+  expect (recoveredInner.source == .previous)
+    "H4 H: inner corruption did not select explicit previous generation"
+  IO.println "[h4-ok] outer-valid but inner-malformed current fell back to previous"
+
+  cleanupDir root
+
+  -- I. Partial migration from the current 13-file topology is inert until one
+  -- complete household image is atomically installed. Existing split readers
+  -- remain usable throughout this research migration staging.
+  let migrationRoot := System.FilePath.mk ".household-image-h4-migration"
+  cleanupDir migrationRoot
+  writeKnownFiles migrationRoot coherentSections
+  let migrationPath := householdPath migrationRoot
+  let migrationStage := householdStagePath migrationPath
+
+  let splitBefore ← requireOk
+    (← Loam.CurrentBalanceReview.loadSnapshot migrationRoot migrationRoot)
+    "H4 I split review before migration"
+  IO.FS.writeFile migrationStage
+    "LOAM-HOUSEHOLD-IMAGE\t2\nSECTION\tActual\t999\npartial-migration"
+  expect (!(← migrationPath.pathExists))
+    "H4 I: partial migration accidentally created current HouseholdImage"
+  let splitDuring ← requireOk
+    (← Loam.CurrentBalanceReview.loadSnapshot migrationRoot migrationRoot)
+    "H4 I split review during partial migration"
+  expect (decide (splitBefore = splitDuring))
+    "H4 I: partial migration changed existing split Review answer"
+
+  IO.FS.writeFile migrationStage baseWire
+  let stagedMigration ← IO.FS.readFile migrationStage
+  expect ((fullyDecodableImage? stagedMigration).isSome)
+    "H4 I: complete migration candidate was not fully decodable"
+  IO.FS.rename migrationStage migrationPath
+  expectFileBytes migrationPath baseWire
+    "H4 I: migration final rename did not install HouseholdImage"
+  let splitAfter ← requireOk
+    (← Loam.CurrentBalanceReview.loadSnapshot migrationRoot migrationRoot)
+    "H4 I split review after image installation"
+  expect (decide (splitBefore = splitAfter))
+    "H4 I: HouseholdImage installation mutated legacy split evidence"
+  cleanupDir migrationRoot
+  IO.println "[h4-ok] partial migration remained inert and preserved split Review answers"
+
+  IO.println "[result] H4 selective generation publication survived staged interruption, stale writer, malformed section, recoverable corruption and partial migration"
+
 def run : IO Unit := do
   validateCanonical coherentSections
   validateCoherentWorld coherentSections
@@ -1081,7 +1444,9 @@ def run : IO Unit := do
 end Loam.HouseholdImageExperiment
 
 def main (args : List String) : IO Unit :=
-  if args.contains "--h3" then
+  if args.contains "--h4" then
+    Loam.HouseholdImageExperiment.runH4
+  else if args.contains "--h3" then
     Loam.HouseholdImageExperiment.runH3
   else
     Loam.HouseholdImageExperiment.run

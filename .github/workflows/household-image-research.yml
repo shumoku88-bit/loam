@@ -53,3 +53,10 @@ jobs:
           set -euo pipefail
           cd experiments/household_image
           .lake/build/bin/householdImageExperiment --h3
+
+      - name: Exercise H4 failure boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/household_image
+          .lake/build/bin/householdImageExperiment --h4
