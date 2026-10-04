@@ -19,10 +19,8 @@ set_option autoImplicit false
 
 This module exposes the surface-independent write boundary for Scheduled replacement.
 
-The fixed ownership order matches other Scheduled publishers:
-```text
-Scheduled lifecycle authority -> actual.loam
-```
+Production publication reads Scheduled, Actual, and LocusAdmission from one
+observed HouseholdImage generation and publishes only the Scheduled section.
 -/
 
 structure Draft where
@@ -63,7 +61,7 @@ private def validateDraft (draft : Draft) : Except String Unit := do
     throw ("loam: Scheduled replacement requires valid Locus tokens and nonzero " ++
       draft.movement.measure.token ++ " quantities")
 
-private def publishHouseholdUnderActualOwnership
+private def publishHouseholdFromGeneration
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
   match validateDraft draft with
@@ -73,14 +71,23 @@ private def publishHouseholdUnderActualOwnership
     match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
     | .ok observed => pure observed
     | .error message => return .error message
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
+  let actualImage ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? observed.generation with
+    | .ok image => pure image
     | .error message => return .error message
+  let evidence := actualImage.evidence
+  let locusBody ←
+    match Loam.Persistence.HouseholdImage.body?
+        observed.generation.image "LocusAdmission" with
+    | some body => pure body
+    | none =>
+        return .error "loam: required HouseholdImage Locus admission section is missing"
   let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
+    match Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody with
+    | some vocabulary => pure vocabulary
+    | none =>
+        return .error
+          "loam: malformed or unsupported HouseholdImage Locus admission authority"
   if !draft.movement.changes.all (fun change =>
       locusAdmission.allows change.coordinate) then
     return .error "loam: Scheduled replacement uses a Locus not approved for new publication"
@@ -131,8 +138,7 @@ def publishHousehold
     (draft : Draft) : IO (Except String Unit) := do
   if root.toString.isEmpty then
     return .error "loam: data directory must not be empty"
-  Loam.ActualAuthority.withActualOwnership root
-    (publishHouseholdUnderActualOwnership root draft)
+  publishHouseholdFromGeneration root draft
 
 
 
