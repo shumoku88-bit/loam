@@ -125,8 +125,7 @@ file.
 
 It does not yet test:
 
-- one coherent non-empty household world across all thirteen families;
-- equivalence of existing Review answers after loading through the outer image;
+- equivalence of existing Review answers between ordinary files and the outer image;
 - publication latency when a small family changes but Actual is large;
 - crash behavior of a complete household publication;
 - migration from an existing loam-data directory;
@@ -142,9 +141,55 @@ Those are later gates.
 
 ### H1 — coherent household snapshot
 
-Construct one synthetic household where multiple authority families are
-simultaneously non-empty and mutually consistent. Package the existing canonical
-documents without changing them.
+**Executable checkpoint implemented on the follow-up branch.**
+
+The synthetic household now makes all thirteen authority sections non-empty and
+ties them together through existing LOAM semantics:
+
+~~~text
+Actual:
+  opening cash +10000 / opening-offset -10000
+  food spend cash -2000 / food +2000
+
+Capacity:
+  food-budget entitlement 5000
+
+Scheduled:
+  future food pressure 1000
+
+Routing:
+  Actual food -> food-budget
+  Scheduled food -> food-budget
+
+Current support:
+  cash     -> OpeningSupport -> 8000
+  food     -> ZeroOriginCoverage -> 2000
+  savings  -> CurrentQuantityAnchor -> 3000
+  debt     -> CurrentQuantityPresence -> known present, amount unknown
+
+Bounded history:
+  savings/jpy from 2026-09-01, admitted through the production publisher law
+~~~
+
+The checkpoint does more than decode the files independently. It composes
+existing production application laws and requires:
+
+~~~text
+Scheduled managed commitment = 1000
+
+Capacity entitlement = 5000
+Actual routed consumption = 2000
+Remaining = 3000
+Headroom = 2000
+~~~
+
+It also verifies that every AccountingRole and routing Locus is present in the
+LocusAdmission vocabulary, Scheduled routing references a retained Scheduled
+occurrence, and current support families remain non-overlapping.
+
+No cross-family rule is added to HouseholdImage itself. The outer envelope still
+owns framing only; coherence is demonstrated by existing LOAM application
+boundaries.
 
 ### H2 — answer equivalence
 
