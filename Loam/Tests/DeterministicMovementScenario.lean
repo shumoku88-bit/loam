@@ -169,7 +169,7 @@ private def prepareRoot (root : System.FilePath) : IO Unit := do
   cleanupDir root
   IO.FS.createDirAll root
   let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root ActualEvidence.empty)
+    (do publishInitialActual root ActualEvidence.empty; pure (.ok ()))
     "deterministic scenario initial Actual publication failed"
   let loci ← requireSome
     (LocusAdmissionVocabulary.ofLoci? [
@@ -180,7 +180,7 @@ private def prepareRoot (root : System.FilePath) : IO Unit := do
     ])
     "deterministic scenario Locus admission fixture was not unique"
   let _ ← requireOk
-    (← Loam.LocusAdmissionAuthority.publishCurrent? root loci)
+    (do publishInitialLocusAdmission root loci; pure (.ok ()))
     "deterministic scenario Locus admission publication failed"
   pure ()
 
