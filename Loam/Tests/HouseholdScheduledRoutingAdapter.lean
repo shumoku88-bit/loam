@@ -2,6 +2,7 @@ import Loam.Authority.HouseholdAuthority
 import Loam.HouseholdPaths
 import Loam.Authority.ScheduledRoutingAuthority
 import Loam.Publisher.ScheduledRoutingPublisher
+import Loam.HouseholdCommand
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 
@@ -45,8 +46,13 @@ private def lifecycle : IO ScheduledLifecycleImage := do
     scheduledOn := "2026-09-15"
     movement := movement
   }
+  let continuation : ScheduledOccurrence String := {
+    id := ⟨"scheduled-2"⟩
+    scheduledOn := "2026-10-15"
+    movement := movement
+  }
   let scheduled ← requireSome
-    (ScheduledMemory.ofOccurrences? [occurrence])
+    (ScheduledMemory.ofOccurrences? [occurrence, continuation])
     "Scheduled routing fixture memory"
   let terminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals? [])
@@ -200,6 +206,52 @@ def main (args : List String) : IO Unit := do
   expect ((← IO.FS.readFile imageLegacyRouting) == frozenLegacyBefore)
     "refused Household Scheduled route changed frozen legacy evidence"
 
+  -- Production cutover: high-level household commands must ignore the stale
+  -- legacy routing file and update only HouseholdImage.
+  let productionDraft : Loam.ScheduledRoutingPublisher.Draft := {
+    subject := groceries
+    effectiveOn := "2026-09-07"
+    target := .managed ⟨"fresh-food"⟩
+  }
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.routeScheduled imageRoot productionDraft)
+    "HouseholdCommand Scheduled route failed"
+  expect ((← IO.FS.readFile imageLegacyRouting) == frozenLegacyBefore)
+    "HouseholdCommand mutated frozen legacy scheduled-routing.loam"
+  let productionHistory ← requireOk
+    (← Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? imageRoot)
+    "production Household Scheduled routing did not load"
+  expect
+    (productionHistory.statusAt groceries "2026-09-07" ==
+      .managed ⟨"fresh-food"⟩)
+    "HouseholdCommand Scheduled route did not reach HouseholdImage"
+
+  let continuation ← requireOk
+    (← Loam.HouseholdCommand.inheritScheduledRouting
+      imageRoot ⟨"scheduled-1"⟩ ⟨"scheduled-2"⟩ "2026-09-07")
+    "Household continuation routing failed"
+  expect (continuation.outcomes.length == 2)
+    "Household continuation routing did not inspect both positive loci"
+  let inheritedHistory ← requireOk
+    (← Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? imageRoot)
+    "Household continuation routing result did not load"
+  let groceries2 : ScheduledRoutingSubject := {
+    scheduled := ⟨"scheduled-2"⟩
+    locus := ⟨"groceries"⟩
+  }
+  let coffee2 : ScheduledRoutingSubject := {
+    scheduled := ⟨"scheduled-2"⟩
+    locus := ⟨"coffee"⟩
+  }
+  expect
+    (inheritedHistory.statusAt groceries2 "2026-09-07" ==
+      .managed ⟨"fresh-food"⟩)
+    "continuation did not inherit Household managed routing"
+  expect (inheritedHistory.statusAt coffee2 "2026-09-07" == .unmanaged)
+    "continuation did not inherit Household unmanaged routing"
+  expect ((← IO.FS.readFile imageLegacyRouting) == frozenLegacyBefore)
+    "continuation mutated frozen legacy scheduled-routing.loam"
+
   let _ ← requireOk
     (← Loam.HouseholdAuthority.installInitial? missingRoot {
       sections := [{ name := "Securities", body := "opaque\n" }]
@@ -225,7 +277,7 @@ def main (args : List String) : IO Unit := do
     "malformed Household Scheduled routing read changed authority"
 
   IO.println
-    "Household Scheduled routing adapter: canonical byte/status equivalence, required-section semantics, frozen-legacy isolation, previous-generation retention, refusal, and unknown preservation passed."
+    "Household Scheduled routing adapter: legacy equivalence plus production command/continuation cutover, required-section semantics, frozen-legacy isolation, previous-generation retention, refusal, and unknown preservation passed."
 
 end Loam.Tests.HouseholdScheduledRoutingAdapter
 
