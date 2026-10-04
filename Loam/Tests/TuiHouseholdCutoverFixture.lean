@@ -1,5 +1,6 @@
 import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.NormalizedCapacityPersistence
+import Loam.Persistence.ScheduledRoutingPersistence
 
 namespace Loam.Tests.TuiHouseholdCutoverFixture
 
@@ -78,6 +79,31 @@ private def installDynamicCapacity
     "PTY Household Capacity publication failed"
   pure ()
 
+
+private def installDynamicScheduledRouting
+    (root : System.FilePath)
+    (effectiveOn : String) : IO Unit := do
+  let history ← requireSome
+    (RoutingHistory.ofEntries?
+      [{ subject := {
+           scheduled := ⟨"scheduled-1"⟩
+           locus := (⟨"wifi"⟩ : LocusId) }
+         effectiveOn := effectiveOn
+         purpose := some ⟨"food"⟩ }])
+    "PTY Scheduled routing history was rejected"
+  let body ← requireSome
+    (Loam.Persistence.encodeScheduledRoutingHistory? history)
+    "PTY Scheduled routing history did not encode"
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "PTY HouseholdImage did not load"
+  let candidate ← replaceOrAppendBody generation.image "ScheduledRouting" body
+  let _ ← requireOk
+    (← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["ScheduledRouting"] candidate)
+    "PTY Household Scheduled routing publication failed"
+  pure ()
+
 /--
 Install one outer-valid but semantically malformed cut-over section.
 
@@ -101,6 +127,8 @@ def main (args : List String) : IO Unit := do
   match args with
   | [rootText, "set-capacity", effectiveOn] =>
       installDynamicCapacity (System.FilePath.mk rootText) effectiveOn
+  | [rootText, "set-scheduled-routing", effectiveOn] =>
+      installDynamicScheduledRouting (System.FilePath.mk rootText) effectiveOn
   | [rootText, "malform", "Capacity"] =>
       installMalformed
         (System.FilePath.mk rootText) "Capacity" "not-capacity-evidence\n"
@@ -109,7 +137,7 @@ def main (args : List String) : IO Unit := do
         (System.FilePath.mk rootText) "Attention" "not-attention-evidence\n"
   | _ =>
       throw (IO.userError
-        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT malform Capacity|Attention")
+        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT malform Capacity|Attention")
 
 end Loam.Tests.TuiHouseholdCutoverFixture
 
