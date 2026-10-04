@@ -755,6 +755,232 @@ private def validateCoherentWorld (sections : Sections) : IO Unit := do
   expect (coverage.headroom.quanta == 2000)
     "Capacity minus Actual minus Scheduled headroom was not 2000"
 
+
+private def h3UpdatedAttention : String :=
+  String.intercalate "\n" [
+    Loam.Persistence.attentionMemoryHeader,
+    "ITEM\tattention-1\tDUE_ON\t2026-10-31\trenew-insurance",
+    "ITEM\tattention-2\tNO_DUE_DATE\t-\tcheck-future-refund"
+  ] ++ "\n"
+
+/--
+Synthetic canonical Actual text for the H3 write-amplification benchmark.
+
+Generation is deliberately outside the timed publication windows. Every Event is
+balanced, has one real occurrence date, and uses only the ordinary normalized V1
+shape. H3 measures HouseholdImage mechanics, not fixture construction.
+-/
+private def syntheticActual (count : Nat) : String :=
+  Loam.Persistence.normalizedActualHeaderV1 ++ "\n" ++
+    String.join ((List.range count).map fun i =>
+      "TX\tbench-" ++ toString i ++ "\t2026-10-01\tNODESC\n" ++
+      "EFFECT\tcash\tjpy\t-1\n" ++
+      "EFFECT\tfood\tjpy\t1\n" ++
+      "ENDTX\n")
+
+private def h3Sections (count : Nat) : Sections :=
+  { coherentSections with actual := syntheticActual count }
+
+/--
+Decode every known inner family once without re-encoding it.
+
+This models the conservative upper-bound reopen path for a single HouseholdImage:
+all retained semantic families are re-admitted after the outer file is read.
+-/
+private def validateDecodable (sections : Sections) : IO Unit := do
+  let _ ← requireSome
+    (Loam.Persistence.decodeNormalizedActual? sections.actual)
+    "H3 Actual decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeScheduledLifecycleImage? sections.scheduled)
+    "H3 Scheduled decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeNormalizedCapacity? sections.capacity)
+    "H3 Capacity decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeAttentionMemory? sections.attention)
+    "H3 Attention decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeActualRoutingHistory? sections.actualRouting)
+    "H3 Actual routing decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeScheduledRoutingHistory? sections.scheduledRouting)
+    "H3 Scheduled routing decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeAccountingRoleMap? sections.accountingRole)
+    "H3 AccountingRole decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeLocusAdmissionVocabulary? sections.locusAdmission)
+    "H3 Locus admission decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeZeroOriginCoverage? sections.zeroOrigin)
+    "H3 zero-origin decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeOpeningSupportMap? sections.openingSupport)
+    "H3 opening support decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeCurrentQuantityAnchor? sections.currentQuantityAnchor)
+    "H3 current quantity anchor decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeCurrentQuantityPresence? sections.currentQuantityPresence)
+    "H3 current quantity presence decode"
+  let _ ← requireSome
+    (Loam.Persistence.decodeBoundedHistorySupport? sections.boundedHistorySupport)
+    "H3 bounded history decode"
+  pure ()
+
+private def replaceViaStage
+    (path : System.FilePath)
+    (text : String) : IO Unit := do
+  let stage := System.FilePath.mk (path.toString ++ ".loam-stage")
+  IO.FS.writeFile stage text
+  IO.FS.rename stage path
+
+private def timedNs (action : IO Unit) : IO Nat := do
+  let started ← IO.monoNanosNow
+  action
+  let finished ← IO.monoNanosNow
+  pure (finished - started)
+
+private def average3Ns (action : IO Unit) : IO Nat := do
+  let a ← timedNs action
+  let b ← timedNs action
+  let c ← timedNs action
+  pure ((a + b + c) / 3)
+
+private def nsToMs (value : Nat) : Float :=
+  value.toFloat / 1000000.0
+
+private structure H3Result where
+  events : Nat
+  imageChars : Nat
+  splitAttentionChars : Nat
+  splitPublishNs : Nat
+  wholePublishNs : Nat
+  selectiveReopenNs : Nat
+  fullReopenNs : Nat
+
+private def h3ResultLine (result : H3Result) : String :=
+  "[h3] events=" ++ toString result.events ++
+    " image_chars=" ++ toString result.imageChars ++
+    " split_attention_chars=" ++ toString result.splitAttentionChars ++
+    " split_publish_ms=" ++ toString (nsToMs result.splitPublishNs) ++
+    " whole_publish_ms=" ++ toString (nsToMs result.wholePublishNs) ++
+    " selective_reopen_ms=" ++ toString (nsToMs result.selectiveReopenNs) ++
+    " full_reopen_ms=" ++ toString (nsToMs result.fullReopenNs)
+
+private def benchmarkPublicationCost
+    (root : System.FilePath)
+    (count : Nat) : IO H3Result := do
+  cleanupDir root
+  IO.FS.createDirAll root
+
+  let sections := h3Sections count
+  -- Untimed qualification: the generated large Actual must be a real canonical
+  -- document before its bytes are allowed into the benchmark.
+  let decodedActual ← requireSome
+    (Loam.Persistence.decodeNormalizedActual? sections.actual)
+    ("H3 synthetic Actual rejected at " ++ toString count ++ " Events")
+  let canonicalActual ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? decodedActual)
+    ("H3 synthetic Actual could not re-encode at " ++ toString count ++ " Events")
+  expect (canonicalActual == sections.actual)
+    ("H3 synthetic Actual was not canonical at " ++ toString count ++ " Events")
+
+  let futureBody :=
+    "LOAM-SECURITIES\t1\nPOSITION\tglobal-index\t42\nNOTE\tfuture opaque evidence\n"
+  let base ← requireSome
+    (appendSection? (imageFromKnown sections)
+      { name := "Securities", body := futureBody })
+    "H3 future section append"
+  let candidate ← requireSome
+    (replaceBody? base "Attention" h3UpdatedAttention)
+    "H3 Attention replacement"
+  let candidateWire ← requireSome (encode? candidate)
+    "H3 HouseholdImage encoding"
+
+  let attentionPair ← requireSome
+    (Loam.Persistence.decodeAttentionMemory? h3UpdatedAttention)
+    "H3 split Attention fixture"
+
+  let splitPath := root / "attention.loam"
+  let imagePath := root / "household.loam"
+
+  let splitPublish : IO Unit := do
+    let ok ← Loam.Persistence.saveAttentionMemory?
+      splitPath attentionPair.1 attentionPair.2
+    expect ok "H3 split Attention publication failed"
+
+  let wholePublish : IO Unit := do
+    let current ← requireSome
+      (replaceBody? base "Attention" h3UpdatedAttention)
+      "H3 timed Attention replacement"
+    let wire ← requireSome (encode? current)
+      "H3 timed HouseholdImage encoding"
+    replaceViaStage imagePath wire
+
+  let selectiveReopen : IO Unit := do
+    let staged ← IO.FS.readFile imagePath
+    let reopened ← requireSome (decode? staged)
+      "H3 selective outer decode"
+    expect (reopened == candidate)
+      "H3 selective reopen changed the intended generation"
+    let attention ← requireSome (findBody? reopened "Attention")
+      "H3 selective Attention section"
+    let _ ← requireSome
+      (Loam.Persistence.decodeAttentionMemory? attention)
+      "H3 selective Attention decode"
+    pure ()
+
+  let fullReopen : IO Unit := do
+    let staged ← IO.FS.readFile imagePath
+    let reopened ← requireSome (decode? staged)
+      "H3 full outer decode"
+    expect (reopened == candidate)
+      "H3 full reopen changed the intended generation"
+    let known ← requireSome (knownSections? reopened)
+      "H3 full known-section projection"
+    validateDecodable known
+
+  -- Warm filesystem/runtime paths before the three measured repetitions.
+  splitPublish
+  wholePublish
+  selectiveReopen
+  fullReopen
+
+  let splitPublishNs ← average3Ns splitPublish
+  let wholePublishNs ← average3Ns wholePublish
+  let selectiveReopenNs ← average3Ns selectiveReopen
+  let fullReopenNs ← average3Ns fullReopen
+
+  cleanupDir root
+
+  pure {
+    events := count
+    imageChars := candidateWire.length
+    splitAttentionChars := h3UpdatedAttention.length
+    splitPublishNs := splitPublishNs
+    wholePublishNs := wholePublishNs
+    selectiveReopenNs := selectiveReopenNs
+    fullReopenNs := fullReopenNs
+  }
+
+def runH3 : IO Unit := do
+  let root := System.FilePath.mk ".household-image-h3"
+  let mut results : List H3Result := []
+  for count in [1000, 10000, 100000] do
+    let result ← benchmarkPublicationCost root count
+    results := results ++ [result]
+    IO.println (h3ResultLine result)
+
+  let some largest := results.getLast?
+    | throw <| IO.userError "H3 benchmark produced no results"
+
+  IO.println "[ok] H3 compared current split Attention publication with whole-image publication"
+  IO.println "[ok] H3 measured selective reopen separately from conservative full semantic reopen"
+  IO.println s!"[info] H3 largest synthetic Actual: {largest.events} Events / {largest.imageChars} image characters"
+  IO.println "[result] H3 publication cost measured; interpret the CI numbers before production promotion"
+
 def run : IO Unit := do
   validateCanonical coherentSections
   validateCoherentWorld coherentSections
@@ -854,5 +1080,8 @@ def run : IO Unit := do
 
 end Loam.HouseholdImageExperiment
 
-def main : IO Unit :=
-  Loam.HouseholdImageExperiment.run
+def main (args : List String) : IO Unit :=
+  if args.contains "--h3" then
+    Loam.HouseholdImageExperiment.runH3
+  else
+    Loam.HouseholdImageExperiment.run

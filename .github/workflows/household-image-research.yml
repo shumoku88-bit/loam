@@ -46,3 +46,10 @@ jobs:
           set -euo pipefail
           cd experiments/household_image
           .lake/build/bin/householdImageExperiment
+
+      - name: Measure H3 publication cost
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/household_image
+          .lake/build/bin/householdImageExperiment --h3
