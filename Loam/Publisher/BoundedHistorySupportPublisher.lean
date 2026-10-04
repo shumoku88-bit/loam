@@ -101,12 +101,6 @@ private def publishFromGeneration
   | .ok _ => return .ok ()
   | .error message => return .error message
 
-/--
-Publish bounded historical support from one observed Household generation.
-Actual, LocusAdmission, and current-support evidence are decoded from that exact
-generation; concurrent Household publication is refused by the shared
-stale-generation check.
--/
 def publish
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) :=
