@@ -52,10 +52,9 @@ def main (args : List String) : IO Unit := do
 
   let capacityFixture :=
     "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-1\t2026-08-14\tjpy\nCHANGE\tUNALLOCATED\t-17108\nCHANGE\tPURPOSE\t固定費予定\t17108\nENDMOVEMENT\n"
-  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
-    sections := [{ name := "Capacity", body := capacityFixture }]
-  }
-  let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "Capacity" capacityFixture
     | throw (IO.userError "install TUI Cycle Grant Household Capacity")
   expect (!(← (root / "capacity.loam").pathExists))
     "TUI Cycle Grant fixture unexpectedly retained legacy Capacity"
