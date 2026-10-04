@@ -21,16 +21,15 @@ start = today - datetime.timedelta(days=3)
 end = today + datetime.timedelta(days=37)
 (root / "config/boundary-presets.tsv").write_text(f"Pension\t{start}\t{end}\n")
 # Two remembered purposes let the PTY construct a balanced proposal without publishing it.
-(root / "capacity.loam").write_text(f"""LOAM-NORMALIZED-CAPACITY\t1
-MOVEMENT\tcapacity-1\t{start}\tjpy
-CHANGE\tUNALLOCATED\t-100
-CHANGE\tPURPOSE\tfood\t100
-ENDMOVEMENT
-MOVEMENT\tcapacity-2\t{start}\tjpy
-CHANGE\tUNALLOCATED\t-50
-CHANGE\tPURPOSE\tstock\t50
-ENDMOVEMENT
-""")
+# Production Capacity is now a HouseholdImage section, so use the Lean fixture
+# helper rather than reimplementing the outer wire framing in Python.
+repo_root = Path(__file__).resolve().parents[1]
+subprocess.run(
+    ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCapacityFixture.lean",
+     str(root), "set", str(start)],
+    cwd=repo_root,
+    check=True,
+)
 sched_date = today + datetime.timedelta(days=5)
 (root / "scheduled.loam").write_text(f"""LOAM-SCHEDULED-LIFECYCLE\t1
 BEGIN\tScheduled
@@ -237,11 +236,16 @@ try:
     expect_local_unavailability(b"p", "Purpose routes")
     routing_path.write_bytes(routing)
 
-    capacity_path = root / "capacity.loam"
-    capacity = capacity_path.read_bytes()
-    capacity_path.write_text("not-capacity-evidence\n")
+    household_path = root / "household.loam"
+    household = household_path.read_bytes()
+    subprocess.run(
+        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCapacityFixture.lean",
+         str(root), "malform"],
+        cwd=repo_root,
+        check=True,
+    )
     expect_local_unavailability(b"e", "Capacity")
-    capacity_path.write_bytes(capacity)
+    household_path.write_bytes(household)
 
     os.write(master, b"q")
     drain_fd(master)
