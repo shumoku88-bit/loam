@@ -54,7 +54,7 @@ private def validateDraft (draft : Draft) : Except String Unit := do
     throw ("loam: Scheduled creation requires valid Locus tokens and nonzero " ++
       draft.movement.measure.token ++ " quantities")
 
-private def publishHouseholdUnderActualOwnership
+private def publishHouseholdFromGeneration
     (root : System.FilePath)
     (draft : Draft) : IO (Except String ScheduledId) := do
   match validateDraft draft with
@@ -64,14 +64,23 @@ private def publishHouseholdUnderActualOwnership
     match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
     | .ok observed => pure observed
     | .error message => return .error message
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
+  let actualImage ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? observed.generation with
+    | .ok image => pure image
     | .error message => return .error message
+  let evidence := actualImage.evidence
+  let locusBody ←
+    match Loam.Persistence.HouseholdImage.body?
+        observed.generation.image "LocusAdmission" with
+    | some body => pure body
+    | none =>
+        return .error "loam: required HouseholdImage Locus admission section is missing"
   let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
+    match Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody with
+    | some vocabulary => pure vocabulary
+    | none =>
+        return .error
+          "loam: malformed or unsupported HouseholdImage Locus admission authority"
   if !draft.movement.changes.all (fun change =>
       locusAdmission.allows change.coordinate) then
     return .error "loam: Scheduled creation uses a Locus not approved for new publication"
@@ -98,17 +107,16 @@ private def publishHouseholdUnderActualOwnership
 /--
 Publish one production household Scheduled occurrence through HouseholdImage.
 
-Actual ownership is acquired first. The Scheduled Household generation is then
-observed and published with stale-generation refusal, preserving the temporary
-P9 lock order: Actual -> Household.
+Scheduled, Actual, and LocusAdmission are decoded from one observed Household
+generation. Publication rechecks that exact generation and refuses stale writers,
+so this Scheduled-only mutation does not need the temporary Actual serializer.
 -/
 def publishHousehold
     (root : System.FilePath)
     (draft : Draft) : IO (Except String ScheduledId) := do
   if root.toString.isEmpty then
     return .error "loam: data directory must not be empty"
-  Loam.ActualAuthority.withActualOwnership root
-    (publishHouseholdUnderActualOwnership root draft)
+  publishHouseholdFromGeneration root draft
 
 
 end Loam.ScheduledCreationPublisher
