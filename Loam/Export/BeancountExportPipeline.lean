@@ -64,11 +64,11 @@ def loadInputs
 
   return .ok { presentation, roles, entries }
 
-/-- Load production export inputs with AccountingRole selected from HouseholdImage. -/
+/-- Load production export inputs with Actual and AccountingRole selected from HouseholdImage. -/
 def loadHouseholdInputs
     (actualFile dataDir : System.FilePath) : IO (Except String LoadedInputs) := do
   let image ←
-    match ← Loam.ActualAuthority.loadImageFile? actualFile with
+    match ← Loam.ActualAuthority.loadHouseholdImage? dataDir with
     | .error message => return .error message
     | .ok image => pure image
 
@@ -119,9 +119,9 @@ def exportSuspense
 
 
 /--
-Regenerate the production Fava suspense view from standalone Actual plus the
-HouseholdImage AccountingRole section. The frozen standalone AccountingRole file
-is neither read nor written.
+Regenerate the production Fava suspense view from HouseholdImage Actual plus
+the HouseholdImage AccountingRole section. Frozen standalone Actual and
+AccountingRole files are neither read nor written.
 -/
 def exportSuspenseHousehold
     (actualFile dataDir outputFile reportFile : System.FilePath) :
