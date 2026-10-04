@@ -203,12 +203,19 @@ private def runScenario
   let loci ← prepareRoot root
   let mut stats : Stats := {}
 
-  -- Fresh two-authority completion.
+  -- Fresh production completion must publish Scheduled + Actual in one
+  -- Household generation update. The previous generation must therefore be the
+  -- exact pre-completion HouseholdImage, never a Scheduled-only intermediate.
+  let householdBeforeFresh ← IO.FS.readFile (Loam.HouseholdAuthority.path root)
   let _ ← requireOk
     (← Loam.HouseholdCommand.completeScheduled root
       (completionDraft "scheduled-1" "2026-09-08" "paypay" "rent" 1100))
     "step 1 fresh Scheduled completion failed"
   stats := { stats with freshCompletions := stats.freshCompletions + 1 }
+  let previousAfterFresh ←
+    IO.FS.readFile (Loam.HouseholdAuthority.previousPath root)
+  expect (previousAfterFresh == householdBeforeFresh)
+    "step 1 fresh completion exposed a split Household generation"
 
   let afterFresh ← loadScheduled root "step 1 fresh completion"
   let freshEndpoint ← requireSome
