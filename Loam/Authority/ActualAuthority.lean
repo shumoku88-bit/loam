@@ -87,19 +87,9 @@ def loadImageFileDetailed (path : System.FilePath) : IO (Except LoadError Image)
   | .ok image => return .ok image
   | .error err => return .error (.decode path err)
 
-/-- Load one fully admitted Actual image from the repository root with structured diagnostics. -/
-def loadImageDetailed (root : System.FilePath) : IO (Except LoadError Image) :=
-  loadImageFileDetailed (actualPath root)
-
 /-- Detailed loader exposing retained ActualEvidence with structured diagnostics. -/
 def loadActualFileDetailed (path : System.FilePath) : IO (Except LoadError ActualEvidence) := do
   match ← loadImageFileDetailed path with
-  | .ok image => return .ok image.evidence
-  | .error err => return .error err
-
-/-- Detailed root loader exposing retained ActualEvidence with structured diagnostics. -/
-def loadActualDetailed (root : System.FilePath) : IO (Except LoadError ActualEvidence) := do
-  match ← loadImageDetailed root with
   | .ok image => return .ok image.evidence
   | .error err => return .error err
 
