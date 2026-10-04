@@ -1,7 +1,6 @@
 import Loam.HouseholdPaths
 import Loam.Application.CapacityInspection
 import Loam.Authority.CapacityAuthority
-import Loam.Authority.HouseholdAuthority
 
 namespace Loam.CapacityReview
 
@@ -79,8 +78,7 @@ def loadSnapshot (path : System.FilePath) : IO (Except String Snapshot) :=
 
 
 /--
-Project Capacity from the installed HouseholdImage without changing production
-frontend selection yet.
+Project Capacity from the installed HouseholdImage production authority.
 
 A physically missing Capacity section keeps the existing Capacity contract:
 empty retained history. A present malformed section refuses.
@@ -88,18 +86,11 @@ empty retained history. A present malformed section refuses.
 def loadHouseholdSnapshotForMeasure
     (measure : MeasureId)
     (root : System.FilePath) : IO (Except String Snapshot) := do
-  let generation ←
-    match ← Loam.HouseholdAuthority.loadCurrent? root with
-    | .ok generation => pure generation
+  let image ←
+    match ← Loam.CapacityAuthority.loadHouseholdOrEmpty root with
+    | .ok image => pure image
     | .error message => return .error message
-  match Loam.Persistence.HouseholdImage.body? generation.image "Capacity" with
-  | none =>
-      let empty : Loam.CapacityEvidence String := Loam.CapacityEvidence.empty
-      return .ok (snapshotForMeasure measure empty.movements)
-  | some body =>
-      let some image := Loam.Persistence.decodeNormalizedCapacity? body
-        | return .error "loam: malformed or unsupported Capacity authority"
-      return .ok (snapshotForMeasure measure image.movements)
+  return .ok (snapshotForMeasure measure image.movements)
 
 /-- Backward-compatible HouseholdImage loader for the current JPY household. -/
 def loadHouseholdSnapshot
@@ -107,13 +98,12 @@ def loadHouseholdSnapshot
   loadHouseholdSnapshotForMeasure ⟨"jpy"⟩ root
 
 /--
-Load canonical Capacity evidence from one household root. High-level frontends
-use this entrance so canonical physical file selection remains owned by the
-shared review boundary. Explicit-path diagnostic callers keep `loadSnapshot`.
+Load canonical Capacity evidence from one household root after production
+cutover. Explicit-path diagnostic and migration callers keep `loadSnapshot`.
 -/
 def loadSnapshotFromHouseholdRootForMeasure
     (measure : MeasureId) (root : System.FilePath) : IO (Except String Snapshot) :=
-  loadSnapshotForMeasure measure (Loam.HouseholdPaths.capacity root)
+  loadHouseholdSnapshotForMeasure measure root
 
 /-- Backward-compatible household-root loader for the current JPY household. -/
 def loadSnapshotFromHouseholdRoot
