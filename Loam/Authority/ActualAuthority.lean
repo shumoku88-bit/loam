@@ -1,4 +1,5 @@
 import Loam.Core.ActualEvidence
+import Loam.Authority.HouseholdAuthority
 import Loam.HouseholdPaths
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Persistence.WriterOwnership
@@ -33,6 +34,17 @@ Publication follows strict atomic crash-resilient semantics:
 
 /-- The admitted normalized Actual image exposed to read-side callers. -/
 abbrev Image := Loam.Persistence.AdmittedActualImage
+
+/--
+One exact Household generation paired with its required admitted Actual section.
+
+This adapter is qualified ahead of the P11 production cutover. Existing
+standalone Actual entrypoints below remain unchanged until production callers are
+migrated deliberately.
+-/
+structure HouseholdObserved where
+  generation : Loam.HouseholdAuthority.Generation
+  image : Image
 
 /-- The standard canonical filename for normalized Actual authority. -/
 def actualFileName : String := Loam.HouseholdPaths.actualFileName
@@ -127,6 +139,79 @@ def loadActual? (root : System.FilePath) : IO (Except String ActualEvidence) := 
   match ← loadImage? root with
   | .ok image => return .ok image.evidence
   | .error message => return .error message
+
+/--
+Decode the required Actual section from one already-qualified Household
+generation.
+
+Absence is an error. A malformed present section fails closed through the
+existing normalized Actual decoder.
+-/
+def decodeHouseholdGeneration?
+    (generation : Loam.HouseholdAuthority.Generation) :
+    Except String Image := do
+  let some body :=
+      Loam.Persistence.HouseholdImage.body? generation.image "Actual"
+    | throw "loam: required HouseholdImage Actual section is missing"
+  match Loam.Persistence.decodeNormalizedActualImageDetailed body with
+  | .ok image => return image
+  | .error _ =>
+      throw "loam: malformed or unsupported HouseholdImage Actual authority"
+
+/-- Load required Household Actual together with the exact generation observed. -/
+def loadHouseholdObserved?
+    (root : System.FilePath) : IO (Except String HouseholdObserved) := do
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => return .error message
+  let image ←
+    match decodeHouseholdGeneration? generation with
+    | .ok image => pure image
+    | .error message => return .error message
+  return .ok { generation, image }
+
+/-- Load only the admitted Actual image from current Household authority. -/
+def loadHouseholdImage?
+    (root : System.FilePath) : IO (Except String Image) := do
+  match ← loadHouseholdObserved? root with
+  | .ok observed => return .ok observed.image
+  | .error message => return .error message
+
+/-- Load only retained Actual evidence from current Household authority. -/
+def loadHouseholdActual?
+    (root : System.FilePath) : IO (Except String ActualEvidence) := do
+  match ← loadHouseholdImage? root with
+  | .ok image => return .ok image.evidence
+  | .error message => return .error message
+
+/--
+Publish proposed Actual evidence against the exact Household generation that was
+observed.
+
+Only the required Actual section is replaced. HouseholdAuthority preserves all
+unmarked and unknown sections, rejects stale observed generations, and owns
+current/previous atomic publication.
+-/
+def publishHouseholdObserved?
+    (root : System.FilePath)
+    (observed : HouseholdObserved)
+    (proposed : ActualEvidence) :
+    IO (Except String Loam.HouseholdAuthority.Generation) := do
+  let some currentBody :=
+      Loam.Persistence.HouseholdImage.body? observed.generation.image "Actual"
+    | return .error "loam: required HouseholdImage Actual section is missing"
+  let some proposedBody := Loam.Persistence.encodeNormalizedActual? proposed
+    | return .error "loam: proposed HouseholdImage Actual authority did not encode"
+  if currentBody == proposedBody then
+    return .ok observed.generation
+  let some candidate :=
+      Loam.Persistence.HouseholdImage.replaceBody?
+        observed.generation.image "Actual" proposedBody
+    | return .error
+        "loam: HouseholdImage Actual section disappeared before publication"
+  Loam.HouseholdAuthority.publishObserved?
+    root observed.generation.wire ["Actual"] candidate
 
 
 /--
