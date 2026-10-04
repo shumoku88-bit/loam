@@ -4,6 +4,7 @@ import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Persistence.WriterOwnership
+import Loam.Authority.ScheduledRoutingAuthority
 
 namespace Loam.ScheduledRoutingPublisher
 
@@ -51,45 +52,68 @@ private def occurrenceHasLocus
     (locus : LocusId) : Bool :=
   occurrence.movement.changes.any fun change => decide (change.coordinate = locus)
 
+private def validateDraft? (draft : Draft) : Except String Unit := do
+  if !Loam.ActualDate.validIsoDate draft.effectiveOn then
+    throw "loam: Scheduled routing effective date must be a real calendar date in YYYY-MM-DD form"
+  if !validToken draft.subject.scheduled.token || !validToken draft.subject.locus.token then
+    throw "loam: Scheduled identity and Locus must be nonempty single-line tokens"
+  match draft.target with
+  | .managed purpose =>
+      if !validToken purpose.token then
+        throw "loam: route must be 'managed PURPOSE' or 'unmanaged'"
+  | .unmanaged => pure ()
+
+/--
+Pure routing proposal shared by legacy-file and HouseholdImage publication.
+
+The Scheduled lifecycle is still an independent authority at this stage. The
+storage topology of routing evidence cannot alter subject admission, duplicate
+rejection, or the resulting canonical history.
+-/
+private def propose?
+    (lifecycle : ScheduledLifecycleImage)
+    (history : ScheduledRoutingHistory String)
+    (draft : Draft) : Except String (ScheduledRoutingHistory String) := do
+  let some occurrence :=
+      ScheduledMemory.findById? lifecycle.scheduled draft.subject.scheduled
+    | throw "loam: scheduled identity not found"
+  if !occurrenceHasLocus occurrence draft.subject.locus then
+    throw "loam: Scheduled occurrence does not contain that Locus"
+  let purposeOpt : Option PurposeId :=
+    match draft.target with
+    | .managed purpose => some purpose
+    | .unmanaged => none
+  let entry : RoutingEntry ScheduledRoutingSubject String := {
+    subject := draft.subject
+    effectiveOn := draft.effectiveOn
+    purpose := purposeOpt
+  }
+  let some updated := history.add? entry
+    | throw "loam: Scheduled routing already has evidence at this subject/effective coordinate"
+  return updated
+
 private def publishUnlocked
     (routingFile scheduledFile : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
-  match ← loadScheduledLifecycleImage? scheduledFile with
-  | none =>
-      return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  | some lifecycle =>
-      match ScheduledMemory.findById? lifecycle.scheduled draft.subject.scheduled with
-      | none =>
-          return .error "loam: scheduled identity not found"
-      | some occurrence =>
-          if !occurrenceHasLocus occurrence draft.subject.locus then
-            return .error "loam: Scheduled occurrence does not contain that Locus"
-          else
-            if !(← routingFile.pathExists) then
-              return .error "loam: Scheduled routing authority is missing"
-            else
-              match ← loadScheduledRoutingHistory? routingFile with
-              | none =>
-                  return .error "loam: malformed or unsupported Scheduled routing authority"
-              | some history =>
-                  let purposeOpt : Option PurposeId :=
-                    match draft.target with
-                    | .managed p => some p
-                    | .unmanaged => none
-                  let entry : RoutingEntry ScheduledRoutingSubject String := {
-                    subject := draft.subject
-                    effectiveOn := draft.effectiveOn
-                    purpose := purposeOpt
-                  }
-                  match history.add? entry with
-                  | none =>
-                      return .error
-                        "loam: Scheduled routing already has evidence at this subject/effective coordinate"
-                  | some updated =>
-                      if ← saveScheduledRoutingHistory? routingFile updated then
-                        return .ok ()
-                      else
-                        return .error "loam: Scheduled routing evidence could not be published"
+  let lifecycle ←
+    match ← loadScheduledLifecycleImage? scheduledFile with
+    | some lifecycle => pure lifecycle
+    | none =>
+        return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  if !(← routingFile.pathExists) then
+    return .error "loam: Scheduled routing authority is missing"
+  let history ←
+    match ← loadScheduledRoutingHistory? routingFile with
+    | some history => pure history
+    | none =>
+        return .error "loam: malformed or unsupported Scheduled routing authority"
+  let updated ←
+    match propose? lifecycle history draft with
+    | .ok updated => pure updated
+    | .error message => return .error message
+  if ← saveScheduledRoutingHistory? routingFile updated then
+    return .ok ()
+  return .error "loam: Scheduled routing evidence could not be published"
 
 /--
 Publish one dated Scheduled routing assertion under routing-authority ownership.
@@ -101,15 +125,9 @@ and rejects duplicate `(subject, effectiveOn)` coordinates fail-closed.
 def publish
     (routingPath scheduledPath : String)
     (draft : Draft) : IO (Except String Unit) := do
-  if !Loam.ActualDate.validIsoDate draft.effectiveOn then
-    return .error "loam: Scheduled routing effective date must be a real calendar date in YYYY-MM-DD form"
-  if !validToken draft.subject.scheduled.token || !validToken draft.subject.locus.token then
-    return .error "loam: Scheduled identity and Locus must be nonempty single-line tokens"
-  match draft.target with
-  | .managed purpose =>
-      if !validToken purpose.token then
-        return .error "loam: route must be 'managed PURPOSE' or 'unmanaged'"
-  | .unmanaged => pure ()
+  match validateDraft? draft with
+  | .ok () => pure ()
+  | .error message => return .error message
   if routingPath.isEmpty then
     return .error "loam: routing path must not be empty"
   if scheduledPath.isEmpty then
@@ -118,5 +136,33 @@ def publish
   let scheduledFile := System.FilePath.mk scheduledPath
   Loam.WriterOwnership.withOwnership routingFile
     (publishUnlocked routingFile scheduledFile draft)
+
+/--
+Publish one Scheduled routing assertion into the required HouseholdImage section.
+
+This is an adapter qualification entrance only. Production HouseholdCommand and
+TUI selection remain on the legacy routing file until a later explicit cutover.
+The Scheduled lifecycle authority remains the existing standalone lifecycle.
+-/
+def publishHousehold
+    (root : System.FilePath)
+    (scheduledPath : String)
+    (draft : Draft) : IO (Except String Unit) := do
+  match validateDraft? draft with
+  | .ok () => pure ()
+  | .error message => return .error message
+  if root.toString.isEmpty then
+    return .error "loam: data root must not be empty"
+  if scheduledPath.isEmpty then
+    return .error "loam: scheduled path must not be empty"
+  let scheduledFile := System.FilePath.mk scheduledPath
+  let lifecycle ←
+    match ← loadScheduledLifecycleImage? scheduledFile with
+    | some lifecycle => pure lifecycle
+    | none =>
+        return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  Loam.ScheduledRoutingAuthority.updateHouseholdCurrent? root fun history => do
+    let updated ← propose? lifecycle history draft
+    return (updated, ())
 
 end Loam.ScheduledRoutingPublisher
