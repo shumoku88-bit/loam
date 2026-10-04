@@ -76,6 +76,7 @@ actual_routing_tests=(
 
 scheduled_routing_tests=(
   ScheduledRoutingPersistence
+  HouseholdScheduledRoutingAdapter
   ScheduledCommitmentHeadroom
   ScheduledRoutingPublisher
 )
@@ -338,6 +339,9 @@ for test_name in "${tests[@]}"; do
       ;;
     ScheduledRoutingPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-routing-publisher"
+      ;;
+    HouseholdScheduledRoutingAdapter)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-scheduled-routing-adapter"
       ;;
     ScheduledTerminalPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-terminal-publisher"
