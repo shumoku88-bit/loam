@@ -36,7 +36,7 @@ def run (args : List String) : IO UInt32 := do
   let some today ← Loam.ActualDate.todayIso?
     | IO.eprintln "loam: could not determine the local date"; return 2
   let evidence ←
-    match ← Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention root) with
+    match ← Loam.AttentionReview.loadHouseholdEvidence root with
     | .error message => IO.eprintln message; return 2
     | .ok evidence => pure evidence
   let bounds ← Loam.Tui.Terminal.currentBounds
