@@ -290,7 +290,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         , blank
         ] ++ details ++
         [ blank
-        , muted "Publication appends this assertion to scheduled-routing.loam under writer ownership."
+        , muted "Publication appends this assertion to HouseholdImage ScheduledRouting under writer ownership."
         , muted "Effective date is strictly the current observation date (observedAt)."
         , blank
         , if state.notice.isEmpty then blank else line state.notice
