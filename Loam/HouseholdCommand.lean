@@ -246,8 +246,8 @@ def assignInitialAccountingRole
     (root : System.FilePath)
     (draft : Loam.AccountingRolePublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.AccountingRolePublisher.publishInitialRole
-    (Loam.HouseholdPaths.scheduled root).toString root.toString (Loam.HouseholdPaths.accountingRole root).toString draft
+  Loam.AccountingRolePublisher.publishInitialRoleHousehold
+    root (Loam.HouseholdPaths.accountingRole root).toString draft
 
 /-- Publish one reconciliation group of current quantities observed together now. -/
 def observeCurrentQuantities
