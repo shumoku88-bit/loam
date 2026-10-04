@@ -1,4 +1,5 @@
 import Loam.Authority.ActualAuthority
+import Loam.Authority.HouseholdAuthority
 import Loam.Core.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.Authority.LocusAdmissionAuthority
@@ -18,21 +19,17 @@ set_option autoImplicit false
 /-!
 # Shared Scheduled terminal publication
 
-Scheduled lifecycle evidence remains one complete Scheduled authority image while
-Actual Events remain in normalized Actual authority (`actual.loam`). Completion and
-cancellation retain different terminal meanings in one `ScheduledTerminalMemory`.
+Production household completion reads Scheduled, Actual, and LocusAdmission from
+one observed HouseholdImage generation and publishes the Scheduled terminal plus
+its Actual endpoint in one Household generation update. The temporary Actual
+serializer remains outside that publication so completion still coordinates with
+Actual writers that have not yet been collapsed onto one-generation observation.
 
-The lock order and crash behavior:
-```text
-Scheduled lifecycle authority -> actual.loam
-```
-
-Completion publishes the lifecycle image containing the Scheduled -> Actual
-terminal claim first and the normalized Actual generation second. A
-retained Actual target that is still absent from Actual is inert to Scheduled
-readers, so interruption remains fail-closed and a later retry can finish the
-same endpoint. Cancellation refuses such an interrupted completion instead of
-competing with it.
+The explicit legacy scheduled-file entrance keeps the older relation-first
+Scheduled -> Actual publication and retry semantics. Production household retry
+also continues to accept a previously retained interrupted completion claim, so
+pre-cutover recovery evidence remains usable. Cancellation retains its distinct
+terminal meaning and refuses to compete with an interrupted completion.
 -/
 
 structure CompletionDraft where
@@ -225,19 +222,37 @@ private def publishCancellationUnderOwnership
 private def publishHouseholdCompletionUnderActualOwnership
     (root : System.FilePath)
     (draft : CompletionDraft) : IO (Except String Unit) := do
-  let observed ←
-    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
-    | .ok observed => pure observed
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
     | .error message => return .error message
-  let lifecycle := observed.lifecycle
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
+  let actualImage ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? generation with
+    | .ok image => pure image
     | .error message => return .error message
+  let evidence := actualImage.evidence
+  let scheduledBody ←
+    match Loam.Persistence.HouseholdImage.body? generation.image "Scheduled" with
+    | some body => pure body
+    | none =>
+        return .error "loam: required HouseholdImage Scheduled lifecycle section is missing"
+  let lifecycle ←
+    match Loam.Persistence.decodeScheduledLifecycleImage? scheduledBody with
+    | some lifecycle => pure lifecycle
+    | none =>
+        return .error
+          "loam: malformed or unsupported HouseholdImage Scheduled lifecycle authority"
+  let locusBody ←
+    match Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission" with
+    | some body => pure body
+    | none =>
+        return .error "loam: required HouseholdImage Locus admission section is missing"
   let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
+    match Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody with
+    | some vocabulary => pure vocabulary
+    | none =>
+        return .error
+          "loam: malformed or unsupported HouseholdImage Locus admission authority"
   let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
   let _ ←
     match findOpen? lifecycle world.events draft.scheduled with
@@ -270,15 +285,6 @@ private def publishHouseholdCompletionUnderActualOwnership
         | some terminals => pure terminals
         | none => return .error "loam: Scheduled completion violates one-to-one endpoint ownership"
   let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
-  match existing with
-  | none =>
-      match ← Loam.ScheduledLifecycleAuthority.publishObserved?
-          root observed updatedLifecycle with
-      | .ok _ => pure ()
-      | .error message =>
-          return .error
-            ("loam: Scheduled completion lifecycle could not be published: " ++ message)
-  | some _ => pure ()
   let updatedEvidence : ActualEvidence := {
     evidence with
     events := updatedWorld.events
@@ -287,12 +293,35 @@ private def publishHouseholdCompletionUnderActualOwnership
     relations := updatedWorld.relations
     discharges := updatedWorld.discharges
   }
-  match ← Loam.ActualAuthority.publishActual? root updatedEvidence with
+  let candidateWithScheduled ←
+    match existing with
+    | some _ => pure generation.image
+    | none =>
+        let some body := Loam.Persistence.encodeScheduledLifecycleImage? updatedLifecycle
+          | return .error "loam: proposed Household Scheduled lifecycle did not encode"
+        let some candidate :=
+            Loam.Persistence.HouseholdImage.replaceBody?
+              generation.image "Scheduled" body
+          | return .error
+              "loam: HouseholdImage Scheduled lifecycle section disappeared before publication"
+        pure candidate
+  let some actualBody := Loam.Persistence.encodeNormalizedActual? updatedEvidence
+    | return .error "loam: proposed HouseholdImage Actual authority did not encode"
+  let some candidate :=
+      Loam.Persistence.HouseholdImage.replaceBody?
+        candidateWithScheduled "Actual" actualBody
+    | return .error
+        "loam: HouseholdImage Actual section disappeared before publication"
+  let changedNames :=
+    match existing with
+    | some _ => ["Actual"]
+    | none => ["Scheduled", "Actual"]
+  match ← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire changedNames candidate with
+  | .ok _ => return .ok ()
   | .error message =>
       return .error
-        ("loam: Actual Event was not published; retained Scheduled completion remains inert and can be retried: " ++ message)
-  | .ok () =>
-      return .ok ()
+        ("loam: Scheduled completion Household generation could not be published: " ++ message)
 
 private def publishHouseholdCancellationUnderActualOwnership
     (root : System.FilePath)
@@ -334,9 +363,11 @@ private def publishHouseholdCancellationUnderActualOwnership
         ("loam: Scheduled retirement lifecycle could not be published: " ++ message)
 
 /--
-Complete one production household Scheduled occurrence through HouseholdImage,
-then publish its Actual endpoint while retaining the P9 Actual -> Household
-ownership order.
+Complete one production household Scheduled occurrence by publishing its
+Scheduled terminal and Actual endpoint in one HouseholdImage generation update.
+
+The temporary Actual serializer remains the outer ownership boundary until the
+remaining Actual writers are converted away from that coordination lock.
 -/
 def publishHouseholdCompletion
     (root : System.FilePath)
