@@ -1,4 +1,5 @@
 import Loam.Authority.HouseholdAuthority
+import Loam.HouseholdPaths
 import Loam.Authority.ScheduledRoutingAuthority
 import Loam.Publisher.ScheduledRoutingPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
