@@ -105,6 +105,7 @@ purpose_catalog_tests=(
 
 attention_tests=(
   AttentionPersistence
+  HouseholdAttentionAdapter
   TuiAttentionAdministration
 )
 
@@ -290,6 +291,9 @@ for test_name in "${tests[@]}"; do
       ;;
     AttentionPersistence)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/attention-administration"
+      ;;
+    HouseholdAttentionAdapter)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-attention-adapter"
       ;;
     HouseholdAuthority)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-authority"
