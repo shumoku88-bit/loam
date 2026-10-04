@@ -5,6 +5,7 @@ import Loam.Publisher.ScheduledRoutingPublisher
 import Loam.HouseholdCommand
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
+import Loam.Tests.Support
 
 namespace Loam.Tests.HouseholdScheduledRoutingAdapter
 
@@ -12,25 +13,9 @@ open Loam.Core
 open Loam.Persistence
 open Loam.Persistence.HouseholdImage
 
+open Loam.Tests.Support
+
 set_option autoImplicit false
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do
-    throw (IO.userError message)
-
-private def requireSome {α : Type}
-    (value : Option α)
-    (message : String) : IO α :=
-  match value with
-  | some value => pure value
-  | none => throw (IO.userError message)
-
-private def requireOk {α : Type}
-    (value : Except String α)
-    (message : String) : IO α :=
-  match value with
-  | .ok value => pure value
-  | .error detail => throw (IO.userError (message ++ ": " ++ detail))
 
 private def movement? : Option (BalancedMovement LocusId) :=
   BalancedMovement.ofChanges? ⟨"jpy"⟩
