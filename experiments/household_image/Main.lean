@@ -22,12 +22,12 @@ namespace Loam.HouseholdImageExperiment
 open Loam.Core
 
 /--
-Research-only outer envelope for the existing canonical household authority
-documents.
+Research-only typed view of the thirteen household authority sections currently
+under experiment.
 
-The fields deliberately remain opaque text. This experiment does not merge
-their semantic types, change their inner codecs, or authorize a new production
-persistence boundary.
+This view is intentionally separate from the outer Image container. A future
+binary may know more section names while an older generic container can still
+preserve those unknown payloads byte-for-byte.
 -/
 structure Sections where
   actual : String
@@ -45,34 +45,52 @@ structure Sections where
   boundedHistorySupport : String
 deriving Repr, BEq
 
-def householdImageHeader : String := "LOAM-HOUSEHOLD-IMAGE\t1"
-
-private def encodeSection (name body : String) : String :=
-  "SECTION\t" ++ name ++ "\t" ++ toString body.length ++ "\n" ++ body
+/-- One opaque named payload in the extensible outer household image. -/
+structure Section where
+  name : String
+  body : String
+deriving Repr, BEq
 
 /--
-Encode one outer image while leaving every inner canonical document byte-for-byte
-unchanged.
+Extensible physical image.
 
-The character-count prefix avoids sentinel collisions with future inner row
-syntax. Current LOAM canonical documents are text; the experiment intentionally
-does not invent escaping or a second schema language.
+The outer container owns only section identity, uniqueness, framing, and exact
+payload preservation. It does not interpret unknown sections.
 -/
-def encode (sections : Sections) : String :=
-  householdImageHeader ++ "\n" ++
-    encodeSection "Actual" sections.actual ++
-    encodeSection "Scheduled" sections.scheduled ++
-    encodeSection "Capacity" sections.capacity ++
-    encodeSection "Attention" sections.attention ++
-    encodeSection "ActualRouting" sections.actualRouting ++
-    encodeSection "ScheduledRouting" sections.scheduledRouting ++
-    encodeSection "AccountingRole" sections.accountingRole ++
-    encodeSection "LocusAdmission" sections.locusAdmission ++
-    encodeSection "ZeroOrigin" sections.zeroOrigin ++
-    encodeSection "OpeningSupport" sections.openingSupport ++
-    encodeSection "CurrentQuantityAnchor" sections.currentQuantityAnchor ++
-    encodeSection "CurrentQuantityPresence" sections.currentQuantityPresence ++
-    encodeSection "BoundedHistorySupport" sections.boundedHistorySupport
+structure Image where
+  sections : List Section
+deriving Repr, BEq
+
+def householdImageHeader : String := "LOAM-HOUSEHOLD-IMAGE\t2"
+
+private def validSectionName (name : String) : Bool :=
+  !name.isEmpty &&
+    !name.contains '\t' &&
+    !name.contains '\n' &&
+    !name.contains '\r'
+
+private def uniqueSectionNames : List Section → Bool
+  | [] => true
+  | section :: rest =>
+      !(rest.any fun later => later.name == section.name) &&
+        uniqueSectionNames rest
+
+private def encodeSection (section : Section) : String :=
+  "SECTION\t" ++ section.name ++ "\t" ++ toString section.body.length ++
+    "\n" ++ section.body
+
+/--
+Encode one extensible outer image while leaving every section payload
+byte-for-byte unchanged.
+
+Unknown section names are allowed. Duplicate or syntactically unsafe names are
+refused so section identity cannot become ambiguous.
+-/
+def encode? (image : Image) : Option String := do
+  if !uniqueSectionNames image.sections then none
+  if !(image.sections.all fun section => validSectionName section.name) then none
+  pure <| householdImageHeader ++ "\n" ++
+    String.join (image.sections.map encodeSection)
 
 private def takeLine? (input : String) : Option (String × String) :=
   match input.splitOn "\n" with
@@ -80,13 +98,11 @@ private def takeLine? (input : String) : Option (String × String) :=
       some (line, String.intercalate "\n" (next :: rest))
   | _ => none
 
-private def takeSection?
-    (expected : String)
-    (input : String) : Option (String × String) := do
+private def takeSection? (input : String) : Option (Section × String) := do
   let (line, rest) ← takeLine? input
   match line.splitOn "\t" with
-  | ["SECTION", found, lengthText] =>
-      if found != expected then
+  | ["SECTION", name, lengthText] =>
+      if !validSectionName name then
         none
       else do
         let count ← lengthText.toNat?
@@ -95,52 +111,119 @@ private def takeSection?
         else
           let body := (rest.take count).toString
           let remaining := (rest.drop count).toString
-          some (body, remaining)
+          some ({ name := name, body := body }, remaining)
   | _ => none
 
-/--
-Decode exactly the version-1 fixed section set.
+private def decodeSections? :
+    Nat → String → List Section → Option (List Section)
+  | 0, _, _ => none
+  | Nat.succ fuel, input, acc =>
+      if input.isEmpty then
+        some acc.reverse
+      else do
+        let (section, remaining) ← takeSection? input
+        if acc.any (fun existing => existing.name == section.name) then
+          none
+        else
+          decodeSections? fuel remaining (section :: acc)
 
-This boundary checks only outer framing. Inner semantic validity is checked
-separately through the existing production decoders.
+/--
+Decode version 2 as a generic ordered section collection.
+
+No knowledge of the current thirteen semantic families is required at this
+boundary. Unknown sections survive decode and later encode unchanged.
 -/
-def decode? (input : String) : Option Sections := do
+def decode? (input : String) : Option Image := do
   let headerPrefix := householdImageHeader ++ "\n"
   if !input.startsWith headerPrefix then
     none
   else
-    let rest0 := (input.drop headerPrefix.length).toString
-    let (actual, rest1) ← takeSection? "Actual" rest0
-    let (scheduled, rest2) ← takeSection? "Scheduled" rest1
-    let (capacity, rest3) ← takeSection? "Capacity" rest2
-    let (attention, rest4) ← takeSection? "Attention" rest3
-    let (actualRouting, rest5) ← takeSection? "ActualRouting" rest4
-    let (scheduledRouting, rest6) ← takeSection? "ScheduledRouting" rest5
-    let (accountingRole, rest7) ← takeSection? "AccountingRole" rest6
-    let (locusAdmission, rest8) ← takeSection? "LocusAdmission" rest7
-    let (zeroOrigin, rest9) ← takeSection? "ZeroOrigin" rest8
-    let (openingSupport, rest10) ← takeSection? "OpeningSupport" rest9
-    let (currentQuantityAnchor, rest11) ← takeSection? "CurrentQuantityAnchor" rest10
-    let (currentQuantityPresence, rest12) ← takeSection? "CurrentQuantityPresence" rest11
-    let (boundedHistorySupport, rest13) ← takeSection? "BoundedHistorySupport" rest12
-    if !rest13.isEmpty then
-      none
-    else
-      some {
-        actual := actual
-        scheduled := scheduled
-        capacity := capacity
-        attention := attention
-        actualRouting := actualRouting
-        scheduledRouting := scheduledRouting
-        accountingRole := accountingRole
-        locusAdmission := locusAdmission
-        zeroOrigin := zeroOrigin
-        openingSupport := openingSupport
-        currentQuantityAnchor := currentQuantityAnchor
-        currentQuantityPresence := currentQuantityPresence
-        boundedHistorySupport := boundedHistorySupport
-      }
+    let rest := (input.drop headerPrefix.length).toString
+    let sections ← decodeSections? (rest.length + 1) rest []
+    some { sections := sections }
+
+/-- Find one opaque payload by section identity. -/
+def findBody? (image : Image) (name : String) : Option String :=
+  match image.sections.find? (fun section => section.name == name) with
+  | some section => some section.body
+  | none => none
+
+/--
+Replace one known payload without interpreting or reconstructing any other
+section. Unknown sections retain both their body and their position.
+-/
+def replaceBody? (image : Image) (name body : String) : Option Image :=
+  if !(image.sections.any fun section => section.name == name) then
+    none
+  else
+    some {
+      sections := image.sections.map fun section =>
+        if section.name == name then { section with body := body } else section
+    }
+
+/-- Add a new opaque section without changing the outer format version. -/
+def appendSection? (image : Image) (section : Section) : Option Image :=
+  if !validSectionName section.name ||
+      image.sections.any (fun existing => existing.name == section.name) then
+    none
+  else
+    some { sections := image.sections ++ [section] }
+
+/-- Build the extensible outer image from the thirteen semantic families known today. -/
+def imageFromKnown (sections : Sections) : Image := {
+  sections := [
+    { name := "Actual", body := sections.actual },
+    { name := "Scheduled", body := sections.scheduled },
+    { name := "Capacity", body := sections.capacity },
+    { name := "Attention", body := sections.attention },
+    { name := "ActualRouting", body := sections.actualRouting },
+    { name := "ScheduledRouting", body := sections.scheduledRouting },
+    { name := "AccountingRole", body := sections.accountingRole },
+    { name := "LocusAdmission", body := sections.locusAdmission },
+    { name := "ZeroOrigin", body := sections.zeroOrigin },
+    { name := "OpeningSupport", body := sections.openingSupport },
+    { name := "CurrentQuantityAnchor", body := sections.currentQuantityAnchor },
+    { name := "CurrentQuantityPresence", body := sections.currentQuantityPresence },
+    { name := "BoundedHistorySupport", body := sections.boundedHistorySupport }
+  ]
+}
+
+/--
+Project only the semantic families this experiment currently understands.
+
+Additional future sections are ignored by the semantic view but remain retained
+inside Image. Missing current sections fail closed instead of being invented as
+empty evidence.
+-/
+def knownSections? (image : Image) : Option Sections := do
+  let actual ← findBody? image "Actual"
+  let scheduled ← findBody? image "Scheduled"
+  let capacity ← findBody? image "Capacity"
+  let attention ← findBody? image "Attention"
+  let actualRouting ← findBody? image "ActualRouting"
+  let scheduledRouting ← findBody? image "ScheduledRouting"
+  let accountingRole ← findBody? image "AccountingRole"
+  let locusAdmission ← findBody? image "LocusAdmission"
+  let zeroOrigin ← findBody? image "ZeroOrigin"
+  let openingSupport ← findBody? image "OpeningSupport"
+  let currentQuantityAnchor ← findBody? image "CurrentQuantityAnchor"
+  let currentQuantityPresence ← findBody? image "CurrentQuantityPresence"
+  let boundedHistorySupport ← findBody? image "BoundedHistorySupport"
+  some {
+    actual := actual
+    scheduled := scheduled
+    capacity := capacity
+    attention := attention
+    actualRouting := actualRouting
+    scheduledRouting := scheduledRouting
+    accountingRole := accountingRole
+    locusAdmission := locusAdmission
+    zeroOrigin := zeroOrigin
+    openingSupport := openingSupport
+    currentQuantityAnchor := currentQuantityAnchor
+    currentQuantityPresence := currentQuantityPresence
+    boundedHistorySupport := boundedHistorySupport
+  }
 
 private def requireSome {α : Type}
     (value : Option α)
@@ -507,37 +590,92 @@ def run : IO Unit := do
   validateCanonical coherentSections
   validateCoherentWorld coherentSections
 
-  let wire := encode coherentSections
+  let baseImage := imageFromKnown coherentSections
+  let futureBody :=
+    "LOAM-SECURITIES\t1\nPOSITION\tglobal-index\t42\nNOTE\t将来の意味論はこの版では未知\n"
+  let imageWithFuture ← requireSome
+    (appendSection? baseImage { name := "Securities", body := futureBody })
+    "future section append"
+
+  let wire ← requireSome (encode? imageWithFuture)
+    "extensible household image encoding"
   let decoded ← requireSome (decode? wire)
-    "outer household image decoder rejected coherent household"
+    "extensible household image decoder rejected coherent household"
 
-  expect (decoded == coherentSections)
-    "outer household image round-trip changed one or more inner documents"
+  expect (decoded == imageWithFuture)
+    "outer image round-trip changed known or unknown sections"
 
-  validateCanonical decoded
-  validateCoherentWorld decoded
+  let decodedKnown ← requireSome (knownSections? decoded)
+    "known household sections disappeared behind future section"
+  validateCanonical decodedKnown
+  validateCoherentWorld decodedKnown
 
-  let truncated := (wire.dropEnd 1).toString
+  let updatedAttention :=
+    String.intercalate "\n" [
+      Loam.Persistence.attentionMemoryHeader,
+      "ITEM\tattention-1\tDUE_ON\t2026-10-31\trenew-insurance",
+      "ITEM\tattention-2\tNO_DUE_DATE\t-\tcheck-future-refund"
+    ] ++ "\n"
+
+  let rewritten ← requireSome
+    (replaceBody? decoded "Attention" updatedAttention)
+    "known Attention replacement"
+  let rewrittenWire ← requireSome (encode? rewritten)
+    "rewritten extensible household image encoding"
+  let reopened ← requireSome (decode? rewrittenWire)
+    "rewritten extensible household image decoding"
+
+  expect (findBody? reopened "Securities" == some futureBody)
+    "writer that changed one known section lost or changed unknown future evidence"
+  expect
+    (reopened.sections.map (fun section => section.name) ==
+      rewritten.sections.map (fun section => section.name))
+    "known-section rewrite changed section ordering"
+
+  let reopenedKnown ← requireSome (knownSections? reopened)
+    "known projection failed after preserving unknown future section"
+  validateCanonical reopenedKnown
+  validateCoherentWorld reopenedKnown
+
+  let duplicate : Image := {
+    sections := reopened.sections ++
+      [{ name := "Securities", body := "duplicate must be refused\n" }]
+  }
+  expect (encode? duplicate).isNone
+    "duplicate section identity was encodable"
+
+  let missingKnown : Image := {
+    sections := reopened.sections.filter (fun section => section.name != "Capacity")
+  }
+  expect (knownSections? missingKnown).isNone
+    "missing known authority was silently invented as empty evidence"
+
+  let truncated := (rewrittenWire.dropEnd 1).toString
   expect (decode? truncated).isNone
     "truncated household image was accepted"
 
   let badHeader := "LOAM-HOUSEHOLD-IMAGE\t999\n" ++
-    (wire.drop (householdImageHeader.length + 1)).toString
+    (rewrittenWire.drop (householdImageHeader.length + 1)).toString
   expect (decode? badHeader).isNone
     "unknown household image version was accepted"
 
-  let payload := payloadChars coherentSections
-  let overhead := wire.length - payload
-  IO.println "[ok] canonical inner documents: 13 / 13, all non-empty"
-  IO.println "[ok] outer round-trip preserved every inner document exactly"
+  let knownPayload := payloadChars coherentSections
+  let totalPayload :=
+    reopened.sections.foldl (fun total section => total + section.body.length) 0
+  let overhead := rewrittenWire.length - totalPayload
+
+  IO.println "[ok] canonical known documents: 13 / 13, all non-empty"
+  IO.println "[ok] extensible outer image accepted an unknown Securities section"
+  IO.println "[ok] unknown section survived decode / encode byte-for-byte"
+  IO.println "[ok] Attention-only rewrite preserved unknown section bytes and position"
+  IO.println "[ok] missing known section and duplicate section identity fail closed"
   IO.println "[ok] current support: cash=8000, food=2000, savings=3000, debt=known-present"
   IO.println "[ok] managed Scheduled commitment: 1000"
   IO.println "[ok] Capacity=5000, Actual consumption=2000, Remaining=3000, Headroom=2000"
-  IO.println "[ok] bounded historical support admitted through the production law"
-  IO.println "[ok] truncated and unknown-version images fail closed"
-  IO.println s!"[info] payload characters: {payload}"
+  IO.println s!"[info] current-known payload characters: {knownPayload}"
+  IO.println s!"[info] total payload characters with future section: {totalPayload}"
   IO.println s!"[info] outer framing characters: {overhead}"
-  IO.println "[result] one physical image preserved one coherent thirteen-authority household world"
+  IO.println "[result] future authority families can be added without changing the outer format or losing unknown evidence"
 
 end Loam.HouseholdImageExperiment
 
