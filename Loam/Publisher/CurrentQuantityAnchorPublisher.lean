@@ -132,14 +132,6 @@ def refinePresenceForExact?
     | throw "loam: current quantity presence refinement could not preserve unique evidence"
   return refined
 
-private def loadCoverage
-    (root : System.FilePath) : IO (Except String ZeroOriginCoverage) :=
-  Loam.ZeroOriginCoverageAuthority.loadHouseholdRequired? root
-
-private def loadOpening
-    (root : System.FilePath) : IO (Except String OpeningSupportMap) :=
-  Loam.OpeningSupportAuthority.loadHouseholdRequired? root
-
 /--
 A bounded historical completeness claim may survive a fresh observation only
 when the new observation agrees with the already-derived current quantity.
@@ -172,29 +164,34 @@ def validateBoundedHistoryReobservation
             assertion.coordinate.locus.token ++ " / " ++ assertion.coordinate.measure.token ++
             "; correct recorded Actual or move/remove the historical start before reconciling")
 
-private def publishUnderOwnership
+private def publishFromGeneration
     (root : System.FilePath)
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) : IO (Except String Unit) := do
-  let actual ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok vocabulary => pure vocabulary
-    | .error message => return .error message
-  let coverage ←
-    match ← loadCoverage root with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
-  let opening ←
-    match ← loadOpening root with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
   let observedSupport ←
     match ← Loam.CurrentSupportAuthority.loadHousehold? root with
     | .ok observed => pure observed
     | .error message => return .error message
+  let generation := observedSupport.generation
+  let actualImage ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? generation with
+    | .ok image => pure image
+    | .error message => return .error message
+  let actual := actualImage.evidence
+  let some locusBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission"
+    | return .error "loam: required HouseholdImage Locus admission section is missing"
+  let some locusAdmission := Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody
+    | return .error "loam: malformed or unsupported HouseholdImage Locus admission authority"
+  let some coverageBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "ZeroOrigin"
+    | return .error "loam: required HouseholdImage zero-origin coverage section is missing"
+  let some coverage := Loam.Persistence.decodeZeroOriginCoverage? coverageBody
+    | return .error "loam: malformed or unsupported HouseholdImage zero-origin coverage authority"
+  let some openingBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "OpeningSupport"
+    | return .error "loam: required HouseholdImage opening support section is missing"
+  let some opening := Loam.Persistence.decodeOpeningSupportMap? openingBody
+    | return .error "loam: malformed or unsupported HouseholdImage opening support authority"
   let existing := observedSupport.snapshot.anchor
   let existingPresence := observedSupport.snapshot.presence
   let bounded := observedSupport.snapshot.bounded
@@ -221,9 +218,8 @@ private def publishUnderOwnership
   | .error message => return .error message
 
 /--
-Publish one new reconciliation group while holding the Actual world and
-replacing the exact-anchor / weaker-presence pair through one observed
-HouseholdImage generation.
+Publish one new reconciliation group from one observed Household generation,
+replacing the exact-anchor / weaker-presence pair against that same generation.
 
 Unmentioned prior coordinates remain in their existing groups. Re-observed
 coordinates move to the new group derived from the current Actual root cut.
@@ -232,10 +228,9 @@ weaker presence assertion and exact anchor are now published atomically in the
 same Household generation; the former conservative two-file crash window is
 removed.
 
-Current Locus admission is re-read during this publication interval. The only
-production Locus-admission mutation is currently add-only, so a concurrent new
-admission can make this read conservatively stale only in the refusal direction;
-no extra Locus-policy lock is added until revocation/replacement is qualified.
+Actual, LocusAdmission, ZeroOrigin, OpeningSupport, and current-support evidence
+are decoded from the exact observed Household generation. Concurrent Household
+publication is rejected by the existing stale-generation check.
 
 This is current-support replacement, not historical anchor correction. No stable
 anchor identity or revision graph is introduced.
@@ -246,7 +241,6 @@ def publish
   if rootPath.isEmpty then
     return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
-  Loam.ActualAuthority.withActualOwnership root <|
-    publishUnderOwnership root assertions
+  publishFromGeneration root assertions
 
 end Loam.CurrentQuantityAnchorPublisher
