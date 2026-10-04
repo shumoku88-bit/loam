@@ -1,4 +1,5 @@
 import Loam.ActualDate
+import Loam.Authority.HouseholdAuthority
 import Loam.Core.AttentionMemory
 import Loam.FreshNumberedToken
 import Loam.Persistence.AttentionPersistence
@@ -68,6 +69,18 @@ private def validDue : AttentionDue String → Bool
   | .noDueDate => true
   | .dueUndetermined => true
 
+private def proposeAdd
+    (items : AttentionMemory String)
+    (closures : AttentionClosureMemory String)
+    (draft : AddDraft) :
+    (AttentionMemory String × AttentionClosureMemory String) × AttentionId :=
+  let id := freshId items
+  let item : Attention String := { id := id, context := draft.context, due := draft.due }
+  let updatedItems := AttentionMemory.addFresh items item (by
+    change id ∉ items.items.map Attention.id
+    exact freshId_fresh items)
+  ((updatedItems, closures), id)
+
 private def addUnlocked
     (path : System.FilePath)
     (draft : AddDraft) : IO (Except String AttentionId) := do
@@ -75,12 +88,8 @@ private def addUnlocked
     match ← loadImageOrEmpty? path with
     | some image => pure image
     | none => return .error "loam: malformed or unsupported Attention authority"
-  let id := freshId items
-  let item : Attention String := { id := id, context := draft.context, due := draft.due }
-  let updatedItems := AttentionMemory.addFresh items item (by
-    change id ∉ items.items.map Attention.id
-    exact freshId_fresh items)
-  if ← saveAttentionMemory? path updatedItems closures then
+  let ((updatedItems, updatedClosures), id) := proposeAdd items closures draft
+  if ← saveAttentionMemory? path updatedItems updatedClosures then
     return .ok id
   else
     return .error "loam: Attention evidence could not be published"
@@ -96,6 +105,22 @@ def add
   let path := System.FilePath.mk pathText
   Loam.WriterOwnership.withOwnership path (addUnlocked path draft)
 
+private def proposeClose?
+    (items : AttentionMemory String)
+    (closures : AttentionClosureMemory String)
+    (draft : CloseDraft) :
+    Except String (AttentionMemory String × AttentionClosureMemory String) := do
+  if (AttentionMemory.findById? items draft.attention).isNone then
+    throw "loam: Attention closure target is not retained"
+  let closure : AttentionClosure String := {
+    attention := draft.attention
+    knownOn := draft.knownOn
+    kind := draft.kind
+  }
+  let some updatedClosures := AttentionClosureMemory.add? closures closure
+    | throw "loam: Attention item is already closed"
+  pure (items, updatedClosures)
+
 private def closeUnlocked
     (path : System.FilePath)
     (draft : CloseDraft) : IO (Except String Unit) := do
@@ -103,16 +128,11 @@ private def closeUnlocked
     match ← loadImageOrEmpty? path with
     | some image => pure image
     | none => return .error "loam: malformed or unsupported Attention authority"
-  if (AttentionMemory.findById? items draft.attention).isNone then
-    return .error "loam: Attention closure target is not retained"
-  let closure : AttentionClosure String := {
-    attention := draft.attention
-    knownOn := draft.knownOn
-    kind := draft.kind
-  }
-  let some updatedClosures := AttentionClosureMemory.add? closures closure
-    | return .error "loam: Attention item is already closed"
-  if ← saveAttentionMemory? path items updatedClosures then
+  let (updatedItems, updatedClosures) ←
+    match proposeClose? items closures draft with
+    | .ok image => pure image
+    | .error message => return .error message
+  if ← saveAttentionMemory? path updatedItems updatedClosures then
     return .ok ()
   else
     return .error "loam: Attention closure could not be published"
@@ -127,5 +147,93 @@ def close
     return .error "loam: Attention closure date must be a real calendar date in YYYY-MM-DD form"
   let path := System.FilePath.mk pathText
   Loam.WriterOwnership.withOwnership path (closeUnlocked path draft)
+
+
+private def householdImageOrEmpty?
+    (generation : Loam.HouseholdAuthority.Generation) :
+    Option (AttentionMemory String × AttentionClosureMemory String) :=
+  match Loam.Persistence.HouseholdImage.body? generation.image "Attention" with
+  | some body => Loam.Persistence.decodeAttentionMemory? body
+  | none => emptyImage?
+
+private def withAttentionBody?
+    (image : Loam.Persistence.HouseholdImage.Image)
+    (body : String) :
+    Option Loam.Persistence.HouseholdImage.Image :=
+  if Loam.Persistence.HouseholdImage.contains image "Attention" then
+    Loam.Persistence.HouseholdImage.replaceBody? image "Attention" body
+  else
+    Loam.Persistence.HouseholdImage.appendSection? image {
+      name := "Attention"
+      body := body
+    }
+
+/--
+Add one Attention through an already-installed HouseholdImage generation.
+
+This is a P3 compatibility path only. High-level HouseholdCommand still selects
+the legacy attention.loam publisher until the later authority cutover.
+-/
+def addHousehold
+    (root : System.FilePath)
+    (draft : AddDraft) : IO (Except String AttentionId) := do
+  if !validDue draft.due then
+    return .error "loam: Attention due date must be a real calendar date in YYYY-MM-DD form"
+
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => return .error message
+  let (items, closures) ←
+    match householdImageOrEmpty? generation with
+    | some image => pure image
+    | none => return .error "loam: malformed or unsupported Attention authority"
+
+  let ((updatedItems, updatedClosures), id) := proposeAdd items closures draft
+  let some body := Loam.Persistence.encodeAttentionMemory? updatedItems updatedClosures
+    | return .error "loam: Attention evidence could not be encoded"
+  let some candidate := withAttentionBody? generation.image body
+    | return .error "loam: Attention section could not be installed"
+
+  match ← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["Attention"] candidate with
+  | .ok _ => return .ok id
+  | .error message => return .error message
+
+/--
+Resolve or drop Attention through an already-installed HouseholdImage generation.
+
+An absent Attention section has the same write meaning as absent legacy storage:
+there is no retained closure target, so close fails rather than inventing an
+empty configured section.
+-/
+def closeHousehold
+    (root : System.FilePath)
+    (draft : CloseDraft) : IO (Except String Unit) := do
+  if !Loam.ActualDate.validIsoDate draft.knownOn then
+    return .error "loam: Attention closure date must be a real calendar date in YYYY-MM-DD form"
+
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => return .error message
+  let (items, closures) ←
+    match householdImageOrEmpty? generation with
+    | some image => pure image
+    | none => return .error "loam: malformed or unsupported Attention authority"
+
+  let (updatedItems, updatedClosures) ←
+    match proposeClose? items closures draft with
+    | .ok image => pure image
+    | .error message => return .error message
+  let some body := Loam.Persistence.encodeAttentionMemory? updatedItems updatedClosures
+    | return .error "loam: Attention closure could not be encoded"
+  let some candidate := withAttentionBody? generation.image body
+    | return .error "loam: Attention section could not be installed"
+
+  match ← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["Attention"] candidate with
+  | .ok _ => return .ok ()
+  | .error message => return .error message
 
 end Loam.AttentionPublisher
