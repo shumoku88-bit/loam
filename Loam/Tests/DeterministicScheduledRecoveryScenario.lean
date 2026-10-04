@@ -169,12 +169,12 @@ private def prepareRoot
   IO.FS.createDirAll root
 
   let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root ActualEvidence.empty)
+    (do publishInitialActual root ActualEvidence.empty; pure (.ok ()))
     "initialize empty Actual authority"
 
   let loci ← approvedLoci
   let _ ← requireOk
-    (← Loam.LocusAdmissionAuthority.publishCurrent? root loci)
+    (do publishInitialLocusAdmission root loci; pure (.ok ()))
     "publish Scheduled recovery Locus policy"
 
   let s1 ← occurrence "scheduled-1" "2026-09-10" "paypay" "rent" 1000
