@@ -1,6 +1,7 @@
 import Loam.HouseholdPaths
 import Loam.Application.CapacityInspection
 import Loam.Authority.CapacityAuthority
+import Loam.Authority.HouseholdAuthority
 
 namespace Loam.CapacityReview
 
@@ -75,6 +76,33 @@ def loadSnapshotForMeasure
 /-- Backward-compatible loader for the current JPY household. -/
 def loadSnapshot (path : System.FilePath) : IO (Except String Snapshot) :=
   loadSnapshotForMeasure ⟨"jpy"⟩ path
+
+
+/--
+Project Capacity from the installed HouseholdImage without changing production
+frontend selection yet.
+
+A physically missing Capacity section keeps the existing Capacity contract:
+empty retained history. A present malformed section refuses.
+-/
+def loadHouseholdSnapshotForMeasure
+    (measure : MeasureId)
+    (root : System.FilePath) : IO (Except String Snapshot) := do
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => return .error message
+  match Loam.Persistence.HouseholdImage.body? generation.image "Capacity" with
+  | none => return .ok (snapshotForMeasure measure Loam.CapacityEvidence.empty.movements)
+  | some body =>
+      let some image := Loam.Persistence.decodeNormalizedCapacity? body
+        | return .error "loam: malformed or unsupported Capacity authority"
+      return .ok (snapshotForMeasure measure image.movements)
+
+/-- Backward-compatible HouseholdImage loader for the current JPY household. -/
+def loadHouseholdSnapshot
+    (root : System.FilePath) : IO (Except String Snapshot) :=
+  loadHouseholdSnapshotForMeasure ⟨"jpy"⟩ root
 
 /--
 Load canonical Capacity evidence from one household root. High-level frontends
