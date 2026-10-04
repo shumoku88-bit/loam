@@ -2,7 +2,8 @@ import Loam.Tests.ActualWorldFixture
 import Loam.Authority.ActualAuthority
 import Loam.Review.CurrentCoverageReview
 import Loam.Persistence.ActualRoutingPersistence
-import Loam.Authority.CapacityAuthority
+import Loam.Authority.HouseholdAuthority
+import Loam.Persistence.NormalizedCapacityPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 
@@ -119,8 +120,16 @@ def main (args : List String) : IO Unit := do
      { movement := previous.id, effectiveOn := "2026-08-14" },
      { movement := usdFood.id, effectiveOn := "2026-09-08" }]) "Capacity effective"
   let evidence ← requireSome (Loam.CapacityEvidence.ofParts? capacity effective) "Capacity evidence"
-  let .ok _ ← Loam.CapacityAuthority.publishImage? (root / "capacity.loam") evidence
-    | throw (IO.userError "publish Capacity evidence")
+  let capacityBody ← requireSome
+    (Loam.Persistence.encodeNormalizedCapacity? evidence)
+    "encode Household Capacity evidence"
+  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
+    sections := [{ name := "Capacity", body := capacityBody }]
+  }
+  let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
+    | throw (IO.userError "install Household Capacity evidence")
+  expect (!(← (root / "capacity.loam").pathExists))
+    "CurrentCoverage fixture unexpectedly retained legacy Capacity"
 
   let actualRouting ← requireSome
     (RoutingHistory.ofEntries?
@@ -334,20 +343,33 @@ def main (args : List String) : IO Unit := do
       root (root / "missing-authority") "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!missingActual.isOk) "missing selected Movement authority fell back to dataDir Actual"
 
-  IO.FS.writeFile (root / "capacity.loam")
-    "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-food\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t90\nENDMOVEMENT\n"
+  let writeHouseholdImage (image : Loam.Persistence.HouseholdImage.Image) : IO Unit := do
+    let wire ← requireSome
+      (Loam.Persistence.HouseholdImage.encode? image)
+      "encode CurrentCoverage HouseholdImage refusal fixture"
+    IO.FS.writeFile (Loam.HouseholdAuthority.path root) wire
+
+  writeHouseholdImage {
+    sections := [{
+      name := "Capacity"
+      body :=
+        "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-food\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t90\nENDMOVEMENT\n"
+    }]
+  }
   let unbalanced ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
-  expect (!unbalanced.isOk) "unbalanced Capacity did not fail closed"
+  expect (!unbalanced.isOk) "unbalanced Household Capacity did not fail closed"
 
-  IO.FS.writeFile (root / "capacity.loam") "not-capacity-evidence\n"
+  writeHouseholdImage {
+    sections := [{ name := "Capacity", body := "not-capacity-evidence\n" }]
+  }
   let malformed ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
-  expect (!malformed.isOk) "malformed Capacity did not fail closed"
+  expect (!malformed.isOk) "malformed Household Capacity did not fail closed"
 
-  IO.FS.removeFile (root / "capacity.loam")
+  writeHouseholdImage { sections := [] }
   let missingFile ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
-  expect (!missingFile.isOk) "missing Capacity authority did not return a visible error"
+  expect (!missingFile.isOk) "missing Household Capacity section did not return a visible error"
 
   IO.println "Current Coverage Review: production authorities, effective Actual routing and current Scheduled pressure passed."
