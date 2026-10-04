@@ -1,6 +1,7 @@
 import Loam.Review.AttentionReview
 import Loam.HouseholdCommand
 import Loam.Tui.AttentionAdministration
+import Loam.Authority.HouseholdAuthority
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -168,9 +169,9 @@ def main : IO Unit := do
     "unknown-due meaning was not rendered in the production Attention surface"
 
   -- End-to-end lifecycle in an isolated temporary directory:
-  -- 1. Missing file produces unavailable bootstrap view.
-  -- 2. addAttention bootstraps file and publishes item.
-  -- 3. Reloading evidence reflects the new item in Attention / Manage.
+  -- 1. Installed HouseholdImage with absent Attention produces unavailable bootstrap view.
+  -- 2. addAttention installs the first HouseholdImage Attention section.
+  -- 3. Reloading HouseholdImage evidence reflects the new item in Attention / Manage.
   -- 4. closeAttention resolves the item.
   -- 5. Reloading evidence reflects 0 open items.
   let tmpRoot := (System.FilePath.mk "/tmp") / "loam-attention-tui-test"
@@ -179,7 +180,9 @@ def main : IO Unit := do
       IO.FS.removeDirAll tmpRoot
     IO.FS.createDirAll tmpRoot
 
-    let initialLoad ← Loam.AttentionReview.loadEvidence (tmpRoot / "attention.loam")
+    let .ok _ ← Loam.HouseholdAuthority.installInitial? tmpRoot { sections := [] }
+      | throw (IO.userError "TUI Attention HouseholdImage bootstrap failed")
+    let initialLoad ← Loam.AttentionReview.loadHouseholdEvidence tmpRoot
     match initialLoad with
     | .ok .unavailable => pure ()
     | _ => throw (IO.userError "bootstrap did not report unavailable")
@@ -200,7 +203,7 @@ def main : IO Unit := do
     expect (addedId.token == "attention-1") "first attention id unexpected"
 
     -- Reload evidence and refresh administration view
-    let reloadedLoad ← Loam.AttentionReview.loadEvidence (tmpRoot / "attention.loam")
+    let reloadedLoad ← Loam.AttentionReview.loadHouseholdEvidence tmpRoot
     let .ok reloadedEvidence := reloadedLoad | throw (IO.userError "reloading evidence failed")
     let adminRefreshed := Loam.Tui.AttentionAdministration.initial reloadedEvidence "2026-09-16"
     let refreshedText := widgetText (Loam.Tui.AttentionAdministration.view adminRefreshed)
@@ -218,7 +221,7 @@ def main : IO Unit := do
     | .error message => throw (IO.userError message)
 
     -- Reload evidence and refresh administration view
-    let closedLoad ← Loam.AttentionReview.loadEvidence (tmpRoot / "attention.loam")
+    let closedLoad ← Loam.AttentionReview.loadHouseholdEvidence tmpRoot
     let .ok closedEvidence := closedLoad | throw (IO.userError "reloading closed evidence failed")
     let adminClosed := Loam.Tui.AttentionAdministration.initial closedEvidence "2026-09-16"
     let closedText := widgetText (Loam.Tui.AttentionAdministration.view adminClosed)
@@ -228,4 +231,4 @@ def main : IO Unit := do
     if ← tmpRoot.pathExists then
       IO.FS.removeDirAll tmpRoot
 
-  IO.println "Attention administration TUI: bootstrap, due choices, invalid date refusal, selection, resolve and drop intents, error handling, Home integration, and end-to-end publication passed."
+  IO.println "Attention administration TUI: HouseholdImage bootstrap, due choices, invalid date refusal, selection, resolve/drop intents, and end-to-end publication passed."

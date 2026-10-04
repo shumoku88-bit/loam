@@ -62,8 +62,9 @@ def fromGeneration
 /--
 Load current HouseholdImage and project its Attention availability.
 
-This is a compatibility path for P4. Frontends still select the legacy
-Attention path until a later authority-cutover change.
+This is the production household-root Attention read after authority cutover.
+Low-level explicit-file diagnostics retain loadEvidence for standalone legacy
+files and migration qualification.
 -/
 def loadHouseholdEvidence
     (root : System.FilePath) : IO (Except String Availability) := do

@@ -214,28 +214,38 @@ def main (args : List String) : IO Unit := do
   expect ((← attentionBodyFromHousehold missingRoot) == none)
     "failed close invented an empty Household Attention section"
 
-  -- High-level authority selection has deliberately not moved yet.
+  -- High-level household commands now select HouseholdImage Attention only.
   let commandBefore ← requireOk
     (← Loam.HouseholdAuthority.loadCurrent? commandRoot)
-    "command isolation HouseholdImage did not load"
+    "command cutover HouseholdImage did not load"
   let commandId ← requireOk
     (← Loam.HouseholdCommand.addAttention commandRoot first)
-    "HouseholdCommand legacy Attention add failed"
+    "HouseholdCommand HouseholdImage Attention add failed"
   expect (commandId == ⟨"attention-1"⟩)
-    "HouseholdCommand legacy Attention identity changed"
-  expect (← (commandRoot / "attention.loam").pathExists)
-    "HouseholdCommand no longer wrote legacy attention.loam before cutover"
+    "HouseholdCommand HouseholdImage Attention identity changed"
+  expect (!(← (commandRoot / "attention.loam").pathExists))
+    "HouseholdCommand wrote legacy attention.loam after cutover"
   let commandAfter ← requireOk
     (← Loam.HouseholdAuthority.loadCurrent? commandRoot)
-    "command isolation HouseholdImage disappeared"
-  expect (commandAfter.wire == commandBefore.wire)
-    "HouseholdCommand changed HouseholdImage before authority cutover"
-  expect (body? commandAfter.image "Attention" == none)
-    "HouseholdCommand silently selected HouseholdImage Attention before cutover"
+    "command cutover HouseholdImage disappeared"
+  expect (commandAfter.wire != commandBefore.wire)
+    "HouseholdCommand did not publish a new HouseholdImage generation"
+  let some commandBody := body? commandAfter.image "Attention"
+    | throw (IO.userError "HouseholdCommand did not install HouseholdImage Attention")
+  let some (commandItems, commandClosures) :=
+      Loam.Persistence.decodeAttentionMemory? commandBody
+    | throw (IO.userError "HouseholdCommand installed malformed HouseholdImage Attention")
+  let some commandOpen := Loam.Application.openAttentions? commandItems commandClosures
+    | throw (IO.userError "HouseholdCommand Attention closure evidence became invalid")
+  expect (commandOpen.map Attention.id == [commandId])
+    "HouseholdCommand HouseholdImage Attention answer changed after cutover"
+  let commandPrevious ← IO.FS.readFile (Loam.HouseholdAuthority.previousPath commandRoot)
+  expect (commandPrevious == commandBefore.wire)
+    "HouseholdCommand cutover did not retain previous HouseholdImage generation"
 
   cleanupDir root
   IO.println
-    "Household Attention adapter: legacy byte/read equivalence, missing vs present-empty semantics, unknown preservation, and pre-cutover command isolation passed."
+    "Household Attention adapter: legacy equivalence, HouseholdCommand/TUI authority cutover, previous-generation retention, missing semantics, and unknown preservation passed."
 
 end Loam.Tests.HouseholdAttentionAdapter
 

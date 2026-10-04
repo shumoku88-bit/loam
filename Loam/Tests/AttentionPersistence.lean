@@ -1,5 +1,6 @@
 import Loam.Review.AttentionReview
 import Loam.HouseholdCommand
+import Loam.Authority.HouseholdAuthority
 
 open Loam.Core
 
@@ -100,11 +101,15 @@ def main (args : List String) : IO Unit := do
   expect (Loam.AttentionReview.dueLabel (.dueUndetermined : AttentionDue String) == "due unknown")
     "DueUndetermined presentation collapsed"
 
-  -- Production writer qualification starts with no Attention file at all.
+  -- Production writer qualification starts with an installed HouseholdImage
+  -- whose Attention section is physically absent.
   let managedRoot := root / "managed"
   IO.FS.createDirAll managedRoot
   let managedPath := managedRoot / "attention.loam"
-  expect (!(← managedPath.pathExists)) "managed Attention specimen unexpectedly existed before bootstrap"
+  let .ok _ ← Loam.HouseholdAuthority.installInitial? managedRoot { sections := [] }
+    | throw (IO.userError "managed HouseholdImage bootstrap failed")
+  expect (!(← managedPath.pathExists))
+    "legacy managed Attention file unexpectedly existed before HouseholdImage bootstrap"
 
   let firstId ←
     match ← Loam.HouseholdCommand.addAttention managedRoot {
@@ -114,7 +119,8 @@ def main (args : List String) : IO Unit := do
     | .ok id => pure id
     | .error message => throw (IO.userError message)
   expect (firstId.token == "attention-1") "first Attention identity was not allocated deterministically"
-  expect (← managedPath.pathExists) "first Attention publication did not bootstrap canonical storage"
+  expect (!(← managedPath.pathExists))
+    "HouseholdCommand wrote legacy attention.loam after HouseholdImage cutover"
 
   let secondId ←
     match ← Loam.HouseholdCommand.addAttention managedRoot {
@@ -132,7 +138,7 @@ def main (args : List String) : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "invalid Attention due date was published")
 
-  match ← Loam.AttentionReview.loadEvidence managedPath with
+  match ← Loam.AttentionReview.loadHouseholdEvidence managedRoot with
   | .ok (.available snapshot) =>
       expect (snapshot.openItems.map Attention.id == [firstId, secondId])
         "fresh Attention publications did not appear in canonical open order"
@@ -163,7 +169,7 @@ def main (args : List String) : IO Unit := do
   | .error _ => pure ()
   | .ok () => throw (IO.userError "unknown Attention accepted closure evidence")
 
-  match ← Loam.AttentionReview.loadEvidence managedPath with
+  match ← Loam.AttentionReview.loadHouseholdEvidence managedRoot with
   | .ok (.available snapshot) =>
       expect (snapshot.openItems.map Attention.id == [secondId])
         "resolved Attention remained in the current-open projection"
@@ -178,10 +184,10 @@ def main (args : List String) : IO Unit := do
   | .ok () => pure ()
   | .error message => throw (IO.userError message)
 
-  match ← Loam.AttentionReview.loadEvidence managedPath with
+  match ← Loam.AttentionReview.loadHouseholdEvidence managedRoot with
   | .ok (.available snapshot) =>
       expect snapshot.openItems.isEmpty "dropped Attention remained current-open"
   | .error message => throw (IO.userError message)
   | .ok .unavailable => throw (IO.userError "managed Attention authority disappeared after drop")
 
-  IO.println "Attention persistence/review/publication: bootstrap, due meaning, add, resolve, drop and refusal passed."
+  IO.println "Attention persistence/review/publication: legacy codec plus HouseholdImage production bootstrap, add, resolve, drop and refusal passed."

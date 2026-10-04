@@ -202,14 +202,14 @@ def addAttention
     (root : System.FilePath)
     (draft : Loam.AttentionPublisher.AddDraft) :
     IO (Except String Loam.Core.AttentionId) :=
-  Loam.AttentionPublisher.add (Loam.HouseholdPaths.attention root).toString draft
+  Loam.AttentionPublisher.addHousehold root draft
 
 /-- Resolve or drop one retained open household Attention item. -/
 def closeAttention
     (root : System.FilePath)
     (draft : Loam.AttentionPublisher.CloseDraft) :
     IO (Except String Unit) :=
-  Loam.AttentionPublisher.close (Loam.HouseholdPaths.attention root).toString draft
+  Loam.AttentionPublisher.closeHousehold root draft
 
 /-- Publish one binary Capacity movement. -/
 def moveCapacity
