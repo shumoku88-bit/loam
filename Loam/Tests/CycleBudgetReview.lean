@@ -118,7 +118,7 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "cash\tjpy\nyucho\tjpy\n"
   let withoutCapacity : Loam.Persistence.HouseholdImage.Image := {
     sections := capacityGeneration.image.sections.filter
-      (fun section => section.name != "Capacity")
+      (fun part => part.name != "Capacity")
   }
   let withoutCapacityWire ← requireSome
     (Loam.Persistence.HouseholdImage.encode? withoutCapacity)
