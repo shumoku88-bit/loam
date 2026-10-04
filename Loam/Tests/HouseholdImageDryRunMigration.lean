@@ -1,5 +1,7 @@
 import Loam.Migration.HouseholdImageDryRun
+import Loam.Migration.HouseholdImageInstall
 import Loam.Cli.HouseholdImageDryRunCli
+import Loam.Cli.HouseholdImageInstallCli
 
 namespace Loam.Tests.HouseholdImageDryRunMigration
 
@@ -175,6 +177,35 @@ private def decodedCandidate
     (Loam.Persistence.HouseholdImage.decode? wire)
     "dry-run candidate did not reopen"
 
+private def legacyPaths (root : System.FilePath) : List System.FilePath := [
+  Loam.HouseholdPaths.actual root,
+  Loam.HouseholdPaths.scheduled root,
+  Loam.HouseholdPaths.capacity root,
+  Loam.HouseholdPaths.attention root,
+  Loam.HouseholdPaths.actualRouting root,
+  Loam.HouseholdPaths.scheduledRouting root,
+  Loam.HouseholdPaths.accountingRole root,
+  Loam.HouseholdPaths.locusAdmission root,
+  Loam.HouseholdPaths.zeroOriginCoverage root,
+  Loam.HouseholdPaths.openingSupport root,
+  Loam.HouseholdPaths.currentQuantityAnchor root,
+  Loam.HouseholdPaths.currentQuantityPresence root,
+  Loam.HouseholdPaths.boundedHistorySupport root
+]
+
+private def snapshotLegacy
+    (root : System.FilePath) : IO (List (System.FilePath × String)) := do
+  (legacyPaths root).mapM fun path => do
+    let body ← IO.FS.readFile path
+    pure (path, body)
+
+private def expectLegacyUnchanged
+    (snapshot : List (System.FilePath × String)) : IO Unit := do
+  for entry in snapshot do
+    let (path, body) := entry
+    expect ((← IO.FS.readFile path) == body)
+      ("initial HouseholdImage install changed legacy authority: " ++ path.toString)
+
 private def runFullCase (base : System.FilePath) : IO Unit := do
   let source := base / "full"
   let scratch := base / "full-scratch"
@@ -258,6 +289,53 @@ private def runCliCase (base : System.FilePath) : IO Unit := do
   expect (!(← (Loam.HouseholdAuthority.path source).pathExists))
     "dry-run CLI installed household.loam into the source root"
 
+private def runInstallCase (base : System.FilePath) : IO Unit := do
+  let source := base / "install"
+  let scratch := base / "install-scratch"
+  writeFixture source (some coherentAttention)
+
+  let legacyBefore ← snapshotLegacy source
+  let configBefore ← IO.FS.readFile (Loam.HouseholdPaths.measurePresentation source)
+
+  let exitCode ← Loam.HouseholdImageInstallCli.run [
+    source.toString,
+    scratch.toString,
+    probe.currentWindowStart,
+    probe.observedAt,
+    probe.endExclusive
+  ]
+  expect (exitCode == 0)
+    "qualified initial HouseholdImage install was refused"
+
+  let current := Loam.HouseholdAuthority.path source
+  expect (← current.pathExists)
+    "qualified initial install did not create household.loam"
+
+  let currentWire ← IO.FS.readFile current
+  let candidateWire ← IO.FS.readFile (scratch / "household.loam.candidate")
+  expect (currentWire == candidateWire)
+    "installed HouseholdImage differs from the qualified dry-run candidate"
+
+  expect (!(← (Loam.HouseholdAuthority.previousPath source).pathExists))
+    "initial HouseholdImage install invented a previous generation"
+
+  expectLegacyUnchanged legacyBefore
+  expect ((← IO.FS.readFile (Loam.HouseholdPaths.measurePresentation source)) == configBefore)
+    "initial HouseholdImage install changed external configuration"
+
+  let secondScratch := base / "install-second-scratch"
+  let secondExitCode ← Loam.HouseholdImageInstallCli.run [
+    source.toString,
+    secondScratch.toString,
+    probe.currentWindowStart,
+    probe.observedAt,
+    probe.endExclusive
+  ]
+  expect (secondExitCode == 2)
+    "second initial HouseholdImage install unexpectedly succeeded"
+  expect (!(← secondScratch.pathExists))
+    "second initial install created scratch before refusing existing household.loam"
+
 private def runMalformedCase (base : System.FilePath) : IO Unit := do
   let source := base / "malformed"
   let scratch := base / "malformed-scratch"
@@ -283,11 +361,12 @@ def main (args : List String) : IO Unit := do
   runPresentEmptyCase base
   runMissingCase base
   runCliCase base
+  runInstallCase base
   runMalformedCase base
 
   cleanupDir base
   IO.println
-    "HouseholdImage dry-run migration: full, present-empty, missing, CLI entry, malformed refusal, Review equivalence, config separation, and source immutability passed."
+    "HouseholdImage migration: dry-run and qualified initial install preserve legacy authority, config separation, missing semantics, Review equivalence, and refusal boundaries."
 
 end Loam.Tests.HouseholdImageDryRunMigration
 
