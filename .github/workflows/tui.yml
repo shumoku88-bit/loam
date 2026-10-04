@@ -355,6 +355,7 @@ jobs:
           lake test -- tui-representative
           lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
           lake env lean --run Loam/Tests/StockFlowReview.lean
+          lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant-pr"
           lake env lean --run tests/test_date_jump.lean
 
       - name: Verify Cycle Budget and Scheduled startup PTY interactions
