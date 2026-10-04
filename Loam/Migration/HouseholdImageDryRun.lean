@@ -38,8 +38,10 @@ This is an offline admission gate for the future one-file household authority.
 It reads the legacy thirteen canonical paths without changing them, preserves
 physical absence exactly, builds one HouseholdImage candidate in a separate
 scratch directory, reopens and qualifies that candidate, materializes its
-present sections back into a temporary legacy-shaped projection, and compares
-the same production Review answers used by the HouseholdImage H2 experiment.
+present sections back into temporary legacy-shaped projections, equips isolated
+scratch review worlds with the qualified candidate for already-cut-over
+production readers, and compares the same production Review answers used by the
+HouseholdImage H2 experiment.
 
 It deliberately does not install `household.loam`, does not dual-write, and
 does not move configuration into the image.
@@ -222,6 +224,22 @@ private def materializeLegacyProjection
           ("loam: dry-run projection encountered unknown section: " ++ part.name)
     IO.FS.writeFile target part.body
   return .ok ()
+
+
+/--
+Copy the exact existing legacy authority bytes into a scratch review root.
+
+This never writes to the source tree. It exists because production Reviews may
+already select some cut-over HouseholdImage sections while the dry-run itself is
+still qualifying a pre-install legacy source.
+-/
+private def copyLegacySourceForReview
+    (source target : System.FilePath) : IO Unit := do
+  IO.FS.createDirAll target
+  for spec in legacySpecs do
+    let sourcePath := spec.path source
+    if ← sourcePath.pathExists then
+      IO.FS.writeFile (spec.path target) (← IO.FS.readFile sourcePath)
 
 private def configPairs
     (source target : System.FilePath) :
@@ -485,7 +503,31 @@ def run
   | .ok () => pure ()
   copyConfigForProjection legacyRoot projectionRoot
 
-  match ← validateReviewEquivalence legacyRoot projectionRoot probe with
+  -- Production Review selection evolves as semantic families cut over to
+  -- HouseholdImage. Keep the user source immutable by constructing two scratch
+  -- review worlds: one from exact source legacy bytes and one from the
+  -- candidate-derived legacy projection. Both receive the already-qualified
+  -- candidate HouseholdImage so cut-over readers have their production
+  -- authority without weakening legacy byte/equivalence checks.
+  let legacyReviewRoot := scratchRoot / "review-legacy-source"
+  let projectedReviewRoot := scratchRoot / "review-projection"
+  copyLegacySourceForReview legacyRoot legacyReviewRoot
+  match ← materializeLegacyProjection projectedReviewRoot reopened with
+  | .error message => return .error message
+  | .ok () => pure ()
+  copyConfigForProjection legacyRoot legacyReviewRoot
+  copyConfigForProjection legacyRoot projectedReviewRoot
+
+  match ← Loam.HouseholdAuthority.installInitial? legacyReviewRoot reopened with
+  | .error message =>
+      return .error ("loam: dry-run legacy review HouseholdImage install failed: " ++ message)
+  | .ok _ => pure ()
+  match ← Loam.HouseholdAuthority.installInitial? projectedReviewRoot reopened with
+  | .error message =>
+      return .error ("loam: dry-run projected review HouseholdImage install failed: " ++ message)
+  | .ok _ => pure ()
+
+  match ← validateReviewEquivalence legacyReviewRoot projectedReviewRoot probe with
   | .error message => return .error message
   | .ok () => pure ()
 
