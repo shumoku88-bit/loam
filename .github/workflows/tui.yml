@@ -355,6 +355,7 @@ jobs:
           lake test -- tui-representative
           lake env lean --run Loam/Tests/BoundedHistorySupport.lean
           lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal-pr"
+          lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role-pr"
           lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review-pr"
           lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
           lake env lean --run Loam/Tests/StockFlowReview.lean
