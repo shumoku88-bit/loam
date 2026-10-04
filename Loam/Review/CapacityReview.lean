@@ -93,7 +93,9 @@ def loadHouseholdSnapshotForMeasure
     | .ok generation => pure generation
     | .error message => return .error message
   match Loam.Persistence.HouseholdImage.body? generation.image "Capacity" with
-  | none => return .ok (snapshotForMeasure measure Loam.CapacityEvidence.empty.movements)
+  | none =>
+      let empty : Loam.CapacityEvidence String := Loam.CapacityEvidence.empty
+      return .ok (snapshotForMeasure measure empty.movements)
   | some body =>
       let some image := Loam.Persistence.decodeNormalizedCapacity? body
         | return .error "loam: malformed or unsupported Capacity authority"
