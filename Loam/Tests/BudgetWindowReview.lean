@@ -210,9 +210,12 @@ def main (args : List String) : IO Unit := do
       validity := correctedValidity
       corrections := correctedCorrections
   }
-  let .ok _ ← Loam.ActualAuthority.publishActualFile?
-      (Loam.ActualAuthority.actualPath actualRoot) correctedActual
-    | throw (IO.userError "publish corrected Actual image")
+  let correctedActualBody ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? correctedActual)
+    "encode corrected Household Actual image"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      actualRoot "Actual" correctedActualBody
+    | throw (IO.userError "publish corrected Household Actual image")
   let .ok correctedSnapshot ←
       Loam.BudgetWindowReview.loadSnapshot
         root actualRoot "2026-08-17" "2026-10-15"
