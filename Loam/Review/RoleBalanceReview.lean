@@ -1,6 +1,5 @@
 import Loam.Review.CurrentBalanceReview
-import Loam.HouseholdPaths
-import Loam.Persistence.AccountingRolePersistence
+import Loam.Authority.AccountingRoleAuthority
 
 namespace Loam.RoleBalanceReview
 
@@ -194,14 +193,10 @@ generation. No presentation selection such as `balance-view.tsv` is used.
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
-  let rolesPath := Loam.HouseholdPaths.accountingRole dataDir
-  if !(← rolesPath.pathExists) then
-    return .error "loam: required AccountingRole evidence is missing"
-
   let roles ←
-    match ← loadAccountingRoleMap? rolesPath with
-    | some roles => pure roles
-    | none => return .error "loam: malformed or unsupported AccountingRole evidence"
+    match ← Loam.AccountingRoleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok roles => pure roles
+    | .error message => return .error message
 
   let current ←
     match ← Loam.CurrentBalanceReview.loadSnapshotFromActualImage dataDir image with
