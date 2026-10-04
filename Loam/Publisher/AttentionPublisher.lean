@@ -171,8 +171,9 @@ private def withAttentionBody?
 /--
 Add one Attention through an already-installed HouseholdImage generation.
 
-This is a P3 compatibility path only. High-level HouseholdCommand still selects
-the legacy attention.loam publisher until the later authority cutover.
+This is the production HouseholdImage Attention publication path after the
+authority cutover. Low-level explicit-file diagnostics may still use the legacy
+path-based publisher when intentionally operating on a standalone file.
 -/
 def addHousehold
     (root : System.FilePath)
