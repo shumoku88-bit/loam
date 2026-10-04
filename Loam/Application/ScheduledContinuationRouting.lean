@@ -3,6 +3,7 @@ import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Authority.ScheduledRoutingAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Publisher.ScheduledRoutingPublisher
 
 namespace Loam.ScheduledContinuationRouting
@@ -141,31 +142,26 @@ def inherit
 /--
 Production continuation-routing entrance.
 
-Scheduled lifecycle remains on its current standalone authority, while routing
-history and all inherited routing publication use the required
-`ScheduledRouting` section of the installed HouseholdImage. Frozen legacy
-`scheduled-routing.loam` is neither read nor written.
+Both Scheduled lifecycle and ScheduledRouting are read from HouseholdImage.
+Frozen legacy scheduled.loam and scheduled-routing.loam are neither read nor
+written by this production path.
 -/
 def inheritHousehold
-    (root scheduledPath : System.FilePath)
+    (root : System.FilePath)
     (predecessor : ScheduledId)
     (created : ScheduledId)
     (effectiveOn : String) : IO (Except String Report) := do
   if !Loam.ActualDate.validIsoDate effectiveOn then
     return .error "loam: Scheduled continuation routing effective date must be a real calendar date in YYYY-MM-DD form"
-  if !(← scheduledPath.pathExists) then
-    return .error "loam: Scheduled lifecycle authority is missing"
   let lifecycle ←
-    match ← loadScheduledLifecycleImage? scheduledPath with
-    | some lifecycle => pure lifecycle
-    | none =>
-        return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
   let history ←
     match ← Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? root with
     | .ok history => pure history
     | .error message => return .error message
   inheritFrom lifecycle history predecessor created effectiveOn fun draft =>
-    Loam.ScheduledRoutingPublisher.publishHousehold
-      root scheduledPath.toString draft
+    Loam.ScheduledRoutingPublisher.publishHousehold root draft
 
 end Loam.ScheduledContinuationRouting
