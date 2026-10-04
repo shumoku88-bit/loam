@@ -133,9 +133,7 @@ private def prepareRoot (root : System.FilePath) : IO (List EventId) := do
   cleanupDir root
   IO.FS.createDirAll root
 
-  let _ ← requireOk
-    (do publishInitialActual root ActualEvidence.empty; pure (.ok ()))
-    "initialize empty Actual authority"
+  publishInitialActual root ActualEvidence.empty
 
   let loci ← requireSome
     (LocusAdmissionVocabulary.ofLoci? [
@@ -145,9 +143,7 @@ private def prepareRoot (root : System.FilePath) : IO (List EventId) := do
       ⟨"transport"⟩
     ])
     "deterministic mutation Locus vocabulary was not unique"
-  let _ ← requireOk
-    (do publishInitialLocusAdmission root loci; pure (.ok ()))
-    "publish deterministic mutation Locus policy"
+  publishInitialLocusAdmission root loci
 
   let lifecycle ← emptyLifecycle
   let lifecycleBody ← requireSome
