@@ -140,9 +140,9 @@ def publish
 /--
 Publish one Scheduled routing assertion into the required HouseholdImage section.
 
-This is an adapter qualification entrance only. Production HouseholdCommand and
-TUI selection remain on the legacy routing file until a later explicit cutover.
-The Scheduled lifecycle authority remains the existing standalone lifecycle.
+This is the production household Scheduled-routing publication entrance.
+The Scheduled lifecycle authority remains the existing standalone lifecycle;
+frozen legacy routing files are not written.
 -/
 def publishHousehold
     (root : System.FilePath)

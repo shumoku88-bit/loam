@@ -7,7 +7,7 @@ import Loam.Review.CapacityReview
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.ScheduledRoutingPersistence
+import Loam.Authority.ScheduledRoutingAuthority
 
 namespace Loam.CurrentCoverageReview
 
@@ -36,7 +36,8 @@ Event frontier and current validity memory carried by `ActualAuthority.Image`;
 the report performs no second Correction or ActualValidity admission.
 
 Scheduled selection and routing/role classification are performed once for the
-whole query. Purpose rows project only their managed Commitment from that shared
+whole query. Scheduled routing is loaded from the required HouseholdImage
+section; no frozen legacy routing fallback exists. Purpose rows project only their managed Commitment from that shared
 partition; query-global pressure frontiers are projected once beside the rows.
 -/
 
@@ -158,7 +159,6 @@ def loadSnapshotAtForMeasure
 
   let actualRoutingPath := Loam.HouseholdPaths.actualRouting dataDir
   let scheduledPath := Loam.HouseholdPaths.scheduled dataDir
-  let scheduledRoutingPath := Loam.HouseholdPaths.scheduledRouting dataDir
   let accountingRolePath := Loam.HouseholdPaths.accountingRole dataDir
 
   let capacityImage ←
@@ -169,9 +169,6 @@ def loadSnapshotAtForMeasure
   | .error message => return .error message
   | .ok _ => pure ()
   match ← requireFile scheduledPath "Scheduled lifecycle authority" with
-  | .error message => return .error message
-  | .ok _ => pure ()
-  match ← requireFile scheduledRoutingPath "Scheduled routing evidence" with
   | .error message => return .error message
   | .ok _ => pure ()
   match ← requireFile accountingRolePath "AccountingRole evidence" with
@@ -193,9 +190,9 @@ def loadSnapshotAtForMeasure
     | some image => pure image
     | none => return .error "loam: malformed or unsupported Scheduled lifecycle authority"
   let scheduledRouting ←
-    match ← Loam.Persistence.loadScheduledRoutingHistory? scheduledRoutingPath with
-    | some history => pure history
-    | none => return .error "loam: malformed or unsupported Scheduled routing evidence"
+    match ← Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? dataDir with
+    | .ok history => pure history
+    | .error message => return .error message
   let roles ←
     match ← Loam.Persistence.loadAccountingRoleMap? accountingRolePath with
     | some roleMap => pure roleMap

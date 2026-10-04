@@ -2,6 +2,7 @@ import Loam.ActualDate
 import Loam.Core.ScheduledRouting
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
+import Loam.Authority.ScheduledRoutingAuthority
 import Loam.Publisher.ScheduledRoutingPublisher
 
 namespace Loam.ScheduledContinuationRouting
@@ -25,6 +26,7 @@ from TUI presentation concerns while preserving existing routing semantics:
 
 - only positive-quantity changes are routed;
 - publication is delegated exclusively to the shared `ScheduledRoutingPublisher`;
+- production household inheritance reads and writes ScheduledRouting only through HouseholdImage;
 - preconditions (authority presence, well-formedness, predecessor and created identity existence,
   and calendar date validity) fail closed as an outer `Except.error` before
   any mutation occurs;
@@ -61,16 +63,58 @@ def formatOutcomes (report : Report) : List String :=
 
 end Report
 
+private def inheritFrom
+    (lifecycle : ScheduledLifecycleImage)
+    (history : ScheduledRoutingHistory String)
+    (predecessor created : ScheduledId)
+    (effectiveOn : String)
+    (publishDraft : Loam.ScheduledRoutingPublisher.Draft →
+      IO (Except String Unit)) : IO (Except String Report) := do
+  let some _ := ScheduledMemory.findById? lifecycle.scheduled predecessor
+    | return .error s!"loam: predecessor Scheduled occurrence '{predecessor.token}' not found"
+  let some occurrence := ScheduledMemory.findById? lifecycle.scheduled created
+    | return .error s!"loam: created Scheduled occurrence '{created.token}' not found"
+
+  let mut outcomes : List Outcome := []
+  for change in occurrence.movement.changes do
+    if change.quantity.quanta > 0 then
+      let subject : ScheduledRoutingSubject := {
+        scheduled := predecessor
+        locus := change.coordinate
+      }
+      match history.statusAt subject effectiveOn with
+      | .managed purpose =>
+          let draft : Loam.ScheduledRoutingPublisher.Draft := {
+            subject := { scheduled := created, locus := change.coordinate }
+            effectiveOn := effectiveOn
+            target := .managed purpose
+          }
+          match ← publishDraft draft with
+          | .ok _ =>
+              outcomes := outcomes ++ [.inherited change.coordinate (.managed purpose)]
+          | .error message =>
+              outcomes := outcomes ++ [.refused change.coordinate message]
+      | .unmanaged =>
+          let draft : Loam.ScheduledRoutingPublisher.Draft := {
+            subject := { scheduled := created, locus := change.coordinate }
+            effectiveOn := effectiveOn
+            target := .unmanaged
+          }
+          match ← publishDraft draft with
+          | .ok _ =>
+              outcomes := outcomes ++ [.inherited change.coordinate .unmanaged]
+          | .error message =>
+              outcomes := outcomes ++ [.refused change.coordinate message]
+      | .unrouted =>
+          pure ()
+  return .ok { outcomes := outcomes }
+
 /--
-Inherit Scheduled routing from a predecessor occurrence to a newly created occurrence.
+Legacy explicit-path continuation-routing entrance.
 
-Reads the authoritative Scheduled lifecycle and historical routing authorities,
-inspects positive changes on the newly created occurrence, queries predecessor
-routing status at `effectiveOn`, and publishes corresponding routing assertions
-through `ScheduledRoutingPublisher.publish`.
-
-Precondition and read failures return `.error` before any write is attempted.
-Per-route publication results are recorded in `Report.outcomes`.
+This remains for standalone diagnostics and migration qualification. Production
+household commands use `inheritHousehold` so routing reads and writes share the
+installed HouseholdImage authority.
 -/
 def inherit
     (routingPath scheduledPath : System.FilePath)
@@ -81,56 +125,47 @@ def inherit
     return .error "loam: Scheduled continuation routing effective date must be a real calendar date in YYYY-MM-DD form"
   if !(← scheduledPath.pathExists) then
     return .error "loam: Scheduled lifecycle authority is missing"
-  match ← loadScheduledLifecycleImage? scheduledPath with
-  | none =>
-      return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  | some lifecycle =>
-      match ScheduledMemory.findById? lifecycle.scheduled predecessor with
-      | none =>
-          return .error s!"loam: predecessor Scheduled occurrence '{predecessor.token}' not found"
-      | some _ =>
-          match ScheduledMemory.findById? lifecycle.scheduled created with
-          | none =>
-              return .error s!"loam: created Scheduled occurrence '{created.token}' not found"
-          | some occurrence =>
-          if !(← routingPath.pathExists) then
-            return .error "loam: Scheduled routing authority is missing"
-          match ← loadScheduledRoutingHistory? routingPath with
-          | none =>
-              return .error "loam: malformed or unsupported Scheduled routing authority"
-          | some history =>
-              let mut outcomes : List Outcome := []
-              for change in occurrence.movement.changes do
-                if change.quantity.quanta > 0 then
-                  let subject : ScheduledRoutingSubject := {
-                    scheduled := predecessor
-                    locus := change.coordinate
-                  }
-                  match history.statusAt subject effectiveOn with
-                  | .managed purpose =>
-                      let draft : Loam.ScheduledRoutingPublisher.Draft := {
-                        subject := { scheduled := created, locus := change.coordinate }
-                        effectiveOn := effectiveOn
-                        target := .managed purpose
-                      }
-                      match ← Loam.ScheduledRoutingPublisher.publish routingPath.toString scheduledPath.toString draft with
-                      | .ok _ =>
-                          outcomes := outcomes ++ [.inherited change.coordinate (.managed purpose)]
-                      | .error message =>
-                          outcomes := outcomes ++ [.refused change.coordinate message]
-                  | .unmanaged =>
-                      let draft : Loam.ScheduledRoutingPublisher.Draft := {
-                        subject := { scheduled := created, locus := change.coordinate }
-                        effectiveOn := effectiveOn
-                        target := .unmanaged
-                      }
-                      match ← Loam.ScheduledRoutingPublisher.publish routingPath.toString scheduledPath.toString draft with
-                      | .ok _ =>
-                          outcomes := outcomes ++ [.inherited change.coordinate .unmanaged]
-                      | .error message =>
-                          outcomes := outcomes ++ [.refused change.coordinate message]
-                  | .unrouted =>
-                      pure ()
-              return .ok { outcomes := outcomes }
+  let lifecycle ←
+    match ← loadScheduledLifecycleImage? scheduledPath with
+    | some lifecycle => pure lifecycle
+    | none =>
+        return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  let history ←
+    match ← Loam.ScheduledRoutingAuthority.loadLegacyCurrent? routingPath with
+    | .ok history => pure history
+    | .error message => return .error message
+  inheritFrom lifecycle history predecessor created effectiveOn fun draft =>
+    Loam.ScheduledRoutingPublisher.publish
+      routingPath.toString scheduledPath.toString draft
+
+/--
+Production continuation-routing entrance.
+
+Scheduled lifecycle remains on its current standalone authority, while routing
+history and all inherited routing publication use the required
+`ScheduledRouting` section of the installed HouseholdImage. Frozen legacy
+`scheduled-routing.loam` is neither read nor written.
+-/
+def inheritHousehold
+    (root scheduledPath : System.FilePath)
+    (predecessor : ScheduledId)
+    (created : ScheduledId)
+    (effectiveOn : String) : IO (Except String Report) := do
+  if !Loam.ActualDate.validIsoDate effectiveOn then
+    return .error "loam: Scheduled continuation routing effective date must be a real calendar date in YYYY-MM-DD form"
+  if !(← scheduledPath.pathExists) then
+    return .error "loam: Scheduled lifecycle authority is missing"
+  let lifecycle ←
+    match ← loadScheduledLifecycleImage? scheduledPath with
+    | some lifecycle => pure lifecycle
+    | none =>
+        return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  let history ←
+    match ← Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? root with
+    | .ok history => pure history
+    | .error message => return .error message
+  inheritFrom lifecycle history predecessor created effectiveOn fun draft =>
+    Loam.ScheduledRoutingPublisher.publishHousehold
+      root scheduledPath.toString draft
 
 end Loam.ScheduledContinuationRouting

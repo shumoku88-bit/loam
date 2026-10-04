@@ -170,9 +170,16 @@ def main (args : List String) : IO Unit := do
          effectiveOn := "2026-09-08"
          purpose := some ⟨"food"⟩ }])
     "Scheduled routing history"
-  expect (← Loam.Persistence.saveScheduledRoutingHistory?
-      (root / "scheduled-routing.loam") scheduledRouting)
-    "save Scheduled routing"
+  let scheduledRoutingBody ← requireSome
+    (Loam.Persistence.encodeScheduledRoutingHistory? scheduledRouting)
+    "encode Household Scheduled routing"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ScheduledRouting" scheduledRoutingBody
+    | throw (IO.userError "install Household Scheduled routing")
+  IO.FS.writeFile (root / "scheduled-routing.loam")
+    ("LOAM-SCHEDULED-ROUTING\t1\n" ++
+     "ROUTE\tscheduled-1\tfixed-expense\tFROM\t2026-09-08\tUNMANAGED\n")
 
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
@@ -350,26 +357,53 @@ def main (args : List String) : IO Unit := do
     IO.FS.writeFile (Loam.HouseholdAuthority.path root) wire
 
   writeHouseholdImage {
-    sections := [{
-      name := "Capacity"
-      body :=
-        "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-food\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t90\nENDMOVEMENT\n"
-    }]
+    sections := [
+      {
+        name := "Capacity"
+        body :=
+          "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-food\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t90\nENDMOVEMENT\n"
+      },
+      { name := "ScheduledRouting", body := scheduledRoutingBody }
+    ]
   }
   let unbalanced ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!unbalanced.isOk) "unbalanced Household Capacity did not fail closed"
 
   writeHouseholdImage {
-    sections := [{ name := "Capacity", body := "not-capacity-evidence\n" }]
+    sections := [
+      { name := "Capacity", body := "not-capacity-evidence\n" },
+      { name := "ScheduledRouting", body := scheduledRoutingBody }
+    ]
   }
   let malformed ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!malformed.isOk) "malformed Household Capacity did not fail closed"
 
-  writeHouseholdImage { sections := [] }
+  writeHouseholdImage {
+    sections := [{ name := "ScheduledRouting", body := scheduledRoutingBody }]
+  }
   let missingFile ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!missingFile.isOk) "missing Household Capacity section did not return a visible error"
+
+  writeHouseholdImage {
+    sections := [
+      { name := "Capacity", body := capacityBody },
+      { name := "ScheduledRouting", body := "not-scheduled-routing\n" }
+    ]
+  }
+  let malformedScheduledRouting ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!malformedScheduledRouting.isOk)
+    "malformed Household Scheduled routing did not fail closed"
+
+  writeHouseholdImage {
+    sections := [{ name := "Capacity", body := capacityBody }]
+  }
+  let missingScheduledRouting ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!missingScheduledRouting.isOk)
+    "missing Household Scheduled routing section did not fail closed"
 
   IO.println "Current Coverage Review: production authorities, effective Actual routing and current Scheduled pressure passed."

@@ -1,6 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.Publisher.CapacityPublisher
 import Loam.Authority.HouseholdAuthority
+import Loam.Authority.ScheduledRoutingAuthority
 import Loam.HouseholdCommand
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
@@ -88,9 +89,16 @@ def main (args : List String) : IO Unit := do
          effectiveOn := "2026-08-14"
          purpose := some ⟨"固定費予定"⟩ }])
     "Scheduled routing history"
-  expect (← Loam.Persistence.saveScheduledRoutingHistory?
-      (root / "scheduled-routing.loam") scheduledRouting)
-    "save Scheduled routing"
+  let scheduledRoutingBody ← requireSome
+    (Loam.Persistence.encodeScheduledRoutingHistory? scheduledRouting)
+    "encode TUI Cycle Grant Household Scheduled routing"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "ScheduledRouting" scheduledRoutingBody
+    | throw (IO.userError "install TUI Cycle Grant Household Scheduled routing")
+  IO.FS.writeFile (root / "scheduled-routing.loam")
+    ("LOAM-SCHEDULED-ROUTING\t1\n" ++
+     "ROUTE\tscheduled-1\twifi\tFROM\t2026-08-14\tUNMANAGED\n")
 
   -- Load initial snapshot
   let observedAt := "2026-09-09"
@@ -209,6 +217,9 @@ def main (args : List String) : IO Unit := do
   -- Test 15, 16, 17, 18, 19, 20, 24: Publish delegates shared CapacityPublisher, fresh reread, invariants
   let beforeHashScheduled ← IO.FS.readBinFile (root / "scheduled.loam")
   let beforeHashRouting ← IO.FS.readBinFile (root / "scheduled-routing.loam")
+  let .ok beforeHouseholdRouting ←
+      Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? root
+    | throw (IO.userError "load Household Scheduled routing before Capacity grant")
 
   -- Publish the original suggested draft (3828)
   let stepPublish := Loam.Tui.CapacityTransfer.update grantEditor .enter
@@ -229,7 +240,13 @@ def main (args : List String) : IO Unit := do
 
   -- 19. Scheduled routing unchanged
   let afterHashRouting ← IO.FS.readBinFile (root / "scheduled-routing.loam")
-  expect (beforeHashRouting == afterHashRouting) "Test 19: Scheduled routing unchanged"
+  expect (beforeHashRouting == afterHashRouting)
+    "Test 19: frozen legacy Scheduled routing changed"
+  let .ok afterHouseholdRouting ←
+      Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? root
+    | throw (IO.userError "load Household Scheduled routing after Capacity grant")
+  expect (decide (beforeHouseholdRouting = afterHouseholdRouting))
+    "Test 19: Household Scheduled routing changed"
 
   -- 16 & 20: Fresh Budget reread reflects updated Capacity and nothing else
   let snap1 ← Loam.CycleBudgetReview.loadSnapshotAt root root observedAt
