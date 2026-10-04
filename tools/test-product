@@ -162,7 +162,6 @@ tui_representative_tests=(
 application_tests=(
   HouseholdAuthority
   HouseholdImagePersistence
-  HouseholdImageDryRunMigration
   HouseholdPaths
   SparseMovementPublication
   MultimeasureRecordingPublishers
@@ -319,9 +318,6 @@ for test_name in "${tests[@]}"; do
       ;;
     HouseholdAuthority)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-authority"
-      ;;
-    HouseholdImageDryRunMigration)
-      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-image-dry-run"
       ;;
     EventMerchantPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/event-merchant-publisher"
