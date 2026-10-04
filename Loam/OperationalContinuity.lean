@@ -32,11 +32,17 @@ private def readOnlySafety : String :=
 /-- Translate one exact fail-closed read refusal without hiding its technical cause. -/
 def explainReadFailure (area message : String) : Diagnosis :=
   let situation :=
-    if message.startsWith "loam: actual authority not found:" then
-      "The actual.loam authority file is missing, so LOAM will not guess household actual facts."
+    if message.startsWith "loam: HouseholdImage authority is missing:" ||
+        message == "loam: required HouseholdImage Actual section is missing" then
+      "The HouseholdImage Actual authority is unavailable, so LOAM will not guess household actual facts."
+    else if message == "loam: HouseholdImage section is malformed or unsupported: Actual" ||
+        message == "loam: malformed or unsupported HouseholdImage Actual authority" then
+      "The HouseholdImage Actual section cannot be verified, so LOAM refused to treat it as current household data."
+    else if message.startsWith "loam: actual authority not found:" then
+      "The explicit legacy actual.loam file is missing."
     else if message.startsWith "loam: actual authority is malformed or unsupported:" ||
         message.startsWith "loam: malformed or unsupported actual file:" then
-      "The actual.loam authority file cannot be verified, so LOAM refused to treat it as current household data."
+      "The explicit legacy actual.loam file cannot be verified."
     else if message == "loam: Scheduled lifecycle authority is missing, malformed, or unsupported" then
       "Scheduled household evidence cannot be verified. LOAM will not reinterpret missing or malformed Scheduled data as an empty schedule."
     else if message.startsWith "loam: Scheduled completion refers to an unknown" ||
@@ -52,9 +58,14 @@ def explainReadFailure (area message : String) : Diagnosis :=
     else
       "LOAM could not verify the household evidence needed for this view and stopped instead of manufacturing an answer."
   let nextAction :=
-    if message.startsWith "loam: actual authority" ||
+    if message.startsWith "loam: HouseholdImage authority is missing:" ||
+        message == "loam: required HouseholdImage Actual section is missing" ||
+        message == "loam: HouseholdImage section is malformed or unsupported: Actual" ||
+        message == "loam: malformed or unsupported HouseholdImage Actual authority" then
+      "Keep the failing household.loam unchanged for diagnosis. Restore the qualified HouseholdImage generation or investigate the Actual section."
+    else if message.startsWith "loam: actual authority" ||
         message.startsWith "loam: malformed or unsupported actual file:" then
-      "Keep the failing actual.loam unchanged for diagnosis. Restore from backup or investigate syntax errors."
+      "Keep the explicit legacy actual.loam unchanged for diagnosis."
     else if message.startsWith "loam: Scheduled" then
       "Inspect the retained Scheduled lifecycle authority and restore or migrate it through a qualified path. Do not replace the failure with an empty schedule."
     else if message == "loam: could not determine the local date" then
