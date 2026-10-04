@@ -102,8 +102,28 @@ def main (args : List String) : IO Unit := do
     { id := ⟨"scheduled-1"⟩, scheduledOn := "2026-10-08", movement := scheduledMovement }
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? [occurrence]) "scheduled"
   let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam")
-    { scheduled, terminals }) "save lifecycle"
+  let lifecycle : Loam.Persistence.ScheduledLifecycleImage := { scheduled, terminals }
+  let lifecycleBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? lifecycle)
+    "encode TUI Cycle Grant Household Scheduled lifecycle"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "Scheduled" lifecycleBody
+    | throw (IO.userError "install TUI Cycle Grant Household Scheduled lifecycle")
+
+  let staleLegacyScheduled ←
+    requireSome
+      (ScheduledMemory.ofOccurrences? ([] : List (ScheduledOccurrence String)))
+      "stale legacy Scheduled memory"
+  let staleLegacyLifecycle : Loam.Persistence.ScheduledLifecycleImage := {
+    scheduled := staleLegacyScheduled
+    terminals := terminals
+  }
+  expect
+    (← Loam.Persistence.saveScheduledLifecycleImage?
+      (root / "scheduled.loam") staleLegacyLifecycle)
+    "save TUI Cycle Grant stale legacy Scheduled lifecycle"
+  let frozenLegacyScheduled ← IO.FS.readFile (root / "scheduled.loam")
 
   -- Route scheduled-1 to managed 固定費予定
   let scheduledRouting ← requireSome
@@ -133,6 +153,8 @@ def main (args : List String) : IO Unit := do
     "TUI Cycle Grant production read changed frozen legacy zero-origin evidence"
   expect ((← IO.FS.readFile (root / "accounting-role.loam")) == frozenLegacyRole)
     "TUI Cycle Grant production read changed frozen legacy AccountingRole evidence"
+  expect ((← IO.FS.readFile (root / "scheduled.loam")) == frozenLegacyScheduled)
+    "TUI Cycle Grant production read changed frozen legacy Scheduled evidence"
   let some row0 := cov0.rows.find? (fun r => r.purpose.token == "固定費予定")
     | throw (IO.userError "missing row0")
   expect (row0.entitlement.quanta == 17108) "initial cap"
