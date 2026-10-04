@@ -1,0 +1,48 @@
+name: Household Image Research
+
+on:
+  pull_request:
+    paths:
+      - 'experiments/household_image/**'
+      - 'docs/research/HOUSEHOLD_IMAGE_EXPERIMENT_2026-10.md'
+      - '.github/workflows/household-image-research.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  household-image:
+    name: Preserve inner authorities inside one image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: true
+
+      - name: Build isolated household-image experiment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/household_image
+          lake update
+          lake build householdImageExperiment
+
+      - name: Run framing and canonical-codec checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd experiments/household_image
+          .lake/build/bin/householdImageExperiment
