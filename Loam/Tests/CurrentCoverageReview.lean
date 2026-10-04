@@ -124,10 +124,7 @@ def main (args : List String) : IO Unit := do
     (Loam.Persistence.encodeNormalizedCapacity? evidence)
     "encode Household Capacity evidence"
   let capacityImage : Loam.Persistence.HouseholdImage.Image := {
-    sections := [
-      { name := "Capacity", body := capacityBody },
-      { name := "ActualRouting", body := actualRoutingBody }
-    ]
+    sections := [{ name := "Capacity", body := capacityBody }]
   }
   let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
     | throw (IO.userError "install Household Capacity evidence")
