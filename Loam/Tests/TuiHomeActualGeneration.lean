@@ -94,10 +94,20 @@ private def initializeIndependentEvidence (root : System.FilePath) : IO Unit := 
   let terminals ←
     requireSome (ScheduledTerminalMemory.ofTerminals? [])
       "Home generation empty Scheduled terminal memory"
+  let lifecycle : Loam.Persistence.ScheduledLifecycleImage := { scheduled, terminals }
+  let lifecycleBody ←
+    requireSome
+      (Loam.Persistence.encodeScheduledLifecycleImage? lifecycle)
+      "encode Home generation Household Scheduled lifecycle"
+  let _ ←
+    requireOk
+      (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "Scheduled" lifecycleBody)
+      "install Home generation Household Scheduled lifecycle"
   expect
     (← Loam.Persistence.saveScheduledLifecycleImage?
-      (root / "scheduled.loam") { scheduled, terminals })
-    "save Home generation Scheduled lifecycle"
+      (root / "scheduled.loam") lifecycle)
+    "save Home generation frozen legacy Scheduled lifecycle"
 
 def main : IO Unit := do
   let root ← IO.FS.createTempDir
