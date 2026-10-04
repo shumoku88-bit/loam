@@ -2,6 +2,7 @@ import Loam.Review.AttentionReview
 import Loam.Review.ScheduledReview
 import Loam.Tui.Home
 import Loam.Tui.ScheduledContinuationSession
+import Loam.Authority.HouseholdAuthority
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -127,11 +128,13 @@ def main : IO Unit := do
     "deferred continuation Attention context lost the completed Scheduled identity or summary"
 
   let root ← IO.FS.createTempDir
+  let .ok _ ← Loam.HouseholdAuthority.installInitial? root { sections := [] }
+    | throw (IO.userError "Scheduled continuation HouseholdImage bootstrap failed")
   let .ok deferredId ←
       Loam.Tui.ScheduledContinuationSession.publishDeferredContinuation root source
     | throw (IO.userError "deferred continuation Attention publication was refused")
   let attentionAvailability ←
-    match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
+    match ← Loam.AttentionReview.loadHouseholdEvidence root with
     | .error message => throw (IO.userError message)
     | .ok .unavailable =>
         throw (IO.userError "deferred continuation did not create Attention authority")
@@ -169,7 +172,7 @@ def main : IO Unit := do
     }
     | throw (IO.userError "second Attention publication was refused")
   let multiAvailability ←
-    match ← Loam.AttentionReview.loadEvidence (root / "attention.loam") with
+    match ← Loam.AttentionReview.loadHouseholdEvidence root with
     | .ok (.available attention) => pure (Loam.AttentionReview.Availability.available attention)
     | .error message => throw (IO.userError message)
     | .ok .unavailable => throw (IO.userError "published Attention authority became unavailable")
