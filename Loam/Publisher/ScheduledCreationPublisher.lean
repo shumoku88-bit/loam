@@ -6,7 +6,6 @@ import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.ScheduledActualOwnership
 import Loam.Application.ScheduledOccurrenceConstruction
 
 namespace Loam.ScheduledCreationPublisher
@@ -20,21 +19,12 @@ set_option autoImplicit false
 
 This module exposes the surface-independent write boundary for Scheduled creation.
 
-The fixed ownership order matches other Scheduled publishers:
-```text
-Scheduled lifecycle authority -> actual.loam
-```
+Production publication uses the Scheduled section of HouseholdImage.
 -/
 
 structure Draft where
   scheduledOn : String
   movement : BalancedMovement LocusId
-
-private def loadLifecycle?
-    (scheduledFile : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
-  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  return .ok lifecycle
 
 private def lifecycleReadable?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
@@ -63,45 +53,6 @@ private def validateDraft (draft : Draft) : Except String Unit := do
       change.quantity.quanta != 0) then
     throw ("loam: Scheduled creation requires valid Locus tokens and nonzero " ++
       draft.movement.measure.token ++ " quantities")
-
-private def publishUnderOwnership
-    (scheduledFile root : System.FilePath)
-    (draft : Draft) : IO (Except String ScheduledId) := do
-  match validateDraft draft with
-  | .error message => return .error message
-  | .ok () => pure ()
-  let lifecycle ←
-    match ← loadLifecycle? scheduledFile with
-    | .ok lifecycle => pure lifecycle
-    | .error message => return .error message
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
-    | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
-  if !draft.movement.changes.all (fun change =>
-      locusAdmission.allows change.coordinate) then
-    return .error "loam: Scheduled creation uses a Locus not approved for new publication"
-  match lifecycleReadable? lifecycle evidence.events with
-  | .error message => return .error message
-  | .ok () => pure ()
-  let scheduledId :=
-    Loam.ScheduledOccurrenceConstruction.freshId lifecycle.scheduled
-  let occurrence : ScheduledOccurrence String := {
-    id := scheduledId
-    scheduledOn := draft.scheduledOn
-    movement := draft.movement
-  }
-  let updatedScheduled := ScheduledMemory.addFresh lifecycle.scheduled occurrence (by
-    change scheduledId ∉ lifecycle.scheduled.occurrences.map ScheduledOccurrence.id
-    exact Loam.ScheduledOccurrenceConstruction.freshId_fresh lifecycle.scheduled)
-  let updatedLifecycle := { lifecycle with scheduled := updatedScheduled }
-  if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
-    return .error "loam: Scheduled lifecycle could not be published"
-  return .ok scheduledId
 
 private def publishHouseholdUnderActualOwnership
     (root : System.FilePath)
@@ -159,19 +110,5 @@ def publishHousehold
   Loam.ActualAuthority.withActualOwnership root
     (publishHouseholdUnderActualOwnership root draft)
 
-/--
-Publish one independent Scheduled occurrence into the complete lifecycle image.
--/
-def publishCreation
-    (scheduledPath rootPath : String)
-    (draft : Draft) : IO (Except String ScheduledId) := do
-  if scheduledPath.isEmpty then
-    return .error "loam: scheduled path must not be empty"
-  if rootPath.isEmpty then
-    return .error "loam: data directory must not be empty"
-  let scheduledFile := System.FilePath.mk scheduledPath
-  let root := System.FilePath.mk rootPath
-  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
-    (publishUnderOwnership scheduledFile root draft)
 
 end Loam.ScheduledCreationPublisher

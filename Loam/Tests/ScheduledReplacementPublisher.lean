@@ -3,6 +3,8 @@ import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.Review.ScheduledReview
 import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Authority.ScheduledLifecycleAuthority
+import Loam.Authority.HouseholdAuthority
 
 import Lean.Elab.Tactic.Omega
 
@@ -58,6 +60,16 @@ private def lifecycleFromScheduled
     | throw (IO.userError "empty terminal memory")
   return { scheduled, terminals }
 
+private def publishLifecycle
+    (root : System.FilePath)
+    (lifecycle : Loam.Persistence.ScheduledLifecycleImage) : IO Unit := do
+  let some body := Loam.Persistence.encodeScheduledLifecycleImage? lifecycle
+    | throw (IO.userError "encode Household Scheduled lifecycle fixture")
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" body
+    | throw (IO.userError "publish Household Scheduled lifecycle fixture")
+  pure ()
+
 private def replacementMovementForMeasure
     (measure : MeasureId)
     (fromLocus toLocus : String) (amount : Int) : BalancedMovement LocusId := {
@@ -104,7 +116,6 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
   let root := dataDir
-  let scheduledFile := dataDir / "scheduled.loam"
 
   let initial ← emptyWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
@@ -118,32 +129,31 @@ def main (args : List String) : IO Unit := do
   let some scheduledMemory := ScheduledMemory.ofOccurrences? [s1, s2, s3, s4]
     | throw (IO.userError "scheduled memory")
   let lifecycle0 ← lifecycleFromScheduled scheduledMemory
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
-    "save complete Scheduled lifecycle fixture"
+  publishLifecycle root lifecycle0
 
-  let beforeUnapproved ← IO.FS.readFile scheduledFile
-  let unapproved ← Loam.ScheduledReplacementPublisher.publishReplacement
-    scheduledFile.toString root.toString
+  let beforeUnapproved ← IO.FS.readFile (Loam.HouseholdAuthority.path root)
+  let unapproved ← Loam.ScheduledReplacementPublisher.publishHousehold
+    root
     (replacementDraft "scheduled-1" "2026-09-13" "paypay" "coffee" 1000)
   expect (!unapproved.isOk)
     "Scheduled replacement admitted an Effect on a Locus outside current LocusAdmission"
-  expect ((← IO.FS.readFile scheduledFile) == beforeUnapproved)
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path root)) == beforeUnapproved)
     "refused unapproved-Locus Scheduled replacement changed lifecycle authority"
 
-  let beforeInvalid ← IO.FS.readFile scheduledFile
-  let invalid ← Loam.ScheduledReplacementPublisher.publishReplacement
-    scheduledFile.toString root.toString
+  let beforeInvalid ← IO.FS.readFile (Loam.HouseholdAuthority.path root)
+  let invalid ← Loam.ScheduledReplacementPublisher.publishHousehold
+    root
     (replacementDraft "scheduled-1" "2026-02-29" "paypay" "rent" 1000)
   expect (!invalid.isOk) "impossible replacement date was admitted"
-  expect ((← IO.FS.readFile scheduledFile) == beforeInvalid)
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path root)) == beforeInvalid)
     "refused replacement changed the lifecycle authority"
 
-  let .ok () ← Loam.ScheduledReplacementPublisher.publishReplacement
-      scheduledFile.toString root.toString
+  let .ok () ← Loam.ScheduledReplacementPublisher.publishHousehold
+      root
       (replacementDraft "scheduled-1" "2026-09-13" "paypay" "rent" 1100)
     | throw (IO.userError "publish fresh Scheduled replacement")
 
-  let some retained ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok retained ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload lifecycle after replacement")
   let some replacementId :=
       ScheduledTerminalMemory.replacementFor? retained.terminals ⟨"scheduled-1"⟩
@@ -156,7 +166,7 @@ def main (args : List String) : IO Unit := do
   expect ((ScheduledMemory.findById? retained.scheduled replacementId).isSome)
     "replacement endpoint was not published in the same lifecycle image"
 
-  let .ok afterFresh ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
+  let .ok afterFresh ← Loam.ScheduledReview.loadHouseholdEvidence root root
     | throw (IO.userError "reload replacement-aware Scheduled review")
   let .ok oldDayEvidence := Loam.ScheduledReview.dayEvidence afterFresh "2026-09-10"
     | throw (IO.userError "Scheduled day evidence refused valid replacement source day")
@@ -171,12 +181,12 @@ def main (args : List String) : IO Unit := do
   expect ((ScheduledMemory.findById? afterFresh.scheduled ⟨"scheduled-1"⟩).isSome)
     "append-only replacement rewrote the source occurrence"
 
-  let beforeStale ← IO.FS.readFile scheduledFile
-  let stale ← Loam.ScheduledReplacementPublisher.publishReplacement
-    scheduledFile.toString root.toString
+  let beforeStale ← IO.FS.readFile (Loam.HouseholdAuthority.path root)
+  let stale ← Loam.ScheduledReplacementPublisher.publishHousehold
+    root
     (replacementDraft "scheduled-1" "2026-09-14" "paypay" "rent" 1200)
   expect (!stale.isOk) "already-replaced source accepted another replacement"
-  expect ((← IO.FS.readFile scheduledFile) == beforeStale)
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path root)) == beforeStale)
     "stale replacement changed the complete lifecycle image"
 
   let brokenRelation : ScheduledTerminal := {
@@ -185,37 +195,35 @@ def main (args : List String) : IO Unit := do
   let some brokenRelations := retained.terminals.add? brokenRelation
     | throw (IO.userError "construct malformed replacement graph fixture")
   let brokenLifecycle := { retained with terminals := brokenRelations }
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
-    "save structurally inconsistent complete lifecycle fixture"
-  let brokenRead ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
+  publishLifecycle root brokenLifecycle
+  let brokenRead ← Loam.ScheduledReview.loadHouseholdEvidence root root
   expect (!brokenRead.isOk)
     "missing replacement endpoint did not make complete lifecycle read fail closed"
-  let noAutoHeal ← Loam.ScheduledReplacementPublisher.publishReplacement
-    scheduledFile.toString root.toString
+  let noAutoHeal ← Loam.ScheduledReplacementPublisher.publishHousehold
+    root
     (replacementDraft "scheduled-2" "2026-09-14" "smbc" "rent" 3100)
   expect (!noAutoHeal.isOk)
     "replacement publisher auto-healed an externally malformed lifecycle image"
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile retained)
-    "restore admitted lifecycle after negative fixture"
+  publishLifecycle root retained
 
-  let .ok _ ← Loam.ScheduledTerminalPublisher.publishCancellation
-      scheduledFile.toString root.toString { scheduled := ⟨"scheduled-3"⟩ }
+  let .ok _ ← Loam.ScheduledTerminalPublisher.publishHouseholdCancellation
+      root { scheduled := ⟨"scheduled-3"⟩ }
     | throw (IO.userError "cancel stale-source fixture")
-  let cancelledReplacement ← Loam.ScheduledReplacementPublisher.publishReplacement
-    scheduledFile.toString root.toString
+  let cancelledReplacement ← Loam.ScheduledReplacementPublisher.publishHousehold
+    root
     (replacementDraft "scheduled-3" "2026-09-15" "paypay" "food" 400)
   expect (!cancelledReplacement.isOk)
     "cancelled Scheduled identity accepted a replacement"
 
-  let some finalLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok finalLifecycle ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload final lifecycle")
   expect (replacementCount finalLifecycle.terminals == 1)
     "stale or malformed refusal changed replacement relation count"
-  let .ok () ← Loam.ScheduledReplacementPublisher.publishReplacement
-      scheduledFile.toString root.toString
+  let .ok () ← Loam.ScheduledReplacementPublisher.publishHousehold
+      root
       (replacementDraftForMeasure usd "scheduled-4" "2026-09-16" "paypay" "food" 475)
     | throw (IO.userError "publish USD Scheduled replacement")
-  let some afterUsd ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
+  let .ok afterUsd ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "reload lifecycle after USD replacement")
   let some usdReplacementId :=
       ScheduledTerminalMemory.replacementFor? afterUsd.terminals ⟨"scheduled-4"⟩

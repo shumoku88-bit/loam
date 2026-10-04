@@ -7,8 +7,6 @@ import Loam.Authority.AccountingRoleAuthority
 import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.ScheduledActualOwnership
-import Loam.Persistence.WriterOwnership
 
 namespace Loam.AccountingRolePublisher
 
@@ -95,35 +93,6 @@ def propose?
     | throw "loam: AccountingRole is already assigned; role replacement is not qualified"
   return updated
 
-private def publishUnderOwnership
-    (scheduledFile root roleFile : System.FilePath)
-    (draft : Draft) : IO (Except String Unit) := do
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
-    | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
-  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  let anchor ←
-    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
-    | .ok observed => pure observed.snapshot.anchor
-    | .error message => return .error message
-  if !(← roleFile.pathExists) then
-    return .error "loam: AccountingRole authority file is missing"
-  let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
-    | return .error "loam: AccountingRole authority is malformed or unsupported"
-  let updated ←
-    match propose? locusAdmission evidence.events lifecycle.scheduled anchor roles draft with
-    | .ok value => pure value
-    | .error message => return .error message
-  if !(← Loam.Persistence.saveAccountingRoleMap? roleFile updated) then
-    return .error "loam: AccountingRole authority could not be published"
-  return .ok ()
-
 private def publishHouseholdUnderActualOwnership
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
@@ -204,29 +173,5 @@ def publishInitialRoleHousehold
   Loam.ActualAuthority.withActualOwnership root <|
     publishHouseholdUnderActualOwnership root draft
 
-/--
-Publish one first role assertion while excluding concurrent Scheduled creation,
-Actual publication, current quantity reconciliation, and AccountingRole
-publication from the admission check/write interval.
-
-The lock order extends the existing shared orders without reversing either one:
-`scheduled -> actual.loam -> household.loam -> roleFile`.
--/
-def publishInitialRole
-    (scheduledPath rootPath rolePath : String)
-    (draft : Draft) : IO (Except String Unit) := do
-  if scheduledPath.isEmpty then
-    return .error "loam: scheduled path must not be empty"
-  if rootPath.isEmpty then
-    return .error "loam: data directory must not be empty"
-  if rolePath.isEmpty then
-    return .error "loam: AccountingRole path must not be empty"
-  let scheduledFile := System.FilePath.mk scheduledPath
-  let root := System.FilePath.mk rootPath
-  let roleFile := System.FilePath.mk rolePath
-  Loam.ScheduledActualOwnership.withOwnership scheduledFile root <|
-    Loam.HouseholdAuthority.withOwnership root <|
-      Loam.WriterOwnership.withOwnership roleFile
-        (publishUnderOwnership scheduledFile root roleFile draft)
 
 end Loam.AccountingRolePublisher

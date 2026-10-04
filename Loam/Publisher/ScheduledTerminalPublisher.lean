@@ -7,7 +7,6 @@ import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Application.MovementAdmission
 import Loam.Application.MovementWorldAdapter
 import Loam.Persistence.ScheduledLifecyclePersistence
-import Loam.Persistence.ScheduledActualOwnership
 import Loam.Application.SparseEffectIdentity
 
 namespace Loam.ScheduledTerminalPublisher
@@ -25,11 +24,10 @@ its Actual endpoint in one Household generation update. The temporary Actual
 serializer remains outside that publication so completion still coordinates with
 Actual writers that have not yet been collapsed onto one-generation observation.
 
-The explicit legacy scheduled-file entrance keeps the older relation-first
-Scheduled -> Actual publication and retry semantics. Production household retry
-also continues to accept a previously retained interrupted completion claim, so
-pre-cutover recovery evidence remains usable. Cancellation retains its distinct
-terminal meaning and refuses to compete with an interrupted completion.
+Production household retry continues to accept a previously retained interrupted
+completion claim, so pre-cutover recovery evidence remains usable. Cancellation
+retains its distinct terminal meaning and refuses to compete with an interrupted
+completion.
 -/
 
 structure CompletionDraft where
@@ -41,13 +39,6 @@ structure CancellationDraft where
 
 private def completionEventId (scheduled : ScheduledId) : EventId :=
   ⟨"scheduled-completion:" ++ scheduled.token⟩
-
-private def loadLifecycle?
-    (scheduledFile : System.FilePath) :
-    IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
-  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  return .ok lifecycle
 
 private def currentOpen?
     (lifecycle : Loam.Persistence.ScheduledLifecycleImage)
@@ -116,108 +107,6 @@ private def appendCompletionActual?
     discharges := world.discharges
     locusAdmission := world.locusAdmission
   }
-
-private def publishCompletionUnderOwnership
-    (scheduledFile root : System.FilePath)
-    (draft : CompletionDraft) : IO (Except String Unit) := do
-  let lifecycle ←
-    match ← loadLifecycle? scheduledFile with
-    | .ok lifecycle => pure lifecycle
-    | .error message => return .error message
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
-    | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
-  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
-  let _ ←
-    match findOpen? lifecycle world.events draft.scheduled with
-    | .ok occurrence => pure occurrence
-    | .error message => return .error message
-  let existing := lifecycle.terminals.completionActualFor? draft.scheduled
-  let actualId := existing.getD (completionEventId draft.scheduled)
-  match EventMemory.findById? world.events actualId with
-  | some _ =>
-      return .error "loam: selected Scheduled identity is already completed"
-  | none => pure ()
-  match lifecycle.terminals.completionSourceForActual? actualId with
-  | some source =>
-      if source != draft.scheduled then
-        return .error "loam: Scheduled completion Actual identity belongs to another Scheduled occurrence"
-  | none => pure ()
-  let updatedWorld ←
-    match appendCompletionActual? world actualId draft.movement with
-    | .ok updated => pure updated
-    | .error message => return .error message
-  let relation : ScheduledTerminal := {
-    source := draft.scheduled
-    target := some (.actual actualId)
-  }
-  let updatedTerminals ←
-    match existing with
-    | some _ => pure lifecycle.terminals
-    | none =>
-        match lifecycle.terminals.add? relation with
-        | some terminals => pure terminals
-        | none => return .error "loam: Scheduled completion violates one-to-one endpoint ownership"
-  let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
-  match existing with
-  | none =>
-      if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
-        return .error "loam: Scheduled completion lifecycle could not be published"
-  | some _ => pure ()
-  let updatedEvidence : ActualEvidence := {
-    evidence with
-    events := updatedWorld.events
-    validity := updatedWorld.validity
-    descriptions := updatedWorld.descriptions
-    relations := updatedWorld.relations
-    discharges := updatedWorld.discharges
-  }
-  match ← Loam.ActualAuthority.publishActual? root updatedEvidence with
-  | .error message =>
-      return .error
-        ("loam: Actual Event was not published; retained Scheduled completion remains inert and can be retried: " ++ message)
-  | .ok () =>
-      return .ok ()
-
-private def publishCancellationUnderOwnership
-    (scheduledFile root : System.FilePath)
-    (draft : CancellationDraft) : IO (Except String Unit) := do
-  let lifecycle ←
-    match ← loadLifecycle? scheduledFile with
-    | .ok lifecycle => pure lifecycle
-    | .error message => return .error message
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
-    | .error message => return .error message
-  match lifecycle.terminals.completionActualFor? draft.scheduled with
-  | some actual =>
-      if (EventMemory.findById? evidence.events actual).isSome then
-        return .error "loam: selected Scheduled identity is already completed"
-      else
-        return .error "loam: selected Scheduled identity has an interrupted completion; retry completion before cancellation"
-  | none => pure ()
-  let _ ←
-    match findOpen? lifecycle evidence.events draft.scheduled with
-    | .ok occurrence => pure occurrence
-    | .error message => return .error message
-  let retirement : ScheduledTerminal := {
-    source := draft.scheduled
-    target := none
-  }
-  let updatedTerminals ←
-    match lifecycle.terminals.add? retirement with
-    | some terminals => pure terminals
-    | none => return .error "loam: could not append Scheduled retirement evidence"
-  let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
-  if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
-    return .error "loam: Scheduled retirement lifecycle could not be published"
-  return .ok ()
 
 private def publishHouseholdCompletionUnderActualOwnership
     (root : System.FilePath)
@@ -386,37 +275,6 @@ def publishHouseholdCancellation
   Loam.ActualAuthority.withActualOwnership root
     (publishHouseholdCancellationUnderActualOwnership root draft)
 
-/--
-Publish one Scheduled realization as an Actual Event in normalized Actual authority.
-Both fresh completions and resumed interrupted completions produce the same canonical
-completion result.
--/
-def publishCompletion
-    (scheduledPath rootPath : String)
-    (draft : CompletionDraft) : IO (Except String Unit) := do
-  if scheduledPath.isEmpty then
-    return .error "loam: scheduled path must not be empty"
-  if rootPath.isEmpty then
-    return .error "loam: data directory must not be empty"
-  let scheduledFile := System.FilePath.mk scheduledPath
-  let root := System.FilePath.mk rootPath
-  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
-    (publishCompletionUnderOwnership scheduledFile root draft)
-
-/--
-Cancel one current-open Scheduled occurrence.
--/
-def publishCancellation
-    (scheduledPath rootPath : String)
-    (draft : CancellationDraft) : IO (Except String Unit) := do
-  if scheduledPath.isEmpty then
-    return .error "loam: scheduled path must not be empty"
-  if rootPath.isEmpty then
-    return .error "loam: data directory must not be empty"
-  let scheduledFile := System.FilePath.mk scheduledPath
-  let root := System.FilePath.mk rootPath
-  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
-    (publishCancellationUnderOwnership scheduledFile root draft)
 
 
 end Loam.ScheduledTerminalPublisher

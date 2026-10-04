@@ -6,7 +6,6 @@ import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Application.PracticalMovement
-import Loam.Persistence.ScheduledActualOwnership
 
 namespace Loam.ActualReversalPublisher
 
@@ -15,15 +14,15 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Single-File Actual Reversal Publication
+# Household Actual Reversal Publication
 
 A reversal is two co-published facts:
 1. an ordinary Actual Event whose Effects are the exact additive inverse of one
    selected current Actual; and
 2. an explicit `ActualReversal` relation naming the cancelled target.
 
-Both facts are committed atomically together in `actual.loam`. Interruption never
-exposes an unlinked inverse Movement or a torn relation.
+Both facts are committed together in the HouseholdImage Actual section.
+Interruption never exposes an unlinked inverse Movement or a torn relation.
 
 Effects of the reversal Event are anonymous (`Effect.ofAnonymousQuantity`),
 without synthetic keys.
@@ -32,14 +31,6 @@ without synthetic keys.
 structure Draft where
   target : EventId
   validOn : String
-
-private def loadScheduledLifecycle?
-    (path : System.FilePath) : IO (Except String Loam.Persistence.ScheduledLifecycleImage) := do
-  if !(← path.pathExists) then
-    return .error "loam: Scheduled lifecycle authority is missing; reversal cannot prove relation independence"
-  match ← Loam.Persistence.loadScheduledLifecycleImage? path with
-  | some image => return .ok image
-  | none => return .error "loam: Scheduled lifecycle authority is malformed or unsupported"
 
 private def targetCurrent?
     (events : EventMemory)
@@ -116,28 +107,6 @@ private def admit?
     reversals := updatedReversals
   }
 
-private def publishUnderOwnership
-    (scheduledFile root : System.FilePath)
-    (draft : Draft) : IO (Except String Unit) := do
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
-    | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
-    | .error message => return .error message
-  let lifecycle ←
-    match ← loadScheduledLifecycle? scheduledFile with
-    | .ok image => pure image
-    | .error message => return .error message
-  let updated ←
-    match admit? evidence locusAdmission lifecycle draft with
-    | .ok updated => pure updated
-    | .error message => return .error message
-
-  Loam.ActualAuthority.publishActual? root updated
-
 private def publishHouseholdUnderActualOwnership
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
@@ -171,19 +140,5 @@ def publishHousehold
   Loam.ActualAuthority.withActualOwnership root
     (publishHouseholdUnderActualOwnership root draft)
 
-/--
-Publish one explicit Actual reversal to normalized Actual authority.
--/
-def publishReversal
-    (scheduledPath rootPath : String)
-    (draft : Draft) : IO (Except String Unit) := do
-  if scheduledPath.isEmpty then
-    return .error "loam: scheduled path must not be empty"
-  if rootPath.isEmpty then
-    return .error "loam: data directory must not be empty"
-  let scheduledFile := System.FilePath.mk scheduledPath
-  let root := System.FilePath.mk rootPath
-  Loam.ScheduledActualOwnership.withOwnership scheduledFile root
-    (publishUnderOwnership scheduledFile root draft)
 
 end Loam.ActualReversalPublisher
