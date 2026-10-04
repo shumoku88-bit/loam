@@ -202,7 +202,7 @@ def addAttention
     (root : System.FilePath)
     (draft : Loam.AttentionPublisher.AddDraft) :
     IO (Except String Loam.Core.AttentionId) :=
-  Loam.AttentionPublisher.add (Loam.HouseholdPaths.attention root).toString draft
+  Loam.AttentionPublisher.addHousehold root draft
 
 /-- Resolve or drop one retained open household Attention item. -/
 def closeAttention
