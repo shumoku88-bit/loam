@@ -177,39 +177,21 @@ private def publishFromGeneration
     | .ok image => pure image
     | .error message => return .error message
   let actual := actualImage.evidence
-  let locusBody ←
-    match Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission" with
-    | some body => pure body
-    | none =>
-        return .error "loam: required HouseholdImage Locus admission section is missing"
-  let locusAdmission ←
-    match Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody with
-    | some vocabulary => pure vocabulary
-    | none =>
-        return .error
-          "loam: malformed or unsupported HouseholdImage Locus admission authority"
-  let coverageBody ←
-    match Loam.Persistence.HouseholdImage.body? generation.image "ZeroOrigin" with
-    | some body => pure body
-    | none =>
-        return .error "loam: required HouseholdImage zero-origin coverage section is missing"
-  let coverage ←
-    match Loam.Persistence.decodeZeroOriginCoverage? coverageBody with
-    | some evidence => pure evidence
-    | none =>
-        return .error
-          "loam: malformed or unsupported HouseholdImage zero-origin coverage authority"
-  let openingBody ←
-    match Loam.Persistence.HouseholdImage.body? generation.image "OpeningSupport" with
-    | some body => pure body
-    | none =>
-        return .error "loam: required HouseholdImage opening support section is missing"
-  let opening ←
-    match Loam.Persistence.decodeOpeningSupportMap? openingBody with
-    | some evidence => pure evidence
-    | none =>
-        return .error
-          "loam: malformed or unsupported HouseholdImage opening support authority"
+  let some locusBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission"
+    | return .error "loam: required HouseholdImage Locus admission section is missing"
+  let some locusAdmission := Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody
+    | return .error "loam: malformed or unsupported HouseholdImage Locus admission authority"
+  let some coverageBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "ZeroOrigin"
+    | return .error "loam: required HouseholdImage zero-origin coverage section is missing"
+  let some coverage := Loam.Persistence.decodeZeroOriginCoverage? coverageBody
+    | return .error "loam: malformed or unsupported HouseholdImage zero-origin coverage authority"
+  let some openingBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "OpeningSupport"
+    | return .error "loam: required HouseholdImage opening support section is missing"
+  let some opening := Loam.Persistence.decodeOpeningSupportMap? openingBody
+    | return .error "loam: malformed or unsupported HouseholdImage opening support authority"
   let existing := observedSupport.snapshot.anchor
   let existingPresence := observedSupport.snapshot.presence
   let bounded := observedSupport.snapshot.bounded
