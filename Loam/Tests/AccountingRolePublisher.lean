@@ -1,7 +1,7 @@
 import Loam.Tests.ActualWorldFixture
 import Loam.MovementWorldLoader
 import Loam.Publisher.AccountingRolePublisher
-import Loam.Publisher.CurrentQuantityAnchorPublisher
+import Loam.Authority.CurrentSupportAuthority
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
@@ -82,7 +82,6 @@ def main (args : List String) : IO Unit := do
   let root := dataDir
   let scheduledFile := dataDir / "scheduled.loam"
   let roleFile := dataDir / "accounting-role.loam"
-  let anchorFile := Loam.CurrentQuantityAnchorPublisher.path root
 
   let w ← world
   let scheduled ← scheduledMemory
@@ -140,8 +139,26 @@ def main (args : List String) : IO Unit := do
     "publish Scheduled lifecycle fixture"
   expect (← Loam.Persistence.saveAccountingRoleMap? roleFile roles)
     "publish AccountingRole fixture"
-  expect (← Loam.Persistence.saveCurrentQuantityAnchor? anchorFile anchor)
-    "publish current quantity anchor fixture"
+  let anchorBody ←
+    match Loam.Persistence.encodeCurrentQuantityAnchor? anchor with
+    | some body => pure body
+    | none => throw (IO.userError "encode Household current quantity anchor fixture")
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "CurrentQuantityAnchor" anchorBody
+    | throw (IO.userError "publish Household current quantity anchor fixture")
+  let staleAnchor ←
+    match Loam.CurrentQuantityAnchor.Evidence.ofLists? [] [{
+      coordinate := ⟨⟨"legacy-only"⟩, ⟨"jpy"⟩⟩
+      quantity := Quantity.ofQuanta 1
+    }] with
+    | some evidence => pure evidence
+    | none => throw (IO.userError "stale legacy current quantity anchor fixture")
+  expect
+    (← Loam.Persistence.saveCurrentQuantityAnchor?
+      (Loam.HouseholdPaths.currentQuantityAnchor root) staleAnchor)
+    "publish stale legacy current quantity anchor fixture"
+  let frozenLegacyAnchor ←
+    IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)
 
   let .ok () ← Loam.AccountingRolePublisher.publishInitialRole
       scheduledFile.toString root.toString roleFile.toString
@@ -165,10 +182,16 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reload AccountingRole authority after anchor refusal")
   expect ((rolesAfterAnchorRefusal.roleOf? ⟨"anchor-used"⟩).isNone)
     "anchor-backed refusal changed AccountingRole authority"
-  let some anchorAfter ← Loam.Persistence.loadCurrentQuantityAnchor? anchorFile
-    | throw (IO.userError "reload current quantity anchor after role refusal")
-  expect (decide (anchorAfter = anchor))
-    "AccountingRole refusal changed current quantity anchor evidence"
+  let currentSupportAfter ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed.snapshot
+    | .error message => throw (IO.userError message)
+  expect (decide (currentSupportAfter.anchor = anchor))
+    "AccountingRole refusal changed Household current quantity anchor evidence"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)) ==
+      frozenLegacyAnchor)
+    "AccountingRole publication changed frozen legacy current quantity anchor evidence"
 
   let .ok loadedWorld ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload Movement authority")
