@@ -3,6 +3,7 @@ import Loam.Application
 import Loam.Persistence.TextEscape
 import Loam.Core.ActualEvidence
 import Loam.Authority.ActualAuthority
+import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Persistence.HouseholdImagePersistence
 import Loam.Application.MovementWorldAdapter

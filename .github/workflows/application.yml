@@ -5,6 +5,8 @@ on:
     paths:
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Persistence/HouseholdImagePersistence.lean'
+      - 'Loam/Authority/HouseholdAuthority.lean'
+      - 'Loam/Tests/HouseholdAuthority.lean'
       - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdPaths.lean'
       - '.github/actions/lean-build/**'
@@ -32,6 +34,8 @@ on:
     paths:
       - 'Loam/HouseholdPaths.lean'
       - 'Loam/Persistence/HouseholdImagePersistence.lean'
+      - 'Loam/Authority/HouseholdAuthority.lean'
+      - 'Loam/Tests/HouseholdAuthority.lean'
       - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdPaths.lean'
       - '.github/actions/lean-build/**'
