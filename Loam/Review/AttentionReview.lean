@@ -1,4 +1,5 @@
 import Loam.Application.AttentionInspection
+import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.AttentionPersistence
 
 namespace Loam.AttentionReview
@@ -24,16 +25,51 @@ inductive Availability where
   | unavailable
   | available (snapshot : Snapshot)
 
-/-- Load one configured Attention image and fail closed on malformed/dangling closure evidence. -/
+private def projectEvidence
+    (items : AttentionMemory String)
+    (closures : AttentionClosureMemory String) :
+    Except String Availability := do
+  let some openItems := Loam.Application.openAttentions? items closures
+    | throw "loam: Attention closure evidence references an unknown identity"
+  pure (.available { openItems := openItems })
+
+/-- Load one configured legacy Attention image and fail closed on malformed/dangling closure evidence. -/
 def loadEvidence (path : System.FilePath) : IO (Except String Availability) := do
   if !(← path.pathExists) then
     return .ok .unavailable
   let some pair ← Loam.Persistence.loadAttentionMemory? path
     | return .error "loam: malformed or unsupported Attention memory"
   let (items, closures) := pair
-  let some openItems := Loam.Application.openAttentions? items closures
-    | return .error "loam: Attention closure evidence references an unknown identity"
-  return .ok (.available { openItems := openItems })
+  return projectEvidence items closures
+
+/--
+Project Attention from one already-qualified HouseholdGeneration.
+
+A physically absent Attention section remains unavailable, matching the legacy
+missing-file contract. An explicitly present empty Attention document is
+available with zero open items.
+-/
+def fromGeneration
+    (generation : Loam.HouseholdAuthority.Generation) :
+    Except String Availability := do
+  match Loam.Persistence.HouseholdImage.body? generation.image "Attention" with
+  | none => pure .unavailable
+  | some body =>
+      let some (items, closures) := Loam.Persistence.decodeAttentionMemory? body
+        | throw "loam: malformed or unsupported Attention memory"
+      projectEvidence items closures
+
+/--
+Load current HouseholdImage and project its Attention availability.
+
+This is a compatibility path for P4. Frontends still select the legacy
+Attention path until a later authority-cutover change.
+-/
+def loadHouseholdEvidence
+    (root : System.FilePath) : IO (Except String Availability) := do
+  match ← Loam.HouseholdAuthority.loadCurrent? root with
+  | .error message => return .error message
+  | .ok generation => return fromGeneration generation
 
 /-- Preserve the three qualified due meanings in human-facing text. -/
 def dueLabel (due : AttentionDue String) : String :=
