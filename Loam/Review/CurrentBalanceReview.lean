@@ -3,10 +3,10 @@ import Loam.Application.CurrentSupportRouting
 import Loam.Review.BalanceReview
 import Loam.Application.CurrentQuantityAnchor
 import Loam.Application.CurrentQuantityPresence
+import Loam.Authority.OpeningSupportAuthority
 import Loam.HouseholdPaths
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.CurrentQuantityPresencePersistence
-import Loam.Persistence.OpeningSupportPersistence
 
 namespace Loam.CurrentBalanceReview
 
@@ -182,15 +182,6 @@ def projectImage
     currentAnchor
     currentPresence
 
-private def loadOpeningSupport
-    (path : System.FilePath) : IO (Except String OpeningSupportMap) := do
-  if ← path.pathExists then
-    match ← loadOpeningSupportMap? path with
-    | some supportMap => return .ok supportMap
-    | none => return .error "loam: malformed or unsupported opening support evidence"
-  else
-    return .ok OpeningSupportMap.empty
-
 private def loadCurrentAnchor
     (path : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
   if ← path.pathExists then
@@ -218,7 +209,7 @@ def loadSnapshotFromActualImage
     | .error message => return .error message
     | .ok coverage => pure coverage
   let openingSupport ←
-    match ← loadOpeningSupport (Loam.HouseholdPaths.openingSupport dataDir) with
+    match ← Loam.OpeningSupportAuthority.loadHouseholdOrEmpty? dataDir with
     | .error message => return .error message
     | .ok support => pure support
   let currentAnchor ←
