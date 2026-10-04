@@ -88,9 +88,11 @@ scheduled_routing_tests=(
 scheduled_lifecycle_tests=(
   ScheduledLifecyclePersistence
   HouseholdScheduledLifecycleAuthority
+  HouseholdScheduledLifecycleCutover
   ScheduledCreationPublisher
   ScheduledReplacementPublisher
   ScheduledTerminalPublisher
+  DeterministicScheduledRecoveryScenario
 )
 
 movement_proposal_tests=(
@@ -350,6 +352,9 @@ for test_name in "${tests[@]}"; do
       ;;
     HouseholdScheduledLifecycleAuthority)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-scheduled-lifecycle-authority"
+      ;;
+    HouseholdScheduledLifecycleCutover)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-scheduled-lifecycle-cutover"
       ;;
     ScheduledReplacementPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-replacement-publisher"

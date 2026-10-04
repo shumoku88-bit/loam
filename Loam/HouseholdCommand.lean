@@ -153,40 +153,35 @@ def reverseActual
     (root : System.FilePath)
     (draft : Loam.ActualReversalPublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.ActualReversalPublisher.publishReversal
-    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
+  Loam.ActualReversalPublisher.publishHousehold root draft
 
 /-- Create one independent Scheduled occurrence. -/
 def createScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledCreationPublisher.Draft) :
     IO (Except String Loam.Core.ScheduledId) :=
-  Loam.ScheduledCreationPublisher.publishCreation
-    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
+  Loam.ScheduledCreationPublisher.publishHousehold root draft
 
 /-- Complete one Scheduled occurrence into Actual. -/
 def completeScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledTerminalPublisher.CompletionDraft) :
     IO (Except String Unit) :=
-  Loam.ScheduledTerminalPublisher.publishCompletion
-    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
+  Loam.ScheduledTerminalPublisher.publishHouseholdCompletion root draft
 
 /-- Cancel one current-open Scheduled occurrence. -/
 def cancelScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledTerminalPublisher.CancellationDraft) :
     IO (Except String Unit) :=
-  Loam.ScheduledTerminalPublisher.publishCancellation
-    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
+  Loam.ScheduledTerminalPublisher.publishHouseholdCancellation root draft
 
 /-- Replace one current-open Scheduled occurrence. -/
 def replaceScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledReplacementPublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.ScheduledReplacementPublisher.publishReplacement
-    (Loam.HouseholdPaths.scheduled root).toString root.toString draft
+  Loam.ScheduledReplacementPublisher.publishHousehold root draft
 
 /-- Inherit predecessor Scheduled routing into one newly created continuation. -/
 def inheritScheduledRouting
@@ -195,7 +190,7 @@ def inheritScheduledRouting
     (effectiveOn : String) :
     IO (Except String Loam.ScheduledContinuationRouting.Report) :=
   Loam.ScheduledContinuationRouting.inheritHousehold
-    root (Loam.HouseholdPaths.scheduled root) predecessor created effectiveOn
+    root predecessor created effectiveOn
 
 /-- Add one current-open household Attention item. -/
 def addAttention
@@ -237,8 +232,7 @@ def routeScheduled
     (root : System.FilePath)
     (draft : Loam.ScheduledRoutingPublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.ScheduledRoutingPublisher.publishHousehold
-    root (Loam.HouseholdPaths.scheduled root).toString draft
+  Loam.ScheduledRoutingPublisher.publishHousehold root draft
 
 /-- Admit one new Locus for future publication. -/
 def admitLocus
@@ -252,8 +246,8 @@ def assignInitialAccountingRole
     (root : System.FilePath)
     (draft : Loam.AccountingRolePublisher.Draft) :
     IO (Except String Unit) :=
-  Loam.AccountingRolePublisher.publishInitialRole
-    (Loam.HouseholdPaths.scheduled root).toString root.toString (Loam.HouseholdPaths.accountingRole root).toString draft
+  Loam.AccountingRolePublisher.publishInitialRoleHousehold
+    root (Loam.HouseholdPaths.accountingRole root).toString draft
 
 /-- Publish one reconciliation group of current quantities observed together now. -/
 def observeCurrentQuantities

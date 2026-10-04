@@ -81,8 +81,13 @@ private def initBase (root : System.FilePath) : IO Unit := do
   requireOk (← Loam.Tests.ActualWorldFixture.publishWorld? root world)
     "initialize admitted Actual fixture"
   let scheduled ← emptyScheduledImage
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") scheduled)
-    "initialize Scheduled"
+  let scheduledBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? scheduled)
+    "encode initial Scheduled"
+  requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" scheduledBody)
+    "initialize Household Scheduled"
 
 private def writePresentation
     (root : System.FilePath)
@@ -122,10 +127,14 @@ private def publishScheduledMeasure
   let terminals ←
     requireSome (ScheduledTerminalMemory.ofTerminals? [])
       "Scheduled terminal memory"
-  expect
-    (← Loam.Persistence.saveScheduledLifecycleImage?
-      (root / "scheduled.loam") { scheduled, terminals })
-    "publish Scheduled fixture"
+  let image : Loam.Persistence.ScheduledLifecycleImage := { scheduled, terminals }
+  let body ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? image)
+    "encode Scheduled fixture"
+  requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" body)
+    "publish Household Scheduled fixture"
 
 private def publishCapacityMeasure
     (root : System.FilePath)

@@ -5,6 +5,8 @@ import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Persistence.WriterOwnership
 import Loam.Authority.ScheduledRoutingAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
+import Loam.Authority.ActualAuthority
 
 namespace Loam.ScheduledRoutingPublisher
 
@@ -137,32 +139,33 @@ def publish
   Loam.WriterOwnership.withOwnership routingFile
     (publishUnlocked routingFile scheduledFile draft)
 
-/--
-Publish one Scheduled routing assertion into the required HouseholdImage section.
+private def publishHouseholdUnderActualOwnership
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String Unit) := do
+  let lifecycle ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
+  Loam.ScheduledRoutingAuthority.updateHouseholdCurrent? root fun history => do
+    let updated ← propose? lifecycle history draft
+    return (updated, ())
 
-This is the production household Scheduled-routing publication entrance.
-The Scheduled lifecycle authority remains the existing standalone lifecycle;
-frozen legacy routing files are not written.
+/--
+Publish one Scheduled routing assertion into the required HouseholdImage sections.
+
+Actual ownership excludes concurrent Scheduled lifecycle mutation while routing
+admission reads Scheduled and updates ScheduledRouting. Household publication
+then follows the P9 Actual -> Household lock order.
 -/
 def publishHousehold
     (root : System.FilePath)
-    (scheduledPath : String)
     (draft : Draft) : IO (Except String Unit) := do
   match validateDraft? draft with
   | .ok () => pure ()
   | .error message => return .error message
   if root.toString.isEmpty then
     return .error "loam: data root must not be empty"
-  if scheduledPath.isEmpty then
-    return .error "loam: scheduled path must not be empty"
-  let scheduledFile := System.FilePath.mk scheduledPath
-  let lifecycle ←
-    match ← loadScheduledLifecycleImage? scheduledFile with
-    | some lifecycle => pure lifecycle
-    | none =>
-        return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
-  Loam.ScheduledRoutingAuthority.updateHouseholdCurrent? root fun history => do
-    let updated ← propose? lifecycle history draft
-    return (updated, ())
+  Loam.ActualAuthority.withActualOwnership root
+    (publishHouseholdUnderActualOwnership root draft)
 
 end Loam.ScheduledRoutingPublisher

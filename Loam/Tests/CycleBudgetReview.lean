@@ -91,10 +91,6 @@ def main (args : List String) : IO Unit := do
       Loam.Tests.ActualWorldFixture.publishHouseholdSection?
         root "ActualRouting" "LOAM-ACTUAL-ROUTING\t1\n"
     | throw (IO.userError "install CycleBudget Household Actual routing")
-  let capacityGeneration ←
-    match ← Loam.HouseholdAuthority.loadCurrent? root with
-    | .ok generation => pure generation
-    | .error message => throw (IO.userError message)
   expect (!(← (root / "capacity.loam").pathExists))
     "CycleBudget fixture unexpectedly retained legacy Capacity"
   expect (!(← (root / "scheduled-routing.loam").pathExists))
@@ -104,8 +100,20 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile (root / "accounting-role.loam") "LOAM-ACCOUNTING-ROLE-MAP\t1\n"
   let scheduled ← requireSome (ScheduledMemory.ofOccurrences? []) "scheduled"
   let terminals ← requireSome (ScheduledTerminalMemory.ofTerminals? []) "terminals"
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam")
-    { scheduled, terminals }) "save lifecycle"
+  let lifecycle : Loam.Persistence.ScheduledLifecycleImage := { scheduled, terminals }
+  let lifecycleBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? lifecycle)
+    "encode CycleBudget Household Scheduled lifecycle"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "Scheduled" lifecycleBody
+    | throw (IO.userError "install CycleBudget Household Scheduled lifecycle")
+  expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") lifecycle)
+    "save frozen legacy Scheduled lifecycle"
+  let capacityGeneration ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => throw (IO.userError message)
   let load := Loam.CycleBudgetReview.loadSnapshotAt root root "2026-09-08"
   let missing ← load
   expect (missing.coverage.isOk && missing.physical.isOk && !missing.funding.isOk)

@@ -5,7 +5,7 @@ import Loam.HouseholdPaths
 import Loam.Review.DailyRoleFlowReview
 import Loam.Review.MonthlyRoleFlowReview
 import Loam.Review.RoleFlowReview
-import Loam.Persistence.ScheduledActualOwnership
+import Loam.Authority.HouseholdAuthority
 import Loam.Review.ScheduledReview
 import Loam.Review.TransactionsFlowReview
 
@@ -173,15 +173,16 @@ private def loadEvidenceUnderOwnership
 /--
 Load one coherent Actual/Scheduled observation cut for Income / Expense.
 
-The shared ownership order is reused so a Scheduled completion cannot be observed
-half-published relative to its Actual endpoint. AccountingRole remains an
-independent current authority exactly as in RoleFlowReview.
+Actual then Household ownership is reused so a Scheduled completion cannot be
+observed half-published relative to its Actual endpoint. AccountingRole remains
+an independent current authority exactly as in RoleFlowReview.
 -/
 def loadEvidence
-    (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) :=
-  Loam.ScheduledActualOwnership.withOwnership
-    (Loam.HouseholdPaths.scheduled dataDir) actualRoot
-    (loadEvidenceUnderOwnership dataDir actualRoot)
+    (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
+  let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  Loam.ActualAuthority.withActualFileOwnership actualPath <|
+    Loam.HouseholdAuthority.withOwnership dataDir <|
+      loadEvidenceUnderOwnership dataDir actualRoot
 
 /-- Load and project one Income / Expense window with the provenance overlay. -/
 def loadSnapshot

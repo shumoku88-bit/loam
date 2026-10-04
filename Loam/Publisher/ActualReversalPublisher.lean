@@ -3,6 +3,7 @@ import Loam.ActualDate
 import Loam.Core.ActualEvidence
 import Loam.Core.ActualReversal
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Application.PracticalMovement
 import Loam.Persistence.ScheduledActualOwnership
@@ -136,6 +137,39 @@ private def publishUnderOwnership
     | .error message => return .error message
 
   Loam.ActualAuthority.publishActual? root updated
+
+private def publishHouseholdUnderActualOwnership
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String Unit) := do
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
+    | .error message => return .error message
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
+    | .error message => return .error message
+  let lifecycle ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root with
+    | .ok image => pure image
+    | .error message => return .error message
+  let updated ←
+    match admit? evidence locusAdmission lifecycle draft with
+    | .ok updated => pure updated
+    | .error message => return .error message
+  Loam.ActualAuthority.publishActual? root updated
+
+/--
+Publish one production household Actual reversal while reading Scheduled
+completion ownership from HouseholdImage.
+-/
+def publishHousehold
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String Unit) := do
+  if root.toString.isEmpty then
+    return .error "loam: data directory must not be empty"
+  Loam.ActualAuthority.withActualOwnership root
+    (publishHouseholdUnderActualOwnership root draft)
 
 /--
 Publish one explicit Actual reversal to normalized Actual authority.

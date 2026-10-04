@@ -54,13 +54,16 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
   let root := dataDir
-  let scheduledFile := dataDir / "scheduled.loam"
   let initial ← emptyWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initial
     | throw (IO.userError "initialize Actual fixture")
   let lifecycle ← emptyLifecycle
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
-    "initialize Scheduled lifecycle"
+  let lifecycleBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? lifecycle)
+    "encode Scheduled lifecycle"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" lifecycleBody
+    | throw (IO.userError "initialize Household Scheduled lifecycle")
   let .ok recorded ← Loam.MovementPublisher.publishDraft root.toString recordDraft
     | throw (IO.userError "record target fixture")
 

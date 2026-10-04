@@ -1,5 +1,6 @@
 import Loam.HouseholdPaths
 import Loam.Authority.ActualAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.ActualDate
 import Loam.Application.ScheduledOpenWorldInspection
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -106,8 +107,24 @@ readers use this entrance; low-level arbitrary-path callers keep
 `loadEvidenceFromActual`.
 -/
 def loadHouseholdEvidence
-    (dataDir actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) :=
-  loadEvidenceFromActual (Loam.HouseholdPaths.scheduled dataDir) actualRoot
+    (dataDir actualRoot : System.FilePath) : IO (Except String EvidenceSnapshot) := do
+  let path := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActualFile? path with
+    | .ok evidence => pure evidence
+    | .error message => return .error message
+  let lifecycle ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
+  let snapshot : EvidenceSnapshot := {
+    scheduled := lifecycle.scheduled
+    terminals := lifecycle.terminals
+    events := evidence.events
+  }
+  match lifecycleAdmission snapshot with
+  | .error message => return .error message
+  | .ok () => return .ok snapshot
 
 /--
 Load the household Scheduled lifecycle against one caller-supplied Actual Event
@@ -117,8 +134,19 @@ completion references.
 -/
 def loadHouseholdEvidenceForEvents
     (dataDir : System.FilePath)
-    (eventMemory : EventMemory) : IO (Except String EvidenceSnapshot) :=
-  loadLifecycleSnapshot? (Loam.HouseholdPaths.scheduled dataDir) eventMemory
+    (eventMemory : EventMemory) : IO (Except String EvidenceSnapshot) := do
+  let lifecycle ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
+  let snapshot : EvidenceSnapshot := {
+    scheduled := lifecycle.scheduled
+    terminals := lifecycle.terminals
+    events := eventMemory
+  }
+  match lifecycleAdmission snapshot with
+  | .error message => return .error message
+  | .ok () => return .ok snapshot
 
 
 /--

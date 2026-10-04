@@ -1,9 +1,11 @@
 import Loam.HouseholdCommand
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.HouseholdAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Review.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.DeterministicScenarioSupport
+import Loam.Tests.ActualWorldFixture
 
 namespace Loam.Tests.DeterministicScheduledRecoveryScenario
 
@@ -69,11 +71,14 @@ private def completionDraft
   }
 }
 
-private def scheduledPath (root : System.FilePath) : System.FilePath :=
-  Loam.HouseholdPaths.scheduled root
-
-private def scheduledBytes (root : System.FilePath) : IO String :=
-  IO.FS.readFile (scheduledPath root)
+private def scheduledBytes (root : System.FilePath) : IO String := do
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "load HouseholdImage for deterministic Scheduled bytes"
+  requireSome
+    (Loam.Persistence.HouseholdImage.body?
+      generation.image "Scheduled")
+    "deterministic HouseholdImage Scheduled section missing"
 
 private def policyBytes (root : System.FilePath) : IO String := do
   let generation ← requireOk
@@ -87,8 +92,8 @@ private def policyBytes (root : System.FilePath) : IO String := do
 private def loadScheduled
     (root : System.FilePath)
     (context : String) : IO ScheduledLifecycleImage := do
-  requireSome
-    (← loadScheduledLifecycleImage? (scheduledPath root))
+  requireOk
+    (← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root)
     s!"{context}: Scheduled lifecycle reload failed"
 
 private def checkScheduledCanonical
@@ -108,7 +113,7 @@ private def checkScheduledCanonical
     s!"{context}: Scheduled encode/decode was not canonical"
   let disk ← scheduledBytes root
   expect (disk == encoded)
-    s!"{context}: scheduled.loam diverged from canonical lifecycle encoding"
+    s!"{context}: Household Scheduled section diverged from canonical lifecycle encoding"
   pure disk
 
 private def checkAuthorityPair
@@ -133,7 +138,7 @@ private def expectPairRefusal {α : Type}
   expect (afterActual == beforeActual)
     s!"{context}: refused operation changed actual.loam"
   expect (afterScheduled == beforeScheduled)
-    s!"{context}: refused operation changed scheduled.loam"
+    s!"{context}: refused operation changed Household Scheduled section"
   let _ ← checkAuthorityPair root context
   pure ()
 
@@ -182,11 +187,16 @@ private def prepareRoot
     (ScheduledTerminalMemory.ofTerminals? [])
     "Scheduled recovery terminal memory construction failed"
 
-  expect
-    (← saveScheduledLifecycleImage? (scheduledPath root) {
-      scheduled := scheduled
-      terminals := terminals
-    })
+  let lifecycle : ScheduledLifecycleImage := {
+    scheduled := scheduled
+    terminals := terminals
+  }
+  let lifecycleBody ← requireSome
+    (encodeScheduledLifecycleImage? lifecycle)
+    "encode Scheduled recovery lifecycle fixture"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" lifecycleBody)
     "publish Scheduled recovery lifecycle fixture"
 
   let _ ← checkAuthorityPair root "initial Scheduled recovery fixture"
@@ -246,10 +256,12 @@ private def runScenario
   let terminals ← requireSome
     (lifecycle.terminals.add? interrupted)
     "step 3 interrupted completion relation was not admissible"
-  expect
-    (← saveScheduledLifecycleImage? (scheduledPath root) {
-      lifecycle with terminals := terminals
-    })
+  let observed ← requireOk
+    (← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root)
+    "step 3 load Scheduled Household generation"
+  let _ ← requireOk
+    (← Loam.ScheduledLifecycleAuthority.publishObserved?
+      root observed { lifecycle with terminals := terminals })
     "step 3 interrupted completion claim could not be retained"
   stats := { stats with interruptedClaims := stats.interruptedClaims + 1 }
   expect ((← authorityBytes root) == beforeInterruptedActual)

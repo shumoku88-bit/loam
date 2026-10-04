@@ -159,11 +159,20 @@ def main (args : List String) : IO Unit := do
     (ScheduledMemory.ofOccurrences? [scheduled, usdScheduled]) "Scheduled memory"
   let terminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals? []) "empty Scheduled terminal memory"
+  let scheduledImage : Loam.Persistence.ScheduledLifecycleImage := {
+    scheduled := scheduledMemory
+    terminals := terminals
+  }
+  let scheduledBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? scheduledImage)
+    "encode Household Scheduled lifecycle"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "Scheduled" scheduledBody
+    | throw (IO.userError "install Household Scheduled lifecycle")
   expect (← Loam.Persistence.saveScheduledLifecycleImage?
-      (root / "scheduled.loam") {
-        scheduled := scheduledMemory
-        terminals := terminals })
-    "save Scheduled lifecycle"
+      (root / "scheduled.loam") scheduledImage)
+    "save frozen legacy Scheduled lifecycle"
 
   let scheduledRouting ← requireSome
     (RoutingHistory.ofEntries?

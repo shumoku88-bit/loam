@@ -31,23 +31,12 @@ subprocess.run(
     check=True,
 )
 sched_date = today + datetime.timedelta(days=5)
-(root / "scheduled.loam").write_text(f"""LOAM-SCHEDULED-LIFECYCLE\t1
-BEGIN\tScheduled
-LOAM-SCHEDULED-MEMORY\t1
-SCHEDULED\tscheduled-1\t{sched_date}\tjpy
-CHANGE\tcash\t-250
-CHANGE\twifi\t250
-END\tScheduled
-BEGIN\tCompletion
-LOAM-SCHEDULED-COMPLETION-MEMORY\t1
-END\tCompletion
-BEGIN\tRetirement
-LOAM-SCHEDULED-RETIREMENT-MEMORY\t1
-END\tRetirement
-BEGIN\tReplacement
-LOAM-SCHEDULED-REPLACEMENT-MEMORY\t1
-END\tReplacement
-""")
+subprocess.run(
+    ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+     str(root), "set-scheduled", str(sched_date)],
+    cwd=repo_root,
+    check=True,
+)
 subprocess.run(
     ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
      str(root), "set-scheduled-routing", str(start)],
@@ -291,10 +280,9 @@ try:
         f"{changed_navigation}"
     )
 
-    # Scheduled refusal is different from the on-demand workspace cases above:
-    # it is part of the startup Snapshot. Corrupt it before a fresh process starts
-    # and verify that the shell and Actual remain usable without inventing an empty
-    # or closed-world Scheduled answer.
+    # P9 cutover freezes legacy scheduled.loam out of production selection.
+    # Corrupt that valid legacy path before a fresh process starts and verify
+    # Home, Scheduled, and Actual continue from HouseholdImage Scheduled evidence.
     scheduled_path = root / "scheduled.loam"
     scheduled_bytes = scheduled_path.read_bytes()
     scheduled_path.write_text("not-scheduled-evidence\n")
@@ -309,24 +297,22 @@ try:
                                 stderr=slave2, env=env, preexec_fn=controlling_terminal2)
     os.close(slave2)
     try:
-        startup = wait_for_fd(master2, "[Unavailable]")
-        assert "LOAM Home" in startup, "Scheduled startup refusal prevented Home from starting"
-        assert "Scheduled" in startup, "Home did not identify Scheduled as unavailable"
-        assert process2.poll() is None, "TUI exited after retaining Scheduled startup refusal"
+        startup = wait_for_fd(master2, "cash -> wifi: 250 jpy")
+        assert "LOAM Home" in startup, "malformed legacy Scheduled prevented Home from starting"
+        assert "Next Scheduled" in startup, "Home stopped reading Household Scheduled evidence"
+        assert process2.poll() is None, "TUI exited after ignoring malformed legacy Scheduled"
 
         os.write(master2, b"s")
-        scheduled_screen = wait_for_fd(master2, "[Coverage unavailable]")
+        scheduled_screen = wait_for_fd(master2, "Scheduled Series Calendar")
         assert "Scheduled" in scheduled_screen
-        assert "Scheduled lifecycle authority is missing, malformed, or unsupported" in scheduled_screen
-        assert "Months and List remain available with v." in scheduled_screen
-        assert process2.poll() is None, "TUI exited while showing unavailable Scheduled coverage"
+        assert process2.poll() is None, "malformed legacy Scheduled prevented Scheduled workspace use"
         os.write(master2, b"q")
         wait_for_fd(master2, "LOAM Home")
 
         os.write(master2, b"a")
         actual_screen = wait_for_fd(master2, "Household Actuals Workspace")
         assert "Actual" in actual_screen
-        assert process2.poll() is None, "Unavailable Scheduled prevented Actual workspace use"
+        assert process2.poll() is None, "malformed legacy Scheduled prevented Actual workspace use"
         os.write(master2, b"q")
         wait_for_fd(master2, "LOAM Home")
 
@@ -340,8 +326,8 @@ try:
         os.close(master2)
         scheduled_path.write_bytes(scheduled_bytes)
 
-    assert digest() == before, "Scheduled startup resilience test changed fixture evidence/config"
-    print("Production PTY: Budget actions, local read refusals, Scheduled startup isolation, Actual survival and no writes passed.")
+    assert digest() == before, "Scheduled legacy-isolation test changed fixture evidence/config"
+    print("Production PTY: Budget actions, local read refusals, Scheduled legacy isolation, Scheduled/Actual survival and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()

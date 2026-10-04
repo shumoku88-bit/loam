@@ -2,6 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.HouseholdCommand
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Tests.DeterministicScenarioSupport
+import Loam.Tests.ActualWorldFixture
 import Loam.Persistence.ScheduledLifecyclePersistence
 
 namespace Loam.Tests.DeterministicActualMutationScenario
@@ -149,9 +150,12 @@ private def prepareRoot (root : System.FilePath) : IO (List EventId) := do
     "publish deterministic mutation Locus policy"
 
   let lifecycle ← emptyLifecycle
-  expect
-    (← Loam.Persistence.saveScheduledLifecycleImage?
-      (Loam.HouseholdPaths.scheduled root) lifecycle)
+  let lifecycleBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? lifecycle)
+    "encode explicit empty Scheduled lifecycle"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" lifecycleBody)
     "publish explicit empty Scheduled lifecycle"
 
   let fixtures : List (MovementOperationId × Loam.MovementAdmission.Draft) := [
