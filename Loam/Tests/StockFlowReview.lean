@@ -1,6 +1,8 @@
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
+import Loam.Persistence.ZeroOriginCoveragePersistence
 import Loam.Review.StockFlowReview
+import Loam.Tests.ActualWorldFixture
 
 open Loam.Core
 
@@ -87,6 +89,13 @@ private def boundedIntegration : IO Unit := do
     | throw (IO.userError "publish bounded Stock-Flow Actual")
   IO.FS.createDirAll (root / "config")
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "cash\tjpy\n"
+
+  let zeroOriginBody ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? ZeroOriginCoverage.empty)
+    "encode bounded Stock-Flow empty zero-origin coverage"
+  let .ok () ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ZeroOrigin" zeroOriginBody
+    | throw (IO.userError "publish bounded Stock-Flow Household zero-origin coverage")
 
   let roots ← requireSome
     (Loam.Application.correctionRootIds? actual.events actual.corrections)
