@@ -3,13 +3,9 @@ import Loam.Core.BoundedHistorySupport
 import Loam.Application.CurrentQuantityAnchor
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.OpeningSupportAuthority
+import Loam.Authority.CurrentSupportAuthority
 import Loam.HouseholdPaths
-import Loam.Persistence.BoundedHistorySupportPersistence
-import Loam.Persistence.CurrentQuantityAnchorPersistence
-import Loam.Persistence.CurrentQuantityPresencePersistence
-import Loam.Persistence.ZeroOriginCoveragePersistence
 import Loam.Authority.ZeroOriginCoverageAuthority
-import Loam.Persistence.WriterOwnership
 
 namespace Loam.CurrentQuantityAnchorPublisher
 
@@ -144,30 +140,6 @@ private def loadOpening
     (root : System.FilePath) : IO (Except String OpeningSupportMap) :=
   Loam.OpeningSupportAuthority.loadHouseholdRequired? root
 
-private def loadExistingAnchor
-    (anchorPath : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  if !(← anchorPath.pathExists) then
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
-  let some existing ← Loam.Persistence.loadCurrentQuantityAnchor? anchorPath
-    | return .error "loam: current quantity anchor authority is malformed or unsupported"
-  return .ok existing
-
-private def loadExistingPresence
-    (presencePath : System.FilePath) : IO (Except String Loam.CurrentQuantityPresence.Evidence) := do
-  if !(← presencePath.pathExists) then
-    return .ok Loam.CurrentQuantityPresence.Evidence.empty
-  let some existing ← Loam.Persistence.loadCurrentQuantityPresence? presencePath
-    | return .error "loam: current quantity presence authority is malformed or unsupported"
-  return .ok existing
-
-private def loadBoundedHistorySupport
-    (path : System.FilePath) : IO (Except String Loam.BoundedHistorySupport.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.BoundedHistorySupport.Evidence.empty
-  let some evidence ← Loam.Persistence.loadBoundedHistorySupport? path
-    | return .error "loam: bounded historical support authority is malformed or unsupported"
-  return .ok evidence
-
 /--
 A bounded historical completeness claim may survive a fresh observation only
 when the new observation agrees with the already-derived current quantity.
@@ -201,7 +173,7 @@ def validateBoundedHistoryReobservation
             "; correct recorded Actual or move/remove the historical start before reconciling")
 
 private def publishUnderOwnership
-    (root anchorPath presencePath historyPath : System.FilePath)
+    (root : System.FilePath)
     (assertions : List Loam.CurrentQuantityAnchor.Assertion) : IO (Except String Unit) := do
   let actual ←
     match ← Loam.ActualAuthority.loadActual? root with
@@ -219,18 +191,13 @@ private def publishUnderOwnership
     match ← loadOpening root with
     | .ok evidence => pure evidence
     | .error message => return .error message
-  let existing ←
-    match ← loadExistingAnchor anchorPath with
-    | .ok evidence => pure evidence
+  let observedSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed
     | .error message => return .error message
-  let existingPresence ←
-    match ← loadExistingPresence presencePath with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
-  let bounded ←
-    match ← loadBoundedHistorySupport historyPath with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
+  let existing := observedSupport.snapshot.anchor
+  let existingPresence := observedSupport.snapshot.presence
+  let bounded := observedSupport.snapshot.bounded
   match validateBoundedHistoryReobservation
       actual.events actual.corrections existing bounded assertions with
   | .ok () => pure ()
@@ -244,25 +211,26 @@ private def publishUnderOwnership
     match refinePresenceForExact? existingPresence assertions with
     | .ok evidence => pure evidence
     | .error message => return .error message
-  if refinedPresence != existingPresence then
-    if !(← Loam.Persistence.saveCurrentQuantityPresence? presencePath refinedPresence) then
-      return .error "loam: current quantity presence could not be refined before exact publication"
-  if !(← Loam.Persistence.saveCurrentQuantityAnchor? anchorPath anchor) then
-    return .error
-      "loam: current quantity anchor could not be published; weaker presence was already retired conservatively"
-  return .ok ()
+  match ← Loam.CurrentSupportAuthority.publishObserved?
+      root observedSupport {
+        anchor := anchor
+        presence := refinedPresence
+        bounded := bounded
+      } with
+  | .ok _ => return .ok ()
+  | .error message => return .error message
 
 /--
-Publish one new reconciliation group while holding the Actual world, exact
-current-anchor image, and weaker current-presence image against concurrent
-replacement.
+Publish one new reconciliation group while holding the Actual world and
+replacing the exact-anchor / weaker-presence pair through one observed
+HouseholdImage generation.
 
 Unmentioned prior coordinates remain in their existing groups. Re-observed
 coordinates move to the new group derived from the current Actual root cut.
 If a newly exact coordinate was previously present with amount unknown, the
-weaker presence assertion is retired first. A crash between the two writes can
-therefore lose support temporarily but cannot create overlapping contradictory
-support; retrying the observation repairs that conservative intermediate state.
+weaker presence assertion and exact anchor are now published atomically in the
+same Household generation; the former conservative two-file crash window is
+removed.
 
 Current Locus admission is re-read during this publication interval. The only
 production Locus-admission mutation is currently add-only, so a concurrent new
@@ -278,13 +246,7 @@ def publish
   if rootPath.isEmpty then
     return .error "loam: data directory must not be empty"
   let root := System.FilePath.mk rootPath
-  let anchorPath := path root
-  let presencePath := Loam.HouseholdPaths.currentQuantityPresence root
-  let historyPath := Loam.HouseholdPaths.boundedHistorySupport root
   Loam.ActualAuthority.withActualOwnership root <|
-    Loam.WriterOwnership.withOwnership anchorPath <|
-      Loam.WriterOwnership.withOwnership presencePath <|
-        Loam.WriterOwnership.withOwnership historyPath
-          (publishUnderOwnership root anchorPath presencePath historyPath assertions)
+    publishUnderOwnership root assertions
 
 end Loam.CurrentQuantityAnchorPublisher
