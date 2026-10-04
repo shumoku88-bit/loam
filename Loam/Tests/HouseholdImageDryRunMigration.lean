@@ -1,4 +1,5 @@
 import Loam.Migration.HouseholdImageDryRun
+import Loam.Cli.HouseholdImageDryRunCli
 
 namespace Loam.Tests.HouseholdImageDryRunMigration
 
@@ -238,6 +239,25 @@ private def runMissingCase (base : System.FilePath) : IO Unit := do
   expect (!(← (Loam.HouseholdPaths.attention report.projectionRoot).pathExists))
     "legacy projection invented missing Attention"
 
+private def runCliCase (base : System.FilePath) : IO Unit := do
+  let source := base / "cli"
+  let scratch := base / "cli-scratch"
+  writeFixture source (some coherentAttention)
+
+  let exitCode ← Loam.HouseholdImageDryRunCli.run [
+    source.toString,
+    scratch.toString,
+    probe.currentWindowStart,
+    probe.observedAt,
+    probe.endExclusive
+  ]
+  expect (exitCode == 0)
+    "dry-run CLI refused the qualified fixture"
+  expect (← (scratch / "household.loam.candidate").pathExists)
+    "dry-run CLI did not leave an inspectable candidate"
+  expect (!(← (Loam.HouseholdAuthority.path source).pathExists))
+    "dry-run CLI installed household.loam into the source root"
+
 private def runMalformedCase (base : System.FilePath) : IO Unit := do
   let source := base / "malformed"
   let scratch := base / "malformed-scratch"
@@ -262,11 +282,12 @@ def main (args : List String) : IO Unit := do
   runFullCase base
   runPresentEmptyCase base
   runMissingCase base
+  runCliCase base
   runMalformedCase base
 
   cleanupDir base
   IO.println
-    "HouseholdImage dry-run migration: full, present-empty, missing, malformed refusal, Review equivalence, config separation, and source immutability passed."
+    "HouseholdImage dry-run migration: full, present-empty, missing, CLI entry, malformed refusal, Review equivalence, config separation, and source immutability passed."
 
 end Loam.Tests.HouseholdImageDryRunMigration
 
