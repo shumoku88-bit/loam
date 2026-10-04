@@ -91,6 +91,7 @@ scheduled_lifecycle_tests=(
   ScheduledCreationPublisher
   ScheduledReplacementPublisher
   ScheduledTerminalPublisher
+  DeterministicScheduledRecoveryScenario
 )
 
 movement_proposal_tests=(
