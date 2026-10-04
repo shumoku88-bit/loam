@@ -93,18 +93,19 @@ def propose?
     | throw "loam: AccountingRole is already assigned; role replacement is not qualified"
   return updated
 
-private def publishHouseholdUnderActualOwnership
+private def publishHouseholdFromGeneration
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
-    | .error message => return .error message
-
   let generation ←
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
+
+  let actual ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? generation with
+    | .ok image => pure image
+    | .error message => return .error message
+  let evidence := actual.evidence
 
   let lifecycle ←
     match Loam.Persistence.HouseholdImage.body? generation.image "Scheduled" with
@@ -159,19 +160,18 @@ private def publishHouseholdUnderActualOwnership
 /--
 Production initial-role publication after P10 AccountingRole cutover.
 
-Actual ownership excludes concurrent Actual publication. The publisher then
-loads exactly one Household generation and decodes Scheduled, LocusAdmission,
-CurrentQuantityAnchor, and AccountingRole from that same generation. Only the
-AccountingRole section is replaced. A concurrent Household writer is detected by
-the shared stale-generation check instead of widening the lock topology.
+The publisher loads exactly one Household generation and decodes Actual,
+Scheduled, LocusAdmission, CurrentQuantityAnchor, and AccountingRole from that
+same generation. Only the AccountingRole section is replaced. A concurrent
+Household writer is detected by the shared stale-generation check, so no
+separate Actual serializer is needed for this publication path.
 -/
 def publishInitialRoleHousehold
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
   if root.toString.isEmpty then
     return .error "loam: data directory must not be empty"
-  Loam.ActualAuthority.withActualOwnership root <|
-    publishHouseholdUnderActualOwnership root draft
+  publishHouseholdFromGeneration root draft
 
 
 end Loam.AccountingRolePublisher
