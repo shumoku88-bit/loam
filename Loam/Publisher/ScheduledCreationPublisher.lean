@@ -3,6 +3,7 @@ import Loam.ActualDate
 import Loam.Core.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledActualOwnership
@@ -101,6 +102,62 @@ private def publishUnderOwnership
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled lifecycle could not be published"
   return .ok scheduledId
+
+private def publishHouseholdUnderActualOwnership
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String ScheduledId) := do
+  match validateDraft draft with
+  | .error message => return .error message
+  | .ok () => pure ()
+  let observed ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => return .error message
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
+    | .error message => return .error message
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
+    | .error message => return .error message
+  if !draft.movement.changes.all (fun change =>
+      locusAdmission.allows change.coordinate) then
+    return .error "loam: Scheduled creation uses a Locus not approved for new publication"
+  match lifecycleReadable? observed.lifecycle evidence.events with
+  | .error message => return .error message
+  | .ok () => pure ()
+  let scheduledId :=
+    Loam.ScheduledOccurrenceConstruction.freshId observed.lifecycle.scheduled
+  let occurrence : ScheduledOccurrence String := {
+    id := scheduledId
+    scheduledOn := draft.scheduledOn
+    movement := draft.movement
+  }
+  let updatedScheduled :=
+    ScheduledMemory.addFresh observed.lifecycle.scheduled occurrence (by
+      change scheduledId ∉ observed.lifecycle.scheduled.occurrences.map ScheduledOccurrence.id
+      exact Loam.ScheduledOccurrenceConstruction.freshId_fresh observed.lifecycle.scheduled)
+  let updatedLifecycle := { observed.lifecycle with scheduled := updatedScheduled }
+  match ← Loam.ScheduledLifecycleAuthority.publishObserved?
+      root observed updatedLifecycle with
+  | .ok _ => return .ok scheduledId
+  | .error message => return .error message
+
+/--
+Publish one production household Scheduled occurrence through HouseholdImage.
+
+Actual ownership is acquired first. The Scheduled Household generation is then
+observed and published with stale-generation refusal, preserving the temporary
+P9 lock order: Actual -> Household.
+-/
+def publishHousehold
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String ScheduledId) := do
+  if root.toString.isEmpty then
+    return .error "loam: data directory must not be empty"
+  Loam.ActualAuthority.withActualOwnership root
+    (publishHouseholdUnderActualOwnership root draft)
 
 /--
 Publish one independent Scheduled occurrence into the complete lifecycle image.
