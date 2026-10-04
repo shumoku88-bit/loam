@@ -57,10 +57,18 @@ def main (args : List String) : IO Unit := do
       (root / "zero-origin-coverage.loam") ZeroOriginCoverage.empty)
     "save CycleBudget stale legacy zero-origin"
   let frozenLegacyZero ← IO.FS.readFile (root / "zero-origin-coverage.loam")
-  IO.FS.writeFile (root / "current-quantity-anchor.loam")
+  let anchorFixture :=
     ("LOAM-CURRENT-QUANTITY-ANCHOR\t1\n" ++
      "ASSERT\tcash\tjpy\t0\n" ++
      "ASSERT\tcash\tusd\t250\n")
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "CurrentQuantityAnchor" anchorFixture
+    | throw (IO.userError "install CycleBudget Household current anchor")
+  IO.FS.writeFile (root / "current-quantity-anchor.loam")
+    ("LOAM-CURRENT-QUANTITY-ANCHOR\t1\n" ++
+     "ASSERT\tlegacy-only\tjpy\t999\n")
+  let frozenLegacyAnchor ← IO.FS.readFile (root / "current-quantity-anchor.loam")
   let capacityFixture :=
     ("LOAM-NORMALIZED-CAPACITY\t1\n" ++
      "MOVEMENT\tcapacity-1\t2026-09-08\tjpy\n" ++
@@ -107,6 +115,10 @@ def main (args : List String) : IO Unit := do
   let .ok summary := good.funding | throw (IO.userError "valid funding unavailable")
   expect ((← IO.FS.readFile (root / "zero-origin-coverage.loam")) == frozenLegacyZero)
     "CycleBudget production read changed frozen legacy zero-origin evidence"
+  expect
+    ((← IO.FS.readFile (root / "current-quantity-anchor.loam")) ==
+      frozenLegacyAnchor)
+    "CycleBudget production read changed frozen legacy current-anchor evidence"
   expect (summary.budgetableBacking.quanta == 0 && summary.remainingAssigned.quanta == 100 &&
     summary.residualBeforeUnresolved.quanta == -100) "shared projection changed"
   IO.FS.writeFile fundingPath "cash\tusd\n"

@@ -2,11 +2,8 @@ import Loam.Authority.ActualAuthority
 import Loam.ActualDate
 import Loam.Core.BoundedHistorySupport
 import Loam.Application.CurrentQuantityAnchor
-import Loam.HouseholdPaths
 import Loam.Authority.LocusAdmissionAuthority
-import Loam.Persistence.BoundedHistorySupportPersistence
-import Loam.Persistence.CurrentQuantityAnchorPersistence
-import Loam.Persistence.WriterOwnership
+import Loam.Authority.CurrentSupportAuthority
 
 namespace Loam.BoundedHistorySupportPublisher
 
@@ -72,24 +69,8 @@ def propose?
         | throw "loam: bounded historical support could not admit the requested start boundary"
       return updated
 
-private def loadAnchor
-    (path : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
-  let some evidence ← Loam.Persistence.loadCurrentQuantityAnchor? path
-    | return .error "loam: current quantity anchor authority is malformed or unsupported"
-  return .ok evidence
-
-private def loadExisting
-    (path : System.FilePath) : IO (Except String Loam.BoundedHistorySupport.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.BoundedHistorySupport.Evidence.empty
-  let some evidence ← Loam.Persistence.loadBoundedHistorySupport? path
-    | return .error "loam: bounded historical support authority is malformed or unsupported"
-  return .ok evidence
-
 private def publishUnderOwnership
-    (root anchorPath supportPath : System.FilePath)
+    (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
   let image ←
     match ← Loam.ActualAuthority.loadImage? root with
@@ -99,30 +80,29 @@ private def publishUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | .ok vocabulary => pure vocabulary
     | .error message => return .error message
-  let anchor ←
-    match ← loadAnchor anchorPath with
-    | .ok evidence => pure evidence
+  let observedSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed
     | .error message => return .error message
-  let existing ←
-    match ← loadExisting supportPath with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
+  let anchor := observedSupport.snapshot.anchor
+  let existing := observedSupport.snapshot.bounded
   let proposed ←
     match propose? image locusAdmission anchor existing draft with
     | .ok evidence => pure evidence
     | .error message => return .error message
-  if !(← Loam.Persistence.saveBoundedHistorySupport? supportPath proposed) then
-    return .error "loam: bounded historical support could not be published"
-  return .ok ()
+  match ← Loam.CurrentSupportAuthority.publishObserved?
+      root observedSupport {
+        anchor := observedSupport.snapshot.anchor
+        presence := observedSupport.snapshot.presence
+        bounded := proposed
+      } with
+  | .ok _ => return .ok ()
+  | .error message => return .error message
 
 def publish
     (root : System.FilePath)
-    (draft : Draft) : IO (Except String Unit) := do
-  let anchorPath := Loam.HouseholdPaths.currentQuantityAnchor root
-  let supportPath := Loam.HouseholdPaths.boundedHistorySupport root
+    (draft : Draft) : IO (Except String Unit) :=
   Loam.ActualAuthority.withActualOwnership root <|
-    Loam.WriterOwnership.withOwnership anchorPath <|
-      Loam.WriterOwnership.withOwnership supportPath
-        (publishUnderOwnership root anchorPath supportPath draft)
+    publishUnderOwnership root draft
 
 end Loam.BoundedHistorySupportPublisher

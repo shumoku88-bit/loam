@@ -1,8 +1,6 @@
 import Loam.Core.BoundedHistorySupport
 import Loam.Application.CurrentQuantityAnchor
-import Loam.HouseholdPaths
-import Loam.Persistence.BoundedHistorySupportPersistence
-import Loam.Persistence.CurrentQuantityAnchorPersistence
+import Loam.Authority.CurrentSupportAuthority
 
 namespace Loam.BoundedHistorySupportReview
 
@@ -20,22 +18,6 @@ structure Snapshot where
   rows : List Row
 deriving Repr, DecidableEq
 
-private def loadSupport
-    (path : System.FilePath) : IO (Except String Loam.BoundedHistorySupport.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.BoundedHistorySupport.Evidence.empty
-  let some evidence ← Loam.Persistence.loadBoundedHistorySupport? path
-    | return .error "loam: bounded historical support authority is malformed or unsupported"
-  return .ok evidence
-
-private def loadAnchor
-    (path : System.FilePath) : IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
-  let some evidence ← Loam.Persistence.loadCurrentQuantityAnchor? path
-    | return .error "loam: current quantity anchor authority is malformed or unsupported"
-  return .ok evidence
-
 def project
     (support : Loam.BoundedHistorySupport.Evidence)
     (anchor : Loam.CurrentQuantityAnchor.Evidence) : Snapshot :=
@@ -50,14 +32,10 @@ def project
   }
 
 def loadSnapshot (root : System.FilePath) : IO (Except String Snapshot) := do
-  let support ←
-    match ← loadSupport (Loam.HouseholdPaths.boundedHistorySupport root) with
-    | .ok evidence => pure evidence
+  let currentSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed.snapshot
     | .error message => return .error message
-  let anchor ←
-    match ← loadAnchor (Loam.HouseholdPaths.currentQuantityAnchor root) with
-    | .ok evidence => pure evidence
-    | .error message => return .error message
-  return .ok (project support anchor)
+  return .ok (project currentSupport.bounded currentSupport.anchor)
 
 end Loam.BoundedHistorySupportReview

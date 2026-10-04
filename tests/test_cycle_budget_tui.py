@@ -209,12 +209,18 @@ try:
     # from ZeroOriginCoverage and Actual.
     balance_view_path = root / "config" / "balance-view.tsv"
     balance_view = balance_view_path.read_bytes()
-    current_anchor_path = root / "current-quantity-anchor.loam"
-    previous_anchor = current_anchor_path.read_bytes() if current_anchor_path.exists() else None
+    household_path = root / "household.loam"
+    household_prev_path = root / "household.loam.prev"
+    household_before_anchor = household_path.read_bytes()
+    household_prev_before_anchor = (
+        household_prev_path.read_bytes() if household_prev_path.exists() else None
+    )
     balance_view_path.write_text("anchored-wallet\tjpy\n")
-    current_anchor_path.write_text(
-        "LOAM-CURRENT-QUANTITY-ANCHOR\t1\n"
-        "ASSERT\tanchored-wallet\tjpy\t42\n"
+    subprocess.run(
+        ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
+         str(root), "set-current-anchor", "anchored-wallet", "jpy", "42"],
+        cwd=repo_root,
+        check=True,
     )
     os.write(master, b"b")
     anchored_balances = wait_for("Balances / Current")
@@ -224,10 +230,12 @@ try:
     os.write(master, b"q")
     wait_for("LOAM Home")
     balance_view_path.write_bytes(balance_view)
-    if previous_anchor is None:
-        current_anchor_path.unlink()
+    household_path.write_bytes(household_before_anchor)
+    if household_prev_before_anchor is None:
+        if household_prev_path.exists():
+            household_prev_path.unlink()
     else:
-        current_anchor_path.write_bytes(previous_anchor)
+        household_prev_path.write_bytes(household_prev_before_anchor)
 
     # Independent malformed workspace evidence stays fail-closed, but no longer
     # terminates the whole TUI. Restore every fixture after observing refusal so
@@ -272,7 +280,16 @@ try:
     os.write(master, b"q")
     drain_fd(master)
     assert process.wait(timeout=10) == 0
-    assert digest() == before, "Cancelled production navigation changed fixture evidence/config"
+    after_navigation = digest()
+    changed_navigation = {
+        path: (before.get(path), after_navigation.get(path))
+        for path in sorted(set(before) | set(after_navigation))
+        if before.get(path) != after_navigation.get(path)
+    }
+    assert after_navigation == before, (
+        "Cancelled production navigation changed fixture evidence/config: "
+        f"{changed_navigation}"
+    )
 
     # Scheduled refusal is different from the on-demand workspace cases above:
     # it is part of the startup Snapshot. Corrupt it before a fresh process starts

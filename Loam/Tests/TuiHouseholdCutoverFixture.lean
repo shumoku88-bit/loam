@@ -2,6 +2,7 @@ import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.NormalizedCapacityPersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledRoutingPersistence
+import Loam.Persistence.CurrentQuantityAnchorPersistence
 
 namespace Loam.Tests.TuiHouseholdCutoverFixture
 
@@ -81,6 +82,35 @@ private def installDynamicCapacity
   pure ()
 
 
+private def installCurrentAnchor
+    (root : System.FilePath)
+    (locusToken measureToken quantityText : String) : IO Unit := do
+  if !Loam.Persistence.validToken locusToken then
+    throw (IO.userError "PTY CurrentQuantityAnchor Locus token is invalid")
+  if !Loam.Persistence.validToken measureToken then
+    throw (IO.userError "PTY CurrentQuantityAnchor Measure token is invalid")
+  let some quanta := quantityText.toInt?
+    | throw (IO.userError "PTY CurrentQuantityAnchor quantity must be an integer")
+  let some anchor :=
+      Loam.CurrentQuantityAnchor.Evidence.ofLists? [] [{
+        coordinate := ⟨⟨locusToken⟩, ⟨measureToken⟩⟩
+        quantity := Quantity.ofQuanta quanta
+      }]
+    | throw (IO.userError "PTY CurrentQuantityAnchor evidence was rejected")
+  let body ← requireSome
+    (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
+    "PTY CurrentQuantityAnchor evidence did not encode"
+
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "PTY HouseholdImage did not load"
+  let candidate ← replaceOrAppendBody generation.image "CurrentQuantityAnchor" body
+  let _ ← requireOk
+    (← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["CurrentQuantityAnchor"] candidate)
+    "PTY Household CurrentQuantityAnchor publication failed"
+  pure ()
+
 private def installActualRouting
     (root : System.FilePath) : IO Unit := do
   let body := Loam.Persistence.actualRoutingHeader ++ "\n"
@@ -145,6 +175,9 @@ def main (args : List String) : IO Unit := do
       installDynamicScheduledRouting (System.FilePath.mk rootText) effectiveOn
   | [rootText, "set-actual-routing"] =>
       installActualRouting (System.FilePath.mk rootText)
+  | [rootText, "set-current-anchor", locusToken, measureToken, quantityText] =>
+      installCurrentAnchor
+        (System.FilePath.mk rootText) locusToken measureToken quantityText
   | [rootText, "malform", "Capacity"] =>
       installMalformed
         (System.FilePath.mk rootText) "Capacity" "not-capacity-evidence\n"
@@ -156,7 +189,7 @@ def main (args : List String) : IO Unit := do
         (System.FilePath.mk rootText) "ActualRouting" "not-actual-routing\n"
   | _ =>
       throw (IO.userError
-        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT set-actual-routing | ROOT malform Capacity|Attention|ActualRouting")
+        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT set-actual-routing | ROOT set-current-anchor LOCUS MEASURE QUANTITY | ROOT malform Capacity|Attention|ActualRouting")
 
 end Loam.Tests.TuiHouseholdCutoverFixture
 

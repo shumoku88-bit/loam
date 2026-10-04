@@ -4,9 +4,8 @@ import Loam.Review.BalanceReview
 import Loam.Core.BoundedHistorySupport
 import Loam.Application.CurrentQuantityAnchor
 import Loam.Authority.OpeningSupportAuthority
+import Loam.Authority.CurrentSupportAuthority
 import Loam.HouseholdPaths
-import Loam.Persistence.BoundedHistorySupportPersistence
-import Loam.Persistence.CurrentQuantityAnchorPersistence
 
 namespace Loam.HistoricalBalanceReview
 
@@ -265,24 +264,6 @@ def projectStartOfDay
         return row
   return { startOfDay := startOfDay, rows := rows }
 
-private def loadAnchor
-    (path : System.FilePath) :
-    IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
-  let some evidence ← Loam.Persistence.loadCurrentQuantityAnchor? path
-    | return .error "loam: malformed or unsupported current quantity anchor evidence"
-  return .ok evidence
-
-private def loadBounded
-    (path : System.FilePath) :
-    IO (Except String Loam.BoundedHistorySupport.Evidence) := do
-  if !(← path.pathExists) then
-    return .ok Loam.BoundedHistorySupport.Evidence.empty
-  let some evidence ← Loam.Persistence.loadBoundedHistorySupport? path
-    | return .error "loam: malformed or unsupported bounded historical support evidence"
-  return .ok evidence
-
 /-- Load the independent support families needed by historical reconstruction. -/
 def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
   let zeroOrigin ←
@@ -293,15 +274,16 @@ def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
     match ← Loam.OpeningSupportAuthority.loadHouseholdOrEmpty? dataDir with
     | .error message => return .error message
     | .ok evidence => pure evidence
-  let bounded ←
-    match ← loadBounded (Loam.HouseholdPaths.boundedHistorySupport dataDir) with
+  let currentSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
     | .error message => return .error message
-    | .ok evidence => pure evidence
-  let anchor ←
-    match ← loadAnchor (Loam.HouseholdPaths.currentQuantityAnchor dataDir) with
-    | .error message => return .error message
-    | .ok evidence => pure evidence
-  return .ok { zeroOrigin, opening, bounded, anchor }
+    | .ok observed => pure observed.snapshot
+  return .ok {
+    zeroOrigin
+    opening
+    bounded := currentSupport.bounded
+    anchor := currentSupport.anchor
+  }
 
 /-- Reconstruct one bounded-only boundary from a caller-owned Actual generation. -/
 def loadBoundedStartOfDayFromActualImage

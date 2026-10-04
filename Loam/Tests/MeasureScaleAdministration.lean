@@ -1,5 +1,6 @@
 import Loam.Authority.MeasurePresentationAuthority
 import Loam.Authority.HouseholdAuthority
+import Loam.Authority.CurrentSupportAuthority
 import Loam.Publisher.CapacityPublisher
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.ActualWorldFixture
@@ -151,10 +152,12 @@ private def publishAnchorMeasure
         [{ coordinate := ⟨⟨"anchor-locus"⟩, ⟨measureToken⟩⟩,
            quantity := Quantity.ofQuanta 100 }])
       "CurrentQuantityAnchor evidence"
-  expect
-    (← Loam.Persistence.saveCurrentQuantityAnchor?
-      (root / "current-quantity-anchor.loam") anchor)
-    "publish CurrentQuantityAnchor fixture"
+  let body ← requireSome
+    (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
+    "encode Household CurrentQuantityAnchor fixture"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "CurrentQuantityAnchor" body
+    | throw (IO.userError "publish Household CurrentQuantityAnchor fixture")
 
 private def loadScale
     (root : System.FilePath) (measureToken : String) : IO Nat := do
