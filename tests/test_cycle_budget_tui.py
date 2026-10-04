@@ -303,7 +303,7 @@ try:
         assert process2.poll() is None, "TUI exited after ignoring malformed legacy Scheduled"
 
         os.write(master2, b"s")
-        scheduled_screen = wait_for_fd(master2, "Household Scheduled Workspace")
+        scheduled_screen = wait_for_fd(master2, "Scheduled Series Calendar")
         assert "Scheduled" in scheduled_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Scheduled workspace use"
         os.write(master2, b"q")
