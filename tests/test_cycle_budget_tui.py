@@ -210,7 +210,11 @@ try:
     balance_view_path = root / "config" / "balance-view.tsv"
     balance_view = balance_view_path.read_bytes()
     household_path = root / "household.loam"
+    household_prev_path = root / "household.loam.prev"
     household_before_anchor = household_path.read_bytes()
+    household_prev_before_anchor = (
+        household_prev_path.read_bytes() if household_prev_path.exists() else None
+    )
     balance_view_path.write_text("anchored-wallet\tjpy\n")
     subprocess.run(
         ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
@@ -227,6 +231,11 @@ try:
     wait_for("LOAM Home")
     balance_view_path.write_bytes(balance_view)
     household_path.write_bytes(household_before_anchor)
+    if household_prev_before_anchor is None:
+        if household_prev_path.exists():
+            household_prev_path.unlink()
+    else:
+        household_prev_path.write_bytes(household_prev_before_anchor)
 
     # Independent malformed workspace evidence stays fail-closed, but no longer
     # terminates the whole TUI. Restore every fixture after observing refusal so
