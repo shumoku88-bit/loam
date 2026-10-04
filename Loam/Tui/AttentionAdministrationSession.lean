@@ -14,7 +14,7 @@ set_option autoImplicit false
 
 private def reload
     (root : System.FilePath) : IO (Except String Loam.AttentionReview.Availability) :=
-  Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention root)
+  Loam.AttentionReview.loadHouseholdEvidence root
 
 private def closeVerb : Loam.Core.AttentionClosureKind → String
   | .resolved => "Resolved"
