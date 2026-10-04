@@ -245,26 +245,48 @@ atomic household publication.
 
 ### H2 — answer equivalence
 
-Compare selected current production answers on:
+**Executable checkpoint implemented on the follow-up branch.**
+
+The experiment compares two physical routes to the same canonical payloads:
 
 ~~~text
-ordinary directory of authority files
-                ==
-same documents loaded from HouseholdImage sections
+ordinary directory
+  13 canonical files
+        ↓
+existing production readers
+
+            ==
+
+HouseholdImage V2
+  13 known sections + unknown Securities
+        ↓
+decode outer framing
+        ↓
+materialize the known opaque payloads unchanged
+        ↓
+the same existing production readers
 ~~~
 
-Candidate answers:
+The Review layer is deliberately not modified to understand HouseholdImage.
+Only the storage adapter knows how to recover named payloads. Unknown sections
+remain outside the readers and are preserved by the outer container.
 
-- Actual current records;
-- current balances;
-- Scheduled open state;
-- AccountingRole projections;
-- current coverage / current quantity support;
-- Capacity state;
-- Attention state.
+The checkpoint compares exact answers for:
 
-No Review should need to know whether its evidence originated in several files
-or one outer image.
+- admitted Actual evidence and the current Actual frontier;
+- CurrentBalanceReview;
+- RoleBalanceReview;
+- CapacityReview;
+- AttentionReview open-item summaries;
+- current-open Scheduled occurrence identities;
+- ActualRoutingReview;
+- AccountingRoleReview initial candidates;
+- CurrentCoverageReview, including Capacity, Actual routing, Scheduled pressure,
+  roles, and the current window.
+
+The current synthetic fixture therefore checks one of the central promotion
+claims directly: existing read semantics can remain unchanged while physical
+authority topology changes underneath them.
 
 ### H3 — publication cost
 
