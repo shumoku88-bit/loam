@@ -150,6 +150,7 @@ tui_representative_tests=(
 )
 
 application_tests=(
+  HouseholdImagePersistence
   HouseholdPaths
   SparseMovementPublication
   MultimeasureRecordingPublishers
