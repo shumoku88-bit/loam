@@ -22,6 +22,7 @@ import Loam.Cli.JournalExportCli
 import Loam.Cli.PlainTextAccountingExportCli
 import Loam.Cli.BeancountExportCli
 import Loam.Cli.MeasureScaleCli
+import Loam.Cli.HouseholdImageDryRunCli
 import Loam.Tui.Cli
 import Loam.Review.RoleBalanceReview
 import Loam.Review.LocusCoherenceReview
@@ -42,6 +43,8 @@ private def practicalUsage : String :=
   "  loam movement [LOAM_DATA_DIR]\n\n" ++
   "Operational diagnosis:\n" ++
   "  loam doctor [LOAM_DATA_DIR]\n\n" ++
+  "Qualify a copied legacy household for one-file migration without installing authority:\n" ++
+  "  loam household-image dry-run LEGACY_ROOT SCRATCH_ROOT WINDOW_START OBSERVED_AT END_EXCLUSIVE\n\n" ++
   "Explain current household answers from shared read projections:\n" ++
   "  loam explain balances [--machine] [LOAM_DATA_DIR]\n" ++
   "  loam explain household --machine [--at YYYY-MM-DD] [LOAM_DATA_DIR]\n" ++
@@ -221,6 +224,8 @@ def run (args : List String) : IO UInt32 := do
   | [] => Loam.Tui.Cli.run []
   | "tui" :: tuiArgs => Loam.Tui.Cli.run tuiArgs
   | "doctor" :: doctorArgs => Loam.DoctorCli.run doctorArgs
+  | "household-image" :: "dry-run" :: dryRunArgs =>
+      Loam.HouseholdImageDryRunCli.run dryRunArgs
   | "explain" :: "balances" :: explainArgs => Loam.ExplainCli.run explainArgs
   | "explain" :: "household" :: explainArgs =>
       Loam.HouseholdObservationCli.runCurrentMachine explainArgs
