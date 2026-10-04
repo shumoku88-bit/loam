@@ -344,9 +344,8 @@ def main (args : List String) : IO Unit := do
       validity := correctedValidity
       corrections := correctedCorrections
   }
-  let .ok _ ← Loam.ActualAuthority.publishActualFile?
-      (Loam.ActualAuthority.actualPath actualRoot) correctedActual
-    | throw (IO.userError "publish corrected CurrentCoverage Actual image")
+  let .ok _ ← Loam.ActualAuthority.publishActual? actualRoot correctedActual
+    | throw (IO.userError "publish corrected Household CurrentCoverage Actual image")
   let .ok correctedSnapshot ←
       Loam.CurrentCoverageReview.loadSnapshotAt
         root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
