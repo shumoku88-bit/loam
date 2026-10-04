@@ -2,6 +2,7 @@ import Loam.Publisher.BoundedHistorySupportPublisher
 import Loam.Review.BoundedHistorySupportReview
 import Loam.Publisher.CurrentQuantityAnchorPublisher
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.CurrentSupportAuthority
 import Loam.Persistence.BoundedHistorySupportPersistence
 import Loam.Persistence.NormalizedActualPersistence
 import Loam.Persistence.OpeningSupportPersistence
@@ -131,10 +132,19 @@ def main : IO Unit := do
     | throw (IO.userError "publish empty Actual authority")
   let .ok () ← Loam.LocusAdmissionAuthority.publishCurrent? root admission
     | throw (IO.userError "publish Locus admission authority")
+  let anchorBody ← requireSome
+    (Loam.Persistence.encodeCurrentQuantityAnchor? anchor)
+    "encode Household exact current anchor authority"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "CurrentQuantityAnchor" anchorBody
+    | throw (IO.userError "publish Household exact current anchor authority")
+  let staleLegacyAnchor ← exactAnchor (-999)
   expect
     (← Loam.Persistence.saveCurrentQuantityAnchor?
-      (Loam.HouseholdPaths.currentQuantityAnchor root) anchor)
-    "publish exact current anchor authority"
+      (Loam.HouseholdPaths.currentQuantityAnchor root) staleLegacyAnchor)
+    "publish stale legacy current anchor authority"
+  let frozenLegacyAnchor ←
+    IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)
   let emptyZeroBody ← requireSome
     (Loam.Persistence.encodeZeroOriginCoverage? ZeroOriginCoverage.empty)
     "encode empty Household zero-origin authority"
@@ -171,12 +181,14 @@ def main : IO Unit := do
 
   let .ok () ← Loam.BoundedHistorySupportPublisher.publish root draft
     | throw (IO.userError "publish bounded history support authority")
-  let some publishedSupport ←
-      Loam.Persistence.loadBoundedHistorySupport?
-        (Loam.HouseholdPaths.boundedHistorySupport root)
-    | throw (IO.userError "reload bounded history support authority")
-  expect ((publishedSupport.supportFor? cash).map (·.startDay) == some "2026-09-01")
-    "published bounded history support was not retained"
+  let publishedCurrentSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed.snapshot
+    | .error message => throw (IO.userError message)
+  expect
+    ((publishedCurrentSupport.bounded.supportFor? cash).map (·.startDay) ==
+      some "2026-09-01")
+    "published Household bounded history support was not retained"
 
   let sameObservation : Loam.CurrentQuantityAnchor.Assertion := {
     coordinate := cash
@@ -189,6 +201,10 @@ def main : IO Unit := do
     ((← IO.FS.readFile (Loam.HouseholdPaths.zeroOriginCoverage root)) ==
       frozenLegacyZero)
     "CurrentQuantityAnchor publisher changed frozen legacy zero-origin evidence"
+  expect
+    ((← IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)) ==
+      frozenLegacyAnchor)
+    "CurrentQuantityAnchor publisher changed frozen legacy current anchor evidence"
   expect
     ((← IO.FS.readFile (Loam.HouseholdPaths.openingSupport root)) ==
       frozenLegacyOpening)
@@ -208,12 +224,12 @@ def main : IO Unit := do
         [{ coordinate := cash, quantity := Quantity.ofQuanta (-99) }]
     | throw (IO.userError "current quantity remained blocked after explicit history-support removal")
 
-  let some finalSupport ←
-      Loam.Persistence.loadBoundedHistorySupport?
-        (Loam.HouseholdPaths.boundedHistorySupport root)
-    | throw (IO.userError "reload cleared bounded history support authority")
-  expect ((finalSupport.supportFor? cash).isNone)
-    "bounded history support removal was not retained"
+  let finalCurrentSupport ←
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed.snapshot
+    | .error message => throw (IO.userError message)
+  expect ((finalCurrentSupport.bounded.supportFor? cash).isNone)
+    "Household bounded history support removal was not retained"
 
   IO.println
     "Bounded history support: explicit start, replacement/removal, anchor gate, persistence, review and reconciliation guard passed."
