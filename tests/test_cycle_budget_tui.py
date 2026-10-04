@@ -280,7 +280,16 @@ try:
     os.write(master, b"q")
     drain_fd(master)
     assert process.wait(timeout=10) == 0
-    assert digest() == before, "Cancelled production navigation changed fixture evidence/config"
+    after_navigation = digest()
+    changed_navigation = {
+        path: (before.get(path), after_navigation.get(path))
+        for path in sorted(set(before) | set(after_navigation))
+        if before.get(path) != after_navigation.get(path)
+    }
+    assert after_navigation == before, (
+        "Cancelled production navigation changed fixture evidence/config: "
+        f"{changed_navigation}"
+    )
 
     # Scheduled refusal is different from the on-demand workspace cases above:
     # it is part of the startup Snapshot. Corrupt it before a fresh process starts
