@@ -64,6 +64,7 @@ cycle_funding_tests=(
 
 capacity_tests=(
   CapacityPublisher
+  HouseholdCapacityAdapter
   NormalizedCapacityPersistence
   CapacityDogfood
   CapacityReview
@@ -274,6 +275,9 @@ for test_name in "${tests[@]}"; do
       ;;
     CapacityPublisher)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/capacity-publisher"
+      ;;
+    HouseholdCapacityAdapter)
+      run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-capacity-adapter"
       ;;
     CapacityReview)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/capacity-review"
