@@ -42,10 +42,10 @@ private def emptyScheduledLifecycle : IO Loam.Persistence.ScheduledLifecycleImag
   return { scheduled, terminals }
 
 private def loadSnapshot
-    (scheduledFile root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
+    (root : System.FilePath) : IO Loam.Tui.Main.Snapshot := do
   let .ok actualRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "load Actual review")
-  let .ok scheduled ← Loam.ScheduledReview.loadEvidenceFromActual scheduledFile root
+  let .ok scheduled ← Loam.ScheduledReview.loadHouseholdEvidence root root
     | throw (IO.userError "load Scheduled evidence")
   let actual : Loam.Tui.Main.ActualSnapshot := {
     today := "2026-09-08"
@@ -61,16 +61,19 @@ def main (args : List String) : IO Unit := do
   let dataDir := System.FilePath.mk dataPath
   IO.FS.createDirAll dataDir
   let root := dataDir
-  let scheduledFile := dataDir / "scheduled.loam"
 
   let initialWorld ← emptyWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root initialWorld
     | throw (IO.userError "initialize Actual fixture")
   let lifecycle ← emptyScheduledLifecycle
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle)
-    "initialize explicit Scheduled lifecycle fixture"
+  let lifecycleBody ← requireSome
+    (Loam.Persistence.encodeScheduledLifecycleImage? lifecycle)
+    "encode Household Scheduled lifecycle fixture"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" lifecycleBody
+    | throw (IO.userError "initialize Household Scheduled lifecycle fixture")
 
-  let snapshot ← loadSnapshot scheduledFile root
+  let snapshot ← loadSnapshot root
   let actualState := Loam.Tui.SelectedDay.initial "2026-09-12"
   let scheduledState :=
     (Loam.Tui.SelectedDay.update snapshot actualState .focusRight).state
@@ -110,11 +113,10 @@ def main (args : List String) : IO Unit := do
     ["paypay", "rent", "food"] previewState .enter
   let intent ← requireSome publishStep.publish
     "new Scheduled preview did not emit shared publisher intent"
-  let .ok scheduledId ← Loam.ScheduledCreationPublisher.publishCreation
-      scheduledFile.toString root.toString intent
+  let .ok scheduledId ← Loam.ScheduledCreationPublisher.publishHousehold root intent
     | throw (IO.userError "publish new Scheduled from TUI intent")
 
-  let fresh ← loadSnapshot scheduledFile root
+  let fresh ← loadSnapshot root
   let freshScheduled ←
     match fresh.scheduled with
     | .error message => throw (IO.userError message)
