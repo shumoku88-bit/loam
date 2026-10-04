@@ -130,9 +130,13 @@ def main (args : List String) : IO Unit := do
       initialGeneration.wire)
     "Scheduled lifecycle publication did not retain exact previous generation"
 
+  let staleProposal ← lifecycle [
+    ("scheduled-1", "2026-10-10", 500),
+    ("scheduled-3", "2026-12-10", 900)
+  ]
   expect
     (!(← Loam.ScheduledLifecycleAuthority.publishObserved?
-      imageRoot observed initial).isOk)
+      imageRoot observed staleProposal).isOk)
     "stale Scheduled lifecycle generation was allowed to publish"
 
   let fresh ← requireOk
