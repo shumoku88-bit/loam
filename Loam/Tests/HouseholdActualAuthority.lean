@@ -25,8 +25,8 @@ private def requireOk {α : Type} (value : Except String α) (message : String) 
 private def wire (id : String) (amount : Int) : String :=
   "LOAM-NORMALIZED-ACTUAL\t1\n" ++
   s!"TX\t{id}\t2026-10-04\tNODESC\n" ++
-  s!"EFFECT\t{id}-wallet\twallet\tjpy\t{-amount}\n" ++
-  s!"EFFECT\t{id}-income\tincome\tjpy\t{amount}\n" ++
+  s!"EFFECT\twallet\tjpy\t{-amount}\n" ++
+  s!"EFFECT\tincome\tjpy\t{amount}\n" ++
   "ENDTX\n"
 
 def main : IO Unit := do
