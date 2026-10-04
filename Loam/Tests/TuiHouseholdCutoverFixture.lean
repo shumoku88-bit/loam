@@ -1,5 +1,6 @@
 import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.NormalizedCapacityPersistence
+import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 
 namespace Loam.Tests.TuiHouseholdCutoverFixture
@@ -80,6 +81,19 @@ private def installDynamicCapacity
   pure ()
 
 
+private def installActualRouting
+    (root : System.FilePath) : IO Unit := do
+  let body := Loam.Persistence.actualRoutingHeader ++ "\n"
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "PTY HouseholdImage did not load"
+  let candidate ← replaceOrAppendBody generation.image "ActualRouting" body
+  let _ ← requireOk
+    (← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["ActualRouting"] candidate)
+    "PTY Household Actual routing publication failed"
+  pure ()
+
 private def installDynamicScheduledRouting
     (root : System.FilePath)
     (effectiveOn : String) : IO Unit := do
@@ -129,15 +143,20 @@ def main (args : List String) : IO Unit := do
       installDynamicCapacity (System.FilePath.mk rootText) effectiveOn
   | [rootText, "set-scheduled-routing", effectiveOn] =>
       installDynamicScheduledRouting (System.FilePath.mk rootText) effectiveOn
+  | [rootText, "set-actual-routing"] =>
+      installActualRouting (System.FilePath.mk rootText)
   | [rootText, "malform", "Capacity"] =>
       installMalformed
         (System.FilePath.mk rootText) "Capacity" "not-capacity-evidence\n"
   | [rootText, "malform", "Attention"] =>
       installMalformed
         (System.FilePath.mk rootText) "Attention" "not-attention-evidence\n"
+  | [rootText, "malform", "ActualRouting"] =>
+      installMalformed
+        (System.FilePath.mk rootText) "ActualRouting" "not-actual-routing\n"
   | _ =>
       throw (IO.userError
-        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT malform Capacity|Attention")
+        "usage: TuiHouseholdCutoverFixture ROOT set-capacity EFFECTIVE_ON | ROOT set-scheduled-routing EFFECTIVE_ON | ROOT set-actual-routing | ROOT malform Capacity|Attention|ActualRouting")
 
 end Loam.Tests.TuiHouseholdCutoverFixture
 
