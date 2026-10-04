@@ -61,14 +61,14 @@ def main (args : List String) : IO Unit := do
      "CHANGE\tUNALLOCATED\t-40\n" ++
      "CHANGE\tPURPOSE\tfood\t40\n" ++
      "ENDMOVEMENT\n")
-  let capacityImage : Loam.Persistence.HouseholdImage.Image := {
-    sections := [{ name := "Capacity", body := capacityFixture }]
-  }
-  let capacityWire ← requireSome
-    (Loam.Persistence.HouseholdImage.encode? capacityImage)
-    "encode CycleBudget HouseholdImage fixture"
-  let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "Capacity" capacityFixture
     | throw (IO.userError "install CycleBudget Household Capacity")
+  let capacityGeneration ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => throw (IO.userError message)
   expect (!(← (root / "capacity.loam").pathExists))
     "CycleBudget fixture unexpectedly retained legacy Capacity"
   IO.FS.writeFile (root / "actual-routing.loam") "LOAM-ACTUAL-ROUTING\t1\n"
@@ -116,15 +116,18 @@ def main (args : List String) : IO Unit := do
   let displayBad ← load
   expect (!displayBad.physical.isOk && displayBad.funding.isOk) "funding depended on display config"
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "cash\tjpy\nyucho\tjpy\n"
-  let emptyHousehold : Loam.Persistence.HouseholdImage.Image := { sections := [] }
-  let emptyWire ← requireSome
-    (Loam.Persistence.HouseholdImage.encode? emptyHousehold)
+  let withoutCapacity : Loam.Persistence.HouseholdImage.Image := {
+    sections := capacityGeneration.image.sections.filter
+      (fun part => part.name != "Capacity")
+  }
+  let withoutCapacityWire ← requireSome
+    (Loam.Persistence.HouseholdImage.encode? withoutCapacity)
     "encode missing-Capacity HouseholdImage fixture"
-  IO.FS.writeFile (Loam.HouseholdAuthority.path root) emptyWire
+  IO.FS.writeFile (Loam.HouseholdAuthority.path root) withoutCapacityWire
   let unavailable ← load
   expect (!unavailable.coverage.isOk && !unavailable.funding.isOk && unavailable.physical.isOk)
     "missing Household Capacity did not refuse Funding independently"
-  IO.FS.writeFile (Loam.HouseholdAuthority.path root) capacityWire
+  IO.FS.writeFile (Loam.HouseholdAuthority.path root) capacityGeneration.wire
   -- Filesystem exceptions also degrade, rather than escape the optional read layer.
   IO.FS.removeFile fundingPath
   IO.FS.createDirAll fundingPath

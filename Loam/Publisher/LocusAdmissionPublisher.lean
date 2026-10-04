@@ -43,9 +43,10 @@ def propose?
 /--
 Admit one new Locus against the current admission-policy authority.
 
-The local authority owns the current physical policy placement, writer lock, and
-read/modify/publish protocol. This publisher contributes only the policy-local
-proposal semantics and therefore does not depend on household Actual evidence.
+The selected authority owns physical policy placement and the read/modify/publish
+protocol. Production household roots now use the shared HouseholdImage writer
+generation; explicit legacy filepaths remain diagnostic only. This publisher
+contributes only policy-local proposal semantics and does not depend on Actual evidence.
 -/
 def publishAdmission
     (rootPath : String) (draft : Draft) : IO (Except String Unit) := do

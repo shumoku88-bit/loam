@@ -1,5 +1,6 @@
 import Loam.HouseholdCommand
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.HouseholdAuthority
 import Loam.Review.ScheduledReview
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Tests.DeterministicScenarioSupport
@@ -71,14 +72,17 @@ private def completionDraft
 private def scheduledPath (root : System.FilePath) : System.FilePath :=
   Loam.HouseholdPaths.scheduled root
 
-private def policyPath (root : System.FilePath) : System.FilePath :=
-  Loam.HouseholdPaths.locusAdmission root
-
 private def scheduledBytes (root : System.FilePath) : IO String :=
   IO.FS.readFile (scheduledPath root)
 
-private def policyBytes (root : System.FilePath) : IO String :=
-  IO.FS.readFile (policyPath root)
+private def policyBytes (root : System.FilePath) : IO String := do
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "load HouseholdImage for deterministic Locus policy bytes"
+  requireSome
+    (Loam.Persistence.HouseholdImage.body?
+      generation.image "LocusAdmission")
+    "deterministic HouseholdImage Locus policy section missing"
 
 private def loadScheduled
     (root : System.FilePath)
@@ -364,7 +368,7 @@ def runTests : IO Unit := do
   expect (scheduledA == scheduledB)
     "deterministic Scheduled recovery replay changed final scheduled.loam bytes"
   expect (policyA == policyB)
-    "deterministic Scheduled recovery replay changed final Locus policy bytes"
+    "deterministic Scheduled recovery replay changed final HouseholdImage Locus policy bytes"
 
   expect (statsA.freshCompletions == 1)
     "Scheduled recovery scenario missed fresh completion"
