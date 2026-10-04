@@ -209,7 +209,7 @@ def closeAttention
     (root : System.FilePath)
     (draft : Loam.AttentionPublisher.CloseDraft) :
     IO (Except String Unit) :=
-  Loam.AttentionPublisher.close (Loam.HouseholdPaths.attention root).toString draft
+  Loam.AttentionPublisher.closeHousehold root draft
 
 /-- Publish one binary Capacity movement. -/
 def moveCapacity
