@@ -76,10 +76,19 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "install TUI Cycle Grant Household Actual routing")
   expect (!(← (root / "actual-routing.loam").pathExists))
     "TUI Cycle Grant fixture unexpectedly retained legacy Actual routing"
+  let roleBody :=
+    "LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
+    "ROLE\tpaypay\tASSET\n" ++
+    "ROLE\twifi\tEXPENSE\n"
+  let .ok _ ←
+      Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+        root "AccountingRole" roleBody
+    | throw (IO.userError "install TUI Cycle Grant Household AccountingRole")
   IO.FS.writeFile (root / "accounting-role.loam")
     ("LOAM-ACCOUNTING-ROLE-MAP\t1\n" ++
      "ROLE\tpaypay\tASSET\n" ++
-     "ROLE\twifi\tEXPENSE\n")
+     "ROLE\twifi\tASSET\n")
+  let frozenLegacyRole ← IO.FS.readFile (root / "accounting-role.loam")
 
   -- Scheduled commitment to create negative headroom:
   -- Cap=17108, Spent=0, Now=17108, Commitment=20936 -> headroom = -3828
@@ -122,6 +131,8 @@ def main (args : List String) : IO Unit := do
   let .ok cov0 := snap0.coverage | throw (IO.userError "cov0 unavailable")
   expect ((← IO.FS.readFile (root / "zero-origin-coverage.loam")) == frozenLegacyZero)
     "TUI Cycle Grant production read changed frozen legacy zero-origin evidence"
+  expect ((← IO.FS.readFile (root / "accounting-role.loam")) == frozenLegacyRole)
+    "TUI Cycle Grant production read changed frozen legacy AccountingRole evidence"
   let some row0 := cov0.rows.find? (fun r => r.purpose.token == "固定費予定")
     | throw (IO.userError "missing row0")
   expect (row0.entitlement.quanta == 17108) "initial cap"
