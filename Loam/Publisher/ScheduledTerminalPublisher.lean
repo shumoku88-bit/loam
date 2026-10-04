@@ -26,8 +26,9 @@ Actual writers that have not yet been collapsed onto one-generation observation.
 
 Production household retry continues to accept a previously retained interrupted
 completion claim, so pre-cutover recovery evidence remains usable. Cancellation
-retains its distinct terminal meaning and refuses to compete with an interrupted
-completion.
+changes only Scheduled evidence; it reads Scheduled and Actual from one observed
+Household generation and relies on stale-generation refusal instead of the
+temporary Actual serializer.
 -/
 
 structure CompletionDraft where
@@ -212,7 +213,7 @@ private def publishHouseholdCompletionUnderActualOwnership
       return .error
         ("loam: Scheduled completion Household generation could not be published: " ++ message)
 
-private def publishHouseholdCancellationUnderActualOwnership
+private def publishHouseholdCancellationFromGeneration
     (root : System.FilePath)
     (draft : CancellationDraft) : IO (Except String Unit) := do
   let observed ←
@@ -220,10 +221,11 @@ private def publishHouseholdCancellationUnderActualOwnership
     | .ok observed => pure observed
     | .error message => return .error message
   let lifecycle := observed.lifecycle
-  let evidence ←
-    match ← Loam.ActualAuthority.loadActual? root with
-    | .ok ev => pure ev
+  let actualImage ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? observed.generation with
+    | .ok image => pure image
     | .error message => return .error message
+  let evidence := actualImage.evidence
   match lifecycle.terminals.completionActualFor? draft.scheduled with
   | some actual =>
       if (EventMemory.findById? evidence.events actual).isSome then
@@ -272,8 +274,7 @@ def publishHouseholdCancellation
     (draft : CancellationDraft) : IO (Except String Unit) := do
   if root.toString.isEmpty then
     return .error "loam: data directory must not be empty"
-  Loam.ActualAuthority.withActualOwnership root
-    (publishHouseholdCancellationUnderActualOwnership root draft)
+  publishHouseholdCancellationFromGeneration root draft
 
 
 
