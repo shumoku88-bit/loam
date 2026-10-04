@@ -14,8 +14,9 @@ Initialize one isolated test household from the older MovementAdmission.World sh
 This helper is deliberately test-only. MovementAdmission.World does not carry
 correction, reversal, or Merchant history, so converting it to ActualEvidence is
 only sound for fresh fixtures that intentionally start with those histories empty.
-Actual and Locus-admission files are written sequentially; this is not a production
-multi-authority transaction boundary.
+Actual and the selected Locus-admission authority are published sequentially;
+after LocusAdmission cutover the latter is the HouseholdImage section. This is
+still test-only setup, not a production multi-authority transaction boundary.
 -/
 def publishWorld?
     (root : System.FilePath)
