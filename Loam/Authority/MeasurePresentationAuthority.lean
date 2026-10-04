@@ -1,9 +1,9 @@
 import Loam.Authority.ActualAuthority
 import Loam.Authority.CapacityAuthority
 import Loam.Authority.HouseholdAuthority
+import Loam.Authority.CurrentSupportAuthority
 import Loam.HouseholdPaths
 import Loam.Presentation.MeasurePresentation
-import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.WriterOwnership
 
@@ -25,7 +25,7 @@ The production administration boundary closes the check/update race by owning
 all current retained-quantity authority families in one fixed compatible order:
 
 ```text
-Scheduled -> Actual -> CurrentQuantityAnchor -> HouseholdImage
+Scheduled -> Actual -> HouseholdImage
 ```
 
 Capacity is re-read from the HouseholdImage section only after that shared
@@ -38,9 +38,6 @@ def configPath (root : System.FilePath) : System.FilePath :=
 
 private def scheduledPath (root : System.FilePath) : System.FilePath :=
   Loam.HouseholdPaths.scheduled root
-
-private def anchorPath (root : System.FilePath) : System.FilePath :=
-  Loam.HouseholdPaths.currentQuantityAnchor root
 
 private def usedInActual
     (evidence : Loam.ActualEvidence) (measure : MeasureId) : Bool :=
@@ -72,18 +69,6 @@ private def loadScheduled
     | return .error
         "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
   return .ok image
-
-private def loadAnchorOrEmpty
-    (path : System.FilePath) :
-    IO (Except String Loam.CurrentQuantityAnchor.Evidence) := do
-  if ← path.pathExists then
-    match ← Loam.Persistence.loadCurrentQuantityAnchor? path with
-    | some evidence => return .ok evidence
-    | none =>
-        return .error
-          "loam: current quantity anchor authority is malformed or unsupported"
-  else
-    return .ok Loam.CurrentQuantityAnchor.Evidence.empty
 
 private def replaceScale
     (metadata : List Loam.MeasurePresentation.Metadata)
@@ -124,7 +109,7 @@ private def publishMetadata
     return .error ("loam: Measure presentation publication failed: " ++ error.toString)
 
 private def setScaleUnderOwnership
-    (root scheduledFile anchorFile : System.FilePath)
+    (root scheduledFile : System.FilePath)
     (measure : MeasureId)
     (scale : Nat) : IO (Except String Unit) := do
   let actual ←
@@ -136,8 +121,8 @@ private def setScaleUnderOwnership
     | .ok image => pure image
     | .error message => return .error message
   let anchor ←
-    match ← loadAnchorOrEmpty anchorFile with
-    | .ok evidence => pure evidence
+    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
+    | .ok observed => pure observed.snapshot.anchor
     | .error message => return .error message
   let capacity ←
     match ← Loam.CapacityAuthority.loadHouseholdOrEmpty root with
@@ -174,7 +159,7 @@ CurrentQuantityAnchor, or Capacity retains that Measure.
 
 The ownership order corresponds to the qualified D3 protocol and is compatible
 with incremental HouseholdImage cutover:
-Scheduled -> Actual -> CurrentQuantityAnchor -> HouseholdImage.
+Scheduled -> Actual -> HouseholdImage.
 -/
 def setScale
     (root : System.FilePath)
@@ -185,12 +170,9 @@ def setScale
   if scale > 9 then
     return .error "loam: Measure presentation scale must be between 0 and 9"
   let scheduledFile := scheduledPath root
-  let currentAnchorFile := anchorPath root
   Loam.WriterOwnership.withOwnership scheduledFile <|
     Loam.ActualAuthority.withActualOwnership root <|
-      Loam.WriterOwnership.withOwnership currentAnchorFile <|
-        Loam.HouseholdAuthority.withOwnership root <|
-          setScaleUnderOwnership
-            root scheduledFile currentAnchorFile measure scale
+      Loam.HouseholdAuthority.withOwnership root <|
+        setScaleUnderOwnership root scheduledFile measure scale
 
 end Loam.MeasurePresentationAuthority
