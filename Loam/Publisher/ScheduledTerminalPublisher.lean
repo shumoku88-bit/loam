@@ -2,6 +2,7 @@ import Loam.Authority.ActualAuthority
 import Loam.Core.ActualEvidence
 import Loam.Application.ScheduledInspection
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Application.MovementAdmission
 import Loam.Application.MovementWorldAdapter
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -220,6 +221,137 @@ private def publishCancellationUnderOwnership
   if !(← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile updatedLifecycle) then
     return .error "loam: Scheduled retirement lifecycle could not be published"
   return .ok ()
+
+private def publishHouseholdCompletionUnderActualOwnership
+    (root : System.FilePath)
+    (draft : CompletionDraft) : IO (Except String Unit) := do
+  let observed ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => return .error message
+  let lifecycle := observed.lifecycle
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
+    | .error message => return .error message
+  let locusAdmission ←
+    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
+    | .ok la => pure la
+    | .error message => return .error message
+  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
+  let _ ←
+    match findOpen? lifecycle world.events draft.scheduled with
+    | .ok occurrence => pure occurrence
+    | .error message => return .error message
+  let existing := lifecycle.terminals.completionActualFor? draft.scheduled
+  let actualId := existing.getD (completionEventId draft.scheduled)
+  match EventMemory.findById? world.events actualId with
+  | some _ =>
+      return .error "loam: selected Scheduled identity is already completed"
+  | none => pure ()
+  match lifecycle.terminals.completionSourceForActual? actualId with
+  | some source =>
+      if source != draft.scheduled then
+        return .error "loam: Scheduled completion Actual identity belongs to another Scheduled occurrence"
+  | none => pure ()
+  let updatedWorld ←
+    match appendCompletionActual? world actualId draft.movement with
+    | .ok updated => pure updated
+    | .error message => return .error message
+  let relation : ScheduledTerminal := {
+    source := draft.scheduled
+    target := some (.actual actualId)
+  }
+  let updatedTerminals ←
+    match existing with
+    | some _ => pure lifecycle.terminals
+    | none =>
+        match lifecycle.terminals.add? relation with
+        | some terminals => pure terminals
+        | none => return .error "loam: Scheduled completion violates one-to-one endpoint ownership"
+  let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
+  match existing with
+  | none =>
+      match ← Loam.ScheduledLifecycleAuthority.publishObserved?
+          root observed updatedLifecycle with
+      | .ok _ => pure ()
+      | .error message =>
+          return .error "loam: Scheduled completion lifecycle could not be published: " ++ message
+  | some _ => pure ()
+  let updatedEvidence : ActualEvidence := {
+    evidence with
+    events := updatedWorld.events
+    validity := updatedWorld.validity
+    descriptions := updatedWorld.descriptions
+    relations := updatedWorld.relations
+    discharges := updatedWorld.discharges
+  }
+  match ← Loam.ActualAuthority.publishActual? root updatedEvidence with
+  | .error message =>
+      return .error
+        ("loam: Actual Event was not published; retained Scheduled completion remains inert and can be retried: " ++ message)
+  | .ok () =>
+      return .ok ()
+
+private def publishHouseholdCancellationUnderActualOwnership
+    (root : System.FilePath)
+    (draft : CancellationDraft) : IO (Except String Unit) := do
+  let observed ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => return .error message
+  let lifecycle := observed.lifecycle
+  let evidence ←
+    match ← Loam.ActualAuthority.loadActual? root with
+    | .ok ev => pure ev
+    | .error message => return .error message
+  match lifecycle.terminals.completionActualFor? draft.scheduled with
+  | some actual =>
+      if (EventMemory.findById? evidence.events actual).isSome then
+        return .error "loam: selected Scheduled identity is already completed"
+      else
+        return .error "loam: selected Scheduled identity has an interrupted completion; retry completion before cancellation"
+  | none => pure ()
+  let _ ←
+    match findOpen? lifecycle evidence.events draft.scheduled with
+    | .ok occurrence => pure occurrence
+    | .error message => return .error message
+  let retirement : ScheduledTerminal := {
+    source := draft.scheduled
+    target := none
+  }
+  let updatedTerminals ←
+    match lifecycle.terminals.add? retirement with
+    | some terminals => pure terminals
+    | none => return .error "loam: could not append Scheduled retirement evidence"
+  let updatedLifecycle := { lifecycle with terminals := updatedTerminals }
+  match ← Loam.ScheduledLifecycleAuthority.publishObserved?
+      root observed updatedLifecycle with
+  | .ok _ => return .ok ()
+  | .error message =>
+      return .error "loam: Scheduled retirement lifecycle could not be published: " ++ message
+
+/--
+Complete one production household Scheduled occurrence through HouseholdImage,
+then publish its Actual endpoint while retaining the P9 Actual -> Household
+ownership order.
+-/
+def publishHouseholdCompletion
+    (root : System.FilePath)
+    (draft : CompletionDraft) : IO (Except String Unit) := do
+  if root.toString.isEmpty then
+    return .error "loam: data directory must not be empty"
+  Loam.ActualAuthority.withActualOwnership root
+    (publishHouseholdCompletionUnderActualOwnership root draft)
+
+/-- Cancel one production household Scheduled occurrence through HouseholdImage. -/
+def publishHouseholdCancellation
+    (root : System.FilePath)
+    (draft : CancellationDraft) : IO (Except String Unit) := do
+  if root.toString.isEmpty then
+    return .error "loam: data directory must not be empty"
+  Loam.ActualAuthority.withActualOwnership root
+    (publishHouseholdCancellationUnderActualOwnership root draft)
 
 /--
 Publish one Scheduled realization as an Actual Event in normalized Actual authority.
