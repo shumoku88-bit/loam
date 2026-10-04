@@ -4,27 +4,16 @@ import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.CurrentQuantityAnchorPersistence
+import Loam.Tests.Support
 
 namespace Loam.Tests.TuiHouseholdCutoverFixture
 
 open Loam.Core
 open Loam.Persistence.HouseholdImage
 
+open Loam.Tests.Support
+
 set_option autoImplicit false
-
-private def requireSome {α : Type}
-    (value : Option α)
-    (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw (IO.userError message)
-
-private def requireOk {α : Type}
-    (value : Except String α)
-    (message : String) : IO α :=
-  match value with
-  | .ok result => pure result
-  | .error detail => throw (IO.userError (message ++ ": " ++ detail))
 
 private def replaceOrAppendBody
     (image : Image)

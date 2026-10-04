@@ -1,19 +1,13 @@
 import Loam.Persistence.HouseholdImagePersistence
+import Loam.Tests.Support
 
 namespace Loam.Tests.HouseholdImagePersistence
 
 open Loam.Persistence.HouseholdImage
 
+open Loam.Tests.Support
+
 set_option autoImplicit false
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do
-    throw (IO.userError message)
-
-private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
-  match value with
-  | some result => pure result
-  | none => throw (IO.userError message)
 
 def main : IO Unit := do
   let base : Image := {
