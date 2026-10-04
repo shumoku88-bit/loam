@@ -52,8 +52,11 @@ Initialize one isolated test household from the older MovementAdmission.World sh
 This helper is deliberately test-only. MovementAdmission.World does not carry
 correction, reversal, or Merchant history, so converting it to ActualEvidence is
 only sound for fresh fixtures that intentionally start with those histories empty.
-Actual and HouseholdImage LocusAdmission are published sequentially; this is
-test setup, not a production multi-authority transaction boundary.
+For a household root, the fixture installs the same Actual evidence into the
+HouseholdImage `Actual` section and into frozen standalone `actual.loam` test
+evidence, then installs Household LocusAdmission. This is test setup only, not a
+production dual-write boundary. An explicit `actual.loam` input retains the
+legacy file-only Actual setup.
 -/
 def publishWorld?
     (root : System.FilePath)
@@ -76,10 +79,16 @@ def publishWorld?
       root
   match ← Loam.ActualAuthority.publishActualFile? path evidence with
   | .error message => return .error message
-  | .ok () =>
-      let some locusBody :=
-          Loam.Persistence.encodeLocusAdmissionVocabulary? world.locusAdmission
-        | return .error "loam: test Locus admission vocabulary did not encode"
-      publishHouseholdSection? dataDir "LocusAdmission" locusBody
+  | .ok () => pure ()
+  if root.fileName != some Loam.ActualAuthority.actualFileName then
+    let some actualBody := Loam.Persistence.encodeNormalizedActual? evidence
+      | return .error "loam: test Actual evidence did not encode"
+    match ← publishHouseholdSection? dataDir "Actual" actualBody with
+    | .error message => return .error message
+    | .ok () => pure ()
+  let some locusBody :=
+      Loam.Persistence.encodeLocusAdmissionVocabulary? world.locusAdmission
+    | return .error "loam: test Locus admission vocabulary did not encode"
+  publishHouseholdSection? dataDir "LocusAdmission" locusBody
 
 end Loam.Tests.ActualWorldFixture
