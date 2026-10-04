@@ -4,6 +4,8 @@ on:
   pull_request:
     paths:
       - 'Loam/HouseholdPaths.lean'
+      - 'Loam/Persistence/HouseholdImagePersistence.lean'
+      - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdPaths.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
@@ -29,6 +31,8 @@ on:
   push:
     paths:
       - 'Loam/HouseholdPaths.lean'
+      - 'Loam/Persistence/HouseholdImagePersistence.lean'
+      - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdPaths.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
