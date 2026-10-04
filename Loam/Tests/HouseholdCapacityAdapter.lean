@@ -3,24 +3,16 @@ import Loam.HouseholdCommand
 import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
 import Loam.Persistence.NormalizedCapacityPersistence
+import Loam.Tests.Support
 
 namespace Loam.Tests.HouseholdCapacityAdapter
 
 open Loam.Core
 open Loam.Persistence.HouseholdImage
 
+open Loam.Tests.Support
+
 set_option autoImplicit false
-
-private def expect (condition : Bool) (message : String) : IO Unit := do
-  unless condition do
-    throw (IO.userError message)
-
-private def requireOk {α : Type}
-    (value : Except String α)
-    (message : String) : IO α :=
-  match value with
-  | .ok result => pure result
-  | .error detail => throw (IO.userError (message ++ ": " ++ detail))
 
 private def capacityBodyFromHousehold
     (root : System.FilePath) : IO (Option String) := do
