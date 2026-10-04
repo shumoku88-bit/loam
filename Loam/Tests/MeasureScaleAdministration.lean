@@ -82,8 +82,6 @@ private def initBase (root : System.FilePath) : IO Unit := do
   let scheduled ← emptyScheduledImage
   expect (← Loam.Persistence.saveScheduledLifecycleImage? (root / "scheduled.loam") scheduled)
     "initialize Scheduled"
-  let .ok _ ← Loam.HouseholdAuthority.installInitial? root { sections := [] }
-    | throw (IO.userError "initialize HouseholdImage")
 
 private def writePresentation
     (root : System.FilePath)
