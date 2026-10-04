@@ -12,11 +12,11 @@ set_option autoImplicit false
 
 This module provides the production loader for `MovementAdmission.World` by
 combining authoritative `ActualEvidence` from `actual.loam` and current new-write
-policy from `locus-admission.loam`.
+policy from the `LocusAdmission` section of `household.loam`.
 
-The two authorities remain independent:
+The two semantic authorities remain independent:
 * `actual.loam` owns historical fact families (Events, Validity, Corrections, etc.)
-* `locus-admission.loam` owns current new-write Locus policy
+* HouseholdImage `LocusAdmission` owns current new-write Locus policy
 * `MovementWorldLoader` orchestrates loading both and composing them via `MovementWorldAdapter`
 
 The caller-selected root is exact: missing or malformed authority fails closed
@@ -25,7 +25,7 @@ without searching parent directories for a different household authority.
 
 /--
 Load the full typed MovementAdmission.World by combining authoritative ActualEvidence
-from `actual.loam` and current new-write policy from `locus-admission.loam`.
+from `actual.loam` and current new-write policy from HouseholdImage.
 The caller-selected root is exact: missing or malformed authority fails closed
 instead of searching parent directories for a different household authority.
 -/
