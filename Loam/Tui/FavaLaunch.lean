@@ -1,4 +1,5 @@
 import Loam.Export.BeancountExportPipeline
+import Loam.Authority.HouseholdAuthority
 import Loam.HouseholdPaths
 import Loam.Persistence.WriterOwnership
 
@@ -142,8 +143,8 @@ def ensureFavaRunning (port : Nat) (beancountPath logPath : System.FilePath) : I
 
 /--
 Full launch workflow:
-1. Acquires WriterOwnership exclusive lock on actual.loam to prevent dirty read during stage write.
-2. Exports canonical Actual into disposable Beancount projection with source overwrite protection.
+1. Acquires HouseholdImage writer ownership to prevent dirty reads during projection.
+2. Exports canonical Household Actual into disposable Beancount projection with source overwrite protection.
 3. Verifies or spawns Fava in read-only mode with health check.
 4. Opens browser only after confirming Fava is responding.
 -/
@@ -153,8 +154,8 @@ def launch
     (outputFile : System.FilePath := defaultOutputPath)
     (reportFile : System.FilePath := defaultReportPath) : IO String := do
   let actualPath := Loam.HouseholdPaths.actual root
-  -- Protect against dirty reads or concurrent stage replacement
-  let exportResult ← Loam.WriterOwnership.withOwnership actualPath do
+  -- Protect the Household Actual/AccountingRole snapshot from concurrent replacement.
+  let exportResult ← Loam.HouseholdAuthority.withOwnership dataDir do
     Loam.BeancountExportPipeline.exportSuspenseHousehold
       actualPath dataDir outputFile reportFile
 
