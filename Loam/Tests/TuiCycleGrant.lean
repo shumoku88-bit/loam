@@ -238,6 +238,9 @@ def main (args : List String) : IO Unit := do
   let .ok beforeHouseholdRouting ←
       Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "load Household Scheduled routing before Capacity grant")
+  let beforeHouseholdRoutingWire ← requireSome
+    (Loam.Persistence.encodeScheduledRoutingHistory? beforeHouseholdRouting)
+    "encode Household Scheduled routing before Capacity grant"
 
   -- Publish the original suggested draft (3828)
   let stepPublish := Loam.Tui.CapacityTransfer.update grantEditor .enter
@@ -263,7 +266,10 @@ def main (args : List String) : IO Unit := do
   let .ok afterHouseholdRouting ←
       Loam.ScheduledRoutingAuthority.loadHouseholdCurrent? root
     | throw (IO.userError "load Household Scheduled routing after Capacity grant")
-  expect (decide (beforeHouseholdRouting = afterHouseholdRouting))
+  let afterHouseholdRoutingWire ← requireSome
+    (Loam.Persistence.encodeScheduledRoutingHistory? afterHouseholdRouting)
+    "encode Household Scheduled routing after Capacity grant"
+  expect (beforeHouseholdRoutingWire == afterHouseholdRoutingWire)
     "Test 19: Household Scheduled routing changed"
 
   -- 16 & 20: Fresh Budget reread reflects updated Capacity and nothing else
