@@ -69,21 +69,29 @@ def propose?
         | throw "loam: bounded historical support could not admit the requested start boundary"
       return updated
 
-private def publishUnderOwnership
+private def publishFromGeneration
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
-  let image ←
-    match ← Loam.ActualAuthority.loadImage? root with
-    | .ok image => pure image
-    | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok vocabulary => pure vocabulary
-    | .error message => return .error message
   let observedSupport ←
     match ← Loam.CurrentSupportAuthority.loadHousehold? root with
     | .ok observed => pure observed
     | .error message => return .error message
+  let generation := observedSupport.generation
+  let image ←
+    match Loam.ActualAuthority.decodeHouseholdGeneration? generation with
+    | .ok image => pure image
+    | .error message => return .error message
+  let locusBody ←
+    match Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission" with
+    | some body => pure body
+    | none =>
+        return .error "loam: required HouseholdImage Locus admission section is missing"
+  let locusAdmission ←
+    match Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody with
+    | some vocabulary => pure vocabulary
+    | none =>
+        return .error
+          "loam: malformed or unsupported HouseholdImage Locus admission authority"
   let anchor := observedSupport.snapshot.anchor
   let existing := observedSupport.snapshot.bounded
   let proposed ←
@@ -99,10 +107,15 @@ private def publishUnderOwnership
   | .ok _ => return .ok ()
   | .error message => return .error message
 
+/--
+Publish bounded historical support from one observed Household generation.
+Actual, LocusAdmission, and current-support evidence are decoded from that exact
+generation; concurrent Household publication is refused by the shared
+stale-generation check.
+-/
 def publish
     (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) :=
-  Loam.ActualAuthority.withActualOwnership root <|
-    publishUnderOwnership root draft
+  publishFromGeneration root draft
 
 end Loam.BoundedHistorySupportPublisher
