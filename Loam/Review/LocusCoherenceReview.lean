@@ -2,6 +2,7 @@ import Loam.HouseholdPaths
 import Loam.Presentation.LocusCatalog
 import Loam.Authority.ActualAuthority
 import Loam.Authority.LocusAdmissionAuthority
+import Loam.Authority.ActualRoutingAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 
@@ -134,13 +135,10 @@ def loadSnapshot
     | some roles => pure roles
     | none => return .error "loam: malformed or unsupported AccountingRole evidence"
 
-  let routingPath := Loam.HouseholdPaths.actualRouting dataDir
-  if !(← routingPath.pathExists) then
-    return .error "loam: required Actual routing evidence is missing"
   let routing ←
-    match ← loadActualRoutingHistory? routingPath with
-    | some routing => pure routing
-    | none => return .error "loam: malformed or unsupported Actual routing evidence"
+    match ← Loam.ActualRoutingAuthority.loadHouseholdRequired? dataDir with
+    | .ok routing => pure routing
+    | .error message => return .error message
 
   let metadata ←
     match ← Loam.LocusCatalog.loadMetadata dataDir with
