@@ -195,8 +195,7 @@ def main (args : List String) : IO Unit := do
   let some brokenRelations := retained.terminals.add? brokenRelation
     | throw (IO.userError "construct malformed replacement graph fixture")
   let brokenLifecycle := { retained with terminals := brokenRelations }
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile brokenLifecycle)
-    "save structurally inconsistent complete lifecycle fixture"
+  publishLifecycle root brokenLifecycle
   let brokenRead ← Loam.ScheduledReview.loadHouseholdEvidence root root
   expect (!brokenRead.isOk)
     "missing replacement endpoint did not make complete lifecycle read fail closed"
@@ -205,8 +204,7 @@ def main (args : List String) : IO Unit := do
     (replacementDraft "scheduled-2" "2026-09-14" "smbc" "rent" 3100)
   expect (!noAutoHeal.isOk)
     "replacement publisher auto-healed an externally malformed lifecycle image"
-  expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile retained)
-    "restore admitted lifecycle after negative fixture"
+  publishLifecycle root retained
 
   let .ok _ ← Loam.ScheduledTerminalPublisher.publishHouseholdCancellation
       root { scheduled := ⟨"scheduled-3"⟩ }
