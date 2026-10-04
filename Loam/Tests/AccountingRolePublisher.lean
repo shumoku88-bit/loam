@@ -2,6 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.MovementWorldLoader
 import Loam.Publisher.AccountingRolePublisher
 import Loam.Authority.CurrentSupportAuthority
+import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.CurrentQuantityAnchorPersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
 
@@ -135,8 +136,16 @@ def main (args : List String) : IO Unit := do
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? root w
     | throw (IO.userError "publish Actual authority fixture")
   let lifecycle0 ← lifecycle
+  let lifecycleBody ←
+    match Loam.Persistence.encodeScheduledLifecycleImage? lifecycle0 with
+    | some body => pure body
+    | none => throw (IO.userError "encode Household Scheduled lifecycle fixture")
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "Scheduled" lifecycleBody
+    | throw (IO.userError "publish Household Scheduled lifecycle fixture")
   expect (← Loam.Persistence.saveScheduledLifecycleImage? scheduledFile lifecycle0)
-    "publish Scheduled lifecycle fixture"
+    "publish frozen legacy Scheduled lifecycle fixture"
+  let frozenLegacyScheduled ← IO.FS.readFile scheduledFile
   expect (← Loam.Persistence.saveAccountingRoleMap? roleFile roles)
     "publish AccountingRole fixture"
   let anchorBody ←
@@ -160,8 +169,8 @@ def main (args : List String) : IO Unit := do
   let frozenLegacyAnchor ←
     IO.FS.readFile (Loam.HouseholdPaths.currentQuantityAnchor root)
 
-  let .ok () ← Loam.AccountingRolePublisher.publishInitialRole
-      scheduledFile.toString root.toString roleFile.toString
+  let .ok () ← Loam.AccountingRolePublisher.publishInitialRoleHousehold
+      root roleFile.toString
       { locus := ⟨"fresh"⟩, role := .expense }
     | throw (IO.userError "publish virgin Locus AccountingRole")
 
@@ -169,12 +178,12 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reload AccountingRole authority")
   expect (hasRole loadedRoles "fresh" .expense)
     "published AccountingRole was not retained"
-  expect (!(← Loam.AccountingRolePublisher.publishInitialRole
-      scheduledFile.toString root.toString roleFile.toString
+  expect (!(← Loam.AccountingRolePublisher.publishInitialRoleHousehold
+      root roleFile.toString
       { locus := ⟨"fresh"⟩, role := .income }).isOk)
     "publisher allowed role replacement after first assignment"
-  expect (!(← Loam.AccountingRolePublisher.publishInitialRole
-      scheduledFile.toString root.toString roleFile.toString
+  expect (!(← Loam.AccountingRolePublisher.publishInitialRoleHousehold
+      root roleFile.toString
       { locus := ⟨"anchor-used"⟩, role := .expense }).isOk)
     "publisher classified retained current-anchor quantity retroactively"
 
@@ -198,9 +207,13 @@ def main (args : List String) : IO Unit := do
   expect (loadedWorld.events.events.map (fun e => e.id) ==
       w.events.events.map (fun e => e.id))
     "AccountingRole publication changed retained Actual Event evidence"
-  let some loadedLifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | throw (IO.userError "reload Scheduled authority")
+  let loadedLifecycle ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root with
+    | .ok lifecycle => pure lifecycle
+    | .error message => throw (IO.userError message)
   expect (loadedLifecycle.scheduled.occurrences.length == lifecycle0.scheduled.occurrences.length)
-    "AccountingRole publication changed retained Scheduled evidence"
+    "AccountingRole publication changed retained Household Scheduled evidence"
+  expect ((← IO.FS.readFile scheduledFile) == frozenLegacyScheduled)
+    "AccountingRole publication changed frozen legacy Scheduled evidence"
 
   IO.println "AccountingRole publisher: virgin-Locus first assignment, Actual/Scheduled/current-anchor retroactive refusal, persistence round-trip and authority isolation passed."
