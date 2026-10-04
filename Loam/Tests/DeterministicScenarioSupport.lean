@@ -49,7 +49,7 @@ def publishInitialActual
 
 def publishInitialLocusAdmission
     (root : System.FilePath)
-    (vocabulary : LocusAdmissionVocabulary) : IO Unit := do
+    (vocabulary : Loam.Core.LocusAdmissionVocabulary) : IO Unit := do
   let body ← requireSome
     (Loam.Persistence.encodeLocusAdmissionVocabulary? vocabulary)
     "initial LocusAdmission fixture did not encode"
