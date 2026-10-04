@@ -173,16 +173,20 @@ private def loadEvidenceUnderOwnership
 /--
 Load one coherent Actual/Scheduled observation cut for Income / Expense.
 
-Actual then Household ownership is reused so a Scheduled completion cannot be
-observed half-published relative to its Actual endpoint. AccountingRole remains
-an independent current authority exactly as in RoleFlowReview.
+Production Household selection uses one Household ownership interval for Actual,
+Scheduled, and AccountingRole evidence. An explicit legacy Actual file keeps the
+older Actual-then-Household observation order.
 -/
 def loadEvidence
     (dataDir actualRoot : System.FilePath) : IO (Except String Evidence) := do
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
-  Loam.ActualAuthority.withActualFileOwnership actualPath <|
+  if actualPath.fileName == some Loam.HouseholdAuthority.fileName then
     Loam.HouseholdAuthority.withOwnership dataDir <|
       loadEvidenceUnderOwnership dataDir actualRoot
+  else
+    Loam.ActualAuthority.withActualFileOwnership actualPath <|
+      Loam.HouseholdAuthority.withOwnership dataDir <|
+        loadEvidenceUnderOwnership dataDir actualRoot
 
 /-- Load and project one Income / Expense window with the provenance overlay. -/
 def loadSnapshot

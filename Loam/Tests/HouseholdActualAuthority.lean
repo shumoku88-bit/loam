@@ -34,6 +34,7 @@ def main : IO Unit := do
   let actualA := wire "ev-a" 100
   let actualB := wire "ev-b" 200
   let actualC := wire "ev-c" 300
+  let actualD := wire "ev-d" 400
   let futureBody := "FUTURE\t1\nopaque\tkeep-me\n"
 
   let installed ←
@@ -61,13 +62,24 @@ def main : IO Unit := do
     ((observedA.image.currentEvents.findById? ⟨"ev-c"⟩).isNone)
     "stale standalone Actual leaked into Household selection"
 
-  -- P11a is qualification only: the old standalone root loader is unchanged.
-  let legacyImage ←
+  -- P11 production root selection must ignore the valid conflicting legacy file.
+  let productionImage ←
     requireOk (← Loam.ActualAuthority.loadImage? root)
-      "load unchanged standalone Actual authority"
+      "load production Household Actual authority"
+  expect
+    ((productionImage.currentEvents.findById? ⟨"ev-a"⟩).isSome)
+    "production root selection did not choose Household Actual"
+  expect
+    ((productionImage.currentEvents.findById? ⟨"ev-c"⟩).isNone)
+    "production root selection leaked the frozen standalone Actual"
+
+  -- The explicit legacy file entrance remains available for diagnostics/migration.
+  let legacyImage ←
+    requireOk (← Loam.ActualAuthority.loadImageFile? (Loam.ActualAuthority.actualPath root))
+      "load explicit frozen standalone Actual"
   expect
     ((legacyImage.currentEvents.findById? ⟨"ev-c"⟩).isSome)
-    "P11a unexpectedly changed the existing standalone production loader"
+    "explicit standalone Actual entrance no longer selected its file"
 
   let evidenceB ←
     requireSome
@@ -88,9 +100,28 @@ def main : IO Unit := do
     ((← IO.FS.readFile (Loam.ActualAuthority.actualPath root)) == frozenLegacy)
     "Household Actual publication changed frozen standalone actual.loam"
 
+  let evidenceD ←
+    requireSome
+      (Loam.Persistence.decodeNormalizedActual? actualD)
+      "decode production root publication Actual D"
+  let _ ←
+    requireOk
+      (← Loam.ActualAuthority.publishActual? root evidenceD)
+      "publish production Actual through root authority"
+  let afterRootPublish ←
+    requireOk
+      (← Loam.ActualAuthority.loadImage? root)
+      "reload production Actual after root publication"
+  expect
+    ((afterRootPublish.currentEvents.findById? ⟨"ev-d"⟩).isSome)
+    "production root publication did not update Household Actual"
+  expect
+    ((← IO.FS.readFile (Loam.ActualAuthority.actualPath root)) == frozenLegacy)
+    "production root publication changed frozen standalone actual.loam"
+
   let previous ← IO.FS.readFile (Loam.HouseholdAuthority.previousPath root)
-  expect (previous == installed.wire)
-    "Household Actual publication did not retain the observed generation in .prev"
+  expect (previous == publishedB.wire)
+    "production root publication did not retain the prior Household generation in .prev"
 
   let evidenceC ←
     requireSome
@@ -101,12 +132,12 @@ def main : IO Unit := do
   | .ok _ =>
       throw (IO.userError "stale Household Actual writer unexpectedly published")
 
-  let stillB ←
+  let stillD ←
     requireOk
       (← Loam.ActualAuthority.loadHouseholdImage? root)
       "reload Household Actual after stale refusal"
   expect
-    ((stillB.currentEvents.findById? ⟨"ev-b"⟩).isSome)
+    ((stillD.currentEvents.findById? ⟨"ev-d"⟩).isSome)
     "stale Household Actual writer changed current generation"
 
   let missingRoot ← IO.FS.createTempDir
@@ -135,7 +166,7 @@ def main : IO Unit := do
       throw (IO.userError "malformed present Household Actual section did not fail closed")
 
   IO.println
-    "Household Actual authority qualification: required/fail-closed selection, stale refusal, .prev, unknown preservation, and standalone isolation passed."
+    "Household Actual authority: production root selection/publication use HouseholdImage; explicit legacy Actual stays frozen; fail-closed, stale refusal, .prev, and unknown preservation passed."
 
 end Loam.Tests.HouseholdActualAuthority
 

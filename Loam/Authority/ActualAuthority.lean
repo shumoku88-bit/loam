@@ -11,25 +11,17 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Single-File Normalized Actual Authority
+# Normalized Actual authority
 
-This module provides the production publication and loading boundary for the
-canonical single-generation normalized Actual fact families (`actual.loam`).
+Production household Actual evidence is the required `Actual` section of
+`household.loam`. Explicit `actual.loam` file loaders and publishers remain as
+legacy diagnostic/migration entrances, but production root selection does not
+fall back to them.
 
-All historical Actual evidence (Events, Validity history, Descriptions, Merchant
-dispositions, Corrections, Reversals, Relations, and Discharges) lives co-published
-within one generation in `actual.loam`. Referential closure and validity are
-enforced at decode/encode time by `NormalizedActualPersistence`.
-
-Publication follows strict atomic crash-resilient semantics:
-1. Writer acquires cross-process exclusive ownership on `actual.loam.loam-writer-lock`.
-2. Current authoritative evidence is re-read from `actual.loam`.
-3. Candidate transition is admitted by pure domain logic.
-4. Proposed evidence is encoded and staged off-authority (`actual.loam.loam-stage`).
-5. Staged file is re-read and validated via production typed decoding.
-6. Authority switches via a single atomic filesystem rename:
-   `actual.loam.loam-stage` -> `actual.loam`.
-7. Interruption at any step before rename leaves existing authority completely untouched.
+The production section still uses the existing normalized Actual codec, so
+referential closure and validity remain enforced by `NormalizedActualPersistence`.
+Household publication inherits generation-stale refusal, staged qualification,
+unknown-section preservation, and `.prev` retention from `HouseholdAuthority`.
 -/
 
 /-- The admitted normalized Actual image exposed to read-side callers. -/
@@ -62,8 +54,11 @@ Shared reviews historically accept either the household root or the canonical
 readers, observation locks, and diagnostics select the same authority identity.
 -/
 def actualPathFromRootOrFile (rootOrFile : System.FilePath) : System.FilePath :=
-  if rootOrFile.fileName == some actualFileName then rootOrFile
-  else actualPath rootOrFile
+  if rootOrFile.fileName == some actualFileName ||
+      rootOrFile.fileName == some Loam.HouseholdAuthority.fileName then
+    rootOrFile
+  else
+    Loam.HouseholdAuthority.path rootOrFile
 
 /--
 Detailed load error preserving structured persistence diagnostics and file context.
@@ -108,11 +103,31 @@ def loadActualDetailed (root : System.FilePath) : IO (Except LoadError ActualEvi
   | .ok image => return .ok image.evidence
   | .error err => return .error err
 
+private def decodeHouseholdActualGeneration?
+    (generation : Loam.HouseholdAuthority.Generation) :
+    Except String Image := do
+  let some body :=
+      Loam.Persistence.HouseholdImage.body? generation.image "Actual"
+    | throw "loam: required HouseholdImage Actual section is missing"
+  match Loam.Persistence.decodeNormalizedActualImageDetailed body with
+  | .ok image => return image
+  | .error _ =>
+      throw "loam: malformed or unsupported HouseholdImage Actual authority"
+
 /--
-Compatibility loader returning legacy formatted String error.
-Preserves existing error message prefixes for downstream callers.
+Compatibility loader for one selected Actual authority file.
+
+An explicit `actual.loam` remains a legacy diagnostic/migration entrance.
+A selected `household.loam` loads its required normalized `Actual` section.
 -/
 def loadImageFile? (path : System.FilePath) : IO (Except String Image) := do
+  if path.fileName == some Loam.HouseholdAuthority.fileName then
+    let root := path.parent.getD path
+    let generation ←
+      match ← Loam.HouseholdAuthority.loadCurrent? root with
+      | .ok generation => pure generation
+      | .error message => return .error message
+    return decodeHouseholdActualGeneration? generation
   match ← loadImageFileDetailed path with
   | .ok image => return .ok image
   | .error (.fileNotFound path) =>
@@ -120,9 +135,9 @@ def loadImageFile? (path : System.FilePath) : IO (Except String Image) := do
   | .error (.decode path _) =>
       return .error s!"loam: actual authority is malformed or unsupported: {path}"
 
-/-- Load one fully admitted Actual image from the repository root (compatibility wrapper). -/
+/-- Load production Actual from the selected household root. -/
 def loadImage? (root : System.FilePath) : IO (Except String Image) :=
-  loadImageFile? (actualPath root)
+  loadImageFile? (actualPathFromRootOrFile root)
 
 /--
 Compatibility loader exposing only retained ActualEvidence.
@@ -149,14 +164,8 @@ existing normalized Actual decoder.
 -/
 def decodeHouseholdGeneration?
     (generation : Loam.HouseholdAuthority.Generation) :
-    Except String Image := do
-  let some body :=
-      Loam.Persistence.HouseholdImage.body? generation.image "Actual"
-    | throw "loam: required HouseholdImage Actual section is missing"
-  match Loam.Persistence.decodeNormalizedActualImageDetailed body with
-  | .ok image => return image
-  | .error _ =>
-      throw "loam: malformed or unsupported HouseholdImage Actual authority"
+    Except String Image :=
+  decodeHouseholdActualGeneration? generation
 
 /-- Load required Household Actual together with the exact generation observed. -/
 def loadHouseholdObserved?
@@ -236,9 +245,19 @@ def publishActualFile? (path : System.FilePath) (evidence : ActualEvidence) : IO
   IO.FS.rename stage path
   return .ok ()
 
-/-- Publish one complete generation of Actual evidence to repository root. -/
-def publishActual? (root : System.FilePath) (evidence : ActualEvidence) : IO (Except String Unit) :=
-  publishActualFile? (actualPath root) evidence
+/--
+Publish production Actual evidence to the required HouseholdImage Actual section.
+
+The standalone `actual.loam` is not read or written here.
+-/
+def publishActual? (root : System.FilePath) (evidence : ActualEvidence) : IO (Except String Unit) := do
+  let observed ←
+    match ← loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => return .error message
+  match ← publishHouseholdObserved? root observed evidence with
+  | .ok _ => return .ok ()
+  | .error message => return .error message
 
 /-- Initialize an empty Actual authority at an explicit file path. -/
 def initActualFile? (path : System.FilePath) : IO (Except String Unit) :=
@@ -248,7 +267,14 @@ def initActualFile? (path : System.FilePath) : IO (Except String Unit) :=
 def withActualFileOwnership {α : Type} (path : System.FilePath) (action : IO α) : IO α :=
   Loam.WriterOwnership.withOwnership path action
 
-/-- Run an IO action under exclusive writer ownership for the repository root's actual authority. -/
+/--
+Run one production Actual mutation under the existing Actual serializer.
+
+P11 keeps this lock identity temporarily so already-cut-over Household publishers
+do not recursively acquire the Household lock. Actual data itself is no longer
+selected from or published to `actual.loam`; a later cleanup may collapse this
+serializer after the remaining cross-family writer topology is simplified.
+-/
 def withActualOwnership {α : Type} (root : System.FilePath) (action : IO α) : IO α :=
   withActualFileOwnership (actualPath root) action
 

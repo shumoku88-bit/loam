@@ -1,5 +1,7 @@
 import Loam.Authority.ActualAuthority
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.Persistence.LocusAdmissionPersistence
+import Loam.Tests.ActualWorldFixture
 
 namespace Loam.Tests.DeterministicScenarioSupport
 
@@ -26,8 +28,36 @@ def cleanupDir (dir : System.FilePath) : IO Unit := do
   if ← dir.pathExists then
     IO.FS.removeDirAll dir
 
-def authorityBytes (root : System.FilePath) : IO String :=
-  IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+def authorityBytes (root : System.FilePath) : IO String := do
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "load Household generation for Actual bytes"
+  requireSome
+    (Loam.Persistence.HouseholdImage.body? generation.image "Actual")
+    "Household Actual section missing while reading authority bytes"
+
+def publishInitialActual
+    (root : System.FilePath)
+    (evidence : ActualEvidence) : IO Unit := do
+  let body ← requireSome
+    (encodeNormalizedActual? evidence)
+    "initial Actual fixture did not encode"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Actual" body)
+    "initial Household Actual fixture publication failed"
+  pure ()
+
+def publishInitialLocusAdmission
+    (root : System.FilePath)
+    (vocabulary : Loam.Core.LocusAdmissionVocabulary) : IO Unit := do
+  let body ← requireSome
+    (Loam.Persistence.encodeLocusAdmissionVocabulary? vocabulary)
+    "initial LocusAdmission fixture did not encode"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "LocusAdmission" body)
+    "initial Household LocusAdmission fixture publication failed"
+  pure ()
 
 def loadActual
     (root : System.FilePath)

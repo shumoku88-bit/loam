@@ -117,8 +117,7 @@ def main (args : List String) : IO Unit := do
       validity := world.validity
       corrections := validCorrections
   }
-  match ← Loam.ActualAuthority.publishActualFile?
-      (Loam.ActualAuthority.actualPath actualRoot) correctedEvidence with
+  match ← Loam.ActualAuthority.publishActual? actualRoot correctedEvidence with
   | .error message =>
       throw (IO.userError ("publish corrected canonical Actual: " ++ message))
   | .ok () => pure ()
@@ -213,8 +212,9 @@ def main (args : List String) : IO Unit := do
   IO.FS.writeFile (root / "config" / "balance-view.tsv") "wallet\tjpy\n"
   IO.FS.writeFile (actualRoot / "actual.loam")
     "LOAM_ACTUAL_v1\nTX\tactual-2\t2026-09-08\treplaces:missing\n  wallet\t-10\tjpy\n  food\t10\tjpy\n"
-  let brokenEventCorrection ← Loam.BalanceReview.loadSnapshot root actualRoot
-  expect (!brokenEventCorrection.isOk) "missing Event correction endpoint did not refuse"
+  let staleLegacyIgnored ← Loam.BalanceReview.loadSnapshot root actualRoot
+  expect staleLegacyIgnored.isOk
+    "stale malformed standalone Actual leaked into production Balance Review"
 
   IO.println
-    "Balance Review: shared correction basis, refusal ordering, exact Actual authority, zero-origin coverage and fail-closed corrections passed."
+    "Balance Review: shared correction basis, refusal ordering, Household Actual authority, zero-origin coverage and stale-legacy isolation passed."

@@ -1,5 +1,6 @@
 import Loam.HouseholdCommand
 import Loam.Persistence.NormalizedActualPersistence
+import Loam.Tests.ActualWorldFixture
 
 namespace Loam.Tests.SettlementPublisher
 
@@ -22,6 +23,25 @@ private def requireOk {α : Type} (value : Except String α) (message : String) 
   match value with
   | .ok result => pure result
   | .error detail => throw <| IO.userError s!"{message}: {detail}"
+
+private def publishInitialActual
+    (root : System.FilePath)
+    (evidence : ActualEvidence) : IO Unit := do
+  let body ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? evidence)
+    "initial settlement Actual did not encode"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Actual" body)
+    "initial Household Actual publication failed"
+  pure ()
+
+private def actualWire (root : System.FilePath) : IO String := do
+  let generation ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? root)
+    "load Household generation for settlement wire"
+  requireSome
+    (Loam.Persistence.HouseholdImage.body? generation.image "Actual")
+    "Household settlement Actual section missing"
 
 private def usd : MeasureId := ⟨"usd"⟩
 private def yen : MeasureId := ⟨"jpy"⟩
@@ -250,9 +270,7 @@ private def friendlyActionBoundary : IO Unit := do
   IO.FS.createDirAll root
 
   let initial ← initialActual
-  let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root initial)
-    "friendly action initial Actual publication failed"
+  publishInitialActual root initial
   let _ ← requireOk
     (← Loam.HouseholdCommand.recordSettlementEvidence root directBatch)
     "friendly action direct settlement seed failed"
@@ -413,11 +431,9 @@ def runAll : IO Unit := do
   IO.FS.createDirAll root
 
   let initial ← initialActual
-  let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root initial)
-    "initial v1 Actual publication failed"
+  publishInitialActual root initial
 
-  let initialWire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let initialWire ← actualWire root
   expect (initialWire.startsWith (normalizedActualHeaderV1 ++ "\n"))
     "initial settlement-empty authority was not v1"
 
@@ -434,7 +450,7 @@ def runAll : IO Unit := do
   expectOutstanding root "writer-card-commitment" 300
     "after direct settlement"
 
-  let v2Wire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let v2Wire ← actualWire root
   expect (v2Wire.startsWith (normalizedActualHeaderV2 ++ "\n"))
     "first settlement publication did not promote authority to v2"
 
@@ -465,7 +481,7 @@ def runAll : IO Unit := do
     "commitment correction did not retain revision authority"
   expectOutstanding root "writer-card-commitment-v2" 300
     "after commitment correction"
-  let v3Wire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let v3Wire ← actualWire root
   expect (v3Wire.startsWith (normalizedActualHeaderV3 ++ "\n"))
     "commitment correction publication did not promote canonical Actual to v3"
   expect (v3Wire.contains
@@ -492,7 +508,7 @@ def runAll : IO Unit := do
   expectOutstanding root "writer-card-commitment-v2" 300
     "commitment revision after unrelated settlement publication"
 
-  let zeroWire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let zeroWire ← actualWire root
   expect (zeroWire.contains "SETTLEMENT-NETTING\twriter-zero-context\tjpy\tZERO")
     "zero-net settlement did not persist explicit ZERO outcome"
 
@@ -513,7 +529,7 @@ def runAll : IO Unit := do
     "extinguishment changed settled quantity"
   expect (extImage.settlement.extinguishedQuanta ⟨"writer-card-commitment-v2"⟩ == 100)
     "extinguishment quantity missing from current image"
-  let v4Wire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let v4Wire ← actualWire root
   expect (v4Wire.startsWith (normalizedActualHeaderV4 ++ "\n"))
     "extinguishment publication did not promote canonical Actual to v4"
   expect (v4Wire.contains
@@ -545,7 +561,7 @@ def runAll : IO Unit := do
     "extinguishment retraction changed physical settlement"
   expectOutstanding root "writer-card-commitment-v2" 300
     "after extinguishment retraction"
-  let extRetractionWire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let extRetractionWire ← actualWire root
   expect (extRetractionWire.contains
       "SETTLEMENT-EXTINGUISHMENT-REVISION\twriter-ext-v2\tRETRACT")
     "extinguishment retraction row was not persisted"
@@ -569,7 +585,7 @@ def runAll : IO Unit := do
   let retractedImage ← loadImage root "after commitment retraction"
   expect ((retractedImage.settlement.outstanding? ⟨"writer-retractable"⟩).isNone)
     "retracted commitment remained current"
-  let retractionWire ← IO.FS.readFile (Loam.ActualAuthority.actualPath root)
+  let retractionWire ← actualWire root
   expect (retractionWire.contains
       "SETTLEMENT-COMMITMENT-REVISION\twriter-retractable\tRETRACT")
     "commitment retraction row was not persisted"

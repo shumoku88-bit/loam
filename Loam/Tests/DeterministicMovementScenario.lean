@@ -168,9 +168,7 @@ private def checkSnapshot
 private def prepareRoot (root : System.FilePath) : IO Unit := do
   cleanupDir root
   IO.FS.createDirAll root
-  let _ ← requireOk
-    (← Loam.ActualAuthority.publishActual? root ActualEvidence.empty)
-    "deterministic scenario initial Actual publication failed"
+  publishInitialActual root ActualEvidence.empty
   let loci ← requireSome
     (LocusAdmissionVocabulary.ofLoci? [
       ⟨"wallet"⟩,
@@ -179,9 +177,7 @@ private def prepareRoot (root : System.FilePath) : IO Unit := do
       ⟨"transport"⟩
     ])
     "deterministic scenario Locus admission fixture was not unique"
-  let _ ← requireOk
-    (← Loam.LocusAdmissionAuthority.publishCurrent? root loci)
-    "deterministic scenario Locus admission publication failed"
+  publishInitialLocusAdmission root loci
   pure ()
 
 private def runSteps

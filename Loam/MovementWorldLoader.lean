@@ -11,13 +11,10 @@ set_option autoImplicit false
 # Composite Movement World Loader
 
 This module provides the production loader for `MovementAdmission.World` by
-combining authoritative `ActualEvidence` from `actual.loam` and current new-write
-policy from the `LocusAdmission` section of `household.loam`.
-
-The two semantic authorities remain independent:
-* `actual.loam` owns historical fact families (Events, Validity, Corrections, etc.)
-* HouseholdImage `LocusAdmission` owns current new-write Locus policy
-* `MovementWorldLoader` orchestrates loading both and composing them via `MovementWorldAdapter`
+combining authoritative `ActualEvidence` and current new-write Locus policy from
+the selected household generation. An explicit `actual.loam` path remains
+available as a legacy diagnostic entrance while the Locus policy still comes
+from that file's household directory.
 
 The caller-selected root is exact: missing or malformed authority fails closed
 without searching parent directories for a different household authority.
@@ -30,12 +27,15 @@ The caller-selected root is exact: missing or malformed authority fails closed
 instead of searching parent directories for a different household authority.
 -/
 def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.MovementAdmission.World) := do
-  let path :=
-    if root.fileName == some Loam.ActualAuthority.actualFileName then root
-    else Loam.ActualAuthority.actualPath root
-  let dataDir := if root.fileName == some Loam.ActualAuthority.actualFileName then root.parent.getD root else root
+  let selected := Loam.ActualAuthority.actualPathFromRootOrFile root
+  let dataDir :=
+    if root.fileName == some Loam.ActualAuthority.actualFileName ||
+        root.fileName == some Loam.HouseholdAuthority.fileName then
+      root.parent.getD root
+    else
+      root
   let evidence ←
-    match ← Loam.ActualAuthority.loadActualFile? path with
+    match ← Loam.ActualAuthority.loadActualFile? selected with
     | .ok ev => pure ev
     | .error msg => return .error msg
   let locusAdmission ←
