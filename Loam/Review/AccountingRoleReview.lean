@@ -3,7 +3,7 @@ import Loam.Publisher.AccountingRolePublisher
 import Loam.MovementWorldLoader
 import Loam.Authority.CurrentSupportAuthority
 import Loam.Persistence.AccountingRolePersistence
-import Loam.Persistence.ScheduledLifecyclePersistence
+import Loam.Authority.ScheduledLifecycleAuthority
 
 namespace Loam.AccountingRoleReview
 
@@ -33,14 +33,15 @@ authorities under writer ownership.
 -/
 def loadInitialCandidates
     (dataDir actualRoot : System.FilePath) : IO (Except String (List LocusId)) := do
-  let scheduledFile := Loam.HouseholdPaths.scheduled dataDir
   let roleFile := Loam.HouseholdPaths.accountingRole dataDir
   let world ←
     match ← Loam.MovementWorldLoader.loadSelectedWorld? actualRoot with
     | .ok world => pure world
     | .error message => return .error message
-  let some lifecycle ← Loam.Persistence.loadScheduledLifecycleImage? scheduledFile
-    | return .error "loam: Scheduled lifecycle authority is missing, malformed, or unsupported"
+  let lifecycle ←
+    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? dataDir with
+    | .ok lifecycle => pure lifecycle
+    | .error message => return .error message
   let anchor ←
     match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
     | .ok observed => pure observed.snapshot.anchor
