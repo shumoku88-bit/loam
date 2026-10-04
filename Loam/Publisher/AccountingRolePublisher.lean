@@ -3,6 +3,7 @@ import Loam.Core.ActualEvidence
 import Loam.Authority.LocusAdmissionAuthority
 import Loam.Authority.CurrentSupportAuthority
 import Loam.Authority.HouseholdAuthority
+import Loam.Authority.AccountingRoleAuthority
 import Loam.Authority.ScheduledLifecycleAuthority
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ScheduledLifecyclePersistence
@@ -123,58 +124,85 @@ private def publishUnderOwnership
     return .error "loam: AccountingRole authority could not be published"
   return .ok ()
 
-private def publishHouseholdScheduledUnderOwnership
-    (root roleFile : System.FilePath)
+private def publishHouseholdUnderActualOwnership
+    (root : System.FilePath)
     (draft : Draft) : IO (Except String Unit) := do
   let evidence ←
     match ← Loam.ActualAuthority.loadActual? root with
     | .ok ev => pure ev
     | .error message => return .error message
-  let locusAdmission ←
-    match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
-    | .ok la => pure la
+
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
     | .error message => return .error message
+
   let lifecycle ←
-    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? root with
-    | .ok lifecycle => pure lifecycle
-    | .error message => return .error message
+    match Loam.Persistence.HouseholdImage.body? generation.image "Scheduled" with
+    | none =>
+        return .error "loam: required HouseholdImage Scheduled lifecycle section is missing"
+    | some body =>
+        match Loam.Persistence.decodeScheduledLifecycleImage? body with
+        | some lifecycle => pure lifecycle
+        | none =>
+            return .error
+              "loam: malformed or unsupported HouseholdImage Scheduled lifecycle authority"
+
+  let locusAdmission ←
+    match Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission" with
+    | none =>
+        return .error "loam: required HouseholdImage Locus admission section is missing"
+    | some body =>
+        match Loam.Persistence.decodeLocusAdmissionVocabulary? body with
+        | some vocabulary => pure vocabulary
+        | none =>
+            return .error
+              "loam: malformed or unsupported HouseholdImage Locus admission authority"
+
   let anchor ←
-    match ← Loam.CurrentSupportAuthority.loadHousehold? root with
-    | .ok observed => pure observed.snapshot.anchor
+    match Loam.Persistence.HouseholdImage.body? generation.image "CurrentQuantityAnchor" with
+    | none => pure Loam.CurrentQuantityAnchor.Evidence.empty
+    | some body =>
+        match Loam.Persistence.decodeCurrentQuantityAnchor? body with
+        | some anchor => pure anchor
+        | none =>
+            return .error
+              "loam: malformed or unsupported HouseholdImage current quantity anchor authority"
+
+  let roles ←
+    match Loam.AccountingRoleAuthority.decodeGeneration? generation with
+    | .ok roles => pure roles
     | .error message => return .error message
-  if !(← roleFile.pathExists) then
-    return .error "loam: AccountingRole authority file is missing"
-  let some roles ← Loam.Persistence.loadAccountingRoleMap? roleFile
-    | return .error "loam: AccountingRole authority is malformed or unsupported"
+
   let updated ←
     match propose? locusAdmission evidence.events lifecycle.scheduled anchor roles draft with
     | .ok value => pure value
     | .error message => return .error message
-  if !(← Loam.Persistence.saveAccountingRoleMap? roleFile updated) then
-    return .error "loam: AccountingRole authority could not be published"
-  return .ok ()
+
+  let observed : Loam.AccountingRoleAuthority.Observed := {
+    generation := generation
+    roles := roles
+  }
+  match ← Loam.AccountingRoleAuthority.publishObserved? root observed updated with
+  | .ok _ => return .ok ()
+  | .error message => return .error message
 
 /--
-Production initial-role publication after Scheduled lifecycle cutover.
+Production initial-role publication after P10 AccountingRole cutover.
 
-Actual ownership excludes concurrent Actual and Scheduled publication. Household
-ownership then freezes Scheduled, LocusAdmission, and current-support evidence in
-one generation while the standalone AccountingRole file remains under its own
-final lock until P10.
+Actual ownership excludes concurrent Actual publication. The publisher then
+loads exactly one Household generation and decodes Scheduled, LocusAdmission,
+CurrentQuantityAnchor, and AccountingRole from that same generation. Only the
+AccountingRole section is replaced. A concurrent Household writer is detected by
+the shared stale-generation check instead of widening the lock topology.
 -/
 def publishInitialRoleHousehold
     (root : System.FilePath)
-    (rolePath : String)
     (draft : Draft) : IO (Except String Unit) := do
   if root.toString.isEmpty then
     return .error "loam: data directory must not be empty"
-  if rolePath.isEmpty then
-    return .error "loam: AccountingRole path must not be empty"
-  let roleFile := System.FilePath.mk rolePath
   Loam.ActualAuthority.withActualOwnership root <|
-    Loam.HouseholdAuthority.withOwnership root <|
-      Loam.WriterOwnership.withOwnership roleFile
-        (publishHouseholdScheduledUnderOwnership root roleFile draft)
+    publishHouseholdUnderActualOwnership root draft
 
 /--
 Publish one first role assertion while excluding concurrent Scheduled creation,
