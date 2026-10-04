@@ -81,17 +81,11 @@ private def publishFromGeneration
     match Loam.ActualAuthority.decodeHouseholdGeneration? generation with
     | .ok image => pure image
     | .error message => return .error message
-  let locusBody ←
-    match Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission" with
-    | some body => pure body
-    | none =>
-        return .error "loam: required HouseholdImage Locus admission section is missing"
-  let locusAdmission ←
-    match Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody with
-    | some vocabulary => pure vocabulary
-    | none =>
-        return .error
-          "loam: malformed or unsupported HouseholdImage Locus admission authority"
+  let some locusBody :=
+      Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission"
+    | return .error "loam: required HouseholdImage Locus admission section is missing"
+  let some locusAdmission := Loam.Persistence.decodeLocusAdmissionVocabulary? locusBody
+    | return .error "loam: malformed or unsupported HouseholdImage Locus admission authority"
   let anchor := observedSupport.snapshot.anchor
   let existing := observedSupport.snapshot.bounded
   let proposed ←
