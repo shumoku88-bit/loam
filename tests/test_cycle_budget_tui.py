@@ -54,12 +54,6 @@ subprocess.run(
     cwd=repo_root,
     check=True,
 )
-subprocess.run(
-    ["lake", "env", "lean", "--run", "Loam/Tests/TuiHouseholdCutoverFixture.lean",
-     str(root), "set-actual-routing"],
-    cwd=repo_root,
-    check=True,
-)
 # Keep a stale but valid legacy routing file beside HouseholdImage. Production
 # reads/writes must ignore it throughout this PTY scenario.
 (root / "scheduled-routing.loam").write_text(f"""LOAM-SCHEDULED-ROUTING\t1
