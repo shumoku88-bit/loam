@@ -54,7 +54,7 @@ def loadLegacyRequired?
       return .error "loam: zero-origin coverage authority is malformed or unsupported"
 
 /--
-Load optional ZeroOriginCoverage from HouseholdImage.
+Load optional ZeroOriginCoverage from the HouseholdImage `ZeroOrigin` section.
 
 An absent section preserves the established optional-reader meaning of semantic
 empty coverage. Malformed present evidence fails closed.
@@ -65,12 +65,12 @@ def loadHouseholdOrEmpty?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
-  match body? generation.image "ZeroOriginCoverage" with
+  match body? generation.image "ZeroOrigin" with
   | none => return .ok ZeroOriginCoverage.empty
   | some body => return decodeBody? body
 
 /--
-Load required ZeroOriginCoverage from HouseholdImage.
+Load required ZeroOriginCoverage from the HouseholdImage `ZeroOrigin` section.
 
 An absent section remains unavailable for callers whose guard requires explicit
 retained coverage authority.
@@ -81,7 +81,7 @@ def loadHouseholdRequired?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
-  let some body := body? generation.image "ZeroOriginCoverage"
+  let some body := body? generation.image "ZeroOrigin"
     | return .error "loam: required HouseholdImage zero-origin coverage section is missing"
   return decodeBody? body
 
