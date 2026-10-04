@@ -1,6 +1,7 @@
 import Loam.ActualDate
 import Loam.Application.CapacityInspection
 import Loam.Authority.CapacityAuthority
+import Loam.Authority.HouseholdAuthority
 import Loam.FreshNumberedToken
 import Loam.Persistence.TokenSyntax
 import Loam.Persistence.WriterOwnership
@@ -138,16 +139,18 @@ private theorem freshCapacityId_fresh
         (usedCapacityIds memory effective).map CapacityMovementId.token)
 
 /--
-Publish one already-admitted balanced movement through the one Capacity physical
-sequence. Callers retain operation-specific validation and entitlement admission;
-this helper owns only fresh identity, append, and effective-first publication mechanics.
+Build one complete Capacity image after fresh identity allocation.
+
+The same pure proposal is used by both the legacy standalone file adapter and
+the HouseholdImage adapter so storage topology cannot change Capacity identity
+or semantic admission.
 -/
-private def publishAdmittedMovement
-    (capacityFile : System.FilePath)
+private def admittedImage?
     (memory : CapacityMemory)
     (effective : CapacityEffectiveMemory String)
     (effectiveOn : String)
-    (balanced : BalancedMovement CapacityCoordinate) : IO (Except String CapacityMovementId) := do
+    (balanced : BalancedMovement CapacityCoordinate) :
+    Except String (Loam.CapacityEvidence String × CapacityMovementId) := do
   let movementId := freshCapacityId memory effective
   have hFreshSplit :
       movementId ∉ memory.movements.map CapacityMovement.id ∧
@@ -162,11 +165,24 @@ private def publishAdmittedMovement
   }
   let updatedEffective := effective.addFresh effectiveEntry (by
     simpa [effectiveEntry] using hFreshSplit.2)
+  let some image := Loam.CapacityEvidence.ofParts? updated updatedEffective
+    | throw "loam: updated Capacity evidence is not cross-family complete"
+  return (image, movementId)
 
-  let image ←
-    match Loam.CapacityEvidence.ofParts? updated updatedEffective with
-    | some image => pure image
-    | none => return .error "loam: updated Capacity evidence is not cross-family complete"
+/--
+Publish one already-admitted balanced movement through the standalone Capacity
+file adapter.
+-/
+private def publishAdmittedMovement
+    (capacityFile : System.FilePath)
+    (memory : CapacityMemory)
+    (effective : CapacityEffectiveMemory String)
+    (effectiveOn : String)
+    (balanced : BalancedMovement CapacityCoordinate) : IO (Except String CapacityMovementId) := do
+  let (image, movementId) ←
+    match admittedImage? memory effective effectiveOn balanced with
+    | .ok result => pure result
+    | .error message => return .error message
   match ← Loam.CapacityAuthority.publishImage? capacityFile image with
   | .ok _ => return .ok movementId
   | .error message => return .error message
@@ -248,6 +264,116 @@ def publishBalanced
     (capacityPath : String) (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
   let capacityFile := System.FilePath.mk capacityPath
   Loam.WriterOwnership.withOwnership capacityFile (publishBalancedUnlocked capacityFile draft)
+
+
+private def householdCapacityOrEmpty?
+    (generation : Loam.HouseholdAuthority.Generation) :
+    Option (Loam.CapacityEvidence String) :=
+  match Loam.Persistence.HouseholdImage.body? generation.image "Capacity" with
+  | some body => Loam.Persistence.decodeNormalizedCapacity? body
+  | none => some Loam.CapacityEvidence.empty
+
+private def withCapacityBody?
+    (image : Loam.Persistence.HouseholdImage.Image)
+    (body : String) :
+    Option Loam.Persistence.HouseholdImage.Image :=
+  if Loam.Persistence.HouseholdImage.contains image "Capacity" then
+    Loam.Persistence.HouseholdImage.replaceBody? image "Capacity" body
+  else
+    Loam.Persistence.HouseholdImage.appendSection? image {
+      name := "Capacity"
+      body := body
+    }
+
+private def publishHouseholdAdmitted?
+    (root : System.FilePath)
+    (generation : Loam.HouseholdAuthority.Generation)
+    (image : Loam.CapacityEvidence String)
+    (movementId : CapacityMovementId) : IO (Except String CapacityMovementId) := do
+  let some body := Loam.Persistence.encodeNormalizedCapacity? image
+    | return .error "loam: normalized Capacity encoder rejected evidence"
+  let some candidate := withCapacityBody? generation.image body
+    | return .error "loam: Capacity section could not be installed"
+  match ← Loam.HouseholdAuthority.publishObserved?
+      root generation.wire ["Capacity"] candidate with
+  | .ok _ => return .ok movementId
+  | .error message => return .error message
+
+/--
+Publish one binary Capacity movement through an installed HouseholdImage.
+
+A missing Capacity section retains the production Capacity meaning of empty
+history. The first successful movement installs the section. No legacy
+`capacity.loam` write occurs.
+-/
+def publishHousehold
+    (root : System.FilePath)
+    (draft : Draft) : IO (Except String CapacityMovementId) := do
+  match validateDraft draft with
+  | .error message => return .error message
+  | .ok _ => pure ()
+
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => return .error message
+  let image ←
+    match householdCapacityOrEmpty? generation with
+    | some image => pure image
+    | none => return .error "loam: malformed or unsupported Capacity authority"
+
+  if !canMoveCapacityFrom image.movements.movements
+      draft.source draft.measure draft.quanta then
+    return .error "Capacity source has insufficient current entitlement."
+
+  let some balanced := BalancedMovement.ofChanges?
+      draft.measure draft.toBalancedDraft.changes
+    | return .error
+        ("Capacity movement could not be represented as a balanced " ++
+          draft.measure.token ++ " movement.")
+  let (updated, movementId) ←
+    match admittedImage?
+        image.movements image.effective draft.effectiveOn balanced with
+    | .ok result => pure result
+    | .error message => return .error message
+  publishHouseholdAdmitted? root generation updated movementId
+
+/--
+Publish one balanced multi-coordinate Capacity movement through an installed
+HouseholdImage.
+-/
+def publishBalancedHousehold
+    (root : System.FilePath)
+    (draft : BalancedDraft) : IO (Except String CapacityMovementId) := do
+  let balanced ←
+    match validateBalancedDraft draft with
+    | .error message => return .error message
+    | .ok movement => pure movement
+
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? root with
+    | .ok generation => pure generation
+    | .error message => return .error message
+  let image ←
+    match householdCapacityOrEmpty? generation with
+    | some image => pure image
+    | none => return .error "loam: malformed or unsupported Capacity authority"
+
+  for change in draft.changes do
+    match change.coordinate with
+    | .purpose purpose =>
+        let current :=
+          (entitlementAt image.movements.movements purpose draft.measure).quanta
+        if current + change.quantity.quanta < 0 then
+          return .error s!"Capacity Purpose '{purpose.token}' entitlement would become negative: {current + change.quantity.quanta}."
+    | .unallocated => pure ()
+
+  let (updated, movementId) ←
+    match admittedImage?
+        image.movements image.effective draft.effectiveOn balanced with
+    | .ok result => pure result
+    | .error message => return .error message
+  publishHouseholdAdmitted? root generation updated movementId
 
 /--
 Finite local proposal for Purpose capacity deltas.
