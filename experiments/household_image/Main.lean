@@ -26,7 +26,7 @@ Research-only typed view of the thirteen household authority sections currently
 under experiment.
 
 This view is intentionally separate from the outer Image container. A future
-binary may know more section names while an older generic container can still
+binary may know more part names while an older generic container can still
 preserve those unknown payloads byte-for-byte.
 -/
 structure Sections where
@@ -54,7 +54,7 @@ deriving Repr, BEq
 /--
 Extensible physical image.
 
-The outer container owns only section identity, uniqueness, framing, and exact
+The outer container owns only part identity, uniqueness, framing, and exact
 payload preservation. It does not interpret unknown sections.
 -/
 structure Image where
@@ -71,24 +71,24 @@ private def validSectionName (name : String) : Bool :=
 
 private def uniqueSectionNames : List Section → Bool
   | [] => true
-  | section :: rest =>
-      !(rest.any fun later => later.name == section.name) &&
+  | part :: rest =>
+      !(rest.any fun later => later.name == part.name) &&
         uniqueSectionNames rest
 
-private def encodeSection (section : Section) : String :=
-  "SECTION\t" ++ section.name ++ "\t" ++ toString section.body.length ++
-    "\n" ++ section.body
+private def encodeSection (part : Section) : String :=
+  "SECTION\t" ++ part.name ++ "\t" ++ toString part.body.length ++
+    "\n" ++ part.body
 
 /--
-Encode one extensible outer image while leaving every section payload
+Encode one extensible outer image while leaving every part payload
 byte-for-byte unchanged.
 
-Unknown section names are allowed. Duplicate or syntactically unsafe names are
-refused so section identity cannot become ambiguous.
+Unknown part names are allowed. Duplicate or syntactically unsafe names are
+refused so part identity cannot become ambiguous.
 -/
 def encode? (image : Image) : Option String := do
   if !uniqueSectionNames image.sections then none
-  if !(image.sections.all fun section => validSectionName section.name) then none
+  if !(image.sections.all fun part => validSectionName part.name) then none
   pure <| householdImageHeader ++ "\n" ++
     String.join (image.sections.map encodeSection)
 
@@ -121,14 +121,14 @@ private def decodeSections? :
       if input.isEmpty then
         some acc.reverse
       else do
-        let (section, remaining) ← takeSection? input
-        if acc.any (fun existing => existing.name == section.name) then
+        let (part, remaining) ← takeSection? input
+        if acc.any (fun existing => existing.name == part.name) then
           none
         else
-          decodeSections? fuel remaining (section :: acc)
+          decodeSections? fuel remaining (part :: acc)
 
 /--
-Decode version 2 as a generic ordered section collection.
+Decode version 2 as a generic ordered part collection.
 
 No knowledge of the current thirteen semantic families is required at this
 boundary. Unknown sections survive decode and later encode unchanged.
@@ -142,32 +142,32 @@ def decode? (input : String) : Option Image := do
     let sections ← decodeSections? (rest.length + 1) rest []
     some { sections := sections }
 
-/-- Find one opaque payload by section identity. -/
+/-- Find one opaque payload by part identity. -/
 def findBody? (image : Image) (name : String) : Option String :=
-  match image.sections.find? (fun section => section.name == name) with
-  | some section => some section.body
+  match image.sections.find? (fun part => part.name == name) with
+  | some part => some part.body
   | none => none
 
 /--
 Replace one known payload without interpreting or reconstructing any other
-section. Unknown sections retain both their body and their position.
+part. Unknown sections retain both their body and their position.
 -/
 def replaceBody? (image : Image) (name body : String) : Option Image :=
-  if !(image.sections.any fun section => section.name == name) then
+  if !(image.sections.any fun part => part.name == name) then
     none
   else
     some {
-      sections := image.sections.map fun section =>
-        if section.name == name then { section with body := body } else section
+      sections := image.sections.map fun part =>
+        if part.name == name then { part with body := body } else part
     }
 
-/-- Add a new opaque section without changing the outer format version. -/
-def appendSection? (image : Image) (section : Section) : Option Image :=
-  if !validSectionName section.name ||
-      image.sections.any (fun existing => existing.name == section.name) then
+/-- Add a new opaque part without changing the outer format version. -/
+def appendSection? (image : Image) (part : Section) : Option Image :=
+  if !validSectionName part.name ||
+      image.sections.any (fun existing => existing.name == part.name) then
     none
   else
-    some { sections := image.sections ++ [section] }
+    some { sections := image.sections ++ [part] }
 
 /-- Build the extensible outer image from the thirteen semantic families known today. -/
 def imageFromKnown (sections : Sections) : Image := {
@@ -551,7 +551,7 @@ private def validateCoherentWorld (sections : Sections) : IO Unit := do
       })
     "bounded support proposal"
   expect (decide (proposedBounded = bounded))
-    "bounded-history section was not admitted by the production proposal law"
+    "bounded-history part was not admitted by the production proposal law"
 
   let commitment ← requireSome
     (Loam.Application.currentScheduledCommitment?
@@ -595,7 +595,7 @@ def run : IO Unit := do
     "LOAM-SECURITIES\t1\nPOSITION\tglobal-index\t42\nNOTE\t将来の意味論はこの版では未知\n"
   let imageWithFuture ← requireSome
     (appendSection? baseImage { name := "Securities", body := futureBody })
-    "future section append"
+    "future part append"
 
   let wire ← requireSome (encode? imageWithFuture)
     "extensible household image encoding"
@@ -606,7 +606,7 @@ def run : IO Unit := do
     "outer image round-trip changed known or unknown sections"
 
   let decodedKnown ← requireSome (knownSections? decoded)
-    "known household sections disappeared behind future section"
+    "known household sections disappeared behind future part"
   validateCanonical decodedKnown
   validateCoherentWorld decodedKnown
 
@@ -626,14 +626,14 @@ def run : IO Unit := do
     "rewritten extensible household image decoding"
 
   expect (findBody? reopened "Securities" == some futureBody)
-    "writer that changed one known section lost or changed unknown future evidence"
+    "writer that changed one known part lost or changed unknown future evidence"
   expect
-    (reopened.sections.map (fun section => section.name) ==
-      rewritten.sections.map (fun section => section.name))
-    "known-section rewrite changed section ordering"
+    (reopened.sections.map (fun part => part.name) ==
+      rewritten.sections.map (fun part => part.name))
+    "known-part rewrite changed part ordering"
 
   let reopenedKnown ← requireSome (knownSections? reopened)
-    "known projection failed after preserving unknown future section"
+    "known projection failed after preserving unknown future part"
   validateCanonical reopenedKnown
   validateCoherentWorld reopenedKnown
 
@@ -642,10 +642,10 @@ def run : IO Unit := do
       [{ name := "Securities", body := "duplicate must be refused\n" }]
   }
   expect (encode? duplicate).isNone
-    "duplicate section identity was encodable"
+    "duplicate part identity was encodable"
 
   let missingKnown : Image := {
-    sections := reopened.sections.filter (fun section => section.name != "Capacity")
+    sections := reopened.sections.filter (fun part => part.name != "Capacity")
   }
   expect (knownSections? missingKnown).isNone
     "missing known authority was silently invented as empty evidence"
@@ -661,19 +661,19 @@ def run : IO Unit := do
 
   let knownPayload := payloadChars coherentSections
   let totalPayload :=
-    reopened.sections.foldl (fun total section => total + section.body.length) 0
+    reopened.sections.foldl (fun total part => total + part.body.length) 0
   let overhead := rewrittenWire.length - totalPayload
 
   IO.println "[ok] canonical known documents: 13 / 13, all non-empty"
-  IO.println "[ok] extensible outer image accepted an unknown Securities section"
-  IO.println "[ok] unknown section survived decode / encode byte-for-byte"
-  IO.println "[ok] Attention-only rewrite preserved unknown section bytes and position"
-  IO.println "[ok] missing known section and duplicate section identity fail closed"
+  IO.println "[ok] extensible outer image accepted an unknown Securities part"
+  IO.println "[ok] unknown part survived decode / encode byte-for-byte"
+  IO.println "[ok] Attention-only rewrite preserved unknown part bytes and position"
+  IO.println "[ok] missing known part and duplicate part identity fail closed"
   IO.println "[ok] current support: cash=8000, food=2000, savings=3000, debt=known-present"
   IO.println "[ok] managed Scheduled commitment: 1000"
   IO.println "[ok] Capacity=5000, Actual consumption=2000, Remaining=3000, Headroom=2000"
   IO.println s!"[info] current-known payload characters: {knownPayload}"
-  IO.println s!"[info] total payload characters with future section: {totalPayload}"
+  IO.println s!"[info] total payload characters with future part: {totalPayload}"
   IO.println s!"[info] outer framing characters: {overhead}"
   IO.println "[result] future authority families can be added without changing the outer format or losing unknown evidence"
 
