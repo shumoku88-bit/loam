@@ -124,7 +124,10 @@ def main (args : List String) : IO Unit := do
     (Loam.Persistence.encodeNormalizedCapacity? evidence)
     "encode Household Capacity evidence"
   let capacityImage : Loam.Persistence.HouseholdImage.Image := {
-    sections := [{ name := "Capacity", body := capacityBody }]
+    sections := [
+      { name := "Capacity", body := capacityBody },
+      { name := "ActualRouting", body := actualRoutingBody }
+    ]
   }
   let .ok _ ← Loam.HouseholdAuthority.installInitial? root capacityImage
     | throw (IO.userError "install Household Capacity evidence")
@@ -137,9 +140,17 @@ def main (args : List String) : IO Unit := do
          effectiveOn := (RoutingEffective.initial : RoutingEffective String),
          purpose := some ⟨"food"⟩ }])
     "Actual routing history"
-  expect (← Loam.Persistence.saveActualRoutingHistory?
-      (root / "actual-routing.loam") actualRouting)
-    "save Actual routing"
+  let actualRoutingBody ← requireSome
+    (Loam.Persistence.encodeActualRoutingHistory? actualRouting)
+    "encode Household Actual routing"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ActualRouting" actualRoutingBody
+    | throw (IO.userError "install Household Actual routing")
+  let staleLegacyActualRouting := root / "actual-routing.loam"
+  IO.FS.writeFile staleLegacyActualRouting
+    ("LOAM-ACTUAL-ROUTING\t1\n" ++
+     "ROUTE\texpenses:food\tINITIAL\tUNMANAGED\n")
+  let staleLegacyActualRoutingBefore ← IO.FS.readFile staleLegacyActualRouting
 
   let world ← movementWorld
   let .ok _ ← Loam.Tests.ActualWorldFixture.publishWorld? actualRoot world
@@ -246,9 +257,12 @@ def main (args : List String) : IO Unit := do
          effectiveOn := RoutingEffective.dated "2026-09-09",
          purpose := some ⟨"food"⟩ }])
     "delayed Actual routing history"
-  expect (← Loam.Persistence.saveActualRoutingHistory?
-      (root / "actual-routing.loam") delayedActualRouting)
-    "save delayed Actual routing"
+  let delayedActualRoutingBody ← requireSome
+    (Loam.Persistence.encodeActualRoutingHistory? delayedActualRouting)
+    "encode delayed Household Actual routing"
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ActualRouting" delayedActualRoutingBody
+    | throw (IO.userError "install delayed Household Actual routing")
   let .ok delayedSnapshot ←
       Loam.CurrentCoverageReview.loadSnapshotAt
         root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
@@ -274,10 +288,12 @@ def main (args : List String) : IO Unit := do
   expect delayedSnapshot.actualRoutingFrontier.unresolvedRole.isEmpty
     "known Expense routing gap leaked into unresolved-role frontier"
 
-  -- Restore the baseline route before correction-currentness assertions below.
-  expect (← Loam.Persistence.saveActualRoutingHistory?
-      (root / "actual-routing.loam") actualRouting)
-    "restore initial Actual routing"
+  -- Restore the baseline HouseholdImage route before correction-currentness assertions below.
+  let .ok _ ← Loam.Tests.ActualWorldFixture.publishHouseholdSection?
+      root "ActualRouting" actualRoutingBody
+    | throw (IO.userError "restore Household Actual routing")
+  expect ((← IO.FS.readFile staleLegacyActualRouting) == staleLegacyActualRoutingBefore)
+    "CurrentCoverage mutated frozen legacy Actual routing evidence"
 
   -- Replace the observed Actual Event and verify current Consumption uses the
   -- admitted Actual image while Scheduled reference checks still retain all IDs.
@@ -363,6 +379,7 @@ def main (args : List String) : IO Unit := do
         body :=
           "LOAM-NORMALIZED-CAPACITY\t1\nMOVEMENT\tcapacity-food\t2026-09-08\tjpy\nCHANGE\tUNALLOCATED\t-100\nCHANGE\tPURPOSE\tfood\t90\nENDMOVEMENT\n"
       },
+      { name := "ActualRouting", body := actualRoutingBody },
       { name := "ScheduledRouting", body := scheduledRoutingBody }
     ]
   }
@@ -373,6 +390,7 @@ def main (args : List String) : IO Unit := do
   writeHouseholdImage {
     sections := [
       { name := "Capacity", body := "not-capacity-evidence\n" },
+      { name := "ActualRouting", body := actualRoutingBody },
       { name := "ScheduledRouting", body := scheduledRoutingBody }
     ]
   }
@@ -381,7 +399,10 @@ def main (args : List String) : IO Unit := do
   expect (!malformed.isOk) "malformed Household Capacity did not fail closed"
 
   writeHouseholdImage {
-    sections := [{ name := "ScheduledRouting", body := scheduledRoutingBody }]
+    sections := [
+      { name := "ActualRouting", body := actualRoutingBody },
+      { name := "ScheduledRouting", body := scheduledRoutingBody }
+    ]
   }
   let missingFile ← Loam.CurrentCoverageReview.loadSnapshotAt
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
@@ -390,6 +411,7 @@ def main (args : List String) : IO Unit := do
   writeHouseholdImage {
     sections := [
       { name := "Capacity", body := capacityBody },
+      { name := "ActualRouting", body := actualRoutingBody },
       { name := "ScheduledRouting", body := "not-scheduled-routing\n" }
     ]
   }
@@ -405,5 +427,28 @@ def main (args : List String) : IO Unit := do
     root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
   expect (!missingScheduledRouting.isOk)
     "missing Household Scheduled routing section did not fail closed"
+
+  writeHouseholdImage {
+    sections := [
+      { name := "Capacity", body := capacityBody },
+      { name := "ActualRouting", body := "not-actual-routing\n" },
+      { name := "ScheduledRouting", body := scheduledRoutingBody }
+    ]
+  }
+  let malformedActualRouting ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!malformedActualRouting.isOk)
+    "malformed Household Actual routing did not fail closed"
+
+  writeHouseholdImage {
+    sections := [
+      { name := "Capacity", body := capacityBody },
+      { name := "ScheduledRouting", body := scheduledRoutingBody }
+    ]
+  }
+  let missingActualRouting ← Loam.CurrentCoverageReview.loadSnapshotAt
+    root actualRoot "2026-08-15" "2026-09-08" "2026-10-15"
+  expect (!missingActualRouting.isOk)
+    "missing Household Actual routing section did not fail closed"
 
   IO.println "Current Coverage Review: production authorities, effective Actual routing and current Scheduled pressure passed."
