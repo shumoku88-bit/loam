@@ -23,8 +23,10 @@ Two absence meanings already exist in production and must stay distinct:
   coverage;
 - publication guards that require the authority treat missing as unavailable.
 
-Production selection has not moved yet. Explicit standalone paths remain the
-current production/diagnostic entrance until a later cutover.
+Production household reads select the canonical `ZeroOrigin` section.
+Explicit standalone paths remain only for low-level legacy diagnostics,
+migration, and storage-topology qualification. There is no production fallback
+from HouseholdImage to the frozen legacy file.
 -/
 
 private def decodeBody?
