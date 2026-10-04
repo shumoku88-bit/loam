@@ -142,7 +142,7 @@ def loadCurrent? (root : System.FilePath) : IO (Except String Generation) := do
 inductive RecoverySource where
   | current
   | previous
-deriving Repr, DecidableEq
+deriving Repr, DecidableEq, BEq
 
 structure RecoveredGeneration where
   source : RecoverySource
