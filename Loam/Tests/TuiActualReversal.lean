@@ -123,8 +123,7 @@ def main (args : List String) : IO Unit := do
   expect (draft.target == recorded && draft.validOn == "2026-09-08")
     "reversal intent changed target or occurrence date"
 
-  let .ok () ← Loam.ActualReversalPublisher.publishReversal
-      scheduledFile.toString root.toString draft
+  let .ok () ← Loam.ActualReversalPublisher.publishHousehold root draft
     | throw (IO.userError "shared reversal publisher refused TUI intent")
 
   let .ok evidence ← Loam.ActualAuthority.loadActual? root
