@@ -49,6 +49,33 @@ def publishHouseholdSection?
   | .error message => return .error message
 
 /--
+Publish one complete ActualEvidence fixture.
+
+For a household root this seeds HouseholdImage Actual and keeps a matching
+standalone actual.loam only as frozen test evidence. An explicit actual.loam path
+remains file-only.
+-/
+def publishActualEvidence?
+    (root : System.FilePath)
+    (evidence : Loam.ActualEvidence) : IO (Except String Unit) := do
+  let path :=
+    if root.fileName == some Loam.ActualAuthority.actualFileName then root
+    else Loam.ActualAuthority.actualPath root
+  let dataDir :=
+    if root.fileName == some Loam.ActualAuthority.actualFileName then
+      root.parent.getD root
+    else
+      root
+  match ← Loam.ActualAuthority.publishActualFile? path evidence with
+  | .error message => return .error message
+  | .ok () => pure ()
+  if root.fileName == some Loam.ActualAuthority.actualFileName then
+    return .ok ()
+  let some actualBody := Loam.Persistence.encodeNormalizedActual? evidence
+    | return .error "loam: test Actual evidence did not encode"
+  publishHouseholdSection? dataDir "Actual" actualBody
+
+/--
 Initialize one isolated test household from the older MovementAdmission.World shape.
 
 This helper is deliberately test-only. MovementAdmission.World does not carry
@@ -71,23 +98,14 @@ def publishWorld?
     relations := world.relations
     discharges := world.discharges
   }
-  let path :=
-    if root.fileName == some Loam.ActualAuthority.actualFileName then root
-    else Loam.ActualAuthority.actualPath root
   let dataDir :=
     if root.fileName == some Loam.ActualAuthority.actualFileName then
       root.parent.getD root
     else
       root
-  match ← Loam.ActualAuthority.publishActualFile? path evidence with
+  match ← publishActualEvidence? root evidence with
   | .error message => return .error message
   | .ok () => pure ()
-  if root.fileName != some Loam.ActualAuthority.actualFileName then
-    let some actualBody := Loam.Persistence.encodeNormalizedActual? evidence
-      | return .error "loam: test Actual evidence did not encode"
-    match ← publishHouseholdSection? dataDir "Actual" actualBody with
-    | .error message => return .error message
-    | .ok () => pure ()
   let some locusBody :=
       Loam.Persistence.encodeLocusAdmissionVocabulary? world.locusAdmission
     | return .error "loam: test Locus admission vocabulary did not encode"
