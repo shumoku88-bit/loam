@@ -1,4 +1,6 @@
 import Loam.Application.CurrentCoverageInspection
+import Loam.Authority.ActualAuthority
+import Loam.HouseholdPaths
 import Loam.Persistence.AccountingRolePersistence
 import Loam.Persistence.ActualRoutingPersistence
 import Loam.Persistence.AttentionPersistence
@@ -13,7 +15,13 @@ import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Persistence.ScheduledRoutingPersistence
 import Loam.Persistence.ZeroOriginCoveragePersistence
 import Loam.Publisher.BoundedHistorySupportPublisher
+import Loam.Review.AccountingRoleReview
+import Loam.Review.ActualRoutingReview
+import Loam.Review.AttentionReview
+import Loam.Review.CapacityReview
 import Loam.Review.CurrentBalanceReview
+import Loam.Review.CurrentCoverageReview
+import Loam.Review.RoleBalanceReview
 
 set_option autoImplicit false
 
@@ -447,6 +455,159 @@ private def rowQuantity?
   snapshot.rows.find? (fun row => decide (row.coordinate = coordinate))
     |>.map (fun row => row.quantity.quanta)
 
+
+/-- Materialize the thirteen currently understood canonical documents unchanged. -/
+private def writeKnownFiles
+    (root : System.FilePath)
+    (sections : Sections) : IO Unit := do
+  IO.FS.createDirAll root
+  IO.FS.writeFile (Loam.HouseholdPaths.actual root) sections.actual
+  IO.FS.writeFile (Loam.HouseholdPaths.scheduled root) sections.scheduled
+  IO.FS.writeFile (Loam.HouseholdPaths.capacity root) sections.capacity
+  IO.FS.writeFile (Loam.HouseholdPaths.attention root) sections.attention
+  IO.FS.writeFile (Loam.HouseholdPaths.actualRouting root) sections.actualRouting
+  IO.FS.writeFile (Loam.HouseholdPaths.scheduledRouting root) sections.scheduledRouting
+  IO.FS.writeFile (Loam.HouseholdPaths.accountingRole root) sections.accountingRole
+  IO.FS.writeFile (Loam.HouseholdPaths.locusAdmission root) sections.locusAdmission
+  IO.FS.writeFile (Loam.HouseholdPaths.zeroOriginCoverage root) sections.zeroOrigin
+  IO.FS.writeFile (Loam.HouseholdPaths.openingSupport root) sections.openingSupport
+  IO.FS.writeFile (Loam.HouseholdPaths.currentQuantityAnchor root) sections.currentQuantityAnchor
+  IO.FS.writeFile (Loam.HouseholdPaths.currentQuantityPresence root) sections.currentQuantityPresence
+  IO.FS.writeFile (Loam.HouseholdPaths.boundedHistorySupport root) sections.boundedHistorySupport
+
+private def cleanupDir (root : System.FilePath) : IO Unit := do
+  if ← root.pathExists then
+    IO.FS.removeDirAll root
+
+private def scheduledOpenIdsFromFiles
+    (root : System.FilePath) : IO (Except String (List ScheduledId)) := do
+  let actual ←
+    match ← Loam.ActualAuthority.loadImage? root with
+    | .ok image => pure image
+    | .error message => return .error message
+  let some scheduled ←
+    Loam.Persistence.loadScheduledLifecycleImage? (Loam.HouseholdPaths.scheduled root)
+    | return .error "H2: Scheduled lifecycle did not load"
+  match Loam.Application.currentOpenScheduled
+      scheduled.scheduled scheduled.terminals actual.evidence.events with
+  | .open occurrences => return .ok (occurrences.map ScheduledOccurrence.id)
+  | _ => return .error "H2: current Scheduled state was not open"
+
+private def attentionSummariesFromFiles
+    (root : System.FilePath) : IO (Except String (List String)) := do
+  match ← Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention root) with
+  | .error message => return .error message
+  | .ok .unavailable => return .error "H2: Attention became unavailable"
+  | .ok (.available snapshot) =>
+      return .ok (snapshot.openItems.map Loam.AttentionReview.summary)
+
+/--
+H2: compare production read answers from an ordinary authority directory with
+the same canonical documents recovered from one HouseholdImage.
+
+The Review boundaries are not taught about HouseholdImage. The experiment only
+materializes the known opaque payloads under their established filenames, then
+calls the existing production readers unchanged.
+-/
+private def validateReviewEquivalence
+    (ordinaryRoot imageRoot : System.FilePath)
+    (image : Image) : IO Unit := do
+  let recovered ← requireSome (knownSections? image)
+    "H2: known sections unavailable from HouseholdImage"
+
+  cleanupDir ordinaryRoot
+  cleanupDir imageRoot
+  writeKnownFiles ordinaryRoot coherentSections
+  writeKnownFiles imageRoot recovered
+
+  let ordinaryActual ← requireOk
+    (← Loam.ActualAuthority.loadImage? ordinaryRoot)
+    "H2 ordinary Actual"
+  let imageActual ← requireOk
+    (← Loam.ActualAuthority.loadImage? imageRoot)
+    "H2 HouseholdImage Actual"
+  expect (decide (ordinaryActual.evidence = imageActual.evidence))
+    "H2 Actual evidence changed across storage topology"
+  expect (decide (ordinaryActual.currentEvents = imageActual.currentEvents))
+    "H2 current Actual frontier changed across storage topology"
+
+  let ordinaryBalances ← requireOk
+    (← Loam.CurrentBalanceReview.loadSnapshot ordinaryRoot ordinaryRoot)
+    "H2 ordinary current balances"
+  let imageBalances ← requireOk
+    (← Loam.CurrentBalanceReview.loadSnapshot imageRoot imageRoot)
+    "H2 HouseholdImage current balances"
+  expect (decide (ordinaryBalances = imageBalances))
+    "H2 CurrentBalanceReview answer changed across storage topology"
+
+  let ordinaryRoleBalances ← requireOk
+    (← Loam.RoleBalanceReview.loadSnapshot ordinaryRoot ordinaryRoot)
+    "H2 ordinary role balances"
+  let imageRoleBalances ← requireOk
+    (← Loam.RoleBalanceReview.loadSnapshot imageRoot imageRoot)
+    "H2 HouseholdImage role balances"
+  expect (decide (ordinaryRoleBalances = imageRoleBalances))
+    "H2 RoleBalanceReview answer changed across storage topology"
+
+  let ordinaryCapacity ← requireOk
+    (← Loam.CapacityReview.loadSnapshot (Loam.HouseholdPaths.capacity ordinaryRoot))
+    "H2 ordinary Capacity"
+  let imageCapacity ← requireOk
+    (← Loam.CapacityReview.loadSnapshot (Loam.HouseholdPaths.capacity imageRoot))
+    "H2 HouseholdImage Capacity"
+  expect (decide (ordinaryCapacity = imageCapacity))
+    "H2 CapacityReview answer changed across storage topology"
+
+  let ordinaryAttention ← requireOk
+    (← attentionSummariesFromFiles ordinaryRoot)
+    "H2 ordinary Attention"
+  let imageAttention ← requireOk
+    (← attentionSummariesFromFiles imageRoot)
+    "H2 HouseholdImage Attention"
+  expect (ordinaryAttention == imageAttention)
+    "H2 AttentionReview answer changed across storage topology"
+
+  let ordinaryScheduled ← requireOk
+    (← scheduledOpenIdsFromFiles ordinaryRoot)
+    "H2 ordinary Scheduled"
+  let imageScheduled ← requireOk
+    (← scheduledOpenIdsFromFiles imageRoot)
+    "H2 HouseholdImage Scheduled"
+  expect (ordinaryScheduled == imageScheduled)
+    "H2 current Scheduled answer changed across storage topology"
+
+  let ordinaryRouting ← requireOk
+    (← Loam.ActualRoutingReview.loadSnapshot ordinaryRoot ordinaryRoot "2026-10-04")
+    "H2 ordinary Actual routing"
+  let imageRouting ← requireOk
+    (← Loam.ActualRoutingReview.loadSnapshot imageRoot imageRoot "2026-10-04")
+    "H2 HouseholdImage Actual routing"
+  expect (decide (ordinaryRouting = imageRouting))
+    "H2 ActualRoutingReview answer changed across storage topology"
+
+  let ordinaryRoleCandidates ← requireOk
+    (← Loam.AccountingRoleReview.loadInitialCandidates ordinaryRoot ordinaryRoot)
+    "H2 ordinary AccountingRole candidates"
+  let imageRoleCandidates ← requireOk
+    (← Loam.AccountingRoleReview.loadInitialCandidates imageRoot imageRoot)
+    "H2 HouseholdImage AccountingRole candidates"
+  expect (ordinaryRoleCandidates == imageRoleCandidates)
+    "H2 AccountingRoleReview answer changed across storage topology"
+
+  let ordinaryCoverage ← requireOk
+    (← Loam.CurrentCoverageReview.loadSnapshotAt
+      ordinaryRoot ordinaryRoot "2026-09-01" "2026-10-04" "2026-11-01")
+    "H2 ordinary current coverage"
+  let imageCoverage ← requireOk
+    (← Loam.CurrentCoverageReview.loadSnapshotAt
+      imageRoot imageRoot "2026-09-01" "2026-10-04" "2026-11-01")
+    "H2 HouseholdImage current coverage"
+  expect (decide (ordinaryCoverage = imageCoverage))
+    "H2 CurrentCoverageReview answer changed across storage topology"
+
+  cleanupDir ordinaryRoot
+  cleanupDir imageRoot
+
 /--
 H1: prove the thirteen non-empty sections describe one mutually usable household
 world through existing LOAM application boundaries.
@@ -637,6 +798,11 @@ def run : IO Unit := do
   validateCanonical reopenedKnown
   validateCoherentWorld reopenedKnown
 
+
+  let ordinaryRoot := System.FilePath.mk ".household-image-h2-ordinary"
+  let imageRoot := System.FilePath.mk ".household-image-h2-recovered"
+  validateReviewEquivalence ordinaryRoot imageRoot reopened
+
   let duplicate : Image := {
     sections := reopened.sections ++
       [{ name := "Securities", body := "duplicate must be refused\n" }]
@@ -672,6 +838,7 @@ def run : IO Unit := do
   IO.println "[ok] current support: cash=8000, food=2000, savings=3000, debt=known-present"
   IO.println "[ok] managed Scheduled commitment: 1000"
   IO.println "[ok] Capacity=5000, Actual consumption=2000, Remaining=3000, Headroom=2000"
+  IO.println "[ok] H2 Review equivalence: Actual, CurrentBalance, RoleBalance, Capacity, Attention, Scheduled, ActualRouting, AccountingRole and CurrentCoverage"
   IO.println s!"[info] current-known payload characters: {knownPayload}"
   IO.println s!"[info] total payload characters with future part: {totalPayload}"
   IO.println s!"[info] outer framing characters: {overhead}"
