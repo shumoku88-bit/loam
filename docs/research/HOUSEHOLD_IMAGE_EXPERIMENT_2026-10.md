@@ -554,3 +554,16 @@ Promote the idea beyond research only if all of the following become true:
 6. the resulting codebase is measurably smaller and easier to audit.
 
 Until then, the current production authority layout remains unchanged.
+
+## Production-shape follow-up
+
+After H1-H4 passed, the concrete production consolidation and migration surface
+was audited in:
+
+~~~text
+docs/research/HOUSEHOLD_IMAGE_PRODUCTION_AUDIT_2026-10.md
+~~~
+
+That audit identifies one additional pre-migration correctness requirement:
+legacy section presence/absence must be preserved exactly rather than
+normalizing every missing file to an empty section.
