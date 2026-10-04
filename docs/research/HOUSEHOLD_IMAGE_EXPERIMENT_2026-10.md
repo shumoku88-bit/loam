@@ -410,18 +410,57 @@ than assuming it.
 
 ### H4 — failure boundary
 
-Compare:
+**Executable failure-boundary experiment added on the follow-up branch.**
+
+The candidate publication protocol is intentionally narrow:
 
 ~~~text
-current split authorities
-vs
-one household generation
+observe admitted current bytes A
+acquire one HouseholdImage writer ownership
+re-read current
+require current bytes == A
+change exactly one semantic section
+prove every other known and unknown section byte-identical
+admit the changed section
+stage complete candidate B
+typed re-read of staged B
+
+stage current A as previous candidate
+validate previous candidate
+rename previous candidate -> household.loam.prev
+
+rename staged B -> household.loam
 ~~~
 
-under interruption, malformed section, stale writer, and partial migration.
+The final rename is the only current-generation switch. If interruption occurs
+before it, `household.loam` still names the old complete generation.
 
-The single-image design wins only if reduced split-publication complexity
-outweighs the larger corruption / rewrite blast radius.
+H4 exercises:
+
+- partial/corrupt candidate stage;
+- complete candidate stage before final rename;
+- interruption after the previous-generation switch but before current switch;
+- successful selective Attention publication;
+- stale writer rejection after ownership and re-read;
+- malformed changed-section rejection without mutation;
+- malformed outer current image with explicit previous-generation fallback;
+- valid outer framing containing malformed inner semantic evidence;
+- explicit restoration from the qualified previous generation;
+- partial migration from the existing thirteen-file topology.
+
+Recovery does not silently relabel previous evidence as current. The recovery
+reader returns whether the usable image came from `current` or `previous`,
+and restoration is a separate explicit operation.
+
+The migration checkpoint keeps the existing split authorities untouched while
+the HouseholdImage candidate is staged. A partial migration stage therefore
+does not change existing Review answers or create a current HouseholdImage.
+Only a complete typed image is atomically installed.
+
+This is still a research protocol, not a durability guarantee. In particular,
+the experiment tests malformed framing and malformed inner semantic evidence;
+it does not yet add a cryptographic checksum or claim detection of an arbitrary
+bit mutation that accidentally remains a different valid LOAM document.
 
 ## Decision rule
 
