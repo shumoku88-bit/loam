@@ -40,7 +40,7 @@ jobs:
           use-mathlib-cache: false
           leanchecker: false
           axiom-audit: false
-          use-github-cache: true
+          use-github-cache: false
 
       - name: Verify isolated TUI foundation package
         run: bash tools/check_tui_foundation_extractability.sh
