@@ -49,6 +49,17 @@ jobs:
           use-github-cache: false
       - name: Check non-household Core probes
         run: |
+          # This workflow must remain correct on a cold cache.
+          lake build \
+            Loam.Examples.PhysicalInventory \
+            Loam.Examples.ScientificObservation \
+            Loam.Examples.ScientificFutureContext \
+            Loam.Examples.DocumentProvenanceBoundary \
+            Loam.Examples.DocumentProvenanceFutureContext \
+            Loam.Examples.PersonalSemanticMemory \
+            Loam.Examples.PersonalSemanticMemoryPersistence \
+            loamMemory
+
           lake env lean Loam/Examples/PhysicalInventory.lean
           lake env lean Loam/Examples/ScientificObservation.lean
           lake env lean Loam/Examples/ScientificFutureContext.lean

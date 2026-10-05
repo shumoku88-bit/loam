@@ -34,4 +34,6 @@ jobs:
           axiom-audit: false
           use-github-cache: false
       - name: Check Observation 274 correspondence
-        run: lake env lean experiments/274_global_done_correspondence.lean
+        run: |
+          lake build Loam.Application.ReplacementFrontier
+          lake env lean experiments/274_global_done_correspondence.lean
