@@ -84,7 +84,7 @@ steps route agents to obsolete files or duplicate a stronger current instrument.
 
 Trial 03 is the first paired measurement for this skill:
 
-- [Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md)
+- Presence-only support to exact current quantity
 - paired result: **BETTER**;
 - promotion wins: **1**;
 - semantic regressions: **0**;
@@ -100,7 +100,7 @@ exploratory evidence only.
 
 Trial 05 is the first clean held-out sibling measurement for this skill:
 
-- [Partial re-observation from a legacy v1 anchor](trials/05-v1-partial-reobservation.md)
+- Partial re-observation from a legacy v1 anchor
 - paired result: **SAME**;
 - promotion wins from Trial 05: **0**;
 - semantic regressions: **0**;
@@ -112,7 +112,7 @@ regression as the smallest missing direct qualification.
 
 Trial 06 is the final planned paired measurement for this skill:
 
-- [Bounded history versus same stored scalar](trials/06-bounded-history-same-stored-scalar.md)
+- Bounded history versus same stored scalar
 - paired result: **SAME**;
 - promotion wins from Trial 06: **0**;
 - semantic regressions: **0**;
