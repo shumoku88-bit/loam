@@ -205,14 +205,26 @@ Prefer deleting a bad instruction to accumulating exceptions.
 These were chosen because they recur, cross meaningful semantic boundaries, and
 have verifier/test surfaces that can provide useful feedback.
 
-Current trial records:
+Completed trial corpus:
 
-- Trial 01 — Scheduled terminal lifecycle canonicality: recorded inline below;
-- [Trial 02 — CapacityMovement / CapacityEffective correspondence](trials/02-capacity-correspondence.md): paired trial complete; result SAME; 0 promotion wins;
-- [Trial 03 — Presence-only support to exact current quantity](trials/03-presence-to-exact-anchor.md): paired trial complete; result BETTER; 1 promotion win;
-- [Trial 04 — Exact anchor across later correction-root change](trials/04-stale-anchor-correction.md): clean baseline + contaminated skill arm; result UNSCORED; 0 promotion wins;
-- [Trial 05 — Partial re-observation from a legacy v1 anchor](trials/05-v1-partial-reobservation.md): clean paired held-out trial; result SAME; 0 promotion wins;
-- [Trial 06 — Bounded history versus same stored scalar](trials/06-bounded-history-same-stored-scalar.md): clean paired final evaluation; result SAME; 0 promotion wins.
+```text
+Trial 01   exploratory / unpaired   retained inline below
+Trial 02   SAME                     0 promotion wins
+Trial 03   BETTER                   1 promotion win
+Trial 04   UNSCORED                 contaminated skill arm
+Trial 05   SAME                     clean held-out sibling
+Trial 06   SAME                     clean held-out sibling
+```
+
+The detailed sealed baseline tasks and paired-trial trajectories for Trials 02–06
+have completed their measurement role and are retained in Git history rather
+than as live repository documents. Their compact outcomes remain here and in the
+relevant skill status. The pre-distillation repository state is:
+
+```text
+cddac03df57cdfea6ddb3dbaf8e334a15b6ac92e
+cleanup: distill completed Let's Kakeibo research (#1852)
+```
 
 ## Closed CurrentQuantityAnchor evaluation
 
