@@ -1,101 +1,64 @@
 # Let's Kakeibo interaction study
 
 Date: 2026-10-01  
-Status: **baseline research complete; Desk TUI and conventional GUI experiments concluded; Observatory is next**  
-Subject: Let's家計簿 / Let's Kakeibo, with emphasis on long-lived desktop household interaction.
+Status: **condensed current checkpoint — detailed archaeology retired to Git history**
 
-## Purpose
+This directory keeps the smallest current synthesis from the completed Let's家計簿
+interaction-study cycle.
 
-This directory collects the observable interaction design of Let's家計簿 before LOAM decides whether to build a separate ledger-desk TUI or a later GUI.
+The study asked which interaction ideas from a long-lived desktop household
+application remain useful when LOAM keeps its own authority, provenance,
+correction, Scheduled, Movement, and Measure semantics.
 
-The study intentionally separates:
+## Current retained artifacts
 
-1. **observed behavior** — supported by screenshots, contemporary reviews, author statements, or later hands-on analysis;
-2. **reconstruction** — a compact model inferred from several observations;
-3. **LOAM translation** — a possible mapping onto LOAM concepts;
-4. **implementation choice** — deliberately not decided here.
+- [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md) — the distilled interaction conclusions that still matter to LOAM.
+- [SOURCES.md](SOURCES.md) — source catalog and provenance for the external-product study.
+- [LOAM Observatory v0](../LOAM_OBSERVATORY_V0_HYPOTHESIS.md) — the current forward-facing visualization hypothesis.
 
-The aim is not to clone Let's家計簿. The aim is to understand why a spreadsheet-like household program could remain understandable and usable across decades.
+## Durable findings
 
-## File map
+The completed study found a few recurring interaction ideas worth keeping as
+hypotheses rather than requirements:
 
-- [UI_LAYOUT.md](UI_LAYOUT.md) — screen geometry, tabs, panes, table structure, visual hierarchy, and layout evolution.
-- [FEATURE_INVENTORY.md](FEATURE_INVENTORY.md) — feature census with evidence notes.
-- [INTERACTION_MODEL.md](INTERACTION_MODEL.md) — direct manipulation, keyboard/mouse use, input assistance, correction, and guidance.
-- [INPUT_MECHANICS_DEEP_DIVE.md](INPUT_MECHANICS_DEEP_DIVE.md) — cell-level entry mechanics, history reuse, formulas, receipt grouping, cards, autosave, and contextual help.
-- [REPORTS_AND_DRILLDOWN.md](REPORTS_AND_DRILLDOWN.md) — graphs, reports, budget views, account-balance views, and detail drill-down.
-- [LONGEVITY.md](LONGEVITY.md) — product history, durable interaction ideas, and technology-aging lessons.
-- [EVOLUTION_AND_REWRITE.md](EVOLUTION_AND_REWRITE.md) — the multi-year Ver.3 internal rewrite that intentionally preserved visible behavior, plus architectural lessons.
-- [DATA_PORTABILITY_AND_RECOVERY.md](DATA_PORTABILITY_AND_RECOVERY.md) — backup, restore, CSV, data location, import behavior, and multiple household books.
-- [PACKAGE_INSPECTION_5_93.md](PACKAGE_INSPECTION_5_93.md) — byte-identity verification and non-executing extraction of the official v5.93 ZIP/installer.
-- [IMPLEMENTATION_LINEAGE.md](IMPLEMENTATION_LINEAGE.md) — primary-package evidence for Delphi 2007 and the earlier Delphi toolchain lineage.
-- [HELP_CONTENT_INDEX.md](HELP_CONTENT_INDEX.md) — final-release CHM topic and UI-asset inventory without redistributing bundled help contents.
-- [FINAL_HELP_KEYBOARD_AND_ENTRY.md](FINAL_HELP_KEYBOARD_AND_ENTRY.md) — primary-help reconstruction of the v5.93 keyboard map, four-pane desk, direct cell entry, receipt flow, input assistance, and Undo.
-- [FINAL_HELP_SCHEDULED_AND_MOVEMENT.md](FINAL_HELP_SCHEDULED_AND_MOVEMENT.md) — primary-help reconstruction of future items, recurring rules, cards, transfer assistance, reconciliation, holidays, and currencies.
-- [FINAL_HELP_ANALYSIS_AND_DATA.md](FINAL_HELP_ANALYSIS_AND_DATA.md) — primary-help reconstruction of reports, search/batch editing, tags, save/backup, data location, multiple books, and import.
-- [LOAM_TRANSLATION_NOTES.md](LOAM_TRANSLATION_NOTES.md) — tentative correspondences to LOAM; not a design decision.
-- [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md) — research conclusion: adopt directly, translate into LOAM semantics, reference only, or do not copy.
-- [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md) — completed read/navigation TUI experiment; implementation retired after it did not differentiate enough from the production TUI.
-- [GUI_DESK_V0_HYPOTHESIS.md](GUI_DESK_V0_HYPOTHESIS.md) — completed conventional Tauri workbench experiment; implementation retired after it did not differentiate enough from TUI-era information topology.
-- [LOAM Observatory v0](../LOAM_OBSERVATORY_V0_HYPOTHESIS.md) — next experiment: GPU-first pension-cycle Orbit, followed by evidence X-Ray.
-- [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) — missing evidence and next research passes.
-- [SOURCES.md](SOURCES.md) — source catalog and screenshot inventory.
+- a chronological household table is a strong daily-work center;
+- date navigation should be cheap and local;
+- repeated entry can reuse visible, explicit proposals without inventing meaning;
+- important aggregates should drill back to contributing evidence;
+- future household obligations can be shown together while preserving their
+  distinct underlying semantics;
+- interaction habits can remain stable even when implementation machinery is
+  replaced underneath them.
 
-## Current high-confidence findings
+These findings are summarized in `LESSONS_FOR_LOAM_DESK.md`. They are not a
+request to clone Let's家計簿 or to import its data model into LOAM.
 
-The strongest recurring pattern is that the main working surface remained a **monthly chronological table** rather than a dashboard. The table placed transaction facts, account choice, and running balance in one workspace.
+## Retired detailed material
 
-Later versions added surrounding context without replacing that center:
+The first archaeology cycle, the separate Desk TUI experiment, and the
+conventional GUI experiment are complete. Their detailed working material has
+been graduated from the live repository surface to Git history, including:
+
+- layout and feature inventories;
+- interaction and input-mechanics deep dives;
+- reporting, longevity, rewrite, portability, and package-inspection notes;
+- extracted-help analysis and implementation-lineage notes;
+- exploratory LOAM translation notes;
+- completed Desk TUI / GUI shell hypotheses;
+- the first-cycle open-question ledger.
+
+No production code, canonical household data, semantic authority, test, or CI
+contract depends on those retired documents.
+
+For exact pre-distillation detail, inspect Git history at or before:
 
 ```text
-calendar / daily summary
-        |
-        v
-monthly chronological table
-        |
-        +--> card detail
-        +--> reports / graphs
-        +--> account balance
-        +--> budget
-        +--> original detail rows
+3d998d9a0dabbe33c77522bddb8bea45b54087ed
+cleanup: graduate completed research checkpoints to Git history (#1851)
 ```
-
-Input assistance was unusually deep for a desktop household program: history reuse, keyword-driven category selection, calculator/formula entry, receipt grouping, recurring entries, card settlement support, context hints, and tutorial guidance.
-
-The reporting surface also supported a particularly valuable pattern: **summary -> originating detail**. Graph regions and report cells could lead back to the transactions that produced the number.
-
-A second-pass finding is especially relevant to longevity: the author reports that the Ver.3 line came from an almost complete internal rewrite after years of feature accretion, while deliberately keeping the visible appearance and behavior the same. The rewrite took more than three and a half years. This is direct historical evidence for treating interaction habits and implementation machinery as separate replacement boundaries.
-
-The exact v5.93 HTML Help has now also been safely decompressed and key page bodies inspected. It confirms the keyboard-first direct-entry model, real Undo, a combined future-obligations view, bidirectional credit-purchase/settlement navigation, aggregate-to-detail reports, search-driven batch editing, exit-time autosave, backup/restore, and broad local import support.
 
 ## Research rule
 
-Do not convert an observation here into a production requirement merely because it appears durable or elegant.
-
-A LOAM Desk experiment should only borrow an idea after checking:
-
-- whether the same human goal exists in current LOAM use;
-- whether LOAM already has a stronger semantic model;
-- whether the interaction fits a terminal surface;
-- whether the feature preserves provenance and correction semantics;
-- whether the interaction remains simple after months of real use.
-
-## Scope boundary
-
-This directory studies the external product. It does not redefine LOAM's authority model, Actual evidence, Scheduled semantics, movement model, or correction rules.
-
-
-## Research-cycle conclusion
-
-The first archaeology cycle is complete enough for implementation experiments.
-
-The separate Desk TUI experiment has also completed. It preserved LOAM semantics but did not produce a sufficiently different daily interaction from the production TUI, so its code was retired rather than allowed to become a second terminal product.
-
-The conventional Tauri GUI experiment also completed and was retired. Further Let's家計簿 research should be demand-driven rather than exhaustive. New historical work should answer a concrete design question raised by Observatory implementation or use.
-
-The forward-facing documents are:
-
-1. [LESSONS_FOR_LOAM_DESK.md](LESSONS_FOR_LOAM_DESK.md)
-2. [DESK_TUI_V0_HYPOTHESIS.md](DESK_TUI_V0_HYPOTHESIS.md)
-3. [GUI_DESK_V0_HYPOTHESIS.md](GUI_DESK_V0_HYPOTHESIS.md) — completed historical experiment
-4. [LOAM Observatory v0](../LOAM_OBSERVATORY_V0_HYPOTHESIS.md) — current forward experiment
+Further Let's家計簿 archaeology should be demand-driven. Reopen detailed research
+only when a concrete LOAM interaction question cannot be answered from the
+retained synthesis, sources, current production behavior, or Git history.
