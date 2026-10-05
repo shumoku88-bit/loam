@@ -155,6 +155,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Restore shared Lean build cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
+
       - name: Build and independently check durable proofs
         uses: leanprover/lean-action@v1
         with:
@@ -167,7 +175,7 @@ jobs:
           leanchecker: true
           leanchecker-args: "Loam.DurableProofs"
           axiom-audit: false
-          use-github-cache: true
+          use-github-cache: false
 
       - name: Audit durable proof axioms only
         shell: bash
@@ -195,6 +203,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Restore shared Lean build cache
+        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
+
       - name: Build selected observation umbrella
         uses: leanprover/lean-action@v1
         with:
@@ -206,4 +222,4 @@ jobs:
           use-mathlib-cache: false
           leanchecker: false
           axiom-audit: false
-          use-github-cache: true
+          use-github-cache: false
