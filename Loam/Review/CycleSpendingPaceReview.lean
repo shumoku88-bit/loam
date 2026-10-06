@@ -468,6 +468,57 @@ def loadHistoryFromActualImageAt
   loadHistoryFromActualImageAtForMeasure ⟨"jpy"⟩ dataDir image observedAt days
 
 /--
+Load both current Daily Pace and historical series in one composed read pass,
+reusing caller-provided Scheduled evidence and avoiding duplicate balance calculation.
+-/
+def loadPaceAndHistoryFromActualImageAtForMeasure
+    (measure : MeasureId)
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (observedAt : String)
+    (days : Nat) : IO (Except String (Snapshot × List Snapshot)) := do
+  let window ←
+    match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
+    | .error message => return .error message
+    | .ok window => pure window
+  let selection ←
+    match ← Loam.DailyPaceConfig.loadForMeasure measure (Loam.HouseholdPaths.dailyPace dataDir) with
+    | .error message => return .error message
+    | .ok coordinates => pure coordinates
+  let current ←
+    match ← Loam.CurrentBalanceReview.loadSnapshotFromActualImage dataDir image with
+    | .error message => return .error message
+    | .ok snapshot => pure snapshot
+  let balances ←
+    match Loam.CurrentBalanceReview.selectExact current selection with
+    | .error message => return .error message
+    | .ok balances => pure balances
+  let historicalEvidence ←
+    match ← Loam.HistoricalBalanceReview.loadEvidence dataDir with
+    | .error message => return .error message
+    | .ok evidence => pure evidence
+  let pace ←
+    match projectForMeasure measure observedAt window.endExclusive selection balances scheduled with
+    | .error message => return .error message
+    | .ok p => pure p
+  let history ←
+    match projectHistoryForMeasure measure image historicalEvidence window.start observedAt window.endExclusive selection balances scheduled days with
+    | .error message => return .error message
+    | .ok points => pure points
+  return .ok (pace, history)
+
+/-- Backward-compatible combined Daily Pace and history loader for the current JPY household. -/
+def loadPaceAndHistoryFromActualImageAt
+    (dataDir : System.FilePath)
+    (image : Loam.ActualAuthority.Image)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (observedAt : String)
+    (days : Nat) : IO (Except String (Snapshot × List Snapshot)) :=
+  loadPaceAndHistoryFromActualImageAtForMeasure ⟨"jpy"⟩ dataDir image scheduled observedAt days
+
+
+/--
 Load a retrospective current-truth Daily Pace series without retaining any pace
 observation. The current normalized Actual image is read once and then delegated
 to `loadHistoryFromActualImageAt`.

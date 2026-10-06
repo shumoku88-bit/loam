@@ -148,12 +148,17 @@ def loadSnapshotFromActualImage
     | .error message => .failed message
     | .ok .unavailable => .unavailable
     | .ok (.available snapshot) => .loaded snapshot
-  let paceResult ←
-    Loam.CycleSpendingPaceReview.loadSnapshotFromActualImageAt dataDir image today
-  let pace := Loam.Presentation.ReadState.fromExcept paceResult
-  let paceHistoryResult ←
-    Loam.CycleSpendingPaceReview.loadHistoryFromActualImageAt dataDir image today 7
-  let paceHistory := Loam.Presentation.ReadState.fromExcept paceHistoryResult
+  let (pace, paceHistory) :
+      Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot ×
+      Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) ←
+    match scheduled with
+    | .error message => pure (.failed message, .failed message)
+    | .ok scheduledEvidence =>
+        match ← Loam.CycleSpendingPaceReview.loadPaceAndHistoryFromActualImageAt
+            dataDir image scheduledEvidence today 7 with
+        | .error message => pure (.failed message, .failed message)
+        | .ok (paceSnapshot, historySnapshots) =>
+            pure (.loaded paceSnapshot, .loaded historySnapshots)
   let moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot ←
     match ← Loam.RoleFlowReview.loadRoleMap dataDir with
     | .error message => pure (.failed message)
