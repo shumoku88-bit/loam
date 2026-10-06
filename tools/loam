@@ -4,15 +4,45 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
+target_needs_build() {
+  local target="$1"
+  local bin="$root/.lake/build/bin/$target"
+
+  if [[ ! -x "$bin" ]]; then
+    return 0
+  fi
+  if [[ "${LOAM_FORCE_BUILD:-0}" == "1" ]]; then
+    return 0
+  fi
+  if [[ -f "$root/lakefile.lean" && "$root/lakefile.lean" -nt "$bin" ]]; then
+    return 0
+  fi
+  if [[ -f "$root/lean-toolchain" && "$root/lean-toolchain" -nt "$bin" ]]; then
+    return 0
+  fi
+  if [[ -d "$root/Loam" ]] && [[ -n "$(find "$root/Loam" -name "*.lean" -newer "$bin" -print -quit 2>/dev/null)" ]]; then
+    return 0
+  fi
+  if [[ -f "$root/Loam/Tui/terminal_native.c" && "$root/Loam/Tui/terminal_native.c" -nt "$bin" ]]; then
+    return 0
+  fi
+  return 1
+}
+
 run_target() {
   local target="$1"
   shift
+
+  local bin="$root/.lake/build/bin/$target"
+  if ! target_needs_build "$target"; then
+    exec "$bin" "$@"
+  fi
 
   local build_log
   build_log="$(mktemp -t loam-build.XXXXXX)"
   if lake build "$target" >"$build_log" 2>&1; then
     rm -f "$build_log"
-    exec "$root/.lake/build/bin/$target" "$@"
+    exec "$bin" "$@"
   else
     cat "$build_log" >&2
     rm -f "$build_log"
