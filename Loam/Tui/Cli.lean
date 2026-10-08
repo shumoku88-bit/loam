@@ -442,11 +442,26 @@ partial def currentQuantityAnchorLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       currentQuantityAnchorLoop bounds root step.state nextFrame
 
-/-- Read-only Daily Pace history drill-down. Any unrelated key leaves the view unchanged. -/
-partial def dailyPaceTrendLoop : IO Unit := do
-  match ← Loam.Tui.Terminal.readKey with
-  | .escape | .input 'q' | .input 'Q' => return ()
-  | _ => dailyPaceTrendLoop
+/-- Read-only Daily Pace graph selection, with no household writes. -/
+partial def dailyPaceTrendLoop
+    (bounds : Bounds) (snapshot : Snapshot)
+    (state : Loam.Tui.DailyPaceTrend.State)
+    (frame : CompiledWidget) : IO Bounds := do
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.DailyPaceTrend.view active snapshot state)
+  if key == .escape || key == .input 'q' || key == .input 'Q' then
+    return bounds
+  let next :=
+    match key with
+    | .left | .input 'h' | .input 'H' =>
+        Loam.Tui.DailyPaceTrend.moveSelection state snapshot true
+    | .right | .input 'l' | .input 'L' =>
+        Loam.Tui.DailyPaceTrend.moveSelection state snapshot false
+    | _ => state
+  let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot next)
+  Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+  dailyPaceTrendLoop bounds snapshot next nextFrame
 
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
@@ -496,9 +511,10 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'd' || key = .input 'D') then
-    let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot)
+    let paceState : Loam.Tui.DailyPaceTrend.State := {}
+    let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot paceState)
     Loam.Tui.Terminal.redrawFromBlank bounds paceFrame
-    dailyPaceTrendLoop
+    let bounds ← dailyPaceTrendLoop bounds snapshot paceState paceFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
