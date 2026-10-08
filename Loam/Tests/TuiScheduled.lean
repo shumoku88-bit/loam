@@ -126,6 +126,26 @@ def main : IO Unit := do
     "Daily Pace trend did not preserve the reconstructed current-truth series"
   expect (contains "no separate daily snapshot is kept" paceTrendText)
     "Daily Pace trend lost its reconstruction disclosure"
+  let paceTrendCells :=
+    (Loam.Tui.DailyPaceTrend.view bounds snapshot).lines.flatten
+  expect
+    (paceTrendCells.any fun cell =>
+      decide (0x2800 ≤ cell.glyph.toNat && cell.glyph.toNat ≤ 0x28ff))
+    "Daily Pace trend did not render the shared Braille chart"
+  expect (contains "Selected 2026-09-07" paceTrendText)
+    "Daily Pace graph did not initially select the latest reconstructed day"
+  let olderPaceState :=
+    Loam.Tui.DailyPaceTrend.moveSelection {} snapshot true
+  let olderPaceText :=
+    widgetText (Loam.Tui.DailyPaceTrend.view bounds snapshot olderPaceState)
+  expect (contains "Selected 2026-09-06" olderPaceText)
+    "Daily Pace graph left arrow did not select the preceding day"
+  let backToToday :=
+    Loam.Tui.DailyPaceTrend.moveSelection olderPaceState snapshot false
+  expect
+    (contains "Selected 2026-09-07"
+      (widgetText (Loam.Tui.DailyPaceTrend.view bounds snapshot backToToday)))
+    "Daily Pace graph right arrow did not return to the latest day"
   let usd : MeasureId := ⟨"usd"⟩
   let .loaded basePace := snapshot.pace
     | throw (IO.userError "fixture Daily Pace unavailable")
