@@ -227,9 +227,8 @@ def main : IO Unit := do
   }
   let moneyView := Loam.Tui.Home.view mediumBounds moneySnapshot state
   let moneyText := widgetText moneyView
-  expect (occurrences " │ "
-      (widgetText (Loam.Tui.Home.view wideBounds moneySnapshot state)) == dividerCount)
-    "loaded money projection changed wide Calendar pane height"
+  expect ((Loam.Tui.Home.view wideBounds moneySnapshot state).lines.length == wideView.lines.length)
+    "loaded money projection changed fixed Home viewport height"
   expect (!contains "[f] calendar" moneyText && !contains "[f] flow" moneyText)
     "unified calendar still advertised its retired layout toggle"
   expect (contains "± jpy" moneyText)
