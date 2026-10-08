@@ -237,6 +237,7 @@ The Series Calendar is the primary recurring-plan management surface:
 j/k       select recurring plan
 h/l       move the visible month window
 e         extend / replenish future explicit plans
+b         batch amount edit with checked candidates and a final preview
 p         change expected pace
 Enter     open that plan's exact Scheduled dates
 
@@ -275,6 +276,41 @@ occurrence selected. Completion (`c` / `Enter`), replacement (`r`), and
 cancellation (`x`) then operate on exact occurrences there. The older `g`
 generation and `m` monitoring keys remain compatibility/advanced paths but are no
 longer part of the ordinary footer grammar.
+
+### Checked batch amount editing
+
+`b` opens **Batch amount edit** from the Series Calendar, plan detail, Months, or
+List. The selected explicit occurrence is an advisory reference, not proof of
+series or contract identity. Candidates are current-open occurrences with the
+same Measure and exact signed-Locus sets; differing amounts remain visible.
+Completed, cancelled, and replaced sources are not candidates.
+
+1. Enter the new amount and an inclusive **From / Through** date range. From is
+   initially the workspace's today date and is editable, including for
+   overdue evidence. Empty Through means all retained later dates, not automatic
+   generation of future occurrences. Decimal amounts use existing Measure
+   presentation with exact parsing and no rounding.
+2. All candidates initially remain unchecked. Use `j/k` to move, `Space` to toggle,
+   `a` to check all, and `d` to clear. `e` returns to amount/range input; re-entering
+   the sheet clears previous checks so hidden targets cannot survive a new range.
+3. `Enter` previews each changed occurrence's old and new amount. Unchecked rows
+   remain untouched; checked amounts already equal to the new amount produce no
+   replacement facts. `j/k` reviews a finite scrolling window without truncating
+   the batch. **Back** is the initial action; choose **Publish all** explicitly
+   with Tab or Left/Right, then Enter. Esc returns to the checklist.
+
+Uniform amount editing supports exactly one FROM and one TO posting. Split
+postings require explicit individual editing; LOAM refuses rather than guessing
+allocation. Dates, Loci, and Measure remain unchanged.
+
+Publication appends ordinary replacement occurrences and relations, retaining
+original Scheduled history and leaving paid Actual untouched. Existing dated
+routing assertions are copied to each successor for its retained same-Measure
+positive Loci; managed, explicitly unmanaged, and unrouted answers remain distinct.
+The complete batch and routing are published in one HouseholdImage transition.
+Any stale preview or failed admission publishes none of the batch and returns to
+the workspace for reload and a fresh review. Selection and inferred similarity
+never become persisted series identity or recurrence rules.
 
 The surface delegates execution to shared publishers and sessions
 (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,

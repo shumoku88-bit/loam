@@ -3,6 +3,11 @@ name: Scheduled Lifecycle Qualifications
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/ScheduledBatchReplacement.lean'
+      - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
+      - 'Loam/Core/ScheduledRouting.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
@@ -37,6 +42,11 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Tests/ScheduledBatchReplacement.lean'
+      - 'Loam/Persistence/ScheduledRoutingPersistence.lean'
+      - 'Loam/Core/ScheduledRouting.lean'
+      - 'Loam/Core/HistoricalRouting.lean'
+      - 'Loam/Application/ScheduledCommitmentInspection.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Publisher/ScheduledCreationPublisher.lean'
@@ -84,7 +94,7 @@ jobs:
       - name: Install Lean and build shared Scheduled lifecycle dependencies
         uses: ./.github/actions/lean-build
         with:
-          build-args: Loam.Persistence.ScheduledLifecyclePersistence Loam.Authority.ScheduledLifecycleAuthority Loam.Publisher.ScheduledCreationPublisher Loam.Publisher.ScheduledReplacementPublisher Loam.Publisher.ScheduledTerminalPublisher Loam.Review.ScheduledReview Loam.Review.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader
+          build-args: Loam.Persistence.ScheduledLifecyclePersistence Loam.Authority.ScheduledLifecycleAuthority Loam.Publisher.ScheduledCreationPublisher Loam.Publisher.ScheduledReplacementPublisher Loam.Publisher.ScheduledTerminalPublisher Loam.Review.ScheduledReview Loam.Review.ActualReview Loam.Tests.ActualWorldFixture Loam.MovementWorldLoader Loam.Application.ScheduledCommitmentInspection
 
       - name: Run Scheduled lifecycle package test group
         run: lake test -- scheduled-lifecycle

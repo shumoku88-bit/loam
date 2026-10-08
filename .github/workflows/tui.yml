@@ -3,6 +3,11 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tests/test_scheduled_bulk_edit_pty.py'
+      - 'Loam/Tests/ScheduledBatchReplacement.lean'
+      - 'Loam/Tests/TuiScheduledBulkEdit.lean'
+      - 'Loam/Application/ScheduledBulkEdit.lean'
+      - 'Loam/Publisher/ScheduledReplacementPublisher.lean'
       - 'tests/test_tui_viewport_pty.py'
       - 'tests/TerminalProbe.lean'
       - 'tests/test_terminal_mechanics_pty.py'
@@ -166,6 +171,11 @@ on:
     branches:
       - main
     paths:
+      - 'tests/test_scheduled_bulk_edit_pty.py'
+      - 'Loam/Tests/ScheduledBatchReplacement.lean'
+      - 'Loam/Tests/TuiScheduledBulkEdit.lean'
+      - 'Loam/Application/ScheduledBulkEdit.lean'
+      - 'Loam/Publisher/ScheduledReplacementPublisher.lean'
       - 'tests/test_tui_viewport_pty.py'
       - 'tests/TerminalProbe.lean'
       - 'tests/test_terminal_mechanics_pty.py'
@@ -378,6 +388,9 @@ jobs:
           lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
           python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
           python3 tests/test_tui_viewport_pty.py "$FIXTURE_DIR" .lake/build/bin/loamTui
+
+      - name: Verify checked Scheduled batch terminal flow on isolated data
+        run: python3 tests/test_scheduled_bulk_edit_pty.py
 
   full:
     name: Full production household TUI qualification
@@ -600,6 +613,11 @@ jobs:
 
       - name: Verify Scheduled workspace mechanics
         run: lake env lean --run Loam/Tests/TuiScheduledWorkspace.lean
+
+      - name: Verify checked Scheduled batch editor and terminal flow
+        run: |
+          lake env lean --run Loam/Tests/TuiScheduledBulkEdit.lean
+          python3 tests/test_scheduled_bulk_edit_pty.py
 
       - name: Build shared Scheduled creation publisher boundary
         run: lake build Loam.Publisher.ScheduledCreationPublisher

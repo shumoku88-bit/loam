@@ -183,6 +183,13 @@ def replaceScheduled
     IO (Except String Unit) :=
   Loam.ScheduledReplacementPublisher.publishHousehold root draft
 
+/-- Atomically replace reviewed Scheduled candidates and retain their routing. -/
+def replaceScheduledBatch
+    (root : System.FilePath)
+    (draft : Loam.ScheduledReplacementPublisher.BatchDraft) :
+    IO (Except String Unit) :=
+  Loam.ScheduledReplacementPublisher.publishHouseholdBatch root draft
+
 /-- Inherit predecessor Scheduled routing into one newly created continuation. -/
 def inheritScheduledRouting
     (root : System.FilePath)

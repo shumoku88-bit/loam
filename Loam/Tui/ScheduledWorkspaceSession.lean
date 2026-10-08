@@ -23,6 +23,7 @@ import Loam.Tui.ScheduledGeneration
 import Loam.Tui.ScheduledGenerationSession
 import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
+import Loam.Tui.ScheduledBulkEditSession
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.ScheduledWorkspaceSession
@@ -176,6 +177,7 @@ def eventOfKey
           match pane with
           | .loci => .other
           | .occurrences => .completeScheduled
+  | .input 'b' | .input 'B' => .batchEditScheduled
   | .input 'r' | .input 'R' => .replaceScheduled
   | .input 'x' | .input 'X' => .cancelScheduled
   | .input 'y' | .input 'Y' => .yank
@@ -423,6 +425,24 @@ partial def run
             bounds root confirmation confirmationFrame
           let fresh ← requireReload notice reload
 
+          let freshCoverage ← loadCoverage dataDir root fresh.actual.today
+          let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
+          let next := { refreshed with notice := notice }
+          let nextFrame := workspaceFrame bounds fresh freshCoverage next
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+          run bounds dataDir root reload fresh freshCoverage next nextFrame
+  | .batchEditScheduled =>
+      match selectedActionRecord? snapshot coverage step.state with
+      | none =>
+          let next := { step.state with notice := "No explicit Scheduled reference is selected for batch editing." }
+          let nextFrame := workspaceFrame bounds snapshot coverage next
+          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+          run bounds dataDir root reload snapshot coverage next nextFrame
+      | some record =>
+          let presentation ← currentMeasurePresentation dataDir
+          let notice ← Loam.Tui.ScheduledBulkEditSession.run
+            bounds root record.id snapshot.actual.today presentation
+          let fresh ← requireReload notice reload
           let freshCoverage ← loadCoverage dataDir root fresh.actual.today
           let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
           let next := { refreshed with notice := notice }

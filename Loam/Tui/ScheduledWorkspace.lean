@@ -66,6 +66,7 @@ inductive Event where
   | monitorCoverage
   | completeScheduled
   | replaceScheduled
+  | batchEditScheduled
   | cancelScheduled
   | back
   | yank
@@ -82,6 +83,7 @@ inductive Command where
   | monitorCoverage
   | completeScheduled
   | replaceScheduled
+  | batchEditScheduled
   | cancelScheduled
   | back
   | yank
@@ -696,6 +698,18 @@ def updateWithCoverage
               match selectedRecord? snapshot state with
               | none => { state := { state with notice := "No current-open Scheduled occurrence is selected for completion." } }
               | some _ => { state, command := .completeScheduled }
+  | .batchEditScheduled =>
+      match unavailableNotice? snapshot with
+      | some notice => { state := { state with notice := notice } }
+      | none =>
+          let source :=
+            if state.viewMode == .coverage || state.viewMode == .planDetail then
+              selectedCoverageRecord? snapshot coverage state
+            else if state.pane == .occurrences then selectedRecord? snapshot state
+            else none
+          match source with
+          | some _ => { state, command := .batchEditScheduled }
+          | none => { state := { state with notice := "Select an explicit Scheduled reference for batch amount editing." } }
   | .replaceScheduled =>
       match unavailableNotice? snapshot with
       | some notice => { state := { state with notice := notice } }
@@ -873,13 +887,22 @@ private def fixedDetailLines
   let padding := capacity - visible.length
   visible ++ List.replicate padding blankLine
 
+private def noticeLines (bounds : Bounds) (state : State) : List String :=
+  if state.notice.isEmpty then []
+  else Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) " "
+    (state.notice.splitOn " ")
+
+/-- Publication/refusal feedback stays visible even when the browse body is truncated. -/
+private def withNoticeFooter (bounds : Bounds) (state : State) (help : List Widget) : List Widget :=
+  (noticeLines bounds state).map plainLine ++ help
+
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] overview  [e] extend  [s] undecided  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [y] copy  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] overview  [e] extend  [s] undecided  [n] new  [c/Enter] complete  [r] replace  [b] batch amount  [x] cancel  [y] copy  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
     [ mutedLine "[j/k] select [h/l] pane [f] scope [v] overview [e] extend [s] undecided [n] new [y] copy [q] back"
-    , mutedLine "[c/Enter] complete [r] replace [x] cancel"
+    , mutedLine "[c/Enter] complete [r] replace [b] batch amount [x] cancel"
     ]
 
 /--
@@ -906,12 +929,11 @@ private def listView (bounds : Bounds) (snapshot : Snapshot) (rawState : State) 
         fit rightWidth
           (if state.pane == .occurrences then " Scheduled [active] (" ++ toString occCount ++ ")"
            else " Scheduled (" ++ toString occCount ++ ")")
-  let footerLines := footer bounds
+  let footerLines := withNoticeFooter bounds state (footer bounds)
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
   let detailCap := detailCapacityForBounds bounds
   let details := fixedDetailLines snapshot state detailCap
-  let noticeRows := if state.notice.isEmpty then 0 else 1
-  let fixedBodyRows := 7 + detailCap + noticeRows
+  let fixedBodyRows := 7 + detailCap
   let paneRows := max 1 (bodyCapacity - fixedBodyRows)
   let body :=
     [ rule bounds '='
@@ -922,8 +944,7 @@ private def listView (bounds : Bounds) (snapshot : Snapshot) (rawState : State) 
     , .row [span leftHeader, span " | ", span rightHeader]
     ] ++
     (List.range paneRows).map (paneRow snapshot state leftWidth rightWidth paneRows) ++
-    [rule bounds '-'] ++ details ++
-    (if state.notice.isEmpty then [] else [plainLine state.notice])
+    [rule bounds '-'] ++ details
   .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
 
 
@@ -1002,12 +1023,14 @@ private def monthCard
 private def emptyMonthCard (height : Nat) : Widget :=
   .column (List.replicate height (.row []))
 
-private def futureBoardDetailedHelp : String :=
-  "[j/k or wheel] select  [h/l or ←/→] months  [e] extend  [s] undecided  [v] List  [n] new  [c/Enter] complete  [r] replace  [x] cancel  [q] back"
+private def futureBoardHelpLines (bounds : Bounds) : List String :=
+  Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  "
+    ["[j/k or wheel] select", "[h/l or ←/→] months", "[e] extend", "[s] undecided",
+     "[v] List", "[n] new", "[c/Enter] complete", "[r] replace", "[b] batch amount",
+     "[x] cancel", "[q] back"]
 
 private def futureBoardFooterRowCount (bounds : Bounds) : Nat :=
-  if Loam.Tui.Layout.displayWidth futureBoardDetailedHelp ≤
-      Loam.Tui.Layout.contentWidth bounds then 1 else 2
+  (futureBoardHelpLines bounds).length
 
 private def futureBoardCardHeight
     (bounds : Bounds) (snapshot : Snapshot) (state : State) : Nat :=
@@ -1015,7 +1038,7 @@ private def futureBoardCardHeight
     Loam.Tui.Layout.footerBodyCapacity bounds (futureBoardFooterRowCount bounds)
   let fixedBodyRows :=
     5 + 1 + (detailLines snapshot state).length +
-      (if state.notice.isEmpty then 0 else 1)
+      (noticeLines bounds state).length
   let available := bodyCapacity - fixedBodyRows
   max 5 (available / 3)
 
@@ -1043,12 +1066,7 @@ private def futureBoardRows
       Loam.Tui.Layout.sideBySide cardHeight leftWidth rightWidth left right
 
 private def futureBoardFooter (bounds : Bounds) : List Widget :=
-  if futureBoardFooterRowCount bounds = 1 then
-    [mutedLine futureBoardDetailedHelp]
-  else
-    [ mutedLine "[j/k or wheel] select [h/l or ←/→] months [e] extend [s] undecided"
-    , mutedLine "[v] List [n] new [c/Enter] complete [r] replace [x] cancel [q] back"
-    ]
+  (futureBoardHelpLines bounds).map mutedLine
 
 private def futureBoardView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
@@ -1069,9 +1087,9 @@ private def futureBoardView
     ] ++
     futureBoardRows bounds snapshot state ++
     [rule bounds '-'] ++
-    detailLines snapshot state ++
-    (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (Loam.Tui.Layout.fitWithFooter bounds body (futureBoardFooter bounds))
+    detailLines snapshot state
+  .column (Loam.Tui.Layout.fitWithFooter bounds body
+    (withNoticeFooter bounds state (futureBoardFooter bounds)))
 
 private def paceLabel (rule : Loam.ScheduledCoverageConfig.Rule) : String :=
   match rule.everyMonths with
@@ -1095,19 +1113,19 @@ private def planDetailEntryLine
 
 private def planDetailFooter (bounds : Bounds) : List Widget :=
   let detailed :=
-    "[j/k] select  [e] replenish  [x] cancel  [r] replace  [c/Enter] complete  [p] pace  [s] undecided  [y] copy  [q] overview"
+    "[j/k] select  [e] replenish  [b] batch amount  [x] cancel  [r] replace  [c/Enter] complete  [p] pace  [s] undecided  [y] copy  [q] overview"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [mutedLine detailed]
   else
     [ mutedLine "[j/k] select [e] replenish [x] cancel [r] replace [c/Enter] complete [y] copy"
-    , mutedLine "[p] pace [s] undecided [q] overview"
+    , mutedLine "[b] batch amount [p] pace [s] undecided [q] overview"
     ]
 
 private def planDetailView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
     (coverage : CoverageEvidence) : Widget :=
   let state := clampPlanDetailState snapshot coverage rawState
-  let footerLines := planDetailFooter bounds
+  let footerLines := withNoticeFooter bounds state (planDetailFooter bounds)
   match selectedCoverageRow? coverage state with
   | none =>
       .column (Loam.Tui.Layout.fitWithFooter bounds
@@ -1119,7 +1137,7 @@ private def planDetailView
   | some row =>
       let entries := planDetailEntries snapshot row
       let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
-      let fixedRows := 6 + 1 + 2 + (if state.notice.isEmpty then 0 else 1)
+      let fixedRows := 6 + 1 + 2
       let capacity := max 6 (bodyCapacity - fixedRows)
       let start := Loam.Tui.Layout.trailingWindowStart state.planRow capacity
       let shown := (entries.drop start).take capacity
@@ -1142,15 +1160,14 @@ private def planDetailView
         [ rule bounds '-'
         , mutedLine " on pace = explicit date in a monitored month; outside pace = explicit date outside it."
         , mutedLine " MISSING is presentation guidance only; no Scheduled occurrence exists yet."
-        ] ++
-        (if state.notice.isEmpty then [] else [plainLine state.notice])
+        ]
       .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
 
 private def coverageFooter (bounds : Bounds) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let primary :=
     Loam.Tui.Layout.flowTokens width "  "
-      ["[j/k] plan", "[h/l] months", "[Enter] detail", "[e] replenish", "[p] pace", "[y] copy", "[q] back"]
+      ["[j/k] plan", "[h/l] months", "[Enter] detail", "[e] replenish", "[b] batch amount", "[p] pace", "[y] copy", "[q] back"]
   let more :=
     Loam.Tui.Layout.flowTokens width "  "
       ["More:", "[s] undecided", "[n] new", "[v] Months/List"]
@@ -1176,9 +1193,9 @@ private def coverageView
     , mutedLine " Series Calendar: rows are plans; columns are months; cells show real explicit Scheduled days."
     , mutedLine " ! marks an expected month with no explicit plan. Unscheduled months stay blank."
     , rule bounds '='
-    ] ++ coverageLines ++
-    (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (Loam.Tui.Layout.fitWithFooter bounds body (coverageFooter bounds))
+    ] ++ coverageLines
+  .column (Loam.Tui.Layout.fitWithFooter bounds body
+    (withNoticeFooter bounds state (coverageFooter bounds)))
 
 def viewWithCoverage
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
