@@ -115,12 +115,24 @@ def initialState (selectedDate : String) : State :=
 def toggleHomeMode (state : State) (today : String) : State :=
   match state.homeMode with
   | .daily =>
-      { state with homeMode := .calendar, activePane := .calendar,
-        notice := "", overviewScroll := 0, detailScroll := 0, detailCursor := 0 }
+      { state with
+        homeMode := .calendar
+        activePane := .calendar
+        notice := ""
+        overviewScroll := 0
+        detailScroll := 0
+        detailCursor := 0 }
   | .calendar =>
-      { state with homeMode := .daily, selectedDate := today, zoomLevel := .day,
-        activePane := .calendar, notice := "", overviewScroll := 0,
-        detailScroll := 0, detailCursor := 0, jumpPrompt := none }
+      { state with
+        homeMode := .daily
+        selectedDate := today
+        zoomLevel := .day
+        activePane := .calendar
+        notice := ""
+        overviewScroll := 0
+        detailScroll := 0
+        detailCursor := 0
+        jumpPrompt := none }
 
 /-- Toggle only presentation; no household evidence is mutated or reclassified. -/
 def toggleCalendarMode (state : State) : State :=
