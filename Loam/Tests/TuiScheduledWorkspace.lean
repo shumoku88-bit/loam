@@ -205,8 +205,8 @@ def main : IO Unit := do
   let refusedState := { second with notice := refusalMessage }
   let refusedText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } snapshot refusedState)
-  expect (contains refusalMessage refusedText)
-    "Scheduled workspace did not render a Scheduled replacement refusal notice from its current state"
+  expect (contains refusalMessage (refusedText.replace "\n" " "))
+    "Scheduled workspace did not render the complete wrapped Scheduled replacement refusal notice"
 
   -- 4. Cycle Filter expands to allCurrent
   let allCurrent := (Loam.Tui.ScheduledWorkspace.update snapshot second .cycleFilter).state
@@ -266,6 +266,10 @@ def main : IO Unit := do
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .extendPlan
   expect (coverageExtend.command == .extendPlan)
     "Scheduled overview could not replenish its selected recurring plan directly"
+  let coverageBatch :=
+    Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .batchEditScheduled
+  expect (coverageBatch.command == .batchEditScheduled && contains "[b] batch amount" coverageText)
+    "Scheduled overview could not open the batch candidate sheet directly"
   let coveragePace :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .changePace
   expect (coveragePace.command == .changePace)
@@ -507,6 +511,24 @@ def main : IO Unit := do
   expect (completeStep.command == .completeScheduled)
     "Scheduled workspace completeScheduled event did not emit completeScheduled command"
 
+  let batchStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .batchEditScheduled
+  expect (batchStep.command == .batchEditScheduled)
+    "Scheduled occurrence could not open batch candidate editing"
+  let shortNoticeState := { occPane with
+    viewMode := Loam.Tui.ScheduledWorkspace.ViewMode.futureBoard
+    notice := "Revised 2 Scheduled occurrences." }
+  let shortNoticeText := widgetText
+    (Loam.Tui.ScheduledWorkspace.view { width := 80, height := 18 } snapshot shortNoticeState)
+  expect (contains shortNoticeState.notice shortNoticeText &&
+    contains "[b] batch amount" shortNoticeText && contains "[x] cancel" shortNoticeText &&
+    contains "[q] back" shortNoticeText)
+    "short Months viewport hid batch publication feedback or displaced an existing action"
+  for mode in [Loam.Tui.ScheduledWorkspace.ViewMode.list, .coverage, .planDetail] do
+    let noticeState := { shortNoticeState with viewMode := mode }
+    let text := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+      { width := 80, height := 18 } snapshot noticeState coverageEvidence)
+    expect (contains noticeState.notice text)
+      "Scheduled projection hid canonical publication feedback in a short viewport"
   let replaceStep := Loam.Tui.ScheduledWorkspace.update snapshot occPane .replaceScheduled
   expect (replaceStep.command == .replaceScheduled)
     "Scheduled workspace replaceScheduled event did not emit replaceScheduled command"
@@ -578,6 +600,9 @@ def main : IO Unit := do
   expect (contains "Scheduled [Unavailable]" unavailableText &&
     contains "[Unavailable] scheduled fixture unavailable" unavailableText)
     "Scheduled workspace collapsed startup refusal into an empty Scheduled workspace"
+  let unavailableBatch := Loam.Tui.ScheduledWorkspace.update unavailable start .batchEditScheduled
+  expect (unavailableBatch.command == .stay)
+    "unavailable Scheduled authority admitted batch editing"
   let unavailableCreate := Loam.Tui.ScheduledWorkspace.update unavailable start .createScheduled
   expect (unavailableCreate.command == .stay &&
     contains "[Unavailable] Scheduled" unavailableCreate.state.notice)

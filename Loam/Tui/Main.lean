@@ -57,19 +57,22 @@ structure Snapshot where
   -/
   moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot := .notRequested
 
-inductive CalendarMode where
-  | plain
-  | money
-  deriving Repr, DecidableEq, BEq
-
 inductive HomePane where
   | calendar
   | detail
   deriving Repr, DecidableEq, BEq
 
+/-- Daily glance and the existing calendar are presentation modes only. -/
+inductive HomeMode where
+  | daily
+  | calendar
+  deriving Repr, DecidableEq, BEq
+
 /-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
+  /-- Calendar stays the compatibility default for pure existing callers. The TUI starts Daily. -/
+  homeMode : HomeMode := .calendar
   notice : String := ""
   /-- Presentation-only viewport offset for the responsive Home detail pane. -/
   detailScroll : Nat := 0
@@ -77,8 +80,6 @@ structure State where
   overviewScroll : Nat := 0
   /-- Zero-based index of the currently selected Actual transaction in detail view. -/
   detailCursor : Nat := 0
-  /-- Replaceable Home calendar lens; ordinary date view remains the default. -/
-  calendarMode : CalendarMode := .plain
   /-- Calendar zoom level: Day, Month, or Year. -/
   zoomLevel : Loam.Tui.DateJump.ZoomLevel := .day
   /-- Active jump input buffer. When `some s`, Home is in jump-prompt mode. -/
@@ -103,18 +104,28 @@ structure Step where
 def initialState (selectedDate : String) : State :=
   { selectedDate := selectedDate }
 
-/-- Toggle only presentation; no household evidence is mutated or reclassified. -/
-def toggleCalendarMode (state : State) : State :=
-  { state with
-    overviewScroll := 0
-    calendarMode :=
-      match state.calendarMode with
-      | .plain => .money
-      | .money => .plain
-    notice := ""
-    detailScroll := 0
-    detailCursor := 0
-  }
+/-- Switch between a low-noise daily glance and the original date navigator. -/
+def toggleHomeMode (state : State) (today : String) : State :=
+  match state.homeMode with
+  | .daily =>
+      { state with
+        homeMode := .calendar
+        activePane := .calendar
+        notice := ""
+        overviewScroll := 0
+        detailScroll := 0
+        detailCursor := 0 }
+  | .calendar =>
+      { state with
+        homeMode := .daily
+        selectedDate := today
+        zoomLevel := .day
+        activePane := .calendar
+        notice := ""
+        overviewScroll := 0
+        detailScroll := 0
+        detailCursor := 0
+        jumpPrompt := none }
 
 /-- Toggle focus between calendar and detail pane. -/
 def toggleActivePane (state : State) : State :=

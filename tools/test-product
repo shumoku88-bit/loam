@@ -91,6 +91,7 @@ scheduled_lifecycle_tests=(
   HouseholdScheduledLifecycleCutover
   ScheduledCreationPublisher
   ScheduledReplacementPublisher
+  ScheduledBatchReplacement
   ScheduledTerminalPublisher
   DeterministicScheduledRecoveryScenario
 )
@@ -151,6 +152,7 @@ tui_representative_tests=(
   TuiRecord
   TuiActual
   TuiScheduledWorkspace
+  TuiScheduledBulkEdit
   TuiCapacity
   TuiSettlement
   TuiReports
@@ -352,7 +354,7 @@ for test_name in "${tests[@]}"; do
     HouseholdScheduledLifecycleCutover)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/household-scheduled-lifecycle-cutover"
       ;;
-    ScheduledReplacementPublisher)
+    ScheduledReplacementPublisher|ScheduledBatchReplacement)
       run lake env lean --run "Loam/Tests/$test_name.lean" "$(mktemp -d)/scheduled-replacement-publisher"
       ;;
     ScheduledRoutingPublisher)

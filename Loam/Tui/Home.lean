@@ -23,15 +23,6 @@ private def ruleLine (bounds : Bounds) (char : Char) : Widget :=
 private def monthTitle (state : State) : String :=
   Loam.Tui.Calendar.monthLabel (selectedMonth state)
 
-private def centeredMonthTitle (state : State) : String :=
-  let title := monthTitle state
-  let width := Loam.Tui.Layout.displayWidth title
-  let padding := if width < 35 then (35 - width) / 2 else 0
-  repeatChar padding ' ' ++ title
-
-private def calendarHeader : Widget :=
-  plainLine " Mon  Tue  Wed  Thu  Fri  Sat  Sun"
-
 private abbrev PendingEvidence := Except String (List Loam.ScheduledReview.Record)
 
 private def pendingEvidence (snapshot : Snapshot) : PendingEvidence :=
@@ -44,28 +35,6 @@ private def pendingDates : PendingEvidence → List String
   | .ok records => records.map (fun record => record.scheduledOn)
   | .error _ => []
 
-/-- Pure calendar presentation; marker dates are supplied evidence, not classified here. -/
-def calendarSpans
-    (today : String) (pastOpenDates : List String) (state : State) (row : Nat) : List Span :=
-  (List.range 7).map fun col =>
-    match calendarSlot state row col with
-    | none => span "     "
-    | some date =>
-        let day :=
-          match date.splitOn "-" with
-          | [_, _, text] => text
-          | _ => "  "
-        let marker := if pastOpenDates.any (fun pending => pending == date) then "!" else " "
-        if date == state.selectedDate then
-          span ("[" ++ day ++ marker ++ "]")
-            (if date == today then .selectedUnderlined else .selected)
-        else
-          span (" " ++ day ++ marker ++ " ")
-            (if date == today then .underlined else .normal)
-
-private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
-  (List.range 6).map fun row => .row (calendarSpans today pastOpenDates state row)
-
 private def moneyWindow (state : State) : String × String :=
   Loam.Tui.Calendar.monthWindow (selectedMonth state)
 
@@ -76,11 +45,6 @@ private def moneyMeasureInfo
       let window := moneyWindow state
       some (money, money.flow.measuresInWindow window.1 window.2)
   | _ => none
-
-private def moneyMeasure?
-    (snapshot : Snapshot) (state : State) : Option Loam.Core.MeasureId := do
-  let (_, measures) ← moneyMeasureInfo snapshot state
-  measures.head?
 
 private def moneyTitle (snapshot : Snapshot) (state : State) : String :=
   let month := monthTitle state
@@ -154,7 +118,9 @@ private def moneyCellStyle
   else
     .normal
 
-private def moneyDateSpan
+/-- One shared calendar day cell; focus, Today, overdue Scheduled and role unknown
+markers all compose in this larger money calendar. -/
+def moneyDateSpan
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
     (snapshot : Snapshot) (state : State) (date : String) : Span :=
   let cellWidth := moneyCellWidth paneWidth
@@ -350,39 +316,6 @@ private def statusTokens
       let count := (recordsForYear snapshot y).length
       [s!"Transactions: {count}"]
 
-/--
-Home keeps only the current Daily Pace answer on its glance surface.
-Historical pace remains review evidence, but belongs in a deeper trend/report
-surface rather than competing with the current household state.
--/
-private def dailyPaceText (snapshot : Snapshot) : String :=
-  match snapshot.pace with
-  | .notRequested => "Daily pace: not requested"
-  | .unavailable => "Daily pace: unavailable"
-  | .failed _ => "Daily pace: failed"
-  | .loaded pace =>
-      match pace.dailyPaceQuanta? with
-      | none => "Daily pace: unavailable"
-      | some quanta =>
-          "Daily pace: " ++ toString quanta ++ " " ++ pace.measure.token ++ "/day  (" ++
-            toString pace.remainingDays ++ " days; " ++
-            toString pace.availableThroughEnd.quanta ++
-            " " ++ pace.measure.token ++ " through " ++ pace.endExclusive ++ ")"
-
-private def nextScheduledText (snapshot : Snapshot) : String :=
-  match snapshot.scheduled with
-  | .error _ => "Next Scheduled: unavailable"
-  | .ok scheduled =>
-      match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
-      | .error _ => "Next Scheduled: unavailable"
-      | .ok none => "Next Scheduled: none current-open"
-      | .ok (some record) =>
-          let status :=
-            if decide (record.scheduledOn < snapshot.actual.today) then "  [Still open]"
-            else ""
-          "Next Scheduled: " ++ record.scheduledOn ++ status ++ "  " ++
-            Loam.ScheduledReview.summary record
-
 private def attentionText (snapshot : Snapshot) : String :=
   match snapshot.attention with
   | .notRequested => "Attention: not requested"
@@ -402,116 +335,6 @@ private def attentionLine (snapshot : Snapshot) : Widget :=
   | .loaded { openItems := _ :: _ } =>
       plainLine (" " ++ attentionText snapshot)
   | _ => mutedLine (" " ++ attentionText snapshot)
-
-private def wideAttentionLines (snapshot : Snapshot) : List Widget :=
-  match snapshot.attention with
-  | .notRequested =>
-      [ mutedLine " Attention"
-      , mutedLine "   not requested"
-      ]
-  | .unavailable =>
-      [ mutedLine " Attention"
-      , mutedLine "   not configured"
-      ]
-  | .failed _ =>
-      [ mutedLine " Attention"
-      , mutedLine "   failed"
-      ]
-  | .loaded attention =>
-      match attention.openItems with
-      | [] =>
-          [ mutedLine " Attention"
-          , mutedLine "   0 open"
-          ]
-      | [first] =>
-          [ plainLine " Attention"
-          , plainLine "   1 open"
-          , plainLine ("   " ++
-              Loam.ActualReview.shortText 34 (Loam.AttentionReview.summary first))
-          ]
-      | _ =>
-          [ plainLine " Attention"
-          , plainLine ("   " ++ toString attention.openItems.length ++ " open")
-          , mutedLine "   [i] manage"
-          ]
-
-private def dailyPaceLine (snapshot : Snapshot) : Widget :=
-  match snapshot.pace with
-  | .notRequested => mutedLine (" " ++ dailyPaceText snapshot)
-  | .unavailable => mutedLine (" " ++ dailyPaceText snapshot)
-  | .failed _ => mutedLine (" " ++ dailyPaceText snapshot)
-  | .loaded pace =>
-      match pace.dailyPaceQuanta? with
-      | none => mutedLine (" " ++ dailyPaceText snapshot)
-      | some _ => plainLine (" " ++ dailyPaceText snapshot)
-
-private def nextScheduledLine (snapshot : Snapshot) : Widget :=
-  match snapshot.scheduled with
-  | .error _ => mutedLine (" " ++ nextScheduledText snapshot)
-  | .ok scheduled =>
-      match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
-      | .error _ => mutedLine (" " ++ nextScheduledText snapshot)
-      | .ok none => mutedLine (" " ++ nextScheduledText snapshot)
-      | .ok (some _) => plainLine (" " ++ nextScheduledText snapshot)
-
-private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
-  [dailyPaceLine snapshot, nextScheduledLine snapshot, attentionLine snapshot]
-
-private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
-  let currentPaceLines :=
-    match snapshot.pace with
-    | .notRequested =>
-        [ mutedLine " Daily pace"
-        , mutedLine "   not requested"
-        ]
-    | .unavailable =>
-        [ mutedLine " Daily pace"
-        , mutedLine "   unavailable"
-        ]
-    | .failed _ =>
-        [ mutedLine " Daily pace"
-        , mutedLine "   failed"
-        ]
-    | .loaded pace =>
-        match pace.dailyPaceQuanta? with
-        | none =>
-            [ mutedLine " Daily pace"
-            , mutedLine "   unavailable"
-            ]
-        | some quanta =>
-            [ plainLine " Daily pace"
-            , plainLine ("   " ++ toString quanta ++ " " ++ pace.measure.token ++ "/day")
-            , mutedLine
-                ("   " ++ toString pace.availableThroughEnd.quanta ++
-                  " " ++ pace.measure.token ++ " through " ++ pace.endExclusive)
-            ]
-  let paceLines := currentPaceLines
-  let scheduledLines :=
-    match snapshot.scheduled with
-    | .error _ =>
-        [ mutedLine " Next Scheduled"
-        , mutedLine "   unavailable"
-        ]
-    | .ok scheduled =>
-        match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
-        | .error _ =>
-            [ mutedLine " Next Scheduled"
-            , mutedLine "   unavailable"
-            ]
-        | .ok none =>
-            [ mutedLine " Next Scheduled"
-            , mutedLine "   none current-open"
-            ]
-        | .ok (some record) =>
-            let status :=
-              if decide (record.scheduledOn < snapshot.actual.today) then "  [Still open]"
-              else ""
-            [ plainLine " Next Scheduled"
-            , plainLine ("   " ++ record.scheduledOn ++ status)
-            , plainLine ("   " ++ Loam.ScheduledReview.summary record)
-            ]
-  paceLines ++ [blankLine] ++ scheduledLines ++
-    [blankLine] ++ wideAttentionLines snapshot
 
 private def pendingSection (pending : PendingEvidence) : List Widget :=
   match pending with
@@ -660,19 +483,7 @@ private def wideCalendarPane
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      match state.calendarMode with
-      | .plain =>
-          [ plainLine (centeredMonthTitle state)
-          , calendarHeader
-          ] ++
-          calendarRows snapshot.actual.today pastOpenDates state ++
-          [mutedLine " underline = today"] ++
-          (if pastOpenDates.isEmpty then [] else
-            [mutedLine " ! = still current-open"]) ++
-          [blankLine] ++
-          wideHomeSummaryLines snapshot
-      | .money =>
-          moneyCalendarBlock paneWidth snapshot state pastOpenDates
+      moneyCalendarBlock paneWidth snapshot state pastOpenDates
   | .month =>
       monthCalendarPane snapshot state ++ periodSummaryLines paneWidth snapshot state
   | .year =>
@@ -773,19 +584,7 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
   ] ++
   (match state.zoomLevel with
    | .day =>
-       match state.calendarMode with
-       | .plain =>
-           [ plainLine (centeredMonthTitle state)
-           , calendarHeader
-           ] ++
-           calendarRows snapshot.actual.today pastOpenDates state ++
-           [mutedLine " underline = today"] ++
-           (if pastOpenDates.isEmpty then [] else
-             [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
-           [blankLine] ++
-           homeSummaryLines snapshot
-       | .money =>
-           moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
+       moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
    | .month =>
        monthCalendarPane snapshot state ++ periodSummaryLines (Loam.Tui.Layout.contentWidth bounds) snapshot state
    | .year =>
@@ -824,7 +623,7 @@ private def overviewViewport (height : Nat) (state : State) (rows : List Widget)
       [mutedLine s!" {offset + 1}-{min (offset + visible) rows.length}/{rows.length}  {hint}"]
 
 private def detailPaneWidth (state : State) : Nat :=
-  if state.zoomLevel == .day && state.calendarMode == .money then 50 else 64
+  if state.zoomLevel == .day then 50 else 64
 
 private def wideHomeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -854,9 +653,71 @@ private def wideHomeBody
   Loam.Tui.Layout.sideBySide panelRows leftWidth rightWidth left right ++
   [ruleLine bounds '-']
 
+
+/--
+Minimal daily confirmation surface. Recent Actuals are explicitly recorded facts;
+current-open Scheduled items are obligations recorded in the system, not proof that
+every future bill has been entered. Neither list is a new accounting calculation.
+-/
+private def dailyHomeBody
+    (bounds : Bounds) (snapshot : Snapshot) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let paceRows :=
+    match snapshot.pace with
+    | .loaded pace =>
+        match pace.dailyPaceQuanta? with
+        | none => [mutedLine " Daily Pace: unavailable"]
+        | some daily =>
+            [ plainLine (" Daily Pace   " ++ toString daily ++ " " ++ pace.measure.token ++ "/day")
+            , mutedLine ("   " ++ toString pace.remainingDays ++ " days to " ++ pace.endExclusive)
+            , plainLine (" Spendable pool: " ++ toString pace.eligiblePool.quanta ++ " " ++ pace.measure.token)
+            , plainLine (" Open Scheduled: -" ++ toString pace.automaticDeductions.quanta ++ " " ++ pace.measure.token)
+            , plainLine (" After scheduled: " ++ toString pace.availableThroughEnd.quanta ++ " " ++ pace.measure.token)
+            ]
+    | .notRequested => [mutedLine " Daily Pace: not requested"]
+    | .unavailable => [mutedLine " Daily Pace: unavailable"]
+    | .failed _ => [plainLine " Daily Pace: calculation failed"]
+  let scheduledRows :=
+    match snapshot.scheduled with
+    | .error _ => [plainLine "   [Unavailable] Scheduled review failed"]
+    | .ok scheduled =>
+        match Loam.ScheduledReview.orderedCurrentOpenRecords scheduled with
+        | .error _ => [plainLine "   [Unavailable] Scheduled review failed"]
+        | .ok [] => [mutedLine "   No current-open plans recorded"]
+        | .ok records =>
+            (records.take (if bounds.height < 30 then 2 else 3)).map fun record =>
+              plainLine <| Loam.Tui.Layout.clip width
+                ("   " ++ record.scheduledOn ++ "  " ++
+                  Loam.ScheduledReview.summary record)
+  let recent :=
+    (snapshot.actual.allRecords.filter Loam.ActualReview.Record.isCurrent)
+      |>.mergeSort (fun a b => a.date.getD "" >= b.date.getD "")
+      |>.take (if bounds.height < 30 then 3 else 5)
+  let actualRows :=
+    if recent.isEmpty then [mutedLine "   No recent transactions recorded"]
+    else
+      recent.map fun record =>
+        plainLine <| Loam.Tui.Layout.clip width
+          ("   " ++ record.date.getD "undated" ++ "  " ++
+            Loam.ActualReview.summary record)
+  [ ruleLine bounds '='
+  , plainLine (" LOAM / Today   " ++ snapshot.actual.today)
+  , ruleLine bounds '='
+  , blankLine
+  ] ++ paceRows ++
+  [ blankLine
+  , mutedLine " Note: missing future plans are not assumed paid or nonexistent."
+  , blankLine
+  , plainLine " Upcoming Scheduled (open)"
+  ] ++ scheduledRows ++
+  [ blankLine
+  , plainLine " Recent recorded Actual"
+  ] ++ actualRows ++ [blankLine, attentionLine snapshot]
+
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
-  if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
+  if state.homeMode == .daily then dailyHomeBody bounds snapshot
+  else if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
   else if state.activePane == .detail then
     [ruleLine bounds '=', plainLine " LOAM Home / Transactions", ruleLine bounds '='] ++
     detailPaneLines (widePanelRows bounds footerRows) snapshot state (pendingEvidence snapshot) ++
@@ -910,10 +771,6 @@ private def helpGroupLines
     helpRow category (index = 0) row
 
 private def navigationHelp (state : State) : String × List HelpItem :=
-  let calendarToggle :=
-    match state.calendarMode with
-    | .plain => { key := "[f]", label := "flow" }
-    | .money => { key := "[f]", label := "calendar" }
   if state.activePane == .detail then
     ("Detail",
       [ { key := "[j/k]", label := "select" }
@@ -926,7 +783,6 @@ private def navigationHelp (state : State) : String × List HelpItem :=
         ("Day",
           [ { key := "[h/l]", label := "day" }
           , { key := "[k/j]", label := "week" }
-          , calendarToggle
           , { key := "[Enter]", label := "open" }
           , { key := "[t]", label := "today" }
           , { key := "[/]", label := "jump" }
@@ -978,14 +834,13 @@ private def householdHelp : List HelpItem :=
   , { key := "[i]", label := "attention" }
   , { key := "[b]", label := "balances" }
   , { key := "[u]", label := "settlements" }
-  , { key := "[c]", label := "budget" }
-  , { key := "[e]", label := "capacity" }
+  , { key := "[c]", label := "daily" }
+  , { key := "[Space]", label := "commands" }
   , { key := "[v]", label := "reports" }
   ]
 
 private def manageHelp : List HelpItem :=
-  [ { key := "[p]", label := "purpose routing" }
-  , { key := "[m]", label := "manage loci" }
+  [ { key := "[m]", label := "manage loci" }
   , { key := "[o]", label := "observe quantities" }
   ]
 
@@ -1009,11 +864,20 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
       let hintLine := mutedLine " [Enter] jump  [Esc] cancel  (e.g. 2026-10-15, 2026-10, 2026, 15)"
       [ruleLine bounds '-', promptLine, hintLine]
   | none =>
-      let help := helpLines bounds state
-      if state.notice.isEmpty then
-        help
+      if state.homeMode == .daily then
+        let tokens :=
+          ["[r] record", "[a] actual", "[s] scheduled", "[d] pace trend",
+           "[b] balances", "[c] calendar", "[Space] commands", "[q] quit"]
+        let help := (Loam.Tui.Layout.flowTokens
+          (Loam.Tui.Layout.contentWidth bounds) "   " tokens).map mutedLine
+        if state.notice.isEmpty then help
+        else [plainLine state.notice] ++ help
       else
-        [plainLine state.notice, blankLine] ++ help
+        let help := helpLines bounds state
+        if state.notice.isEmpty then
+          help
+        else
+          [plainLine state.notice, blankLine] ++ help
 
 /-- Scroll non-selectable detail evidence when there are no Actual rows. -/
 private def scrollDetail
@@ -1101,7 +965,11 @@ def navigationKey
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1) : Option State :=
   let state := reconcileState bounds snapshot state
   let handled := fun next => some (reconcileState bounds snapshot next)
-  if state.jumpPrompt.isSome then
+  if state.jumpPrompt.isNone && (key == .input 'c' || key == .input 'C') then
+    handled (Loam.Tui.Main.toggleHomeMode state snapshot.actual.today)
+  else if state.homeMode == .daily && state.jumpPrompt.isNone then
+    none
+  else if state.jumpPrompt.isSome then
     handled <| match key with
     | .escape => closeJumpPrompt state
     | .backspace | .delete => backspaceJump state
@@ -1127,8 +995,6 @@ def navigationKey
           overviewScroll := 0
           activePane := .calendar
         }
-    | .input 'f' | .input 'F' =>
-        handled (if state.zoomLevel == .day && state.activePane == .calendar then toggleCalendarMode state else state)
     | .ctrl 'u' | .ctrl 'd' | .pageUp | .pageDown =>
         let forward := key == .ctrl 'd' || key == .pageDown
         if state.activePane == .calendar then handled (scrollOverview bounds snapshot state forward)

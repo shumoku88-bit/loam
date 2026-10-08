@@ -29,9 +29,24 @@ do not fall back to retired steady-state sidecars.
 
 ## Home grammar
 
-The production Home surface currently exposes these entrances:
+The production TUI opens the **Daily glance** by default. It shows current
+Daily Pace (including its existing current-open Scheduled deductions), the
+three next recorded current-open Scheduled items, five recent current
+Actual entries, and the current Attention read-state. These are read-only projections and do **not** assert that
+all future bills have been entered. `c` switches to the original Calendar
+Home; `c` again returns to Daily. The normal recording and specialized
+workspaces remain available from either view.
+
+`Space` opens a short-lived Commands palette. The optional envelope
+operations **Budget**, **Capacity**, and **Purpose routing** live there.
+Selecting an item enters its existing validated workspace. Neither the
+underlying canonical facts nor the publisher/writer boundaries change.
+
+The Calendar Home retains these entrances:
 
 ```text
+c          back to the Daily glance
+Space      optional commands: Budget, Capacity, Purpose routing
 h/l        previous / next day, month, or year (current zoom)
 k/j        previous / next week, quarter, or year (current zoom)
 t          return calendar focus to today
@@ -40,21 +55,29 @@ z          cycle Day / Month / Year
 Tab/w      switch calendar / transaction focus
 Ctrl-u/d   scroll calendar/summary; page transaction selection in detail
 Enter      Year -> Month -> Day -> selected-day workspace
-f          toggle calendar / money lens in Day view
+(Day view) single role-aware money calendar with income, expense, and open-plan markers
 r          Record (selected date prefilled; cursor starts in Description)
 a          Actual workspace
 s          Scheduled workspace
 d          Daily Pace trend
 i          Attention
 b          Balances
-c          current-cycle Budget
-e          raw/general Capacity
-p          Purpose routing administration
-m          Locus administration
+ m          Locus administration
 o          current quantity observation
 v          Reports
 q          quit
 ```
+
+The retired direct Home `c` Budget, `e` Capacity, and `p` Purpose routing
+shortcuts are no longer accepted as direct optional-budget entrances;
+open them via `Space` instead.
+
+The prior compact calendar was retired. The Calendar Home now always uses
+the larger role-aware money grid, with Today's underline, open-plan `!`, and
+unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
+still shows dates and explicitly indicates that the financial projection is
+unavailable. The Daily glance owns current Daily Pace, upcoming plans, recent
+Actual, and Attention; the calendar does not duplicate those summaries.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, and Record interactions. It does not redefine the current-cycle
@@ -237,6 +260,7 @@ The Series Calendar is the primary recurring-plan management surface:
 j/k       select recurring plan
 h/l       move the visible month window
 e         extend / replenish future explicit plans
+b         batch amount edit with checked candidates and a final preview
 p         change expected pace
 Enter     open that plan's exact Scheduled dates
 
@@ -275,6 +299,41 @@ occurrence selected. Completion (`c` / `Enter`), replacement (`r`), and
 cancellation (`x`) then operate on exact occurrences there. The older `g`
 generation and `m` monitoring keys remain compatibility/advanced paths but are no
 longer part of the ordinary footer grammar.
+
+### Checked batch amount editing
+
+`b` opens **Batch amount edit** from the Series Calendar, plan detail, Months, or
+List. The selected explicit occurrence is an advisory reference, not proof of
+series or contract identity. Candidates are current-open occurrences with the
+same Measure and exact signed-Locus sets; differing amounts remain visible.
+Completed, cancelled, and replaced sources are not candidates.
+
+1. Enter the new amount and an inclusive **From / Through** date range. From is
+   initially the workspace's today date and is editable, including for
+   overdue evidence. Empty Through means all retained later dates, not automatic
+   generation of future occurrences. Decimal amounts use existing Measure
+   presentation with exact parsing and no rounding.
+2. All candidates initially remain unchecked. Use `j/k` to move, `Space` to toggle,
+   `a` to check all, and `d` to clear. `e` returns to amount/range input; re-entering
+   the sheet clears previous checks so hidden targets cannot survive a new range.
+3. `Enter` previews each changed occurrence's old and new amount. Unchecked rows
+   remain untouched; checked amounts already equal to the new amount produce no
+   replacement facts. `j/k` reviews a finite scrolling window without truncating
+   the batch. **Back** is the initial action; choose **Publish all** explicitly
+   with Tab or Left/Right, then Enter. Esc returns to the checklist.
+
+Uniform amount editing supports exactly one FROM and one TO posting. Split
+postings require explicit individual editing; LOAM refuses rather than guessing
+allocation. Dates, Loci, and Measure remain unchanged.
+
+Publication appends ordinary replacement occurrences and relations, retaining
+original Scheduled history and leaving paid Actual untouched. Existing dated
+routing assertions are copied to each successor for its retained same-Measure
+positive Loci; managed, explicitly unmanaged, and unrouted answers remain distinct.
+The complete batch and routing are published in one HouseholdImage transition.
+Any stale preview or failed admission publishes none of the batch and returns to
+the workspace for reload and a fresh review. Selection and inferred similarity
+never become persisted series identity or recurrence rules.
 
 The surface delegates execution to shared publishers and sessions
 (`ScheduledCreationSession`, `ScheduledTerminalPublisher`,
