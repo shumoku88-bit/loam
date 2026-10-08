@@ -23,15 +23,6 @@ private def ruleLine (bounds : Bounds) (char : Char) : Widget :=
 private def monthTitle (state : State) : String :=
   Loam.Tui.Calendar.monthLabel (selectedMonth state)
 
-private def centeredMonthTitle (state : State) : String :=
-  let title := monthTitle state
-  let width := Loam.Tui.Layout.displayWidth title
-  let padding := if width < 35 then (35 - width) / 2 else 0
-  repeatChar padding ' ' ++ title
-
-private def calendarHeader : Widget :=
-  plainLine " Mon  Tue  Wed  Thu  Fri  Sat  Sun"
-
 private abbrev PendingEvidence := Except String (List Loam.ScheduledReview.Record)
 
 private def pendingEvidence (snapshot : Snapshot) : PendingEvidence :=
@@ -43,28 +34,6 @@ private def pendingEvidence (snapshot : Snapshot) : PendingEvidence :=
 private def pendingDates : PendingEvidence → List String
   | .ok records => records.map (fun record => record.scheduledOn)
   | .error _ => []
-
-/-- Pure calendar presentation; marker dates are supplied evidence, not classified here. -/
-def calendarSpans
-    (today : String) (pastOpenDates : List String) (state : State) (row : Nat) : List Span :=
-  (List.range 7).map fun col =>
-    match calendarSlot state row col with
-    | none => span "     "
-    | some date =>
-        let day :=
-          match date.splitOn "-" with
-          | [_, _, text] => text
-          | _ => "  "
-        let marker := if pastOpenDates.any (fun pending => pending == date) then "!" else " "
-        if date == state.selectedDate then
-          span ("[" ++ day ++ marker ++ "]")
-            (if date == today then .selectedUnderlined else .selected)
-        else
-          span (" " ++ day ++ marker ++ " ")
-            (if date == today then .underlined else .normal)
-
-private def calendarRows (today : String) (pastOpenDates : List String) (state : State) : List Widget :=
-  (List.range 6).map fun row => .row (calendarSpans today pastOpenDates state row)
 
 private def moneyWindow (state : State) : String × String :=
   Loam.Tui.Calendar.monthWindow (selectedMonth state)
@@ -154,7 +123,9 @@ private def moneyCellStyle
   else
     .normal
 
-private def moneyDateSpan
+/-- One shared calendar day cell; focus, Today, overdue Scheduled and role unknown
+markers all compose in this larger money calendar. -/
+def moneyDateSpan
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
     (snapshot : Snapshot) (state : State) (date : String) : Span :=
   let cellWidth := moneyCellWidth paneWidth
@@ -660,19 +631,7 @@ private def wideCalendarPane
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      match state.calendarMode with
-      | .plain =>
-          [ plainLine (centeredMonthTitle state)
-          , calendarHeader
-          ] ++
-          calendarRows snapshot.actual.today pastOpenDates state ++
-          [mutedLine " underline = today"] ++
-          (if pastOpenDates.isEmpty then [] else
-            [mutedLine " ! = still current-open"]) ++
-          [blankLine] ++
-          wideHomeSummaryLines snapshot
-      | .money =>
-          moneyCalendarBlock paneWidth snapshot state pastOpenDates
+      moneyCalendarBlock paneWidth snapshot state pastOpenDates
   | .month =>
       monthCalendarPane snapshot state ++ periodSummaryLines paneWidth snapshot state
   | .year =>
@@ -773,19 +732,7 @@ private def stackedHomeBody (bounds : Bounds) (snapshot : Snapshot) (state : Sta
   ] ++
   (match state.zoomLevel with
    | .day =>
-       match state.calendarMode with
-       | .plain =>
-           [ plainLine (centeredMonthTitle state)
-           , calendarHeader
-           ] ++
-           calendarRows snapshot.actual.today pastOpenDates state ++
-           [mutedLine " underline = today"] ++
-           (if pastOpenDates.isEmpty then [] else
-             [mutedLine " ! = expected date passed; Scheduled is still current-open"]) ++
-           [blankLine] ++
-           homeSummaryLines snapshot
-       | .money =>
-           moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
+       moneyCalendarBlock (Loam.Tui.Layout.contentWidth bounds) snapshot state pastOpenDates
    | .month =>
        monthCalendarPane snapshot state ++ periodSummaryLines (Loam.Tui.Layout.contentWidth bounds) snapshot state
    | .year =>
@@ -824,7 +771,7 @@ private def overviewViewport (height : Nat) (state : State) (rows : List Widget)
       [mutedLine s!" {offset + 1}-{min (offset + visible) rows.length}/{rows.length}  {hint}"]
 
 private def detailPaneWidth (state : State) : Nat :=
-  if state.zoomLevel == .day && state.calendarMode == .money then 50 else 64
+  if state.zoomLevel == .day then 50 else 64
 
 private def wideHomeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -913,7 +860,7 @@ private def dailyHomeBody
   ] ++ scheduledRows ++
   [ blankLine
   , plainLine " Recent recorded Actual"
-  ] ++ actualRows
+  ] ++ actualRows ++ [blankLine, attentionLine snapshot]
 
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
@@ -972,10 +919,6 @@ private def helpGroupLines
     helpRow category (index = 0) row
 
 private def navigationHelp (state : State) : String × List HelpItem :=
-  let calendarToggle :=
-    match state.calendarMode with
-    | .plain => { key := "[f]", label := "flow" }
-    | .money => { key := "[f]", label := "calendar" }
   if state.activePane == .detail then
     ("Detail",
       [ { key := "[j/k]", label := "select" }
@@ -988,7 +931,6 @@ private def navigationHelp (state : State) : String × List HelpItem :=
         ("Day",
           [ { key := "[h/l]", label := "day" }
           , { key := "[k/j]", label := "week" }
-          , calendarToggle
           , { key := "[Enter]", label := "open" }
           , { key := "[t]", label := "today" }
           , { key := "[/]", label := "jump" }
@@ -1201,8 +1143,6 @@ def navigationKey
           overviewScroll := 0
           activePane := .calendar
         }
-    | .input 'f' | .input 'F' =>
-        handled (if state.zoomLevel == .day && state.activePane == .calendar then toggleCalendarMode state else state)
     | .ctrl 'u' | .ctrl 'd' | .pageUp | .pageDown =>
         let forward := key == .ctrl 'd' || key == .pageDown
         if state.activePane == .calendar then handled (scrollOverview bounds snapshot state forward)
