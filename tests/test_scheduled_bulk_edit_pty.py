@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         return send(b"\r", b"Preview: 2 replacements")
 
     try:
-        capture(b"LOAM Home")
+        capture(b"LOAM / Today")
         send(b"s", b"Series Calendar")
         send(b"v", b"Scheduled / Months")
         configure_sheet()
@@ -108,7 +108,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         # Original provenance and the unchecked exception remain in the payload.
         assert "exception" in after["Scheduled"] and "6000" in after["Scheduled"]
         assert "first" in after["Scheduled"] and "4800" in after["Scheduled"]
-        send(b"q", b"LOAM Home")
+        send(b"q", b"LOAM / Today")
         os.write(master, b"q")
         while select.select([master], [], [], 0.2)[0]:
             try:

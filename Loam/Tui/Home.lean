@@ -854,9 +854,71 @@ private def wideHomeBody
   Loam.Tui.Layout.sideBySide panelRows leftWidth rightWidth left right ++
   [ruleLine bounds '-']
 
+
+/--
+Minimal daily confirmation surface. Recent Actuals are explicitly recorded facts;
+current-open Scheduled items are obligations recorded in the system, not proof that
+every future bill has been entered. Neither list is a new accounting calculation.
+-/
+private def dailyHomeBody
+    (bounds : Bounds) (snapshot : Snapshot) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let paceRows :=
+    match snapshot.pace with
+    | .loaded pace =>
+        match pace.dailyPaceQuanta? with
+        | none => [mutedLine " Daily Pace: unavailable"]
+        | some daily =>
+            [ plainLine (" Daily Pace   " ++ toString daily ++ " " ++ pace.measure.token ++ "/day")
+            , mutedLine ("   " ++ toString pace.remainingDays ++ " days to " ++ pace.endExclusive)
+            , plainLine (" Spendable pool: " ++ toString pace.eligiblePool.quanta ++ " " ++ pace.measure.token)
+            , plainLine (" Open Scheduled: -" ++ toString pace.automaticDeductions.quanta ++ " " ++ pace.measure.token)
+            , plainLine (" After scheduled: " ++ toString pace.availableThroughEnd.quanta ++ " " ++ pace.measure.token)
+            ]
+    | .notRequested => [mutedLine " Daily Pace: not requested"]
+    | .unavailable => [mutedLine " Daily Pace: unavailable"]
+    | .failed _ => [plainLine " Daily Pace: calculation failed"]
+  let scheduledRows :=
+    match snapshot.scheduled with
+    | .error _ => [plainLine "   [Unavailable] Scheduled review failed"]
+    | .ok scheduled =>
+        match Loam.ScheduledReview.orderedCurrentOpenRecords scheduled with
+        | .error _ => [plainLine "   [Unavailable] Scheduled review failed"]
+        | .ok [] => [mutedLine "   No current-open plans recorded"]
+        | .ok records =>
+            (records.take (if bounds.height < 30 then 2 else 3)).map fun record =>
+              plainLine <| Loam.Tui.Layout.clip width
+                ("   " ++ record.scheduledOn ++ "  " ++
+                  Loam.ScheduledReview.summary record)
+  let recent :=
+    (snapshot.actual.allRecords.filter Loam.ActualReview.Record.isCurrent)
+      |>.mergeSort (fun a b => a.date.getD "" >= b.date.getD "")
+      |>.take (if bounds.height < 30 then 3 else 5)
+  let actualRows :=
+    if recent.isEmpty then [mutedLine "   No recent transactions recorded"]
+    else
+      recent.map fun record =>
+        plainLine <| Loam.Tui.Layout.clip width
+          ("   " ++ record.date.getD "undated" ++ "  " ++
+            Loam.ActualReview.summary record)
+  [ ruleLine bounds '='
+  , plainLine (" LOAM / Today   " ++ snapshot.actual.today)
+  , ruleLine bounds '='
+  , blankLine
+  ] ++ paceRows ++
+  [ blankLine
+  , mutedLine " Note: missing future plans are not assumed paid or nonexistent."
+  , blankLine
+  , plainLine " Upcoming Scheduled (open)"
+  ] ++ scheduledRows ++
+  [ blankLine
+  , plainLine " Recent recorded Actual"
+  ] ++ actualRows
+
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
-  if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
+  if state.homeMode == .daily then dailyHomeBody bounds snapshot
+  else if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
   else if state.activePane == .detail then
     [ruleLine bounds '=', plainLine " LOAM Home / Transactions", ruleLine bounds '='] ++
     detailPaneLines (widePanelRows bounds footerRows) snapshot state (pendingEvidence snapshot) ++
@@ -978,14 +1040,13 @@ private def householdHelp : List HelpItem :=
   , { key := "[i]", label := "attention" }
   , { key := "[b]", label := "balances" }
   , { key := "[u]", label := "settlements" }
-  , { key := "[c]", label := "budget" }
-  , { key := "[e]", label := "capacity" }
+  , { key := "[c]", label := "daily" }
+  , { key := "[Space]", label := "commands" }
   , { key := "[v]", label := "reports" }
   ]
 
 private def manageHelp : List HelpItem :=
-  [ { key := "[p]", label := "purpose routing" }
-  , { key := "[m]", label := "manage loci" }
+  [ { key := "[m]", label := "manage loci" }
   , { key := "[o]", label := "observe quantities" }
   ]
 
@@ -1009,11 +1070,20 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
       let hintLine := mutedLine " [Enter] jump  [Esc] cancel  (e.g. 2026-10-15, 2026-10, 2026, 15)"
       [ruleLine bounds '-', promptLine, hintLine]
   | none =>
-      let help := helpLines bounds state
-      if state.notice.isEmpty then
-        help
+      if state.homeMode == .daily then
+        let tokens :=
+          ["[r] record", "[a] actual", "[s] scheduled", "[d] pace trend",
+           "[b] balances", "[c] calendar", "[Space] commands", "[q] quit"]
+        let help := (Loam.Tui.Layout.flowTokens
+          (Loam.Tui.Layout.contentWidth bounds) "   " tokens).map mutedLine
+        if state.notice.isEmpty then help
+        else [plainLine state.notice] ++ help
       else
-        [plainLine state.notice, blankLine] ++ help
+        let help := helpLines bounds state
+        if state.notice.isEmpty then
+          help
+        else
+          [plainLine state.notice, blankLine] ++ help
 
 /-- Scroll non-selectable detail evidence when there are no Actual rows. -/
 private def scrollDetail
@@ -1101,7 +1171,11 @@ def navigationKey
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1) : Option State :=
   let state := reconcileState bounds snapshot state
   let handled := fun next => some (reconcileState bounds snapshot next)
-  if state.jumpPrompt.isSome then
+  if state.jumpPrompt.isNone && (key == .input 'c' || key == .input 'C') then
+    handled (Loam.Tui.Main.toggleHomeMode state snapshot.actual.today)
+  else if state.homeMode == .daily && state.jumpPrompt.isNone then
+    none
+  else if state.jumpPrompt.isSome then
     handled <| match key with
     | .escape => closeJumpPrompt state
     | .backspace | .delete => backspaceJump state

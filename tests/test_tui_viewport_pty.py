@@ -67,10 +67,15 @@ def bounded(output, rows, cols):
 
 
 try:
-    initial = capture(b"LOAM Home")
+    initial = capture(b"LOAM / Today")
     assert b"\x1b[?7l" in initial, "application left terminal auto-wrap armed"
-    assert b"[y]" in initial and b"copy screen" in initial and b"Shift+drag" in initial
-    # Resizing while idle must reflow Home, not wait for a non-navigation key.
+    assert b"[c] calendar" in initial and b"[Space] commands" in initial, (
+        "Daily Home entrances were not visible"
+    )
+    os.write(master, b"c")
+    calendar = capture(b"LOAM Home")
+    assert b"[y]" in calendar and b"copy screen" in calendar and b"Shift+drag" in calendar
+    # Resizing while idle must reflow Calendar Home, not wait for a non-navigation key.
     resize(22, 80)
     output = capture(b"LOAM Home")
     bounded(output, 22, 80)

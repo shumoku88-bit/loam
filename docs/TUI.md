@@ -29,9 +29,24 @@ do not fall back to retired steady-state sidecars.
 
 ## Home grammar
 
-The production Home surface currently exposes these entrances:
+The production TUI opens the **Daily glance** by default. It shows current
+Daily Pace (including its existing current-open Scheduled deductions), the
+three next recorded current-open Scheduled items, and five recent current
+Actual entries. These are read-only projections and do **not** assert that
+all future bills have been entered. `c` switches to the original Calendar
+Home; `c` again returns to Daily. The normal recording and specialized
+workspaces remain available from either view.
+
+`Space` opens a short-lived Commands palette. The optional envelope
+operations **Budget**, **Capacity**, and **Purpose routing** live there.
+Selecting an item enters its existing validated workspace. Neither the
+underlying canonical facts nor the publisher/writer boundaries change.
+
+The Calendar Home retains these entrances:
 
 ```text
+c          back to the Daily glance
+Space      optional commands: Budget, Capacity, Purpose routing
 h/l        previous / next day, month, or year (current zoom)
 k/j        previous / next week, quarter, or year (current zoom)
 t          return calendar focus to today
@@ -47,14 +62,15 @@ s          Scheduled workspace
 d          Daily Pace trend
 i          Attention
 b          Balances
-c          current-cycle Budget
-e          raw/general Capacity
-p          Purpose routing administration
-m          Locus administration
+ m          Locus administration
 o          current quantity observation
 v          Reports
 q          quit
 ```
+
+The retired direct Home `c` Budget, `e` Capacity, and `p` Purpose routing
+shortcuts are no longer accepted as direct optional-budget entrances;
+open them via `Space` instead.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, and Record interactions. It does not redefine the current-cycle

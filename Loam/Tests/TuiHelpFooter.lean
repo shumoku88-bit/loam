@@ -1,5 +1,6 @@
 import Loam.Tui.Layout
 import Loam.Tui.Home
+import Loam.Tui.HomeCommandPalette
 import Loam.Tui.SelectedDay
 import Loam.Tui.ScheduledWorkspace
 import Loam.Tui.ActualWorkspace
@@ -158,8 +159,8 @@ def main : IO Unit := do
 
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[t] today", "[f] flow", "[Enter] open", "[r] record",
-    "[a] actual", "[s] scheduled", "[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] budget",
-    "[e] capacity", "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
+    "[a] actual", "[s] scheduled", "[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
+    "[Space] commands", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
   ]
 
@@ -203,8 +204,8 @@ def main : IO Unit := do
   let expectedWidePanelRows := footerBodyCapacity wideBounds 5 - 4
   expect (occurrences " │ " wideText == expectedWidePanelRows)
     "wide Home divider height changed with content instead of filling the fixed viewport"
-  for token in ["[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] budget", "[e] capacity",
-                "[p] purpose routing", "[m] manage loci", "[o] observe quantities",
+  for token in ["[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
+                "[Space] commands", "[m] manage loci", "[o] observe quantities",
                 "[v] reports"] do
     expect (occurrences token wideText == 1)
       s!"Home should advertise {token} exactly once in the footer"
@@ -291,6 +292,48 @@ def main : IO Unit := do
     let lineStr := String.ofList (lineCells.map Cell.glyph)
     expect (displayWidth lineStr ≤ narrowContentWidth)
       s!"80-column line exceeded contentWidth: {lineStr} (width {displayWidth lineStr} vs {narrowContentWidth})"
+
+
+  -- 2d. Daily glance is quiet, and the calendar remains one reversible key away.
+  let dailyState : Loam.Tui.Main.State := { state with homeMode := .daily }
+  let dailyText := widgetText (Loam.Tui.Home.view narrowBounds snapshot dailyState)
+  expect (contains "LOAM / Today" dailyText)
+    "Daily Home did not expose the short everyday glance"
+  expect (contains "Upcoming Scheduled" dailyText && contains "Recent recorded Actual" dailyText)
+    "Daily Home lost confirmation of recorded entries and open payments"
+  expect (!contains "Mon  Tue  Wed" dailyText)
+    "Daily Home kept the small calendar in the everyday glance"
+  expect (contains "[c] calendar" dailyText && contains "[Space] commands" dailyText)
+    "Daily Home did not offer calendar and command palette access"
+  expect (!contains "[e] capacity" dailyText && !contains "[p] purpose routing" dailyText)
+    "optional budget shortcuts leaked back to the Home footer"
+  let toCalendar ← requireSome
+    (Loam.Tui.Home.navigationKey narrowBounds snapshot dailyState (.input 'c'))
+    "Daily c did not switch to the calendar"
+  expect (toCalendar.homeMode == .calendar &&
+          contains "Mon  Tue  Wed" (widgetText (Loam.Tui.Home.view narrowBounds snapshot toCalendar)))
+    "Daily c did not restore the original date navigator"
+  let toDaily ← requireSome
+    (Loam.Tui.Home.navigationKey narrowBounds snapshot toCalendar (.input 'c'))
+    "Calendar c did not return to Daily"
+  expect (toDaily.homeMode == .daily && toDaily.selectedDate == snapshot.actual.today)
+    "Calendar c failed to return to today's glance"
+  expect (Loam.Tui.HomeCommandPalette.choiceAt? 0 ==
+            some .budget &&
+          Loam.Tui.HomeCommandPalette.choiceAt? 1 ==
+            some .capacity &&
+          Loam.Tui.HomeCommandPalette.choiceAt? 2 ==
+            some .purposeRouting)
+    "Home commands did not preserve all three optional budget actions"
+  let commandText := widgetText (Loam.Tui.HomeCommandPalette.view narrowBounds 0)
+  expect (contains "Budget / current cycle" commandText &&
+          contains "Capacity / allocations" commandText &&
+          contains "Purpose routing" commandText)
+    "Home command palette hid an optional budget operation"
+  expect (Loam.Tui.HomeCommandPalette.next 0 false == 1 &&
+          Loam.Tui.HomeCommandPalette.next 1 false == 2 &&
+          Loam.Tui.HomeCommandPalette.next 2 true == 1)
+    "Home command palette selection does not navigate all actions"
 
   -- 3. Test SelectedDay footer geometry
   let selState := Loam.Tui.SelectedDay.initial "2026-09-10"
