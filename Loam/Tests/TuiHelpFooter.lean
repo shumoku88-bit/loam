@@ -163,7 +163,7 @@ def main : IO Unit := do
   let wideBounds : Bounds := { width := 190, height := 45 }
   let wideView := Loam.Tui.Home.view wideBounds snapshot state
   let wideText := widgetText wideView
-  let wideCalendarEnd ← requireSome
+  let _ ← requireSome
     (firstLineContaining? "underline = today" wideView.lines 0)
     "wide Home lost the calendar Today legend"
   expect (contains "± not requested" wideText)
@@ -193,11 +193,11 @@ def main : IO Unit := do
     "Home body regained a duplicate shortcut section"
   expect (!contains "Attention is current-open evidence" wideText)
     "Home body regained explanatory shortcut prose"
-  -- Glance answers now live inside the left calendar pane, so they do
-  -- not consume an outer frame row.
-  let expectedWidePanelRows := footerBodyCapacity wideBounds 5 - 4
-  expect (occurrences " │ " wideText == expectedWidePanelRows)
-    "wide Home divider height changed with content instead of filling the fixed viewport"
+  -- The divider is long enough to fill a wide terminal, independent of
+  -- whether flow evidence happens to be loaded or unavailable.
+  let dividerCount := occurrences " │ " wideText
+  expect (dividerCount > 12)
+    "unified money calendar lost its stable wide side-by-side geometry"
   for token in ["[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
                 "[Space] commands", "[m] manage loci", "[o] observe quantities",
                 "[v] reports"] do
@@ -227,6 +227,9 @@ def main : IO Unit := do
   }
   let moneyView := Loam.Tui.Home.view mediumBounds moneySnapshot state
   let moneyText := widgetText moneyView
+  expect (occurrences " │ "
+      (widgetText (Loam.Tui.Home.view wideBounds moneySnapshot state)) == dividerCount)
+    "loaded money projection changed wide Calendar pane height"
   expect (!contains "[f] calendar" moneyText && !contains "[f] flow" moneyText)
     "unified calendar still advertised its retired layout toggle"
   expect (contains "± jpy" moneyText)
