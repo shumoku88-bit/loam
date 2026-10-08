@@ -222,7 +222,7 @@ def main : IO Unit := do
     "Home did not expose its pending Scheduled section"
   expect (contains "2026-09-07  [Still open]" pendingText)
     "Home pending section lost the original expected date"
-  expect (contains "07!" pendingText)
+  expect (contains " 7!" pendingText)
     "Home calendar did not mark the original date of a past-date current-open Scheduled"
   expect (contains "! = Scheduled still open" pendingText)
     "Unified calendar marker lost its non-rescheduling explanation"
