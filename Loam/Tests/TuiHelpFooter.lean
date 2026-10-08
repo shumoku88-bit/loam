@@ -299,7 +299,7 @@ def main : IO Unit := do
   let dailyText := widgetText (Loam.Tui.Home.view narrowBounds snapshot dailyState)
   expect (contains "LOAM / Today" dailyText)
     "Daily Home did not expose the short everyday glance"
-  expect (contains "Next payments" dailyText && contains "Recent recorded Actual" dailyText)
+  expect (contains "Upcoming Scheduled" dailyText && contains "Recent recorded Actual" dailyText)
     "Daily Home lost confirmation of recorded entries and open payments"
   expect (!contains "Mon  Tue  Wed" dailyText)
     "Daily Home kept the small calendar in the everyday glance"
