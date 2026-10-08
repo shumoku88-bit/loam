@@ -67,9 +67,17 @@ inductive HomePane where
   | detail
   deriving Repr, DecidableEq, BEq
 
+/-- Daily glance and the existing calendar are presentation modes only. -/
+inductive HomeMode where
+  | daily
+  | calendar
+  deriving Repr, DecidableEq, BEq
+
 /-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
+  /-- Calendar stays the compatibility default for pure existing callers. The TUI starts Daily. -/
+  homeMode : HomeMode := .calendar
   notice : String := ""
   /-- Presentation-only viewport offset for the responsive Home detail pane. -/
   detailScroll : Nat := 0
@@ -102,6 +110,17 @@ structure Step where
 
 def initialState (selectedDate : String) : State :=
   { selectedDate := selectedDate }
+
+/-- Switch between a low-noise daily glance and the original date navigator. -/
+def toggleHomeMode (state : State) (today : String) : State :=
+  match state.homeMode with
+  | .daily =>
+      { state with homeMode := .calendar, activePane := .calendar,
+        notice := "", overviewScroll := 0, detailScroll := 0, detailCursor := 0 }
+  | .calendar =>
+      { state with homeMode := .daily, selectedDate := today, zoomLevel := .day,
+        activePane := .calendar, notice := "", overviewScroll := 0,
+        detailScroll := 0, detailCursor := 0, jumpPrompt := none }
 
 /-- Toggle only presentation; no household evidence is mutated or reclassified. -/
 def toggleCalendarMode (state : State) : State :=
