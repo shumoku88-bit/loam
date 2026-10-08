@@ -46,6 +46,7 @@ import Loam.Review.CapacityReview
 import Loam.Review.ActualRoutingReview
 import Loam.Tui.Main
 import Loam.Tui.Home
+import Loam.Tui.HomeCommandPalette
 import Loam.Tui.DailyPaceTrend
 import Loam.Tui.ActualWorkspace
 import Loam.Tui.ScheduledWorkspace
@@ -449,16 +450,30 @@ partial def dailyPaceTrendLoop : IO Unit := do
   | _ => dailyPaceTrendLoop
 
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
-    (snapshot : Snapshot) (state : State) (frame : CompiledWidget) : IO Unit := do
-  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+    (snapshot : Snapshot) (state : State) (frame : CompiledWidget)
+    (paletteChoice : Option Loam.Tui.HomeCommandPalette.Choice := none) : IO Unit := do
+  let (key, repeatCount) ←
+    match paletteChoice with
+    | none => Loam.Tui.Terminal.readKeyWithRepeat
+    | some .budget => pure (Loam.Tui.Terminal.Key.input 'c', 1)
+    | some .capacity => pure (Loam.Tui.Terminal.Key.input 'e', 1)
+    | some .purposeRouting => pure (Loam.Tui.Terminal.Key.input 'p', 1)
+  let fromPalette := paletteChoice.isSome
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compiledFrameFor active snapshot (Loam.Tui.Home.reconcileState active snapshot state)
   if key == .other then return (← loop bounds dataDir root snapshot state frame)
   let state := Loam.Tui.Home.reconcileState bounds snapshot state
-  if let some home := Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount then
+  if let some home :=
+      (if fromPalette then none
+       else Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount) then
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame
+  else if key == .input ' ' && !fromPalette then
+    let selected ← Loam.Tui.HomeCommandPalette.run bounds
+    let nextFrame := compiledFrameFor bounds snapshot state
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+    loop bounds dataDir root snapshot state nextFrame selected
   else if key = .enter then
     let day? :=
       if state.activePane == .detail then do
@@ -594,7 +609,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             let nextFrame := compiledFrameFor bounds snapshot home
             Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
             loop bounds dataDir root snapshot home nextFrame
-  else if Loam.Tui.CycleBudget.isHomeEntrance key then
+  else if fromPalette && Loam.Tui.CycleBudget.isHomeEntrance key then
     match ← configuredMeasure with
     | .error message =>
         let home := { state with notice := message }
@@ -614,7 +629,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if (key = .input 'p' || key = .input 'P') then
+  else if fromPalette && (key = .input 'p' || key = .input 'P') then
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
     | .error message =>
         let home := { state with notice := unavailableNotice "Purpose routes" message }
@@ -632,7 +647,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if (key = .input 'e' || key = .input 'E') then
+  else if fromPalette && (key = .input 'e' || key = .input 'E') then
     match ← configuredMeasure with
     | .error message =>
         let home := { state with notice := message }
@@ -766,7 +781,7 @@ def run (args : List String) : IO UInt32 := do
   let bounds ← Loam.Tui.Terminal.currentBounds
   Loam.Tui.Terminal.enter
   try
-    let state := initialState snapshot.actual.today
+    let state := { initialState snapshot.actual.today with homeMode := .daily }
     let frame := compiledFrameFor bounds snapshot state
     Loam.Tui.Terminal.redrawFromBlank bounds frame
     loop bounds dataDir root snapshot state frame
