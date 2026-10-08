@@ -57,11 +57,6 @@ structure Snapshot where
   -/
   moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot := .notRequested
 
-inductive CalendarMode where
-  | plain
-  | money
-  deriving Repr, DecidableEq, BEq
-
 inductive HomePane where
   | calendar
   | detail
@@ -85,8 +80,6 @@ structure State where
   overviewScroll : Nat := 0
   /-- Zero-based index of the currently selected Actual transaction in detail view. -/
   detailCursor : Nat := 0
-  /-- Replaceable Home calendar lens; ordinary date view remains the default. -/
-  calendarMode : CalendarMode := .plain
   /-- Calendar zoom level: Day, Month, or Year. -/
   zoomLevel : Loam.Tui.DateJump.ZoomLevel := .day
   /-- Active jump input buffer. When `some s`, Home is in jump-prompt mode. -/
@@ -133,19 +126,6 @@ def toggleHomeMode (state : State) (today : String) : State :=
         detailScroll := 0
         detailCursor := 0
         jumpPrompt := none }
-
-/-- Toggle only presentation; no household evidence is mutated or reclassified. -/
-def toggleCalendarMode (state : State) : State :=
-  { state with
-    overviewScroll := 0
-    calendarMode :=
-      match state.calendarMode with
-      | .plain => .money
-      | .money => .plain
-    notice := ""
-    detailScroll := 0
-    detailCursor := 0
-  }
 
 /-- Toggle focus between calendar and detail pane. -/
 def toggleActivePane (state : State) : State :=
