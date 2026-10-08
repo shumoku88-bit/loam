@@ -38,8 +38,8 @@ def next (selected : Nat) (back : Bool) : Nat :=
 def view (bounds : Bounds) (selected : Nat) : Widget :=
   let lines :=
     choices.zipIdx.map fun ((_, title), index) =>
-      let prefix := if selected == index then "  > " else "    "
-      .row [span (prefix ++ title) (if selected == index then .selected else .normal)]
+      let markerText := if selected == index then "  > " else "    "
+      .row [span (markerText ++ title) (if selected == index then .selected else .normal)]
   let body : Widget := .column <|
     [ .row [span " Home / Commands"]
     , .row [span " Budget features are optional."]
