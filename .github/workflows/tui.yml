@@ -375,6 +375,7 @@ jobs:
           lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal-pr"
           lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role-pr"
           lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review-pr"
+          lake env lean --run Loam/Tests/TuiScheduled.lean
           lake env lean --run Loam/Tests/TuiHomeActualGeneration.lean
           lake env lean --run Loam/Tests/StockFlowReview.lean
           lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant-pr"
