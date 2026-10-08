@@ -195,9 +195,7 @@ try:
     # General Capacity is still accessible from Home's optional command palette.
     os.write(master, b" ")
     wait_for("Home / Commands")
-    os.write(master, b"j")
-    wait_for("Capacity / allocations")
-    os.write(master, b"\r")
+    os.write(master, b"j\r")
     wait_for("t transfer")
     os.write(master, b"q")
     wait_for("LOAM Home")
