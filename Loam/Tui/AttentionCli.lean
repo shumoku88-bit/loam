@@ -46,7 +46,7 @@ def run (args : List String) : IO UInt32 := do
     let frame := compileWidget (Loam.Tui.AttentionAdministration.view state)
     let blank := compileWidget (.row [])
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 blank frame
-    Loam.Tui.AttentionAdministrationSession.run bounds root state frame
+    let _ ← Loam.Tui.AttentionAdministrationSession.run bounds root state frame
     return 0
   finally
     Loam.Tui.Terminal.leave
