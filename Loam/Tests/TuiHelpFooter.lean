@@ -269,9 +269,8 @@ def main : IO Unit := do
   let narrowBounds : Bounds := { width := 80, height := 24 }
   let narrowView := Loam.Tui.Home.view narrowBounds snapshot state
   let narrowText := widgetText narrowView
-  let narrowCalendarEnd ← requireSome
-    (firstLineContaining? "underline = today" narrowView.lines 0)
-    "narrow Home lost the calendar Today legend"
+  expect (contains "┬" narrowText && contains "Mon" narrowText)
+    "80-column Calendar Home lost its full money-grid geometry"
   expect (contains "± not requested" narrowText)
     "80-column Home fell back to the retired plain calendar"
   expect (!contains "Daily pace:" narrowText)
