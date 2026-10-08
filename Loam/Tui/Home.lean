@@ -886,14 +886,14 @@ private def dailyHomeBody
         | .error _ => [plainLine "   [Unavailable] Scheduled review failed"]
         | .ok [] => [mutedLine "   No current-open plans recorded"]
         | .ok records =>
-            (records.take 3).map fun record =>
+            (records.take (if bounds.height < 30 then 2 else 3)).map fun record =>
               plainLine <| Loam.Tui.Layout.clip width
                 ("   " ++ record.scheduledOn ++ "  " ++
                   Loam.ScheduledReview.summary record)
   let recent :=
     (snapshot.actual.allRecords.filter Loam.ActualReview.Record.isCurrent)
       |>.mergeSort (fun a b => a.date.getD "" >= b.date.getD "")
-      |>.take 5
+      |>.take (if bounds.height < 30 then 3 else 5)
   let actualRows :=
     if recent.isEmpty then [mutedLine "   No recent transactions recorded"]
     else
@@ -909,11 +909,11 @@ private def dailyHomeBody
   [ blankLine
   , mutedLine " Note: missing future plans are not assumed paid or nonexistent."
   , blankLine
-  , plainLine " Next payments (current-open)"
+  , plainLine " Upcoming Scheduled (open)"
   ] ++ scheduledRows ++
   [ blankLine
   , plainLine " Recent recorded Actual"
-  ] ++ actualRows ++ [blankLine, ruleLine bounds '-']
+  ] ++ actualRows
 
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
