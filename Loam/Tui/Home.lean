@@ -46,11 +46,6 @@ private def moneyMeasureInfo
       some (money, money.flow.measuresInWindow window.1 window.2)
   | _ => none
 
-private def moneyMeasure?
-    (snapshot : Snapshot) (state : State) : Option Loam.Core.MeasureId := do
-  let (_, measures) ← moneyMeasureInfo snapshot state
-  measures.head?
-
 private def moneyTitle (snapshot : Snapshot) (state : State) : String :=
   let month := monthTitle state
   match snapshot.moneyCalendar with
@@ -321,39 +316,6 @@ private def statusTokens
       let count := (recordsForYear snapshot y).length
       [s!"Transactions: {count}"]
 
-/--
-Home keeps only the current Daily Pace answer on its glance surface.
-Historical pace remains review evidence, but belongs in a deeper trend/report
-surface rather than competing with the current household state.
--/
-private def dailyPaceText (snapshot : Snapshot) : String :=
-  match snapshot.pace with
-  | .notRequested => "Daily pace: not requested"
-  | .unavailable => "Daily pace: unavailable"
-  | .failed _ => "Daily pace: failed"
-  | .loaded pace =>
-      match pace.dailyPaceQuanta? with
-      | none => "Daily pace: unavailable"
-      | some quanta =>
-          "Daily pace: " ++ toString quanta ++ " " ++ pace.measure.token ++ "/day  (" ++
-            toString pace.remainingDays ++ " days; " ++
-            toString pace.availableThroughEnd.quanta ++
-            " " ++ pace.measure.token ++ " through " ++ pace.endExclusive ++ ")"
-
-private def nextScheduledText (snapshot : Snapshot) : String :=
-  match snapshot.scheduled with
-  | .error _ => "Next Scheduled: unavailable"
-  | .ok scheduled =>
-      match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
-      | .error _ => "Next Scheduled: unavailable"
-      | .ok none => "Next Scheduled: none current-open"
-      | .ok (some record) =>
-          let status :=
-            if decide (record.scheduledOn < snapshot.actual.today) then "  [Still open]"
-            else ""
-          "Next Scheduled: " ++ record.scheduledOn ++ status ++ "  " ++
-            Loam.ScheduledReview.summary record
-
 private def attentionText (snapshot : Snapshot) : String :=
   match snapshot.attention with
   | .notRequested => "Attention: not requested"
@@ -373,116 +335,6 @@ private def attentionLine (snapshot : Snapshot) : Widget :=
   | .loaded { openItems := _ :: _ } =>
       plainLine (" " ++ attentionText snapshot)
   | _ => mutedLine (" " ++ attentionText snapshot)
-
-private def wideAttentionLines (snapshot : Snapshot) : List Widget :=
-  match snapshot.attention with
-  | .notRequested =>
-      [ mutedLine " Attention"
-      , mutedLine "   not requested"
-      ]
-  | .unavailable =>
-      [ mutedLine " Attention"
-      , mutedLine "   not configured"
-      ]
-  | .failed _ =>
-      [ mutedLine " Attention"
-      , mutedLine "   failed"
-      ]
-  | .loaded attention =>
-      match attention.openItems with
-      | [] =>
-          [ mutedLine " Attention"
-          , mutedLine "   0 open"
-          ]
-      | [first] =>
-          [ plainLine " Attention"
-          , plainLine "   1 open"
-          , plainLine ("   " ++
-              Loam.ActualReview.shortText 34 (Loam.AttentionReview.summary first))
-          ]
-      | _ =>
-          [ plainLine " Attention"
-          , plainLine ("   " ++ toString attention.openItems.length ++ " open")
-          , mutedLine "   [i] manage"
-          ]
-
-private def dailyPaceLine (snapshot : Snapshot) : Widget :=
-  match snapshot.pace with
-  | .notRequested => mutedLine (" " ++ dailyPaceText snapshot)
-  | .unavailable => mutedLine (" " ++ dailyPaceText snapshot)
-  | .failed _ => mutedLine (" " ++ dailyPaceText snapshot)
-  | .loaded pace =>
-      match pace.dailyPaceQuanta? with
-      | none => mutedLine (" " ++ dailyPaceText snapshot)
-      | some _ => plainLine (" " ++ dailyPaceText snapshot)
-
-private def nextScheduledLine (snapshot : Snapshot) : Widget :=
-  match snapshot.scheduled with
-  | .error _ => mutedLine (" " ++ nextScheduledText snapshot)
-  | .ok scheduled =>
-      match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
-      | .error _ => mutedLine (" " ++ nextScheduledText snapshot)
-      | .ok none => mutedLine (" " ++ nextScheduledText snapshot)
-      | .ok (some _) => plainLine (" " ++ nextScheduledText snapshot)
-
-private def homeSummaryLines (snapshot : Snapshot) : List Widget :=
-  [dailyPaceLine snapshot, nextScheduledLine snapshot, attentionLine snapshot]
-
-private def wideHomeSummaryLines (snapshot : Snapshot) : List Widget :=
-  let currentPaceLines :=
-    match snapshot.pace with
-    | .notRequested =>
-        [ mutedLine " Daily pace"
-        , mutedLine "   not requested"
-        ]
-    | .unavailable =>
-        [ mutedLine " Daily pace"
-        , mutedLine "   unavailable"
-        ]
-    | .failed _ =>
-        [ mutedLine " Daily pace"
-        , mutedLine "   failed"
-        ]
-    | .loaded pace =>
-        match pace.dailyPaceQuanta? with
-        | none =>
-            [ mutedLine " Daily pace"
-            , mutedLine "   unavailable"
-            ]
-        | some quanta =>
-            [ plainLine " Daily pace"
-            , plainLine ("   " ++ toString quanta ++ " " ++ pace.measure.token ++ "/day")
-            , mutedLine
-                ("   " ++ toString pace.availableThroughEnd.quanta ++
-                  " " ++ pace.measure.token ++ " through " ++ pace.endExclusive)
-            ]
-  let paceLines := currentPaceLines
-  let scheduledLines :=
-    match snapshot.scheduled with
-    | .error _ =>
-        [ mutedLine " Next Scheduled"
-        , mutedLine "   unavailable"
-        ]
-    | .ok scheduled =>
-        match Loam.ScheduledReview.earliestCurrentOpenRecord scheduled with
-        | .error _ =>
-            [ mutedLine " Next Scheduled"
-            , mutedLine "   unavailable"
-            ]
-        | .ok none =>
-            [ mutedLine " Next Scheduled"
-            , mutedLine "   none current-open"
-            ]
-        | .ok (some record) =>
-            let status :=
-              if decide (record.scheduledOn < snapshot.actual.today) then "  [Still open]"
-              else ""
-            [ plainLine " Next Scheduled"
-            , plainLine ("   " ++ record.scheduledOn ++ status)
-            , plainLine ("   " ++ Loam.ScheduledReview.summary record)
-            ]
-  paceLines ++ [blankLine] ++ scheduledLines ++
-    [blankLine] ++ wideAttentionLines snapshot
 
 private def pendingSection (pending : PendingEvidence) : List Widget :=
   match pending with
