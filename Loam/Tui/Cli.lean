@@ -553,8 +553,16 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let admin := Loam.Tui.AttentionAdministration.initial evidence snapshot.actual.today
         let adminFrame := compileWidget (Loam.Tui.AttentionAdministration.view admin)
         Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
-        Loam.Tui.AttentionAdministrationSession.run bounds root admin adminFrame
-        let fresh ← requireReload "Attention administration completed." (loadSnapshot dataDir)
+        let changed ← Loam.Tui.AttentionAdministrationSession.run
+          bounds root admin adminFrame
+        -- A read-only visit has no publication to incorporate. Keep the
+        -- already-admitted Home snapshot rather than reopening every family.
+        -- A successful Attention write must still refresh all Home reviews.
+        let fresh ←
+          if changed then
+            requireReload "Attention administration completed." (loadSnapshot dataDir)
+          else
+            pure snapshot
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds fresh home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
