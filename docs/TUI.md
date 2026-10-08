@@ -31,8 +31,8 @@ do not fall back to retired steady-state sidecars.
 
 The production TUI opens the **Daily glance** by default. It shows current
 Daily Pace (including its existing current-open Scheduled deductions), the
-three next recorded current-open Scheduled items, and five recent current
-Actual entries. These are read-only projections and do **not** assert that
+three next recorded current-open Scheduled items, five recent current
+Actual entries, and the current Attention read-state. These are read-only projections and do **not** assert that
 all future bills have been entered. `c` switches to the original Calendar
 Home; `c` again returns to Daily. The normal recording and specialized
 workspaces remain available from either view.
@@ -55,7 +55,7 @@ z          cycle Day / Month / Year
 Tab/w      switch calendar / transaction focus
 Ctrl-u/d   scroll calendar/summary; page transaction selection in detail
 Enter      Year -> Month -> Day -> selected-day workspace
-f          toggle calendar / money lens in Day view
+(Day view) single role-aware money calendar with income, expense, and open-plan markers
 r          Record (selected date prefilled; cursor starts in Description)
 a          Actual workspace
 s          Scheduled workspace
@@ -71,6 +71,13 @@ q          quit
 The retired direct Home `c` Budget, `e` Capacity, and `p` Purpose routing
 shortcuts are no longer accepted as direct optional-budget entrances;
 open them via `Space` instead.
+
+The prior compact calendar was retired. The Calendar Home now always uses
+the larger role-aware money grid, with Today's underline, open-plan `!`, and
+unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
+still shows dates and explicitly indicates that the financial projection is
+unavailable. The Daily glance owns current Daily Pace, upcoming plans, recent
+Actual, and Attention; the calendar does not duplicate those summaries.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, and Record interactions. It does not redefine the current-cycle

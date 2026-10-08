@@ -105,11 +105,13 @@ def main : IO Unit := do
   let dueTodayView := Loam.Tui.Home.view bounds snapshot home
   expect (contains "Scheduled: Due (12)" (widgetText dueTodayView))
     "Home status lost the selected-day Scheduled due count"
-  expect (hasStyledText dueTodayView "[07 ]" .selectedUnderlined)
-    "Scheduled on Today was incorrectly marked Pending"
+  expect (hasStyledText dueTodayView " 7 " .selectedUnderlined)
+    "Large calendar lost today's selected/underlined day or marked it pending"
   let dueTodayText := widgetText dueTodayView
-  expect (contains "Daily pace" dueTodayText && contains "170 jpy/day" dueTodayText)
-    "Home did not expose the current Daily Pace answer"
+  let dailyState : Loam.Tui.Main.State := { home with homeMode := .daily }
+  let dailyText := widgetText (Loam.Tui.Home.view bounds snapshot dailyState)
+  expect (contains "Daily Pace" dailyText && contains "170 jpy/day" dailyText)
+    "Daily Home did not expose the current Daily Pace answer"
   expect (!contains "Recent pace" dueTodayText &&
           !contains "09-05  150 jpy/day" dueTodayText)
     "Home let historical Daily Pace compete with the current glance"
@@ -134,10 +136,10 @@ def main : IO Unit := do
   let usdPace := { basePace with measure := usd }
   let usdHistory := baseHistory.map fun point => { point with measure := usd }
   let usdSnapshot := { snapshot with pace := .loaded usdPace, paceHistory := .loaded usdHistory }
-  let usdHomeText := widgetText (Loam.Tui.Home.view bounds usdSnapshot home)
+  let usdHomeText := widgetText (Loam.Tui.Home.view bounds usdSnapshot dailyState)
   expect
     (contains "170 usd/day" usdHomeText &&
-      contains "1700 usd through 2026-09-17" usdHomeText &&
+      contains "After scheduled: 1700 usd" usdHomeText &&
       !(contains "170 jpy/day" usdHomeText))
     "Home rewrote a non-JPY Daily Pace snapshot as JPY"
   let usdTrendText := widgetText (Loam.Tui.DailyPaceTrend.view bounds usdSnapshot)
@@ -147,8 +149,8 @@ def main : IO Unit := do
       contains "170 usd/day  current" usdTrendText &&
       !(contains "jpy/day" usdTrendText))
     "Daily Pace trend rewrote non-JPY history as JPY"
-  expect (contains "Next Scheduled" dueTodayText && contains "2026-09-07" dueTodayText)
-    "Home did not expose the earliest current-open Scheduled occurrence"
+  expect (contains "Upcoming Scheduled" dailyText && contains "2026-09-07" dailyText)
+    "Daily Home did not expose the earliest current-open Scheduled occurrence"
 
   let stateBounds : Bounds := { width := 100, height := 42 }
 
@@ -156,9 +158,9 @@ def main : IO Unit := do
   let notRequestedSnapshot := { notRequestedSnapshot with pace := .notRequested }
   let notRequestedSnapshot := { notRequestedSnapshot with paceHistory := .notRequested }
   let notRequestedText :=
-    widgetText (Loam.Tui.Home.view stateBounds notRequestedSnapshot home)
+    widgetText (Loam.Tui.Home.view stateBounds notRequestedSnapshot dailyState)
   expect (contains "Attention: not requested" notRequestedText &&
-      contains "Daily pace: not requested" notRequestedText &&
+      contains "Daily Pace: not requested" notRequestedText &&
       !contains "Recent pace" notRequestedText)
     "Home collapsed current not-requested state or exposed historical pace"
 
@@ -166,9 +168,9 @@ def main : IO Unit := do
   let unavailableSnapshot := { unavailableSnapshot with pace := .unavailable }
   let unavailableSnapshot := { unavailableSnapshot with paceHistory := .unavailable }
   let unavailableText :=
-    widgetText (Loam.Tui.Home.view stateBounds unavailableSnapshot home)
+    widgetText (Loam.Tui.Home.view stateBounds unavailableSnapshot dailyState)
   expect (contains "Attention: not configured" unavailableText &&
-      contains "Daily pace: unavailable" unavailableText &&
+      contains "Daily Pace: unavailable" unavailableText &&
       !contains "Recent pace" unavailableText)
     "Home lost typed current unavailable state or exposed historical pace"
 
@@ -176,9 +178,9 @@ def main : IO Unit := do
   let failedSnapshot := { failedSnapshot with pace := .failed "pace read failed" }
   let failedSnapshot := { failedSnapshot with paceHistory := .failed "pace history read failed" }
   let failedText :=
-    widgetText (Loam.Tui.Home.view stateBounds failedSnapshot home)
+    widgetText (Loam.Tui.Home.view stateBounds failedSnapshot dailyState)
   expect (contains "Attention: failed" failedText &&
-      contains "Daily pace: failed" failedText &&
+      contains "Daily Pace: calculation failed" failedText &&
       !contains "Recent pace" failedText &&
       !contains "pace history read failed" failedText)
     "Home exposed historical pace failure on the current glance surface"
@@ -220,40 +222,42 @@ def main : IO Unit := do
     "Home did not expose its pending Scheduled section"
   expect (contains "2026-09-07  [Still open]" pendingText)
     "Home pending section lost the original expected date"
-  expect (contains "07!" pendingText)
+  expect (contains " 7!" pendingText)
     "Home calendar did not mark the original date of a past-date current-open Scheduled"
-  expect (contains "expected date passed; Scheduled is still current-open" pendingText)
-    "Home calendar marker lost its non-rescheduling explanation"
+  expect (contains "! = Scheduled still open" pendingText)
+    "Unified calendar marker lost its non-rescheduling explanation"
 
   let sameDayView := Loam.Tui.Home.view bounds pendingSnapshot pendingHome
-  expect (hasStyledText sameDayView "[08 ]" .selectedUnderlined)
-    "Today + focus lost its combined presentation"
-  expect (hasStyledText sameDayView " 07! " .normal)
-    "Pending-only calendar cell changed"
+  expect (hasStyledText sameDayView " 8 " .selectedUnderlined)
+    "Unified grid lost Today + focus emphasis"
+  expect (hasStyledText sameDayView " 7!" .normal)
+    "Unified grid lost the past-date current-open Scheduled marker"
   let moved := (Loam.Tui.Main.update pendingHome .right).state
   expect (moved.selectedDate == "2026-09-09") "Home focus did not advance"
   let movedView := Loam.Tui.Home.view bounds pendingSnapshot moved
-  expect (hasStyledText movedView " 08  " .underlined)
+  expect (hasStyledText movedView " 8 " .underlined)
     "Today indication followed focus instead of the snapshot date"
-  expect (hasStyledText movedView "[09 ]" .selected)
-    "Focus-only cell lost the existing selected style"
+  expect (hasStyledText movedView " 9 " .selected)
+    "Focus-only cell lost the unified calendar selected style"
   let movedAgain := (Loam.Tui.Main.update moved .right).state
   let movedAgainView := Loam.Tui.Home.view bounds pendingSnapshot movedAgain
-  expect (hasStyledText movedAgainView " 08  " .underlined &&
-    hasStyledText movedAgainView "[10 ]" .selected &&
-    hasStyledText movedAgainView " 09  " .normal)
+  expect (hasStyledText movedAgainView " 8 " .underlined &&
+    hasStyledText movedAgainView " 10 " .selected &&
+    hasStyledText movedAgainView " 9 " .normal)
     "Moving focus left stale emphasis or moved Today"
 
   -- A real Pending date is strictly before Today. Synthetic marker input checks
   -- presentation composition without weakening that evidence boundary.
-  let overlap : Widget := .column <| (List.range 6).map fun row =>
-    .row (Loam.Tui.Home.calendarSpans "2026-09-08" ["2026-09-08"] moved row)
-  expect (hasStyledText overlap " 08! " .underlined)
-    "Synthetic Today + Pending lost its marker or underline"
-  let focusedOverlap : Widget := .column <| (List.range 6).map fun row =>
-    .row (Loam.Tui.Home.calendarSpans "2026-09-08" ["2026-09-08"] pendingHome row)
-  expect (hasStyledText focusedOverlap "[08!]" .selectedUnderlined)
-    "Synthetic Today + Focus + Pending lost a presentation cue"
+  let overlap : Widget := .row [
+    Loam.Tui.Home.moneyDateSpan 99 "2026-09-08" ["2026-09-08"]
+      pendingSnapshot moved "2026-09-08" ]
+  expect (hasStyledText overlap " 8!" .underlined)
+    "Unified grid lost synthetic Today + Pending marker or underline"
+  let focusedOverlap : Widget := .row [
+    Loam.Tui.Home.moneyDateSpan 99 "2026-09-08" ["2026-09-08"]
+      pendingSnapshot pendingHome "2026-09-08" ]
+  expect (hasStyledText focusedOverlap " 8!" .selectedUnderlined)
+    "Unified grid lost synthetic Today + Focus + Pending presentation"
 
   -- Review owns fail-closed lifecycle refusal for exact-day answers.
   let scheduledEvidence ←

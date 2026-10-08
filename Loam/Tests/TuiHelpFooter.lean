@@ -149,16 +149,11 @@ def main : IO Unit := do
 
   -- 2. Test Home help lines at various terminal widths
   let state := Loam.Tui.Main.initialState "2026-09-10"
-  expect (state.calendarMode == .plain)
-    "Home calendar did not default to the quiet plain lens"
-  let moneyState := Loam.Tui.Main.toggleCalendarMode state
-  expect (moneyState.calendarMode == .money)
-    "Home calendar toggle did not enter the money lens"
-  expect ((Loam.Tui.Main.toggleCalendarMode moneyState).calendarMode == .plain)
-    "Home calendar toggle did not return to the plain lens"
+  expect (state.homeMode == .calendar)
+    "TUI pure Home state lost its Calendar fixture default"
 
   let expectedTokens := [
-    "[h/l] day", "[k/j] week", "[t] today", "[f] flow", "[Enter] open", "[r] record",
+    "[h/l] day", "[k/j] week", "[Enter] open", "[r] record",
     "[a] actual", "[s] scheduled", "[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
     "[Space] commands", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
@@ -168,14 +163,13 @@ def main : IO Unit := do
   let wideBounds : Bounds := { width := 190, height := 45 }
   let wideView := Loam.Tui.Home.view wideBounds snapshot state
   let wideText := widgetText wideView
-  let wideCalendarEnd ← requireSome
+  let _ ← requireSome
     (firstLineContaining? "underline = today" wideView.lines 0)
     "wide Home lost the calendar Today legend"
-  let widePaceLine ← requireSome
-    (firstLineContaining? "Daily pace" wideView.lines 0)
-    "wide Home lost Daily Pace"
-  expect (wideCalendarEnd < widePaceLine)
-    "wide Home moved Daily Pace away from the space below the calendar"
+  expect (contains "± not requested" wideText)
+    "wide Home did not use the unified money calendar when flow evidence is not requested"
+  expect (!contains "[f] flow" wideText && !contains "[f] calendar" wideText)
+    "retired small-calendar switch leaked into the Home command deck"
   for token in expectedTokens do
     expect (contains token wideText) s!"wide Home lost token {token}"
   expect
@@ -199,11 +193,11 @@ def main : IO Unit := do
     "Home body regained a duplicate shortcut section"
   expect (!contains "Attention is current-open evidence" wideText)
     "Home body regained explanatory shortcut prose"
-  -- Glance answers now live inside the left calendar pane, so they do
-  -- not consume an outer frame row.
-  let expectedWidePanelRows := footerBodyCapacity wideBounds 5 - 4
-  expect (occurrences " │ " wideText == expectedWidePanelRows)
-    "wide Home divider height changed with content instead of filling the fixed viewport"
+  -- The divider is long enough to fill a wide terminal, independent of
+  -- whether flow evidence happens to be loaded or unavailable.
+  let dividerCount := occurrences " │ " wideText
+  expect (dividerCount > 12)
+    "unified money calendar lost its stable wide side-by-side geometry"
   for token in ["[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
                 "[Space] commands", "[m] manage loci", "[o] observe quantities",
                 "[v] reports"] do
@@ -231,10 +225,12 @@ def main : IO Unit := do
     snapshot with
     moneyCalendar := .loaded { flow := moneyFlow, presentation := [] }
   }
-  let moneyView := Loam.Tui.Home.view mediumBounds moneySnapshot moneyState
+  let moneyView := Loam.Tui.Home.view mediumBounds moneySnapshot state
   let moneyText := widgetText moneyView
-  expect (contains "[f] calendar" moneyText && !contains "[f] flow" moneyText)
-    "money calendar footer did not advertise the return-to-calendar action"
+  expect ((Loam.Tui.Home.view wideBounds moneySnapshot state).lines.length == wideView.lines.length)
+    "loaded money projection changed fixed Home viewport height"
+  expect (!contains "[f] calendar" moneyText && !contains "[f] flow" moneyText)
+    "unified calendar still advertised its retired layout toggle"
   expect (contains "± jpy" moneyText)
     "money calendar did not expose its selected Measure"
   expect (contains "+¥12,000" moneyText && contains "-¥2,470" moneyText)
@@ -275,14 +271,12 @@ def main : IO Unit := do
   let narrowBounds : Bounds := { width := 80, height := 24 }
   let narrowView := Loam.Tui.Home.view narrowBounds snapshot state
   let narrowText := widgetText narrowView
-  let narrowCalendarEnd ← requireSome
-    (firstLineContaining? "underline = today" narrowView.lines 0)
-    "narrow Home lost the calendar Today legend"
-  let narrowPaceLine ← requireSome
-    (firstLineContaining? "Daily pace" narrowView.lines 0)
-    "narrow Home lost Daily Pace"
-  expect (narrowCalendarEnd < narrowPaceLine)
-    "narrow Home moved Daily Pace away from the space below the calendar"
+  expect (contains "┬" narrowText && contains "Mon" narrowText)
+    "80-column Calendar Home lost its full money-grid geometry"
+  expect (contains "± not requested" narrowText)
+    "80-column Home fell back to the retired plain calendar"
+  expect (!contains "Daily pace:" narrowText)
+    "Calendar Home still duplicated Daily glance answers"
   for token in expectedTokens do
     expect (contains token narrowText)
       s!"80-column Home lost token {token}; must not be clipped"
@@ -307,12 +301,14 @@ def main : IO Unit := do
     "Daily Home did not offer calendar and command palette access"
   expect (!contains "[e] capacity" dailyText && !contains "[p] purpose routing" dailyText)
     "optional budget shortcuts leaked back to the Home footer"
+  expect (contains "Attention: not requested" dailyText)
+    "Daily Home lost the Attention read-state previously shown beside the small calendar"
   let toCalendar ← requireSome
     (Loam.Tui.Home.navigationKey narrowBounds snapshot dailyState (.input 'c'))
     "Daily c did not switch to the calendar"
   expect (toCalendar.homeMode == .calendar &&
-          contains "Mon  Tue  Wed" (widgetText (Loam.Tui.Home.view narrowBounds snapshot toCalendar)))
-    "Daily c did not restore the original date navigator"
+          contains "┬" (widgetText (Loam.Tui.Home.view narrowBounds snapshot toCalendar)))
+    "Daily c did not open the unified full-grid calendar"
   let toDaily ← requireSome
     (Loam.Tui.Home.navigationKey narrowBounds snapshot toCalendar (.input 'c'))
     "Calendar c did not return to Daily"
