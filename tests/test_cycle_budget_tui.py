@@ -114,12 +114,17 @@ def expect_local_unavailability(key, subject):
 
 
 try:
+    wait_for("LOAM / Today")
+    os.write(master, b"c")
     wait_for("LOAM Home")
-    # Move beyond the next boundary. The current Budget must ignore this focus.
+    # Move beyond the next boundary in Calendar mode.
+    # The current Budget must ignore this historical focus.
     for week in range(1, 7):
         os.write(master, b"j")
         wait_for(f"Focus: {today + datetime.timedelta(days=7 * week)}")
-    os.write(master, b"c")
+    os.write(master, b" ")
+    wait_for("Home / Commands")
+    os.write(master, b"\r")
     screen = wait_for("r rebalance")
     assert "Budget / Pension Cycle" in screen
     assert f"{start} -> {end}" in screen
@@ -187,8 +192,12 @@ try:
     os.write(master, b"e")
     os.write(master, b"q")
     wait_for(f"Focus: {today + datetime.timedelta(days=42)}")
-    # Home's raw e entrance remains as the fallback/general transfer path.
-    os.write(master, b"e")
+    # General Capacity is still accessible from Home's optional command palette.
+    os.write(master, b" ")
+    wait_for("Home / Commands")
+    os.write(master, b"j")
+    wait_for("Capacity / allocations")
+    os.write(master, b"\r")
     wait_for("t transfer")
     os.write(master, b"q")
     wait_for("LOAM Home")
@@ -252,7 +261,11 @@ try:
         cwd=repo_root,
         check=True,
     )
-    expect_local_unavailability(b"p", "Purpose routes")
+    os.write(master, b" ")
+    wait_for("Home / Commands")
+    os.write(master, b"jj\r")
+    wait_for("[Unavailable] Purpose routes:")
+    assert process.poll() is None, "TUI exited while reporting unavailable Purpose routes"
     household_path.write_bytes(household)
 
     household_path = root / "household.loam"
@@ -263,7 +276,11 @@ try:
         cwd=repo_root,
         check=True,
     )
-    expect_local_unavailability(b"e", "Capacity")
+    os.write(master, b" ")
+    wait_for("Home / Commands")
+    os.write(master, b"j\r")
+    wait_for("[Unavailable] Capacity:")
+    assert process.poll() is None, "TUI exited while reporting unavailable Capacity"
     household_path.write_bytes(household)
 
     os.write(master, b"q")
@@ -298,8 +315,8 @@ try:
     os.close(slave2)
     try:
         startup = wait_for_fd(master2, "cash -> wifi: 250 jpy")
-        assert "LOAM Home" in startup, "malformed legacy Scheduled prevented Home from starting"
-        assert "Next Scheduled" in startup, "Home stopped reading Household Scheduled evidence"
+        assert "LOAM / Today" in startup, "malformed legacy Scheduled prevented Home from starting"
+        assert "Upcoming Scheduled" in startup, "Home stopped reading Household Scheduled evidence"
         assert process2.poll() is None, "TUI exited after ignoring malformed legacy Scheduled"
 
         os.write(master2, b"s")
@@ -307,14 +324,14 @@ try:
         assert "Scheduled" in scheduled_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Scheduled workspace use"
         os.write(master2, b"q")
-        wait_for_fd(master2, "LOAM Home")
+        wait_for_fd(master2, "LOAM / Today")
 
         os.write(master2, b"a")
         actual_screen = wait_for_fd(master2, "Household Actuals Workspace")
         assert "Actual" in actual_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Actual workspace use"
         os.write(master2, b"q")
-        wait_for_fd(master2, "LOAM Home")
+        wait_for_fd(master2, "LOAM / Today")
 
         os.write(master2, b"q")
         drain_fd(master2)
@@ -327,7 +344,7 @@ try:
         scheduled_path.write_bytes(scheduled_bytes)
 
     assert digest() == before, "Scheduled legacy-isolation test changed fixture evidence/config"
-    print("Production PTY: Budget actions, local read refusals, Scheduled legacy isolation, Scheduled/Actual survival and no writes passed.")
+    print("Production PTY: Daily/Calendar, command palette Budget/Capacity/Purpose, local refusals, Scheduled legacy isolation and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()
