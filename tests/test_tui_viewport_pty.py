@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Home/Reports live-resize and grouped-command regression on an isolated fixture.
+"""Home/Reports/Actuals live-resize regression on an isolated fixture.
 
 Arguments: synthetic fixture directory, loamTui executable. Never use loam-data.
 """
@@ -141,6 +141,21 @@ try:
     bounded(report, 36, 140)
     os.write(master, b"q")
     bounded(capture(b"LOAM Home"), 36, 140)
+    os.write(master, b"a")
+    actual = capture(b"Household Actuals Workspace")
+    bounded(actual, 36, 140)
+    assert "┌".encode() in actual and b"====" not in actual
+    # Resize with no keypress: cross both width and height breakpoints, then
+    # return to a wide layout. Pane switching remains reachable in compact mode.
+    for rows, cols in ((24, 80), (10, 48), (30, 99), (40, 144)):
+        resize(rows, cols)
+        bounded(capture(b"Household Actuals Workspace"), rows, cols)
+        os.write(master, b"h")
+        bounded(capture(b"Loci [active]"), rows, cols)
+        os.write(master, b"l")
+        bounded(capture(b"Actuals [active]"), rows, cols)
+    os.write(master, b"q")
+    capture(b"LOAM Home")
     os.write(master, b"q")
     # Drain cleanup bytes before waiting: a macOS tty can hold an exiting child
     # until its pending output is consumed or the master is closed.
@@ -158,7 +173,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Reports: direct d/b shortcuts, preserved date/pane, palette navigation, idle resize; evidence unchanged.")
+    print("Home/Reports/Actuals: shortcuts, pane navigation and responsive idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

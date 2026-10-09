@@ -231,4 +231,60 @@ def main : IO Unit := do
     contains "No next Actual row" longBlocked.notice)
     "Actual workspace end-of-list refusal moved selection or lost its notice"
 
-  IO.println "TUI Actual: Actual workspace search/open, mechanics and production viewport checks passed."
+  -- Responsive frame geometry uses terminal columns (including Japanese labels),
+  -- not codepoint counts. Exercise breakpoint edges and degenerate bounds too.
+  let japanese ← requireSome
+    (actualRecord? "日本語-record" "2026-09-07"
+      "セブンイレブン・長い説明とコーヒー" "銀行口座" "食費" 12345)
+    "Japanese layout fixture was not admitted"
+  let japaneseSnapshot : Loam.Tui.Main.Snapshot :=
+    { snapshot with actual := { today := "2026-09-07", allRecords := [japanese] } }
+  for width in [0, 1, 2, 20, 40, 80, 98, 99, 100, 144, 220] do
+    for height in [0, 1, 2, 3, 8, 18, 21, 22, 24, 30, 36, 48, 60] do
+      for pane in [Loam.Tui.ActualWorkspace.Pane.loci, .transactions] do
+        let bounds : Bounds := { width, height }
+        let state := { actualStart with
+          pane := pane
+          searchEditing := true
+          searchQuery := ""
+          notice := "No previous Actual row." }
+        let widget := Loam.Tui.ActualWorkspace.view bounds japaneseSnapshot state
+        expect (widget.lines.length <= height - 1)
+          s!"Actual layout exceeded usable height at {width}x{height}"
+        expect (widget.lines.all fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth bounds)
+          s!"Actual layout exceeded terminal columns at {width}x{height}"
+
+  let wide := Loam.Tui.ActualWorkspace.view { width := 144, height := 40 }
+    longSnapshot longShifted
+  let detailRow := wide.lines.findIdx? fun cells =>
+    contains "Selected Actual Details:" (String.ofList (cells.map Cell.glyph))
+  let selectedRow := wide.lines.findIdx? fun cells =>
+    cells.any (fun cell => cell.style == .selected)
+  expect (match detailRow, selectedRow with
+    | some detail, some selected => detail < selected
+    | _, _ => false)
+    "Wide Actual list did not extend below the left detail heading"
+  for width in [80, 100, 144] do
+    let rendered := Loam.Tui.ActualWorkspace.view { width, height := 30 }
+      japaneseSnapshot actualStart
+    let text := widgetText rendered
+    expect (contains "-12345 jpy" text && contains "12345 jpy" text)
+      "Responsive detail column hid effect amounts"
+    expect (contains "┌" text && !contains "====" text && !contains "----" text)
+      "Actual workspace retained heavy separator rules"
+  let narrowLoci := widgetText (Loam.Tui.ActualWorkspace.view
+    { width := 80, height := 24 } snapshot { actualStart with pane := .loci })
+  expect (contains "Loci [active]" narrowLoci && contains "[All loci]" narrowLoci)
+    "Narrow layout failed to expose the focused Loci pane"
+  for bounds in [{ width := 80, height := 24 }, { width := 144, height := 40 }] do
+    let rendered := Loam.Tui.ActualWorkspace.view bounds longSnapshot longShifted
+    expect (rendered.lines.any fun cells => cells.any (fun c => c.style == .selected))
+      "Resize lost the selected list row (not merely its detail text)"
+  let emptyText := widgetText (Loam.Tui.ActualWorkspace.view
+    { width := 100, height := 30 } snapshot { actualStart with searchQuery := "missing" })
+  expect (contains "no matching Actual records" emptyText)
+    "Empty responsive Actual pane lost its explanation"
+
+  IO.println "TUI Actual: search/open, navigation and responsive frame checks passed."

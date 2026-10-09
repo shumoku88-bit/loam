@@ -317,14 +317,8 @@ def updateWithRepeat (snapshot : Snapshot) (state : State) (event : Event) (repe
     | .next => { state := movePageDown snapshot state repeatCount }
     | other => update snapshot state other
 
-private def repeatChar (count : Nat) (char : Char) : String :=
-  String.ofList (List.replicate count char)
-
 private def fit (width : Nat) (text : String) : String :=
   Loam.Tui.Layout.padRight width text
-
-private def rule (bounds : Bounds) (char : Char) : Widget :=
-  plainLine (repeatChar (Loam.Tui.Layout.contentWidth bounds) char)
 
 private def displayLocus (state : State) (token : String) : String :=
   let label := Loam.LocusCatalog.labelForToken state.locusMetadata token
@@ -361,28 +355,30 @@ private def locusLabel (state : State) (loci : List String) (row : Nat) : Option
   if row = 0 then some "[All loci]"
   else loci[row - 1]?.map (displayLocus state)
 
-private def paneRow
-    (state : State) (recordsArr : Array ReviewRecord) (loci : List String)
-    (leftWidth rightWidth visibleRows row : Nat) : Widget :=
-  let locusIndex := paneWindowStart state.locusRow visibleRows + row
-  let txIndex := paneWindowStart state.transactionRow visibleRows + row
-  let leftPrefix :=
-    if locusIndex = state.locusRow then
-      if state.pane == .loci then " > " else " * "
-    else "   "
-  let rightPrefix :=
-    if txIndex = state.transactionRow && recordsArr.size > 0 then
-      if state.pane == .transactions then " > " else " * "
-    else "   "
-  let leftText :=
-    match locusLabel state loci locusIndex with
-    | some label => leftPrefix ++ label
-    | none => ""
-  let rightText :=
-    match recordsArr[txIndex]? with
-    | some record => rightPrefix ++ txSummary record
-    | none => if row = 0 && recordsArr.isEmpty then " (no matching Actual records)" else ""
-  .row [span (fit leftWidth leftText), span " | ", span (fit rightWidth rightText)]
+private def listPanel
+    (state : State) (records : Array ReviewRecord) (loci : List String)
+    (pane : Pane) (width height : Nat) (title : String) : Widget :=
+  let selected := if pane == .loci then state.locusRow else state.transactionRow
+  let rows := height - 2
+  let start := paneWindowStart selected rows
+  let content := (List.range rows).map fun row =>
+    let index := start + row
+    let label := if pane == .loci then locusLabel state loci index
+      else records[index]?.map txSummary
+    let isSelected := index == selected && label.isSome
+    let active := pane == state.pane
+    let marker := if isSelected then (if active then " > " else " * ") else "   "
+    let text := match label with
+      | some text => marker ++ text
+      | none => if row == 0 && pane == .transactions then " (no matching Actual records)" else ""
+    .row [span (fit (width - 2) text) (if isSelected && active then .selected else .normal)]
+  Loam.Tui.Layout.framedPanel width height title (.column content)
+
+/-- Frames already own their borders; leave just one blank column between them. -/
+private def joinPanels (left right : Widget) : List Widget :=
+  left.lines.zipWith (fun l r =>
+    .row ((l.map fun c => span (String.singleton c.glyph) c.style) ++ [span " "] ++
+      (r.map fun c => span (String.singleton c.glyph) c.style))) right.lines
 
 /--
 Stable details presentation. By fixing the allocated rows across records,
@@ -393,7 +389,12 @@ def detailCapacityForBounds (bounds : Bounds) : Nat :=
   if bounds.height ≥ 48 then 12 else if bounds.height ≥ 36 then 10 else 8
 
 private def fixedDetailLines
-    (state : State) (record? : Option ReviewRecord) (capacity : Nat) : List Widget :=
+    (state : State) (record? : Option ReviewRecord) (capacity : Nat)
+    (width : Nat := 80) : List Widget :=
+  let effectLine := fun (effect : Loam.Core.Effect) =>
+    let amount := toString effect.quantity.quanta ++ " " ++ effect.measure.token
+    let labelWidth := width - Loam.Tui.Layout.displayWidth amount - 3
+    plainLine (" " ++ fit labelWidth (displayLocus state effect.locus.token) ++ "  " ++ amount)
   let baseLines : List Widget :=
     match record? with
     | none =>
@@ -405,23 +406,19 @@ private def fixedDetailLines
         let effects := record.event.effects
         let renderedEffects : List Widget :=
           if effects.length ≤ effectSlotCapacity then
-            effects.map fun effect =>
-              plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
-                toString effect.quantity.quanta ++ " " ++ effect.measure.token)
+            effects.map effectLine
           else
             let shownCount := if effectSlotCapacity > 1 then effectSlotCapacity - 1 else 0
             let shown := effects.take shownCount
             let remaining := effects.length - shownCount
-            (shown.map fun effect =>
-              plainLine ("     " ++ fit 38 (displayLocus state effect.locus.token) ++ " " ++
-                toString effect.quantity.quanta ++ " " ++ effect.measure.token)) ++
+            (shown.map effectLine) ++
               [mutedLine s!"     ... (+{remaining} more effects)"]
         [ plainLine " Selected Actual Details:"
-        , plainLine ("   Date        : " ++ record.date.getD "date unknown")
-        , plainLine ("   Description : " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
-        , plainLine ("   Identity    : " ++ record.event.id.token)
-        , plainLine "   Status      : Current"
-        , plainLine "   Effects:"
+        , plainLine (" Date: " ++ record.date.getD "date unknown")
+        , plainLine (" " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
+        , plainLine (" ID: " ++ record.event.id.token)
+        , plainLine " Status: Current"
+        , plainLine " Effects:"
         ] ++ renderedEffects
   let visibleBase := baseLines.take capacity
   let padding := capacity - visibleBase.length
@@ -464,54 +461,58 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let txCount := recordsArr.size
   let state := clampStateWithCounts lociCount txCount withLocus
   let writable := Loam.Tui.Layout.contentWidth bounds
-  let leftWidth :=
-    if writable >= 70 then min 32 (writable / 3) else min 24 (writable / 2)
-  let rightWidth := if writable > leftWidth + 3 then writable - leftWidth - 3 else 0
+  let leftWidth := max 34 (writable * 35 / 100)
+  let rightWidth := writable - leftWidth - 1
   let leftHeader :=
-    fit leftWidth
-      (if state.pane == .loci then " Loci [active] (" ++ toString lociCount ++ ")"
-       else " Loci (" ++ toString lociCount ++ ")")
+    "Loci" ++ (if state.pane == .loci then " [active]" else "") ++ s!" ({lociCount})"
   let orderTag := match state.order with
     | .asc => "asc"
     | .desc => "desc"
-  let rightHeaderBase :=
-    if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ")"
-    else " Actuals (" ++ toString txCount ++ ")"
-  let rightHeaderWithOrder :=
-    if state.pane == .transactions then " Actuals [active] (" ++ toString txCount ++ ", " ++ orderTag ++ ")"
-    else " Actuals (" ++ toString txCount ++ ", " ++ orderTag ++ ")"
   let rightHeader :=
-    fit rightWidth
-      (if rightWidth ≥ Loam.Tui.Layout.displayWidth rightHeaderWithOrder then
-         rightHeaderWithOrder
-       else
-         rightHeaderBase)
+    "Actuals" ++ (if state.pane == .transactions then " [active]" else "") ++
+      s!" ({txCount}, {orderTag})"
   let searchLine :=
     if state.searchQuery.isEmpty && !state.searchEditing then []
     else
       let cursor := if state.searchEditing then "_" else ""
       [plainLine (Loam.Tui.Layout.clip writable
         (" Search: /" ++ state.searchQuery ++ cursor))]
-  let detailCap := detailCapacityForBounds bounds
   let selectedRecord := recordsArr[state.transactionRow]?
-  let details := fixedDetailLines state selectedRecord detailCap
-  let footerLines := footer bounds state
-  let noticeRows := if state.notice.isEmpty then 0 else 1
-  let fixedBodyRows := 7 + searchLine.length + detailCap + noticeRows
+  let footerLines := (footer bounds state).take (bounds.height - 1)
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
-  let paneRows := max 1 (bodyCapacity - fixedBodyRows)
-  let body :=
-    [ rule bounds '='
-    , plainLine " Household Actuals Workspace"
-    , plainLine (" Horizon: " ++ snapshot.actual.today ++ "  |  " ++ scopeText snapshot state)
-    , plainLine (" Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
-    ] ++ searchLine ++
-    [ rule bounds '='
-    , .row [span leftHeader, span " | ", span rightHeader]
-    ] ++
-    (List.range paneRows).map (paneRow state recordsArr loci leftWidth rightWidth paneRows) ++
-    [rule bounds '-'] ++ details ++
-    (if state.notice.isEmpty then [] else [plainLine state.notice])
-  .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
+  let header :=
+    [ plainLine " Household Actuals Workspace"
+    , mutedLine (" Horizon: " ++ snapshot.actual.today ++ "  |  " ++ scopeText snapshot state)
+    , mutedLine (" Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
+    ]
+  -- Tiny terminals retain a list row before spending space on context or details.
+  let context := header.take (if bodyCapacity >= 9 then 3 else min 1 (bodyCapacity - 3))
+  let search := searchLine.take (bodyCapacity - context.length - 3)
+  let notice := if state.notice.isEmpty then [] else
+    [plainLine state.notice].take (bodyCapacity - context.length - search.length - 3)
+  let panelHeight := bodyCapacity - context.length - search.length - notice.length
+  let wide := writable >= 98 && panelHeight >= 16
+  let detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
+  let detailPanel := fun width =>
+    Loam.Tui.Layout.framedPanel width detailHeight "Selected Actual Details:"
+      (.column ((fixedDetailLines state selectedRecord (detailHeight - 1) (width - 2)).drop 1))
+  let panels :=
+    if wide then
+      let left : Widget := .column [
+        listPanel state recordsArr loci .loci leftWidth (panelHeight - detailHeight) leftHeader,
+        detailPanel leftWidth]
+      joinPanels left (listPanel state recordsArr loci .transactions rightWidth panelHeight rightHeader)
+    else
+      let title := if state.pane == .loci then leftHeader else rightHeader
+      [listPanel state recordsArr loci state.pane writable (panelHeight - detailHeight) title] ++
+        (if detailHeight > 0 then [detailPanel writable] else [])
+  -- Flatten before footer fitting: a panel is many physical terminal rows.
+  let body := (Widget.column (context ++ search ++ panels ++ notice)).lines.map fun cells =>
+    .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  let fitted := Loam.Tui.Layout.fitWithFooter bounds body footerLines
+  .column (fitted.map fun row =>
+    .column (row.lines.map fun cells =>
+      .row ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
+        span (String.singleton cell.glyph) cell.style)))
 
 end Loam.Tui.ActualWorkspace
