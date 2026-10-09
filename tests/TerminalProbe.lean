@@ -8,7 +8,7 @@ private def frameFor (bounds : Bounds) : CompiledWidget :=
   compileWidget <| .column <|
     [line s!"geometry {bounds.width}x{bounds.height}"] ++
     List.replicate (bounds.height - 2) (line "日本語 body") ++
-    [line "footer [y] copy screen"]
+    [line "footer [q] back"]
 
 /-- Compiled native-mechanics driver: no household data or publication path. -/
 def main (args : List String) : IO Unit := do

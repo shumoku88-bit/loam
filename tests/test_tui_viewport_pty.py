@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Home/Reports live-resize and copy-help regression on an isolated fixture.
+"""Home/Reports live-resize and grouped-command regression on an isolated fixture.
 
 Arguments: synthetic fixture directory, loamTui executable. Never use loam-data.
 """
@@ -74,7 +74,8 @@ try:
     assert b"[g]" not in clean_initial and b"[Space] commands" in clean_initial, (
         "Home retained Summary or lost the command hub entrance"
     )
-    assert b"[y]" in clean_initial and b"copy screen" in clean_initial and b"Shift+drag" in clean_initial
+    assert b"[y] copy screen" not in clean_initial and b"Shift+drag" not in clean_initial
+    assert b"[a] actual" in clean_initial and b"[s] scheduled" in clean_initial
     # Retired g/G must be ignored; the following key still navigates Calendar.
     focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", clean_initial).group(1)
     expected = str(datetime.date.fromisoformat(focus.decode()) + datetime.timedelta(days=1)).encode()
@@ -89,17 +90,18 @@ try:
     bounded(output, 22, 80)
     os.write(master, b"l")
     bounded(capture(), 22, 80)
-    os.write(master, b"v")
-    report = capture(b"Reports")
-    assert b"[y] copy screen" in report and b"Shift+drag select" in report
+    # Reports now lives in Space -> Reports and analysis -> Reports.
+    os.write(master, b" jj\rjj\r")
+    report = capture(b"Stock")
+    assert b"Reports" in report and b"[y] copy screen" not in report
     resize(10, 48)
-    report = capture(b"[y] copy screen")
+    report = capture(b"Reports")
     bounded(report, 10, 48)
     # Repeated menu navigation stays within the new viewport.
     os.write(master, b"jjj")
     bounded(capture(), 10, 48)
     resize(36, 140)
-    report = capture(b"[y] copy screen")
+    report = capture(b"Reports")
     bounded(report, 36, 140)
     os.write(master, b"q")
     bounded(capture(b"LOAM Home"), 36, 140)
@@ -120,7 +122,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Reports: idle resize, bounded navigation, visible copy help; evidence unchanged.")
+    print("Home/Reports: idle resize, palette navigation, retired copy help; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

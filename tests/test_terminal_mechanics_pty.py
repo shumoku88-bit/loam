@@ -73,5 +73,5 @@ for geometry in [(9, 32), (55, 160), (1, 10)]:
     assert b"\n" not in output and b"\r" not in output, output
     if rows > 1:
         assert f"geometry {cols}x{rows}".encode() in output, output
-        assert b"footer [y] copy screen" in output, output
+        assert b"footer [q] back" in output, output
     print(f"Resize {cols}x{rows}: live geometry, bounded cursor writes, no newline scrolling.")

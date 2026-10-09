@@ -1270,11 +1270,6 @@ private structure ViewParts where
   body : Loam.Tui.Viewport.Source Widget
   footer : List Widget
 
-private def withCopyHelp (footer : List Widget) : List Widget :=
-  -- Keep the essential back row immediately before notice for tiny terminals.
-  footer.take (footer.length - 2) ++
-    [muted "[y] copy screen   Shift+drag select"] ++ footer.drop (footer.length - 2)
-
 private def staticViewParts
     (state : State) (bounds : Option Bounds) : ViewParts :=
   match fullView state bounds with
@@ -1283,7 +1278,7 @@ private def staticViewParts
       let bodySize := children.length - footerSize
       {
         body := Loam.Tui.Viewport.ofList (children.take bodySize)
-        footer := withCopyHelp (children.drop bodySize)
+        footer := children.drop bodySize
       }
   | other =>
       { body := Loam.Tui.Viewport.ofList [other], footer := [] }
@@ -1297,7 +1292,7 @@ private def dailyIncomeExpenseViewParts
         , dailyFlowSource state bounds
         , Loam.Tui.Viewport.ofList [blank]
         ]
-    footer := withCopyHelp (incomeExpenseFooterLines state)
+    footer := incomeExpenseFooterLines state
   }
 
 private def viewParts

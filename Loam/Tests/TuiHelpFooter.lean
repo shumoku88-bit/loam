@@ -152,9 +152,7 @@ def main : IO Unit := do
 
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[Enter] open", "[r] record",
-    "[a] actual", "[s] scheduled", "[d] daily pace", "[i] attention", "[b] balances", "[u] settlements",
-    "[Space] commands", "[m] manage loci", "[o] observe quantities",
-    "[v] reports", "[q] quit"
+    "[a] actual", "[s] scheduled", "[Space] commands", "[q] quit"
   ]
 
   -- 2a. Wide terminal
@@ -172,7 +170,7 @@ def main : IO Unit := do
     expect (contains token wideText) s!"wide Home lost token {token}"
   expect
     (contains "Day" wideText && contains "View" wideText && contains "Action" wideText &&
-      contains "Household" wideText && contains "Manage" wideText)
+      contains "Commands" wideText)
     "wide Home lost command-deck groups"
   let dayFooterRow ← requireSome
     (firstLineContaining? "[h/l] day" wideView.lines 0)
@@ -196,9 +194,7 @@ def main : IO Unit := do
   let dividerCount := occurrences " │ " wideText
   expect (dividerCount > 12)
     "unified money calendar lost its stable wide side-by-side geometry"
-  for token in ["[d] daily pace", "[i] attention", "[b] balances", "[u] settlements",
-                "[Space] commands", "[m] manage loci", "[o] observe quantities",
-                "[v] reports"] do
+  for token in ["[Space] commands"] do
     expect (occurrences token wideText == 1)
       s!"Home should advertise {token} exactly once in the footer"
 
@@ -318,67 +314,93 @@ def main : IO Unit := do
             "retired Home mode shortcut is still active"
   expect (!contains "[e] capacity" narrowText && !contains "[p] purpose routing" narrowText)
     "optional budget shortcuts leaked back to the Home footer"
-  -- Command groups navigate locally; only leaves dispatch household workspaces.
+  -- The Home footer lists only habitual actions; rare workspaces are in Commands.
+  for token in ["[x] exchange", "[d] daily pace", "[i] attention",
+      "[b] balances", "[u] settlements", "[v] reports",
+      "[m] manage loci", "[o] observe quantities", "[y] copy screen",
+      "[Shift+drag]"] do
+    expect (!contains token wideText)
+      s!"Home footer still advertises a palette-only or retired action: {token}"
+
+  -- All five groups remain reachable. Only Enter on a leaf may dispatch.
   let commandRoot : Loam.Tui.HomeCommandPalette.State := {}
   let envelopes : Loam.Tui.HomeCommandPalette.State := { page := .envelopeBudget }
-  for key in [Loam.Tui.Terminal.Key.enter, .right] do
-    expect (Loam.Tui.HomeCommandPalette.update commandRoot key == .stay envelopes)
-      "Home commands did not enter the envelope group without dispatching an action"
+  for (index, page) in [
+      (0, Loam.Tui.HomeCommandPalette.Page.transactions),
+      (1, .planning), (2, .analysis), (3, .envelopeBudget), (4, .maintenance)] do
+    for key in [Loam.Tui.Terminal.Key.enter, .right] do
+      expect (Loam.Tui.HomeCommandPalette.update { commandRoot with selected := index } key ==
+        .stay { page := page })
+        "command root did not enter the selected group"
   for (index, choice) in [(0, Loam.Tui.HomeCommandPalette.Choice.budget),
       (1, .capacity), (2, .purposeRouting)] do
-    expect (Loam.Tui.HomeCommandPalette.update { envelopes with selected := index } .enter ==
-      .open choice)
-      "envelope commands did not preserve an existing optional budget action"
     let leaf := { envelopes with selected := index }
+    expect (Loam.Tui.HomeCommandPalette.update leaf .enter == .open choice)
+      "envelope budget leaf no longer opens its existing workspace"
     expect (Loam.Tui.HomeCommandPalette.update leaf .right == .stay leaf)
-      "Right should enter groups, not dispatch leaf actions"
+      "Right must never dispatch a leaf action"
+  let transactionGroup : Loam.Tui.HomeCommandPalette.State := { page := .transactions }
+  let planningGroup : Loam.Tui.HomeCommandPalette.State := { page := .planning }
+  let analysisGroup : Loam.Tui.HomeCommandPalette.State := { page := .analysis }
+  let maintenanceGroup : Loam.Tui.HomeCommandPalette.State := { page := .maintenance }
+  for (group, choices) in [
+      (transactionGroup, [Loam.Tui.HomeCommandPalette.Choice.record, .actual, .exchange]),
+      (planningGroup, [.scheduled, .attention, .settlements]),
+      (analysisGroup, [.dailyPace, .balances, .reports]),
+      (maintenanceGroup, [.manageLoci, .observeQuantities])] do
+    for (choice, index) in choices.zipIdx do
+      let leaf := { group with selected := index }
+      expect (Loam.Tui.HomeCommandPalette.update leaf .enter == .open choice &&
+        Loam.Tui.HomeCommandPalette.update leaf .right == .stay leaf)
+        "grouped command did not dispatch only on Enter"
   for key in [Loam.Tui.Terminal.Key.left, .escape, .input 'q', .input 'Q', .input ' '] do
-    expect (Loam.Tui.HomeCommandPalette.update { envelopes with selected := 2 } key ==
-      .stay commandRoot)
-      "envelope back key closed the palette instead of returning to its parent"
+    for group in [envelopes, transactionGroup, planningGroup, analysisGroup, maintenanceGroup] do
+      expect (Loam.Tui.HomeCommandPalette.update { group with selected := 2 } key ==
+        .stay commandRoot)
+        "group back key did not return to root"
     expect (Loam.Tui.HomeCommandPalette.update commandRoot key == .close)
-      "root back key did not close the command palette"
+      "root back key did not close palette"
   for key in [Loam.Tui.Terminal.Key.down, .input 'j', .input 'J'] do
+    expect (Loam.Tui.HomeCommandPalette.update commandRoot key ==
+      .stay { commandRoot with selected := 1 } &&
+      Loam.Tui.HomeCommandPalette.update { commandRoot with selected := 4 } key ==
+        .stay { commandRoot with selected := 4 })
+      "root selection did not move or clamp"
     expect (Loam.Tui.HomeCommandPalette.update envelopes key ==
       .stay { envelopes with selected := 1 } &&
-      Loam.Tui.HomeCommandPalette.update { envelopes with selected := 1 } key ==
-        .stay { envelopes with selected := 2 } &&
       Loam.Tui.HomeCommandPalette.update { envelopes with selected := 2 } key ==
         .stay { envelopes with selected := 2 })
-      "envelope selection did not reach and clamp at the final action"
-    expect (Loam.Tui.HomeCommandPalette.update commandRoot key == .stay commandRoot)
-      "root selection left its sole command group"
+      "envelope selection did not move or clamp"
   for key in [Loam.Tui.Terminal.Key.up, .input 'k', .input 'K'] do
     expect (Loam.Tui.HomeCommandPalette.update { envelopes with selected := 2 } key ==
       .stay { envelopes with selected := 1 } &&
       Loam.Tui.HomeCommandPalette.update envelopes key == .stay envelopes)
-      "envelope selection did not move back or clamp at the first action"
+      "envelope selection did not move back or clamp at first"
   for key in [Loam.Tui.Terminal.Key.other, .input 'x'] do
-    for pageState in [commandRoot, envelopes] do
-      expect (Loam.Tui.HomeCommandPalette.update pageState key == .stay pageState)
+    for group in [commandRoot, envelopes, transactionGroup, analysisGroup] do
+      expect (Loam.Tui.HomeCommandPalette.update group key == .stay group)
         "unhandled command key changed local navigation"
   let invalidSelection := { envelopes with selected := 3 }
   for key in [Loam.Tui.Terminal.Key.enter, .right] do
     expect (Loam.Tui.HomeCommandPalette.update invalidSelection key == .stay invalidSelection)
-      "invalid command selection dispatched a household action"
+      "invalid palette index dispatched a household action"
   for bounds in [narrowBounds, mediumBounds, { width := 40, height := 24 }] do
     let rootView := Loam.Tui.HomeCommandPalette.view bounds commandRoot
     let envelopeView := Loam.Tui.HomeCommandPalette.view bounds envelopes
     let rootText := widgetText rootView
     let envelopeText := widgetText envelopeView
-    expect (contains "Envelope budget →" rootText && contains "Esc close" rootText &&
-      !contains "Budget / current cycle" rootText &&
-      !contains "Capacity / allocations" rootText && !contains "Purpose routing" rootText)
-      "root command palette did not reduce optional-budget noise to one group"
+    for label in ["Transactions →", "Plans and attention →", "Reports and analysis →",
+        "Envelope budget →", "Household setup →"] do
+      expect (contains label rootText) s!"palette root lost group: {label}"
     expect (contains "Commands / Envelope budget" envelopeText &&
       contains "Budget / current cycle" envelopeText &&
       contains "Capacity / allocations" envelopeText && contains "Purpose routing" envelopeText &&
       contains "Esc back" envelopeText)
-      "envelope command page lost its path, back help, or an optional budget operation"
-    expect (rootView.lines.length == 11 && envelopeView.lines.length == 11)
-      "command page transition changed its fixed panel height"
-    for selectedState in [commandRoot, envelopes,
-        { envelopes with selected := 1 }, { envelopes with selected := 2 }] do
+      "envelope group lost its existing actions"
+    expect (rootView.lines.length == 13 && envelopeView.lines.length == 13)
+      "command pages lost fixed-height geometry"
+    for selectedState in [commandRoot, { commandRoot with selected := 4 },
+        envelopes, { envelopes with selected := 2 }, transactionGroup, maintenanceGroup] do
       let selectedView := Loam.Tui.HomeCommandPalette.view bounds selectedState
       let selectedRows := selectedView.lines.filter fun cells =>
         cells.any fun cell => cell.style == .selected
@@ -389,24 +411,24 @@ def main : IO Unit := do
       let innerWidth := min 54 (contentWidth bounds) - 2
       expect ((selectedCells.drop 1 |>.take innerWidth).all
         (fun cell => cell.style == .selected))
-        "command selection background ended before the panel's inner edge"
+        "command selection highlight ended before panel edge"
       expect ((selectedCells.take 1 ++ selectedCells.drop (innerWidth + 1)).all
         (fun cell => cell.style == .muted))
-        "command selection background leaked onto the panel border"
+        "command selection leaked onto border"
       if selectedState.page == .commands then
         let arrowAndPadding := selectedCells.dropWhile (fun cell => cell.glyph != '→')
         expect (arrowAndPadding.length > 2 &&
           (arrowAndPadding.take 2).all (fun cell => cell.style == .selected))
-          "command group arrow needs selected background on its trailing padding"
+          "command group arrow lost highlight padding"
     for pageView in [rootView, envelopeView] do
       let pageText := widgetText pageView
       expect (contains "↑/↓ select" pageText && contains "→ group" pageText &&
         contains "← back" pageText && contains "Enter open" pageText)
-        "command page hid arrow navigation or Enter help"
+        "command page hid navigation help"
       for cells in pageView.lines do
         expect (displayWidth (String.ofList (cells.map Cell.glyph)) ==
           min 54 (contentWidth bounds))
-          "command page lost fixed-width padding required to clear its previous page"
+          "command page lost fixed-width padding"
 
   -- 3. Test SelectedDay footer geometry
   let selState := Loam.Tui.SelectedDay.initial "2026-09-10"

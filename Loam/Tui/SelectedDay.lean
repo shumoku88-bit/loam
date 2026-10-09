@@ -41,7 +41,6 @@ inductive Event where
   | cancelScheduled
   | replaceScheduled
   | back
-  | yank
   | other
   deriving Repr, DecidableEq, BEq
 
@@ -58,7 +57,6 @@ inductive Command where
   | cancelScheduled
   | replaceScheduled
   | back
-  | yank
   deriving Repr, DecidableEq, BEq
 
 structure Step where
@@ -278,7 +276,6 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
                   { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
               | some _ => { state, command := .replaceScheduled }
   | .back => { state, command := .back }
-  | .yank => { state, command := .yank }
   | .other => { state }
 
 /-- Update workspace state, optionally scaling directional navigation by repeat count. -/
@@ -401,19 +398,19 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   match state.pane with
   | .actual =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c] correct  [r] reverse  [d] date  [m] merchant  [g] loci  [y] copy  [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c] correct  [r] reverse  [d] date  [m] merchant  [g] loci  [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else
-        [ mutedLine "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [y] copy [q] back"
+        [ mutedLine "[j/k] select [h/l] pane [n] new [c] correct [r] reverse [q] back"
         , mutedLine "[d] date [m] merchant [g] loci"
         ]
   | .scheduled =>
-      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c/Enter] complete  [r] supersede  [x] cancel  [y] copy  [q] back"
+      let detailed := "[j/k] select  [h/l] Actual/Scheduled  [n] new  [c/Enter] complete  [r] supersede  [x] cancel  [q] back"
       if Loam.Tui.Layout.displayWidth detailed ≤ width then
         [mutedLine detailed]
       else
-        [ mutedLine "[j/k] select [h/l] pane [n] new [c/Enter] complete [r] supersede [x] cancel [y] copy [q] back" ]
+        [ mutedLine "[j/k] select [h/l] pane [n] new [c/Enter] complete [r] supersede [x] cancel [q] back" ]
 
 /--
 One-date operational workspace. It composes the shared Actual and Scheduled read

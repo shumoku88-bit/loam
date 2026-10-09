@@ -70,10 +70,10 @@ private def dayPoints
 def main : IO Unit := do
   expect (Loam.Tui.Terminal.plainTerminalText "a\n\r\x1b\tb" == "ab")
     "presentation text retained terminal control characters"
-  let copyHelp := widgetText (Loam.Tui.Reports.viewForBounds
+  let reportHelp := widgetText (Loam.Tui.Reports.viewForBounds
     { width := 120, height := 24 } Loam.Tui.Reports.initial)
-  expect (contains "[y] copy screen" copyHelp && contains "Shift+drag select" copyHelp)
-    "Reports did not advertise visible-screen copy and native text selection"
+  expect (!contains "[y] copy screen" reportHelp && !contains "Shift+drag" reportHelp)
+    "Reports retained the retired screen-copy or terminal-selection hint"
 
   let styledCells : List Cell :=
     [ { glyph := 'a', style := .normal }
@@ -1333,9 +1333,7 @@ def main : IO Unit := do
   let fullDailyLines := widgetLineTexts (Loam.Tui.Reports.view dailyIncomeExpense)
   let dailyBodySize := fullDailyLines.length - 4
   let fullDailyBody := fullDailyLines.take dailyBodySize
-  let originalFooter := fullDailyLines.drop dailyBodySize
-  let fullDailyFooter := originalFooter.take (originalFooter.length - 2) ++
-    ["[y] copy screen   Shift+drag select"] ++ originalFooter.drop (originalFooter.length - 2)
+  let fullDailyFooter := fullDailyLines.drop dailyBodySize
   let dailyPage := dailyBounds.height - (fullDailyFooter.length + 1)
   expect
     (Loam.Tui.Reports.scrollLimit dailyBounds dailyIncomeExpense ==

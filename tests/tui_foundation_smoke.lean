@@ -87,10 +87,6 @@ def main : IO Unit := do
   expect ((regionAnsi.splitOn "\x1b[5;11H").length > 1)
     "region renderer lost the panel cursor origin"
 
-  let oversized := Loam.Tui.Runtime.compileWidget <|
-    .column [.row [span "A日本hidden"], .row [span "hidden row"]]
-  expect (Loam.Tui.Terminal.visibleWidgetText { width := 5, height := 1 } oversized == "A日")
-    "copy leaked clipped columns or offscreen rows"
   expect (Loam.Tui.Terminal.plainTerminalText "a\n\r\x1b\tb" == "ab")
     "terminal text admitted screen-moving control bytes"
   let unsafeAnsi := Loam.Tui.Terminal.directFrameAnsi { width := 10, height := 2 }

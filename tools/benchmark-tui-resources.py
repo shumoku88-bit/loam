@@ -193,6 +193,12 @@ class Terminal:
         os.close(self.fd)
 
 
+# Home shortcuts are intentionally minimal. Benchmarks must use real palette paths.
+PALETTE_PACE = b" jj\r\r"
+PALETTE_BALANCES = b" jj\rj\r"
+PALETTE_REPORTS = b" jj\rjj\r"
+
+
 def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool) -> dict:
     before = digest(root)
     terminal = Terminal(binary, root)
@@ -204,11 +210,11 @@ def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool)
                 ("actual_back", b"q", b"LOAM Home"),
                 ("record", b"r", b"Record movement"),
                 ("cancel", b"\x1b", b"Record cancelled."),
-                ("pace", b"d", b"Daily Pace"),
+                ("pace", PALETTE_PACE, b"Daily Pace / Trend"),
                 ("pace_back", b"q", b"LOAM Home"),
-                ("balances", b"b", b"Balances"),
+                ("balances", PALETTE_BALANCES, b"Balances / Current"),
                 ("balances_back", b"q", b"LOAM Home"),
-                ("reports", b"v", b"Reports"),
+                ("reports", PALETTE_REPORTS, b"Stock"),
                 ("reports_back", b"q", b"LOAM Home"),
             ):
                 latencies.setdefault(name, []).append(terminal.send(key, marker))
@@ -223,9 +229,9 @@ def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool)
         for name, key, marker, back in (
             ("calendar", None, None, None),
             ("record", b"r", b"Record movement", b"\x1b"),
-            ("pace", b"d", b"Daily Pace", b"q"),
-            ("balances", b"b", b"Balances", b"q"),
-            ("reports", b"v", b"Reports", b"q"),
+            ("pace", PALETTE_PACE, b"Daily Pace / Trend", b"q"),
+            ("balances", PALETTE_BALANCES, b"Balances / Current", b"q"),
+            ("reports", PALETTE_REPORTS, b"Stock", b"q"),
         ):
             if key:
                 terminal.send(key, marker)
@@ -244,7 +250,7 @@ def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool)
             if back:
                 terminal.send(back, b"LOAM Home")
         # The Daily Pace idle fast path must still notice real geometry changes.
-        terminal.send(b"d", b"Daily Pace")
+        terminal.send(PALETTE_PACE, b"Daily Pace / Trend")
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 18, 80, 0, 0))
         _, resized = terminal.capture(b"Daily Pace")
         positions = re.findall(rb"\x1b\[(\d+);(\d+)H", resized)
