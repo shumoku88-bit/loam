@@ -17,6 +17,7 @@ import Loam.Tui.Kernel
 import Loam.Tui.Reports
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
+import Loam.Tui.PlainTextPrint
 
 namespace Loam.Tui.ReportsSession
 
@@ -76,6 +77,21 @@ private partial def loop (bounds : Bounds)
       pure next
   let bounds := activeBounds
   if key == .other then return (← loop bounds dataDir root state prepared frame)
+  if state.mode == .balances && (key == .input 'p' || key == .input 'P') then
+    match Loam.Tui.Reports.prepareBalancesPrint state with
+    | .error message =>
+        let next := { state with notice := message }
+        let nextFrame := Loam.Tui.Runtime.compileWidget
+          (Loam.Tui.Reports.viewForBounds bounds next)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        return (← loop bounds dataDir root next prepared nextFrame)
+    | .ok report =>
+        Loam.Tui.PlainTextPrint.run "Reports / Balances" report
+        let active ← Loam.Tui.Terminal.currentBounds
+        let view := Loam.Tui.Reports.viewForBounds active state
+        let nextFrame := Loam.Tui.Runtime.compileWidget view
+        Loam.Tui.Terminal.redrawFromBlank active nextFrame
+        return (← loop active dataDir root state prepared nextFrame)
   match prepared, scrollDirection? key with
   | some cached, some forward =>
       let next := Loam.Tui.Reports.scrollPrepared state cached forward repeatCount
