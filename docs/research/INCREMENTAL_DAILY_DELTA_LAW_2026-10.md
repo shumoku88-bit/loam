@@ -100,3 +100,28 @@ or recompute from canonical evidence.
 
 No cache, scheduler, persistent index, production query or canonical writer is
 introduced. Both Lean files are checked in the existing Application workflow.
+
+## Step 3: conservative affected-bucket certificate
+
+From two **separately fully admitted** Actual images, the optional
+`oneRootReplacement?` helper asks LOAM's existing
+`correctionRootTerminalEvents?` for stable roots and their terminal Events.
+It compares complete root projections by root identity, **not representation
+position**. It supports a single nonzero coordinate replacement, including a
+date-only ActualValidity revision, and returns old and new `(day, Measure)`
+buckets. A separate Lean theorem proves no bucket outside those two keys
+changes under this arithmetic delta.
+
+A new independent root, missing projected date, zero/nonzero transition,
+multiple changed roots *within the selected coordinate*, or unmatched roots
+declines the optional fast path. The existing full reader remains necessary.
+The test also checks that simultaneous corrections in other Measures cannot
+silently alter the selected coordinate, while those other Measures must be
+queried/invalidation-checked separately.
+
+**Limitation:** these are exact *physical Locus/Measure* totals only. A routing,
+AccountingRole, merchant, Scheduled, household support or interpretation
+change may invalidate unrelated report projections even when this physical
+coordinate does not change. The root comparison itself scans the admitted
+images; it is a *sound candidate selection experiment*, not a faster reader or
+a persistence solution. No cache or optimization is installed.

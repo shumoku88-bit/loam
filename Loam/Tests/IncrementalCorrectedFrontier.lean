@@ -67,6 +67,65 @@ theorem qualified_single_replacement
   exact congrArg some
     (replacement_equivalence bucket beforeRows afterRows removed added)
 
+
+/--
+Derive per-root selected physical-coordinate contributions from one already
+fully admitted Actual image. Stable correction roots are supplied by LOAM's
+existing frontier, not inferred from append order or last-write-wins rules.
+A zero coordinate effect is absent from this *report projection*.
+-/
+def rootedRows?
+    (coordinate : EffectCoordinate)
+    (image : Loam.Persistence.AdmittedActualImage) :
+    Option (List (EventId × Option Contribution)) := do
+  let roots ← Loam.Application.correctionRootTerminalEvents?
+    image.evidence.events image.evidence.corrections
+  roots.mapM fun (root, terminal) => do
+    let quanta :=
+      (Event.quantityAt terminal coordinate.locus coordinate.measure).quanta
+    if quanta == 0 then
+      return (root, none)
+    let day ← image.currentValidities.findByEventId? terminal.id
+    return (root, some {
+      bucket := { day := day, measure := coordinate.measure.token },
+      signedQuanta := quanta
+    })
+
+/--
+Conservative *read-side* certificate for replacing exactly one nonzero
+coordinate contribution from one stable root.
+
+Both complete images are already admitted. We compare all roots by identity,
+not list position. New/removed roots, zero↔nonzero, multiple changed roots, or
+unavailable projected dates refuse this narrow optimization. The caller may
+fall back to the existing full calculation. This is intentionally not a general
+plan for budget, merchant, accounting-role or Scheduled reports.
+-/
+def oneRootReplacement?
+    (coordinate : EffectCoordinate)
+    (beforeImage afterImage : Loam.Persistence.AdmittedActualImage) :
+    Option (Contribution × Contribution) := do
+  let beforeRoots ← rootedRows? coordinate beforeImage
+  let afterRoots ← rootedRows? coordinate afterImage
+  if beforeRoots.length != afterRoots.length then
+    none
+  let compared ← beforeRoots.mapM fun (root, oldRow) => do
+    let newPair ← afterRoots.find? fun pair => pair.1 == root
+    return (oldRow, newPair.2)
+  let changed := compared.filter fun (oldRow, newRow) =>
+    !decide (oldRow = newRow)
+  match changed with
+  | [(some removed, some added)] => some (removed, added)
+  | _ => none
+
+/-- Candidate (date, Measure) buckets affected by one qualified replacement. -/
+def invalidatedBuckets?
+    (coordinate : EffectCoordinate)
+    (beforeImage afterImage : Loam.Persistence.AdmittedActualImage) :
+    Option (List Bucket) := do
+  let (removed, added) ← oneRootReplacement? coordinate beforeImage afterImage
+  return affectedBuckets removed added
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
   | some result => pure result
@@ -166,6 +225,64 @@ def runAll : IO Unit := do
   expect (oldEur == newEur) "JPY correction unexpectedly changed EUR rows"
   expect (recompute { day := "2026-10-04", measure := "eur" } newEur == 900)
     "EUR remained current but quantity changed"
+
+
+  -- The candidate is computed from LOAM-admitted root-to-terminal evidence.
+  expect
+    (oneRootReplacement? jpyFood oldImage newImage ==
+      some (oldContribution, newContribution))
+    "qualified correction did not yield the one-root replacement"
+  expect
+    (invalidatedBuckets? jpyFood oldImage newImage ==
+      some [oldContribution.bucket, newContribution.bucket])
+    "invalidation affected unexpected dates"
+  expect ((oneRootReplacement? eurFood oldImage newImage).isNone)
+    "unchanged EUR coordinate incorrectly claimed a replacement"
+
+  -- Same Event root, same quantity, revised *validity date*: no new Event
+  -- correction. The validated temporal frontier moves the affected bucket.
+  let revisedDate ← requireSome
+    (ActualValidityHistory.ofParts? [
+      .base original.id "2026-10-03",
+      .base unaffected.id "2026-10-04",
+      .revision ⟨"date-1"⟩ original.id "2026-10-05"
+    ] [{ target := .root original.id, replacement := ⟨"date-1"⟩ }])
+    "date-revision history rejected"
+  let dateEvidence := { oldEvidence with validity := revisedDate }
+  let dateImage ← requireSome (Loam.Persistence.admitActualImage? dateEvidence)
+    "date-only correction refused"
+  let movedDate : Contribution :=
+    { bucket := { day := "2026-10-05", measure := "jpy" }, signedQuanta := 500 }
+  expect
+    (oneRootReplacement? jpyFood oldImage dateImage == some (oldContribution, movedDate))
+    "date-only correction did not invalidate both dates"
+
+  -- Multiple roots changed: refuse rather than issue an incomplete delta.
+  let eurUpdated ← makeEvent "eur-updated" eur 901
+  let twoChangedEvidence ← makeEvidence
+    [original, unaffected, replacement, eurUpdated]
+    [.base original.id "2026-10-03", .base unaffected.id "2026-10-04",
+     .base replacement.id "2026-10-05", .base eurUpdated.id "2026-10-04"]
+    [{ target := original.id, replacement := replacement.id },
+     { target := unaffected.id, replacement := eurUpdated.id }]
+  let twoChangedImage ← requireSome
+    (Loam.Persistence.admitActualImage? twoChangedEvidence)
+    "two-root correction fixture refused"
+  expect ((oneRootReplacement? jpyFood oldImage twoChangedImage).isSome)
+    "other-currency correction should not invalidate this exact coordinate"
+  expect ((oneRootReplacement? eurFood oldImage twoChangedImage).isSome)
+    "EUR-only change should be visible for the EUR coordinate"
+
+  -- A fresh independent root cannot be falsely described as a replacement.
+  let additional ← makeEvent "another-root" jpy 120
+  let extraRootEvidence ← makeEvidence [original, unaffected, additional]
+    [.base original.id "2026-10-03", .base unaffected.id "2026-10-04",
+     .base additional.id "2026-10-06"] []
+  let extraRootImage ← requireSome
+    (Loam.Persistence.admitActualImage? extraRootEvidence)
+    "extra-root fixture refused"
+  expect ((oneRootReplacement? jpyFood oldImage extraRootImage).isNone)
+    "new root was mistaken for an existing-root replacement"
 
   -- A raw correction with a missing endpoint is not admitted as a current world.
   let malformed ← makeEvidence [original, replacement]

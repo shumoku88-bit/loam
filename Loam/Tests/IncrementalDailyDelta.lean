@@ -68,6 +68,23 @@ theorem unrelated_replacement (bucket : Bucket)
     afterReplacement bucket oldTotal removed added = oldTotal := by
   simp [afterReplacement, contributionAt, hRemoved, hAdded]
 
+
+/--
+Conservative invalidation candidate for a replacement: no bucket outside
+the old and new coordinates can change under the signed-delta law.
+Duplicate keys are harmless (we do not claim a minimal deduplicated set).
+-/
+def affectedBuckets (removed added : Contribution) : List Bucket :=
+  [removed.bucket, added.bucket]
+
+theorem outside_affected_unchanged
+    (bucket : Bucket) (oldTotal : Int) (removed added : Contribution)
+    (hOutside : bucket ∉ affectedBuckets removed added) :
+    afterReplacement bucket oldTotal removed added = oldTotal := by
+  simp only [affectedBuckets, List.mem_cons, List.mem_singleton, not_or] at hOutside
+  exact unrelated_replacement bucket oldTotal removed added
+    hOutside.1.symm hOutside.2.symm
+
 private def original : Contribution :=
   { bucket := { day := "2026-10-03", measure := "jpy" }, signedQuanta := 500 }
 
