@@ -226,6 +226,24 @@ try:
     assert "anchored-wallet" in anchored_balances and "42 jpy" in anchored_balances, (
         "Home Balances did not compose CurrentQuantityAnchor support"
     )
+    # Bounded print first requests consent outside alternate screen. Declining
+    # must not emit the report; accepting prints data and resumes the TUI.
+    os.write(master, b"p")
+    preview = wait_for("Print to scrollback?")
+    assert "Prepared" in preview and "terminal scrollback" in preview
+    assert "anchored-wallet" not in preview, "preview leaked report before consent"
+    os.write(master, b"n\\n")
+    refused = wait_for("Print cancelled.")
+    assert "anchored-wallet" not in refused, "cancel printed household data"
+    os.write(master, b"\\n")
+    wait_for("Balances / Current")
+    os.write(master, b"p")
+    wait_for("Print to scrollback?")
+    os.write(master, b"y\\n")
+    printed = wait_for("End of LOAM report.")
+    assert "anchored-wallet" in printed and "42 jpy" in printed
+    os.write(master, b"\\n")
+    wait_for("Balances / Current")
     os.write(master, b"q")
     wait_for("LOAM Home")
     balance_view_path.write_bytes(balance_view)
