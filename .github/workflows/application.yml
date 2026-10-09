@@ -85,6 +85,9 @@ jobs:
       - name: Run application package test group
         run: lake test -- application
 
+      - name: Prove incremental daily delta law
+        run: lake env lean Loam/Tests/IncrementalDailyDelta.lean
+
       - name: Qualify HOBS1 cycle funding diagnostics
         shell: bash
         run: |

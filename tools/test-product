@@ -163,7 +163,6 @@ tui_representative_tests=(
 )
 
 application_tests=(
-  IncrementalDailyDelta
   HouseholdAuthority
   HouseholdImagePersistence
   HouseholdPaths
