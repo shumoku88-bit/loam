@@ -93,13 +93,19 @@ No cached totals, root matching, or extra persistent facts.
 -/
 @[noinline] private def singlePassCurrentTotals
     (image : Loam.Persistence.AdmittedActualImage) : Option (List Int) := do
-  let (first, second) ← image.currentEvents.events.foldlM
-      (init := ((0 : Int), (0 : Int))) fun (first, second) event => do
+  -- Reuse ActualReview's transient hash-indexed date/currentness projection;
+  -- per-event ActualValidityMemory.findByEventId? is a linear list lookup
+  -- and would accidentally reintroduce quadratic work.
+  let records := Loam.ActualReview.recordsFromActualImage image
+  let (first, second) ← records.foldlM
+      (init := ((0 : Int), (0 : Int))) fun (first, second) record => do
+    if !record.isCurrent then
+      return (first, second)
     let quantity :=
-      (Event.quantityAt event foodCoordinate.locus foodCoordinate.measure).quanta
+      (Event.quantityAt record.event foodCoordinate.locus foodCoordinate.measure).quanta
     if quantity == 0 then
       return (first, second)
-    let day ← image.currentValidities.findByEventId? event.id
+    let day ← record.date
     if day == "2026-10-03" then
       return (first + quantity, second)
     else if day == "2026-10-05" then
