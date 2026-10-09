@@ -98,7 +98,7 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
     [ blank
     , muted "Exact, amount-unknown, and unsupported states preserve current evidence."
     , muted (if state.notice.isEmpty then "Rows follow balance-view order only." else state.notice)
-    , muted "[y] copy screen   Shift+drag select   q / Esc home"
+    , muted "q / Esc home"
     ]
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let fixedRows := 5
