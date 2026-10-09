@@ -60,7 +60,6 @@ inductive Event where
   | recordNew
   | back
   | redraw
-  | yank
   | other
   deriving Repr, DecidableEq, BEq
 
@@ -70,7 +69,6 @@ inductive Command where
   | recordNew
   | back
   | redraw
-  | yank
   deriving Repr, DecidableEq, BEq
 
 structure Step where
@@ -308,7 +306,6 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .recordNew => { state, command := .recordNew }
   | .back => { state, command := .back }
   | .redraw => { state, command := .redraw }
-  | .yank => { state, command := .yank }
   | .other => { state }
 
 /-- Update workspace state, optionally scaling directional navigation by repeat count. -/
@@ -439,13 +436,13 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
     , mutedLine "Matches update live across all current Actual evidence."
     ]
   else
-    let detailedRow1 := "[j/k] select  [h/l] pane  [f] filter  [s] sort  [/] search  [y] copy"
+    let detailedRow1 := "[j/k] select  [h/l] pane  [f] filter  [s] sort  [/] search"
     if Loam.Tui.Layout.displayWidth detailedRow1 ≤ Loam.Tui.Layout.contentWidth bounds then
       [ mutedLine detailedRow1
       , mutedLine "[Enter] open selected  [n] new  [q] back"
       ]
     else
-      [ mutedLine "[j/k] sel [h/l] pane [f] filter [s] sort [/] search [y] copy"
+      [ mutedLine "[j/k] sel [h/l] pane [f] filter [s] sort [/] search"
       , mutedLine "[Enter] open [n] new [q] back"
       ]
 
