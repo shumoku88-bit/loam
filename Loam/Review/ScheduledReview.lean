@@ -126,6 +126,18 @@ def loadHouseholdEvidence
   | .error message => return .error message
   | .ok () => return .ok snapshot
 
+/-- Compose required Scheduled and its existing lifecycle admission without reopening storage. -/
+def fromGenerationForEvents
+    (generation : Loam.HouseholdAuthority.Generation)
+    (eventMemory : EventMemory) : Except String EvidenceSnapshot := do
+  let lifecycle ← Loam.ScheduledLifecycleAuthority.decodeGeneration? generation
+  let snapshot : EvidenceSnapshot := {
+    scheduled := lifecycle.scheduled
+    terminals := lifecycle.terminals
+    events := eventMemory }
+  lifecycleAdmission snapshot
+  return snapshot
+
 /--
 Load the household Scheduled lifecycle against one caller-supplied Actual Event
 image. This lets composed read boundaries reuse an already-loaded Actual
@@ -135,18 +147,11 @@ completion references.
 def loadHouseholdEvidenceForEvents
     (dataDir : System.FilePath)
     (eventMemory : EventMemory) : IO (Except String EvidenceSnapshot) := do
-  let lifecycle ←
-    match ← Loam.ScheduledLifecycleAuthority.loadHouseholdCurrent? dataDir with
-    | .ok lifecycle => pure lifecycle
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+    | .ok generation => pure generation
     | .error message => return .error message
-  let snapshot : EvidenceSnapshot := {
-    scheduled := lifecycle.scheduled
-    terminals := lifecycle.terminals
-    events := eventMemory
-  }
-  match lifecycleAdmission snapshot with
-  | .error message => return .error message
-  | .ok () => return .ok snapshot
+  return fromGenerationForEvents generation eventMemory
 
 
 /--

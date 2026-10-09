@@ -185,6 +185,11 @@ python3 tools/benchmark-tui-resources.py --check --cycles 100 --idle-seconds 3
 python3 tools/benchmark-tui-resources.py --check --events 10000 --cycles 5
 ```
 
+Home startup and reload share one fully qualified Household generation across
+Actual, Scheduled, canonical Attention, Pace support and AccountingRole. Family
+refusals remain explicit; independent configuration reads are not an atomic part
+of that generation. Writer entrances still freshly select authority.
+
 The measured repairs and remaining pressure shapes are recorded in
 [the bounded resource qualification](research/TUI_RESOURCE_QUALITY_2026-10-09.md).
 

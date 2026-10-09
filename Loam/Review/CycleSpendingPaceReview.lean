@@ -477,7 +477,9 @@ def loadPaceAndHistoryFromActualImageAtForMeasure
     (image : Loam.ActualAuthority.Image)
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
     (observedAt : String)
-    (days : Nat) : IO (Except String (Snapshot × List Snapshot)) := do
+    (days : Nat)
+    (generation? : Option Loam.HouseholdAuthority.Generation := none) :
+    IO (Except String (Snapshot × List Snapshot)) := do
   let window ←
     match ← Loam.BoundaryPresetConfig.loadCurrentWindow dataDir observedAt with
     | .error message => return .error message
@@ -489,9 +491,12 @@ def loadPaceAndHistoryFromActualImageAtForMeasure
   -- One fully qualified physical generation supplies both support projections.
   -- Do not reopen/re-admit the full Actual section for each support family.
   let generation ←
-    match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
-    | .error message => return .error message
-    | .ok generation => pure generation
+    match generation? with
+    | some generation => pure generation
+    | none =>
+        match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+        | .error message => return .error message
+        | .ok generation => pure generation
   let current ←
     match Loam.CurrentBalanceReview.projectFromGeneration generation image with
     | .error message => return .error message
@@ -520,8 +525,10 @@ def loadPaceAndHistoryFromActualImageAt
     (image : Loam.ActualAuthority.Image)
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
     (observedAt : String)
-    (days : Nat) : IO (Except String (Snapshot × List Snapshot)) :=
-  loadPaceAndHistoryFromActualImageAtForMeasure ⟨"jpy"⟩ dataDir image scheduled observedAt days
+    (days : Nat)
+    (generation? : Option Loam.HouseholdAuthority.Generation := none) :
+    IO (Except String (Snapshot × List Snapshot)) :=
+  loadPaceAndHistoryFromActualImageAtForMeasure ⟨"jpy"⟩ dataDir image scheduled observedAt days generation?
 
 
 /--

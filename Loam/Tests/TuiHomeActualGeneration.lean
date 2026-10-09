@@ -77,6 +77,10 @@ private def initializeIndependentEvidence (root : System.FilePath) : IO Unit := 
     (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Attention" attentionBody)
     "Home canonical Attention section"
   IO.FS.writeFile (root / "attention.loam") "malformed stale legacy Attention\n"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "AccountingRole"
+      "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\tincome\tINCOME\n")
+    "Home canonical accounting roles"
 
   let coverage ←
     requireSome
@@ -124,12 +128,23 @@ def main : IO Unit := do
   initializeIndependentEvidence root
 
   publishActualGeneration root "generation-a" 1000
-  let generationA ←
-    requireOk (← Loam.ActualAuthority.loadImage? root)
-      "load generation A"
+  let observedA ←
+    requireOk (← Loam.ActualAuthority.loadHouseholdObserved? root)
+      "load paired generation A"
+  let generationA := observedA.image
 
   -- Simulate a writer publishing after Home selected its admitted Actual image.
   publishActualGeneration root "generation-b" 2000
+  let laterItems ← requireSome (AttentionMemory.ofItems?
+    [{ id := ⟨"later-attention"⟩, context := "after Home selection", due := .noDueDate }])
+    "later Attention items"
+  let laterClosures ← requireSome (AttentionClosureMemory.ofClosures?
+    ([] : List (AttentionClosure String))) "later Attention closures"
+  let laterBody ← requireSome (Loam.Persistence.encodeAttentionMemory? laterItems laterClosures)
+    "later Attention body"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Attention" laterBody)
+    "later canonical Attention"
   let currentGeneration ←
     requireOk (← Loam.ActualAuthority.loadImage? root)
       "load generation B"
@@ -161,8 +176,8 @@ def main : IO Unit := do
 
   match snapshot.attention with
   | .loaded attention =>
-      expect attention.openItems.isEmpty
-        "Home ignored canonical empty Attention in favor of stale legacy facts"
+      expect (attention.openItems.map (·.id.token) == ["later-attention"])
+        "independent Home load ignored refreshed canonical Attention in favor of stale legacy facts"
   | _ => throw (IO.userError "Home canonical Attention was unavailable because of stale legacy storage")
 
   match snapshot.pace with
@@ -190,8 +205,40 @@ def main : IO Unit := do
           expect (latest.eligiblePool.quanta == 1000)
             "Home recent pace reopened canonical Actual after selecting generation A"
 
+  -- Paired production composition needs no second Household read. Removing only
+  -- the synthetic authority makes hidden reopens fail deterministically, while
+  -- independent query/presentation configuration remains available on disk.
+  let household := Loam.HouseholdAuthority.path root
+  let held := root / "held-household"
+  IO.FS.rename household held
+  let paired ←
+    try
+      requireOk (← Loam.Tui.Cli.loadSnapshotFromActualImage
+        root "2026-09-24" observedA.image (some observedA.generation))
+        "compose paired Home without reopening household"
+    finally
+      IO.FS.rename held household
+  match paired.attention with
+  | .loaded attention =>
+      expect attention.openItems.isEmpty
+        "paired Home mixed later Attention into the selected generation"
+  | _ => throw (IO.userError "paired Home reopened Attention storage")
+  match paired.scheduled with
+  | .ok scheduled =>
+      expect (scheduled.events.findById? ⟨"generation-a"⟩).isSome
+        "paired Scheduled lost the selected Actual generation"
+  | .error _ => throw (IO.userError "paired Home reopened Scheduled storage")
+  match paired.pace, paired.paceHistory with
+  | .loaded pace, .loaded points =>
+      expect (pace.eligiblePool.quanta == 1000 && !points.isEmpty)
+        "paired Home mixed current support generations"
+  | _, _ => throw (IO.userError "paired Home reopened pace support storage")
+  match paired.moneyCalendar with
+  | .loaded _ => pure ()
+  | _ => throw (IO.userError "paired Home reopened AccountingRole storage")
+
   IO.println
-    "Home Actual generation: one admitted Actual image remained shared after canonical Actual advanced."
+    "Home generation: selected Actual, canonical Attention and paired family composition survived advancement and no-reopen pressure."
 
 end Loam.Tests.TuiHomeActualGeneration
 

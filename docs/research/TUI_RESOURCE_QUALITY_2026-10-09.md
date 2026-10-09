@@ -131,6 +131,34 @@ The 50,000-Event startup remains too slow. Separate Home branches still independ
 open/qualify the same physical household generation, and larger/corrected workloads
 need further profiling rather than assuming this repair completes scaling work.
 
+## Follow-up: one Household generation for Home
+
+Production Home startup/reload now keeps the generation paired with its selected
+Actual image and supplies it to Scheduled lifecycle validation, canonical Attention,
+current/historical Pace support and AccountingRole projection. This removes repeated
+whole-household qualification from the Home branches. All family-specific absence,
+refusal and lifecycle admission still runs. Query/presentation configuration is
+loaded separately, so this is not a cross-file atomic configuration claim.
+
+The existing caller-owned Actual-image entrance still supports independently refreshed
+families when no generation is supplied. A regression advances both Actual and
+Attention after selection, then hides the synthetic Household file: explicit paired
+composition must still produce the original Scheduled/Pace/Attention/role answers,
+while independent composition must consume refreshed **canonical** Attention.
+
+During this work, Home Attention was found still using frozen `attention.loam`,
+unlike production Attention administration. A separate corrective commit switched
+Home to HouseholdImage Attention and tested a malformed stale legacy file against
+valid canonical evidence. No retained household facts were changed.
+
+At 50,000 added Events over the fixture's 180 dates, the three-round shared-Home
+probe measured 1,811ms startup (previous paired-Actual-only run: 4,569ms), 968ms
+median Record open and 1,072ms median Balances open. RSS was 126,268–126,288 KiB;
+FD count stayed seven, retained descendants zero, and idle surfaces were quiet.
+Fresh Record/Balance entrances still intentionally re-read authority and remain
+separate optimization pressure. The dense 180-date fixture is not equivalent to
+20 transactions/day over seven years; a wider date distribution needs qualification.
+
 ## Semantic neighbors checked
 
 Existing qualifications exercised historical bounded/zero-origin routes,

@@ -3,6 +3,8 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Authority/ScheduledLifecycleAuthority.lean'
+      - 'Loam/Tests/HouseholdScheduledLifecycleAuthority.lean'
       - 'Loam/Authority/HouseholdAuthority.lean'
       - 'Loam/Authority/ActualAuthority.lean'
       - 'Loam/Tests/HouseholdAuthority.lean'
@@ -184,6 +186,8 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Authority/ScheduledLifecycleAuthority.lean'
+      - 'Loam/Tests/HouseholdScheduledLifecycleAuthority.lean'
       - 'Loam/Authority/HouseholdAuthority.lean'
       - 'Loam/Authority/ActualAuthority.lean'
       - 'Loam/Tests/HouseholdAuthority.lean'
@@ -433,6 +437,7 @@ jobs:
           lake env lean --run Loam/Tests/HouseholdCurrentSupportAuthority.lean "$(mktemp -d)/support"
           lake env lean --run Loam/Tests/HouseholdAuthority.lean "$(mktemp -d)/household"
           lake env lean --run Loam/Tests/HouseholdActualAuthority.lean "$(mktemp -d)/actual"
+          lake env lean --run Loam/Tests/HouseholdScheduledLifecycleAuthority.lean "$(mktemp -d)/scheduled"
 
   full:
     name: Full production household TUI qualification
@@ -897,6 +902,7 @@ jobs:
           lake env lean --run Loam/Tests/HouseholdCurrentSupportAuthority.lean "$(mktemp -d)/support"
           lake env lean --run Loam/Tests/HouseholdAuthority.lean "$(mktemp -d)/household"
           lake env lean --run Loam/Tests/HouseholdActualAuthority.lean "$(mktemp -d)/actual"
+          lake env lean --run Loam/Tests/HouseholdScheduledLifecycleAuthority.lean "$(mktemp -d)/scheduled"
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py

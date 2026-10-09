@@ -133,17 +133,25 @@ the occurrence identity referenced by an already-retained completion.
 
 Independent authorities such as Scheduled storage and Attention remain
 independently refreshed; this boundary promises same-Actual-generation
-composition, not a cross-file atomic snapshot.
+composition, not a cross-file atomic snapshot. When the caller supplies the
+qualified Household generation paired with Actual, all household-backed branches
+reuse that exact generation. Query/presentation configuration remains independent.
 -/
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (today : String)
-    (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
+    (image : Loam.ActualAuthority.Image)
+    (generation? : Option Loam.HouseholdAuthority.Generation := none) : IO (Except String Snapshot) := do
   let actualRecords := Loam.ActualReview.recordsFromActualImage image
   let scheduled ←
-    Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
+    match generation? with
+    | some generation =>
+        pure (Loam.ScheduledReview.fromGenerationForEvents generation image.evidence.events)
+    | none => Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
   let attentionResult ←
-    Loam.AttentionReview.loadHouseholdEvidence dataDir
+    match generation? with
+    | some generation => pure (Loam.AttentionReview.fromGeneration generation)
+    | none => Loam.AttentionReview.loadHouseholdEvidence dataDir
   let attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
     match attentionResult with
     | .error message => .failed message
@@ -156,12 +164,16 @@ def loadSnapshotFromActualImage
     | .error message => pure (.failed message, .failed message)
     | .ok scheduledEvidence =>
         match ← Loam.CycleSpendingPaceReview.loadPaceAndHistoryFromActualImageAt
-            dataDir image scheduledEvidence today 7 with
+            dataDir image scheduledEvidence today 7 generation? with
         | .error message => pure (.failed message, .failed message)
         | .ok (paceSnapshot, historySnapshots) =>
             pure (.loaded paceSnapshot, .loaded historySnapshots)
+  let rolesResult ←
+    match generation? with
+    | some generation => pure (Loam.AccountingRoleAuthority.decodeGeneration? generation)
+    | none => Loam.RoleFlowReview.loadRoleMap dataDir
   let moneyCalendar : Loam.Presentation.ReadState MoneyCalendarSnapshot ←
-    match ← Loam.RoleFlowReview.loadRoleMap dataDir with
+    match rolesResult with
     | .error message => pure (.failed message)
     | .ok roles =>
         match ← Loam.MeasurePresentation.loadMetadata dataDir with
@@ -187,11 +199,11 @@ def loadSnapshotFromActualImage
 private def loadSnapshot (dataDir : System.FilePath) : IO (Except String Snapshot) := do
   let some today ← Loam.ActualDate.todayIso?
     | return .error "loam: could not determine the local date"
-  let image ←
-    match ← Loam.ActualAuthority.loadImage? dataDir with
+  let observed ←
+    match ← Loam.ActualAuthority.loadHouseholdObserved? dataDir with
     | .error message => return .error message
-    | .ok image => pure image
-  loadSnapshotFromActualImage dataDir today image
+    | .ok observed => pure observed
+  loadSnapshotFromActualImage dataDir today observed.image (some observed.generation)
 
 private def requireReload {α : Type} (notice : String)
     (reload : IO (Except String α)) : IO α := do

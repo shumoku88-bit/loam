@@ -45,6 +45,13 @@ def loadLegacyCurrent?
   | none =>
       return .error "loam: Scheduled lifecycle authority is malformed or unsupported"
 
+/-- Decode required lifecycle evidence from a caller-owned qualified generation. -/
+def decodeGeneration?
+    (generation : Loam.HouseholdAuthority.Generation) : Except String ScheduledLifecycleImage := do
+  let some body := body? generation.image "Scheduled"
+    | throw "loam: required HouseholdImage Scheduled lifecycle section is missing"
+  decodeBody? body
+
 /-- Load the required Scheduled section from one exact HouseholdImage generation. -/
 def loadHouseholdObserved?
     (root : System.FilePath) : IO (Except String Observed) := do
@@ -52,10 +59,8 @@ def loadHouseholdObserved?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
-  let some body := body? generation.image "Scheduled"
-    | return .error "loam: required HouseholdImage Scheduled lifecycle section is missing"
   let lifecycle ←
-    match decodeBody? body with
+    match decodeGeneration? generation with
     | .ok lifecycle => pure lifecycle
     | .error message => return .error message
   return .ok { generation, lifecycle }
