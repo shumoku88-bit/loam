@@ -1,6 +1,7 @@
 import Loam.Review.CurrentBalanceReview
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
+import Loam.Tui.PlainTextPrint
 
 namespace Loam.Tui.Balances
 
@@ -93,12 +94,27 @@ private def rowLine : Row → Widget
   | .knownPresent coordinate => knownPresentLine coordinate
   | .unsupported coordinate => unsupportedLine coordinate
 
+/-- Text of the selected balances, without the terminal viewport or control hints. -/
+def preparePrint (state : State) : Except String Loam.Tui.PlainTextPrint.Prepared := do
+  if state.rows.length + 6 > Loam.Tui.PlainTextPrint.maxLines then
+    throw "Print refused: more than 200 lines. Narrow the balance selection first."
+  Loam.Tui.PlainTextPrint.prepareWidgets <|
+    [ line "Balances / Current"
+    , muted "Selected current Locus × Measure balances; not an Account taxonomy."
+    , muted "Exact / amount-unknown / unsupported states preserve current evidence."
+    , blank
+    ] ++
+    (if state.rows.isEmpty then
+      [muted "No balances are selected in the current balance view."]
+     else state.rows.map rowLine) ++
+    [ blank, muted "Rows follow balance-view order only." ]
+
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
   let footer :=
     [ blank
     , muted "Exact, amount-unknown, and unsupported states preserve current evidence."
     , muted (if state.notice.isEmpty then "Rows follow balance-view order only." else state.notice)
-    , muted "q / Esc home"
+    , muted "[p] print view   q / Esc home"
     ]
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let fixedRows := 5
