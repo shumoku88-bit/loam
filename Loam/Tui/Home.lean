@@ -723,41 +723,25 @@ private def navigationHelp (state : State) : String × List HelpItem :=
           ])
 
 private def viewHelp (state : State) : List HelpItem :=
-  let copyHelp :=
-    [ { key := "[y]", label := "copy screen" }
-    , { key := "[Shift+drag]", label := "select text" }
-    ]
   if state.activePane == .detail then
-    [ { key := "[Esc/Tab/w]", label := "calendar" } ] ++ copyHelp
+    [ { key := "[Esc/Tab/w]", label := "calendar" } ]
   else
     [ { key := "[Tab/w]", label := "transactions" }
     , { key := "[Ctrl-u/d]", label := "scroll" }
-    ] ++ copyHelp
+    ]
 
 private def actionHelp (state : State) : List HelpItem :=
   if state.activePane == .detail then
     [{ key := "[q]", label := "quit" }]
   else
     [ { key := "[r]", label := "record" }
-    , { key := "[x]", label := "exchange" }
     , { key := "[a]", label := "actual" }
     , { key := "[s]", label := "scheduled" }
     , { key := "[q]", label := "quit" }
     ]
 
-private def householdHelp : List HelpItem :=
-  [ { key := "[d]", label := "daily pace" }
-  , { key := "[i]", label := "attention" }
-  , { key := "[b]", label := "balances" }
-  , { key := "[u]", label := "settlements" }
-  , { key := "[Space]", label := "commands" }
-  , { key := "[v]", label := "reports" }
-  ]
-
-private def manageHelp : List HelpItem :=
-  [ { key := "[m]", label := "manage loci" }
-  , { key := "[o]", label := "observe quantities" }
-  ]
+private def commandHelp : List HelpItem :=
+  [ { key := "[Space]", label := "commands" } ]
 
 private def helpLines (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
@@ -765,8 +749,7 @@ private def helpLines (bounds : Bounds) (state : State) : List Widget :=
   helpGroupLines width navigationLabel navigation ++
     helpGroupLines width "View" (viewHelp state) ++
     helpGroupLines width "Action" (actionHelp state) ++
-    helpGroupLines width "Household" householdHelp ++
-    helpGroupLines width "Manage" manageHelp
+    helpGroupLines width "Commands" commandHelp
 
 /-- Wide Home shows both panes; narrow Home gives focused transactions the full body. -/
 def usesWideLayout (bounds : Bounds) : Bool :=
