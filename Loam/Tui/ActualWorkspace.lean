@@ -39,6 +39,8 @@ structure State where
   notice : String := ""
   /-- Presentation-only dictionary may include read-only historical identities. -/
   locusMetadata : List Loam.LocusCatalog.Metadata := []
+  /-- Exact display conventions only; quantities and Measure identities stay unchanged. -/
+  measurePresentation : List Loam.MeasurePresentation.Metadata := []
   deriving Repr, DecidableEq
 
 inductive Event where
@@ -87,6 +89,10 @@ def initial (focusDate : String) : State :=
 /-- Attach human-facing history metadata without changing filtering identity or write admission. -/
 def withMetadata (state : State) (metadata : List Loam.LocusCatalog.Metadata) : State :=
   { state with locusMetadata := metadata }
+
+def withMeasurePresentation
+    (state : State) (metadata : List Loam.MeasurePresentation.Metadata) : State :=
+  { state with measurePresentation := metadata }
 
 private def currentRecords (snapshot : Snapshot) : List ReviewRecord :=
   snapshot.actual.allRecords.filter (fun record => record.isCurrent)
@@ -378,29 +384,53 @@ private def displayLocus (state : State) (token : String) : String :=
   let label := Loam.LocusCatalog.labelForToken state.locusMetadata token
   if label == token then token else label ++ " [" ++ token ++ "]"
 
-private def scopeText (snapshot : Snapshot) (state : State) : String :=
+private def scopeText (state : State) : String :=
   match state.scope with
   | .focusDay => "Focus Day (" ++ state.focusDate ++ ")"
-  | .allCurrent => "All Current (known through " ++ snapshot.actual.today ++ ")"
+  | .allCurrent => "All Current"
 
 private def currentLocusName (snapshot : Snapshot) (state : State) : String :=
   match selectedLocus? snapshot state with
   | none => "All loci"
   | some token => displayLocus state token
 
-private def positiveSummary (record : ReviewRecord) : String :=
-  match record.event.effects.find? (fun effect => 0 < effect.quantity.quanta) with
-  | some effect => toString effect.quantity.quanta ++ " " ++ effect.measure.token
-  | none =>
-      match record.event.effects.head? with
-      | some effect => toString effect.quantity.quanta ++ " " ++ effect.measure.token
-      | none => "0"
+private def effectAmount (state : State) (effect : Loam.Core.Effect) : String :=
+  Loam.MeasurePresentation.formatGroupedQuanta state.measurePresentation
+    effect.measure effect.quantity.quanta ++ " " ++ effect.measure.token
 
-private def txSummary (record : ReviewRecord) : String :=
-  let description :=
-    if record.description.isEmpty then "(no description)"
-    else Loam.ActualReview.displayText record.description
-  record.date.getD "date unknown" ++ "  " ++ positiveSummary record ++ "  " ++ description
+/-- A simple receiving amount, never a sum across split Effects or Measures. -/
+private def amountSummary (state : State) (record : ReviewRecord) : String :=
+  let effects := record.event.effects
+  let measures := (effects.map (fun effect => effect.measure.token)).eraseDups
+  let positive := effects.filter (fun effect => 0 < effect.quantity.quanta)
+  let negative := effects.filter (fun effect => effect.quantity.quanta < 0)
+  if measures.length > 1 then s!"multi ({measures.length})"
+  else if positive.length > 1 || negative.length > 1 then "split"
+  else
+    match positive.head? with
+    | some effect => effectAmount state effect
+    | none =>
+        match effects with
+        | [effect] => effectAmount state effect
+        | [] => "—"
+        | _ => "see details"
+
+private def descriptionText (record : ReviewRecord) : String :=
+  if record.description.isEmpty then "(no description)"
+  else Loam.ActualReview.displayText record.description
+
+/-- Ellipsis makes description truncation visible without splitting wide glyphs. -/
+private def fitDescription (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then fit width text
+  else fit width (Loam.Tui.Layout.clip (width - 1) text ++ "…")
+
+/-- Date and amount columns stay fixed while Description receives the remaining space. -/
+private def tableRow
+    (width amountWidth : Nat) (date description amount : String) : String :=
+  let descriptionWidth := width - 10 - amountWidth - 4
+  fit 10 date ++ "  " ++ fitDescription descriptionWidth description ++ "  " ++
+    Loam.Tui.Layout.padLeft amountWidth
+      (if Loam.Tui.Layout.displayWidth amount <= amountWidth then amount else "see details")
 
 private def paneWindowStart (selected visibleRows : Nat) : Nat :=
   Loam.Tui.Layout.trailingWindowStart selected (max 1 visibleRows)
@@ -413,12 +443,27 @@ private def listPanel
     (state : State) (records : Array ReviewRecord) (loci : List String)
     (pane : Pane) (width height : Nat) (title : String) : Widget :=
   let selected := if pane == .loci then state.locusRow else state.transactionRow
-  let rows := height - 2
+  let rowWidth := width - 5 -- two borders and the three-column selection marker
+  let tabular := rowWidth >= 40
+  let amountWidth := if pane == .loci then 0 else
+    min 22 (max 12 (records.foldl
+      (fun widest record => max widest (Loam.Tui.Layout.displayWidth (amountSummary state record))) 0))
+  let amountWidth := min amountWidth (rowWidth - 26)
+  let columnHeader : List Widget :=
+    if pane == .loci || height < 4 then []
+    else [mutedLine ("   " ++ (if tabular then
+      tableRow rowWidth amountWidth "Date" "Description" "Amount"
+      else "Description"))]
+  let rows := height - 2 - columnHeader.length
   let start := paneWindowStart selected rows
   let content := (List.range rows).map fun row =>
     let index := start + row
     let label := if pane == .loci then locusLabel state loci index
-      else records[index]?.map txSummary
+      else records[index]?.map fun record =>
+        if tabular then
+          tableRow rowWidth amountWidth (record.date.getD "unknown")
+            (descriptionText record) (amountSummary state record)
+        else fitDescription rowWidth (descriptionText record)
     let isSelected := index == selected && label.isSome
     let active := pane == state.pane
     let marker := if isSelected then (if active then " > " else " * ") else "   "
@@ -426,7 +471,11 @@ private def listPanel
       | some text => marker ++ text
       | none => if row == 0 && pane == .transactions then " (no matching Actual records)" else ""
     .row [span (fit (width - 2) text) (if isSelected && active then .selected else .normal)]
-  Loam.Tui.Layout.framedPanel width height title (.column content) (pane == state.pane)
+  let total := if pane == .loci then loci.length + 1 else records.size
+  let position := if total == 0 then "0/0" else s!"{selected + 1}/{total}"
+  let remaining := if start + rows < total then " ▼" else ""
+  Loam.Tui.Layout.framedPanel width height title (.column (columnHeader ++ content))
+    (pane == state.pane) (some (position ++ remaining))
 
 /-- Frames already own their borders; leave just one blank column between them. -/
 private def joinPanels (left right : Widget) : List Widget :=
@@ -446,7 +495,7 @@ private def detailRawLines
     (state : State) (record? : Option ReviewRecord)
     (width : Nat := 80) : List Widget :=
   let effectLine := fun (effect : Loam.Core.Effect) =>
-    let amount := toString effect.quantity.quanta ++ " " ++ effect.measure.token
+    let amount := effectAmount state effect
     let labelWidth := width - Loam.Tui.Layout.displayWidth amount - 3
     plainLine (" " ++ fit labelWidth (displayLocus state effect.locus.token) ++ "  " ++ amount)
   match record? with
@@ -535,7 +584,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
     | .desc => "desc"
   let rightHeader :=
     "Actuals" ++ (if state.pane == .transactions then " [active]" else "") ++
-      s!" ({txCount}, {orderTag})"
+      s!" ({txCount}, {orderTag}, {orderText state})"
   let searchLine :=
     if state.searchQuery.isEmpty && !state.searchEditing then []
     else
@@ -546,12 +595,12 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let footerLines := (footer bounds state).take (bounds.height - 1)
   let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
   let header :=
-    [ plainLine " Household Actuals Workspace"
-    , mutedLine (" Horizon: " ++ snapshot.actual.today ++ "  |  " ++ scopeText snapshot state)
-    , mutedLine (" Locus: " ++ currentLocusName snapshot state ++ "  |  Order: " ++ orderText state)
+    [ .row [span " Household Actuals Workspace",
+        span ("  |  known through " ++ snapshot.actual.today) .muted]
+    , mutedLine (" " ++ scopeText state ++ "  |  " ++ currentLocusName snapshot state)
     ]
   -- Tiny terminals retain a list row before spending space on context or details.
-  let context := header.take (if bodyCapacity >= 9 then 3 else min 1 (bodyCapacity - 3))
+  let context := header.take (if bodyCapacity >= 9 then 2 else min 1 (bodyCapacity - 3))
   let search := searchLine.take (bodyCapacity - context.length - 3)
   let notice := if state.notice.isEmpty then [] else
     [plainLine state.notice].take (bodyCapacity - context.length - search.length - 3)

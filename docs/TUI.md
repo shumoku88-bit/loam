@@ -260,6 +260,25 @@ Actual records over neutral Loci coordinates, supporting Focus Day and All Curre
 scopes (`f`), as well as ascending and descending chronology toggling (`s`) so
 records can be inspected starting from the newest transaction.
 
+The workspace uses thin rounded panels: Loci and selected details on the left,
+with a full-height Actual list on the right when the terminal is wide enough.
+The two-line context distinguishes scope from the known-through date. Panel
+headings show order, and bottom borders show selection position and overflow.
+`h/l` or Left/Right and Tab/Shift-Tab cycle Loci, Actuals, and Details;
+`i` focuses Details, where `j/k` scrolls and Esc returns to Actuals.
+`/` searches across all current evidence; Enter keeps the search and Esc clears it.
+
+The Actual list aligns Date, Description, and right-aligned Amount columns.
+Descriptions visibly end with an ellipsis when clipped. Very narrow panels show
+Description only, and very short panels omit column headings before sacrificing
+a record row. Amounts use the shared exact decimal conventions and grouping while
+retaining explicit Measure tokens. A simple row shows its single positive Effect
+amount, not an inferred expense or account balance. Multiple positive or negative
+Effects show `split`; multiple Measures show `multi (count)` instead of an invented
+total. Missing Effects show `—`, not zero. Amounts too wide for their column show
+`see details`, never a partially clipped number. Details retain the signed Effects
+separately. No filtering, selection identity, or household authority changes.
+
 Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
 Movement editor and delegates execution to `MovementPublisher`, reloading canonical
 evidence after durable writes.

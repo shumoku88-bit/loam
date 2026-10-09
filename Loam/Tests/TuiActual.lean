@@ -138,6 +138,109 @@ def main : IO Unit := do
       (Loam.Tui.ActualWorkspace.visibleRecords snapshot cancelledSearch).length == 3)
     "Actual workspace Esc-style search cancellation did not restore all-current browsing"
 
+  -- Dense table: Description grows, amounts share the right edge, and context is compact.
+  let table := Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
+    snapshot actualStart
+  let tableLines := table.lines.map fun cells => String.ofList (cells.map Cell.glyph)
+  expect (tableLines.any fun line =>
+      contains "Date" line && contains "Description" line && contains "Amount" line)
+    "Actual table lost its column headings"
+  for (description, amount) in [("alpha", "100 jpy"), ("beta", "200 jpy")] do
+    expect (tableLines.any fun line => contains description line && line.endsWith (amount ++ "│"))
+      "Actual table did not right-align complete amounts against the panel edge"
+  expect (contains "known through 2026-09-07" (widgetText table) &&
+      contains "Focus Day (2026-09-07)" (widgetText table) &&
+      contains "1/2" (widgetText table))
+    "Actual table lost known-through, scope, or selection position"
+  expect ((tableLines[2]?.getD "").startsWith "╭")
+    "Actual context still occupied more than two rows"
+
+  -- Split amounts on either side and multiple Measures must not become a scalar total.
+  let splitEvent ← requireSome (Event.ofEffects? ⟨"split"⟩
+    [ Effect.ofQuantity ⟨"split-from"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-300))
+    , Effect.ofQuantity ⟨"split-food"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
+    , Effect.ofQuantity ⟨"split-books"⟩ ⟨"books"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 200)
+    ]) "split table fixture was not admitted"
+  let splitRecord : Loam.Tui.Main.ReviewRecord := {
+    event := splitEvent, date := some "2026-09-07", description := "split-row", replacement := none }
+  let fromSplitEvent ← requireSome (Event.ofEffects? ⟨"from-split"⟩
+    [ Effect.ofQuantity ⟨"from-split-a"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100))
+    , Effect.ofQuantity ⟨"from-split-b"⟩ ⟨"smbc"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-200))
+    , Effect.ofQuantity ⟨"from-split-to"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 300)
+    ]) "FROM split table fixture was not admitted"
+  let multiEvent ← requireSome (Event.ofEffects? ⟨"multi"⟩
+    [ Effect.ofQuantity ⟨"multi-jpy-from"⟩ ⟨"paypay"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100))
+    , Effect.ofQuantity ⟨"multi-jpy-to"⟩ ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
+    , Effect.ofQuantity ⟨"multi-usd-from"⟩ ⟨"smbc"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-123456))
+    , Effect.ofQuantity ⟨"multi-usd-to"⟩ ⟨"books"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 123456)
+    ]) "multi-Measure table fixture was not admitted"
+  let presentationState := Loam.Tui.ActualWorkspace.withMeasurePresentation actualStart
+    [{ measure := ⟨"usd"⟩, scale := 2 }]
+  for (record, marker) in
+      [(splitRecord, "split"),
+       ({ splitRecord with event := fromSplitEvent, description := "from-split-row" }, "split"),
+       ({ splitRecord with event := multiEvent, description := "multi-row" }, "multi (2)")] do
+    let specimen : Loam.Tui.Main.Snapshot := {
+      snapshot with actual := { today := "2026-09-07", allRecords := [record] } }
+    let lines := (Loam.Tui.ActualWorkspace.view { width := 100, height := 36 }
+      specimen presentationState).lines.map fun cells => String.ofList (cells.map Cell.glyph)
+    expect (lines.any fun line =>
+        contains record.description line && line.endsWith (marker ++ "│"))
+      "Actual table collapsed split or multi-Measure Effects to a scalar"
+    if marker == "multi (2)" then
+      let text := String.intercalate "\n" lines
+      expect (contains "-1,234.56 usd" text && contains "1,234.56 usd" text &&
+          contains "100 jpy" text)
+        "Actual details did not preserve separate Measures and exact decimal formatting"
+    else
+      expect (contains "100 jpy" (String.intercalate "\n" lines) &&
+          contains "200 jpy" (String.intercalate "\n" lines))
+        "Actual details lost individual split Effects"
+
+  -- Simple amounts use the same exact decimal conventions; oversized values are not cut numbers.
+  let decimalEvent ← requireSome (Event.ofEffects? ⟨"decimal"⟩
+    [ Effect.ofQuantity ⟨"decimal-from"⟩ ⟨"smbc"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-123456))
+    , Effect.ofQuantity ⟨"decimal-to"⟩ ⟨"books"⟩ ⟨"usd"⟩ (Quantity.ofQuanta 123456)
+    ]) "decimal amount fixture was not admitted"
+  let decimalRecord : Loam.Tui.Main.ReviewRecord := { splitRecord with
+    event := decimalEvent, description := "decimal-row" }
+  let decimalSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with actual := { today := "2026-09-07", allRecords := [decimalRecord] } }
+  let decimalLines := (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
+    decimalSnapshot presentationState).lines.map fun cells => String.ofList (cells.map Cell.glyph)
+  expect (decimalLines.any fun line =>
+      contains "decimal-row" line && line.endsWith "1,234.56 usd│")
+    "Actual table lost exact formatted decimal amounts"
+  let oversized ← requireSome
+    (actualRecord? "oversized" "2026-09-07" "huge-row" "paypay" "food" 12345678901234567890)
+    "oversized amount fixture was not admitted"
+  let oversizedSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with actual := { today := "2026-09-07", allRecords := [oversized] } }
+  let oversizedLines := (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
+    oversizedSnapshot actualStart).lines.map fun cells => String.ofList (cells.map Cell.glyph)
+  expect (oversizedLines.any fun line => contains "huge-row" line && line.endsWith "see details│")
+    "Actual table silently clipped an oversized amount"
+  let unknownSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
+    today := "2026-09-07", allRecords := [{ decimalRecord with date := none }] } }
+  let unknownText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
+    unknownSnapshot { presentationState with scope := .allCurrent })
+  expect (contains "unknown" unknownText && !contains " > 2026-09-07" unknownText)
+    "Actual table manufactured an occurrence date for an undated record"
+
+  let emptyEffectSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
+    today := "2026-09-07", allRecords := [testRecord 0] } }
+  let emptyEffectLines := (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
+    emptyEffectSnapshot actualStart).lines.map fun cells => String.ofList (cells.map Cell.glyph)
+  expect (emptyEffectLines.any fun line => contains "row-0" line && line.endsWith "—│")
+    "Actual table invented a zero quantity for an Event without Effects"
+  let tinyTable := Loam.Tui.ActualWorkspace.view { width := 100, height := 6 }
+    snapshot actualStart
+  expect (tinyTable.lines.any fun cells => cells.any (fun cell => cell.style == .selected))
+    "Actual column headings consumed the only available record row"
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).map (·.event.id.token) ==
+      (Loam.Tui.ActualWorkspace.visibleRecords snapshot presentationState).map (·.event.id.token))
+    "Measure formatting changed Actual filtering, identity, or order"
+
   -- Focus left pane (loci) and select locus 1 (paypay)
   let allCurrentLoci := (Loam.Tui.ActualWorkspace.update snapshot allCurrent .focusLeft).state
   let paypayLocus := (Loam.Tui.ActualWorkspace.update snapshot allCurrentLoci .next).state
@@ -286,7 +389,7 @@ def main : IO Unit := do
     { snapshot with actual := { today := "2026-09-07", allRecords := [japanese] } }
   for width in [0, 1, 2, 20, 40, 80, 98, 99, 100, 144, 220] do
     for height in [0, 1, 2, 3, 8, 18, 21, 22, 24, 30, 36, 48, 60] do
-      for pane in [Loam.Tui.ActualWorkspace.Pane.loci, .transactions] do
+      for pane in [Loam.Tui.ActualWorkspace.Pane.loci, .transactions, .details] do
         let bounds : Bounds := { width, height }
         let state := { actualStart with
           pane := pane
@@ -315,10 +418,18 @@ def main : IO Unit := do
     let rendered := Loam.Tui.ActualWorkspace.view { width, height := 30 }
       japaneseSnapshot actualStart
     let text := widgetText rendered
-    expect (contains "-12345 jpy" text && contains "12345 jpy" text)
+    expect (contains "-12,345 jpy" text && contains "12,345 jpy" text)
       "Responsive detail column hid effect amounts"
     expect ((contains "╭" text || contains "┌" text) && !contains "====" text && !contains "----" text)
       "Actual workspace retained heavy separator rules"
+  let japaneseTableText := widgetText (Loam.Tui.ActualWorkspace.view
+    { width := 100, height := 30 } japaneseSnapshot actualStart)
+  expect (contains "…" japaneseTableText && contains "12,345 jpy" japaneseTableText)
+    "Japanese table descriptions lost visible truncation or the complete amount"
+  let compactTableText := widgetText (Loam.Tui.ActualWorkspace.view
+    { width := 40, height := 24 } snapshot actualStart)
+  expect (contains "Description" compactTableText && contains "alpha" compactTableText)
+    "Compact Actual table did not retain readable descriptions"
   let narrowLoci := widgetText (Loam.Tui.ActualWorkspace.view
     { width := 80, height := 24 } snapshot { actualStart with pane := .loci })
   expect (contains "Loci [active]" narrowLoci && contains "[All loci]" narrowLoci)

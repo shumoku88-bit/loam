@@ -547,8 +547,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
-    let actual := Loam.Tui.ActualWorkspace.withMetadata
-      (Loam.Tui.ActualWorkspace.initial state.selectedDate) metadata
+    let measurePresentation ← currentMeasurePresentation dataDir
+    let actual := Loam.Tui.ActualWorkspace.withMeasurePresentation
+      (Loam.Tui.ActualWorkspace.withMetadata
+        (Loam.Tui.ActualWorkspace.initial state.selectedDate) metadata)
+      measurePresentation
     let actualFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot actual)
     Loam.Tui.Terminal.redrawFromBlank bounds actualFrame
     let fresh ← actualWorkspaceLoop bounds dataDir root snapshot actual actualFrame
