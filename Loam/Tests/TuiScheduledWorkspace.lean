@@ -83,6 +83,53 @@ private def longScheduledWorkspaceSnapshot (count : Nat) : IO Loam.Tui.Main.Snap
   }
   pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
+private def checkNavigationFooter
+    (snapshot : Loam.Tui.Main.Snapshot)
+    (coverageSnapshot : Loam.ScheduledCoverageReview.Snapshot)
+    (coverage : Loam.Tui.ScheduledWorkspace.State) : IO Unit := do
+  -- Both framed workspaces have two operation rows at the physical bottom.
+  -- Bright keys and dim labels are separate spans, never additional accent colors.
+  for mode in [Loam.Tui.ScheduledWorkspace.ViewMode.coverage, .planDetail] do
+    for width in [32, 48, 80, 120, 180] do
+      let bounds : Bounds := { width, height := 24 }
+      let footerState := { coverage with viewMode := mode }
+      let rendered := Loam.Tui.ScheduledWorkspace.viewWithCoverage
+        bounds snapshot footerState (.ok coverageSnapshot)
+      let lastTwo := rendered.lines.drop (rendered.lines.length - 2)
+      let footerText := widgetText (.column (lastTwo.map fun cells =>
+        Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)))
+      expect (lastTwo.length == 2 && contains "[q]" footerText &&
+          !contains "MISSING" footerText && !contains "guidance" footerText &&
+          lastTwo.all (fun cells =>
+            Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1 &&
+            cells.all (fun cell => cell.style == .normal || cell.style == .muted)) &&
+          lastTwo.all (fun cells => (cells.filter (fun cell => cell.glyph == '[')).all
+            (fun cell => cell.style == .normal)))
+        "Framed Scheduled footer was not two bounded operation-only rows with bright keys"
+      if width >= 80 then
+        for key in ["[e]", "[b]", "[p]", "[s]"] do
+          expect (contains key footerText) "Desktop footer hid an existing maintenance action"
+      let withBoundary := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds snapshot
+        { footerState with notice := "At first row." } (.ok coverageSnapshot)
+      let borderRows := fun (widget : Widget) => widget.lines.zipIdx.filterMap fun (cells, index) =>
+        if cells.any (fun cell => cell.glyph == '╭' || cell.glyph == '╰') then some index else none
+      expect (borderRows rendered == borderRows withBoundary &&
+          rendered.lines.drop (rendered.lines.length - 2) ==
+            withBoundary.lines.drop (withBoundary.lines.length - 2))
+        "Ordinary feedback shifted the Scheduled frame or operation bar"
+      let bottomBorder ← requireSome (borderRows rendered).getLast?
+        "Scheduled operation-footer specimen lost its table frame"
+      let nextLine := String.ofList ((rendered.lines[bottomBorder + 1]?.getD []).map Cell.glyph)
+      expect (contains (if mode == .coverage then "days" else "Explicit dates") nextLine)
+        "Scheduled meaning legend was not adjacent to the table"
+  let opaqueCause := "publisher-refused-" ++ String.ofList (List.replicate 100 'x')
+  for mode in [Loam.Tui.ScheduledWorkspace.ViewMode.coverage, .planDetail] do
+    let text := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+      { width := 48, height := 30 } snapshot { coverage with viewMode := mode, notice := opaqueCause }
+      (.ok coverageSnapshot))
+    expect (contains opaqueCause (text.replace "\n" ""))
+      "Scheduled status clipped an unbroken publisher refusal token"
+
 def main : IO Unit := do
   let snapshot ← scheduledWorkspaceSnapshot
 
@@ -255,11 +302,11 @@ def main : IO Unit := do
     contains "[e] replenish" coverageText && contains "[p] pace" coverageText &&
     contains "[h/l] months" coverageText && contains "[Enter] detail" coverageText)
     "Scheduled overview did not expose its ordinary recurring-plan actions"
-  expect (contains "More:" coverageText &&
+  expect (!contains "More:" coverageText &&
     contains "[s] undecided" coverageText &&
     contains "[n] new" coverageText &&
-    contains "[v] Months/List" coverageText)
-    "Scheduled overview hid advanced projections or less-frequent actions"
+    contains "[v] views" coverageText)
+    "Scheduled overview hid advanced actions in its operation-only footer"
 
   expect (contains "╭ Monitored plans" coverageText && !contains "====" coverageText &&
       contains "known through 2026-09-07" coverageText && contains "Month window:" coverageText)
@@ -324,6 +371,8 @@ def main : IO Unit := do
   expect (contains refusalMessage (calendarRefusal.replace "\n" " "))
     "Framed Series Calendar clipped a publisher's complete refusal feedback"
 
+  checkNavigationFooter snapshot coverageSnapshot coverage
+
   let coverageEvidence : Loam.Tui.ScheduledWorkspace.CoverageEvidence := .ok coverageSnapshot
   let coverageExtend :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .extendPlan
@@ -331,7 +380,7 @@ def main : IO Unit := do
     "Scheduled overview could not replenish its selected recurring plan directly"
   let coverageBatch :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .batchEditScheduled
-  expect (coverageBatch.command == .batchEditScheduled && contains "[b] batch amount" coverageText)
+  expect (coverageBatch.command == .batchEditScheduled && contains "[b] batch" coverageText)
     "Scheduled overview could not open the batch candidate sheet directly"
   let coveragePace :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .changePace

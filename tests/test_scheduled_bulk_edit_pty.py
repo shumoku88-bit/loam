@@ -82,6 +82,9 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
     try:
         capture(b"LOAM Home")
         send(b"s", b"Series Calendar")
+        feedback = send(b"j", b"No next recurring plan.")
+        changed_rows = {int(r) for r, _ in re.findall(rb"\x1b\[(\d+);(\d+)H", feedback)}
+        assert changed_rows == {rows - 3}, "Calendar boundary feedback moved the table/footer"
         plan = ansi.sub(b"", send(b"\r", b"Scheduled / Plan / wifi"))
         assert "╭ Occurrences / monitored gaps".encode() in plan and b"====" not in plan
         assert b"Date/Month" in plan and b"Quanta" in plan and b"4,800 jpy" in plan
@@ -95,6 +98,9 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
             assert re.search(rb"> \d{4}-\d{2}\s+MISSING", ansi.sub(b"", output)), (
                 "resize hid the selected monitored gap", output
             )
+        feedback = send(b"j", b"Already at the last plan entry.")
+        changed_rows = {int(r) for r, _ in re.findall(rb"\x1b\[(\d+);(\d+)H", feedback)}
+        assert changed_rows == {rows - 3}, "Plan boundary feedback moved the table/footer"
         send(b"x", b"missing monitored month")
         assert authority.read_text() == before, "viewing or trying to cancel a gap changed authority"
         assert coverage_config.read_text() == coverage_definition, "navigation changed monitoring"
@@ -141,7 +147,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         os.close(master)
         master = -1
         assert process.wait(timeout=5) == 0
-        print("Scheduled PTY: framed Plan Detail, idle resize, gap refusal, checked batch publish and paid-history preservation passed.")
+        print("Scheduled PTY: fixed feedback/footer rows, framed Plan Detail, idle resize, gap refusal and batch publication passed.")
     finally:
         if master >= 0:
             os.close(master)

@@ -325,9 +325,10 @@ known-through date and finite month window stay above the table; its bottom bord
 shows selection position and hidden rows. The vertical window follows the selected
 plan instead of leaving it off-screen. Narrow screens reduce Plan width (with a
 visible ellipsis) before cutting a month column; very narrow tables omit Pace.
-Short screens use abbreviated help and omit the column heading before sacrificing
-the only plan row. The day/gap legend stays separate from the table, and publisher
-refusal feedback keeps its complete wrapped text. This changes presentation only:
+Narrow screens abbreviate operation hints; short screens omit the column heading
+before sacrificing the only plan row. The day/gap legend sits immediately below
+the frame, separate from the operation bar. Publisher refusal feedback keeps its
+complete wrapped text. This changes presentation only:
 monitoring selectors, missing-month meaning, and Scheduled publishers are unchanged.
 
 The ordinary question is visible directly across calendar months:
@@ -371,17 +372,25 @@ e         extend / replenish future explicit plans
 b         batch amount edit with checked candidates and a final preview
 p         change expected pace
 Enter     open that plan's exact Scheduled dates
-
-More:
+q         return to Home
 s         future pace undecided
 n         create one explicit Scheduled plan
 v         Months / List alternate projections
 ```
 
-The footer mirrors that hierarchy: ordinary plan navigation and maintenance stay on
-the first line, while less-frequent creation/state changes and alternate projections
-remain visible under `More:`. This is progressive disclosure only; no Scheduled
-action or projection is removed.
+Series Calendar and Plan Detail share an operation-only **two-row footer**:
+selection, Enter, and back on the first row; maintenance on the second. Keys use
+the existing normal foreground while labels and spacing stay muted—no extra accent
+colors. At 80 columns and wider, all advertised maintenance actions fit without
+wrapping; `batch` means batch amount editing and `views` means Months/List. Narrow
+screens abbreviate hints but do not remove any binding or action. Table meaning
+(days, gaps, pace, quanta) stays next to the frame rather than among shortcuts.
+
+A separate feedback row is reserved above the operation bar, even with no notice.
+Ordinary one-line feedback therefore cannot move the table or shortcuts. Longer
+publisher refusals wrap into additional feedback rows, including long unbroken
+tokens: preserving the complete cause takes priority over fixed table height in
+that case. No Scheduled publication or selection semantics change.
 
 `e` automatically chooses the latest current-open occurrence matching the selected
 plan shape as its construction template and reuses the plan's current monitoring
@@ -410,7 +419,8 @@ oversized quantities say `too wide` instead of showing misleading partial digits
 Explicit on- and outside-pace dates remain visible beside presentation-only
 monitored gaps. The selected row stays inside the visible table, with position and
 hidden-row indicators in the bottom border. Very narrow screens show date/status
-only; short screens abbreviate help and can omit the column heading. A reserved
+only; narrow screens abbreviate operation hints and short screens can omit the
+column heading. A reserved
 feedback row prevents ordinary boundary notices from shifting the frame, while
 long publisher refusals retain their complete wrapped text. Failed Scheduled or
 coverage evidence shows Unavailable, never a fabricated empty plan or gap list.

@@ -886,8 +886,10 @@ private def fixedDetailLines
 
 private def noticeLines (bounds : Bounds) (state : State) : List String :=
   if state.notice.isEmpty then []
-  else Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) " "
-    (state.notice.splitOn " ")
+  else
+    let width := Loam.Tui.Layout.contentWidth bounds
+    (Loam.Tui.Layout.flowTokens width " " (state.notice.splitOn " ")).flatMap
+      (Loam.Tui.Layout.wrapColumns width)
 
 /-- Publication/refusal feedback stays visible even when the browse body is truncated. -/
 private def withNoticeFooter (bounds : Bounds) (state : State) (help : List Widget) : List Widget :=
@@ -1134,22 +1136,53 @@ private def planDetailEntryLine
     else Loam.Tui.Layout.padRight width (Loam.Tui.Layout.clip (width - 1) text ++ "…")
   .row [span fitted (if selected then .selected else .normal)]
 
-private def planDetailFooter (bounds : Bounds) : List Widget :=
+/-- Two operation-only rows, independent of notice text and terminal height. -/
+private def navigationFooter (bounds : Bounds) (planDetail : Bool) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
+  let (primary, secondary) : List (String × String) × List (String × String) :=
+    if width >= 79 then
+      if planDetail then
+        ([("j/k", "select"), ("c/Enter", "complete"), ("q", "overview")],
+         [("e", "replenish"), ("b", "batch"), ("r", "replace"), ("x", "cancel"),
+          ("p", "pace"), ("s", "undecided")])
+      else
+        ([("j/k", "plan"), ("h/l", "months"), ("Enter", "detail"), ("q", "back")],
+         [("e", "replenish"), ("b", "batch"), ("p", "pace"), ("s", "undecided"),
+          ("n", "new"), ("v", "views")])
+    else if width >= 47 then
+      if planDetail then
+        ([("j/k", "select"), ("c/Enter", "complete"), ("q", "overview")],
+         [("e", "replenish"), ("b", "batch"), ("r", "replace"), ("x", "cancel")])
+      else
+        ([("j/k", "plan"), ("h/l", "months"), ("Enter", "detail"), ("q", "back")],
+         [("e", "replenish"), ("b", "batch"), ("p", "pace"), ("s", "undecided")])
+    else if width >= 29 then
+      if planDetail then
+        ([("j/k", "select"), ("q", "overview")], [("c/Enter", "complete"), ("x", "cancel")])
+      else
+        ([("j/k", "plan"), ("q", "back")], [("Enter", "detail"), ("v", "views")])
+    else if width >= 14 then
+      ([("j/k", ""), ("q", "back")],
+        if planDetail then [("c/Enter", ""), ("x", "")] else [("Enter", ""), ("e", "")])
+    else ([("q", "back")], [(if planDetail then "c/Enter" else "Enter", "")])
+  let separator := if width >= 79 then "  " else " "
+  [Loam.Tui.Layout.shortcutRow primary separator, Loam.Tui.Layout.shortcutRow secondary separator]
+
+/-- Meaning belongs next to the table, not in its operation bar. -/
+private def workspaceLegend (bounds : Bounds) (planDetail : Bool) : List Widget :=
   let compact := bounds.height < 18
-  let legend := if compact then
-      [["MISSING = gap only;", "quantities are quanta"]]
+  let tokens := if planDetail then
+      if compact then ["MISSING = gap only;", "quantities are quanta"]
+      else ["Explicit dates;", "pace = guidance;", "MISSING is not an occurrence;", "exact quanta."]
     else
-      [["Explicit dates are authoritative;", "on/outside pace is monitoring guidance."],
-       ["MISSING is a monitored gap, not an occurrence.", "Quantities are exact quanta."]]
-  let help := if compact then
-      [["[j/k] select", "[c/Enter] complete", "[q] overview"],
-       ["[e] replenish", "[x] cancel", "[r] replace"]]
-    else
-      [["[j/k] select", "[e] replenish", "[x] cancel", "[r] replace", "[c/Enter] complete", "[q] overview"],
-       ["[b] batch amount", "[p] pace", "[s] undecided"]]
-  (Loam.Tui.Layout.flowLines width " " legend ++
-    Loam.Tui.Layout.flowLines width "  " help).map mutedLine
+      if compact then ["days = plan;", "! = gap;", "blank = not expected"]
+      else ["days = explicit;", "! = expected gap;", "blank = not expected;", "pace = guidance only"]
+  (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) " " tokens).map mutedLine
+
+/-- Reserve ordinary one-line feedback; longer refusals still keep their complete text. -/
+private def reservedNoticeFooter (bounds : Bounds) (state : State) (help : List Widget) : List Widget :=
+  let feedback := noticeLines bounds state
+  (if feedback.isEmpty then [mutedLine ""] else feedback.map plainLine) ++ help
 
 /-- Shared physical clipping for the two framed Scheduled workspaces. -/
 private def boundedWorkspace (bounds : Bounds) (body : Widget) (footerLines : List Widget) : Widget :=
@@ -1166,14 +1199,13 @@ private def planDetailView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
     (coverage : CoverageEvidence) : Widget :=
   let state := clampPlanDetailState snapshot coverage (clampCoverageState coverage rawState)
-  let footerLines := if state.notice.isEmpty then
-      mutedLine "" :: planDetailFooter bounds
-    else withNoticeFooter bounds state (planDetailFooter bounds)
+  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds true)
+  let legend := workspaceLegend bounds true
   let writable := Loam.Tui.Layout.contentWidth bounds
-  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
-  let contextRows := if bodyCapacity >= 9 then 3 else if bodyCapacity >= 6 then 2
-    else if bodyCapacity >= 4 then 1 else 0
-  let panelHeight := bodyCapacity - contextRows
+  let tableCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length - legend.length
+  let contextRows := if tableCapacity >= 9 then 3 else if tableCapacity >= 6 then 2
+    else if tableCapacity >= 4 then 1 else 0
+  let panelHeight := tableCapacity - contextRows
   let innerWidth := writable - 2
   let innerHeight := panelHeight - 2
   let showHeader := innerHeight >= 2 && innerWidth >= 42
@@ -1223,37 +1255,17 @@ private def planDetailView
               planDetailEntryLine innerWidth quantityWidth state (start + offset) entry),
             some ((if total == 0 then "0/0" else s!"{state.planRow + 1}/{total}") ++ more))
   let panel := Loam.Tui.Layout.framedPanel writable panelHeight title (.column content) true position
-  boundedWorkspace bounds (.column (context.take contextRows ++ [panel])) footerLines
-
-private def coverageFooter (bounds : Bounds) : List Widget :=
-  let width := Loam.Tui.Layout.contentWidth bounds
-  let primary :=
-    Loam.Tui.Layout.flowTokens width "  "
-      ["[j/k] plan", "[h/l] months", "[Enter] detail", "[e] replenish", "[b] batch amount", "[p] pace", "[q] back"]
-  let more :=
-    Loam.Tui.Layout.flowTokens width "  "
-      ["More:", "[s] undecided", "[n] new", "[v] Months/List"]
-  (primary ++ more).map mutedLine
+  boundedWorkspace bounds (.column (context.take contextRows ++ [panel] ++ legend)) footerLines
 
 private def coverageView
     (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
   let state := clampCoverageState coverage state
   let writable := Loam.Tui.Layout.contentWidth bounds
-  let compact := bounds.height < 18
-  let legend :=
-    if compact then [mutedLine "day = plan; ! = gap; blank = not expected"]
-    else (Loam.Tui.Layout.flowLines writable " "
-      [["dd = explicit day(s);", "! = expected month without a plan;", "blank = not expected."],
-       ["Pace guides extension; it does not create recurrence authority."]]).map mutedLine
-  let help := if compact then
-      [ mutedLine "[j/k] plan [h/l] months [Enter] detail"
-      , mutedLine "[e] extend [q] back [v] views" ]
-    else coverageFooter bounds
-  -- Publication/refusal notices retain their complete wrapped text.
-  let footerLines := withNoticeFooter bounds state (legend ++ help)
-  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
-  let contextRows := if bodyCapacity >= 7 then 2 else if bodyCapacity >= 4 then 1 else 0
-  let panelHeight := bodyCapacity - contextRows
+  let legend := workspaceLegend bounds false
+  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds false)
+  let tableCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length - legend.length
+  let contextRows := if tableCapacity >= 7 then 2 else if tableCapacity >= 4 then 1 else 0
+  let panelHeight := tableCapacity - contextRows
   let innerWidth := writable - 2
   let innerHeight := panelHeight - 2
   let (context, title, content, position) : List Widget × String × List Widget × Option String :=
@@ -1283,7 +1295,7 @@ private def coverageView
           [plainLine (" [Coverage unavailable] " ++ message),
            mutedLine " Months and List remain available with v."], none)
   let panel := Loam.Tui.Layout.framedPanel writable panelHeight title (.column content) true position
-  boundedWorkspace bounds (.column (context.take contextRows ++ [panel])) footerLines
+  boundedWorkspace bounds (.column (context.take contextRows ++ [panel] ++ legend)) footerLines
 
 def viewWithCoverage
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)

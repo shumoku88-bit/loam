@@ -212,6 +212,13 @@ def flowTokens (columns : Nat) (separator : String) (tokens : List String) : Lis
           loop token tokWidth rest (currentLine :: acc)
   loop "" 0 tokens []
 
+/-- A quiet shortcut row: bright keys, muted labels/separators, no new accent colors. -/
+def shortcutRow (shortcuts : List (String × String)) (separator : String := "  ") : Widget :=
+  .row (shortcuts.zipIdx.flatMap fun ((key, label), index) =>
+    (if index == 0 then [] else [span separator .muted]) ++
+    [span ("[" ++ key ++ "]") .normal] ++
+    (if label.isEmpty then [] else [span (" " ++ label) .muted]))
+
 /--
 Flow multiple semantic token groups into lines. Each group starts on a new line,
 preserving logical boundaries between groups while wrapping within each group.

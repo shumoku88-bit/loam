@@ -135,6 +135,18 @@ def main : IO Unit := do
     expect (displayWidth line ≤ 20)
       s!"flowed line exceeded target width: {line} (width {displayWidth line})"
 
+  let shortcuts := shortcutRow [("j/k", "select"), ("Enter", "open"), ("q", "back")]
+  expect (widgetText shortcuts == "[j/k] select  [Enter] open  [q] back")
+    "shortcut row changed key/label spelling or grouping"
+  let shortcutCells := shortcuts.lines.head!
+  expect ((shortcutCells.take 5).all (fun cell => cell.style == .normal) &&
+      ((shortcutCells.drop 5).take 9).all (fun cell => cell.style == .muted) &&
+      ((shortcutCells.drop 14).take 7).all (fun cell => cell.style == .normal) &&
+      shortcutCells.all (fun cell => cell.style == .normal || cell.style == .muted))
+    "shortcut row colored labels, separators, or keys with a decorative accent"
+  expect (widgetText (shortcutRow [("q", "")] " ") == "[q]")
+    "compact shortcut row invented a label or trailing space"
+
   -- 1b. Stable footer geometry owns only body capacity and vertical fitting.
   let frameBounds : Bounds := { width := 80, height := 6 }
   expect (footerBodyCapacity frameBounds 2 == 3)
