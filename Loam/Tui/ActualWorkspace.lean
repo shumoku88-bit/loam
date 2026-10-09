@@ -558,6 +558,31 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
       , mutedLine "[Enter] open [n] new [q] back"
       ]
 
+/-- Bounds alone determine pane geometry; search and notices never resize a panel. -/
+private structure Geometry where
+  writable : Nat
+  leftWidth : Nat
+  panelHeight : Nat
+  detailHeight : Nat
+  contextRows : Nat
+  statusRows : Nat
+  wide : Bool
+
+private def geometryForBounds (bounds : Bounds) : Geometry :=
+  let writable := Loam.Tui.Layout.contentWidth bounds
+  let footerRows := min 2 (bounds.height - 1)
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerRows
+  -- Keep one record row on tiny terminals; reserve quiet status space when it fits.
+  let contextRows := if bodyCapacity >= 5 then 2 else if bodyCapacity >= 4 then 1 else 0
+  let statusRows := if bodyCapacity >= 7 then 1 else 0
+  let panelHeight := bodyCapacity - contextRows - statusRows
+  { writable
+    leftWidth := min 50 (max 34 (writable * 30 / 100))
+    panelHeight
+    detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
+    contextRows, statusRows
+    wide := writable >= 98 && panelHeight >= 16 }
+
 private def orderText (state : State) : String :=
   match state.order with
   | .asc => "oldest first"
@@ -575,8 +600,9 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let recordsArr := records.toArray
   let txCount := recordsArr.size
   let state := clampStateWithCounts lociCount txCount withLocus
-  let writable := Loam.Tui.Layout.contentWidth bounds
-  let leftWidth := min 50 (max 34 (writable * 30 / 100))
+  let geometry := geometryForBounds bounds
+  let writable := geometry.writable
+  let leftWidth := geometry.leftWidth
   let rightWidth := writable - leftWidth - 1
   let leftHeader :=
     "Loci" ++ (if state.pane == .loci then " [active]" else "") ++ s!" ({lociCount})"
@@ -586,28 +612,32 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let rightHeader :=
     "Actuals" ++ (if state.pane == .transactions then " [active]" else "") ++
       s!" ({txCount}, {orderTag}, {orderText state})"
-  let searchLine :=
-    if state.searchQuery.isEmpty && !state.searchEditing then []
-    else
+  let searching := !state.searchQuery.isEmpty || state.searchEditing
+  let scopeLine := " " ++ scopeText state ++ "  |  " ++ currentLocusName snapshot state
+  let contextLine :=
+    if searching then
       let cursor := if state.searchEditing then "_" else ""
-      [plainLine (Loam.Tui.Layout.clip writable
-        (" Search: /" ++ state.searchQuery ++ cursor))]
-  let selectedRecord := recordsArr[state.transactionRow]?
-  let footerLines := (footer bounds state).take (bounds.height - 1)
-  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
+      .row [span (" Search: /" ++ state.searchQuery ++ cursor), span ("  |" ++ scopeLine) .muted]
+    else mutedLine scopeLine
   let header :=
     [ .row [span " Household Actuals Workspace",
         span ("  |  known through " ++ snapshot.actual.today) .muted]
-    , mutedLine (" " ++ scopeText state ++ "  |  " ++ currentLocusName snapshot state)
+    , contextLine
     ]
-  -- Tiny terminals retain a list row before spending space on context or details.
-  let context := header.take (if bodyCapacity >= 9 then 2 else min 1 (bodyCapacity - 3))
-  let search := searchLine.take (bodyCapacity - context.length - 3)
-  let notice := if state.notice.isEmpty then [] else
-    [plainLine state.notice].take (bodyCapacity - context.length - search.length - 3)
-  let panelHeight := bodyCapacity - context.length - search.length - notice.length
-  let wide := writable >= 98 && panelHeight >= 16
-  let detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
+  let context :=
+    if geometry.contextRows == 1 && searching then [contextLine]
+    else header.take geometry.contextRows
+  let baseFooter := (footer bounds state).take (bounds.height - 1)
+  let footerLines :=
+    if geometry.statusRows == 0 && !state.notice.isEmpty && !baseFooter.isEmpty then
+      baseFooter.take (baseFooter.length - 1) ++ [mutedLine state.notice]
+    else baseFooter
+  let notice := if geometry.statusRows == 0 then [] else
+    [if state.notice.isEmpty then blankLine else mutedLine state.notice]
+  let selectedRecord := recordsArr[state.transactionRow]?
+  let panelHeight := geometry.panelHeight
+  let wide := geometry.wide
+  let detailHeight := geometry.detailHeight
   let detailPanel := fun width height =>
     let isFocused := state.pane == .details
     let window := detailWindow state selectedRecord (height - 2) (width - 2)
@@ -642,7 +672,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       [listPanel state recordsArr loci listPane writable (panelHeight - detailHeight) title] ++
         (if detailHeight > 0 then [detailPanel writable detailHeight] else [])
   -- Flatten before footer fitting: a panel is many physical terminal rows.
-  let body := (Widget.column (context ++ search ++ panels ++ notice)).lines.map fun cells =>
+  let body := (Widget.column (context ++ panels ++ notice)).lines.map fun cells =>
     .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
   let fitted := Loam.Tui.Layout.fitWithFooter bounds body footerLines
   .column (fitted.map fun row =>

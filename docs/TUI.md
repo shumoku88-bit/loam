@@ -278,6 +278,10 @@ In a low terminal that cannot fit a separate details region, focusing Details
 replaces the list with a full-body Details panel; Esc restores the list. A visible
 inactive list keeps its selection marker without claiming keyboard focus.
 `/` searches across all current evidence; Enter keeps the search and Esc clears it.
+Search uses the existing context row rather than adding a row above the list.
+Boundary notices have a fixed, muted status row when space permits; tiny terminals
+show the notice in the last help row. Search and notices do not move panel borders
+or change how many records fit.
 
 The Actual list aligns Date, Description, and right-aligned Amount columns.
 Descriptions visibly end with an ellipsis when clipped. Very narrow panels show

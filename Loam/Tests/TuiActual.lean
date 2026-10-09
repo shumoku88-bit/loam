@@ -123,6 +123,28 @@ def main : IO Unit := do
     wrappedSnapshot actualStart
   expect (geometry normalView == geometry wrappedView)
     "A wrapped description changed panel heights or moved the list/detail divider"
+  for bounds in [{ width := 100, height := 30 }, { width := 80, height := 24 },
+      { width := 48, height := 10 }, { width := 48, height := 6 }] do
+    for pane in [Loam.Tui.ActualWorkspace.Pane.loci, .transactions, .details] do
+      let baseState := { actualStart with pane }
+      let baseGeometry := geometry (Loam.Tui.ActualWorkspace.view bounds snapshot baseState)
+      for variant in
+          [{ baseState with notice := "End of Details." },
+           { baseState with searchQuery := "gamma", searchEditing := true },
+           { baseState with searchQuery := "gamma", notice := "No matching record." }] do
+        let rendered := Loam.Tui.ActualWorkspace.view bounds snapshot variant
+        expect (geometry rendered == baseGeometry)
+          "Search or a boundary notice changed pane heights or divider positions"
+      let noticed := widgetText (Loam.Tui.ActualWorkspace.view bounds snapshot
+        { baseState with notice := "End of Details." })
+      expect (contains "End of Details." noticed)
+        "Stable geometry hid the boundary notice on a compact terminal"
+  let compactSearch := widgetText (Loam.Tui.ActualWorkspace.view
+    { width := 48, height := 10 } snapshot
+    { actualStart with searchQuery := "gamma", searchEditing := true })
+  expect (contains "Search: /gamma_" compactSearch)
+    "Stable context hid the search prompt on a low terminal"
+
   let stationaryDetails := widgetText (Loam.Tui.ActualWorkspace.view
     { width := 100, height := 30 } snapshot
     { actualStart with pane := .details, detailScroll := 999 })
