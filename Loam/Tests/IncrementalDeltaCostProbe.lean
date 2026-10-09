@@ -84,6 +84,56 @@ private def queriedBuckets : List Bucket :=
     (Loam.ActualReview.recordsFromActualImage image)
   return queriedBuckets.map fun bucket => recompute bucket rows
 
+
+/--
+The simplest competing implementation: read the already-admitted CURRENT Event
+projection once, for two explicit date/Measure buckets. The existing admission
+boundary still owns correction selection and date validity.
+No cached totals, root matching, or extra persistent facts.
+-/
+@[noinline] private def singlePassCurrentTotals
+    (image : Loam.Persistence.AdmittedActualImage) : Option (List Int) := do
+  let (first, second) ← image.currentEvents.events.foldlM
+      (init := ((0 : Int), (0 : Int))) fun (first, second) event => do
+    let quantity :=
+      (Event.quantityAt event foodCoordinate.locus foodCoordinate.measure).quanta
+    if quantity == 0 then
+      return (first, second)
+    let day ← image.currentValidities.findByEventId? event.id
+    if day == "2026-10-03" then
+      return (first + quantity, second)
+    else if day == "2026-10-05" then
+      return (first, second + quantity)
+    else
+      return (first, second)
+  return [first, second]
+
+/-- Count root equality checks performed by a linear List.find? lookup. -/
+private def findComparisonCount (id : EventId)
+    (rows : List (EventId × Option Contribution)) : Nat :=
+  match rows with
+  | [] => 0
+  | row :: remaining =>
+      if row.1 == id then 1 else 1 + findComparisonCount id remaining
+
+/--
+Deterministic algorithmic-cost witness. Each before-root triggers a search of
+the new-root list. Unlike interpreter microtimings, counts cannot be distorted
+by thunk sharing, clock resolution, CPU scheduling, or benchmark hoisting.
+-/
+private def discoveryComparisonCount
+    (beforeImage afterImage : Loam.Persistence.AdmittedActualImage) :
+    Option Nat := do
+  let beforeRoots ← rootedRows? foodCoordinate beforeImage
+  let afterRoots ← rootedRows? foodCoordinate afterImage
+  if beforeRoots.length != afterRoots.length then
+    none
+  if !(beforeRoots.all fun (root, _) =>
+      afterRoots.any fun (target, _) => target == root) then
+    none
+  return beforeRoots.foldl
+    (fun count (root, _) => count + findComparisonCount root afterRoots) 0
+
 /-- The currently implemented full-root comparison, with old totals supplied. -/
 @[noinline] private def scannedDelta
     (beforeImage afterImage : Loam.Persistence.AdmittedActualImage)
@@ -129,6 +179,19 @@ private def runCase (n repetitions : Nat) : IO Unit := do
     { bucket := { day := "2026-10-03", measure := "jpy" }, signedQuanta := 1 }
   let added : Contribution :=
     { bucket := { day := "2026-10-05", measure := "jpy" }, signedQuanta := 2 }
+  unless singlePassCurrentTotals oldImage == some oldTotals do
+    throw (IO.userError "single-pass old answer differs from full reader")
+  unless singlePassCurrentTotals newImage == some expected do
+    throw (IO.userError "single-pass new answer differs from full reader")
+  let rootComparisons ← requireSome (discoveryComparisonCount oldImage newImage)
+    "root discovery comparison count refused"
+  -- Full old/new sets have exactly n stable roots, in any order, so repeated
+  -- List.find? necessarily makes 1 + ... + n equality checks.
+  let triangular := n * (n + 1) / 2
+  unless rootComparisons == triangular do
+    throw (IO.userError s!"unexpected root scan comparisons: {rootComparisons} vs {triangular}")
+  unless newImage.currentEvents.events.length == n do
+    throw (IO.userError "corrected current Event count differs from n")
   unless scannedDelta oldImage newImage oldTotals == some expected do
     throw (IO.userError "scanned candidate differs from full read")
   unless knownDelta oldTotals removed added == expected do
@@ -139,11 +202,13 @@ private def runCase (n repetitions : Nat) : IO Unit := do
   let batchSize := 10
   let fullNs ← medianNsPerCall repetitions batchSize expected fun _ =>
     fullRecompute newImage
+  let simpleNs ← medianNsPerCall repetitions batchSize expected fun _ =>
+    singlePassCurrentTotals newImage
   let scannedNs ← medianNsPerCall repetitions batchSize expected fun _ =>
     scannedDelta oldImage newImage oldTotals
   let knownNs ← medianNsPerCall repetitions batchSize expected fun _ =>
     some (knownDelta oldTotals removed added)
-  IO.println s!"{n}\t{admissionUs}\t{fullNs}\t{scannedNs}\t{knownNs}\t{repr expected}"
+  IO.println s!"{n}\t{n}\t{rootComparisons}\t{admissionUs}\t{fullNs}\t{simpleNs}\t{scannedNs}\t{knownNs}\t{repr expected}"
 
 def main (args : List String) : IO Unit := do
   let sizes ← if args.isEmpty then
@@ -157,7 +222,7 @@ def main (args : List String) : IO Unit := do
     if n == 0 || n > 10000 then
       throw (IO.userError "Event count must be between 1 and 10,000; O(n²) scanned path is not qualified for larger sizes")
   let repetitions := 3
-  IO.println "events\tadmit_pair_us\tfull_read_ns\troot_scan_delta_ns\tknown_delta_ns\tnew_totals"
+  IO.println "events\tcurrent_events\troot_lookup_comparisons\tadmit_pair_us\tfull_read_ns\tsimple_pass_ns\troot_scan_delta_ns\tknown_delta_ns\tnew_totals"
   for n in sizes do
     runCase n repetitions
 
