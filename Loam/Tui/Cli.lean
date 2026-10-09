@@ -271,10 +271,13 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
     (snapshot : Snapshot) (state : Loam.Tui.ActualWorkspace.State)
     (frame : CompiledWidget) : IO Snapshot := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
+  let previousBounds := bounds
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.ActualWorkspace.view active snapshot state)
+  let state := if bounds == previousBounds then state else
+    Loam.Tui.ActualWorkspace.normalizedForBounds bounds snapshot state
   if key == .other then return (← actualWorkspaceLoop bounds dataDir root snapshot state frame)
-  let step := Loam.Tui.ActualWorkspace.updateWithRepeat snapshot state
+  let step := Loam.Tui.ActualWorkspace.updateWithRepeat bounds snapshot state
     (actualWorkspaceEventOfKey state key) repeatCount
   match step.command with
   | .back => return snapshot

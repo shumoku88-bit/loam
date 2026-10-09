@@ -169,9 +169,9 @@ private def clampState (snapshot : Snapshot) (state : State) : State :=
   let txCount := (visibleRecords snapshot withLocus).length
   clampStateWithCounts lociCount txCount withLocus
 
-/-- Re-clamp only local cursor coordinates after canonical evidence is reloaded. -/
+/-- Re-clamp local cursors and restart Details after canonical evidence is reloaded. -/
 def refreshed (snapshot : Snapshot) (state : State) : State :=
-  clampState snapshot { state with notice := "" }
+  clampState snapshot { state with detailScroll := 0, notice := "" }
 
 private def movePrevious (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
@@ -185,7 +185,7 @@ private def movePrevious (snapshot : Snapshot) (state : State) : State :=
       if state.detailScroll = 0 then { state with notice := "Top of Details." }
       else { state with detailScroll := state.detailScroll - 1, notice := "" }
 
-private def moveNext (snapshot : Snapshot) (state : State) : State :=
+private def moveNext (snapshot : Snapshot) (state : State) (detailEnd : Nat) : State :=
   match state.pane with
   | .loci =>
       let count := (lociForScope snapshot state).length
@@ -200,9 +200,10 @@ private def moveNext (snapshot : Snapshot) (state : State) : State :=
       else
         { state with notice := "No next Actual row." }
   | .details =>
-      { state with detailScroll := state.detailScroll + 1, notice := "" }
+      if state.detailScroll >= detailEnd then { state with notice := "End of Details." }
+      else { state with detailScroll := state.detailScroll + 1, notice := "" }
 
-private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 10) : State :=
+private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat) : State :=
   match state.pane with
   | .loci =>
       if state.locusRow == 0 then { state with notice := "Top of Locus list." }
@@ -214,7 +215,8 @@ private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 
       if state.detailScroll == 0 then { state with notice := "Top of Details." }
       else { state with detailScroll := state.detailScroll - min state.detailScroll pageSize, notice := "" }
 
-private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat := 10) : State :=
+private def movePageDown
+    (snapshot : Snapshot) (state : State) (pageSize detailEnd : Nat) : State :=
   match state.pane with
   | .loci =>
       let count := (lociForScope snapshot state).length
@@ -225,7 +227,8 @@ private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat :
       if count == 0 || state.transactionRow + 1 >= count then { state with notice := "End of Actual list." }
       else { state with transactionRow := min (count - 1) (state.transactionRow + pageSize), detailScroll := 0, notice := "" }
   | .details =>
-      { state with detailScroll := state.detailScroll + pageSize, notice := "" }
+      if state.detailScroll >= detailEnd then { state with notice := "End of Details." }
+      else { state with detailScroll := min detailEnd (state.detailScroll + pageSize), notice := "" }
 
 private def moveHome (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
@@ -233,7 +236,7 @@ private def moveHome (snapshot : Snapshot) (state : State) : State :=
   | .transactions => { state with transactionRow := 0, detailScroll := 0, notice := "" }
   | .details => { state with detailScroll := 0, notice := "" }
 
-private def moveEnd (snapshot : Snapshot) (state : State) : State :=
+private def moveEnd (snapshot : Snapshot) (state : State) (detailEnd : Nat) : State :=
   match state.pane with
   | .loci =>
       let count := (lociForScope snapshot state).length
@@ -243,19 +246,19 @@ private def moveEnd (snapshot : Snapshot) (state : State) : State :=
       let row := if count == 0 then 0 else count - 1
       { state with transactionRow := row, detailScroll := 0, notice := "" }
   | .details =>
-      { state with detailScroll := state.detailScroll + 20, notice := "" }
+      { state with detailScroll := detailEnd, notice := "" }
 
 private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
   let scope := match state.scope with
     | .focusDay => Scope.allCurrent
     | .allCurrent => Scope.focusDay
-  clampState snapshot { state with scope := scope, locusRow := 0, transactionRow := 0, notice := "" }
+  clampState snapshot { state with scope := scope, locusRow := 0, transactionRow := 0, detailScroll := 0, notice := "" }
 
 private def cycleOrder (snapshot : Snapshot) (state : State) : State :=
   let order := match state.order with
     | .asc => SortOrder.desc
     | .desc => SortOrder.asc
-  clampState snapshot { state with order := order, transactionRow := 0, notice := "" }
+  clampState snapshot { state with order := order, transactionRow := 0, detailScroll := 0, notice := "" }
 
 
 private def beginSearch (snapshot : Snapshot) (state : State) : State :=
@@ -265,6 +268,7 @@ private def beginSearch (snapshot : Snapshot) (state : State) : State :=
       pane := .transactions
       locusRow := 0
       transactionRow := 0
+      detailScroll := 0
       searchQuery := ""
       searchEditing := true
       notice := ""
@@ -276,17 +280,12 @@ private def editSearch
     state with
       searchQuery := edit state.searchQuery
       transactionRow := 0
+      detailScroll := 0
       notice := ""
   }
 
-def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
+private def updateIntent (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   match event with
-  | .previous => { state := movePrevious snapshot state }
-  | .next => { state := moveNext snapshot state }
-  | .pageUp => { state := movePageUp snapshot state }
-  | .pageDown => { state := movePageDown snapshot state }
-  | .home => { state := moveHome snapshot state }
-  | .«end» => { state := moveEnd snapshot state }
   | .focusLeft =>
       let prevPane := match state.pane with
         | .loci => Pane.details
@@ -345,7 +344,7 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       let clearedQuery := { state with searchQuery := "" }
       let stopped := { clearedQuery with searchEditing := false }
       let resetRow := { stopped with transactionRow := 0 }
-      let cleared := { resetRow with notice := "" }
+      let cleared := { resetRow with detailScroll := 0, notice := "" }
       { state := clampState snapshot cleared }
   | .openSelected =>
       match state.pane with
@@ -366,16 +365,8 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       else
         { state, command := .back }
   | .redraw => { state, command := .redraw }
-  | .other => { state }
-
-/-- Update workspace state, optionally scaling directional navigation by repeat count. -/
-def updateWithRepeat (snapshot : Snapshot) (state : State) (event : Event) (repeatCount : Nat := 1) : Step :=
-  if repeatCount <= 1 then update snapshot state event
-  else
-    match event with
-    | .previous => { state := movePageUp snapshot state repeatCount }
-    | .next => { state := movePageDown snapshot state repeatCount }
-    | other => update snapshot state other
+  -- Directional events are handled by the bounds-aware entrance below.
+  | .previous | .next | .pageUp | .pageDown | .home | .«end» | .other => { state }
 
 private def fit (width : Nat) (text : String) : String :=
   Loam.Tui.Layout.padRight width text
@@ -439,6 +430,9 @@ private def locusLabel (state : State) (loci : List String) (row : Nat) : Option
   if row = 0 then some "[All loci]"
   else loci[row - 1]?.map (displayLocus state)
 
+private def listCapacity (pane : Pane) (height : Nat) : Nat :=
+  height - 2 - (if pane == .loci || height < 4 then 0 else 1)
+
 private def listPanel
     (state : State) (records : Array ReviewRecord) (loci : List String)
     (pane : Pane) (width height : Nat) (title : String) : Widget :=
@@ -454,7 +448,7 @@ private def listPanel
     else [mutedLine ("   " ++ (if tabular then
       tableRow rowWidth amountWidth "Date" "Description" "Amount"
       else "Description"))]
-  let rows := height - 2 - columnHeader.length
+  let rows := listCapacity pane height
   let start := paneWindowStart selected rows
   let content := (List.range rows).map fun row =>
     let index := start + row
@@ -520,6 +514,9 @@ private def detailRawLines
         wrapped (descriptionText record) .normal ++
         wrapped ("ID: " ++ record.event.id.token) .muted
 
+private def scrollLimit (rowCount capacity : Nat) : Nat :=
+  if capacity == 0 then 0 else rowCount - capacity
+
 /-- One geometry-derived window shared by content and overflow indicators. -/
 private structure DetailWindow where
   lines : List Widget
@@ -529,7 +526,7 @@ private structure DetailWindow where
 private def detailWindow
     (state : State) (record? : Option ReviewRecord) (capacity width : Nat) : DetailWindow :=
   let allLines := detailRawLines state record? width
-  let maxScroll := allLines.length - capacity
+  let maxScroll := scrollLimit allLines.length capacity
   let scroll := min state.detailScroll maxScroll
   let visible := (allLines.drop scroll).take capacity
   { lines := visible ++ List.replicate (capacity - visible.length) blankLine
@@ -545,7 +542,7 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
     ]
   else if state.pane == .details then
     [ mutedLine "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals"
-    , mutedLine "[Enter] open selected  [n] new  [q] back to Home"
+    , mutedLine "[Enter] open selected  [n] new  [q] back"
     ]
   else
     let detailedRow1 := "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
@@ -582,6 +579,60 @@ private def geometryForBounds (bounds : Bounds) : Geometry :=
     detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
     contextRows, statusRows
     wide := writable >= 98 && panelHeight >= 16 }
+
+private def Geometry.detailBounds (geometry : Geometry) (pane : Pane) : Bounds :=
+  { width := if geometry.wide then geometry.leftWidth else geometry.writable
+    height := if geometry.detailHeight > 0 then geometry.detailHeight
+      else if pane == .details then geometry.panelHeight else 0 }
+
+private def Geometry.listHeight (geometry : Geometry) (pane : Pane) : Nat :=
+  if geometry.wide && pane == .transactions then geometry.panelHeight
+  else geometry.panelHeight - geometry.detailHeight
+
+private def Geometry.pageSize (geometry : Geometry) (pane : Pane) : Nat :=
+  max 1 (match pane with
+    | .details => (geometry.detailBounds pane).height - 2
+    | other => listCapacity other (geometry.listHeight other))
+
+private def detailScrollLimit (geometry : Geometry) (snapshot : Snapshot) (state : State) : Nat :=
+  let bounds := geometry.detailBounds state.pane
+  if bounds.width < 3 || bounds.height < 3 then 0
+  else scrollLimit (detailRawLines state (selectedRecord? snapshot state) (bounds.width - 2)).length
+    (bounds.height - 2)
+
+/-- Resize normalization changes only the local Details offset, never selected evidence. -/
+def normalizedForBounds (bounds : Bounds) (snapshot : Snapshot) (state : State) : State :=
+  if state.detailScroll == 0 then state
+  else
+    let maximum := detailScrollLimit (geometryForBounds bounds) snapshot state
+    { state with detailScroll := min state.detailScroll maximum }
+
+/-- Navigation uses the same pane dimensions and wrapped rows as rendering. -/
+def updateWithRepeat (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
+    (event : Event) (repeatCount : Nat := 1) : Step :=
+  let geometry := geometryForBounds bounds
+  let detailEnd := if rawState.pane == .details then detailScrollLimit geometry snapshot rawState else 0
+  let state := if rawState.pane == .details then
+      { rawState with detailScroll := min rawState.detailScroll detailEnd }
+    else rawState
+  let step := match event with
+    | .previous =>
+        if repeatCount <= 1 then { state := movePrevious snapshot state }
+        else { state := movePageUp snapshot state repeatCount }
+    | .next =>
+        if repeatCount <= 1 then { state := moveNext snapshot state detailEnd }
+        else { state := movePageDown snapshot state repeatCount detailEnd }
+    | .pageUp => { state := movePageUp snapshot state (geometry.pageSize state.pane) }
+    | .pageDown => { state := movePageDown snapshot state (geometry.pageSize state.pane) detailEnd }
+    | .home => { state := moveHome snapshot state }
+    | .«end» => { state := moveEnd snapshot state detailEnd }
+    | intent => updateIntent snapshot state intent
+  if state.pane != .details && step.state.pane == .details then
+    { step with state := normalizedForBounds bounds snapshot step.state }
+  else step
+
+def update (bounds : Bounds) (snapshot : Snapshot) (state : State) (event : Event) : Step :=
+  updateWithRepeat bounds snapshot state event
 
 private def orderText (state : State) : String :=
   match state.order with
@@ -635,9 +686,9 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let notice := if geometry.statusRows == 0 then [] else
     [if state.notice.isEmpty then blankLine else mutedLine state.notice]
   let selectedRecord := recordsArr[state.transactionRow]?
-  let panelHeight := geometry.panelHeight
   let wide := geometry.wide
   let detailHeight := geometry.detailHeight
+  let detailBounds := geometry.detailBounds state.pane
   let detailPanel := fun width height =>
     let isFocused := state.pane == .details
     let window := detailWindow state selectedRecord (height - 2) (width - 2)
@@ -660,17 +711,18 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let panels :=
     if wide then
       let left : Widget := .column [
-        listPanel state recordsArr loci .loci leftWidth (panelHeight - detailHeight) leftHeader,
-        detailPanel leftWidth detailHeight]
-      joinPanels left (listPanel state recordsArr loci .transactions rightWidth panelHeight rightHeader)
+        listPanel state recordsArr loci .loci leftWidth (geometry.listHeight .loci) leftHeader,
+        detailPanel detailBounds.width detailBounds.height]
+      joinPanels left (listPanel state recordsArr loci .transactions rightWidth
+        (geometry.listHeight .transactions) rightHeader)
     else if state.pane == .details && detailHeight == 0 then
       -- Never direct scrolling into an invisible Details region on a low terminal.
-      [detailPanel writable panelHeight]
+      [detailPanel detailBounds.width detailBounds.height]
     else
       let listPane := if state.pane == .loci then Pane.loci else Pane.transactions
       let title := if listPane == .loci then leftHeader else rightHeader
-      [listPanel state recordsArr loci listPane writable (panelHeight - detailHeight) title] ++
-        (if detailHeight > 0 then [detailPanel writable detailHeight] else [])
+      [listPanel state recordsArr loci listPane writable (geometry.listHeight listPane) title] ++
+        (if detailHeight > 0 then [detailPanel detailBounds.width detailBounds.height] else [])
   -- Flatten before footer fitting: a panel is many physical terminal rows.
   let body := (Widget.column (context ++ panels ++ notice)).lines.map fun cells =>
     .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Record cancel/publish/activation reload boundaries, isolated synthetic household only."""
+"""Actual navigation and Record reload boundaries, isolated synthetic household only."""
 import fcntl
+import hashlib
 import os
 from pathlib import Path
 import pty
@@ -67,6 +68,31 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
                     "setup", str(root)], cwd=REPO, check=True)
     authority = root / "household.loam"
     before = authority.read_bytes()
+    # This fixture includes a published synthetic paid Wi-Fi Actual. Unlike the
+    # empty CycleBudget resize fixture, it can qualify real Details navigation.
+    def digest():
+        return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in root.rglob("*") if p.is_file()}
+
+    frozen_navigation = digest()
+    terminal = Terminal(root)
+    try:
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 10, 48, 0, 0))
+        terminal.capture(b"[a]")  # tiny Home displays its help rather than its heading
+        terminal.send(b"af", b"All Current")
+        terminal.send(b"i", b"Details [active]")
+        end = terminal.send(b"\x1b[Fj", b"End of Details.")
+        assert b"ID:" in ANSI.sub(b"", end), ("Details End missed the identity tail", end)
+        terminal.send(b"k", b"paid Wi-Fi")  # one key must move content, not a phantom offset
+        terminal.send(b"\x1b[H", b"Date:")
+        terminal.send(b"\x1b[6~", b"4,800")
+        terminal.send(b"\x1b[5~", b"Date:")
+        terminal.send(b"q", b"Actuals [active]")
+        terminal.send(b"q", b"[a]")
+    finally:
+        terminal.close()
+    assert digest() == frozen_navigation, "read-only Actual navigation changed fixture evidence"
+
     # Removing the read authority while the editor is open makes any unwanted
     # caller reload deterministic, without asserting a machine-specific latency.
     for route in ("home", "actual", "selected-day"):
@@ -134,4 +160,4 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
             hidden.rename(authority)
         terminal.close()
 
-print("Record reload PTY: three cancel entrances, publication and successful/failed activation passed.")
+print("Actual navigation and Record reload PTY: compact Home/End/pages, boundary recovery, three cancel entrances and activation passed.")

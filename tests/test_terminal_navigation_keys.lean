@@ -64,20 +64,21 @@ def testActualWorkspaceNavigation : IO Unit := do
     scheduled := .error "unavailable"
   }
   let initial := Loam.Tui.ActualWorkspace.initial "2026-10-03"
+  let update := Loam.Tui.ActualWorkspace.update { width := 80, height := 24 }
   -- Navigation on empty list should be safe and clamp to 0
-  let step1 := Loam.Tui.ActualWorkspace.update emptySnapshot initial .pageDown
+  let step1 := update emptySnapshot initial .pageDown
   if step1.state.transactionRow != 0 then
     throw (IO.userError "PageDown on empty actuals should keep row 0")
 
-  let step2 := Loam.Tui.ActualWorkspace.update emptySnapshot initial .pageUp
+  let step2 := update emptySnapshot initial .pageUp
   if step2.state.transactionRow != 0 then
     throw (IO.userError "PageUp on empty actuals should keep row 0")
 
-  let step3 := Loam.Tui.ActualWorkspace.update emptySnapshot initial .home
+  let step3 := update emptySnapshot initial .home
   if step3.state.transactionRow != 0 then
     throw (IO.userError "Home on empty actuals should keep row 0")
 
-  let step4 := Loam.Tui.ActualWorkspace.update emptySnapshot initial .«end»
+  let step4 := update emptySnapshot initial .«end»
   if step4.state.transactionRow != 0 then
     throw (IO.userError "End on empty actuals should keep row 0")
 

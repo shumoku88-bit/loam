@@ -283,6 +283,15 @@ Boundary notices have a fixed, muted status row when space permits; tiny termina
 show the notice in the last help row. Search and notices do not move panel borders
 or change how many records fit.
 
+`PageUp` / `PageDown` move by the focused pane's visible data rows, excluding
+borders and the Actual table's column heading. `Home` / `End` reach the real first
+or last position, including the end of a long wrapped Details record. `j/k` and
+batched wheel motion stop at the same boundaries, so one upward step moves content
+immediately after reaching the bottom. Resizing clamps the Details offset to its
+new viewport without changing the selected Event. A new record selection, filter,
+order, search, or canonical reload starts Details at the top. This is presentation
+navigation only; opening and publishing still use the existing shared boundaries.
+
 The Actual list aligns Date, Description, and right-aligned Amount columns.
 Descriptions visibly end with an ellipsis when clipped. Very narrow panels show
 Description only, and very short panels omit column headings before sacrificing

@@ -73,14 +73,15 @@ def testActualWorkspaceSearchPaste : IO Unit := do
   }
   let initial := Loam.Tui.ActualWorkspace.initial "2026-10-03"
   let searchState := { initial with searchEditing := true, searchQuery := "" }
+  let update := Loam.Tui.ActualWorkspace.update { width := 80, height := 24 }
 
   -- Paste into search query
-  let step := Loam.Tui.ActualWorkspace.update snapshot searchState (.searchPaste "coffee\n")
+  let step := update snapshot searchState (.searchPaste "coffee\n")
   if step.state.searchQuery != "coffee" then
     throw (IO.userError s!"Expected searchQuery 'coffee', got '{step.state.searchQuery}'")
 
   -- Paste additional text
-  let step2 := Loam.Tui.ActualWorkspace.update snapshot step.state (.searchPaste " beans")
+  let step2 := update snapshot step.state (.searchPaste " beans")
   if step2.state.searchQuery != "coffee beans" then
     throw (IO.userError s!"Expected searchQuery 'coffee beans', got '{step2.state.searchQuery}'")
 

@@ -19,6 +19,15 @@ private def widgetText (widget : Widget) : String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
+/-- Read the focused panel's actual inner height, independently of navigation geometry. -/
+private def focusedRows (widget : Widget) : IO Nat := do
+  let top ← requireSome (widget.lines.findIdx? fun cells =>
+    cells.any (fun cell => cell.glyph == '╭' && cell.style == .series1))
+    "navigation specimen did not render a focused panel"
+  requireSome ((widget.lines.drop (top + 1)).findIdx? fun cells =>
+    cells.any (fun cell => cell.glyph == '╰' && cell.style == .series1))
+    "navigation specimen did not render the focused panel's bottom border"
+
 private def testRecord (index : Nat) : Loam.Tui.Main.ReviewRecord :=
   { event :=
       { id := ⟨"event-" ++ toString index⟩
@@ -70,11 +79,13 @@ def main : IO Unit := do
     "Degenerate wrapping silently lost a wide glyph or exceeded its bounds"
 
   let snapshot ← actualWorkspaceSnapshot
+  let navigationBounds : Bounds := { width := 100, height := 30 }
+  let update := Loam.Tui.ActualWorkspace.update navigationBounds
   let actualStart := Loam.Tui.ActualWorkspace.initial "2026-09-07"
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).length == 2)
     "Actual workspace Focus Day did not use the shared selected-day Actual answer"
-  let right := (Loam.Tui.ActualWorkspace.update snapshot { actualStart with pane := .loci } .focusRight).state
-  let second := (Loam.Tui.ActualWorkspace.update snapshot right .next).state
+  let right := (update snapshot { actualStart with pane := .loci } .focusRight).state
+  let second := (update snapshot right .next).state
   match Loam.Tui.ActualWorkspace.selectedRecord? snapshot second with
   | none => throw (IO.userError "Actual workspace transaction selection disappeared")
   | some record =>
@@ -151,7 +162,7 @@ def main : IO Unit := do
   expect (!contains "▲" stationaryDetails)
     "Details advertised an upward scroll when the complete content already fit"
 
-  let allCurrent := (Loam.Tui.ActualWorkspace.update snapshot second .cycleFilter).state
+  let allCurrent := (update snapshot second .cycleFilter).state
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot allCurrent).length == 3)
     "Actual workspace filter did not expand from Focus Day to all current Actual evidence"
   expect (allCurrent.order == .desc)
@@ -166,20 +177,20 @@ def main : IO Unit := do
     | throw (IO.userError "Actual workspace search metadata fixture")
   let searchStart := Loam.Tui.ActualWorkspace.withMetadata
     (Loam.Tui.ActualWorkspace.initial "2026-09-07") searchMetadata
-  let searching := (Loam.Tui.ActualWorkspace.update snapshot searchStart .beginSearch).state
+  let searching := (update snapshot searchStart .beginSearch).state
   expect (searching.scope == .allCurrent && searching.pane == .transactions &&
       searching.searchEditing)
     "Actual workspace search did not enter all-current transaction search"
   let gammaSearch := "gamma".toList.foldl
     (fun current char =>
-      (Loam.Tui.ActualWorkspace.update snapshot current (.searchInput char)).state)
+      (update snapshot current (.searchInput char)).state)
     searching
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot gammaSearch).map (·.description) == ["gamma"])
     "Actual workspace description search did not isolate the older matching Actual"
-  let keptSearch := (Loam.Tui.ActualWorkspace.update snapshot gammaSearch .acceptSearch).state
+  let keptSearch := (update snapshot gammaSearch .acceptSearch).state
   expect (!keptSearch.searchEditing && keptSearch.searchQuery == "gamma")
     "Actual workspace Enter did not keep the accepted search result"
-  let openSearch := Loam.Tui.ActualWorkspace.update snapshot keptSearch .openSelected
+  let openSearch := update snapshot keptSearch .openSelected
   expect (openSearch.command == .openSelected)
     "Actual workspace Enter intent did not open the selected search result"
   let gammaRecord ← requireSome
@@ -210,7 +221,7 @@ def main : IO Unit := do
   expect (contains "Search: /gamma_" searchText &&
       contains "Backspace delete" searchText)
     "Actual workspace active search query or search help disappeared"
-  let cancelledSearch := (Loam.Tui.ActualWorkspace.update snapshot gammaSearch .cancelSearch).state
+  let cancelledSearch := (update snapshot gammaSearch .cancelSearch).state
   expect (cancelledSearch.searchQuery.isEmpty && !cancelledSearch.searchEditing &&
       (Loam.Tui.ActualWorkspace.visibleRecords snapshot cancelledSearch).length == 3)
     "Actual workspace Esc-style search cancellation did not restore all-current browsing"
@@ -373,8 +384,8 @@ def main : IO Unit := do
     "Measure formatting changed Actual filtering, identity, or order"
 
   -- Focus left pane (loci) and select locus 1 (paypay)
-  let allCurrentLoci := (Loam.Tui.ActualWorkspace.update snapshot allCurrent .focusLeft).state
-  let paypayLocus := (Loam.Tui.ActualWorkspace.update snapshot allCurrentLoci .next).state
+  let allCurrentLoci := (update snapshot allCurrent .focusLeft).state
+  let paypayLocus := (update snapshot allCurrentLoci .next).state
   expect (Loam.Tui.ActualWorkspace.selectedLocus? snapshot paypayLocus == some "paypay")
     "Actual workspace next did not select the paypay locus"
   let paypayDesc := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayLocus
@@ -387,7 +398,7 @@ def main : IO Unit := do
         "Actual workspace default paypay record was not newest first (alpha)"
 
   -- Toggle order to ascending (oldest first)
-  let paypayAsc := (Loam.Tui.ActualWorkspace.update snapshot paypayLocus .cycleOrder).state
+  let paypayAsc := (update snapshot paypayLocus .cycleOrder).state
   expect (paypayAsc.order == .asc)
     "Actual workspace cycleOrder did not change order to ascending"
   let paypayAscRecords := Loam.Tui.ActualWorkspace.visibleRecords snapshot paypayAsc
@@ -400,8 +411,8 @@ def main : IO Unit := do
         "Actual workspace ascending paypay record at row 0 was not oldest (gamma)"
 
   -- Move down in ascending order
-  let paypayAscRight := (Loam.Tui.ActualWorkspace.update snapshot paypayAsc .focusRight).state
-  let paypayAscSecond := (Loam.Tui.ActualWorkspace.update snapshot paypayAscRight .next).state
+  let paypayAscRight := (update snapshot paypayAsc .focusRight).state
+  let paypayAscSecond := (update snapshot paypayAscRight .next).state
   match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayAscSecond with
   | none => throw (IO.userError "Actual workspace ascending second record disappeared")
   | some record =>
@@ -409,7 +420,7 @@ def main : IO Unit := do
         "Actual workspace ascending second record was not beta"
 
   -- Toggle back to descending
-  let paypayDescAgain := (Loam.Tui.ActualWorkspace.update snapshot paypayAscSecond .cycleOrder).state
+  let paypayDescAgain := (update snapshot paypayAscSecond .cycleOrder).state
   expect (paypayDescAgain.order == .desc)
     "Actual workspace cycleOrder did not toggle back to descending"
   match Loam.Tui.ActualWorkspace.selectedRecord? snapshot paypayDescAgain with
@@ -426,47 +437,47 @@ def main : IO Unit := do
     "Actual workspace view footer did not expose [s] sort"
 
   -- Test details pane navigation, focus, and scrolling
-  let toDetails := (Loam.Tui.ActualWorkspace.update snapshot paypayDescAgain .toggleDetails).state
+  let toDetails := (update snapshot paypayDescAgain .toggleDetails).state
   expect (toDetails.pane == .details)
     "toggleDetails did not enter details pane"
-  let detailsScrolled := (Loam.Tui.ActualWorkspace.update snapshot toDetails .next).state
-  expect (detailsScrolled.detailScroll == 1)
-    "next in details pane did not increment detailScroll"
-  let detailsScrolledUp := (Loam.Tui.ActualWorkspace.update snapshot detailsScrolled .previous).state
+  let detailsScrolled := (update snapshot toDetails .next).state
+  expect (detailsScrolled.detailScroll == 0 && detailsScrolled.notice == "End of Details.")
+    "next scrolled Details even though all content already fit"
+  let detailsScrolledUp := (update snapshot detailsScrolled .previous).state
   expect (detailsScrolledUp.detailScroll == 0)
     "previous in details pane did not decrement detailScroll"
-  let backToActuals := (Loam.Tui.ActualWorkspace.update snapshot detailsScrolled .back).state
+  let backToActuals := (update snapshot detailsScrolled .back).state
   expect (backToActuals.pane == .transactions)
     "back event from details pane did not return to transactions pane"
 
   -- Test cyclePane Tab navigation
-  let cycledToLoci := (Loam.Tui.ActualWorkspace.update snapshot { paypayDescAgain with pane := .details } .cyclePane).state
+  let cycledToLoci := (update snapshot { paypayDescAgain with pane := .details } .cyclePane).state
   expect (cycledToLoci.pane == .loci)
     "cyclePane from details did not cycle to loci"
-  let cycledToTx := (Loam.Tui.ActualWorkspace.update snapshot cycledToLoci .cyclePane).state
+  let cycledToTx := (update snapshot cycledToLoci .cyclePane).state
   expect (cycledToTx.pane == .transactions)
     "cyclePane from loci did not cycle to transactions"
-  let cycledToDetails := (Loam.Tui.ActualWorkspace.update snapshot cycledToTx .cyclePane).state
+  let cycledToDetails := (update snapshot cycledToTx .cyclePane).state
   expect (cycledToDetails.pane == .details)
     "cyclePane from transactions did not cycle to details"
 
   -- Test arrow-key looping navigation (symmetric with cyclePane / cyclePaneBack)
-  let rightFromTx := (Loam.Tui.ActualWorkspace.update snapshot cycledToTx .focusRight).state
+  let rightFromTx := (update snapshot cycledToTx .focusRight).state
   expect (rightFromTx.pane == .details)
     "focusRight from transactions did not loop to details"
-  let rightFromDetails := (Loam.Tui.ActualWorkspace.update snapshot rightFromTx .focusRight).state
+  let rightFromDetails := (update snapshot rightFromTx .focusRight).state
   expect (rightFromDetails.pane == .loci)
     "focusRight from details did not navigate to loci"
-  let rightFromLoci := (Loam.Tui.ActualWorkspace.update snapshot rightFromDetails .focusRight).state
+  let rightFromLoci := (update snapshot rightFromDetails .focusRight).state
   expect (rightFromLoci.pane == .transactions)
     "focusRight from loci did not navigate to transactions"
-  let leftFromTx := (Loam.Tui.ActualWorkspace.update snapshot rightFromLoci .focusLeft).state
+  let leftFromTx := (update snapshot rightFromLoci .focusLeft).state
   expect (leftFromTx.pane == .loci)
     "focusLeft from transactions did not loop to loci"
-  let leftFromLoci := (Loam.Tui.ActualWorkspace.update snapshot leftFromTx .focusLeft).state
+  let leftFromLoci := (update snapshot leftFromTx .focusLeft).state
   expect (leftFromLoci.pane == .details)
     "focusLeft from loci did not loop to details"
-  let leftFromDetails := (Loam.Tui.ActualWorkspace.update snapshot leftFromLoci .focusLeft).state
+  let leftFromDetails := (update snapshot leftFromLoci .focusLeft).state
   expect (leftFromDetails.pane == .transactions)
     "focusLeft from details did not navigate to transactions"
 
@@ -478,14 +489,14 @@ def main : IO Unit := do
   }
   let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
   let longActualStart :=
-    (Loam.Tui.ActualWorkspace.update longSnapshot
+    (update longSnapshot
       { Loam.Tui.ActualWorkspace.initial "2026-09-07" with pane := .loci } .focusRight).state
   let tallViewText := widgetText
     (Loam.Tui.ActualWorkspace.view { width := 100, height := 40 } longSnapshot longActualStart)
   expect (contains "row-21" tallViewText)
     "Actual workspace did not grow its list viewport beyond the former eight rows"
   let longShifted := (List.range 26).foldl
-    (fun current _ => (Loam.Tui.ActualWorkspace.update longSnapshot current .next).state)
+    (fun current _ => (update longSnapshot current .next).state)
     longActualStart
   expect (longShifted.transactionRow == 26)
     "Actual workspace selection could not reach a record beyond the visible window"
@@ -503,12 +514,110 @@ def main : IO Unit := do
       expect (!contains firstLong.description longViewText)
         "Actual workspace moving viewport did not leave its first record behind"
   let longLast := (List.range 29).foldl
-    (fun current _ => (Loam.Tui.ActualWorkspace.update longSnapshot current .next).state)
+    (fun current _ => (update longSnapshot current .next).state)
     longActualStart
-  let longBlocked := (Loam.Tui.ActualWorkspace.update longSnapshot longLast .next).state
+  let longBlocked := (update longSnapshot longLast .next).state
   expect (longBlocked.transactionRow == longLast.transactionRow &&
     contains "No next Actual row" longBlocked.notice)
     "Actual workspace end-of-list refusal moved selection or lost its notice"
+
+  -- Page size comes from the visible panel, not a fixed ten-row jump.
+  let pageSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
+    today := "2026-09-07", allRecords := (List.range 200).map testRecord } }
+  let locusRecords ← (List.range 60).mapM fun index =>
+    requireSome (actualRecord? ("locus-event-" ++ toString index) "2026-09-07" "locus row"
+      "paypay" ("locus-" ++ toString index) 100) "paged Locus fixture was not admitted"
+  let locusSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
+    today := "2026-09-07", allRecords := locusRecords } }
+  let scrollSnapshot : Loam.Tui.Main.Snapshot := { wrappedSnapshot with actual := {
+    today := "2026-09-07", allRecords := [{ wrappedRecord with
+      description := String.intercalate "" (List.replicate 40 "長い説明も最後まで読み切るためのスクロール確認。") }] } }
+  for bounds in [{ width := 80, height := 24 }, { width := 100, height := 30 },
+      { width := 144, height := 40 }, { width := 48, height := 10 },
+      { width := 100, height := 60 }] do
+    let navigate := Loam.Tui.ActualWorkspace.update bounds
+    let txView := Loam.Tui.ActualWorkspace.view bounds pageSnapshot actualStart
+    let visibleTxRows ← focusedRows txView
+    let txPage := visibleTxRows - 1 -- the visible Description column heading
+    let txDown := (navigate pageSnapshot actualStart .pageDown).state
+    expect (txDown.transactionRow == txPage && txPage > 0)
+      "Actual PageDown did not use the rendered record rows"
+    expect ((navigate pageSnapshot txDown .pageUp).state.transactionRow == 0)
+      "Actual PageUp did not reverse a viewport-sized page"
+    let txEnd := (navigate pageSnapshot actualStart .«end»).state
+    expect (txEnd.transactionRow == 199 &&
+        (navigate pageSnapshot txEnd .next).state.transactionRow == 199 &&
+        (navigate pageSnapshot txEnd .home).state.transactionRow == 0)
+      "Actual Home/End or bottom-boundary selection changed"
+    let selectedPage ← requireSome (Loam.Tui.ActualWorkspace.selectedRecord? pageSnapshot txDown)
+      "paged Actual selection disappeared"
+    expect (contains selectedPage.description
+        (widgetText (Loam.Tui.ActualWorkspace.view bounds pageSnapshot txDown)))
+      "Actual page navigation selected a record outside its viewport"
+
+    let lociStart := { actualStart with pane := .loci }
+    let locusPage ← focusedRows (Loam.Tui.ActualWorkspace.view bounds locusSnapshot lociStart)
+    let locusDown := (navigate locusSnapshot lociStart .pageDown).state
+    expect (locusDown.locusRow == locusPage &&
+        (navigate locusSnapshot locusDown .pageUp).state.locusRow == 0)
+      "Locus paging used transaction/detail capacity instead of its own visible rows"
+
+    let detailsStart := { actualStart with pane := .details }
+    let detailPage ← focusedRows (Loam.Tui.ActualWorkspace.view bounds scrollSnapshot detailsStart)
+    let detailDown := (navigate scrollSnapshot detailsStart .pageDown).state
+    expect (detailDown.detailScroll == detailPage &&
+        (navigate scrollSnapshot detailDown .pageUp).state.detailScroll == 0)
+      "Details paging did not match the visible wrapped rows"
+    let detailEnd := (navigate scrollSnapshot detailsStart .«end»).state
+    let wheelEnd := (Loam.Tui.ActualWorkspace.updateWithRepeat bounds scrollSnapshot
+      detailsStart .next 10000).state
+    expect (detailEnd.detailScroll > 20 && detailEnd.detailScroll == wheelEnd.detailScroll &&
+        contains "-tail" (widgetText (Loam.Tui.ActualWorkspace.view bounds scrollSnapshot detailEnd)))
+      "Details End stopped after twenty lines or failed to reach the final wrapped ID"
+    let blocked := (navigate scrollSnapshot detailEnd .next).state
+    expect (blocked.detailScroll == detailEnd.detailScroll && blocked.notice == "End of Details.")
+      "Details scrolled beyond the visible terminal end"
+    expect ((navigate scrollSnapshot blocked .previous).state.detailScroll == detailEnd.detailScroll - 1)
+      "Details required phantom upward steps after a blocked downward step"
+    expect ((navigate scrollSnapshot detailEnd .home).state.detailScroll == 0 &&
+        (Loam.Tui.ActualWorkspace.updateWithRepeat bounds scrollSnapshot detailEnd .previous 10000).state.detailScroll == 0)
+      "Details Home or repeated wheel-up did not stop at the top"
+    expect ((Loam.Tui.ActualWorkspace.updateWithRepeat bounds scrollSnapshot detailsStart .next 3).state.detailScroll == 3)
+      "Batched wheel motion was mistaken for a viewport-sized page"
+    let stale := { detailEnd with detailScroll := 10000 }
+    expect ((navigate scrollSnapshot stale .previous).state.detailScroll == detailEnd.detailScroll - 1)
+      "Details navigation did not normalize an old out-of-range offset first"
+    for event in [Loam.Tui.ActualWorkspace.Event.cycleFilter, .cycleOrder, .beginSearch, .cancelSearch] do
+      expect ((navigate scrollSnapshot detailEnd event).state.detailScroll == 0)
+        "A new search/filter/order retained the previous record's detail offset"
+    expect ((Loam.Tui.ActualWorkspace.refreshed scrollSnapshot detailEnd).detailScroll == 0)
+      "Canonical reload retained a stale wrapped-detail offset"
+
+  let tinyBounds : Bounds := { width := 48, height := 6 }
+  let tinyRows ← focusedRows (Loam.Tui.ActualWorkspace.view tinyBounds pageSnapshot actualStart)
+  expect (tinyRows == 1 &&
+      (Loam.Tui.ActualWorkspace.update tinyBounds pageSnapshot actualStart .pageDown).state.transactionRow == tinyRows)
+    "A header-free tiny Actual panel lost its one-row page size"
+
+  let beforeResize := (Loam.Tui.ActualWorkspace.update { width := 100, height := 30 }
+    scrollSnapshot { actualStart with pane := .details } .«end»).state
+  let largerBounds : Bounds := { width := 80, height := 24 }
+  let largerEnd := (Loam.Tui.ActualWorkspace.update largerBounds scrollSnapshot
+    { actualStart with pane := .details } .«end»).state
+  let afterResize := Loam.Tui.ActualWorkspace.normalizedForBounds largerBounds scrollSnapshot beforeResize
+  expect (afterResize.detailScroll == min beforeResize.detailScroll largerEnd.detailScroll &&
+      (Loam.Tui.ActualWorkspace.update largerBounds scrollSnapshot afterResize .previous).state.detailScroll ==
+        afterResize.detailScroll - 1 && afterResize.transactionRow == beforeResize.transactionRow)
+    "Resize did not normalize Details without changing the selected record"
+  let emptySnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
+    today := "2026-09-07", allRecords := [] } }
+  for bounds in [{ width := 0, height := 0 }, { width := 1, height := 2 },
+      { width := 48, height := 6 }, { width := 100, height := 30 }] do
+    for event in [Loam.Tui.ActualWorkspace.Event.next, .pageDown, .home, .«end»] do
+      let emptyStep := Loam.Tui.ActualWorkspace.update bounds emptySnapshot
+        { actualStart with pane := .details } event
+      expect (emptyStep.state.detailScroll == 0 && emptyStep.state.transactionRow == 0)
+        "Empty or degenerate Details navigation invented an offset"
 
   -- Responsive frame geometry uses terminal columns (including Japanese labels),
   -- not codepoint counts. Exercise breakpoint edges and degenerate bounds too.
