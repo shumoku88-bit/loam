@@ -69,7 +69,6 @@ inductive Event where
   | batchEditScheduled
   | cancelScheduled
   | back
-  | yank
   | other
   deriving Repr, DecidableEq, BEq
 
@@ -86,7 +85,6 @@ inductive Command where
   | batchEditScheduled
   | cancelScheduled
   | back
-  | yank
   deriving Repr, DecidableEq, BEq
 
 structure Step where
@@ -747,7 +745,6 @@ def updateWithCoverage
         { state := { state with viewMode := .coverage, planRow := 0, notice := "" } }
       else
         { state, command := .back }
-  | .yank => { state, command := .yank }
   | .other => { state }
 
 def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
@@ -897,11 +894,11 @@ private def withNoticeFooter (bounds : Bounds) (state : State) (help : List Widg
   (noticeLines bounds state).map plainLine ++ help
 
 private def footer (bounds : Bounds) : List Widget :=
-  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] overview  [e] extend  [s] undecided  [n] new  [c/Enter] complete  [r] replace  [b] batch amount  [x] cancel  [y] copy  [q] back"
+  let detailed := "[j/k] select  [h/l] pane  [f] scope  [v] overview  [e] extend  [s] undecided  [n] new  [c/Enter] complete  [r] replace  [b] batch amount  [x] cancel  [q] back"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [ mutedLine detailed ]
   else
-    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] overview [e] extend [s] undecided [n] new [y] copy [q] back"
+    [ mutedLine "[j/k] select [h/l] pane [f] scope [v] overview [e] extend [s] undecided [n] new [q] back"
     , mutedLine "[c/Enter] complete [r] replace [b] batch amount [x] cancel"
     ]
 
@@ -1113,11 +1110,11 @@ private def planDetailEntryLine
 
 private def planDetailFooter (bounds : Bounds) : List Widget :=
   let detailed :=
-    "[j/k] select  [e] replenish  [b] batch amount  [x] cancel  [r] replace  [c/Enter] complete  [p] pace  [s] undecided  [y] copy  [q] overview"
+    "[j/k] select  [e] replenish  [b] batch amount  [x] cancel  [r] replace  [c/Enter] complete  [p] pace  [s] undecided  [q] overview"
   if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
     [mutedLine detailed]
   else
-    [ mutedLine "[j/k] select [e] replenish [x] cancel [r] replace [c/Enter] complete [y] copy"
+    [ mutedLine "[j/k] select [e] replenish [x] cancel [r] replace [c/Enter] complete"
     , mutedLine "[b] batch amount [p] pace [s] undecided [q] overview"
     ]
 
@@ -1167,7 +1164,7 @@ private def coverageFooter (bounds : Bounds) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let primary :=
     Loam.Tui.Layout.flowTokens width "  "
-      ["[j/k] plan", "[h/l] months", "[Enter] detail", "[e] replenish", "[b] batch amount", "[p] pace", "[y] copy", "[q] back"]
+      ["[j/k] plan", "[h/l] months", "[Enter] detail", "[e] replenish", "[b] batch amount", "[p] pace", "[q] back"]
   let more :=
     Loam.Tui.Layout.flowTokens width "  "
       ["More:", "[s] undecided", "[n] new", "[v] Months/List"]
