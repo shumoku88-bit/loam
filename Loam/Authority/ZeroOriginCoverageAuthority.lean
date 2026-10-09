@@ -55,6 +55,13 @@ def loadLegacyRequired?
   | none =>
       return .error "loam: zero-origin coverage authority is malformed or unsupported"
 
+/-- Decode optional coverage from an already-qualified generation without reopening it. -/
+def decodeGenerationOrEmpty?
+    (generation : Loam.HouseholdAuthority.Generation) : Except String ZeroOriginCoverage :=
+  match body? generation.image "ZeroOrigin" with
+  | none => .ok ZeroOriginCoverage.empty
+  | some body => decodeBody? body
+
 /--
 Load optional ZeroOriginCoverage from the HouseholdImage `ZeroOrigin` section.
 
@@ -67,9 +74,7 @@ def loadHouseholdOrEmpty?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
-  match body? generation.image "ZeroOrigin" with
-  | none => return .ok ZeroOriginCoverage.empty
-  | some body => return decodeBody? body
+  return decodeGenerationOrEmpty? generation
 
 /--
 Load required ZeroOriginCoverage from the HouseholdImage `ZeroOrigin` section.

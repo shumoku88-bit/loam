@@ -83,6 +83,11 @@ private def decodeSnapshot? (image : Image) : Except String Snapshot := do
   let bounded ← decodeBoundedOrEmpty? image
   return { anchor, presence, bounded }
 
+/-- Decode all three support families from a caller-owned qualified generation. -/
+def decodeGeneration?
+    (generation : Loam.HouseholdAuthority.Generation) : Except String Snapshot :=
+  decodeSnapshot? generation.image
+
 /-- Load all three legacy files with their established missing-as-empty semantics. -/
 def loadLegacyOrEmpty?
     (root : System.FilePath) : IO (Except String Snapshot) := do
@@ -133,7 +138,7 @@ def loadHousehold?
     | .ok generation => pure generation
     | .error message => return .error message
   let snapshot ←
-    match decodeSnapshot? generation.image with
+    match decodeGeneration? generation with
     | .ok snapshot => pure snapshot
     | .error message => return .error message
   return .ok { generation, snapshot }

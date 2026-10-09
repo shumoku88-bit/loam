@@ -486,8 +486,14 @@ def loadPaceAndHistoryFromActualImageAtForMeasure
     match ← Loam.DailyPaceConfig.loadForMeasure measure (Loam.HouseholdPaths.dailyPace dataDir) with
     | .error message => return .error message
     | .ok coordinates => pure coordinates
+  -- One fully qualified physical generation supplies both support projections.
+  -- Do not reopen/re-admit the full Actual section for each support family.
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+    | .error message => return .error message
+    | .ok generation => pure generation
   let current ←
-    match ← Loam.CurrentBalanceReview.loadSnapshotFromActualImage dataDir image with
+    match Loam.CurrentBalanceReview.projectFromGeneration generation image with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
   let balances ←
@@ -495,7 +501,7 @@ def loadPaceAndHistoryFromActualImageAtForMeasure
     | .error message => return .error message
     | .ok balances => pure balances
   let historicalEvidence ←
-    match ← Loam.HistoricalBalanceReview.loadEvidence dataDir with
+    match Loam.HistoricalBalanceReview.evidenceFromGeneration generation with
     | .error message => return .error message
     | .ok evidence => pure evidence
   let pace ←

@@ -181,29 +181,37 @@ def projectImage
     currentAnchor
     currentPresence
 
+/-- Compose independent support from one qualified generation and the selected Actual image. -/
+def projectFromGeneration
+    (generation : Loam.HouseholdAuthority.Generation)
+    (image : Loam.ActualAuthority.Image) : Except String Snapshot := do
+  let coverage ← Loam.ZeroOriginCoverageAuthority.decodeGenerationOrEmpty? generation
+  let openingSupport ← Loam.OpeningSupportAuthority.decodeGenerationOrEmpty? generation
+  let currentSupport ← Loam.CurrentSupportAuthority.decodeGeneration? generation
+  projectImage image coverage openingSupport currentSupport.anchor currentSupport.presence
+
 /-- Load neutral current-balance support from a caller-owned Actual image. -/
 def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (image : Loam.ActualAuthority.Image) : IO (Except String Snapshot) := do
-  let coverage ←
-    match ← Loam.BalanceReview.loadHouseholdCoverage dataDir with
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
     | .error message => return .error message
-    | .ok coverage => pure coverage
-  let openingSupport ←
-    match ← Loam.OpeningSupportAuthority.loadHouseholdOrEmpty? dataDir with
-    | .error message => return .error message
-    | .ok support => pure support
-  let currentSupport ←
-    match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
-    | .error message => return .error message
-    | .ok observed => pure observed.snapshot
-  return projectImage
-    image coverage openingSupport currentSupport.anchor currentSupport.presence
+    | .ok generation => pure generation
+  return projectFromGeneration generation image
 
 /-- Load one admitted Actual image and compose neutral current-balance support. -/
 def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
+  if actualPath == Loam.HouseholdAuthority.path dataDir then
+    let generation ←
+      match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+      | .error message => return .error message
+      | .ok generation => pure generation
+    return do
+      let image ← Loam.ActualAuthority.decodeHouseholdGeneration? generation
+      projectFromGeneration generation image
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message

@@ -6,6 +6,7 @@ import Loam.Application.CurrentQuantityAnchor
 import Loam.Authority.OpeningSupportAuthority
 import Loam.Authority.CurrentSupportAuthority
 import Loam.HouseholdPaths
+import Std.Data.HashMap
 
 namespace Loam.HistoricalBalanceReview
 
@@ -80,10 +81,16 @@ private def supportConflict {α : Type}
     ("loam: historical balance unavailable: competing support families for " ++
       coordinateLabel coordinate)
 
+/-- Transient index of the image's admitted, unique current dates; never authority. -/
+private def admittedDateIndex
+    (image : Loam.ActualAuthority.Image) : Std.HashMap String String :=
+  image.currentValidities.entries.foldl
+    (fun dates entry => dates.insert entry.event.token entry.validOn) {}
+
 private def admittedEventDate
-    (image : Loam.ActualAuthority.Image)
+    (dates : Std.HashMap String String)
     (event : Event) : Except String String := do
-  let some validOn := image.currentValidities.findByEventId? event.id
+  let some validOn := dates[event.id.token]?
     | throw
         ("loam: historical balance unavailable: current selected Actual " ++
           event.id.token ++ " has no admitted occurrence date")
@@ -96,6 +103,7 @@ private def admittedEventDate
 /-- Exact zero-origin quantity at the queried start-of-day boundary. -/
 private def zeroOriginQuantityAtStart
     (image : Loam.ActualAuthority.Image)
+    (dates : Std.HashMap String String)
     (coordinate : EffectCoordinate)
     (startOfDay : String) : Except String Quantity := do
   let total ← image.currentEvents.events.foldlM
@@ -104,7 +112,7 @@ private def zeroOriginQuantityAtStart
         (Event.quantityAt event coordinate.locus coordinate.measure).quanta
       if quantity = 0 then
         return total
-      let validOn ← admittedEventDate image event
+      let validOn ← admittedEventDate dates event
       if decide (validOn < startOfDay) then
         return total + quantity
       return total)
@@ -117,6 +125,7 @@ boundary through the admitted current Actual frontier.
 -/
 private def deltaFromStartOfDay
     (image : Loam.ActualAuthority.Image)
+    (dates : Std.HashMap String String)
     (coordinate : EffectCoordinate)
     (startOfDay : String) : Except String Int :=
   image.currentEvents.events.foldlM
@@ -125,7 +134,7 @@ private def deltaFromStartOfDay
         (Event.quantityAt event coordinate.locus coordinate.measure).quanta
       if quantity = 0 then
         return total
-      let validOn ← admittedEventDate image event
+      let validOn ← admittedEventDate dates event
       if decide (startOfDay ≤ validOn) then
         return total + quantity
       return total)
@@ -186,6 +195,7 @@ private def routeCoordinate
 
 private def boundedRows
     (image : Loam.ActualAuthority.Image)
+    (dates : Std.HashMap String String)
     (evidence : Evidence)
     (startOfDay : String)
     (coordinates : List EffectCoordinate) :
@@ -201,7 +211,7 @@ private def boundedRows
       | throw
           ("loam: historical balance unavailable: exact current anchor did not resolve for " ++
             coordinateLabel coordinate)
-    let delta ← deltaFromStartOfDay image coordinate startOfDay
+    let delta ← deltaFromStartOfDay image dates coordinate startOfDay
     return {
       coordinate := coordinate
       quantity := Quantity.ofQuanta (current.quanta - delta)
@@ -223,7 +233,7 @@ def projectBoundedStartOfDay
   if !Loam.ActualDate.validIsoDate startOfDay then
     throw "loam: historical balance boundary must be a real YYYY-MM-DD calendar date"
   let selected := coordinates.eraseDups
-  let rows ← boundedRows image evidence startOfDay selected
+  let rows ← boundedRows image (admittedDateIndex image) evidence startOfDay selected
   return { startOfDay := startOfDay, rows := rows }
 
 /--
@@ -249,12 +259,13 @@ def projectStartOfDay
       match pair.2 with
       | .bounded => some pair.1
       | .zeroOrigin => none
-  let bounded ← boundedRows image evidence startOfDay boundedCoordinates
+  let dates := admittedDateIndex image
+  let bounded ← boundedRows image dates evidence startOfDay boundedCoordinates
   let rows ← (selected.zip routes).mapM fun pair => do
     let coordinate := pair.1
     match pair.2 with
     | .zeroOrigin =>
-        let quantity ← zeroOriginQuantityAtStart image coordinate startOfDay
+        let quantity ← zeroOriginQuantityAtStart image dates coordinate startOfDay
         return { coordinate := coordinate, quantity := quantity }
     | .bounded =>
         let some row := bounded.find? fun row => decide (row.coordinate = coordinate)
@@ -264,26 +275,26 @@ def projectStartOfDay
         return row
   return { startOfDay := startOfDay, rows := rows }
 
-/-- Load the independent support families needed by historical reconstruction. -/
-def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
-  let zeroOrigin ←
-    match ← Loam.BalanceReview.loadHouseholdCoverage dataDir with
-    | .error message => return .error message
-    | .ok evidence => pure evidence
-  let opening ←
-    match ← Loam.OpeningSupportAuthority.loadHouseholdOrEmpty? dataDir with
-    | .error message => return .error message
-    | .ok evidence => pure evidence
-  let currentSupport ←
-    match ← Loam.CurrentSupportAuthority.loadHousehold? dataDir with
-    | .error message => return .error message
-    | .ok observed => pure observed.snapshot
-  return .ok {
+/-- Decode independently justified support from one qualified physical generation. -/
+def evidenceFromGeneration
+    (generation : Loam.HouseholdAuthority.Generation) : Except String Evidence := do
+  let zeroOrigin ← Loam.ZeroOriginCoverageAuthority.decodeGenerationOrEmpty? generation
+  let opening ← Loam.OpeningSupportAuthority.decodeGenerationOrEmpty? generation
+  let currentSupport ← Loam.CurrentSupportAuthority.decodeGeneration? generation
+  return {
     zeroOrigin
     opening
     bounded := currentSupport.bounded
     anchor := currentSupport.anchor
   }
+
+/-- Load the independent support families needed by historical reconstruction once. -/
+def loadEvidence (dataDir : System.FilePath) : IO (Except String Evidence) := do
+  let generation ←
+    match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+    | .error message => return .error message
+    | .ok generation => pure generation
+  return evidenceFromGeneration generation
 
 /-- Reconstruct one bounded-only boundary from a caller-owned Actual generation. -/
 def loadBoundedStartOfDayFromActualImage

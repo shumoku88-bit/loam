@@ -34,6 +34,15 @@ def loadSelectedWorld? (root : System.FilePath) : IO (Except String Loam.Movemen
       root.parent.getD root
     else
       root
+  if selected.fileName == some Loam.HouseholdAuthority.fileName then
+    let generation ←
+      match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+      | .ok generation => pure generation
+      | .error message => return .error message
+    return do
+      let image ← Loam.ActualAuthority.decodeHouseholdGeneration? generation
+      let locusAdmission ← Loam.LocusAdmissionAuthority.decodeGeneration? generation
+      pure (Loam.MovementWorldAdapter.ofActual image.evidence locusAdmission)
   let evidence ←
     match ← Loam.ActualAuthority.loadActualFile? selected with
     | .ok ev => pure ev

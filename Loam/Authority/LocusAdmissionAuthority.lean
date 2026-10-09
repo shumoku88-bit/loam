@@ -79,6 +79,14 @@ private def decodeHouseholdBody?
   | none =>
       .error "loam: malformed or unsupported HouseholdImage Locus admission authority"
 
+/-- Decode required new-write policy from an already-qualified generation. -/
+def decodeGeneration?
+    (generation : Loam.HouseholdAuthority.Generation) : Except String LocusAdmissionVocabulary := do
+  let some body :=
+      Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission"
+    | throw "loam: required HouseholdImage Locus admission section is missing"
+  decodeHouseholdBody? body
+
 /--
 Load current production Locus policy from HouseholdImage.
 
@@ -90,11 +98,7 @@ def loadHouseholdCurrent?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
-  let some body :=
-      Loam.Persistence.HouseholdImage.body? generation.image "LocusAdmission"
-    | return .error
-        "loam: required HouseholdImage Locus admission section is missing"
-  return decodeHouseholdBody? body
+  return decodeGeneration? generation
 
 /--
 Full-policy HouseholdImage publication.

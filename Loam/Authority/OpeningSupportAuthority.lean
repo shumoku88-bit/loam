@@ -49,6 +49,13 @@ def loadLegacyRequired?
   | some support => return .ok support
   | none => return .error "loam: opening-support authority is malformed or unsupported"
 
+/-- Decode optional support from an already-qualified generation without reopening it. -/
+def decodeGenerationOrEmpty?
+    (generation : Loam.HouseholdAuthority.Generation) : Except String OpeningSupportMap :=
+  match body? generation.image "OpeningSupport" with
+  | none => .ok OpeningSupportMap.empty
+  | some body => decodeBody? body
+
 /--
 Load optional OpeningSupport from the HouseholdImage `OpeningSupport` section.
 
@@ -61,9 +68,7 @@ def loadHouseholdOrEmpty?
     match ← Loam.HouseholdAuthority.loadCurrent? root with
     | .ok generation => pure generation
     | .error message => return .error message
-  match body? generation.image "OpeningSupport" with
-  | none => return .ok OpeningSupportMap.empty
-  | some body => return decodeBody? body
+  return decodeGenerationOrEmpty? generation
 
 /--
 Load required OpeningSupport from the HouseholdImage `OpeningSupport` section.

@@ -265,5 +265,36 @@ def main : IO Unit := do
     "real YYYY-MM-DD"
     "invalid historical query date was accepted"
 
+  -- Indexed lookup follows admitted Event identity, not list position. Missing
+  -- and invalid dates are still refused at normalized admission before indexing.
+  let dated ← event "indexed-dated" [effect cash 7, effect jpyOffset (-7)]
+  let other ← event "indexed-other" [effect usdCash 9, effect usdOffset (-9)]
+  let indexedEvents ← requireSome (EventMemory.ofEvents? [dated, other]) "indexed Events"
+  let indexedCoverage ← requireSome (ZeroOriginCoverage.ofCoordinates? [cash, usdCash])
+    "indexed coverage"
+  let indexedSupport : Loam.HistoricalBalanceReview.Evidence := {
+    zeroOrigin := indexedCoverage
+    opening := OpeningSupportMap.empty
+    bounded := Loam.BoundedHistorySupport.Evidence.empty
+    anchor := Loam.CurrentQuantityAnchor.Evidence.empty }
+  for otherDates in [[], [ActualValidityFact.base other.id "not-a-calendar-date"]] do
+    let validity ← requireSome
+      (ActualValidityHistory.ofParts? (.base dated.id "2026-06-01" :: otherDates) [])
+      "indexed validity"
+    expect (Loam.Persistence.admitActualImage? {
+      Loam.ActualEvidence.empty with events := indexedEvents, validity := validity }).isNone
+      "missing/invalid date was admitted before indexed reconstruction"
+  let reversedDates ← requireSome
+    (ActualValidityHistory.ofParts?
+      [.base other.id "2026-06-01", .base dated.id "2026-06-01"] []) "reversed dates"
+  let indexedImage ← requireSome (Loam.Persistence.admitActualImage? {
+    Loam.ActualEvidence.empty with events := indexedEvents, validity := reversedDates })
+    "indexed admitted image"
+  let indexed ← requireOk
+    (Loam.HistoricalBalanceReview.projectStartOfDay
+      indexedImage indexedSupport "2026-06-02" [usdCash, cash]) "indexed coordinates"
+  expect (quantityFor? indexed cash == some 7 && quantityFor? indexed usdCash == some 9)
+    "indexed date lookup confused Event identity or coordinate order"
+
   IO.println
-    "Historical Balance Review: bounded start, intermediate/current boundaries, correction/date refinement, multimeasure independence and fail-closed support gates passed."
+    "Historical Balance Review: bounded/zero routes, correction/date refinement, multimeasure independence, indexed date refusals and fail-closed support gates passed."
