@@ -55,6 +55,7 @@ import Loam.Tui.SelectedDay
 import Loam.Tui.SelectedDaySession
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
+import Loam.Tui.PlainTextPrint
 
 namespace Loam.Tui.Cli
 
@@ -338,13 +339,27 @@ partial def balancesLoop (bounds : Bounds)
   let key ← Loam.Tui.Terminal.readKey
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.Balances.viewForBounds active state)
-  let back := key = .escape || key = .input 'q' || key = .input 'Q'
-  match Loam.Tui.Balances.update state back with
-  | .back => return ()
-  | .stay next =>
-      let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      balancesLoop bounds next nextFrame
+  if key == .input 'p' || key == .input 'P' then
+    match Loam.Tui.Balances.preparePrint state with
+    | .error message =>
+        let next := { state with notice := message }
+        let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        balancesLoop bounds next nextFrame
+    | .ok prepared =>
+        Loam.Tui.PlainTextPrint.run "Selected balances" prepared
+        let active ← Loam.Tui.Terminal.currentBounds
+        let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds active state)
+        Loam.Tui.Terminal.redrawFromBlank active nextFrame
+        balancesLoop active state nextFrame
+  else
+    let back := key = .escape || key = .input 'q' || key = .input 'Q'
+    match Loam.Tui.Balances.update state back with
+    | .back => return ()
+    | .stay next =>
+        let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        balancesLoop bounds next nextFrame
 
 /-- Read-only settlement review session; q/Esc returns to Home. -/
 partial def settlementLoop
