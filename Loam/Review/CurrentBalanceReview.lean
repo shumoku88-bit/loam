@@ -205,13 +205,11 @@ def loadSnapshot
     (dataDir actualRoot : System.FilePath) : IO (Except String Snapshot) := do
   let actualPath := Loam.ActualAuthority.actualPathFromRootOrFile actualRoot
   if actualPath == Loam.HouseholdAuthority.path dataDir then
-    let generation ←
-      match ← Loam.HouseholdAuthority.loadCurrent? dataDir with
+    let observed ←
+      match ← Loam.ActualAuthority.loadHouseholdObserved? dataDir with
       | .error message => return .error message
-      | .ok generation => pure generation
-    return do
-      let image ← Loam.ActualAuthority.decodeHouseholdGeneration? generation
-      projectFromGeneration generation image
+      | .ok observed => pure observed
+    return projectFromGeneration observed.generation observed.image
   let image ←
     match ← Loam.ActualAuthority.loadImageFile? actualPath with
     | .error message => return .error message

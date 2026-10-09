@@ -113,11 +113,13 @@ A selected `household.loam` loads its required normalized `Actual` section.
 def loadImageFile? (path : System.FilePath) : IO (Except String Image) := do
   if path.fileName == some Loam.HouseholdAuthority.fileName then
     let root := path.parent.getD path
-    let generation ←
-      match ← Loam.HouseholdAuthority.loadCurrent? root with
-      | .ok generation => pure generation
+    let (_, actual?) ←
+      match ← Loam.HouseholdAuthority.loadCurrentWithActual? root with
+      | .ok loaded => pure loaded
       | .error message => return .error message
-    return decodeHouseholdActualGeneration? generation
+    let some image := actual?
+      | return .error "loam: required HouseholdImage Actual section is missing"
+    return .ok image
   match ← loadImageFileDetailed path with
   | .ok image => return .ok image
   | .error (.fileNotFound path) =>
@@ -160,14 +162,12 @@ def decodeHouseholdGeneration?
 /-- Load required Household Actual together with the exact generation observed. -/
 def loadHouseholdObserved?
     (root : System.FilePath) : IO (Except String HouseholdObserved) := do
-  let generation ←
-    match ← Loam.HouseholdAuthority.loadCurrent? root with
-    | .ok generation => pure generation
+  let (generation, actual?) ←
+    match ← Loam.HouseholdAuthority.loadCurrentWithActual? root with
+    | .ok loaded => pure loaded
     | .error message => return .error message
-  let image ←
-    match decodeHouseholdGeneration? generation with
-    | .ok image => pure image
-    | .error message => return .error message
+  let some image := actual?
+    | return .error "loam: required HouseholdImage Actual section is missing"
   return .ok { generation, image }
 
 /-- Load only the admitted Actual image from current Household authority. -/

@@ -96,6 +96,41 @@ median Record open and 263ms median Balances open, with seven FDs and zero
 retained descendants. Idle Daily Pace resize and ordinary exit mode restoration
 also passed.
 
+## Follow-up: 50,000 Events and retaining qualification's Actual result
+
+The initial 50,000-Event probe measured 5,012ms startup, 1,588ms median Record open
+and 1,685ms median Balances open. RSS was 129,800–129,820 KiB across five rounds;
+FD count stayed seven, descendants zero, and all idle surfaces were quiet.
+
+Household qualification already creates an admitted Actual image to validate the
+Actual section. Production Actual consumers were immediately decoding that same
+body a second time. `HouseholdAuthority.loadCurrentWithActual?` now returns the
+fully qualified generation together with that already-admitted image (or `none`
+when the section is absent). **Every other known section is still qualified before
+returning either result.** Ordinary generation loads and writer/recovery paths
+share the same qualification. This is not a persistent cache or an additional
+field in `Generation`, so replacing a generation's image cannot leave a cached
+Actual accidentally attached to it.
+
+ActualAuthority, Movement world loading and same-root CurrentBalance reads use
+this paired read result. Targeted tests check absent Actual stays absent, returned
+Actual belongs to the selected wire, and malformed Actual **or another known
+family** refuses the paired load. Existing publication, stale/refusal, `.prev`,
+unknown-section and explicit legacy tests still pass.
+
+Follow-up runs (five warm-up rounds, three measured rounds):
+
+| Added Actuals | Startup | Record open median | Balances open median |
+| --- | ---: | ---: | ---: |
+| 10,000 | 821ms | 168ms | 187ms |
+| 50,000 | 4,569ms | 955ms | 1,061ms |
+
+These are not controlled cold-cache paired trials; they establish retained
+correctness and useful operation improvements, not a universal startup speedup.
+The 50,000-Event startup remains too slow. Separate Home branches still independently
+open/qualify the same physical household generation, and larger/corrected workloads
+need further profiling rather than assuming this repair completes scaling work.
+
 ## Semantic neighbors checked
 
 Existing qualifications exercised historical bounded/zero-origin routes,
@@ -117,7 +152,8 @@ The date index is process-local derived data, never persisted state.
   separate evidence, not coverage supplied by this probe.
 - Cold-cache startup, multiple measures, many unique coordinates, and dense
   correction/date histories need separate pressure shapes.
-- 50,000+ Events and larger support/plan vocabularies remain unmeasured here.
+- 50,000 Events are now measured, but startup and fresh writer/balance entrance
+  remain slow. More Events and larger support/plan vocabularies remain unqualified.
 - Record still uses its existing fixed session geometry; comprehensive modal
   resize, signal interruption, exact prior `stty` restoration and crash/disk-full
   behavior need their own qualification.

@@ -99,15 +99,17 @@ private def qualifyIfPresent
       else
         throw ("loam: HouseholdImage section is malformed or unsupported: " ++ name)
 
-/--
-Decode every present known section through its existing production codec.
+/-- Retain the admitted Actual produced by qualification; absence stays absence. -/
+private def qualifyActual?
+    (image : Image) : Except String (Option Loam.Persistence.AdmittedActualImage) := do
+  match body? image "Actual" with
+  | none => return none
+  | some body =>
+      let some actual := Loam.Persistence.decodeNormalizedActualImage? body
+        | throw "loam: HouseholdImage section is malformed or unsupported: Actual"
+      return some actual
 
-Absence is intentionally accepted here. Individual consumers still own whether
-absence means empty, unavailable, or error.
--/
-def qualifyKnownSections (image : Image) : Except String Unit := do
-  qualifyIfPresent image "Actual"
-    (fun body => (Loam.Persistence.decodeNormalizedActual? body).isSome)
+private def qualifyOtherKnownSections (image : Image) : Except String Unit := do
   qualifyIfPresent image "Scheduled"
     (fun body => (Loam.Persistence.decodeScheduledLifecycleImage? body).isSome)
   qualifyIfPresent image "Capacity"
@@ -133,25 +135,46 @@ def qualifyKnownSections (image : Image) : Except String Unit := do
   qualifyIfPresent image "BoundedHistorySupport"
     (fun body => (Loam.Persistence.decodeBoundedHistorySupport? body).isSome)
 
+/--
+Decode every present known section through its existing production codec.
+Absence remains for individual consumers to interpret; no family is skipped.
+-/
+def qualifyKnownSections (image : Image) : Except String Unit := do
+  let _ ← qualifyActual? image
+  qualifyOtherKnownSections image
+
 structure Generation where
   wire : String
   image : Image
 deriving Repr, BEq
 
-private def decodeGeneration (wire : String) : Except String Generation := do
+private def decodeGenerationWithActual (wire : String) :
+    Except String (Generation × Option Loam.Persistence.AdmittedActualImage) := do
   let image ←
     match Loam.Persistence.HouseholdImage.decode? wire with
     | some image => pure image
     | none => throw "loam: malformed or unsupported HouseholdImage"
-  qualifyKnownSections image
-  pure { wire := wire, image := image }
+  let actual ← qualifyActual? image
+  qualifyOtherKnownSections image
+  return ({ wire := wire, image := image }, actual)
 
-def loadCurrent? (root : System.FilePath) : IO (Except String Generation) := do
+private def decodeGeneration (wire : String) : Except String Generation :=
+  (decodeGenerationWithActual wire).map Prod.fst
+
+/--
+Fully qualify the current generation once and return its already-admitted Actual.
+The pair is a local read result, not a cache added to mutable Generation fields.
+-/
+def loadCurrentWithActual? (root : System.FilePath) :
+    IO (Except String (Generation × Option Loam.Persistence.AdmittedActualImage)) := do
   let current := path root
   if !(← current.pathExists) then
     return .error s!"loam: HouseholdImage authority is missing: {current}"
   let wire ← IO.FS.readFile current
-  return decodeGeneration wire
+  return decodeGenerationWithActual wire
+
+def loadCurrent? (root : System.FilePath) : IO (Except String Generation) := do
+  return (← loadCurrentWithActual? root).map Prod.fst
 
 inductive RecoverySource where
   | current

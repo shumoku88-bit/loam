@@ -11,6 +11,14 @@ open Loam.Tests.Support
 
 set_option autoImplicit false
 
+/-- Returning the admitted image preserves the previous Actual codec's acceptance exactly. -/
+example (wire : String) :
+    (Loam.Persistence.decodeNormalizedActualImage? wire).isSome =
+      (Loam.Persistence.decodeNormalizedActual? wire).isSome := by
+  unfold Loam.Persistence.decodeNormalizedActualImage?
+    Loam.Persistence.decodeNormalizedActual? Loam.Persistence.decodeNormalizedActualDetailed
+  cases Loam.Persistence.decodeNormalizedActualImageDetailed wire <;> rfl
+
 private def emptyAttention : IO String := do
   let items ← requireSome
     (AttentionMemory.ofItems? [])
@@ -81,6 +89,32 @@ def main (args : List String) : IO Unit := do
     "loaded initial HouseholdImage differs from installed image"
   expect (body? loadedA.image "Capacity" == none)
     "HouseholdAuthority invented an absent known section"
+  let (pairedA, absentActual) ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrentWithActual? root) "paired absent Actual load"
+  expect (pairedA.wire == loadedA.wire && absentActual.isNone)
+    "paired load invented Actual or changed the selected generation"
+
+  -- Retaining Actual from qualification must not bypass any other known family.
+  let actualRoot := root / "paired-actual"
+  IO.FS.createDirAll actualRoot
+  let actualBody ← requireSome
+    (Loam.Persistence.encodeNormalizedActual? Loam.ActualEvidence.empty) "empty Actual codec"
+  let actualCandidate ← requireSome
+    (appendSection? base { name := "Actual", body := actualBody }) "paired Actual fixture"
+  let actualInstalled ← requireOk
+    (← Loam.HouseholdAuthority.installInitial? actualRoot actualCandidate) "paired Actual install"
+  let (paired, actual?) ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrentWithActual? actualRoot) "paired admitted Actual load"
+  let actual ← requireSome actual? "paired load lost present admitted Actual"
+  expect (paired.wire == actualInstalled.wire && actual.evidence.events.events.isEmpty)
+    "paired load drifted from the qualified generation"
+  for (name, badBody) in [("Attention", "malformed attention\n"), ("Actual", "malformed actual\n")] do
+    let bad ← requireSome (replaceBody? actualCandidate name badBody) "paired malformed fixture"
+    let badWire ← requireSome (Loam.Persistence.HouseholdImage.encode? bad) "paired malformed wire"
+    IO.FS.writeFile (Loam.HouseholdAuthority.path actualRoot) badWire
+    match ← Loam.HouseholdAuthority.loadCurrentWithActual? actualRoot with
+    | .error _ => pure ()
+    | .ok _ => throw (IO.userError ("paired Actual load bypassed malformed " ++ name))
 
   match ← Loam.HouseholdAuthority.installInitial? root base with
   | .error _ => pure ()

@@ -3,6 +3,10 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Authority/HouseholdAuthority.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Tests/HouseholdAuthority.lean'
+      - 'Loam/Tests/HouseholdActualAuthority.lean'
       - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'tools/benchmark-tui-resources.py'
       - 'Loam/Review/HistoricalBalanceReview.lean'
@@ -180,6 +184,10 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Authority/HouseholdAuthority.lean'
+      - 'Loam/Authority/ActualAuthority.lean'
+      - 'Loam/Tests/HouseholdAuthority.lean'
+      - 'Loam/Tests/HouseholdActualAuthority.lean'
       - 'Loam/Tests/HistoricalBalanceReview.lean'
       - 'tools/benchmark-tui-resources.py'
       - 'Loam/Review/HistoricalBalanceReview.lean'
@@ -423,6 +431,8 @@ jobs:
           lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
           lake env lean --run Loam/Tests/CurrentBalanceReview.lean
           lake env lean --run Loam/Tests/HouseholdCurrentSupportAuthority.lean "$(mktemp -d)/support"
+          lake env lean --run Loam/Tests/HouseholdAuthority.lean "$(mktemp -d)/household"
+          lake env lean --run Loam/Tests/HouseholdActualAuthority.lean "$(mktemp -d)/actual"
 
   full:
     name: Full production household TUI qualification
@@ -885,6 +895,8 @@ jobs:
           lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
           lake env lean --run Loam/Tests/CurrentBalanceReview.lean
           lake env lean --run Loam/Tests/HouseholdCurrentSupportAuthority.lean "$(mktemp -d)/support"
+          lake env lean --run Loam/Tests/HouseholdAuthority.lean "$(mktemp -d)/household"
+          lake env lean --run Loam/Tests/HouseholdActualAuthority.lean "$(mktemp -d)/actual"
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py
