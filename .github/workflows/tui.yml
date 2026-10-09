@@ -3,6 +3,8 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Review/CalendarMoneyReview.lean'
+      - 'Loam/Tests/CalendarMoneyReview.lean'
       - 'Loam/Authority/ScheduledLifecycleAuthority.lean'
       - 'Loam/Tests/HouseholdScheduledLifecycleAuthority.lean'
       - 'Loam/Authority/HouseholdAuthority.lean'
@@ -186,6 +188,8 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Review/CalendarMoneyReview.lean'
+      - 'Loam/Tests/CalendarMoneyReview.lean'
       - 'Loam/Authority/ScheduledLifecycleAuthority.lean'
       - 'Loam/Tests/HouseholdScheduledLifecycleAuthority.lean'
       - 'Loam/Authority/HouseholdAuthority.lean'
@@ -438,6 +442,7 @@ jobs:
           lake env lean --run Loam/Tests/HouseholdAuthority.lean "$(mktemp -d)/household"
           lake env lean --run Loam/Tests/HouseholdActualAuthority.lean "$(mktemp -d)/actual"
           lake env lean --run Loam/Tests/HouseholdScheduledLifecycleAuthority.lean "$(mktemp -d)/scheduled"
+          lake env lean --run Loam/Tests/CalendarMoneyReview.lean
 
   full:
     name: Full production household TUI qualification
@@ -903,6 +908,7 @@ jobs:
           lake env lean --run Loam/Tests/HouseholdAuthority.lean "$(mktemp -d)/household"
           lake env lean --run Loam/Tests/HouseholdActualAuthority.lean "$(mktemp -d)/actual"
           lake env lean --run Loam/Tests/HouseholdScheduledLifecycleAuthority.lean "$(mktemp -d)/scheduled"
+          lake env lean --run Loam/Tests/CalendarMoneyReview.lean
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py

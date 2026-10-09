@@ -1,5 +1,6 @@
 import Loam.Review.ActualReview
 import Loam.Core.AccountingRole
+import Std.Data.HashMap
 
 namespace Loam.CalendarMoneyReview
 
@@ -57,37 +58,33 @@ structure WindowSummary where
 private def sameKey (row : Row) (date : String) (measure : MeasureId) : Bool :=
   row.date == date && decide (row.measure = measure)
 
+/-- Derived date/Measure buckets used only while projecting; never retained state. -/
+private abbrev RowIndex := Std.HashMap (String × String) Row
+
 private def addRow
-    (rows : List Row)
+    (rows : RowIndex)
     (date : String)
     (measure : MeasureId)
     (incomeDelta expenseDelta : Int)
-    (unresolvedDelta : Nat) : List Row :=
-  match rows with
-  | [] =>
-      [{
-        date := date
-        measure := measure
-        income := Quantity.ofQuanta incomeDelta
-        expense := Quantity.ofQuanta expenseDelta
-        unresolvedEffectCount := unresolvedDelta
-      }]
-  | row :: rest =>
-      if sameKey row date measure then
-        {
-          row with
-          income := Quantity.ofQuanta (row.income.quanta + incomeDelta)
-          expense := Quantity.ofQuanta (row.expense.quanta + expenseDelta)
-          unresolvedEffectCount := row.unresolvedEffectCount + unresolvedDelta
-        } :: rest
-      else
-        row :: addRow rest date measure incomeDelta expenseDelta unresolvedDelta
+    (unresolvedDelta : Nat) : RowIndex :=
+  let key := (date, measure.token)
+  let row := rows[key]?.getD {
+    date := date
+    measure := measure
+    income := Quantity.ofQuanta 0
+    expense := Quantity.ofQuanta 0
+    unresolvedEffectCount := 0 }
+  rows.insert key {
+    row with
+    income := Quantity.ofQuanta (row.income.quanta + incomeDelta)
+    expense := Quantity.ofQuanta (row.expense.quanta + expenseDelta)
+    unresolvedEffectCount := row.unresolvedEffectCount + unresolvedDelta }
 
 private def addEffect
     (roles : AccountingRoleMap)
     (date : String)
-    (rows : List Row)
-    (effect : Effect) : List Row :=
+    (rows : RowIndex)
+    (effect : Effect) : RowIndex :=
   match roles.roleOf? effect.locus with
   | some .income =>
       addRow rows date effect.measure (-effect.quantity.quanta) 0 0
@@ -100,8 +97,8 @@ private def addEffect
 
 private def addRecord
     (roles : AccountingRoleMap)
-    (rows : List Row)
-    (record : Loam.ActualReview.Record) : List Row :=
+    (rows : RowIndex)
+    (record : Loam.ActualReview.Record) : RowIndex :=
   if !record.isCurrent then rows
   else
     match record.date with
@@ -126,7 +123,7 @@ def project
     (records : List Loam.ActualReview.Record)
     (roles : AccountingRoleMap) : Snapshot :=
   {
-    rows := (records.foldl (addRecord roles) []).mergeSort rowLe
+    rows := ((records.foldl (addRecord roles) {}).toList.map Prod.snd).mergeSort rowLe
   }
 
 private def positivePart (value : Int) : Int :=

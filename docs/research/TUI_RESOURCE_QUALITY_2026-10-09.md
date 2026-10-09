@@ -175,8 +175,22 @@ median Balances open. FD count stayed seven, descendants zero, idle output zero;
 RSS was 126,248–126,260 KiB across three rounds. A compiled isolated projection
 probe measured **1,151ms in CalendarMoney projection** for 2,500 date rows: the
 list accumulator linearly searched existing date/Measure buckets for each Effect.
-This pressure was obscured by the earlier dense 180-date fixture and is a concrete
-next repair, not evidence that full long-history scaling has already been solved.
+This pressure was obscured by the earlier dense 180-date fixture.
+
+CalendarMoney now accumulates a transient hash map keyed by the exact date and
+Measure token, then sorts the same output rows deterministically. The compiled
+projection on the same 50,000-Event / 2,500-date fixture fell from **1,151ms to 94ms**.
+A test-only list oracle compares results across many dates, two Measures, unknown
+roles, reversals, superseded/undated records and reversed input order. Neutral
+Asset/Liability/Equity activity still creates no monetary day row. No new cache,
+retained calendar state, classification guess or cross-Measure arithmetic is added.
+
+The first full PTY run after rebuilding measured 3,446ms startup; three subsequent
+starts on the same fixture measured **1,772 / 1,712 / 1,712ms**. Report both rather
+than disguising cache/loader/scheduler effects as a universal latency guarantee.
+The full run measured 902ms median Record open and 1,002ms median Balances open;
+FDs stayed seven, descendants zero, and all idle surfaces remained quiet. These
+fresh-read entrances and cold startup remain separate pressure points.
 
 ## Semantic neighbors checked
 
@@ -198,7 +212,8 @@ The date index is process-local derived data, never persisted state.
   lifecycle are outside this read-only workload. Existing writer/Fava tests are
   separate evidence, not coverage supplied by this probe.
 - Cold-cache startup, multiple measures, many unique coordinates, and dense
-  correction/date histories need separate pressure shapes.
+  correction/date histories need separate pressure shapes. The wider 2,500-date
+  calendar fixture is now qualified separately from the dense 180-date case.
 - 50,000 Events are now measured, but startup and fresh writer/balance entrance
   remain slow. More Events and larger support/plan vocabularies remain unqualified.
 - Record still uses its existing fixed session geometry; comprehensive modal
