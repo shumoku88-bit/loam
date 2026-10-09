@@ -62,7 +62,7 @@ def main : IO Unit := do
   let actualStart := Loam.Tui.ActualWorkspace.initial "2026-09-07"
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).length == 2)
     "Actual workspace Focus Day did not use the shared selected-day Actual answer"
-  let right := (Loam.Tui.ActualWorkspace.update snapshot actualStart .focusRight).state
+  let right := (Loam.Tui.ActualWorkspace.update snapshot { actualStart with pane := .loci } .focusRight).state
   let second := (Loam.Tui.ActualWorkspace.update snapshot right .next).state
   match Loam.Tui.ActualWorkspace.selectedRecord? snapshot second with
   | none => throw (IO.userError "Actual workspace transaction selection disappeared")
@@ -191,6 +191,45 @@ def main : IO Unit := do
   expect (contains "[s] sort" descViewText)
     "Actual workspace view footer did not expose [s] sort"
 
+  -- Test details pane navigation, focus, and scrolling
+  let toDetails := (Loam.Tui.ActualWorkspace.update snapshot paypayDescAgain .toggleDetails).state
+  expect (toDetails.pane == .details)
+    "toggleDetails did not enter details pane"
+  let detailsScrolled := (Loam.Tui.ActualWorkspace.update snapshot toDetails .next).state
+  expect (detailsScrolled.detailScroll == 1)
+    "next in details pane did not increment detailScroll"
+  let detailsScrolledUp := (Loam.Tui.ActualWorkspace.update snapshot detailsScrolled .previous).state
+  expect (detailsScrolledUp.detailScroll == 0)
+    "previous in details pane did not decrement detailScroll"
+  let backToActuals := (Loam.Tui.ActualWorkspace.update snapshot detailsScrolled .back).state
+  expect (backToActuals.pane == .transactions)
+    "back event from details pane did not return to transactions pane"
+
+  -- Test cyclePane Tab navigation
+  let cycledToLoci := (Loam.Tui.ActualWorkspace.update snapshot { paypayDescAgain with pane := .details } .cyclePane).state
+  expect (cycledToLoci.pane == .loci)
+    "cyclePane from details did not cycle to loci"
+  let cycledToTx := (Loam.Tui.ActualWorkspace.update snapshot cycledToLoci .cyclePane).state
+  expect (cycledToTx.pane == .transactions)
+    "cyclePane from loci did not cycle to transactions"
+  let cycledToDetails := (Loam.Tui.ActualWorkspace.update snapshot cycledToTx .cyclePane).state
+  expect (cycledToDetails.pane == .details)
+    "cyclePane from transactions did not cycle to details"
+
+  -- Test arrow-key looping navigation
+  let rightFromTx := (Loam.Tui.ActualWorkspace.update snapshot cycledToTx .focusRight).state
+  expect (rightFromTx.pane == .details)
+    "focusRight from transactions did not loop to details"
+  let rightFromDetails := (Loam.Tui.ActualWorkspace.update snapshot rightFromTx .focusRight).state
+  expect (rightFromDetails.pane == .transactions)
+    "focusRight from details did not navigate to transactions"
+  let leftFromLoci := (Loam.Tui.ActualWorkspace.update snapshot cycledToLoci .focusLeft).state
+  expect (leftFromLoci.pane == .details)
+    "focusLeft from loci did not loop to details"
+  let leftFromDetails := (Loam.Tui.ActualWorkspace.update snapshot leftFromLoci .focusLeft).state
+  expect (leftFromDetails.pane == .loci)
+    "focusLeft from details did not navigate to loci"
+
   -- Production Actual workspace should use the available terminal height rather than
   -- keeping the former fixed eight-row viewport, while still scrolling long lists.
   let longActual : Loam.Tui.Main.ActualSnapshot := {
@@ -200,7 +239,7 @@ def main : IO Unit := do
   let longSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := longActual }
   let longActualStart :=
     (Loam.Tui.ActualWorkspace.update longSnapshot
-      (Loam.Tui.ActualWorkspace.initial "2026-09-07") .focusRight).state
+      { Loam.Tui.ActualWorkspace.initial "2026-09-07" with pane := .loci } .focusRight).state
   let tallViewText := widgetText
     (Loam.Tui.ActualWorkspace.view { width := 100, height := 40 } longSnapshot longActualStart)
   expect (contains "row-21" tallViewText)
@@ -272,7 +311,7 @@ def main : IO Unit := do
     let text := widgetText rendered
     expect (contains "-12345 jpy" text && contains "12345 jpy" text)
       "Responsive detail column hid effect amounts"
-    expect (contains "┌" text && !contains "====" text && !contains "----" text)
+    expect ((contains "╭" text || contains "┌" text) && !contains "====" text && !contains "----" text)
       "Actual workspace retained heavy separator rules"
   let narrowLoci := widgetText (Loam.Tui.ActualWorkspace.view
     { width := 80, height := 24 } snapshot { actualStart with pane := .loci })

@@ -197,35 +197,54 @@ def flowLines (columns : Nat) (separator : String) (groups : List (List String))
   groups.flatMap (flowTokens columns separator)
 
 /--
-Frame one fixed-size terminal panel.
+Frame one fixed-size terminal panel with btop-style rounded borders and focus highlighting.
 
 The panel owns presentation geometry only. Content is clipped to the inner
 rectangle and padded so every row occupies exactly `width` terminal columns.
 That fixed rectangle lets a caller overwrite only the panel region while leaving
 the surrounding screen untouched.
 -/
-def framedPanel (width height : Nat) (title : String) (content : Widget) : Widget :=
+def framedPanel
+    (width height : Nat) (title : String) (content : Widget)
+    (focused : Bool := false) (bottomLabel : Option String := none) : Widget :=
   if width < 2 ∨ height < 2 then
     .row []
   else
     let innerWidth := width - 2
     let innerHeight := height - 2
+    let borderStyle : Style := if focused then .series1 else .muted
+    let titleStyle : Style := if focused then .normal else .muted
     let label := clip innerWidth (" " ++ title ++ " ")
     let topFill :=
       String.ofList (List.replicate (innerWidth - displayWidth label) '─')
-    let top : Widget := .row [span ("┌" ++ label ++ topFill ++ "┐") .muted]
+    let top : Widget := .row [
+      span "╭" borderStyle,
+      span label titleStyle,
+      span (topFill ++ "╮") borderStyle
+    ]
     let bottom : Widget :=
-      .row [span ("└" ++ String.ofList (List.replicate innerWidth '─') ++ "┘") .muted]
+      match bottomLabel with
+      | none =>
+          .row [span ("╰" ++ String.ofList (List.replicate innerWidth '─') ++ "╯") borderStyle]
+      | some bot =>
+          let botLabel := clip innerWidth (" " ++ bot ++ " ")
+          let botFill :=
+            String.ofList (List.replicate (innerWidth - displayWidth botLabel) '─')
+          .row [
+            span "╰" borderStyle,
+            span botLabel .muted,
+            span (botFill ++ "╯") borderStyle
+          ]
     let contentRows :=
       (content.lines.take innerHeight).map fun cells =>
         let clipped := clipCells innerWidth cells
         let padding := innerWidth - cellsWidth clipped
         .row <|
-          [span "│" .muted] ++
+          [span "│" borderStyle] ++
           cellsToSpans clipped ++
-          [span (spaces padding), span "│" .muted]
+          [span (spaces padding), span "│" borderStyle]
     let blankRow : Widget :=
-      .row [span "│" .muted, span (spaces innerWidth), span "│" .muted]
+      .row [span "│" borderStyle, span (spaces innerWidth), span "│" borderStyle]
     let paddedRows :=
       contentRows ++ List.replicate (innerHeight - contentRows.length) blankRow
     .column ([top] ++ paddedRows ++ [bottom])

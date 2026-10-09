@@ -254,6 +254,9 @@ def actualWorkspaceEventOfKey
       | .«end» => .«end»
       | .left | .input 'h' | .input 'H' => .focusLeft
       | .right | .input 'l' | .input 'L' => .focusRight
+      | .tab => .cyclePane
+      | .shiftTab => .cyclePaneBack
+      | .input 'i' | .input 'I' => .toggleDetails
       | .input 'f' | .input 'F' => .cycleFilter
       | .input 's' | .input 'S' => .cycleOrder
       | .input '/' => .beginSearch

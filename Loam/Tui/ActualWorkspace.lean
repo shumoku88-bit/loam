@@ -23,6 +23,7 @@ inductive SortOrder where
 inductive Pane where
   | loci
   | transactions
+  | details
   deriving Repr, DecidableEq, BEq
 
 structure State where
@@ -32,6 +33,7 @@ structure State where
   pane : Pane := .transactions
   locusRow : Nat := 0
   transactionRow : Nat := 0
+  detailScroll : Nat := 0
   searchQuery : String := ""
   searchEditing : Bool := false
   notice : String := ""
@@ -48,6 +50,9 @@ inductive Event where
   | «end»
   | focusLeft
   | focusRight
+  | cyclePane
+  | cyclePaneBack
+  | toggleDetails
   | cycleFilter
   | cycleOrder
   | beginSearch
@@ -166,60 +171,73 @@ private def movePrevious (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
   | .loci =>
       if state.locusRow = 0 then { state with notice := "No previous Locus row." }
-      else clampState snapshot { state with locusRow := state.locusRow - 1, transactionRow := 0, notice := "" }
+      else clampState snapshot { state with locusRow := state.locusRow - 1, transactionRow := 0, detailScroll := 0, notice := "" }
   | .transactions =>
       if state.transactionRow = 0 then { state with notice := "No previous Actual row." }
-      else { state with transactionRow := state.transactionRow - 1, notice := "" }
+      else { state with transactionRow := state.transactionRow - 1, detailScroll := 0, notice := "" }
+  | .details =>
+      if state.detailScroll = 0 then { state with notice := "Top of Details." }
+      else { state with detailScroll := state.detailScroll - 1, notice := "" }
 
 private def moveNext (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
   | .loci =>
       let count := (lociForScope snapshot state).length
       if state.locusRow < count then
-        clampState snapshot { state with locusRow := state.locusRow + 1, transactionRow := 0, notice := "" }
+        clampState snapshot { state with locusRow := state.locusRow + 1, transactionRow := 0, detailScroll := 0, notice := "" }
       else
         { state with notice := "No next Locus row." }
   | .transactions =>
       let count := (visibleRecords snapshot state).length
       if state.transactionRow + 1 < count then
-        { state with transactionRow := state.transactionRow + 1, notice := "" }
+        { state with transactionRow := state.transactionRow + 1, detailScroll := 0, notice := "" }
       else
         { state with notice := "No next Actual row." }
+  | .details =>
+      { state with detailScroll := state.detailScroll + 1, notice := "" }
 
 private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 10) : State :=
   match state.pane with
   | .loci =>
       if state.locusRow == 0 then { state with notice := "Top of Locus list." }
-      else clampState snapshot { state with locusRow := state.locusRow - min state.locusRow pageSize, transactionRow := 0, notice := "" }
+      else clampState snapshot { state with locusRow := state.locusRow - min state.locusRow pageSize, transactionRow := 0, detailScroll := 0, notice := "" }
   | .transactions =>
       if state.transactionRow == 0 then { state with notice := "Top of Actual list." }
-      else { state with transactionRow := state.transactionRow - min state.transactionRow pageSize, notice := "" }
+      else { state with transactionRow := state.transactionRow - min state.transactionRow pageSize, detailScroll := 0, notice := "" }
+  | .details =>
+      if state.detailScroll == 0 then { state with notice := "Top of Details." }
+      else { state with detailScroll := state.detailScroll - min state.detailScroll pageSize, notice := "" }
 
 private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat := 10) : State :=
   match state.pane with
   | .loci =>
       let count := (lociForScope snapshot state).length
       if state.locusRow >= count then { state with notice := "End of Locus list." }
-      else clampState snapshot { state with locusRow := min count (state.locusRow + pageSize), transactionRow := 0, notice := "" }
+      else clampState snapshot { state with locusRow := min count (state.locusRow + pageSize), transactionRow := 0, detailScroll := 0, notice := "" }
   | .transactions =>
       let count := (visibleRecords snapshot state).length
       if count == 0 || state.transactionRow + 1 >= count then { state with notice := "End of Actual list." }
-      else { state with transactionRow := min (count - 1) (state.transactionRow + pageSize), notice := "" }
+      else { state with transactionRow := min (count - 1) (state.transactionRow + pageSize), detailScroll := 0, notice := "" }
+  | .details =>
+      { state with detailScroll := state.detailScroll + pageSize, notice := "" }
 
 private def moveHome (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
-  | .loci => clampState snapshot { state with locusRow := 0, transactionRow := 0, notice := "" }
-  | .transactions => { state with transactionRow := 0, notice := "" }
+  | .loci => clampState snapshot { state with locusRow := 0, transactionRow := 0, detailScroll := 0, notice := "" }
+  | .transactions => { state with transactionRow := 0, detailScroll := 0, notice := "" }
+  | .details => { state with detailScroll := 0, notice := "" }
 
 private def moveEnd (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
   | .loci =>
       let count := (lociForScope snapshot state).length
-      clampState snapshot { state with locusRow := count, transactionRow := 0, notice := "" }
+      clampState snapshot { state with locusRow := count, transactionRow := 0, detailScroll := 0, notice := "" }
   | .transactions =>
       let count := (visibleRecords snapshot state).length
       let row := if count == 0 then 0 else count - 1
-      { state with transactionRow := row, notice := "" }
+      { state with transactionRow := row, detailScroll := 0, notice := "" }
+  | .details =>
+      { state with detailScroll := state.detailScroll + 20, notice := "" }
 
 private def cycleFilter (snapshot : Snapshot) (state : State) : State :=
   let scope := match state.scope with
@@ -263,8 +281,35 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .pageDown => { state := movePageDown snapshot state }
   | .home => { state := moveHome snapshot state }
   | .«end» => { state := moveEnd snapshot state }
-  | .focusLeft => { state := { state with pane := .loci, notice := "" } }
-  | .focusRight => { state := { state with pane := .transactions, notice := "" } }
+  | .focusLeft =>
+      let nextPane := match state.pane with
+        | .transactions => Pane.loci
+        | .details => Pane.loci
+        | .loci => Pane.details
+      { state := { state with pane := nextPane, notice := "" } }
+  | .focusRight =>
+      let nextPane := match state.pane with
+        | .loci => Pane.transactions
+        | .details => Pane.transactions
+        | .transactions => Pane.details
+      { state := { state with pane := nextPane, notice := "" } }
+  | .cyclePane =>
+      let nextPane := match state.pane with
+        | .loci => Pane.transactions
+        | .transactions => Pane.details
+        | .details => Pane.loci
+      { state := { state with pane := nextPane, notice := "" } }
+  | .cyclePaneBack =>
+      let prevPane := match state.pane with
+        | .loci => Pane.details
+        | .transactions => Pane.loci
+        | .details => Pane.transactions
+      { state := { state with pane := prevPane, notice := "" } }
+  | .toggleDetails =>
+      let nextPane := match state.pane with
+        | .details => Pane.transactions
+        | .loci | .transactions => Pane.details
+      { state := { state with pane := nextPane, notice := "" } }
   | .cycleFilter => { state := cycleFilter snapshot state }
   | .cycleOrder => { state := cycleOrder snapshot state }
   | .beginSearch => { state := beginSearch snapshot state }
@@ -297,14 +342,23 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
       let cleared := { resetRow with notice := "" }
       { state := clampState snapshot cleared }
   | .openSelected =>
-      match state.pane, selectedRecord? snapshot state with
-      | .transactions, some _ => { state, command := .openSelected }
-      | .transactions, none =>
-          { state := { state with notice := "No current Actual is selected to open." } }
-      | .loci, _ =>
+      match state.pane with
+      | .transactions =>
+          match selectedRecord? snapshot state with
+          | some _ => { state, command := .openSelected }
+          | none => { state := { state with notice := "No current Actual is selected to open." } }
+      | .details =>
+          match selectedRecord? snapshot state with
+          | some _ => { state, command := .openSelected }
+          | none => { state := { state with notice := "No current Actual is selected to open." } }
+      | .loci =>
           { state := { state with notice := "Move to the Actuals pane before opening a record." } }
   | .recordNew => { state, command := .recordNew }
-  | .back => { state, command := .back }
+  | .back =>
+      if state.pane == .details then
+        { state := { state with pane := .transactions, notice := "" } }
+      else
+        { state, command := .back }
   | .redraw => { state, command := .redraw }
   | .other => { state }
 
@@ -372,7 +426,7 @@ private def listPanel
       | some text => marker ++ text
       | none => if row == 0 && pane == .transactions then " (no matching Actual records)" else ""
     .row [span (fit (width - 2) text) (if isSelected && active then .selected else .normal)]
-  Loam.Tui.Layout.framedPanel width height title (.column content)
+  Loam.Tui.Layout.framedPanel width height title (.column content) (pane == state.pane)
 
 /-- Frames already own their borders; leave just one blank column between them. -/
 private def joinPanels (left right : Widget) : List Widget :=
@@ -388,58 +442,69 @@ scrolling, preventing whole-screen layout jitter and dirty-diff desynchronizatio
 def detailCapacityForBounds (bounds : Bounds) : Nat :=
   if bounds.height ≥ 48 then 12 else if bounds.height ≥ 36 then 10 else 8
 
-private def fixedDetailLines
-    (state : State) (record? : Option ReviewRecord) (capacity : Nat)
+private def detailRawLines
+    (state : State) (record? : Option ReviewRecord)
     (width : Nat := 80) : List Widget :=
   let effectLine := fun (effect : Loam.Core.Effect) =>
     let amount := toString effect.quantity.quanta ++ " " ++ effect.measure.token
     let labelWidth := width - Loam.Tui.Layout.displayWidth amount - 3
     plainLine (" " ++ fit labelWidth (displayLocus state effect.locus.token) ++ "  " ++ amount)
-  let baseLines : List Widget :=
-    match record? with
-    | none =>
-        [ plainLine " Selected Actual Details:"
-        , mutedLine "   (no Actual selected)"
-        ]
-    | some record =>
-        let effectSlotCapacity := if capacity > 6 then capacity - 6 else 0
-        let effects := record.event.effects
-        let renderedEffects : List Widget :=
-          if effects.length ≤ effectSlotCapacity then
-            effects.map effectLine
-          else
-            let shownCount := if effectSlotCapacity > 1 then effectSlotCapacity - 1 else 0
-            let shown := effects.take shownCount
-            let remaining := effects.length - shownCount
-            (shown.map effectLine) ++
-              [mutedLine s!"     ... (+{remaining} more effects)"]
-        [ plainLine " Selected Actual Details:"
-        , plainLine (" Date: " ++ record.date.getD "date unknown")
-        , plainLine (" " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
-        , plainLine (" ID: " ++ record.event.id.token)
-        , plainLine " Status: Current"
-        , plainLine " Effects:"
-        ] ++ renderedEffects
-  let visibleBase := baseLines.take capacity
+  match record? with
+  | none =>
+      [ plainLine " Selected Actual Details:"
+      , mutedLine "   (no Actual selected)"
+      ]
+  | some record =>
+      let effects := record.event.effects
+      let renderedEffects : List Widget := effects.map effectLine
+      [ plainLine " Selected Actual Details:"
+      , plainLine (" Date: " ++ record.date.getD "date unknown")
+      , plainLine (" " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
+      , plainLine (" ID: " ++ record.event.id.token)
+      , plainLine " Status: Current"
+      , plainLine " Effects:"
+      ] ++ renderedEffects
+
+private def fixedDetailLines
+    (state : State) (record? : Option ReviewRecord) (capacity : Nat)
+    (width : Nat := 80) : List Widget :=
+  let allLines := detailRawLines state record? width
+  let total := allLines.length
+  let maxScroll := if total > capacity then total - capacity else 0
+  let scroll := min state.detailScroll maxScroll
+  let visibleBase := (allLines.drop scroll).take capacity
   let padding := capacity - visibleBase.length
   visibleBase ++ List.replicate padding blankLine
 
 def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
   fixedDetailLines state (selectedRecord? snapshot state) 8
 
+private def detailHasMore
+    (state : State) (record? : Option ReviewRecord) (capacity : Nat)
+    (width : Nat := 80) : Bool :=
+  let allLines := detailRawLines state record? width
+  let total := allLines.length
+  let maxScroll := if total > capacity then total - capacity else 0
+  let scroll := min state.detailScroll maxScroll
+  total > scroll + capacity
+
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   if state.searchEditing then
     [ mutedLine "Search input: type text   Backspace delete   Enter keep   Esc clear"
     , mutedLine "Matches update live across all current Actual evidence."
     ]
+  else if state.pane == .details then
+    [ mutedLine "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals"
+    , mutedLine "[Enter] open selected  [n] new  [q] back to Home"
+    ]
   else
-    let detailedRow1 := "[j/k] select  [h/l] pane  [f] filter  [s] sort  [/] search"
+    let detailedRow1 := "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
     if Loam.Tui.Layout.displayWidth detailedRow1 ≤ Loam.Tui.Layout.contentWidth bounds then
       [ mutedLine detailedRow1
       , mutedLine "[Enter] open selected  [n] new  [q] back"
       ]
     else
-      [ mutedLine "[j/k] sel [h/l] pane [f] filter [s] sort [/] search"
+      [ mutedLine "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search"
       , mutedLine "[Enter] open [n] new [q] back"
       ]
 
@@ -494,8 +559,24 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let wide := writable >= 98 && panelHeight >= 16
   let detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
   let detailPanel := fun width =>
-    Loam.Tui.Layout.framedPanel width detailHeight "Selected Actual Details:"
-      (.column ((fixedDetailLines state selectedRecord (detailHeight - 1) (width - 2)).drop 1))
+    let isFocused := state.pane == .details
+    let lines := fixedDetailLines state selectedRecord (detailHeight - 1) (width - 2)
+    let hasMore := detailHasMore state selectedRecord (detailHeight - 1) (width - 2)
+    let canScrollUp := state.detailScroll > 0
+    let bottomLabel :=
+      if isFocused then
+        let scrollIndicator :=
+          if hasMore && canScrollUp then "▲▼"
+          else if hasMore then "▼"
+          else if canScrollUp then "▲"
+          else ""
+        some (if scrollIndicator.isEmpty then "[j/k] scroll  [Esc] back" else s!"[j/k] scroll {scrollIndicator}  [Esc] back")
+      else if hasMore then
+        some "▼ [i] more"
+      else none
+    let title := "Selected Actual Details:" ++ (if isFocused then " [active]" else "")
+    Loam.Tui.Layout.framedPanel width detailHeight title
+      (.column (lines.drop 1)) isFocused bottomLabel
   let panels :=
     if wide then
       let left : Widget := .column [
