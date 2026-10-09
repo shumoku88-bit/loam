@@ -19,8 +19,6 @@ law beyond text representability.
 /-- Whether one opaque identity token fits in an unescaped single text field. -/
 def validToken (token : String) : Bool :=
   !token.isEmpty &&
-    !token.contains '\t' &&
-    !token.contains '\n' &&
-    !token.contains '\r'
+    token.all (fun ch => ch != '\t' && ch != '\n' && ch != '\r')
 
 end Loam.Persistence

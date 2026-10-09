@@ -102,6 +102,7 @@ movement_proposal_tests=(
 )
 
 actual_validity_tests=(
+  TokenSyntax
   MovementOperationEvidence
   NormalizedActualPersistenceTest
   ActualAuthorityDetailed

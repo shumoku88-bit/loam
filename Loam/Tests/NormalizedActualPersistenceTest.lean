@@ -840,6 +840,40 @@ def main : IO Unit := do
   | .ok _ =>
       throw <| IO.userError "expected zero original amount to fail"
 
+  -- All supported document versions must retain transaction semantics and
+  -- exact first-field diagnostics, including Unicode and version-gate precedence.
+  for version in ["1", "2", "3", "4"] do
+    let versionHeader := "LOAM-NORMALIZED-ACTUAL\t" ++ version ++ "\n"
+    let fixtureBody := (validFixtureWire.drop "LOAM-NORMALIZED-ACTUAL\t1\n".length).toString
+    let versionImage ← requireSome (decodeNormalizedActualImage? (versionHeader ++ fixtureBody))
+      ("transaction fixture failed under v" ++ version)
+    expect (encodeNormalizedActual? versionImage.evidence == encodeNormalizedActual? evidence1)
+      "document dispatch changed retained transaction meaning across versions"
+    for (row, expectedType) in [
+        ("未知😀\té\t😀\t", "未知😀"), ("", ""), ("\tTAIL\t", ""),
+        ("SETTLEMENT-COMMITMENT-REVISIONx\tother", "SETTLEMENT-COMMITMENT-REVISIONx")] do
+      match decodeNormalizedActualImageDetailed (versionHeader ++ row ++ "\n") with
+      | .error (.parse error) =>
+          match error.reason with
+          | .unknownRowType actualType =>
+              expect (error.line == 2 && actualType == expectedType)
+                "document dispatch changed Unicode/empty/leading-tab first-field diagnostics"
+          | _ => throw (IO.userError s!"unexpected dispatch parse reason: {error}")
+      | _ => throw (IO.userError "unknown document row was not refused at line 2")
+  for (version, rowType, message) in [
+      ("2", "SETTLEMENT-COMMITMENT-REVISION", "settlement commitment revisions require normalized Actual v3"),
+      ("3", "SETTLEMENT-EXTINGUISHMENT", "settlement extinguishment evidence requires normalized Actual v4"),
+      ("3", "SETTLEMENT-EXTINGUISHMENT-REVISION", "settlement extinguishment evidence requires normalized Actual v4")] do
+    match decodeNormalizedActualImageDetailed
+        ("LOAM-NORMALIZED-ACTUAL\t" ++ version ++ "\n" ++ rowType ++ "\tanything\n") with
+    | .error (.parse error) =>
+        match error.reason with
+        | .malformedRow actualType actualMessage =>
+            expect (error.line == 2 && actualType == rowType && actualMessage == message)
+              "document dispatch weakened settlement version refusal or diagnostic precedence"
+        | _ => throw (IO.userError s!"unexpected version parse reason: {error}")
+    | _ => throw (IO.userError "version-gated settlement row was not refused")
+
   -- 8. Structured diagnostic parsing tests (detailed decoders)
 
   -- 8a. Unknown row inside transaction reports correct line and reason

@@ -228,6 +228,35 @@ regressions passed. Blueprint review: no retained facts/defaults, weaker admissi
 format migration or authority changes are introduced. Bounded parity is not a
 universal equivalence proof.
 
+### Follow-up: qualify the actual hot path before changing it
+
+The probe now prints the Actual header: the ordinary fixture is **v1**, not v4.
+A candidate first-field-only dispatch change affected only v2–v4 settlement
+parsing, so it was withdrawn rather than retained as an unearned repair to this
+workload. Version/Unicode/empty-field/refusal-precedence regression coverage was
+kept. The helper also reports isolated retained-date validation (34–37ms here);
+like re-admission, this is a separate experiment, not another production phase.
+
+A short native sample found shared `validToken` on the transaction parser's hot
+path. Its three separate delimiter searches now become one character traversal,
+with exactly the same nonempty / no-tab / no-newline / no-CR predicate. It does not
+trim text, normalize Unicode, infer identity, or restrict other controls. Bounded
+old-predicate parity tests cover ASCII controls, Unicode, empty and long tokens.
+`bash tools/test-product actual-validity`, normalized Actual v1–v4 settlement
+qualification, household publication/recovery/stale refusal and Record/Scheduled
+publication PTYs passed after the change. Complete semantic admission is retained.
+
+Two alternating saved-baseline/candidate phase trials measured normalized
+parse/construction/admission at 699 / 724ms before and 625 / 581ms after. These are
+noisy phase observations, not a promised end-to-end percentage. The full three-
+round 50,000-Event / 2,500-date PTY measured **698ms Record / 802ms Balances**,
+only a modest further change from 717 / 809ms after the framing repair. The first
+startup after rebuilding was 3,204ms; cold startup remains unqualified separately.
+At **10,000 Events / 500 dates** (also 20/day), the probe measured 336ms startup,
+117ms Record and 133ms Balances. Both fixtures remained unchanged, FDs stayed
+seven, retained descendants zero and idle surfaces quiet. This is short-run
+qualification, not leak freedom or representative correction/settlement pressure.
+
 ### Reproduce the compiled phase probe
 
 Run from the code repository; this creates and removes its own synthetic household.

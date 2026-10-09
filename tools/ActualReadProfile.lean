@@ -32,8 +32,12 @@ def main (args : List String) : IO Unit := do
   let outer ← phase "outer framing" fun _ =>
     need (Loam.Persistence.HouseholdImage.decode? wire) "outer refused"
   let body ← need (Loam.Persistence.HouseholdImage.body? outer "Actual") "missing Actual"
+  IO.println s!"Actual header: {(body.takeWhile (· != '\n')).toString}"
   let image ← phase "Actual parse+construction+admission" fun _ =>
     need (Loam.Persistence.decodeNormalizedActualImage? body) "Actual refused"
+  let validDates ← phase "retained date validation alone" fun _ => pure
+    (image.evidence.validity.facts.all fun fact => Loam.ActualDate.validIsoDate fact.validOn)
+  unless validDates do throw (IO.userError "retained date validation refused")
   let admitted ← phase "re-admission alone" fun _ =>
     need (Loam.Persistence.admitActualImage? image.evidence) "admission refused"
   let (generation, actual) ← phase "full household selection" fun _ => do

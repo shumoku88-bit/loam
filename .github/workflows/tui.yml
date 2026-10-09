@@ -3,6 +3,11 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Persistence/TokenSyntax.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Tests/TokenSyntax.lean'
+      - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
+      - 'Loam/Tests/SettlementNormalizedActualV2.lean'
       - 'Loam/Persistence/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Review/CalendarMoneyReview.lean'
@@ -190,6 +195,11 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Persistence/TokenSyntax.lean'
+      - 'Loam/Persistence/NormalizedActualPersistence.lean'
+      - 'Loam/Tests/TokenSyntax.lean'
+      - 'Loam/Tests/NormalizedActualPersistenceTest.lean'
+      - 'Loam/Tests/SettlementNormalizedActualV2.lean'
       - 'Loam/Persistence/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Review/CalendarMoneyReview.lean'
@@ -448,6 +458,9 @@ jobs:
           lake env lean --run Loam/Tests/HouseholdScheduledLifecycleAuthority.lean "$(mktemp -d)/scheduled"
           lake env lean --run Loam/Tests/CalendarMoneyReview.lean
           lake env lean --run Loam/Tests/HouseholdImagePersistence.lean
+          lake env lean --run Loam/Tests/TokenSyntax.lean
+          lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
+          lake env lean --run Loam/Tests/SettlementNormalizedActualV2.lean
 
   full:
     name: Full production household TUI qualification
@@ -915,6 +928,9 @@ jobs:
           lake env lean --run Loam/Tests/HouseholdScheduledLifecycleAuthority.lean "$(mktemp -d)/scheduled"
           lake env lean --run Loam/Tests/CalendarMoneyReview.lean
           lake env lean --run Loam/Tests/HouseholdImagePersistence.lean
+          lake env lean --run Loam/Tests/TokenSyntax.lean
+          lake env lean --run Loam/Tests/NormalizedActualPersistenceTest.lean
+          lake env lean --run Loam/Tests/SettlementNormalizedActualV2.lean
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py
