@@ -17,14 +17,29 @@ validated publishers. The palette never reads or publishes household data.
 -/
 
 inductive Choice where
+  | record
+  | actual
+  | exchange
+  | scheduled
+  | attention
+  | settlements
+  | dailyPace
+  | balances
+  | reports
   | budget
   | capacity
   | purposeRouting
+  | manageLoci
+  | observeQuantities
   deriving Repr, DecidableEq
 
 inductive Page where
   | commands
+  | transactions
+  | planning
+  | analysis
   | envelopeBudget
+  | maintenance
   deriving Repr, DecidableEq
 
 structure State where
@@ -37,11 +52,36 @@ private inductive Entry where
   | action (choice : Choice)
 
 private def entries : Page → List (Entry × String)
-  | .commands => [(.page .envelopeBudget, "Envelope budget →")]
+  | .commands =>
+      [ (.page .transactions, "Transactions →")
+      , (.page .planning, "Plans and attention →")
+      , (.page .analysis, "Reports and analysis →")
+      , (.page .envelopeBudget, "Envelope budget →")
+      , (.page .maintenance, "Household setup →")
+      ]
+  | .transactions =>
+      [ (.action .record, "Record / new entry")
+      , (.action .actual, "Actual / transactions")
+      , (.action .exchange, "Exchange / currencies")
+      ]
+  | .planning =>
+      [ (.action .scheduled, "Scheduled / plans")
+      , (.action .attention, "Attention / follow-up")
+      , (.action .settlements, "Settlements")
+      ]
+  | .analysis =>
+      [ (.action .dailyPace, "Daily Pace")
+      , (.action .balances, "Balances")
+      , (.action .reports, "Reports")
+      ]
   | .envelopeBudget =>
       [ (.action .budget, "Budget / current cycle")
       , (.action .capacity, "Capacity / allocations")
       , (.action .purposeRouting, "Purpose routing")
+      ]
+  | .maintenance =>
+      [ (.action .manageLoci, "Manage Loci")
+      , (.action .observeQuantities, "Observe quantities")
       ]
 
 inductive Transition where
@@ -56,7 +96,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Transition :=
   | .left | .escape | .input 'q' | .input 'Q' | .input ' ' =>
       match state.page with
       | .commands => .close
-      | .envelopeBudget => .stay {}
+      | _ => .stay {}
   | .right =>
       match (entries state.page)[state.selected]? with
       | some (.page target, _) => .stay { page := target }
@@ -83,8 +123,12 @@ def view (bounds : Bounds) (state : State) : Widget :=
   let (path, description, backLabel) :=
     match state.page with
     | .commands => (" Home / Commands", " Choose a command group.", "Esc close")
+    | .transactions => (" Commands / Transactions", " Recording and exchange.", "Esc back")
+    | .planning => (" Commands / Plans and attention", " Scheduled household work.", "Esc back")
+    | .analysis => (" Commands / Reports and analysis", " Read household answers.", "Esc back")
     | .envelopeBudget =>
         (" Commands / Envelope budget", " Budget features are optional.", "Esc back")
+    | .maintenance => (" Commands / Household setup", " Explicit household evidence.", "Esc back")
   let body : Widget := .column <|
     [ .row [span path]
     , .row [span description]
@@ -94,7 +138,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
     , .row [span " ↑/↓ select  → group  ← back" .muted]
     , .row [span (" Enter open  " ++ backLabel) .muted] ]
   Loam.Tui.Layout.framedPanel
-    panelWidth (min 11 bounds.height) "Commands" body
+    panelWidth (min 13 bounds.height) "Commands" body
 
 private def floating? (bounds : Bounds) : Option (Nat × Nat × Nat × Nat) :=
   let available := Loam.Tui.Layout.contentWidth bounds
@@ -102,7 +146,7 @@ private def floating? (bounds : Bounds) : Option (Nat × Nat × Nat × Nat) :=
     none
   else
     let width := min 54 (available - 4)
-    let height := 11
+    let height := 13
     some ((bounds.height - height) / 2,
       (available - width) / 2, width, height)
 
