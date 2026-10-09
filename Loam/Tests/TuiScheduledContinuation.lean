@@ -1,6 +1,7 @@
 import Loam.Review.AttentionReview
 import Loam.Review.ScheduledReview
 import Loam.Tui.Home
+import Loam.Tui.AttentionAdministration
 import Loam.Tui.ScheduledContinuationSession
 import Loam.Authority.HouseholdAuthority
 
@@ -154,20 +155,17 @@ def main : IO Unit := do
   let homeSnapshot : Loam.Tui.Main.Snapshot := {
     actual := actual
     scheduled := .ok snapshot
-    attention :=
-      match attentionAvailability with
-      | .unavailable => .unavailable
-      | .available attention => .loaded attention
   }
-  -- Attention belongs to Summary, not Calendar Home.
-  -- The deferred continuation must remain discoverable on the actual startup view.
-  let homeState : Loam.Tui.Main.State :=
-    { Loam.Tui.Main.initialState "2026-09-15" with homeMode := .summary }
+  -- Home keeps the Attention entrance; deferred matters are read in that workspace.
+  let homeState := Loam.Tui.Main.initialState "2026-09-15"
   let homeText := widgetText
     (Loam.Tui.Home.view { width := 100, height := 42 } homeSnapshot homeState)
-  expect (contains "Attention: 1 open" homeText &&
-      contains "due unknown" homeText && contains "source" homeText)
-    "Home did not rediscover the deferred continuation Attention"
+  expect (contains "[i] attention" homeText)
+    "Calendar Home lost the deferred-continuation Attention entrance"
+  let attentionText := widgetText (Loam.Tui.AttentionAdministration.view
+    (Loam.Tui.AttentionAdministration.initial attentionAvailability "2026-09-15"))
+  expect (contains "due unknown" attentionText && contains "source" attentionText)
+    "Attention workspace did not rediscover the deferred continuation"
 
   let .ok _secondAttention ← Loam.HouseholdCommand.addAttention root {
       context := "second open attention"
@@ -179,28 +177,20 @@ def main : IO Unit := do
     | .ok (.available attention) => pure (Loam.AttentionReview.Availability.available attention)
     | .error message => throw (IO.userError message)
     | .ok .unavailable => throw (IO.userError "published Attention authority became unavailable")
-  let multiText := widgetText
-    (Loam.Tui.Home.view { width := 100, height := 42 }
-      { homeSnapshot with attention :=
-          match multiAvailability with
-          | .unavailable => .unavailable
-          | .available attention => .loaded attention } homeState)
-  expect (contains "Attention: 2 open  [i] manage" multiText)
-    "Home did not expose multiple open Attention items without inventing priority"
-  expect (!contains "Decide continuation after source" multiText)
-    "Home singled out representation-order Attention as if it were prioritized"
+  let multiText := widgetText (Loam.Tui.AttentionAdministration.view
+    (Loam.Tui.AttentionAdministration.initial multiAvailability "2026-09-15"))
+  expect (contains "source" multiText && contains "second open attention" multiText)
+    "Attention workspace did not preserve both open matters"
 
-  let unavailableText := widgetText
-    (Loam.Tui.Home.view { width := 100, height := 42 }
-      { homeSnapshot with attention := .unavailable } homeState)
-  expect (contains "Attention: not configured" unavailableText)
-    "Home collapsed missing Attention configuration into an empty stream"
+  let unavailableText := widgetText (Loam.Tui.AttentionAdministration.view
+    (Loam.Tui.AttentionAdministration.initial .unavailable "2026-09-15"))
+  expect (contains "No canonical Attention stream yet" unavailableText)
+    "Attention workspace collapsed a missing stream into an empty one"
 
   let emptyAttention : Loam.AttentionReview.Snapshot := { openItems := [] }
-  let emptyText := widgetText
-    (Loam.Tui.Home.view { width := 100, height := 42 }
-      { homeSnapshot with attention := .loaded emptyAttention } homeState)
-  expect (contains "Attention: 0 open" emptyText)
-    "Home lost the configured-empty Attention distinction"
+  let emptyText := widgetText (Loam.Tui.AttentionAdministration.view
+    (Loam.Tui.AttentionAdministration.initial (.available emptyAttention) "2026-09-15"))
+  expect (contains "0 open" emptyText)
+    "Attention workspace lost the configured-empty distinction"
 
-  IO.println "TUI Scheduled continuation awareness: explicit Defer survives Attention reload and Home rediscovery."
+  IO.println "TUI Scheduled continuation awareness: explicit Defer survives Attention reload and workspace rediscovery."

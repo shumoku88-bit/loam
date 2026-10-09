@@ -107,6 +107,13 @@ def drain_fd(fd):
             break
 
 
+def open_envelope_commands():
+    os.write(master, b" ")
+    wait_for("Home / Commands")
+    os.write(master, b"\x1b[C")
+    wait_for("Commands / Envelope budget")
+
+
 def expect_local_unavailability(key, subject):
     os.write(master, key)
     wait_for(f"[Unavailable] {subject}:")
@@ -120,8 +127,7 @@ try:
     for week in range(1, 7):
         os.write(master, b"j")
         wait_for(f"Focus: {today + datetime.timedelta(days=7 * week)}")
-    os.write(master, b" ")
-    wait_for("Home / Commands")
+    open_envelope_commands()
     os.write(master, b"\r")
     screen = wait_for("r rebalance")
     assert "Budget / Pension Cycle" in screen
@@ -191,8 +197,7 @@ try:
     os.write(master, b"q")
     wait_for(f"Focus: {today + datetime.timedelta(days=42)}")
     # General Capacity is still accessible from Home's optional command palette.
-    os.write(master, b" ")
-    wait_for("Home / Commands")
+    open_envelope_commands()
     os.write(master, b"j\r")
     wait_for("t transfer")
     os.write(master, b"q")
@@ -257,8 +262,7 @@ try:
         cwd=repo_root,
         check=True,
     )
-    os.write(master, b" ")
-    wait_for("Home / Commands")
+    open_envelope_commands()
     os.write(master, b"jj\r")
     wait_for("[Unavailable] Purpose routes:")
     assert process.poll() is None, "TUI exited while reporting unavailable Purpose routes"
@@ -272,8 +276,7 @@ try:
         cwd=repo_root,
         check=True,
     )
-    os.write(master, b" ")
-    wait_for("Home / Commands")
+    open_envelope_commands()
     os.write(master, b"j\r")
     wait_for("[Unavailable] Capacity:")
     assert process.poll() is None, "TUI exited while reporting unavailable Capacity"
@@ -310,11 +313,8 @@ try:
                                 stderr=slave2, env=env, preexec_fn=controlling_terminal2)
     os.close(slave2)
     try:
-        wait_for_fd(master2, "LOAM Home")
-        os.write(master2, b"g")
-        startup = wait_for_fd(master2, "cash -> wifi: 250 jpy")
-        assert "LOAM / Summary" in startup, "malformed legacy Scheduled prevented Summary from opening"
-        assert "Upcoming Scheduled" in startup, "Summary stopped reading Household Scheduled evidence"
+        startup = wait_for_fd(master2, "LOAM Home")
+        assert "[g] summary" not in startup, "retired Summary shortcut returned at startup"
         assert process2.poll() is None, "TUI exited after ignoring malformed legacy Scheduled"
 
         os.write(master2, b"s")
@@ -322,14 +322,14 @@ try:
         assert "Scheduled" in scheduled_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Scheduled workspace use"
         os.write(master2, b"q")
-        wait_for_fd(master2, "LOAM / Summary")
+        wait_for_fd(master2, "LOAM Home")
 
         os.write(master2, b"a")
         actual_screen = wait_for_fd(master2, "Household Actuals Workspace")
         assert "Actual" in actual_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Actual workspace use"
         os.write(master2, b"q")
-        wait_for_fd(master2, "LOAM / Summary")
+        wait_for_fd(master2, "LOAM Home")
 
         os.write(master2, b"q")
         drain_fd(master2)
@@ -342,7 +342,7 @@ try:
         scheduled_path.write_bytes(scheduled_bytes)
 
     assert digest() == before, "Scheduled legacy-isolation test changed fixture evidence/config"
-    print("Production PTY: Calendar/Summary, command palette Budget/Capacity/Purpose, local refusals, Scheduled legacy isolation and no writes passed.")
+    print("Production PTY: Calendar, hierarchical Budget/Capacity/Purpose commands, local refusals, Scheduled legacy isolation and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()

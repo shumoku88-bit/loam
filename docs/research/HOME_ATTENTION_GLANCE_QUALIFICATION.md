@@ -1,6 +1,13 @@
 # Home Attention glance qualification
 
-Status: **PRESENTATION SLICE UNDER QUALIFICATION**
+Status: **HISTORICAL — Home glance retired**
+
+The Home Summary / `g` surface has since been removed. Home no longer retains
+an Attention read answer or projects open-item counts. Deferred continuations
+remain ordinary durable Attention items, reachable through Home `i` and the
+Attention workspace. `TuiScheduledContinuation` now qualifies that workspace
+rediscovery path. The material below records the earlier presentation slice,
+not the current production contract; see `../TUI.md`.
 
 ## Pressure
 

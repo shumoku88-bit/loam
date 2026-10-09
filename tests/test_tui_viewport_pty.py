@@ -3,6 +3,7 @@
 
 Arguments: synthetic fixture directory, loamTui executable. Never use loam-data.
 """
+import datetime
 import fcntl
 import hashlib
 import os
@@ -69,25 +70,19 @@ def bounded(output, rows, cols):
 try:
     initial = capture(b"LOAM Home")
     assert b"\x1b[?7l" in initial, "application left terminal auto-wrap armed"
-    assert b"[g] summary" in ansi.sub(b"", initial) and b"[Space] commands" in ansi.sub(b"", initial), (
-        "Calendar Home entrances were not visible"
+    clean_initial = ansi.sub(b"", initial)
+    assert b"[g]" not in clean_initial and b"[Space] commands" in clean_initial, (
+        "Home retained Summary or lost the command hub entrance"
     )
-    os.write(master, b"g")
-    summary = capture(b"LOAM / Summary")
-    assert b"[g/Esc] back to calendar" in summary
-    os.write(master, b"\x1b")
-    calendar = capture(b"LOAM Home")
-    assert b"[y]" in calendar and b"copy screen" in calendar and b"Shift+drag" in calendar
-    # Both return keys preserve a calendar focus that is no longer today.
-    os.write(master, b"l")
-    moved = capture(b"Focus:")
-    focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", ansi.sub(b"", moved)).group(1)
-    for back in (b"g", b"\x1b"):
-        os.write(master, b"g")
-        capture(b"LOAM / Summary")
-        os.write(master, back)
-        restored = capture(b"LOAM Home")
-        assert b"Focus: " + focus in ansi.sub(b"", restored), "Summary lost Calendar focus"
+    assert b"[y]" in clean_initial and b"copy screen" in clean_initial and b"Shift+drag" in clean_initial
+    # Retired g/G must be ignored; the following key still navigates Calendar.
+    focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", clean_initial).group(1)
+    expected = str(datetime.date.fromisoformat(focus.decode()) + datetime.timedelta(days=1)).encode()
+    os.write(master, b"gGl")
+    moved = ansi.sub(b"", capture(b"Focus:"))
+    assert b"LOAM / Summary" not in moved and b"Focus: " + expected in moved, (
+        "retired g/G changed Home or swallowed subsequent Calendar navigation"
+    )
     # Resizing while idle must reflow Calendar Home, not wait for a non-navigation key.
     resize(22, 80)
     output = capture(b"LOAM Home")

@@ -87,7 +87,6 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
   pure {
     actual := actual
     scheduled := .ok scheduledSnapshot
-    pace := .loaded pace
     paceHistory := .loaded paceHistory
   }
 
@@ -108,13 +107,9 @@ def main : IO Unit := do
   expect (hasStyledText dueTodayView " 7 " .selectedUnderlined)
     "Large calendar lost today's selected/underlined day or marked it pending"
   let dueTodayText := widgetText dueTodayView
-  let dailyState : Loam.Tui.Main.State := { home with homeMode := .summary }
-  let dailyText := widgetText (Loam.Tui.Home.view bounds snapshot dailyState)
-  expect (contains "Daily Pace" dailyText && contains "170 jpy/day" dailyText)
-    "Summary did not expose the current Daily Pace answer"
   expect (!contains "Recent pace" dueTodayText &&
           !contains "09-05  150 jpy/day" dueTodayText)
-    "Home let historical Daily Pace compete with the current glance"
+    "Home unexpectedly embedded historical Daily Pace"
 
   let paceTrendText :=
     widgetText (Loam.Tui.DailyPaceTrend.view bounds snapshot)
@@ -149,19 +144,10 @@ def main : IO Unit := do
       (widgetText (Loam.Tui.DailyPaceTrend.view bounds snapshot backToToday)))
     "Daily Pace graph right arrow did not return to the latest day"
   let usd : MeasureId := ⟨"usd"⟩
-  let .loaded basePace := snapshot.pace
-    | throw (IO.userError "fixture Daily Pace unavailable")
   let .loaded baseHistory := snapshot.paceHistory
     | throw (IO.userError "fixture Daily Pace history unavailable")
-  let usdPace := { basePace with measure := usd }
   let usdHistory := baseHistory.map fun point => { point with measure := usd }
-  let usdSnapshot := { snapshot with pace := .loaded usdPace, paceHistory := .loaded usdHistory }
-  let usdHomeText := widgetText (Loam.Tui.Home.view bounds usdSnapshot dailyState)
-  expect
-    (contains "170 usd/day" usdHomeText &&
-      contains "After scheduled: 1700 usd" usdHomeText &&
-      !(contains "170 jpy/day" usdHomeText))
-    "Home rewrote a non-JPY Daily Pace snapshot as JPY"
+  let usdSnapshot := { snapshot with paceHistory := .loaded usdHistory }
   let usdTrendText := widgetText (Loam.Tui.DailyPaceTrend.view bounds usdSnapshot)
   expect
     (contains "150 usd/day" usdTrendText &&
@@ -169,41 +155,29 @@ def main : IO Unit := do
       contains "170 usd/day  current" usdTrendText &&
       !(contains "jpy/day" usdTrendText))
     "Daily Pace trend rewrote non-JPY history as JPY"
-  expect (contains "Upcoming Scheduled" dailyText && contains "2026-09-07" dailyText)
-    "Summary did not expose the earliest current-open Scheduled occurrence"
-
+  -- Optional trend evidence does not block or leak into ordinary Calendar Home.
   let stateBounds : Bounds := { width := 100, height := 42 }
-
-  let notRequestedSnapshot := { snapshot with attention := .notRequested }
-  let notRequestedSnapshot := { notRequestedSnapshot with pace := .notRequested }
-  let notRequestedSnapshot := { notRequestedSnapshot with paceHistory := .notRequested }
-  let notRequestedText :=
-    widgetText (Loam.Tui.Home.view stateBounds notRequestedSnapshot dailyState)
-  expect (contains "Attention: not requested" notRequestedText &&
-      contains "Daily Pace: not requested" notRequestedText &&
-      !contains "Recent pace" notRequestedText)
-    "Home collapsed current not-requested state or exposed historical pace"
-
-  let unavailableSnapshot := { snapshot with attention := .unavailable }
-  let unavailableSnapshot := { unavailableSnapshot with pace := .unavailable }
-  let unavailableSnapshot := { unavailableSnapshot with paceHistory := .unavailable }
-  let unavailableText :=
-    widgetText (Loam.Tui.Home.view stateBounds unavailableSnapshot dailyState)
-  expect (contains "Attention: not configured" unavailableText &&
-      contains "Daily Pace: unavailable" unavailableText &&
-      !contains "Recent pace" unavailableText)
-    "Home lost typed current unavailable state or exposed historical pace"
-
-  let failedSnapshot := { snapshot with attention := .failed "attention read failed" }
-  let failedSnapshot := { failedSnapshot with pace := .failed "pace read failed" }
-  let failedSnapshot := { failedSnapshot with paceHistory := .failed "pace history read failed" }
-  let failedText :=
-    widgetText (Loam.Tui.Home.view stateBounds failedSnapshot dailyState)
-  expect (contains "Attention: failed" failedText &&
-      contains "Daily Pace: calculation failed" failedText &&
-      !contains "Recent pace" failedText &&
-      !contains "pace history read failed" failedText)
-    "Home exposed historical pace failure on the current glance surface"
+  for historyState in [Loam.Presentation.ReadState.notRequested, .unavailable,
+      .failed "pace history read failed", .loaded []] do
+    let optionalSnapshot := { snapshot with paceHistory := historyState }
+    let homeText := widgetText (Loam.Tui.Home.view bounds optionalSnapshot home)
+    expect (contains "Scheduled: Due (12)" homeText &&
+      !contains "Recent pace" homeText && !contains "pace history read failed" homeText)
+      "optional trend read state leaked into or blocked Calendar Home"
+    let trendText := widgetText (Loam.Tui.DailyPaceTrend.view stateBounds optionalSnapshot)
+    match historyState with
+    | .notRequested =>
+        expect (contains "history not requested" trendText)
+          "Daily Pace trend lost not-requested evidence"
+    | .unavailable =>
+        expect (contains "history unavailable" trendText)
+          "Daily Pace trend lost unavailable evidence"
+    | .failed _ =>
+        expect (contains "pace history read failed" trendText)
+          "Daily Pace trend hid a failed read"
+    | .loaded _ =>
+        expect (contains "no reconstructed Daily Pace points" trendText)
+          "Daily Pace trend collapsed a loaded empty series"
 
   let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
@@ -311,4 +285,4 @@ def main : IO Unit := do
     expect (sgr.startsWith "\x1b[0;" || sgr == "\x1b[0m")
       "Terminal style can leak attributes into the next calendar cell"
 
-  IO.println "TUI Scheduled: distilled Home glance, Unknown/Pending, and independent Today/focus presentation passed."
+  IO.println "TUI Scheduled: Calendar Home, Daily Pace trend, Unknown/Pending, and independent Today/focus presentation passed."

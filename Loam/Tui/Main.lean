@@ -1,5 +1,4 @@
 import Loam.Review.ActualReview
-import Loam.Review.AttentionReview
 import Loam.Review.CalendarMoneyReview
 import Loam.Review.CycleSpendingPaceReview
 import Loam.Presentation.MeasurePresentation
@@ -34,18 +33,6 @@ structure Snapshot where
   /-- Scheduled refusal remains explicit and must never be reinterpreted as an empty household. -/
   scheduled : ScheduledAvailability
   /--
-  Attention is an optional read answer. Missing configuration, configured empty,
-  and read refusal remain distinct at the Review boundary.
-  -/
-  attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
-    .notRequested
-  /--
-  Daily Pace is an optional read answer. Its unavailability must not prevent
-  ordinary Home, Actual, or Scheduled use.
-  -/
-  pace : Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot :=
-    .notRequested
-  /--
   Optional retrospective current-truth series for presentation. This is derived
   from canonical evidence at load time and is never retained as household state.
   -/
@@ -62,21 +49,13 @@ inductive HomePane where
   | detail
   deriving Repr, DecidableEq, BEq
 
-/-- Home calendar and its temporary Summary are presentation modes only. -/
-inductive HomeMode where
-  | summary
-  | calendar
-  deriving Repr, DecidableEq, BEq
-
 /-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
-  /-- Calendar is the production startup and accounting workspace. -/
-  homeMode : HomeMode := .calendar
   notice : String := ""
   /-- Presentation-only viewport offset for the responsive Home detail pane. -/
   detailScroll : Nat := 0
-  /-- Scroll of the calendar/summary surface, independent of record selection. -/
+  /-- Scroll of the calendar surface, independent of record selection. -/
   overviewScroll : Nat := 0
   /-- Zero-based index of the currently selected Actual transaction in detail view. -/
   detailCursor : Nat := 0
@@ -103,14 +82,6 @@ structure Step where
 
 def initialState (selectedDate : String) : State :=
   { selectedDate := selectedDate }
-
-/-- Summary is a temporary glance: every calendar navigation coordinate survives. -/
-def toggleHomeMode (state : State) : State :=
-  { state with homeMode := if state.homeMode == .calendar then .summary else .calendar }
-
-/-- Summary actions use today without overwriting the preserved calendar focus. -/
-def actionDate (snapshot : Snapshot) (state : State) : String :=
-  if state.homeMode == .summary then snapshot.actual.today else state.selectedDate
 
 /-- Toggle focus between calendar and detail pane. -/
 def toggleActivePane (state : State) : State :=

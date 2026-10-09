@@ -97,8 +97,8 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.send(b"reload-specimen\t\tbank\t-10\twifi\t10\r", b"Record / Preview")
         terminal.send(b"\r", b"Recorded ")
         assert authority.read_bytes() != before, "confirmed Record did not publish"
-        # The new row in Summary's recent Actual list requires a refreshed snapshot.
-        terminal.send(b"g", b"reload-specimen")
+        # The new row in the Actual workspace requires a refreshed snapshot.
+        terminal.send(b"a", b"reload-specimen")
     finally:
         terminal.close()
 

@@ -2,6 +2,12 @@
 
 Status: **measured local repairs, not a long-duration leak-freedom claim**
 
+Subsequent UI change: Home Summary / `g` and its optional Attention/current-Pace
+snapshot fields were removed. The current probe no longer visits or samples
+Summary, and Home composes only the Daily Pace history needed by `d`. The
+measurements and Attention-composition findings below describe the earlier
+workload; do not treat reruns of the revised probe as identical-workload trials.
+
 ## Scope and instrument
 
 `tools/benchmark-tui-resources.py` drives the compiled production TUI through a

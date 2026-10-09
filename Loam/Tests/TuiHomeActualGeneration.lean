@@ -67,16 +67,6 @@ private def initializeIndependentEvidence (root : System.FilePath) : IO Unit := 
   IO.FS.writeFile
     (root / "config" / "daily-pace.tsv")
     "wallet\tjpy\n"
-  let items ← requireSome (AttentionMemory.ofItems? ([] : List (Attention String)))
-    "Home empty Attention items"
-  let closures ← requireSome (AttentionClosureMemory.ofClosures? ([] : List (AttentionClosure String)))
-    "Home empty Attention closures"
-  let attentionBody ← requireSome (Loam.Persistence.encodeAttentionMemory? items closures)
-    "Home canonical Attention body"
-  let _ ← requireOk
-    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Attention" attentionBody)
-    "Home canonical Attention section"
-  IO.FS.writeFile (root / "attention.loam") "malformed stale legacy Attention\n"
   let _ ← requireOk
     (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "AccountingRole"
       "LOAM-ACCOUNTING-ROLE-MAP\t1\nROLE\twallet\tASSET\nROLE\tincome\tINCOME\n")
@@ -135,16 +125,6 @@ def main : IO Unit := do
 
   -- Simulate a writer publishing after Home selected its admitted Actual image.
   publishActualGeneration root "generation-b" 2000
-  let laterItems ← requireSome (AttentionMemory.ofItems?
-    [{ id := ⟨"later-attention"⟩, context := "after Home selection", due := .noDueDate }])
-    "later Attention items"
-  let laterClosures ← requireSome (AttentionClosureMemory.ofClosures?
-    ([] : List (AttentionClosure String))) "later Attention closures"
-  let laterBody ← requireSome (Loam.Persistence.encodeAttentionMemory? laterItems laterClosures)
-    "later Attention body"
-  let _ ← requireOk
-    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Attention" laterBody)
-    "later canonical Attention"
   let currentGeneration ←
     requireOk (← Loam.ActualAuthority.loadImage? root)
       "load generation B"
@@ -174,23 +154,6 @@ def main : IO Unit := do
           (scheduled.events.findById? ⟨"generation-b"⟩).isNone)
         "Home Scheduled validation mixed a later Actual generation"
 
-  match snapshot.attention with
-  | .loaded attention =>
-      expect (attention.openItems.map (·.id.token) == ["later-attention"])
-        "independent Home load ignored refreshed canonical Attention in favor of stale legacy facts"
-  | _ => throw (IO.userError "Home canonical Attention was unavailable because of stale legacy storage")
-
-  match snapshot.pace with
-  | .notRequested =>
-      throw (IO.userError "Home Daily Pace was not requested")
-  | .unavailable =>
-      throw (IO.userError "Home Daily Pace was unexpectedly unavailable")
-  | .failed message =>
-      throw (IO.userError ("Home Daily Pace unavailable: " ++ message))
-  | .loaded pace =>
-      expect (pace.eligiblePool.quanta == 1000)
-        "Home Daily Pace reopened canonical Actual after selecting generation A"
-
   match snapshot.paceHistory with
   | .notRequested =>
       throw (IO.userError "Home recent pace was not requested")
@@ -218,27 +181,23 @@ def main : IO Unit := do
         "compose paired Home without reopening household"
     finally
       IO.FS.rename held household
-  match paired.attention with
-  | .loaded attention =>
-      expect attention.openItems.isEmpty
-        "paired Home mixed later Attention into the selected generation"
-  | _ => throw (IO.userError "paired Home reopened Attention storage")
   match paired.scheduled with
   | .ok scheduled =>
       expect (scheduled.events.findById? ⟨"generation-a"⟩).isSome
         "paired Scheduled lost the selected Actual generation"
   | .error _ => throw (IO.userError "paired Home reopened Scheduled storage")
-  match paired.pace, paired.paceHistory with
-  | .loaded pace, .loaded points =>
-      expect (pace.eligiblePool.quanta == 1000 && !points.isEmpty)
+  match paired.paceHistory with
+  | .loaded points =>
+      let latest ← requireSome points.getLast? "paired Home lost the current trend point"
+      expect (latest.eligiblePool.quanta == 1000)
         "paired Home mixed current support generations"
-  | _, _ => throw (IO.userError "paired Home reopened pace support storage")
+  | _ => throw (IO.userError "paired Home reopened pace support storage")
   match paired.moneyCalendar with
   | .loaded _ => pure ()
   | _ => throw (IO.userError "paired Home reopened AccountingRole storage")
 
   IO.println
-    "Home generation: selected Actual, canonical Attention and paired family composition survived advancement and no-reopen pressure."
+    "Home generation: selected Actual, Scheduled, Daily Pace trend and paired family composition survived advancement and no-reopen pressure."
 
 end Loam.Tests.TuiHomeActualGeneration
 

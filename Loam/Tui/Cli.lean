@@ -131,8 +131,8 @@ interpretation. Scheduled completion validation uses retained Event identities
 from the same image: Correction changes current interpretation but does not erase
 the occurrence identity referenced by an already-retained completion.
 
-Independent authorities such as Scheduled storage and Attention remain
-independently refreshed; this boundary promises same-Actual-generation
+Scheduled storage remains independently refreshed when no paired generation is
+supplied; this boundary promises same-Actual-generation
 composition, not a cross-file atomic snapshot. When the caller supplies the
 qualified Household generation paired with Actual, all household-backed branches
 reuse that exact generation. Query/presentation configuration remains independent.
@@ -148,26 +148,15 @@ def loadSnapshotFromActualImage
     | some generation =>
         pure (Loam.ScheduledReview.fromGenerationForEvents generation image.evidence.events)
     | none => Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
-  let attentionResult ←
-    match generation? with
-    | some generation => pure (Loam.AttentionReview.fromGeneration generation)
-    | none => Loam.AttentionReview.loadHouseholdEvidence dataDir
-  let attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
-    match attentionResult with
-    | .error message => .failed message
-    | .ok .unavailable => .unavailable
-    | .ok (.available snapshot) => .loaded snapshot
-  let (pace, paceHistory) :
-      Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot ×
+  let paceHistory :
       Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) ←
     match scheduled with
-    | .error message => pure (.failed message, .failed message)
+    | .error message => pure (.failed message)
     | .ok scheduledEvidence =>
-        match ← Loam.CycleSpendingPaceReview.loadPaceAndHistoryFromActualImageAt
+        match ← Loam.CycleSpendingPaceReview.loadHistoryFromActualImageWithScheduledAt
             dataDir image scheduledEvidence today 7 generation? with
-        | .error message => pure (.failed message, .failed message)
-        | .ok (paceSnapshot, historySnapshots) =>
-            pure (.loaded paceSnapshot, .loaded historySnapshots)
+        | .error message => pure (.failed message)
+        | .ok historySnapshots => pure (.loaded historySnapshots)
   let rolesResult ←
     match generation? with
     | some generation => pure (Loam.AccountingRoleAuthority.decodeGeneration? generation)
@@ -190,8 +179,6 @@ def loadSnapshotFromActualImage
   return .ok {
     actual := actual
     scheduled := scheduled
-    attention := attention
-    pace := pace
     paceHistory := paceHistory
     moneyCalendar := moneyCalendar
   }
@@ -509,9 +496,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot state nextFrame selected
   else if key = .enter then
     let day? :=
-      if state.homeMode == .summary then
-        some (Loam.Tui.SelectedDay.initial snapshot.actual.today)
-      else if state.activePane == .detail then do
+      if state.activePane == .detail then do
         let record ← Loam.Tui.Main.selectedDetailRecord? snapshot state
         Loam.Tui.SelectedDay.initialForActual? snapshot record
       else some (Loam.Tui.SelectedDay.initial state.selectedDate)
@@ -557,7 +542,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   else if (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
     let actual := Loam.Tui.ActualWorkspace.withMetadata
-      (Loam.Tui.ActualWorkspace.initial (actionDate snapshot state)) metadata
+      (Loam.Tui.ActualWorkspace.initial state.selectedDate) metadata
     let actualFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot actual)
     Loam.Tui.Terminal.redrawFromBlank bounds actualFrame
     let fresh ← actualWorkspaceLoop bounds dataDir root snapshot actual actualFrame
@@ -566,7 +551,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 's' || key = .input 'S') then
-    let scheduled := Loam.Tui.ScheduledWorkspace.initial (actionDate snapshot state)
+    let scheduled := Loam.Tui.ScheduledWorkspace.initial state.selectedDate
     let coverage ← Loam.ScheduledCoverageReview.loadSnapshot
       dataDir root snapshot.actual.today 18
     let scheduledFrame := compileWidget
@@ -738,10 +723,10 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
               (Loam.HouseholdPaths.boundaryPresets dataDir) with
           | some presets =>
               pure (Loam.Tui.Reports.initialForDateWithPresetsForMeasure
-                measure (actionDate snapshot state) presets)
+                measure state.selectedDate presets)
           | none =>
               let base := Loam.Tui.Reports.initialForDateForMeasure
-                measure (actionDate snapshot state)
+                measure state.selectedDate
               pure { base with
                 notice := "Boundary preset config malformed; named presets unavailable." }
         Loam.Tui.Terminal.redrawWidgetDirect
@@ -771,7 +756,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     }
     let measurePresentation ← currentMeasurePresentation dataDir
     let editor := Loam.Tui.Exchange.withMeasurePresentation
-      (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) (actionDate snapshot state))
+      (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate)
       measurePresentation
     let editorFrame := compileWidget (Loam.Tui.Exchange.view editor)
     Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
@@ -791,7 +776,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let measurePresentation ← currentMeasurePresentation dataDir
     let editor := Loam.Tui.Record.withMeasurePresentation
       (Loam.Tui.Record.withCatalog
-        (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) (actionDate snapshot state)) catalog)
+        (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate) catalog)
       measurePresentation
     let result ←
       Loam.Tui.RecordSession.runAdaptive bounds root world known editor frame

@@ -200,8 +200,6 @@ def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool)
     try:
         def cycle():
             for name, key, marker in (
-                ("summary", b"g", b"LOAM / Summary"),
-                ("calendar", b"g", b"LOAM Home"),
                 ("actual", b"a", b"Actual"),
                 ("actual_back", b"q", b"LOAM Home"),
                 ("record", b"r", b"Record movement"),
@@ -224,7 +222,6 @@ def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool)
                 samples.append({"cycles": i + 1, **resource_sample(terminal.process.pid)})
         for name, key, marker, back in (
             ("calendar", None, None, None),
-            ("summary", b"g", b"LOAM / Summary", b"g"),
             ("record", b"r", b"Record movement", b"\x1b"),
             ("pace", b"d", b"Daily Pace", b"q"),
             ("balances", b"b", b"Balances", b"q"),

@@ -29,17 +29,10 @@ do not fall back to retired steady-state sidecars.
 
 ## Home grammar
 
-The production TUI opens **Home / Calendar** by default: the date navigator
-is the accounting workspace. `g` (glance) opens a temporary **Summary**;
-`g` or `Esc` returns to the same calendar date, zoom, pane, selection and scroll
-positions. The former `c` toggle is retired.
-
-Summary shows current Daily Pace (including current-open Scheduled deductions),
-the next three recorded current-open Scheduled items, five recent current Actual
-entries, and the Attention read-state. These are read-only projections and do
-**not** assert that all future bills have been entered. Normal recording and
-specialized workspaces remain accessible from either view. Summary's date-based
-actions use today without overwriting the saved Calendar focus.
+The production TUI opens **Home / Calendar**: the date navigator is the
+accounting workspace. The temporary Summary surface and its Home `g` / `G`
+shortcut are removed, along with the former `c` toggle. Daily Pace, Scheduled,
+Actual, and Attention remain available through their individual workspaces.
 
 `Space` opens a short-lived, hierarchical Commands palette. Select
 **Envelope budget** to reveal the optional **Budget**, **Capacity**, and
@@ -54,7 +47,6 @@ publisher/writer boundaries change.
 The Calendar Home retains these entrances:
 
 ```text
-g          open Summary (g / Esc returns to Calendar)
 Space      Commands -> Envelope budget -> Budget / Capacity / Purpose routing
 h/l        previous / next day, month, or year (current zoom)
 k/j        previous / next week, quarter, or year (current zoom)
@@ -62,7 +54,7 @@ t          return calendar focus to today
 /          jump to a date, month, or year (Enter confirms; Esc cancels)
 z          cycle Day / Month / Year
 Tab/w      switch calendar / transaction focus
-Ctrl-u/d   scroll calendar/summary; page transaction selection in detail
+Ctrl-u/d   scroll calendar; page transaction selection in detail
 Enter      Year -> Month -> Day -> selected-day workspace
 (Day view) single role-aware money calendar with income, expense, and open-plan markers
 r          Record (selected date prefilled; cursor starts in Description)
@@ -86,21 +78,20 @@ the larger role-aware money grid, with Today's underline on the date row only
 (not the amount or blank rows), open-plan `!`, and
 unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
 still shows dates and explicitly indicates that the financial projection is
-unavailable. Summary owns current Daily Pace, upcoming plans, recent
-Actual, and Attention; the calendar does not duplicate those summaries.
+unavailable. The calendar does not duplicate Daily Pace or Attention answers;
+use `d` / `i` for those workspaces.
 
-Home's selected date is presentation/navigation state. In Calendar it seeds
-selected-day, Actual, Scheduled, Record, Exchange and Reports interactions;
-in Summary these actions use today. It does not redefine the current-cycle
-Budget observation date or silently manufacture a household cycle.
+Home's selected date is presentation/navigation state. It seeds selected-day,
+Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine
+the current-cycle Budget observation date or silently manufacture a household cycle.
 
 Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 Home keeps household state in the body and shortcut grammar in the stable footer.
-The current Daily Pace answer stays in Summary, while `d` opens a small read-only
-trend over the already-derived retrospective current-truth series. The trend does
-not retain daily pace as household state or introduce a second calculation.
+`d` opens a small read-only Daily Pace trend over the already-derived retrospective
+current-truth series, including its latest point. The trend does not retain daily
+pace as household state or introduce a second calculation.
 The footer groups commands by the active Day/Month/Year or Detail context,
 `Household`, and `Manage`. In Detail, j/k selects transactions, Enter opens the
 selected transaction in its day workspace, and Esc/Tab/w returns to the calendar.
