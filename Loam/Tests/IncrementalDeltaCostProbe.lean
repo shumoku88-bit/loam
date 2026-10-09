@@ -100,18 +100,18 @@ private def queriedBuckets : List Bucket :=
     afterReplacement bucket oldTotal removed added
 
 /-- The measured action must provide the correct two results on every iteration. -/
-private def medianUs (repetitions : Nat) (expected : List Int)
+private def medianNsPerCall (repetitions batchSize : Nat) (expected : List Int)
     (action : Unit → Option (List Int)) : IO Nat := do
   let mut times : Array Nat := #[]
   for _ in List.range repetitions do
     let t0 ← IO.monoNanosNow
-    let candidate := action ()
-    -- Force the complete result *inside* the timed region. Otherwise the
-    -- interpreter may evaluate only a deferred thunk before the clock stops.
-    unless candidate == some expected do
-      throw (IO.userError "delta benchmark answer/refusal mismatch")
+    -- Force and compare every answer during the timed interval.
+    for _ in List.range batchSize do
+      let candidate := action ()
+      unless candidate == some expected do
+        throw (IO.userError "delta benchmark answer/refusal mismatch")
     let t1 ← IO.monoNanosNow
-    times := times.push ((t1 - t0) / 1000)
+    times := times.push ((t1 - t0) / batchSize)
   let sorted := times.qsort (· < ·)
   return sorted[sorted.size / 2]!
 
@@ -136,13 +136,14 @@ private def runCase (n repetitions : Nat) : IO Unit := do
 
   -- The same images/old totals are reused. Read time excludes building and
   -- qualifying them; it also excludes the initial oldTotal calculation.
-  let fullUs ← medianUs repetitions expected fun _ =>
+  let batchSize := 10
+  let fullNs ← medianNsPerCall repetitions batchSize expected fun _ =>
     fullRecompute newImage
-  let scannedUs ← medianUs repetitions expected fun _ =>
+  let scannedNs ← medianNsPerCall repetitions batchSize expected fun _ =>
     scannedDelta oldImage newImage oldTotals
-  let knownUs ← medianUs repetitions expected fun _ =>
+  let knownNs ← medianNsPerCall repetitions batchSize expected fun _ =>
     some (knownDelta oldTotals removed added)
-  IO.println s!"{n}\t{admissionUs}\t{fullUs}\t{scannedUs}\t{knownUs}\t{repr expected}"
+  IO.println s!"{n}\t{admissionUs}\t{fullNs}\t{scannedNs}\t{knownNs}\t{repr expected}"
 
 def main (args : List String) : IO Unit := do
   let sizes ← if args.isEmpty then
@@ -156,7 +157,7 @@ def main (args : List String) : IO Unit := do
     if n == 0 || n > 10000 then
       throw (IO.userError "Event count must be between 1 and 10,000; O(n²) scanned path is not qualified for larger sizes")
   let repetitions := 3
-  IO.println "events\tadmit_pair_us\tfull_read_us\troot_scan_delta_us\tknown_delta_us\tnew_totals"
+  IO.println "events\tadmit_pair_us\tfull_read_ns\troot_scan_delta_ns\tknown_delta_ns\tnew_totals"
   for n in sizes do
     runCase n repetitions
 

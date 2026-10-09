@@ -37,11 +37,11 @@ compared approaches must return exactly the same two-day results.
 | Column | What it measures | What it excludes |
 | --- | --- | --- |
 | `admit_pair_us` | Construct and fully qualify both Actual images from synthetic data | Disk decode; CLI/TUI and household context |
-| `full_read_us` | Reproject current records and sum two buckets from the *new* admitted image | Admission; file load |
-| `root_scan_delta_us` | Call current `oneRootReplacement?` over *both* admitted images and apply delta to previously calculated old totals | Admission; precomputation of old totals |
-| `known_delta_us` | Apply a pre-known old/new contribution to two precomputed old totals | Discovery, admission, cache validation, publication |
+| `full_read_ns` | Reproject current records and sum two buckets from the *new* admitted image | Admission; file load |
+| `root_scan_delta_ns` | Call current `oneRootReplacement?` over *both* admitted images and apply delta to previously calculated old totals | Admission; precomputation of old totals |
+| `known_delta_ns` | Apply a pre-known old/new contribution to two precomputed old totals | Discovery, admission, cache validation, publication |
 
-All are median of three trials in microseconds. The known-delta path is a
+Admission is measured in microseconds. Other timings are median nanoseconds per call over three batches of ten complete result-checked calls. The known-delta path is a
 **lower-bound arithmetic scenario**, not a working end-to-end speedup.
 Build/fixture setup is excluded from the three paired read timings. The
 `admit_pair_us` path includes fixture construction and should not be
@@ -49,7 +49,7 @@ mistaken for startup or reload time.
 
 ## Evaluation gates
 
-- If `root_scan_delta_us` is slower than `full_read_us`, do not install
+- If `root_scan_delta_ns` is slower than `full_read_ns`, do not install
   the existing scanned delta as a performance optimization.
 - Even if root scanning wins, no cache is warranted unless real user-facing
   reports perform repeated same-generation queries and admission, invalidation,
