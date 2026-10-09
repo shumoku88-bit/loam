@@ -90,7 +90,7 @@ def main : IO Unit := do
   expect ((Loam.Tui.PlainTextPrint.prepare
     [String.ofList (List.replicate (Loam.Tui.PlainTextPrint.maxBytes + 1) 'x')]).isError)
     "bounded print admitted an oversized single line"
-  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\\t\\u0001c"] with
+  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\\t\\x01c"] with
   | .error message => throw (IO.userError message)
   | .ok prepared =>
       expect (prepared.byteCount >= 12 && prepared.lineCount == 3)
