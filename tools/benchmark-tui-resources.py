@@ -33,7 +33,7 @@ ROOT = Path(__file__).resolve().parents[1]
 ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
-def fixture(root: Path, events: int) -> None:
+def fixture(root: Path, events: int, days: int = 180) -> None:
     subprocess.run(["lake", "env", "lean", "--run", "Loam/Tests/ScheduledBatchReplacement.lean",
                     "setup", str(root)], cwd=ROOT, check=True, stdout=subprocess.DEVNULL)
     # Append only synthetic Actuals to the temporary image, preserving the seeded
@@ -51,7 +51,7 @@ def fixture(root: Path, events: int) -> None:
         if name == "Actual":
             today = datetime.date.today()
             body += "".join(
-                f"TX\tresource-{i}\t{today - datetime.timedelta(days=i % 180)}\tDESC\tsynthetic resource {i}\n"
+                f"TX\tresource-{i}\t{today - datetime.timedelta(days=i % days)}\tDESC\tsynthetic resource {i}\n"
                 "EFFECT\tbank\tjpy\t-1\nEFFECT\twifi\tjpy\t1\nENDTX\n"
                 for i in range(events)
             )
@@ -274,20 +274,22 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, default=ROOT / ".lake/build/bin/loamTui")
     parser.add_argument("--events", type=int, default=100)
+    parser.add_argument("--days", type=int, default=180,
+                        help="date buckets; 50000 Events over 2500 days models about 20 entries/day over 6.8 years")
     parser.add_argument("--cycles", type=int, default=100)
     parser.add_argument("--idle-seconds", type=float, default=3)
     parser.add_argument("--check", action="store_true", help="assert quiet idle, stable FDs and no retained child processes")
     args = parser.parse_args()
-    if args.events < 0 or args.cycles < 1 or args.idle_seconds <= 0:
-        parser.error("events must be nonnegative; cycles and idle-seconds must be positive")
+    if args.events < 0 or args.days < 1 or args.cycles < 1 or args.idle_seconds <= 0:
+        parser.error("events must be nonnegative; days, cycles and idle-seconds must be positive")
     binary = args.binary.resolve()
     if not binary.is_file():
         parser.error("build loamTui first")
     with tempfile.TemporaryDirectory(prefix="loam-tui-resources-") as tmp:
         root = Path(tmp) / "synthetic"
-        fixture(root, args.events)
+        fixture(root, args.events, args.days)
         report = run(binary, root, args.cycles, args.idle_seconds, args.check)
-        print(json.dumps({"events_added": args.events, "cycles": args.cycles,
+        print(json.dumps({"events_added": args.events, "date_buckets": args.days, "cycles": args.cycles,
                           "warmup_cycles": 5, "platform": platform.platform(),
                           "binary": str(binary), **report}, indent=2))
 

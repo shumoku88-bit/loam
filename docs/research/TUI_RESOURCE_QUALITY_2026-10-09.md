@@ -159,6 +159,25 @@ Fresh Record/Balance entrances still intentionally re-read authority and remain
 separate optimization pressure. The dense 180-date fixture is not equivalent to
 20 transactions/day over seven years; a wider date distribution needs qualification.
 
+## Date-distribution pressure
+
+`--days` selects the date-bucket count (default 180). At 20 retained Events/day,
+50,000 Events span 2,500 days, about 6.8 years. Date/merchant refinements do not
+necessarily create another Event; Movement correction/reversal/completion history
+can increase retained Event counts beyond everyday recording counts.
+
+```sh
+python3 tools/benchmark-tui-resources.py --check --events 50000 --days 2500 --cycles 3 --idle-seconds 2
+```
+
+This wider fixture measured 2,825ms startup, 951ms median Record open and 1,120ms
+median Balances open. FD count stayed seven, descendants zero, idle output zero;
+RSS was 126,248–126,260 KiB across three rounds. A compiled isolated projection
+probe measured **1,151ms in CalendarMoney projection** for 2,500 date rows: the
+list accumulator linearly searched existing date/Measure buckets for each Effect.
+This pressure was obscured by the earlier dense 180-date fixture and is a concrete
+next repair, not evidence that full long-history scaling has already been solved.
+
 ## Semantic neighbors checked
 
 Existing qualifications exercised historical bounded/zero-origin routes,
