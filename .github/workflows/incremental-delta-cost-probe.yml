@@ -1,0 +1,28 @@
+name: Incremental Delta Cost Probe
+
+on:
+  pull_request:
+    paths:
+      - 'Loam/Tests/IncrementalDeltaCostProbe.lean'
+      - 'docs/research/INCREMENTAL_DELTA_COST_PROBE_2026-10.md'
+      - '.github/workflows/incremental-delta-cost-probe.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: incremental-delta-probe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Bounded qualified Actual cost probe
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Build Lean research dependency
+        uses: ./.github/actions/lean-build
+        with:
+          build-args: Loam.Tests.IncrementalCorrectedFrontier
+      - name: Check correctness and bounded costs
+        run: lake env lean --run Loam/Tests/IncrementalDeltaCostProbe.lean 40 100 200
