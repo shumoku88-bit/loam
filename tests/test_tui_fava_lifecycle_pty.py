@@ -84,8 +84,8 @@ try:
     wait_for("LOAM Home")
 
     # 2. Enter Reports workspace
-    os.write(master, b"v")
-    wait_for("Reports")
+    os.write(master, b" jj\rjj\r")
+    wait_for("Stock")
 
     # 3. Trigger Fava projection
     os.write(master, b"f")
