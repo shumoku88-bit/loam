@@ -1094,71 +1094,136 @@ private def paceLabel (rule : Loam.ScheduledCoverageConfig.Rule) : String :=
   | 1 => "monthly"
   | n => "every " ++ toString n ++ " months"
 
-private def planDetailWindowStart (state : State) : Nat :=
-  if state.planRow > 8 then state.planRow - 7 else 0
+/-- Align quantity summaries without inventing a total or guessing a display scale. -/
+private def planDetailQuantity : PlanDetailEntry → String
+  | .missing _ => "—"
+  | .occurrence record _ =>
+      let negative := record.movement.changes.filter (fun change => change.quantity.quanta < 0)
+      let positive := record.movement.changes.filter (fun change => 0 < change.quantity.quanta)
+      match negative, positive with
+      | [_], [destination] =>
+          Loam.MeasurePresentation.groupDisplayedNumber (toString destination.quantity.quanta) ++
+            " " ++ record.measure.token
+      | _, _ => if record.movement.changes.isEmpty then "—"
+          else s!"split ({record.movement.changes.length})"
+
+private def planDetailTableRow
+    (width quantityWidth : Nat) (date status quantity : String) : String :=
+  let statusWidth := width - 10 - 4 - quantityWidth
+  Loam.Tui.Layout.padRight 10 date ++ "  " ++
+    Loam.Tui.Layout.padRight statusWidth status ++ "  " ++
+    Loam.Tui.Layout.padLeft quantityWidth
+      (if Loam.Tui.Layout.displayWidth quantity <= quantityWidth then quantity else "too wide")
 
 private def planDetailEntryLine
-    (state : State) (index : Nat) (entry : PlanDetailEntry) : Widget :=
-  let marker := if index == state.planRow then "> " else "  "
-  match entry with
-  | .missing month =>
-      plainLine (marker ++ month ++ "  --      MISSING monitored month")
-  | .occurrence record onPace =>
-      let status := if onPace then "on pace" else "outside pace"
-      plainLine (marker ++ record.scheduledOn ++ "  " ++
-        Loam.ScheduledReview.summary record ++ "  [" ++ status ++ "]")
+    (width quantityWidth : Nat) (state : State) (index : Nat) (entry : PlanDetailEntry) : Widget :=
+  let selected := index == state.planRow
+  let marker := if selected then "> " else "  "
+  let tabular := width >= 42
+  let statusWidth := (width - 2) - 10 - 4 - quantityWidth
+  let (date, status) := match entry with
+    | .missing month =>
+        (month, if tabular && statusWidth >= 22 then "MISSING monitored month" else "MISSING")
+    | .occurrence record onPace =>
+        (record.scheduledOn, if onPace then "[on pace]" else "[outside pace]")
+  let text := marker ++ (if tabular then
+      planDetailTableRow (width - 2) quantityWidth date status (planDetailQuantity entry)
+    else date ++ " " ++ status)
+  let fitted := if Loam.Tui.Layout.displayWidth text <= width then
+      Loam.Tui.Layout.padRight width text
+    else Loam.Tui.Layout.padRight width (Loam.Tui.Layout.clip (width - 1) text ++ "…")
+  .row [span fitted (if selected then .selected else .normal)]
 
 private def planDetailFooter (bounds : Bounds) : List Widget :=
-  let detailed :=
-    "[j/k] select  [e] replenish  [b] batch amount  [x] cancel  [r] replace  [c/Enter] complete  [p] pace  [s] undecided  [q] overview"
-  if Loam.Tui.Layout.displayWidth detailed ≤ Loam.Tui.Layout.contentWidth bounds then
-    [mutedLine detailed]
-  else
-    [ mutedLine "[j/k] select [e] replenish [x] cancel [r] replace [c/Enter] complete"
-    , mutedLine "[b] batch amount [p] pace [s] undecided [q] overview"
-    ]
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let compact := bounds.height < 18
+  let legend := if compact then
+      [["MISSING = gap only;", "quantities are quanta"]]
+    else
+      [["Explicit dates are authoritative;", "on/outside pace is monitoring guidance."],
+       ["MISSING is a monitored gap, not an occurrence.", "Quantities are exact quanta."]]
+  let help := if compact then
+      [["[j/k] select", "[c/Enter] complete", "[q] overview"],
+       ["[e] replenish", "[x] cancel", "[r] replace"]]
+    else
+      [["[j/k] select", "[e] replenish", "[x] cancel", "[r] replace", "[c/Enter] complete", "[q] overview"],
+       ["[b] batch amount", "[p] pace", "[s] undecided"]]
+  (Loam.Tui.Layout.flowLines width " " legend ++
+    Loam.Tui.Layout.flowLines width "  " help).map mutedLine
+
+/-- Shared physical clipping for the two framed Scheduled workspaces. -/
+private def boundedWorkspace (bounds : Bounds) (body : Widget) (footerLines : List Widget) : Widget :=
+  let writable := Loam.Tui.Layout.contentWidth bounds
+  let bodyLines := body.lines.map fun cells =>
+    Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  let fitted := Loam.Tui.Layout.fitWithFooter bounds bodyLines footerLines
+  .column ((fitted.take (bounds.height - 1)).map fun row =>
+    .column (row.lines.map fun cells => .row
+      ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
+        span (String.singleton cell.glyph) cell.style)))
 
 private def planDetailView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
     (coverage : CoverageEvidence) : Widget :=
-  let state := clampPlanDetailState snapshot coverage rawState
-  let footerLines := withNoticeFooter bounds state (planDetailFooter bounds)
-  match selectedCoverageRow? coverage state with
-  | none =>
-      .column (Loam.Tui.Layout.fitWithFooter bounds
-        [ rule bounds '='
-        , plainLine " Scheduled / Plan"
-        , plainLine " No recurring plan is selected."
-        , rule bounds '='
-        ] footerLines)
-  | some row =>
-      let entries := planDetailEntries snapshot row
-      let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
-      let fixedRows := 6 + 1 + 2
-      let capacity := max 6 (bodyCapacity - fixedRows)
-      let start := Loam.Tui.Layout.trailingWindowStart state.planRow capacity
-      let shown := (entries.drop start).take capacity
-      let shape :=
-        String.intercalate "," row.rule.negativeLoci ++ " -> " ++
-          String.intercalate "," row.rule.positiveLoci
-      let body :=
-        [ rule bounds '='
-        , plainLine (" Scheduled / Plan / " ++ row.rule.name)
-        , plainLine (" Pace: " ++ paceLabel row.rule ++ " from " ++ row.rule.anchor)
-        , plainLine (" Shape: " ++ shape)
-        , mutedLine " Explicit dates remain authoritative. Pace only labels monitored months and gaps."
-        , rule bounds '='
-        ] ++
-        (if shown.isEmpty then
-          [mutedLine " (no current-open occurrences or monitored gaps in the loaded horizon)"]
-        else
-          shown.zipIdx.map fun (entry, offset) =>
-            planDetailEntryLine state (start + offset) entry) ++
-        [ rule bounds '-'
-        , mutedLine " on pace = explicit date in a monitored month; outside pace = explicit date outside it."
-        , mutedLine " MISSING is presentation guidance only; no Scheduled occurrence exists yet."
-        ]
-      .column (Loam.Tui.Layout.fitWithFooter bounds body footerLines)
+  let state := clampPlanDetailState snapshot coverage (clampCoverageState coverage rawState)
+  let footerLines := if state.notice.isEmpty then
+      mutedLine "" :: planDetailFooter bounds
+    else withNoticeFooter bounds state (planDetailFooter bounds)
+  let writable := Loam.Tui.Layout.contentWidth bounds
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
+  let contextRows := if bodyCapacity >= 9 then 3 else if bodyCapacity >= 6 then 2
+    else if bodyCapacity >= 4 then 1 else 0
+  let panelHeight := bodyCapacity - contextRows
+  let innerWidth := writable - 2
+  let innerHeight := panelHeight - 2
+  let showHeader := innerHeight >= 2 && innerWidth >= 42
+  let capacity := innerHeight - (if showHeader then 1 else 0)
+  let readError := match scopeEvidence snapshot { state with scope := .allCurrent }, coverage with
+    | .error message, _ => some ("[Unavailable] Scheduled: " ++ message)
+    | _, .error message => some ("[Coverage unavailable] " ++ message)
+    | _, _ => none
+  let (context, title, content, position) : List Widget × String × List Widget × Option String :=
+    match readError with
+    | some message =>
+        ([plainLine " Scheduled / Plan", mutedLine " Evidence unavailable"], "Plan [Unavailable]",
+          (Loam.Tui.Layout.wrapColumns innerWidth message).map plainLine, none)
+    | none => match selectedCoverageRow? coverage state with
+      | none =>
+          ([plainLine " Scheduled / Plan"], "Plan",
+            [mutedLine " No recurring plan is selected."], none)
+      | some row =>
+          let entries := planDetailEntries snapshot row
+          let total := entries.length
+          let start := Loam.Tui.Layout.trailingWindowStart state.planRow (max 1 capacity)
+          let shown := (entries.drop start).take capacity
+          let quantityWidth := min (innerWidth - 2 - 10 - 4 - 14)
+            (min 22 (max 14 (entries.foldl (fun widest entry =>
+              max widest (Loam.Tui.Layout.displayWidth (planDetailQuantity entry))) 0)))
+          let header := if showHeader then
+              [mutedLine ("  " ++ planDetailTableRow (innerWidth - 2) quantityWidth
+                "Date/Month" "Status" "Quanta")]
+            else []
+          let shape := String.intercalate "," row.rule.negativeLoci ++ " -> " ++
+            String.intercalate "," row.rule.positiveLoci
+          let context :=
+            [plainLine (" Scheduled / Plan / " ++ row.rule.name),
+             mutedLine (" Pace: " ++ paceLabel row.rule ++ " from " ++ row.rule.anchor),
+             mutedLine (" Shape: " ++ shape)]
+          let context := context.map fun widget => .column (widget.lines.map fun cells =>
+            let text := String.ofList (cells.map Cell.glyph)
+            if Loam.Tui.Layout.displayWidth text <= writable then Widget.row
+                (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+            else mutedLine (Loam.Tui.Layout.clip (writable - 1) text ++ "…"))
+          let more := (if start > 0 then " ▲" else "") ++
+            (if start + capacity < total then " ▼" else "")
+          (context, "Occurrences / monitored gaps",
+            (if entries.isEmpty then
+              [mutedLine " No current-open occurrences or monitored gaps in the loaded horizon."]
+            else header ++ shown.zipIdx.map fun (entry, offset) =>
+              planDetailEntryLine innerWidth quantityWidth state (start + offset) entry),
+            some ((if total == 0 then "0/0" else s!"{state.planRow + 1}/{total}") ++ more))
+  let panel := Loam.Tui.Layout.framedPanel writable panelHeight title (.column content) true position
+  boundedWorkspace bounds (.column (context.take contextRows ++ [panel])) footerLines
 
 private def coverageFooter (bounds : Bounds) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
@@ -1218,13 +1283,7 @@ private def coverageView
           [plainLine (" [Coverage unavailable] " ++ message),
            mutedLine " Months and List remain available with v."], none)
   let panel := Loam.Tui.Layout.framedPanel writable panelHeight title (.column content) true position
-  let body := (Widget.column (context.take contextRows ++ [panel])).lines.map fun cells =>
-    .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
-  let fitted := Loam.Tui.Layout.fitWithFooter bounds body footerLines
-  .column ((fitted.take (bounds.height - 1)).map fun row =>
-    .column (row.lines.map fun cells => .row
-      ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
-        span (String.singleton cell.glyph) cell.style)))
+  boundedWorkspace bounds (.column (context.take contextRows ++ [panel])) footerLines
 
 def viewWithCoverage
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)

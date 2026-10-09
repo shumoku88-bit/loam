@@ -402,11 +402,24 @@ occurrences are untouched. This keeps "I do not yet know whether this continues"
 distinct from both cancellation and a missing payment without introducing canonical
 recurrence identity.
 
-`Enter` from the Series Calendar opens Months with the latest matching explicit
-occurrence selected. Completion (`c` / `Enter`), replacement (`r`), and
-cancellation (`x`) then operate on exact occurrences there. The older `g`
-generation and `m` monitoring keys remain compatibility/advanced paths but are no
-longer part of the ordinary footer grammar.
+`Enter` from the Series Calendar opens focused **Plan Detail**. Its quiet rounded
+frame aligns Date/Month, Status, and right-aligned Quanta columns. Quantities show
+exact grouped retained quanta with the Measure token, without assuming a currency
+scale or conversion. Split movements show their change count rather than a sum;
+oversized quantities say `too wide` instead of showing misleading partial digits.
+Explicit on- and outside-pace dates remain visible beside presentation-only
+monitored gaps. The selected row stays inside the visible table, with position and
+hidden-row indicators in the bottom border. Very narrow screens show date/status
+only; short screens abbreviate help and can omit the column heading. A reserved
+feedback row prevents ordinary boundary notices from shifting the frame, while
+long publisher refusals retain their complete wrapped text. Failed Scheduled or
+coverage evidence shows Unavailable, never a fabricated empty plan or gap list.
+
+Completion (`c` / `Enter`), replacement (`r`), and cancellation (`x`) operate on
+exact explicit occurrences; a MISSING row is not a Scheduled occurrence and cannot
+be completed, replaced, or cancelled. `q` returns to the Series Calendar. The older
+`g` generation and `m` monitoring keys remain compatibility/advanced paths but are
+no longer part of the ordinary footer grammar.
 
 ### Checked batch amount editing
 

@@ -35,6 +35,11 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
     root = Path(temporary) / "household"
     subprocess.run(["lake", "env", "lean", "--run", "Loam/Tests/ScheduledBatchReplacement.lean",
                     "setup", str(root)], cwd=repo, check=True)
+    # Explicit read-side monitoring, not an inferred recurrence or fixture writer.
+    coverage_config = root / "config" / "scheduled-coverage.tsv"
+    coverage_config.parent.mkdir(exist_ok=True)
+    coverage_definition = "wifi\t2026-11-08\t1\tbank\twifi\n"
+    coverage_config.write_text(coverage_definition)
     authority = root / "household.loam"
     before = authority.read_text()
     master, slave = pty.openpty()
@@ -77,6 +82,23 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
     try:
         capture(b"LOAM Home")
         send(b"s", b"Series Calendar")
+        plan = ansi.sub(b"", send(b"\r", b"Scheduled / Plan / wifi"))
+        assert "╭ Occurrences / monitored gaps".encode() in plan and b"====" not in plan
+        assert b"Date/Month" in plan and b"Quanta" in plan and b"4,800 jpy" in plan
+        send(b"\x1b[F", b"MISSING")  # End reaches a presentation-only monitored gap.
+        for rows, columns in ((10, 48), (24, 100)):
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+            output = capture(b"Scheduled / Plan / wifi")
+            positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+            assert positions and all(1 <= int(r) <= rows and 1 <= int(c) <= columns
+                                     for r, c in positions)
+            assert re.search(rb"> \d{4}-\d{2}\s+MISSING", ansi.sub(b"", output)), (
+                "resize hid the selected monitored gap", output
+            )
+        send(b"x", b"missing monitored month")
+        assert authority.read_text() == before, "viewing or trying to cancel a gap changed authority"
+        assert coverage_config.read_text() == coverage_definition, "navigation changed monitoring"
+        send(b"q", b"Series Calendar")
         send(b"v", b"Scheduled / Months")
         configure_sheet()
         preview = check_and_preview()
@@ -119,7 +141,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         os.close(master)
         master = -1
         assert process.wait(timeout=5) == 0
-        print("Scheduled batch PTY: checked selection, preview/cancel, resize, atomic publish and paid-history preservation passed.")
+        print("Scheduled PTY: framed Plan Detail, idle resize, gap refusal, checked batch publish and paid-history preservation passed.")
     finally:
         if master >= 0:
             os.close(master)

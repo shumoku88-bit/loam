@@ -60,9 +60,9 @@ private def scheduledWorkspaceSnapshot : IO Loam.Tui.Main.Snapshot := do
   }
   pure { actual := actual, scheduled := .ok scheduledSnapshot }
 
-private def longScheduledWorkspaceSnapshot : IO Loam.Tui.Main.Snapshot := do
+private def longScheduledWorkspaceSnapshot (count : Nat) : IO Loam.Tui.Main.Snapshot := do
   let rows ← requireSome
-    ((List.range 12).mapM fun index =>
+    ((List.range count).mapM fun index =>
       scheduledRecord? ("scheduled-long-" ++ toString index) "2026-09-07"
         "wallet" "food" (Int.ofNat (index + 1)))
     "long Scheduled fixtures were not admitted"
@@ -144,7 +144,7 @@ def main : IO Unit := do
 
   -- Production Scheduled workspace owns its own eight-row viewport. Pin navigation beyond it
   -- before the older Main Scheduled cursor implementation is retired.
-  let longSnapshot ← longScheduledWorkspaceSnapshot
+  let longSnapshot ← longScheduledWorkspaceSnapshot 12
   let longStart := Loam.Tui.ScheduledWorkspace.initialList "2026-09-07"
   let longShifted := (List.range 10).foldl
     (fun current _ => (Loam.Tui.ScheduledWorkspace.update longSnapshot current .next).state)
@@ -477,6 +477,104 @@ def main : IO Unit := do
     contains "2026-12-15" supportPlanText && contains "[on pace]" supportPlanText &&
     contains "2027-04" supportPlanText && contains "MISSING monitored month" supportPlanText)
     "Scheduled Plan Detail did not combine explicit, outside-pace, and missing rows"
+  expect (contains "╭ Occurrences / monitored gaps" supportPlanText &&
+      contains "Date/Month" supportPlanText && contains "Quanta" supportPlanText &&
+      contains "11,240 jpy" supportPlanText && !contains "====" supportPlanText)
+    "Plan Detail lost its quiet frame, aligned columns, or exact grouped quanta"
+
+  let manyPlanSnapshot ← longScheduledWorkspaceSnapshot 40
+  let manyPlanRecords ← match manyPlanSnapshot.scheduled with
+    | .error message => throw (IO.userError message)
+    | .ok evidence => match Loam.ScheduledReview.orderedCurrentOpenRecords evidence with
+      | .error message => throw (IO.userError message)
+      | .ok records => pure records
+  let manyPlanRule := { foodRule with
+    name := "日本語の長いプラン名を切り詰める際にも選択した予定を保つ"
+    negativeLoci := ["wallet"]
+    everyMonths := 0 }
+  let manyPlanCoverage ← match Loam.ScheduledCoverageReview.projectRecords
+      [manyPlanRule] manyPlanRecords "2026-09-07" 18 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let manyPlanState := { coverage with viewMode := .planDetail, planRow := 35 }
+  let selectedManyPlan ← requireSome (Loam.Tui.ScheduledWorkspace.selectedPlanDetailRecord?
+    manyPlanSnapshot (.ok manyPlanCoverage) manyPlanState) "long Plan Detail selection disappeared"
+  let selectedQuantity := Loam.MeasurePresentation.groupDisplayedNumber
+    (toString (selectedManyPlan.quantityAt ⟨"food"⟩).quanta) ++ " jpy"
+  for bounds in [{ width := 80, height := 24 }, { width := 120, height := 30 },
+      { width := 144, height := 40 }, { width := 48, height := 10 }] do
+    let rendered := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds manyPlanSnapshot
+      manyPlanState (.ok manyPlanCoverage)
+    let selectedLines := rendered.lines.filter fun cells =>
+      cells.any (fun cell => cell.style == .selected)
+    expect (selectedLines.length == 1 && contains selectedQuantity
+        (String.ofList ((selectedLines.flatten.filter (fun cell => cell.style == .selected)).map Cell.glyph)) &&
+        contains "36/40" (widgetText rendered))
+      "Plan Detail scrolled its selected occurrence off-screen or changed its quantity"
+    expect (rendered.lines.all fun cells => cells.all fun cell =>
+        cell.style == .normal || cell.style == .muted ||
+        cell.style == .series1 || cell.style == .selected)
+      "Plan Detail added decorative accent colors"
+  for width in [0, 1, 2, 10, 20, 32, 48, 80, 120] do
+    for height in [0, 1, 2, 6, 10, 18, 24, 30] do
+      let rendered := Loam.Tui.ScheduledWorkspace.viewWithCoverage { width, height }
+        manyPlanSnapshot manyPlanState (.ok manyPlanCoverage)
+      expect (rendered.lines.length <= height - 1 && rendered.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth { width, height }))
+        "Plan Detail exceeded its physical terminal geometry"
+  let narrowPlan := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 48, height := 10 } manyPlanSnapshot manyPlanState (.ok manyPlanCoverage))
+  expect (contains "…" narrowPlan)
+    "Plan Detail silently clipped a long Japanese plan label"
+  let bounds : Bounds := { width := 80, height := 24 }
+  let plainPlan := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds supportFilledSnapshot
+    supportPlan (.ok supportFilledCoverage)
+  let boundaryPlan := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds supportFilledSnapshot
+    { supportPlan with notice := "At first row." } (.ok supportFilledCoverage)
+  expect (plainPlan.lines.zipIdx.filterMap (fun (cells, index) =>
+        if cells.any (fun cell => cell.glyph == '╭' || cell.glyph == '╰') then some index else none) ==
+      boundaryPlan.lines.zipIdx.filterMap (fun (cells, index) =>
+        if cells.any (fun cell => cell.glyph == '╭' || cell.glyph == '╰') then some index else none))
+    "A short navigation notice shifted the Plan Detail frame"
+  let unknownPlan := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 120, height := 30 } { supportFilledSnapshot with scheduled := .error "read refused" }
+    supportPlan (.ok supportFilledCoverage))
+  let failedCoveragePlan := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 120, height := 30 } supportFilledSnapshot supportPlan (.error "coverage refused"))
+  expect (contains "[Unavailable] Scheduled: read refused" unknownPlan &&
+      contains "[Coverage unavailable] coverage refused" failedCoveragePlan &&
+      !contains "0/0" unknownPlan && !contains "0/0" failedCoveragePlan &&
+      !contains "No current-open occurrences" unknownPlan)
+    "Plan Detail collapsed failed evidence into an empty plan or monitored gaps"
+  let planRefusal := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 100, height := 30 } supportFilledSnapshot
+    { supportPlan with notice := refusalMessage } (.ok supportFilledCoverage))
+  expect (contains refusalMessage (planRefusal.replace "\n" " "))
+    "Plan Detail clipped the publisher's complete refusal feedback"
+  let splitMovement ← requireSome (BalancedMovement.ofChanges? yen
+    [change "wallet" (-100), change "books" 25, change "food" 75])
+    "split Plan Detail fixture was not admitted"
+  let splitPlan : ScheduledOccurrence String := {
+    id := ⟨"split-plan"⟩, scheduledOn := "2026-09-07", movement := splitMovement }
+  let hugePlan ← requireSome (scheduledRecord? "huge-plan" "2026-09-07" "wallet" "food"
+    1234567890123456789012345678901234567890) "huge Plan Detail fixture was not admitted"
+  for (record, loci, expected) in [(splitPlan, ["books", "food"], "split (3)"),
+      (hugePlan, ["food"], "too wide")] do
+    let memory ← requireSome (ScheduledMemory.ofOccurrences? [record])
+      "special-quantity Plan Detail memory was not admitted"
+    let rule := { manyPlanRule with positiveLoci := loci }
+    let specialCoverage ← match Loam.ScheduledCoverageReview.projectRecords
+        [rule] [record] "2026-09-07" 18 with
+      | .error message => throw (IO.userError message)
+      | .ok result => pure result
+    let specialSnapshot := { supportFilledSnapshot with
+      scheduled := .ok { supportFilledEvidence with scheduled := memory } }
+    let text := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+      { width := 80, height := 24 } specialSnapshot { manyPlanState with planRow := 0 }
+      (.ok specialCoverage))
+    expect (contains expected text && !contains "100 jpy" text && !contains "1,234,567,890" text)
+      "Plan Detail invented a split total or truncated an oversized quantity into a plausible amount"
 
   let supportOutside :=
     (Loam.Tui.ScheduledWorkspace.updateWithCoverage
