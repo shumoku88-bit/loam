@@ -15,6 +15,7 @@ import Loam.Tui.LocusTrendComparePane
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
 import Loam.Tui.Viewport
+import Loam.Tui.PlainTextPrint
 
 namespace Loam.Tui.Reports
 
@@ -1105,6 +1106,27 @@ private def balancesResultLines (state : State) : List Widget :=
   | none => [muted "Current RoleBalance answer unavailable; press Enter to retry."]
   | some snapshot => Loam.Tui.RoleBalances.lines snapshot
 
+/--
+Prepare the same evidence-aware RoleBalance presentation used by the on-screen
+Balances report. Do not materialize the full report for oversized snapshots.
+-/
+def prepareBalancesPrint (state : State) : Except String Loam.Tui.PlainTextPrint.Prepared := do
+  let some snapshot := state.roleBalanceSnapshot
+    | throw "Print unavailable: run the Balances review first."
+  -- A cheap evidence-size gate before expanding Balance Sheet / Net Worth /
+  -- Trial Balance and their answerability frontiers into widgets.
+  let coordinates :=
+    snapshot.rows.length + snapshot.knownPresentBalances.length +
+      snapshot.unsupportedBalances.length
+  if coordinates > 70 then
+    throw "Print refused: balance evidence is too large; narrow the report first."
+  Loam.Tui.PlainTextPrint.prepareWidgets <|
+    [ line "Reports / Balances"
+    , muted "Current evidence-aware accounting projections from shared RoleBalance."
+    , muted "Balance Sheet / Net Worth / Trial Balance are presentations, not separate engines."
+    , blank
+    ] ++ Loam.Tui.RoleBalances.lines snapshot
+
 private def balancesView (state : State) : Widget :=
   .column <|
     [ line "Reports / Balances"
@@ -1114,7 +1136,7 @@ private def balancesView (state : State) : Widget :=
     ] ++
     balancesResultLines state ++
     [ blank
-    , muted "Enter refresh   ↑/↓ or j/k scroll"
+    , muted "Enter refresh   ↑/↓ or j/k scroll   [p] print view"
     , muted "q / Esc Reports menu"
     , line state.notice
     ]
