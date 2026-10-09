@@ -1,6 +1,7 @@
 import Loam.Review.AttentionReview
 import Loam.Review.ScheduledReview
 import Loam.Tui.Home
+import Loam.Tui.HomeCommandPalette
 import Loam.Tui.AttentionAdministration
 import Loam.Tui.ScheduledContinuationSession
 import Loam.Authority.HouseholdAuthority
@@ -156,12 +157,19 @@ def main : IO Unit := do
     actual := actual
     scheduled := .ok snapshot
   }
-  -- Home keeps the Attention entrance; deferred matters are read in that workspace.
+  -- Home exposes Commands; the Plans group reaches the existing Attention workspace.
   let homeState := Loam.Tui.Main.initialState "2026-09-15"
   let homeText := widgetText
     (Loam.Tui.Home.view { width := 100, height := 42 } homeSnapshot homeState)
-  expect (contains "[i] attention" homeText)
-    "Calendar Home lost the deferred-continuation Attention entrance"
+  expect (contains "[Space] commands" homeText)
+    "Calendar Home lost its Commands entrance"
+  let paletteRoot : Loam.Tui.HomeCommandPalette.State := { selected := 1 }
+  expect (Loam.Tui.HomeCommandPalette.update paletteRoot .enter ==
+    .stay { page := .planning })
+    "Commands did not reach the Plans and attention group"
+  expect (Loam.Tui.HomeCommandPalette.update { page := .planning, selected := 1 } .enter ==
+    .open .attention)
+    "Plans and attention no longer opens the deferred-continuation Attention workspace"
   let attentionText := widgetText (Loam.Tui.AttentionAdministration.view
     (Loam.Tui.AttentionAdministration.initial attentionAvailability "2026-09-15"))
   expect (contains "due unknown" attentionText && contains "source" attentionText)
