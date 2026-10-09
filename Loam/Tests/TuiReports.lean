@@ -69,6 +69,56 @@ private def dayPoints
     }
 
 
+private def expectRefusal {α : Type} (result : Except String α)
+    (message : String) : IO Unit := do
+  match result with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError message)
+
+private def testBoundedPrint : IO Unit := do
+  let exactLimit := List.replicate Loam.Tui.PlainTextPrint.maxLines "x"
+  match Loam.Tui.PlainTextPrint.prepare exactLimit with
+  | .error message => throw (IO.userError ("within-limit print refused: " ++ message))
+  | .ok prepared =>
+      expect (prepared.lineCount == 200 && prepared.byteCount == 400 &&
+        prepared.lines.length == 200)
+        "bounded print lost exact line/byte accounting"
+  expectRefusal (Loam.Tui.PlainTextPrint.prepare (exactLimit ++ ["extra"]))
+    "bounded print admitted one extra line"
+  expectRefusal (Loam.Tui.PlainTextPrint.prepare
+    [String.ofList (List.replicate (Loam.Tui.PlainTextPrint.maxBytes + 1) 'x')])
+    "bounded print admitted an oversized single line"
+  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\\t\\x01c"] with
+  | .error message => throw (IO.userError message)
+  | .ok prepared =>
+      expect (prepared.byteCount == 12 && prepared.lineCount == 3 &&
+        prepared.lines[2]? == some "bc")
+        "bounded print lost UTF-8 byte accounting or control-byte sanitation"
+  let selectedBalances : Loam.Tui.Balances.State := {
+    rows := [.unsupported ⟨⟨"unknown-wallet"⟩, ⟨"jpy"⟩⟩]
+  }
+  match Loam.Tui.Balances.preparePrint selectedBalances with
+  | .error message => throw (IO.userError message)
+  | .ok prepared =>
+      expect (contains "unsupported" (String.intercalate "\\n" prepared.lines))
+        "selected balance printing turned unsupported state into an amount"
+  expectRefusal (Loam.Tui.Balances.preparePrint {
+      rows := List.replicate 250 (.unsupported ⟨⟨"unknown-wallet"⟩, ⟨"jpy"⟩⟩)
+    })
+    "selected balance printing expanded an oversized row selection"
+
+private def testReportsBalancesPrint (state : Loam.Tui.Reports.State) : IO Unit := do
+  expect (contains "[p] print view"
+      (widgetText (Loam.Tui.Reports.viewForBounds { width := 100, height := 24 } state)))
+    "Reports/Balances did not advertise bounded terminal printing"
+  match Loam.Tui.Reports.prepareBalancesPrint state with
+  | .error message => throw (IO.userError ("bounded Reports/Balances refused fixture: " ++ message))
+  | .ok prepared =>
+      let printed := String.intercalate "\\n" prepared.lines
+      expect (contains "Qualified Net Worth: UNKNOWN" printed &&
+        contains "liability-unsupported" printed && contains "balance unsupported" printed)
+        "Reports/Balances print omitted evidence qualifiers or unknown amounts"
+
 def main : IO Unit := do
   expect (Loam.Tui.Terminal.plainTerminalText "a\n\r\x1b\tb" == "ab")
     "presentation text retained terminal control characters"
@@ -77,36 +127,7 @@ def main : IO Unit := do
   expect (!contains "[y] copy screen" reportHelp && !contains "Shift+drag" reportHelp)
     "Reports retained the retired screen-copy or terminal-selection hint"
 
-  -- The generic terminal-output boundary is closed by default on excess data.
-  let exactLimit := List.replicate Loam.Tui.PlainTextPrint.maxLines "x"
-  match Loam.Tui.PlainTextPrint.prepare exactLimit with
-  | .error message => throw (IO.userError ("within-limit print refused: " ++ message))
-  | .ok prepared =>
-      expect (prepared.lineCount == 200 && prepared.byteCount == 400 &&
-        prepared.lines.length == 200)
-        "bounded print lost exact line/byte accounting"
-  expect ((Loam.Tui.PlainTextPrint.prepare (exactLimit ++ ["extra"])).isError)
-    "bounded print admitted one extra line"
-  expect ((Loam.Tui.PlainTextPrint.prepare
-    [String.ofList (List.replicate (Loam.Tui.PlainTextPrint.maxBytes + 1) 'x')]).isError)
-    "bounded print admitted an oversized single line"
-  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\t\x01c"] with
-  | .error message => throw (IO.userError message)
-  | .ok prepared =>
-      expect (prepared.byteCount >= 12 && prepared.lineCount == 3)
-        "bounded print lost UTF-8 byte accounting"
-  let selectedBalances : Loam.Tui.Balances.State := {
-    rows := [.unsupported ⟨⟨"unknown-wallet"⟩, ⟨"jpy"⟩⟩]
-  }
-  match Loam.Tui.Balances.preparePrint selectedBalances with
-  | .error message => throw (IO.userError message)
-  | .ok prepared =>
-      expect (contains "unsupported" (String.intercalate "\n" prepared.lines))
-        "selected balance printing turned unsupported state into an amount"
-  expect ((Loam.Tui.Balances.preparePrint {
-      rows := List.replicate 250 (.unsupported ⟨⟨"unknown-wallet"⟩, ⟨"jpy"⟩⟩)
-    }).isError)
-    "selected balance printing expanded an oversized row selection"
+  testBoundedPrint
 
   let styledCells : List Cell :=
     [ { glyph := 'a', style := .normal }
@@ -860,17 +881,8 @@ def main : IO Unit := do
     "Balances surface promoted an incomplete Net Worth to knowledge"
   expect (contains "liability-unsupported" balancesText && contains "balance unsupported" balancesText)
     "Balances surface hid the unsupported liability witness"
-  expect (contains "[p] print view"
-      (widgetText (Loam.Tui.Reports.viewForBounds { width := 100, height := 24 } balancesReport)))
-    "Reports/Balances did not advertise bounded terminal printing"
-  match Loam.Tui.Reports.prepareBalancesPrint balancesReport with
-  | .error message => throw (IO.userError ("bounded Reports/Balances refused fixture: " ++ message))
-  | .ok prepared =>
-      let printed := String.intercalate "\\n" prepared.lines
-      expect (contains "Qualified Net Worth: UNKNOWN" printed &&
-        contains "liability-unsupported" printed && contains "balance unsupported" printed)
-        "Reports/Balances print omitted evidence qualifiers or unknown amounts"
-  expect ((Loam.Tui.Reports.prepareBalancesPrint balancesStep.state).isError)
+  testReportsBalancesPrint balancesReport
+  expectRefusal (Loam.Tui.Reports.prepareBalancesPrint balancesStep.state)
     "Reports/Balances printed without a current RoleBalance answer"
 
   let pension : Loam.BoundaryPresetConfig.Preset := {
