@@ -1333,9 +1333,7 @@ def main : IO Unit := do
   let fullDailyLines := widgetLineTexts (Loam.Tui.Reports.view dailyIncomeExpense)
   let dailyBodySize := fullDailyLines.length - 4
   let fullDailyBody := fullDailyLines.take dailyBodySize
-  let originalFooter := fullDailyLines.drop dailyBodySize
-  let fullDailyFooter := originalFooter.take (originalFooter.length - 2) ++
-    ["[y] copy screen   Shift+drag select"] ++ originalFooter.drop (originalFooter.length - 2)
+  let fullDailyFooter := fullDailyLines.drop dailyBodySize
   let dailyPage := dailyBounds.height - (fullDailyFooter.length + 1)
   expect
     (Loam.Tui.Reports.scrollLimit dailyBounds dailyIncomeExpense ==
