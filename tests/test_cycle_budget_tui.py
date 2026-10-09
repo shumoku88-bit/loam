@@ -110,7 +110,7 @@ def drain_fd(fd):
 def open_envelope_commands():
     os.write(master, b" ")
     wait_for("Home / Commands")
-    os.write(master, b"\x1b[C")
+    os.write(master, b"jjj\x1b[C")
     wait_for("Commands / Envelope budget")
 
 
@@ -221,7 +221,7 @@ try:
         cwd=repo_root,
         check=True,
     )
-    os.write(master, b"b")
+    os.write(master, b" jj\rj\r")
     anchored_balances = wait_for("Balances / Current")
     assert "anchored-wallet" in anchored_balances and "42 jpy" in anchored_balances, (
         "Home Balances did not compose CurrentQuantityAnchor support"
@@ -247,11 +247,11 @@ try:
         cwd=repo_root,
         check=True,
     )
-    expect_local_unavailability(b"i", "Attention")
+    expect_local_unavailability(b" j\rj\r", "Attention")
     household_path.write_bytes(household)
 
     balance_view_path.write_text("bad row\n")
-    expect_local_unavailability(b"b", "Balances")
+    expect_local_unavailability(b" jj\rj\r", "Balances")
     balance_view_path.write_bytes(balance_view)
 
     household_path = root / "household.loam"
