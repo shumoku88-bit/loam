@@ -72,7 +72,7 @@ def main : IO Unit := do
   let hraText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot second)
   expect (contains "Household Actuals Workspace" hraText)
     "Actual workspace shell heading disappeared"
-  expect (contains "Selected Actual Details:" hraText && contains "beta" hraText)
+  expect (contains "╭ Details" hraText && contains "beta" hraText)
     "Actual workspace did not keep selected transaction details visible without a detail transition"
   let allCurrent := (Loam.Tui.ActualWorkspace.update snapshot second .cycleFilter).state
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot allCurrent).length == 3)
@@ -137,6 +137,50 @@ def main : IO Unit := do
   expect (cancelledSearch.searchQuery.isEmpty && !cancelledSearch.searchEditing &&
       (Loam.Tui.ActualWorkspace.visibleRecords snapshot cancelledSearch).length == 3)
     "Actual workspace Esc-style search cancellation did not restore all-current browsing"
+
+  -- Pane accents identify regions without classifying household quantities.
+  -- Existing frame callers keep their muted inactive defaults.
+  let cornerStyles := fun (widget : Widget) =>
+    (widget.lines.flatMap fun line => line.filter (fun cell => cell.glyph == '╭')).map Cell.style
+  let defaultFrame := Loam.Tui.Layout.framedPanel 20 4 "Probe" (plainLine "content")
+  let coloredFrame := Loam.Tui.Layout.framedPanel 20 4 "Probe" (plainLine "content")
+    false none .series4
+  let focusedFrame := Loam.Tui.Layout.framedPanel 20 4 "Probe" (plainLine "content")
+    true none .series4
+  expect (cornerStyles defaultFrame == [.muted] && cornerStyles coloredFrame == [.series4] &&
+      cornerStyles focusedFrame == [.series1])
+    "Panel accents changed default styling or overrode the shared focus border"
+  expect (widgetText defaultFrame == widgetText coloredFrame &&
+      coloredFrame.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) == 20)
+    "Panel coloring changed text or fixed-rectangle geometry"
+  for (pane, expected) in
+      [(Loam.Tui.ActualWorkspace.Pane.loci, [Style.series1, .series3, .series2]),
+       (.transactions, [.series4, .series1, .series2]),
+       (.details, [.series4, .series3, .series1])] do
+    let colored := Loam.Tui.ActualWorkspace.view { width := 144, height := 40 }
+      snapshot { actualStart with pane }
+    expect (cornerStyles colored == expected)
+      "Actual panel colors lost pane identity or focused more than one wide panel"
+    let footerRow := colored.lines[colored.lines.length - 2]?.getD []
+    expect (footerRow.any fun cell => cell.glyph == '[' && cell.style == .series2)
+      "Actual footer no longer distinguishes shortcut keys from labels"
+  for bounds in [{ width := 144, height := 40 }, { width := 80, height := 24 },
+      { width := 48, height := 10 }] do
+    for pane in [Loam.Tui.ActualWorkspace.Pane.loci, .transactions, .details] do
+      let rendered := Loam.Tui.ActualWorkspace.view bounds snapshot { actualStart with pane }
+      expect (((cornerStyles rendered).filter (· == .series1)).length == 1)
+        "Responsive Actual layout highlighted zero or multiple focused panels"
+      if pane == .details then
+        expect (contains "Details [active]" (widgetText rendered) &&
+            !rendered.lines.any (fun cells => cells.any (fun cell => cell.style == .selected)))
+          "Compact Details focus remained invisible or also selected an unfocused list"
+  let extraWide := Loam.Tui.ActualWorkspace.view { width := 220, height := 40 }
+    snapshot actualStart
+  let cornerColumns := ((extraWide.lines[2]?.getD []).zipIdx.filter
+    (fun (cell, _) => cell.glyph == '╭')).map (·.2)
+  expect (cornerColumns == [0, 51])
+    "Extra-wide Actual layout grew the sidebar beyond its 50-column cap"
 
   -- Dense table: Description grows, amounts share the right edge, and context is compact.
   let table := Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
@@ -407,7 +451,7 @@ def main : IO Unit := do
   let wide := Loam.Tui.ActualWorkspace.view { width := 144, height := 40 }
     longSnapshot longShifted
   let detailRow := wide.lines.findIdx? fun cells =>
-    contains "Selected Actual Details:" (String.ofList (cells.map Cell.glyph))
+    contains "╭ Details" (String.ofList (cells.map Cell.glyph))
   let selectedRow := wide.lines.findIdx? fun cells =>
     cells.any (fun cell => cell.style == .selected)
   expect (match detailRow, selectedRow with
@@ -426,6 +470,17 @@ def main : IO Unit := do
     { width := 100, height := 30 } japaneseSnapshot actualStart)
   expect (contains "…" japaneseTableText && contains "12,345 jpy" japaneseTableText)
     "Japanese table descriptions lost visible truncation or the complete amount"
+  let longLocus ← requireSome (actualRecord? "long-locus" "2026-09-07" "long locus"
+    "a-very-long-historical-locus-token-that-cannot-fit" "food" 100)
+    "long Locus fixture was not admitted"
+  let longLocusSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with actual := { today := "2026-09-07", allRecords := [longLocus] } }
+  let longLocusLines := (Loam.Tui.ActualWorkspace.view
+    { width := 144, height := 40 } longLocusSnapshot actualStart).lines.map fun cells =>
+      String.ofList (cells.map Cell.glyph)
+  expect (longLocusLines.any fun line =>
+      contains "a-very-long-historical-locus-token" line && contains "…" line)
+    "Narrower Locus sidebar silently clipped a long identity instead of showing an ellipsis"
   let compactTableText := widgetText (Loam.Tui.ActualWorkspace.view
     { width := 40, height := 24 } snapshot actualStart)
   expect (contains "Description" compactTableText && contains "alpha" compactTableText)

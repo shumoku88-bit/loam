@@ -458,7 +458,8 @@ private def listPanel
   let start := paneWindowStart selected rows
   let content := (List.range rows).map fun row =>
     let index := start + row
-    let label := if pane == .loci then locusLabel state loci index
+    let label := if pane == .loci then
+        (locusLabel state loci index).map (fitDescription rowWidth)
       else records[index]?.map fun record =>
         if tabular then
           tableRow rowWidth amountWidth (record.date.getD "unknown")
@@ -476,6 +477,7 @@ private def listPanel
   let remaining := if start + rows < total then " ▼" else ""
   Loam.Tui.Layout.framedPanel width height title (.column (columnHeader ++ content))
     (pane == state.pane) (some (position ++ remaining))
+    (if pane == .loci then .series4 else .series3)
 
 /-- Frames already own their borders; leave just one blank column between them. -/
 private def joinPanels (left right : Widget) : List Widget :=
@@ -537,24 +539,35 @@ private def detailHasMore
   let scroll := min state.detailScroll maxScroll
   total > scroll + capacity
 
+/-- Color the key rather than the whole footer, retaining ordinary terminal palette control. -/
+private def hintLine (hints : List (String × String)) : Widget :=
+  .row (hints.zipIdx.flatMap fun ((key, label), index) =>
+    [span (if index == 0 then "" else "  "), span ("[" ++ key ++ "]") .series2,
+     span (" " ++ label) .muted])
+
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   if state.searchEditing then
     [ mutedLine "Search input: type text   Backspace delete   Enter keep   Esc clear"
     , mutedLine "Matches update live across all current Actual evidence."
     ]
   else if state.pane == .details then
-    [ mutedLine "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals"
-    , mutedLine "[Enter] open selected  [n] new  [q] back to Home"
+    [ hintLine [("j/k", "scroll details"), ("h/l", "pane"), ("Esc/i", "return to Actuals")]
+    , hintLine [("Enter", "open selected"), ("n", "new"), ("q", "back to Home")]
     ]
   else
-    let detailedRow1 := "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
-    if Loam.Tui.Layout.displayWidth detailedRow1 ≤ Loam.Tui.Layout.contentWidth bounds then
-      [ mutedLine detailedRow1
-      , mutedLine "[Enter] open selected  [n] new  [q] back"
+    let detailedHints :=
+      [("j/k", "select"), ("h/l", "pane"), ("Tab", "cycle"), ("i", "details"),
+       ("f", "filter"), ("s", "sort"), ("/", "search")]
+    let detailedText := String.intercalate "  "
+      (detailedHints.map fun (key, label) => "[" ++ key ++ "] " ++ label)
+    if Loam.Tui.Layout.displayWidth detailedText ≤ Loam.Tui.Layout.contentWidth bounds then
+      [ hintLine detailedHints
+      , hintLine [("Enter", "open selected"), ("n", "new"), ("q", "back")]
       ]
     else
-      [ mutedLine "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search"
-      , mutedLine "[Enter] open [n] new [q] back"
+      [ hintLine [("j/k", "sel"), ("h/l", "pane"), ("Tab", "cycle"), ("i", "info"),
+          ("f", "filter"), ("s", "sort"), ("/", "search")]
+      , hintLine [("Enter", "open"), ("n", "new"), ("q", "back")]
       ]
 
 private def orderText (state : State) : String :=
@@ -575,7 +588,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let txCount := recordsArr.size
   let state := clampStateWithCounts lociCount txCount withLocus
   let writable := Loam.Tui.Layout.contentWidth bounds
-  let leftWidth := max 34 (writable * 35 / 100)
+  let leftWidth := min 50 (max 34 (writable * 30 / 100))
   let rightWidth := writable - leftWidth - 1
   let leftHeader :=
     "Loci" ++ (if state.pane == .loci then " [active]" else "") ++ s!" ({lociCount})"
@@ -607,10 +620,10 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let panelHeight := bodyCapacity - context.length - search.length - notice.length
   let wide := writable >= 98 && panelHeight >= 16
   let detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
-  let detailPanel := fun width =>
+  let detailPanel := fun width height =>
     let isFocused := state.pane == .details
-    let lines := fixedDetailLines state selectedRecord (detailHeight - 1) (width - 2)
-    let hasMore := detailHasMore state selectedRecord (detailHeight - 1) (width - 2)
+    let lines := fixedDetailLines state selectedRecord (height - 1) (width - 2)
+    let hasMore := detailHasMore state selectedRecord (height - 1) (width - 2)
     let canScrollUp := state.detailScroll > 0
     let bottomLabel :=
       if isFocused then
@@ -623,19 +636,23 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       else if hasMore then
         some "▼ [i] more"
       else none
-    let title := "Selected Actual Details:" ++ (if isFocused then " [active]" else "")
-    Loam.Tui.Layout.framedPanel width detailHeight title
-      (.column (lines.drop 1)) isFocused bottomLabel
+    let title := "Details" ++ (if isFocused then " [active]" else "")
+    Loam.Tui.Layout.framedPanel width height title
+      (.column (lines.drop 1)) isFocused bottomLabel .series2
   let panels :=
     if wide then
       let left : Widget := .column [
         listPanel state recordsArr loci .loci leftWidth (panelHeight - detailHeight) leftHeader,
-        detailPanel leftWidth]
+        detailPanel leftWidth detailHeight]
       joinPanels left (listPanel state recordsArr loci .transactions rightWidth panelHeight rightHeader)
+    else if state.pane == .details && detailHeight == 0 then
+      -- Never direct scrolling into an invisible Details region on a low terminal.
+      [detailPanel writable panelHeight]
     else
-      let title := if state.pane == .loci then leftHeader else rightHeader
-      [listPanel state recordsArr loci state.pane writable (panelHeight - detailHeight) title] ++
-        (if detailHeight > 0 then [detailPanel writable] else [])
+      let listPane := if state.pane == .loci then Pane.loci else Pane.transactions
+      let title := if listPane == .loci then leftHeader else rightHeader
+      [listPanel state recordsArr loci listPane writable (panelHeight - detailHeight) title] ++
+        (if detailHeight > 0 then [detailPanel writable detailHeight] else [])
   -- Flatten before footer fitting: a panel is many physical terminal rows.
   let body := (Widget.column (context ++ search ++ panels ++ notice)).lines.map fun cells =>
     .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)

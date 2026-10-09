@@ -202,18 +202,21 @@ Frame one fixed-size terminal panel with btop-style rounded borders and focus hi
 The panel owns presentation geometry only. Content is clipped to the inner
 rectangle and padded so every row occupies exactly `width` terminal columns.
 That fixed rectangle lets a caller overwrite only the panel region while leaving
-the surrounding screen untouched.
+the surrounding screen untouched. Callers may color inactive borders to identify
+panes; focus retains the shared cyan border and normal title. The default keeps
+existing callers' muted inactive panels unchanged.
 -/
 def framedPanel
     (width height : Nat) (title : String) (content : Widget)
-    (focused : Bool := false) (bottomLabel : Option String := none) : Widget :=
+    (focused : Bool := false) (bottomLabel : Option String := none)
+    (inactiveBorder : Style := .muted) : Widget :=
   if width < 2 ∨ height < 2 then
     .row []
   else
     let innerWidth := width - 2
     let innerHeight := height - 2
-    let borderStyle : Style := if focused then .series1 else .muted
-    let titleStyle : Style := if focused then .normal else .muted
+    let borderStyle : Style := if focused then .series1 else inactiveBorder
+    let titleStyle : Style := if focused then .normal else inactiveBorder
     let label := clip innerWidth (" " ++ title ++ " ")
     let topFill :=
       String.ofList (List.replicate (innerWidth - displayWidth label) '─')

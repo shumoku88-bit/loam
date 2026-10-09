@@ -156,6 +156,13 @@ try:
         bounded(capture(b"Loci [active]"), rows, cols)
         os.write(master, b"l")
         bounded(capture(b"Actuals [active]"), rows, cols)
+        # Details must be the visible focus even when the normal details region
+        # does not fit; Esc restores the Actual list without leaving the workspace.
+        os.write(master, b"i")
+        details = capture(b"Details [active]")
+        bounded(details, rows, cols)
+        os.write(master, b"\x1b")
+        bounded(capture(b"Actuals [active]"), rows, cols)
     os.write(master, b"q")
     capture(b"LOAM Home")
     os.write(master, b"q")

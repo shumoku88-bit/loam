@@ -262,10 +262,21 @@ records can be inspected starting from the newest transaction.
 
 The workspace uses thin rounded panels: Loci and selected details on the left,
 with a full-height Actual list on the right when the terminal is wide enough.
+The sidebar targets 30% of the writable width, bounded to 34–50 columns so larger
+terminals give their extra space to the Actual table. Long Locus labels show an
+ellipsis rather than silently clipping. Inactive Loci, Actuals, and Details panels
+use green, magenta, and yellow accents; the focused panel uses the shared cyan
+border, an explicit active label, and (for lists) the selected-row background.
+Shortcut keys are accented separately from their muted action labels. These colors
+identify UI regions only, not expense/income roles, sign, or financial safety; the
+terminal's palette and background remain user-controlled.
 The two-line context distinguishes scope from the known-through date. Panel
 headings show order, and bottom borders show selection position and overflow.
 `h/l` or Left/Right and Tab/Shift-Tab cycle Loci, Actuals, and Details;
 `i` focuses Details, where `j/k` scrolls and Esc returns to Actuals.
+In a low terminal that cannot fit a separate details region, focusing Details
+replaces the list with a full-body Details panel; Esc restores the list. A visible
+inactive list keeps its selection marker without claiming keyboard focus.
 `/` searches across all current evidence; Enter keeps the search and Esc clears it.
 
 The Actual list aligns Date, Description, and right-aligned Amount columns.
