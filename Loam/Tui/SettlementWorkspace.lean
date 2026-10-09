@@ -254,7 +254,7 @@ private def detailLines (state : State) : List Widget :=
 def view (bounds : Bounds) (state : State) : Widget :=
   let count := (visibleRows state).length
   let footer :=
-    [ muted "[j/k] select   [f] open/all   [a] action   [d] details   [y] copy   [q/Esc] home"
+    [ muted "[j/k] select   [f] open/all   [a] action   [d] details   [q/Esc] home"
     , muted "Routine view hides internal IDs and provenance."
     ]
   let detail := if state.detailOpen then detailLines state else summaryLines state
