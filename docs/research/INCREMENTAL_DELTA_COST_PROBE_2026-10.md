@@ -6,9 +6,11 @@ Parent research: [Incremental daily delta law](INCREMENTAL_DAILY_DELTA_LAW_2026-
 
 ## Question
 
-Does the conservative one-root comparison introduced in PR #1864 beat an
-independent full read? Distinguish the arithmetic delta cost from **discovering
-the changed root**, and keep normalized Actual admission separate.
+Does the conservative one-root comparison introduced in PR #1864 beat a
+simple same-generation recomputation? Distinguish arithmetic from **discovering
+the changed root**, and compare against a straightforward single-fold read from
+LOAM's existing hash-indexed ActualReview records. Keep normalized Actual
+admission separate.
 
 ## How to run
 
@@ -37,11 +39,11 @@ compared approaches must return exactly the same two-day results.
 | Column | What it measures | What it excludes |
 | --- | --- | --- |
 | `admit_pair_us` | Construct and fully qualify both Actual images from synthetic data | Disk decode; CLI/TUI and household context |
-| `full_read_ns` | Reproject current records and sum two buckets from the *new* admitted image | Admission; file load |
-| `root_scan_delta_ns` | Call current `oneRootReplacement?` over *both* admitted images and apply delta to previously calculated old totals | Admission; precomputation of old totals |
+| `full_read_ns` | Existing research full read: project records, select and sum each bucket separately | Admission; file load; **this microtiming is likely optimized/shared in interpreter and must not be treated as a quantitative baseline** |
+| `simple_pass_ns` | Reuse ActualReview's hash-indexed transient records and fold once for both dates | Admission; file load |\n| `root_lookup_comparisons` | Exact number of root-ID equality probes made by nested list search over both admitted frontiers | Clock/compiler uncertainty; separately counts one root discovery only |\n| `root_scan_delta_ns` | Call current `oneRootReplacement?` over *both* admitted images and apply delta to previously calculated old totals | Admission; precomputation of old totals |
 | `known_delta_ns` | Apply a pre-known old/new contribution to two precomputed old totals | Discovery, admission, cache validation, publication |
 
-Admission is measured in microseconds. Other timings are median nanoseconds per call over three batches of ten complete result-checked calls. The known-delta path is a
+Admission is measured in microseconds. Other timings are median nanoseconds per call over three batches of ten complete result-checked calls. Treat timings as illustrative only, **not production speed ratios**. The known-delta path is a
 **lower-bound arithmetic scenario**, not a working end-to-end speedup.
 Build/fixture setup is excluded from the three paired read timings. The
 `admit_pair_us` path includes fixture construction and should not be
@@ -64,3 +66,63 @@ mistaken for startup or reload time.
 A CI smoke run, if present, qualifies compilation, non-refusal and answer
 equality for bounded synthetic fixtures. Timing on shared CI machines is
 descriptive, **not** a performance gate or a reliable MacBook speed claim.
+
+## Step 2: simpler contender and deterministic algorithmic cost
+
+Before introducing any index, cache or incremental engine, compare with a
+**single fold** of the existing `ActualReview.recordsFromActualImage` projection.
+This projection already uses temporary HashMaps for validity and correction
+lookups. The candidate avoids writing a second currentness or temporal
+authority, and it computes two requested dates together in the same fold.
+
+An initial attempt to fold `image.currentEvents` and query
+`image.currentValidities.findByEventId?` *per Event* inadvertently used a
+linear list lookup at each iteration. It was replaced before interpreting any
+performance results. The superficial appearance of “one loop” is not proof of
+linear overall work.
+
+The root-discovery research helper is structurally different: for each stable
+root in the old admitted frontier it searches the new root list with
+`List.find?`. With N unique roots and the same set of roots on both sides,
+the exact number of ID comparisons is `N(N+1)/2`, regardless of root order.
+
+Checked by [GitHub Actions run 37936317081](https://github.com/shumoku88-bit/loam/actions/runs/37936317081),
+using synthetic, balanced, canonically admitted data:
+
+| Events | Current events | Root ID comparisons | Single-fold sample | Full-root scan sample |
+| ---: | ---: | ---: | ---: | ---: |
+| 40 | 40 | 820 | 0.364 ms | 1.314 ms |
+| 100 | 100 | 5,050 | 1.033 ms | 5.202 ms |
+| 200 | 200 | 20,100 | 2.039 ms | 15.853 ms |
+
+Each selected alternative returned the same date/Measure totals
+(`[N-1, 2]`) and failed the run if it did not. The measured times are
+microbenchmark observations, not an end-to-end proof, and in particular the
+old “full read” timed nearly constant ~400 ns in the interpreter, suggesting
+hoisting/thunk sharing or otherwise non-comparable execution. **Do not use
+those values to compute speedups.** The deterministic comparison counts,
+however, do demonstrate that the current root-discovery algorithm has
+quadratic work even when data is valid.
+
+## Simplification-first disposition
+
+**Do not promote any persisted incremental cache, new index, or the scanned
+`oneRootReplacement?` helper to production as a speed optimization.**
+The project already has efficient transient hash indexes in ActualReview,
+and a straightforward scan of admitted records can recompute these two physical
+date/Measure totals without synchronizing additional state.
+
+The proof of arithmetic delta equivalence in PR #1864 remains valuable but
+does **not** establish that obtaining the delta is worthwhile.
+
+There is no demonstrated user-visible slow report caused by full
+recomputation in this experiment. Keep the benchmark as a bounded research
+checkpoint, avoid frequent CI work for routine product changes, and only
+reopen the question when an actual report latency problem is reproducible.
+Before any product change, compare compiled read cost + authority loading +
+semantic qualification + failure cases. The proper simplification might be
+removing the unnecessary delta mechanism rather than improving it.
+
+**Scope**: one physical Locus/Measure total over two specific dates. Purpose,
+AccountingRole, merchant, budget, Scheduled, and anchored balances are separate
+queries and must not inherit this conclusion without new evidence.
