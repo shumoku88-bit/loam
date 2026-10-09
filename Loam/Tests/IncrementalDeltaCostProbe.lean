@@ -162,9 +162,10 @@ end Loam.Tests.IncrementalDeltaCostProbe
 
 -- Imported proof modules already own a root-level 'main'. Run this manual
 -- research probe through evaluation, never by replacing their test entrance.
-#eval do
+#eval (show IO Unit from do
   let configured ← IO.getEnv "LOAM_DELTA_BENCH_SIZES"
   let inputs := match configured with
     | some values => values.splitOn ","
     | none => ["40", "100", "200"]
   Loam.Tests.IncrementalDeltaCostProbe.main inputs
+)
