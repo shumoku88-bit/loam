@@ -16,9 +16,9 @@ From the LOAM checkout (with Lean 4 toolchain installed):
 
 ```sh
 lake build Loam.Tests.IncrementalCorrectedFrontier
-lake env lean --run Loam/Tests/IncrementalDeltaCostProbe.lean
-# Optional bounded sizes, e.g.:
-lake env lean --run Loam/Tests/IncrementalDeltaCostProbe.lean 100 300 600 1000
+lake env lean Loam/Tests/IncrementalDeltaCostProbe.lean
+# Optional bounded sizes (comma-separated, no spaces):
+LOAM_DELTA_BENCH_SIZES=100,300,600,1000 lake env lean Loam/Tests/IncrementalDeltaCostProbe.lean
 ```
 
 The benchmark refuses sizes above 10,000 Events because the current root

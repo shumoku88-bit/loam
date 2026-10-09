@@ -25,4 +25,6 @@ jobs:
         with:
           build-args: Loam.Tests.IncrementalCorrectedFrontier
       - name: Check correctness and bounded costs
-        run: lake env lean --run Loam/Tests/IncrementalDeltaCostProbe.lean 40 100 200
+        env:
+          LOAM_DELTA_BENCH_SIZES: '40,100,200'
+        run: lake env lean Loam/Tests/IncrementalDeltaCostProbe.lean
