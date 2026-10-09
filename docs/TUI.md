@@ -41,16 +41,21 @@ entries, and the Attention read-state. These are read-only projections and do
 specialized workspaces remain accessible from either view. Summary's date-based
 actions use today without overwriting the saved Calendar focus.
 
-`Space` opens a short-lived Commands palette. The optional envelope
-operations **Budget**, **Capacity**, and **Purpose routing** live there.
-Selecting an item enters its existing validated workspace. Neither the
-underlying canonical facts nor the publisher/writer boundaries change.
+`Space` opens a short-lived, hierarchical Commands palette. Select
+**Envelope budget** to reveal the optional **Budget**, **Capacity**, and
+**Purpose routing** operations. `↑` / `↓` selects an item, `→` enters a group,
+and `←` returns one level (closing the palette at its root). `Enter` opens the
+selected group or workspace; `Esc` / `q` / Space also returns one level.
+Right on a leaf does nothing: opening a workspace still requires `Enter`.
+The page heading shows the current path. Selecting a leaf enters its existing
+validated workspace. Neither the underlying canonical facts nor the
+publisher/writer boundaries change.
 
 The Calendar Home retains these entrances:
 
 ```text
 g          open Summary (g / Esc returns to Calendar)
-Space      optional commands: Budget, Capacity, Purpose routing
+Space      Commands -> Envelope budget -> Budget / Capacity / Purpose routing
 h/l        previous / next day, month, or year (current zoom)
 k/j        previous / next week, quarter, or year (current zoom)
 t          return calendar focus to today
@@ -77,7 +82,8 @@ shortcuts are no longer accepted as direct optional-budget entrances;
 open them via `Space` instead.
 
 The prior compact calendar was retired. The Calendar Home now always uses
-the larger role-aware money grid, with Today's underline, open-plan `!`, and
+the larger role-aware money grid, with Today's underline on the date row only
+(not the amount or blank rows), open-plan `!`, and
 unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
 still shows dates and explicitly indicates that the financial projection is
 unavailable. Summary owns current Daily Pace, upcoming plans, recent

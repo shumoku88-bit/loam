@@ -158,7 +158,7 @@ private def moneyMonthSummaryText
         (if summary.unresolvedEffectCount = 0 then "" else "  ?")
 
 private def moneyAmountSpan
-    (paneWidth : Nat) (today : String)
+    (paneWidth : Nat)
     (snapshot : Snapshot) (state : State)
     (date : String) (positive : Bool) : Span :=
   let cellWidth := moneyCellWidth paneWidth
@@ -180,10 +180,7 @@ private def moneyAmountSpan
           if Loam.Tui.Layout.displayWidth grouped ≤ cellWidth then grouped else plain
     | _, _ => ""
   span (Loam.Tui.Layout.padLeft cellWidth text)
-    (if date == state.selectedDate then
-      if date == today then .selectedUnderlined else .selected
-    else
-      .normal)
+    (if date == state.selectedDate then .selected else .normal)
 
 private def blankMoneyCell (paneWidth : Nat) : Span :=
   span (repeatChar (moneyCellWidth paneWidth) ' ')
@@ -200,11 +197,11 @@ private def moneyCalendarRows
     let plusLine := moneyGridRow <| dates.map fun slot =>
       match slot with
       | none => blankMoneyCell paneWidth
-      | some date => moneyAmountSpan paneWidth today snapshot state date true
+      | some date => moneyAmountSpan paneWidth snapshot state date true
     let minusLine := moneyGridRow <| dates.map fun slot =>
       match slot with
       | none => blankMoneyCell paneWidth
-      | some date => moneyAmountSpan paneWidth today snapshot state date false
+      | some date => moneyAmountSpan paneWidth snapshot state date false
     [ dateLine
     , plusLine
     , minusLine
