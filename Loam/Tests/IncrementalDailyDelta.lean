@@ -24,21 +24,21 @@ structure Contribution where
   deriving Repr, DecidableEq
 
 /-- One signed contribution to a specific date/Measure bucket. -/
-def at (bucket : Bucket) (row : Contribution) : Int :=
+def contributionAt (bucket : Bucket) (row : Contribution) : Int :=
   if row.bucket = bucket then row.signedQuanta else 0
 
 /-- Reference answer: recompute the bucket total from every admitted row. -/
 def recompute (bucket : Bucket) (rows : List Contribution) : Int :=
-  (rows.map (at bucket)).sum
+  (rows.map (contributionAt bucket)).sum
 
 /-- Optional read-side acceleration for one admitted append. -/
 def afterAppend (bucket : Bucket) (oldTotal : Int) (added : Contribution) : Int :=
-  oldTotal + at bucket added
+  oldTotal + contributionAt bucket added
 
 /-- Replace exactly one selected row, without interpreting correction history. -/
 def afterReplacement (bucket : Bucket) (oldTotal : Int)
     (removed added : Contribution) : Int :=
-  oldTotal - at bucket removed + at bucket added
+  oldTotal - contributionAt bucket removed + contributionAt bucket added
 
 /-- An admitted append agrees with the independent full-list oracle. -/
 theorem append_equivalence (bucket : Bucket)
@@ -53,10 +53,10 @@ negative old contribution and positive new contribution. This includes changes
 of date, Measure, sign, and quantity.
 -/
 theorem replacement_equivalence (bucket : Bucket)
-    (prefix suffix : List Contribution) (removed added : Contribution) :
+    (beforeRows afterRows : List Contribution) (removed added : Contribution) :
     afterReplacement bucket
-        (recompute bucket (prefix ++ removed :: suffix)) removed added =
-      recompute bucket (prefix ++ added :: suffix) := by
+        (recompute bucket (beforeRows ++ removed :: afterRows)) removed added =
+      recompute bucket (beforeRows ++ added :: afterRows) := by
   simp [afterReplacement, recompute, List.map_append, List.sum_append]
   omega
 
@@ -66,7 +66,7 @@ theorem unrelated_replacement (bucket : Bucket)
     (hRemoved : removed.bucket ≠ bucket)
     (hAdded : added.bucket ≠ bucket) :
     afterReplacement bucket oldTotal removed added = oldTotal := by
-  simp [afterReplacement, at, hRemoved, hAdded]
+  simp [afterReplacement, contributionAt, hRemoved, hAdded]
 
 private def original : Contribution :=
   { bucket := { day := 3, measure := "jpy" }, signedQuanta := 500 }
