@@ -1,6 +1,6 @@
 # Incremental daily delta cost probe (2026-10)
 
-Status: **manual research benchmark**, not product code or canonical state.
+Status: **measured research checkpoint; executable probe intentionally retired**. No product code, canonical state, retained runtime cache, or new permanent benchmark workflow.
 Parent research: [Incremental daily delta law](INCREMENTAL_DAILY_DELTA_LAW_2026-10.md)
 (PR #1864). No new optimization has been promoted.
 
@@ -12,27 +12,34 @@ the changed root**, and compare against a straightforward single-fold read from
 LOAM's existing hash-indexed ActualReview records. Keep normalized Actual
 admission separate.
 
-## How to run
+## Evidence and reproducing the experiment
 
-From the LOAM checkout (with Lean 4 toolchain installed):
+The executable test and one-off GitHub Actions workflow were built and
+qualified on a disposable PR branch, but **deliberately removed from the final
+PR diff** because they do not establish a useful production optimization.
+This avoids carrying ~240 lines of research code and a dedicated CI workflow
+indefinitely.
+
+- Archived measured source: [commit 76792407](https://github.com/shumoku88-bit/loam/commit/76792407fe8d0e89da1471e67b109ca6a6509dd5)
+- Source run (exact root counts, original direct fold):
+  [CI 37936221060](https://github.com/shumoku88-bit/loam/actions/runs/37936221060)
+- Corrected test reusing the existing hash-indexed ActualReview projection:
+  [CI 37936317081](https://github.com/shumoku88-bit/loam/actions/runs/37936317081)
+
+To reproduce **in an isolated worktree**, use the archived commit, not today's
+`main`:
 
 ```sh
+git worktree add /tmp/loam-delta-probe 76792407fe8d0e89da1471e67b109ca6a6509dd5
+cd /tmp/loam-delta-probe
 lake build Loam.Tests.IncrementalCorrectedFrontier
-lake env lean Loam/Tests/IncrementalDeltaCostProbe.lean
-# Optional bounded sizes (comma-separated, no spaces):
-LOAM_DELTA_BENCH_SIZES=100,300,600,1000 lake env lean Loam/Tests/IncrementalDeltaCostProbe.lean
+LOAM_DELTA_BENCH_SIZES=40,100,200 lake env lean Loam/Tests/IncrementalDeltaCostProbe.lean
 ```
 
-The benchmark refuses sizes above 10,000 Events because the current root
-matching algorithm uses a linear `List.find?` per root, which admits O(N²)
-behavior. Avoid a million-event run of that path without changing the
-algorithm or adding a resource guard.
-
-The fixtures contain one balanced JPY movement per Event, one replacement
-Event at the end, and one admitted correction from an old stable root to that
-replacement. They are synthetic and **not household data**. Every pair of
-images goes through existing `Loam.Persistence.admitActualImage?`. All
-compared approaches must return exactly the same two-day results.
+Remove the temporary worktree when finished. This is a diagnostic experiment,
+not an operation on household data. The probe refuses sizes above 10,000
+Events because repeated linear root lookups make larger trials impractical.
+All fixtures are synthetic and pass LOAM's existing normalized Actual admission.
 
 ## Measured paths (same fixture, same process)
 
@@ -63,8 +70,7 @@ mistaken for startup or reload time.
   discovery only after a concrete hot report earns it. Never run the existing
   quadratic candidate blindly at those scales.
 
-A CI smoke run, if present, qualifies compilation, non-refusal and answer
-equality for bounded synthetic fixtures. Timing on shared CI machines is
+Archival CI qualified compilation, non-refusal and answer equality for bounded synthetic fixtures. Timing on shared CI machines is
 descriptive, **not** a performance gate or a reliable MacBook speed claim.
 
 ## Step 2: simpler contender and deterministic algorithmic cost
