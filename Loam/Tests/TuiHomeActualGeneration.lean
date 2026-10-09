@@ -67,6 +67,16 @@ private def initializeIndependentEvidence (root : System.FilePath) : IO Unit := 
   IO.FS.writeFile
     (root / "config" / "daily-pace.tsv")
     "wallet\tjpy\n"
+  let items ← requireSome (AttentionMemory.ofItems? ([] : List (Attention String)))
+    "Home empty Attention items"
+  let closures ← requireSome (AttentionClosureMemory.ofClosures? ([] : List (AttentionClosure String)))
+    "Home empty Attention closures"
+  let attentionBody ← requireSome (Loam.Persistence.encodeAttentionMemory? items closures)
+    "Home canonical Attention body"
+  let _ ← requireOk
+    (← Loam.Tests.ActualWorldFixture.publishHouseholdSection? root "Attention" attentionBody)
+    "Home canonical Attention section"
+  IO.FS.writeFile (root / "attention.loam") "malformed stale legacy Attention\n"
 
   let coverage ←
     requireSome
@@ -148,6 +158,12 @@ def main : IO Unit := do
         ((scheduled.events.findById? ⟨"generation-a"⟩).isSome &&
           (scheduled.events.findById? ⟨"generation-b"⟩).isNone)
         "Home Scheduled validation mixed a later Actual generation"
+
+  match snapshot.attention with
+  | .loaded attention =>
+      expect attention.openItems.isEmpty
+        "Home ignored canonical empty Attention in favor of stale legacy facts"
+  | _ => throw (IO.userError "Home canonical Attention was unavailable because of stale legacy storage")
 
   match snapshot.pace with
   | .notRequested =>

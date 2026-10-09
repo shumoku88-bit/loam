@@ -143,7 +143,7 @@ def loadSnapshotFromActualImage
   let scheduled ←
     Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
   let attentionResult ←
-    Loam.AttentionReview.loadEvidence (Loam.HouseholdPaths.attention dataDir)
+    Loam.AttentionReview.loadHouseholdEvidence dataDir
   let attention : Loam.Presentation.ReadState Loam.AttentionReview.Snapshot :=
     match attentionResult with
     | .error message => .failed message
