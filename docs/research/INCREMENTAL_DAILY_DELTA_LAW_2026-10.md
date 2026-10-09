@@ -79,3 +79,24 @@ representation and full oracle. Bakhlo's corrected-entry storage need not
 copy LOAM's retained correction-chain semantics.
 
 Background: DBSP formalization (Lean 3), https://github.com/tchajed/database-stream-processing-theory .
+
+## Follow-up: canonical correction-frontier bridge
+
+`Loam/Tests/IncrementalCorrectedFrontier.lean` composes **two separately
+admitted Actual images** (before and after a single correction), obtains the
+current `ActualReview` rows, and cross-checks their Event identities against
+the existing `correctionFrontierMemory?` projection. It then compares
+date/Measure totals under a removed-old / added-new delta against full current
+row selection, including a date change, unaffected EUR data, a malformed
+correction, and an undated nonzero contribution.
+
+The `qualified_single_replacement` theorem is **conditional**: source
+selection must independently establish that before/after current rows differ
+by one exactly identified contribution, with all other selected contributions
+unchanged. Neither the theorem nor the runtime test proves this relation for
+*every* permitted correction, historical validity correction, grouping or
+classification change. A production updater must prove/verify that premise
+or recompute from canonical evidence.
+
+No cache, scheduler, persistent index, production query or canonical writer is
+introduced. Both Lean files are checked in the existing Application workflow.

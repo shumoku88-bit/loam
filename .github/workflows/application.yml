@@ -10,6 +10,7 @@ on:
       - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdPaths.lean'
       - 'Loam/Tests/IncrementalDailyDelta.lean'
+      - 'Loam/Tests/IncrementalCorrectedFrontier.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/**'
@@ -40,6 +41,7 @@ on:
       - 'Loam/Tests/HouseholdImagePersistence.lean'
       - 'Loam/Tests/HouseholdPaths.lean'
       - 'Loam/Tests/IncrementalDailyDelta.lean'
+      - 'Loam/Tests/IncrementalCorrectedFrontier.lean'
       - '.github/actions/lean-build/**'
       - 'Loam/Tests/ActualWorldFixture.lean'
       - 'Loam/Application/**'
@@ -86,7 +88,9 @@ jobs:
         run: lake test -- application
 
       - name: Prove incremental daily delta law
-        run: lake env lean Loam/Tests/IncrementalDailyDelta.lean
+        run: |
+          lake env lean Loam/Tests/IncrementalDailyDelta.lean
+          lake env lean Loam/Tests/IncrementalCorrectedFrontier.lean
 
       - name: Qualify HOBS1 cycle funding diagnostics
         shell: bash

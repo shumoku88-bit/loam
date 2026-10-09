@@ -14,7 +14,7 @@ evidence must have been resolved by the existing production authority first.
 -/
 
 structure Bucket where
-  day : Nat
+  day : String
   measure : String
   deriving Repr, DecidableEq
 
@@ -69,27 +69,27 @@ theorem unrelated_replacement (bucket : Bucket)
   simp [afterReplacement, contributionAt, hRemoved, hAdded]
 
 private def original : Contribution :=
-  { bucket := { day := 3, measure := "jpy" }, signedQuanta := 500 }
+  { bucket := { day := "2026-10-03", measure := "jpy" }, signedQuanta := 500 }
 
 private def revised : Contribution :=
-  { bucket := { day := 5, measure := "jpy" }, signedQuanta := 800 }
+  { bucket := { day := "2026-10-05", measure := "jpy" }, signedQuanta := 800 }
 
-example : recompute { day := 3, measure := "jpy" } [original] = 500 := by
+example : recompute { day := "2026-10-03", measure := "jpy" } [original] = 500 := by
   decide
 
 example :
-    afterReplacement { day := 3, measure := "jpy" }
-        (recompute { day := 3, measure := "jpy" } [original])
+    afterReplacement { day := "2026-10-03", measure := "jpy" }
+        (recompute { day := "2026-10-03", measure := "jpy" } [original])
         original revised = 0 := by
   decide
 
 example :
-    afterReplacement { day := 5, measure := "jpy" }
-        (recompute { day := 5, measure := "jpy" } [original])
+    afterReplacement { day := "2026-10-05", measure := "jpy" }
+        (recompute { day := "2026-10-05", measure := "jpy" } [original])
         original revised = 800 := by
   decide
 
-example : recompute { day := 5, measure := "eur" } [original, revised] = 0 := by
+example : recompute { day := "2026-10-05", measure := "eur" } [original, revised] = 0 := by
   decide
 
 end Loam.Tests.IncrementalDailyDelta
