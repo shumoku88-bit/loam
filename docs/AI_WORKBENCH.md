@@ -283,6 +283,11 @@ For compiled TUI latency, idle output/CPU and bounded resource lifetime, use
 Qualification and limits: `docs/research/TUI_RESOURCE_QUALITY_2026-10-09.md`.
 Stable short-run RSS is not proof of long-duration leak freedom.
 
+For native Household framing / Actual admission / fresh Movement-world phase
+separation, `tools/ActualReadProfile.lean` is a manual read-only helper. Compile
+instructions, immutable synthetic fixture setup and timing limits are in the
+same resource-quality record. Pure work must be deferred until after the clock.
+
 ## Falsification and pressure catalogs
 
 ### Domain Falsification Atlas

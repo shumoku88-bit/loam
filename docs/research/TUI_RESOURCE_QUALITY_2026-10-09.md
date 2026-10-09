@@ -192,6 +192,72 @@ The full run measured 902ms median Record open and 1,002ms median Balances open;
 FDs stayed seven, descendants zero, and all idle surfaces remained quiet. These
 fresh-read entrances and cold startup remain separate pressure points.
 
+## Fresh Record / Balance entrance: physical framing
+
+A compiled phase probe on an immutable synthetic 50,000-Event / 2,500-date
+Household measured file IO at 17ms, outer framing at 191–193ms, normalized Actual
+parse/construction/admission at 594–601ms and separate re-admission at 175–182ms.
+Full household selection was 802–812ms; fresh Movement world loading 842–846ms.
+Balance projection from a selected generation was 61–65ms. Re-admission is a
+separate experiment on already-decoded evidence, not an additional production
+phase or an exact subtraction-based estimate of parsing alone.
+
+The outer decoder split/rejoined the entire unread suffix to obtain each framing
+line, then repeatedly counted/copied it. It now uses slices and first-newline
+search, advances exactly the declared Unicode code-point count once, and rejects
+truncation instead of clamping. Byte-size bounds protect fuel and obviously
+impossible declarations; they do **not** change payload lengths to byte units.
+No format version, family qualification, missing/present-empty semantics, section
+order or opaque body content changes. Writer and recovery qualification still
+uses the same complete known-family checks and exact stale wire comparison.
+
+On the same fixture, framing became **41–42ms**, full household selection
+668–671ms and fresh Movement world loading 691–699ms. Actual admission remained
+intact (separate re-admission measured 185–189ms). The real PTY three-round probe
+measured 1,566ms startup, **717ms median Record open / 809ms Balances open**,
+versus 902ms / 1,002ms in the preceding wide-date run. Startup/cache/scheduling
+are not controlled. FDs stayed seven, retained descendants zero, idle output
+zero, and fixture bytes unchanged. RSS was 125,680–125,696 KiB across the rounds.
+
+Qualification includes a bounded old-decoder oracle with Unicode names/bodies,
+length spellings, embedded framing lines, trailing garbage, duplicate names,
+section reversal and every code-point truncation of small multi-section images.
+HouseholdAuthority installation/publication/stale refusal/recovery/unknown
+preservation, HouseholdActualAuthority and Record publication/activation PTY
+regressions passed. Blueprint review: no retained facts/defaults, weaker admission,
+format migration or authority changes are introduced. Bounded parity is not a
+universal equivalence proof.
+
+### Reproduce the compiled phase probe
+
+Run from the code repository; this creates and removes its own synthetic household.
+Do not use the Lean interpreter for production latency claims. The phase helper
+accepts a thunk so pure decoding occurs **after** the start clock; `phase label
+(pure (decode wire))` would evaluate decoding before entering the timed function.
+
+```sh
+lake build loam loamTui
+lake env lean -c /tmp/loam-actual-read-profile.c tools/ActualReadProfile.lean
+python3 - <<'PY'
+import importlib.util, shlex, subprocess, tempfile
+from pathlib import Path
+args = [a for a in shlex.split(Path('.lake/build/bin/loamTui.rsp').read_text())
+        if not a.endswith('/Loam/Tui/Executable.c.o.export')]
+subprocess.run(['lake', 'env', 'leanc', '-O3', '-o', '/tmp/loam-actual-read-profile',
+                '/tmp/loam-actual-read-profile.c', *args], check=True)
+spec = importlib.util.spec_from_file_location('probe', 'tools/benchmark-tui-resources.py')
+probe = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(probe)
+with tempfile.TemporaryDirectory(prefix='loam-phase-probe-') as temp:
+    root = Path(temp) / 'synthetic'
+    probe.fixture(root, 50000, 2500)
+    before = probe.digest(root)
+    for _ in range(2):
+        subprocess.run(['/tmp/loam-actual-read-profile', str(root)], check=True)
+    assert probe.digest(root) == before
+PY
+```
+
 ## Semantic neighbors checked
 
 Existing qualifications exercised historical bounded/zero-origin routes,

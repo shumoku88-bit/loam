@@ -66,13 +66,18 @@ def encode? (image : Image) : Option String := do
     none
   pure <| header ++ "\n" ++ String.join (image.sections.map encodeSection)
 
-private def takeLine? (input : String) : Option (String × String) :=
-  match input.splitOn "\n" with
-  | line :: next :: rest =>
-      some (line, String.intercalate "\n" (next :: rest))
-  | _ => none
+private def takeLine? (input : String.Slice) : Option (String × String.Slice) := do
+  let newline ← input.find? '\n'
+  some ((input.sliceTo newline).toString, input.sliceFrom (newline.nextn 1))
 
-private def takeSection? (input : String) : Option (Section × String) := do
+/-- Advance exactly the declared code-point count; never clamp a truncated body. -/
+private def advanceChars? {input : String.Slice} : Nat → input.Pos → Option input.Pos
+  | 0, pos => some pos
+  | count + 1, pos =>
+      if h : pos = input.endPos then none
+      else advanceChars? count (pos.next h)
+
+private def takeSection? (input : String.Slice) : Option (Section × String.Slice) := do
   let (line, rest) ← takeLine? input
   match line.splitOn "\t" with
   | ["SECTION", name, lengthText] =>
@@ -80,16 +85,19 @@ private def takeSection? (input : String) : Option (Section × String) := do
         none
       else do
         let count ← lengthText.toNat?
-        if rest.length < count then
-          none
-        else
-          let body := (rest.take count).toString
-          let remaining := (rest.drop count).toString
-          some ({ name := name, body := body }, remaining)
+        -- Lengths remain Unicode code-point counts, not UTF-8 byte counts.
+        -- Advance once to the boundary and share the unread suffix as a slice.
+        -- Even for a huge malformed declaration, no character count can exceed
+        -- the unread byte size. This bound does not redefine the framing unit.
+        if count > rest.utf8ByteSize then none
+        else do
+          let boundary ← advanceChars? count rest.startPos
+          let body := rest.sliceTo boundary
+          some ({ name := name, body := body.toString }, rest.sliceFrom boundary)
   | _ => none
 
 private def decodeSections? :
-    Nat → String → List Section → Option (List Section)
+    Nat → String.Slice → List Section → Option (List Section)
   | 0, _, _ => none
   | Nat.succ fuel, input, acc =>
       if input.isEmpty then
@@ -112,8 +120,10 @@ def decode? (input : String) : Option Image := do
   if !input.startsWith headerPrefix then
     none
   else
-    let rest := (input.drop headerPrefix.length).toString
-    let sections ← decodeSections? (rest.length + 1) rest []
+    let rest := input.drop headerPrefix.length
+    -- Each accepted section consumes a nonempty framing line. Byte size is an
+    -- O(1) upper bound on their count; it does not interpret payload lengths.
+    let sections ← decodeSections? (input.utf8ByteSize + 1) rest []
     some { sections := sections }
 
 /-- Return whether one section identity is physically present. -/

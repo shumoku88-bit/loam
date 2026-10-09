@@ -9,7 +9,62 @@ open Loam.Tests.Support
 
 set_option autoImplicit false
 
+/-- Pre-slice decoder, retained only as a bounded acceptance/opaque-byte oracle. -/
+private def referenceSection? (input : String) : Option (Section × String) := do
+  let (line, rest) ← match input.splitOn "\n" with
+    | line :: next :: rest => some (line, String.intercalate "\n" (next :: rest))
+    | _ => none
+  match line.splitOn "\t" with
+  | ["SECTION", name, lengthText] =>
+      if name.isEmpty || name.contains '\t' || name.contains '\n' || name.contains '\r' then none
+      else do
+        let count ← lengthText.toNat?
+        if rest.length < count then none
+        else some ({ name, body := (rest.take count).toString }, (rest.drop count).toString)
+  | _ => none
+
+private def referenceSections? : Nat → String → List Section → Option (List Section)
+  | 0, _, _ => none
+  | fuel + 1, input, acc => do
+      if input.isEmpty then return acc.reverse
+      let (part, remaining) ← referenceSection? input
+      if acc.any (fun existing => existing.name == part.name) then none
+      else referenceSections? fuel remaining (part :: acc)
+
+private def referenceDecode? (input : String) : Option Image := do
+  let headerPrefix := header ++ "\n"
+  if !input.startsWith headerPrefix then none
+  else
+    let rest := (input.drop headerPrefix.length).toString
+    let sections ← referenceSections? (rest.length + 1) rest []
+    some { sections }
+
+private def checkParity (wire : String) : IO Unit := do
+  expect (decode? wire == referenceDecode? wire)
+    "slice decoder changed acceptance, section order or opaque body characters"
+
+private def checkFramingCorpus : IO Unit := do
+  for name in ["Actual", "Tail", "日本語😀", "", "bad\tname", "bad\rname"] do
+    for length in ["0", "1", "2", "4", "0002", "999", "-1", "+2", "0x2", "oops", ""] do
+      for body in ["", "ab", "é😀", "漢字\nx", "\nSECTION\tFake\t0\n", "abc\n"] do
+        for tail in ["", "SECTION\tTail\t0\n", "\n"] do
+          checkParity (header ++ "\nSECTION\t" ++ name ++ "\t" ++ length ++ "\n" ++ body ++ tail)
+  for body in ["", "no final newline", "é😀\r\nSECTION\tFake\t99\n"] do
+    let image : Image := { sections := [
+      { name := "First", body := "" }, { name := "Unknown", body },
+      { name := "Actual", body := "opaque" }, { name := "Last", body := "" } ] }
+    for sections in [image.sections, image.sections.reverse] do
+      let wire ← requireSome (encode? { sections }) "framing corpus encode"
+      checkParity wire
+      for n in List.range (wire.length + 1) do
+        checkParity (wire.take n).toString
+  expect (decode? (header ++ "\nSECTION\tUnicode\t2\né😀")).isSome
+    "outer lengths ceased to count Unicode code points"
+  expect (decode? (header ++ "\nSECTION\tUnicode\t6\né😀")).isNone
+    "outer lengths silently changed to UTF-8 bytes"
+
 def main : IO Unit := do
+  checkFramingCorpus
   let base : Image := {
     sections := [
       { name := "Actual", body := "LOAM-NORMALIZED-ACTUAL\t4\n" },
@@ -91,7 +146,7 @@ def main : IO Unit := do
     "empty outer image did not preserve complete section absence"
 
   IO.println
-    "HouseholdImage persistence: order, opaque bytes, unknown sections, and absent != present-empty passed."
+    "HouseholdImage persistence: slice/list acceptance parity, Unicode framing, order, opaque bytes, unknown sections, and absent != present-empty passed."
 
 end Loam.Tests.HouseholdImagePersistence
 
