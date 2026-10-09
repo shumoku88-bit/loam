@@ -261,6 +261,69 @@ def main : IO Unit := do
     contains "[v] Months/List" coverageText)
     "Scheduled overview hid advanced projections or less-frequent actions"
 
+  expect (contains "╭ Monitored plans" coverageText && !contains "====" coverageText &&
+      contains "known through 2026-09-07" coverageText && contains "Month window:" coverageText)
+    "Series Calendar retained heavy rules or lost its observation/month coordinates"
+
+  let manyRules := (List.range 40).map fun index =>
+    { foodRule with
+      name := "プラン-" ++ toString index
+      positiveLoci := ["target-" ++ toString index] }
+  let manyCoverage ←
+    match Loam.ScheduledCoverageReview.projectRecords manyRules [] "2026-09-07" 18 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let manyState := { coverage with coverageRow := 35 }
+  let selectedPlan ← requireSome
+    (Loam.Tui.ScheduledWorkspace.selectedCoverageRow? (.ok manyCoverage) manyState)
+    "long Series Calendar selection disappeared"
+  let firstPlan ← requireSome (Loam.Tui.ScheduledCoveragePane.orderedRows manyCoverage).head?
+    "long Series Calendar first row disappeared"
+  for bounds in [{ width := 80, height := 24 }, { width := 120, height := 30 },
+      { width := 144, height := 40 }, { width := 48, height := 10 }] do
+    let rendered := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds snapshot manyState (.ok manyCoverage)
+    let text := widgetText rendered
+    expect (contains selectedPlan.rule.name text && !contains firstPlan.rule.name text &&
+        contains "36/40" text &&
+        rendered.lines.any (fun cells => cells.any (fun cell => cell.style == .selected)))
+      "Series Calendar left its selected plan off-screen or lost selection position"
+    expect (rendered.lines.length <= bounds.height - 1 &&
+        rendered.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth bounds))
+      "Series Calendar exceeded its physical terminal geometry"
+    expect (rendered.lines.all fun cells => cells.all fun cell =>
+        cell.style == .normal || cell.style == .muted ||
+        cell.style == .series1 || cell.style == .selected)
+      "Series Calendar added decorative accent colors"
+  for width in [0, 1, 2, 10, 20, 32, 48, 80, 120] do
+    for height in [0, 1, 2, 6, 10, 18, 24, 30] do
+      let bounds : Bounds := { width, height }
+      let rendered := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds snapshot manyState (.ok manyCoverage)
+      expect (rendered.lines.length <= height - 1 && rendered.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth bounds))
+        "Compact or degenerate Series Calendar geometry escaped its bounds"
+  let shiftedCalendar := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 120, height := 30 } snapshot { coverage with coverageMonthOffset := 2 }
+    (.ok coverageSnapshot))
+  expect (contains "2026-12 .. 2027-01" shiftedCalendar && contains "Dec" shiftedCalendar)
+    "Framed Series Calendar changed the selected finite month window"
+  let emptyCalendar := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 120, height := 30 } snapshot coverage (.ok { coverageSnapshot with rows := [] }))
+  let failedCalendar := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 120, height := 30 } snapshot coverage (.error "coverage read refused"))
+  expect (contains "No recurring plans are being monitored." emptyCalendar &&
+      !contains "Coverage unavailable" emptyCalendar &&
+      contains "[Coverage unavailable] coverage read refused" failedCalendar &&
+      !contains "0/0" failedCalendar && !contains "No recurring plans" failedCalendar)
+    "Series Calendar collapsed failed coverage into configured-empty evidence"
+  let calendarRefusal := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
+    { width := 100, height := 30 } snapshot { coverage with notice := refusalMessage }
+    (.ok coverageSnapshot))
+  expect (contains refusalMessage (calendarRefusal.replace "\n" " "))
+    "Framed Series Calendar clipped a publisher's complete refusal feedback"
+
   let coverageEvidence : Loam.Tui.ScheduledWorkspace.CoverageEvidence := .ok coverageSnapshot
   let coverageExtend :=
     Loam.Tui.ScheduledWorkspace.updateWithCoverage snapshot coverageEvidence coverage .extendPlan

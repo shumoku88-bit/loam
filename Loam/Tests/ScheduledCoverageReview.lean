@@ -114,6 +114,28 @@ def main : IO Unit := do
   expect (contains "undecided" undecidedRendered && contains "15,18" undecidedRendered)
     "undecided Scheduled row did not remain visible with its explicit dates"
 
+  -- The production framed table keeps the same days/gaps and never cuts a month column.
+  for width in [10, 20, 32, 45, 77, 117] do
+    let count := Loam.Tui.ScheduledCoveragePane.monthWindowSize width
+    let table := Loam.Tui.ScheduledCoveragePane.tableWindow snapshot 0 0 count width 10
+    expect (table.all fun widget => widget.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width)
+      "Responsive Series Calendar cut a month column or exceeded its inner width"
+  let narrowTable := widgetText
+    (Loam.Tui.ScheduledCoveragePane.tableWindow snapshot 0 0 1 45 10)
+  expect (contains "15,18" narrowTable && contains "!" narrowTable)
+    "Narrow Series Calendar lost multiple explicit days or the missing-month marker"
+  let undecidedTable := widgetText
+    (Loam.Tui.ScheduledCoveragePane.tableWindow undecidedSnapshot 0 0 4 77 10)
+  expect (contains "undecided" undecidedTable && contains "15,18" undecidedTable &&
+      !contains "!" undecidedTable)
+    "Framed Series Calendar invented future gaps for an undecided monitoring row"
+  let longName := { gpt with rule := { gpt.rule with name := "日本語の非常に長いプラン名が列幅を超える場合" } }
+  let clippedName := widgetText (Loam.Tui.ScheduledCoveragePane.tableWindow
+    { snapshot with rows := [longName] } 0 0 1 45 10)
+  expect (contains "…" clippedName && contains "15,18" clippedName)
+    "Long plan labels hid their truncation or displaced the explicit-day column"
+
   let goodConfig :=
     "gpt-plus\t2026-08-15\t1\tcash\tgpt-plus\n" ++
     "pension\t2026-09-15\t2\tpension\tcash\n" ++

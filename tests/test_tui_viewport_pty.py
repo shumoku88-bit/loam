@@ -143,6 +143,19 @@ try:
     bounded(report, 36, 140)
     os.write(master, b"q")
     bounded(capture(b"LOAM Home"), 36, 140)
+    os.write(master, b"s")
+    scheduled = capture(b"Scheduled Series Calendar")
+    bounded(scheduled, 36, 140)
+    assert "╭".encode() in scheduled and b"====" not in scheduled, (
+        "Series Calendar retained heavy rules or lost its rounded frame", scheduled
+    )
+    # The main Scheduled frame must reflow while idle too, including abbreviated
+    # help and narrower month columns, without touching household evidence.
+    for rows, cols in ((24, 80), (10, 48), (40, 144), (36, 140)):
+        resize(rows, cols)
+        bounded(capture(b"Scheduled Series Calendar"), rows, cols)
+    os.write(master, b"q")
+    bounded(capture(b"LOAM Home"), 36, 140)
     os.write(master, b"a")
     actual = capture(b"Household Actuals Workspace")
     bounded(actual, 36, 140)
@@ -182,7 +195,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Reports/Actuals: shortcuts, pane navigation and responsive idle resize; evidence unchanged.")
+    print("Home/Reports/Scheduled/Actuals: shortcuts, pane navigation and responsive idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

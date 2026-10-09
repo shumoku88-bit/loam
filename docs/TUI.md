@@ -319,6 +319,17 @@ Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). Its
 default surface is the **Series Calendar** over the current-open Scheduled frontier
 and replaceable `config/scheduled-coverage.tsv` read-side rows.
 
+Series Calendar uses the same restrained rounded frame as Actual: muted context
+and help, the existing focus accent, and a selected-row background only. The
+known-through date and finite month window stay above the table; its bottom border
+shows selection position and hidden rows. The vertical window follows the selected
+plan instead of leaving it off-screen. Narrow screens reduce Plan width (with a
+visible ellipsis) before cutting a month column; very narrow tables omit Pace.
+Short screens use abbreviated help and omit the column heading before sacrificing
+the only plan row. The day/gap legend stays separate from the table, and publisher
+refusal feedback keeps its complete wrapped text. This changes presentation only:
+monitoring selectors, missing-month meaning, and Scheduled publishers are unchanged.
+
 The ordinary question is visible directly across calendar months:
 
 ```text

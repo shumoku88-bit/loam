@@ -65,29 +65,55 @@ private def monthCellText (cell : Loam.ScheduledCoverageReview.MonthCell) : Stri
 
 private def monthColumnWidth : Nat := 8
 
-/-- Number of month columns that fit without terminal scrolling. -/
-def monthWindowSize (width : Nat) : Nat :=
-  max 1 ((width - 39) / monthColumnWidth)
+private def paceWidth (width : Nat) : Nat :=
+  if width >= 31 then 11 else 0
 
-private def tableHeader (months : List String) : Widget :=
-  line <|
-    Loam.Tui.Layout.padRight 28 "Plan" ++
-    Loam.Tui.Layout.padRight 11 "Pace" ++
+private def planWidth (width : Nat) : Nat :=
+  min 28 (max 2 (width - paceWidth width - monthColumnWidth))
+
+/-- Number of complete month columns that fit; Plan narrows before a month is cut. -/
+def monthWindowSize (width : Nat) : Nat :=
+  (width - planWidth width - paceWidth width) / monthColumnWidth
+
+private def fitName (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then Loam.Tui.Layout.padRight width text
+  else Loam.Tui.Layout.padRight width (Loam.Tui.Layout.clip (width - 1) text ++ "…")
+
+private def tableHeader (width : Nat) (months : List String) : Widget :=
+  muted <|
+    Loam.Tui.Layout.padRight (planWidth width) "Plan" ++
+    Loam.Tui.Layout.padRight (paceWidth width) "Pace" ++
     String.intercalate "" (months.map fun month =>
       Loam.Tui.Layout.padRight monthColumnWidth (monthLabel month))
 
 private def tableRow
-    (selected : Bool) (monthOffset monthCount : Nat)
+    (width : Nat) (selected : Bool) (monthOffset monthCount : Nat)
     (row : Loam.ScheduledCoverageReview.Row) : Widget :=
   let marker := if selected then "> " else "  "
   let cells := (row.cells.drop monthOffset).take monthCount
   let text :=
     marker ++
-    Loam.Tui.Layout.padRight 26 row.rule.name ++
-    Loam.Tui.Layout.padRight 11 (cadenceLabel row.rule.everyMonths) ++
+    fitName (planWidth width - 2) row.rule.name ++
+    Loam.Tui.Layout.padRight (paceWidth width) (cadenceLabel row.rule.everyMonths) ++
     String.intercalate "" (cells.map fun cell =>
       Loam.Tui.Layout.padRight monthColumnWidth (monthCellText cell))
-  .row [span text (if selected then .selected else .normal)]
+  .row [span (Loam.Tui.Layout.padRight width text) (if selected then .selected else .normal)]
+
+/-- Bounded table projection; row indices remain those of `orderedRows`. -/
+def tableWindow
+    (snapshot : Loam.ScheduledCoverageReview.Snapshot)
+    (selectedRow monthOffset monthCount width height : Nat) : List Widget :=
+  if snapshot.rows.isEmpty then
+    [muted "No recurring plans are being monitored."]
+  else
+    let rows := orderedRows snapshot
+    let selected := min selectedRow (rows.length - 1)
+    let capacity := height - (if height >= 2 then 1 else 0)
+    let start := Loam.Tui.Layout.trailingWindowStart selected (max 1 capacity)
+    let visibleMonths := (snapshot.months.drop monthOffset).take monthCount
+    (if height < 2 then [] else [tableHeader width visibleMonths]) ++
+      ((rows.drop start).take capacity).zipIdx.map fun (row, offset) =>
+        tableRow width (start + offset == selected) monthOffset monthCount row
 
 /--
 Series Calendar for recurring-plan management.
@@ -115,10 +141,10 @@ def linesSelectedWindow
         | some first, some last => "Month window: " ++ first ++ " .. " ++ last
         | _, _ => "Month window: (empty)"
     , line ""
-    , tableHeader visibleMonths
+    , tableHeader (39 + monthColumnWidth * max 1 monthCount) visibleMonths
     ] ++
     (rows.zipIdx.map fun (row, index) =>
-      tableRow (index = selected) monthOffset monthCount row) ++
+      tableRow (39 + monthColumnWidth * max 1 monthCount) (index = selected) monthOffset monthCount row) ++
     [ line ""
     , muted "08 / 15 / 08,18 = explicit Scheduled day(s); ! = expected month with no explicit plan."
     , muted "Empty cell = no occurrence expected at the current pace; undecided expects no future months."

@@ -1172,27 +1172,59 @@ private def coverageFooter (bounds : Bounds) : List Widget :=
 
 private def coverageView
     (bounds : Bounds) (state : State) (coverage : CoverageEvidence) : Widget :=
-  let coverageLines :=
+  let state := clampCoverageState coverage state
+  let writable := Loam.Tui.Layout.contentWidth bounds
+  let compact := bounds.height < 18
+  let legend :=
+    if compact then [mutedLine "day = plan; ! = gap; blank = not expected"]
+    else (Loam.Tui.Layout.flowLines writable " "
+      [["dd = explicit day(s);", "! = expected month without a plan;", "blank = not expected."],
+       ["Pace guides extension; it does not create recurrence authority."]]).map mutedLine
+  let help := if compact then
+      [ mutedLine "[j/k] plan [h/l] months [Enter] detail"
+      , mutedLine "[e] extend [q] back [v] views" ]
+    else coverageFooter bounds
+  -- Publication/refusal notices retain their complete wrapped text.
+  let footerLines := withNoticeFooter bounds state (legend ++ help)
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length
+  let contextRows := if bodyCapacity >= 7 then 2 else if bodyCapacity >= 4 then 1 else 0
+  let panelHeight := bodyCapacity - contextRows
+  let innerWidth := writable - 2
+  let innerHeight := panelHeight - 2
+  let (context, title, content, position) : List Widget × String × List Widget × Option String :=
     match coverage with
     | .ok snapshot =>
-        let monthCount :=
-          Loam.Tui.ScheduledCoveragePane.monthWindowSize
-            (Loam.Tui.Layout.contentWidth bounds)
-        Loam.Tui.ScheduledCoveragePane.linesSelectedWindow
-          snapshot state.coverageRow state.coverageMonthOffset monthCount
+        let monthCount := Loam.Tui.ScheduledCoveragePane.monthWindowSize innerWidth
+        let months := (snapshot.months.drop state.coverageMonthOffset).take monthCount
+        let window := match months.head?, months.getLast? with
+          | some first, some last => first ++ " .. " ++ last
+          | _, _ => if snapshot.months.isEmpty then "(empty loaded horizon)" else "(widen for months)"
+        let total := snapshot.rows.length
+        let capacity := innerHeight - (if innerHeight >= 2 then 1 else 0)
+        let start := Loam.Tui.Layout.trailingWindowStart state.coverageRow (max 1 capacity)
+        let more := (if start > 0 then " ▲" else "") ++
+          (if start + capacity < total then " ▼" else "")
+        let title := if contextRows < 2 then "Monitored plans " ++ window
+          else s!"Monitored plans ({total})"
+        ([.row [span " Scheduled Series Calendar",
+            span ("  |  known through " ++ snapshot.observedAt) .muted],
+          mutedLine (" Month window: " ++ window)], title,
+          Loam.Tui.ScheduledCoveragePane.tableWindow snapshot state.coverageRow
+            state.coverageMonthOffset monthCount innerWidth innerHeight,
+          some ((if total == 0 then "0/0" else s!"{state.coverageRow + 1}/{total}") ++ more))
     | .error message =>
-        [ plainLine (" [Coverage unavailable] " ++ message)
-        , mutedLine " Months and List remain available with v."
-        ]
-  let body :=
-    [ rule bounds '='
-    , plainLine " Scheduled"
-    , mutedLine " Series Calendar: rows are plans; columns are months; cells show real explicit Scheduled days."
-    , mutedLine " ! marks an expected month with no explicit plan. Unscheduled months stay blank."
-    , rule bounds '='
-    ] ++ coverageLines
-  .column (Loam.Tui.Layout.fitWithFooter bounds body
-    (withNoticeFooter bounds state (coverageFooter bounds)))
+        ([plainLine " Scheduled Series Calendar", mutedLine " Coverage unavailable"],
+          "Monitored plans [Unavailable]",
+          [plainLine (" [Coverage unavailable] " ++ message),
+           mutedLine " Months and List remain available with v."], none)
+  let panel := Loam.Tui.Layout.framedPanel writable panelHeight title (.column content) true position
+  let body := (Widget.column (context.take contextRows ++ [panel])).lines.map fun cells =>
+    .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  let fitted := Loam.Tui.Layout.fitWithFooter bounds body footerLines
+  .column ((fitted.take (bounds.height - 1)).map fun row =>
+    .column (row.lines.map fun cells => .row
+      ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
+        span (String.singleton cell.glyph) cell.style)))
 
 def viewWithCoverage
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
