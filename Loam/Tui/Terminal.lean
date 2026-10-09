@@ -259,66 +259,6 @@ def refreshFrame (bounds : Bounds) (frame : CompiledWidget)
   redrawFromBlank active next
   return (active, next)
 
-/--
-Extract clean plain text from a compiled terminal frame.
-Strips trailing whitespace from each line and drops trailing empty lines at the
-bottom of the frame to produce clean, token-efficient text for external sharing.
--/
-def compiledWidgetToCleanText (frame : CompiledWidget) : String :=
-  let lines := frame.lines.map fun row =>
-    let chars := row.toList.map (·.glyph)
-    (String.ofList chars).trimAsciiEnd.toString
-  let trimmed := lines.toList.reverse.dropWhile String.isEmpty |>.reverse
-  String.intercalate "\n" trimmed
-
-/-- Extract clean plain text from an uncompiled Widget. -/
-def widgetToCleanText (widget : Widget) : String :=
-  compiledWidgetToCleanText (compileWidget widget)
-
-/--
-Write plain text to the system clipboard.
-Tries macOS `pbcopy` first, then Linux `wl-copy` and `xclip`.
-Returns `true` if a clipboard command succeeded, or `false` on failure.
--/
-def copyToClipboard (text : String) : IO Bool := do
-  let tryCommand (cmd : String) (args : Array String) : IO Bool := do
-    try
-      let child ← IO.Process.spawn {
-        cmd := cmd
-        args := args
-        stdin := .piped
-        stdout := .null
-        stderr := .null
-      }
-      let (stdin, child) ← child.takeStdin
-      stdin.putStr text
-      stdin.flush
-      let exitCode ← child.wait
-      return exitCode == 0
-    catch _ =>
-      return false
-
-  if ← tryCommand "pbcopy" #[] then
-    return true
-  if ← tryCommand "wl-copy" #[] then
-    return true
-  if ← tryCommand "xclip" #["-selection", "clipboard"] then
-    return true
-  return false
-
-/-- Plain text of the visible rows/columns, never the hidden remainder of a report. -/
-def visibleWidgetText (bounds : Bounds) (frame : CompiledWidget) : String :=
-  let lines := frame.lines.toList.take bounds.height |>.map fun row =>
-    let cells := Loam.Tui.Layout.clipCells (Loam.Tui.Layout.contentWidth bounds) row.toList
-    (plainTerminalText (String.ofList (cells.map (·.glyph)))).trimAsciiEnd.toString
-  let trimmed := lines.reverse.dropWhile String.isEmpty |>.reverse
-  String.intercalate "\n" trimmed
-
-/-- Copy only the physically visible rows and columns, not hidden report data. -/
-def copyScreenToClipboard (bounds : Bounds) (frame : CompiledWidget) : IO Bool := do
-  let active ← visibleBounds bounds
-  copyToClipboard (visibleWidgetText active frame)
-
 structure InputBuffer where
   data : ByteArray := ByteArray.empty
   pos  : Nat := 0
