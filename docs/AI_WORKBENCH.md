@@ -278,6 +278,11 @@ Use focused benchmark scripts such as `tools/benchmark-actual-read.py` only
 when the residual question is empirical performance. Measure rather than proving
 a surrogate property.
 
+For compiled TUI latency, idle output/CPU and bounded resource lifetime, use
+`tools/benchmark-tui-resources.py` on its temporary synthetic HouseholdImage.
+Qualification and limits: `docs/research/TUI_RESOURCE_QUALITY_2026-10-09.md`.
+Stable short-run RSS is not proof of long-duration leak freedom.
+
 ## Falsification and pressure catalogs
 
 ### Domain Falsification Atlas

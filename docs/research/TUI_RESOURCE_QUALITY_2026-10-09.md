@@ -1,0 +1,126 @@
+# Bounded TUI resource qualification — 2026-10-09
+
+Status: **measured local repairs, not a long-duration leak-freedom claim**
+
+## Scope and instrument
+
+`tools/benchmark-tui-resources.py` drives the compiled production TUI through a
+real PTY on a temporary synthetic HouseholdImage. No operational `loam-data` is
+selected. Setup uses `ScheduledBatchReplacement`'s fixture and appends balanced,
+dated Actuals, explicit synthetic role/zero-origin evidence and query configuration.
+There is one seeded completion Event in addition to the requested Event count.
+
+The workload warms up for five rounds, then repeatedly visits Summary, Calendar,
+Actual, Record/cancel, Daily Pace, Balances and Reports. It records RSS, accumulated
+process CPU time, numeric open FDs, retained descendant processes, operation times,
+idle output, and ordinary exit terminal-control restoration. Fixture digests must
+remain identical. The probe also exercises idle Daily Pace resize and checks
+ordinary exit restores canonical/echo input modes. Resource sampling and fixture
+generation are outside operation timing. Startup includes frame settling (about 20ms); other times end at the last
+observed output byte and are PTY response times, not human display latency.
+
+```sh
+lake build loamTui
+python3 tools/benchmark-tui-resources.py --check --events 100 --cycles 100 --idle-seconds 3
+python3 tools/benchmark-tui-resources.py --check --events 10000 --cycles 5 --idle-seconds 3
+```
+
+`--check` checks quiet idle, unchanged evidence, stable sampled FD counts and no
+retained descendants. CPU and RSS are reported, not given machine-independent
+thresholds. Missing FD instrumentation reports `null`, never assumed zero.
+
+## Observations and repairs
+
+Measurements below were on macOS x86_64. Filesystem/cache state and scheduler load
+were not controlled; startup figures are illustrative rather than universal budgets.
+
+### Idle work
+
+With 100 synthetic Actuals and 100 workload rounds:
+
+| Surface | Before, 3s idle | After, 3s idle |
+| --- | --- | --- |
+| Record | 240 output bytes; 0.04 CPU seconds | 0 bytes; 0.00 CPU seconds at `ps` resolution |
+| Daily Pace | 0 bytes; 0.13 CPU seconds | 0 bytes; 0.00 CPU seconds at `ps` resolution |
+
+Short native read timeouts produced `.other`. Record rebuilt its editor and
+repositioned the physical caret every tick; Daily Pace rebuilt its chart even
+without a changed selection. Both now retain the existing frame on idle input.
+Daily Pace's geometry refresh still happens before the idle fast path.
+
+After the idle repairs, RSS after warm-up was 27,084 KiB and reached 27,700 KiB
+at round 100. Most growth occurred before round 50; later samples were 27,672,
+27,688 and 27,700 KiB. FD count stayed at seven; retained descendants stayed zero.
+This is consistent with allocator warm-up/near plateau in this workload, not proof
+that all longer-running or different workloads are leak-free.
+
+### Data-volume pressure
+
+10,000 synthetic Actuals exposed a startup bottleneck. A temporary **compiled**
+phase probe measured about 8.14s in Pace+history, versus about 0.21s for Actual
+admission, 0.13s for Scheduled, and 0.37s for a separate CurrentBalance load.
+
+Historical reconstruction linearly searched the admitted date list for each
+selected Event, for each reconstructed day. It now builds a transient hash index
+from the admitted unique current validity memory. Missing/invalid dates still
+refuse **when they affect the selected coordinate**. No historical completeness,
+correction frontier, or support-family rule is weakened.
+
+The next pressure was repeated whole-Household qualification for every support
+family. Existing authority adapters now decode their existing contracts from a
+caller-owned qualified generation. CurrentBalance's support, HistoricalBalance's
+support, combined Pace/history, and production Movement world loading reuse a
+qualified physical generation locally rather than reopening it for each family.
+Explicit legacy Actual selection still loads its separately selected policy/support;
+no legacy fallback or persistent cache was introduced. Writers still own fresh
+read, admission, stale-generation refusal and publication.
+
+| Observable, 10,000 added Actuals | Before | After |
+| --- | ---: | ---: |
+| PTY startup | 9,148ms | 880ms |
+| Record open, median | 411ms | 248ms |
+| Balances open, median | 665ms | 262ms |
+| Native Pace+history phase | 8,140ms | 233ms |
+
+Three further startup runs on the same synthetic fixture measured 873, 885 and
+892ms. In the post-composition five-round probe, sampled RSS was 46,916–46,944 KiB;
+FD count stayed seven and retained descendants stayed zero. All probed idle
+surfaces emitted zero bytes. The larger-case five rounds do not establish a
+long-duration memory plateau.
+
+A final 100-round run after all composition changes measured RSS from 27,172 KiB
+(after warm-up) to 28,364 KiB; rounds 25/50/75/100 were 28,344 / 28,348 / 28,356 /
+28,364 KiB. Six separate three-second idle windows emitted zero bytes and had
+unchanged sampled RSS. A final 10,000-Event run reproduced 881ms startup, 249ms
+median Record open and 263ms median Balances open, with seven FDs and zero
+retained descendants. Idle Daily Pace resize and ordinary exit mode restoration
+also passed.
+
+## Semantic neighbors checked
+
+Existing qualifications exercised historical bounded/zero-origin routes,
+correction/date refinement, unknown versus exact current quantities, absent versus
+malformed support, required policy, legacy isolation, shared Actual generation,
+atomic support publication, stale-generation refusal, and Record publication/
+activation versus read-only cancellation. New resource probes check their read-only
+workload leaves every fixture file unchanged.
+
+All family decodes still follow full `HouseholdAuthority.loadCurrent?`
+qualification. `Generation` is not promoted to a stronger proof-carrying type;
+callers must not treat manually constructed instances as admitted authority.
+The date index is process-local derived data, never persisted state.
+
+## Residual work
+
+- Hours-long soak, repeated successful publication/correction and Fava child
+  lifecycle are outside this read-only workload. Existing writer/Fava tests are
+  separate evidence, not coverage supplied by this probe.
+- Cold-cache startup, multiple measures, many unique coordinates, and dense
+  correction/date histories need separate pressure shapes.
+- 50,000+ Events and larger support/plan vocabularies remain unmeasured here.
+- Record still uses its existing fixed session geometry; comprehensive modal
+  resize, signal interruption, exact prior `stty` restoration and crash/disk-full
+  behavior need their own qualification.
+- Historical projections still rebuild a date index per requested boundary;
+  sharing across an entire series is a possible later optimization if measured
+  pressure justifies it. Avoid retaining another long-lived cache prematurely.

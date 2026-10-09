@@ -171,6 +171,23 @@ Qualification includes `tests/test_terminal_input_latency.py`,
 The PTY tests use compiled binaries and synthetic evidence only. Foundation
 extractability also compiles the native adapter without LOAM domain modules.
 
+## Resource and scaling qualification
+
+`tools/benchmark-tui-resources.py` runs repeated read-only workspace visits and
+idle intervals on a temporary synthetic HouseholdImage. It reports operation
+latency, RSS, CPU time, FD counts and descendant processes. `--check` qualifies
+quiet idle, stable sampled FDs, no retained children, ordinary terminal cleanup,
+and unchanged fixture bytes; it does not prove long-duration leak freedom.
+
+```sh
+lake build loamTui
+python3 tools/benchmark-tui-resources.py --check --cycles 100 --idle-seconds 3
+python3 tools/benchmark-tui-resources.py --check --events 10000 --cycles 5
+```
+
+The measured repairs and remaining pressure shapes are recorded in
+[the bounded resource qualification](research/TUI_RESOURCE_QUALITY_2026-10-09.md).
+
 ## Surface map
 
 ```text

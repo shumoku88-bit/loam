@@ -3,6 +3,13 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Tests/HistoricalBalanceReview.lean'
+      - 'tools/benchmark-tui-resources.py'
+      - 'Loam/Review/HistoricalBalanceReview.lean'
+      - 'Loam/Review/CurrentBalanceReview.lean'
+      - 'Loam/Authority/CurrentSupportAuthority.lean'
+      - 'Loam/Authority/ZeroOriginCoverageAuthority.lean'
+      - 'Loam/MovementWorldLoader.lean'
       - 'tests/test_launcher_build_check.py'
       - 'tests/test_record_reload_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
@@ -173,6 +180,13 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Tests/HistoricalBalanceReview.lean'
+      - 'tools/benchmark-tui-resources.py'
+      - 'Loam/Review/HistoricalBalanceReview.lean'
+      - 'Loam/Review/CurrentBalanceReview.lean'
+      - 'Loam/Authority/CurrentSupportAuthority.lean'
+      - 'Loam/Authority/ZeroOriginCoverageAuthority.lean'
+      - 'Loam/MovementWorldLoader.lean'
       - 'tests/test_launcher_build_check.py'
       - 'tests/test_record_reload_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
@@ -402,6 +416,13 @@ jobs:
         run: |
           python3 tests/test_launcher_build_check.py
           python3 tests/test_record_reload_pty.py
+
+      - name: Verify bounded TUI resource lifetime on synthetic evidence
+        run: |
+          python3 tools/benchmark-tui-resources.py --check --cycles 10 --idle-seconds 1
+          lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
+          lake env lean --run Loam/Tests/CurrentBalanceReview.lean
+          lake env lean --run Loam/Tests/HouseholdCurrentSupportAuthority.lean "$(mktemp -d)/support"
 
   full:
     name: Full production household TUI qualification
@@ -857,6 +878,13 @@ jobs:
         run: |
           python3 tests/test_launcher_build_check.py
           python3 tests/test_record_reload_pty.py
+
+      - name: Verify bounded TUI resource lifetime on synthetic evidence
+        run: |
+          python3 tools/benchmark-tui-resources.py --check --cycles 10 --idle-seconds 1
+          lake env lean --run Loam/Tests/HistoricalBalanceReview.lean
+          lake env lean --run Loam/Tests/CurrentBalanceReview.lean
+          lake env lean --run Loam/Tests/HouseholdCurrentSupportAuthority.lean "$(mktemp -d)/support"
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py
