@@ -20,7 +20,39 @@ target_needs_build() {
   if [[ -f "$root/lean-toolchain" && "$root/lean-toolchain" -nt "$bin" ]]; then
     return 0
   fi
-  if [[ -d "$root/Loam" ]] && [[ -n "$(find "$root/Loam" -name "*.lean" -newer "$bin" -print -quit 2>/dev/null)" ]]; then
+  if [[ -f "$root/lake-manifest.json" && "$root/lake-manifest.json" -nt "$bin" ]]; then
+    return 0
+  fi
+
+  # Lake's linker response file inventories this executable's transitive modules.
+  # Unrelated tests must not trigger a build on every launch. Missing inventory
+  # or a deleted source fails closed to Lake; changed imports are caught by the
+  # importing source itself becoming newer.
+  local rsp="$bin.rsp" object source
+  local seen_source=0
+  if [[ ! -f "$rsp" ]]; then
+    return 0
+  fi
+  while IFS= read -r object || [[ -n "$object" ]]; do
+    object="${object#\"}"
+    object="${object%\"}"
+    case "$object" in
+      "$root/.lake/build/ir/"*.c.o.export)
+        source="$root/${object#"$root/.lake/build/ir/"}"
+        source="${source%.c.o.export}.lean"
+        ;;
+      .lake/build/ir/*.c.o.export)
+        source="$root/${object#.lake/build/ir/}"
+        source="${source%.c.o.export}.lean"
+        ;;
+      *) continue ;;
+    esac
+    seen_source=1
+    if [[ ! -f "$source" || "$source" -nt "$bin" ]]; then
+      return 0
+    fi
+  done < "$rsp"
+  if [[ "$seen_source" == "0" ]]; then
     return 0
   fi
   if [[ -f "$root/Loam/Tui/terminal_native.c" && "$root/Loam/Tui/terminal_native.c" -nt "$bin" ]]; then

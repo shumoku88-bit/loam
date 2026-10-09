@@ -154,7 +154,7 @@ def main : IO Unit := do
 
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[Enter] open", "[r] record",
-    "[a] actual", "[s] scheduled", "[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
+    "[a] actual", "[s] scheduled", "[d] daily pace", "[i] attention", "[b] balances", "[u] settlements", "[g] summary",
     "[Space] commands", "[m] manage loci", "[o] observe quantities",
     "[v] reports", "[q] quit"
   ]
@@ -198,7 +198,7 @@ def main : IO Unit := do
   let dividerCount := occurrences " │ " wideText
   expect (dividerCount > 12)
     "unified money calendar lost its stable wide side-by-side geometry"
-  for token in ["[d] pace", "[i] attention", "[b] balances", "[u] settlements", "[c] daily",
+  for token in ["[d] daily pace", "[i] attention", "[b] balances", "[u] settlements", "[g] summary",
                 "[Space] commands", "[m] manage loci", "[o] observe quantities",
                 "[v] reports"] do
     expect (occurrences token wideText == 1)
@@ -276,7 +276,7 @@ def main : IO Unit := do
   expect (contains "± not requested" narrowText)
     "80-column Home fell back to the retired plain calendar"
   expect (!contains "Daily pace:" narrowText)
-    "Calendar Home still duplicated Daily glance answers"
+    "Calendar Home still duplicated Summary answers"
   for token in expectedTokens do
     expect (contains token narrowText)
       s!"80-column Home lost token {token}; must not be clipped"
@@ -288,32 +288,63 @@ def main : IO Unit := do
       s!"80-column line exceeded contentWidth: {lineStr} (width {displayWidth lineStr} vs {narrowContentWidth})"
 
 
-  -- 2d. Daily glance is quiet, and the calendar remains one reversible key away.
-  let dailyState : Loam.Tui.Main.State := { state with homeMode := .daily }
-  let dailyText := widgetText (Loam.Tui.Home.view narrowBounds snapshot dailyState)
-  expect (contains "LOAM / Today" dailyText)
-    "Daily Home did not expose the short everyday glance"
-  expect (contains "Upcoming Scheduled" dailyText && contains "Recent recorded Actual" dailyText)
-    "Daily Home lost confirmation of recorded entries and open payments"
-  expect (!contains "Mon  Tue  Wed" dailyText)
-    "Daily Home kept the small calendar in the everyday glance"
-  expect (contains "[c] calendar" dailyText && contains "[Space] commands" dailyText)
-    "Daily Home did not offer calendar and command palette access"
-  expect (!contains "[e] capacity" dailyText && !contains "[p] purpose routing" dailyText)
+  -- Summary is a temporary glance, never a second calendar navigation state.
+  let summaryState : Loam.Tui.Main.State := { state with homeMode := .summary }
+  let summaryText := widgetText (Loam.Tui.Home.view narrowBounds snapshot summaryState)
+  expect (contains "LOAM / Summary" summaryText)
+    "Summary did not expose the short everyday glance"
+  expect (contains "Upcoming Scheduled" summaryText && contains "Recent recorded Actual" summaryText)
+    "Summary lost recorded entries and open payments"
+  expect (!contains "Mon  Tue  Wed" summaryText)
+    "Summary kept the small calendar"
+  expect (contains "[g/Esc] back to calendar" summaryText && contains "[Space] commands" summaryText)
+    "Summary did not offer calendar and command palette access"
+  expect (!contains "[e] capacity" summaryText && !contains "[p] purpose routing" summaryText)
     "optional budget shortcuts leaked back to the Home footer"
-  expect (contains "Attention: not requested" dailyText)
-    "Daily Home lost the Attention read-state previously shown beside the small calendar"
+  expect (contains "Attention: not requested" summaryText)
+    "Summary lost the Attention read-state"
   let toCalendar ← requireSome
-    (Loam.Tui.Home.navigationKey narrowBounds snapshot dailyState (.input 'c'))
-    "Daily c did not switch to the calendar"
+    (Loam.Tui.Home.navigationKey narrowBounds snapshot summaryState (.input 'g'))
+    "Summary g did not return to Calendar"
   expect (toCalendar.homeMode == .calendar &&
           contains "┬" (widgetText (Loam.Tui.Home.view narrowBounds snapshot toCalendar)))
-    "Daily c did not open the unified full-grid calendar"
-  let toDaily ← requireSome
-    (Loam.Tui.Home.navigationKey narrowBounds snapshot toCalendar (.input 'c'))
-    "Calendar c did not return to Daily"
-  expect (toDaily.homeMode == .daily && toDaily.selectedDate == snapshot.actual.today)
-    "Calendar c failed to return to today's glance"
+    "Summary g did not open the full-grid calendar"
+  let toSummary ← requireSome
+    (Loam.Tui.Home.navigationKey narrowBounds snapshot toCalendar (.input 'g'))
+    "Calendar g did not open Summary"
+  expect (toSummary.homeMode == .summary && toSummary.selectedDate == toCalendar.selectedDate)
+    "Summary changed the preserved calendar date"
+  expect (Loam.Tui.Home.navigationKey narrowBounds snapshot state (.input 'c')).isNone
+    "retired c toggle is still active"
+  let preserved : Loam.Tui.Main.State := { state with
+    selectedDate := "2025-04-17"
+    zoomLevel := .year
+    overviewScroll := 3
+    detailScroll := 5
+    detailCursor := 2
+    activePane := .detail
+    notice := "preserve me" }
+  let glance := Loam.Tui.Main.toggleHomeMode preserved
+  expect (glance.homeMode == .summary &&
+      (Loam.Tui.Home.reconcileState narrowBounds snapshot glance).detailScroll == 5)
+    "Summary reconciled away the saved detail viewport"
+  expect (Loam.Tui.Main.actionDate snapshot glance == snapshot.actual.today &&
+      Loam.Tui.Main.actionDate snapshot preserved == preserved.selectedDate)
+    "Summary actions did not use today independently of calendar focus"
+  for key in [Loam.Tui.Terminal.Key.input 'g', .escape] do
+    let restored ← requireSome
+      (Loam.Tui.Home.navigationKey narrowBounds snapshot glance key)
+      "Summary did not return with g/Esc"
+    expect (restored.homeMode == .calendar && restored.selectedDate == preserved.selectedDate &&
+        restored.zoomLevel == preserved.zoomLevel && restored.overviewScroll == 3 &&
+        restored.detailScroll == 5 && restored.detailCursor == 2 &&
+        restored.activePane == .detail && restored.notice == preserved.notice)
+      "Summary return changed saved Calendar presentation state"
+  let ignored ← requireSome
+    (Loam.Tui.Home.navigationKey narrowBounds snapshot glance .right)
+    "Summary arrow did not stay local"
+  expect (ignored.selectedDate == preserved.selectedDate)
+    "Summary arrow changed saved Calendar focus"
   expect (Loam.Tui.HomeCommandPalette.choiceAt? 0 ==
             some .budget &&
           Loam.Tui.HomeCommandPalette.choiceAt? 1 ==

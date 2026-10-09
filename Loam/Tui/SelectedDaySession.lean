@@ -422,8 +422,11 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
         measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
-      let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
-      let fresh ← requireReload notice reload
+      let result ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
+      let notice := result.notice
+      let fresh ←
+        if result.requiresReload then requireReload notice reload
+        else pure snapshot
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.SelectedDay.view bounds fresh next)

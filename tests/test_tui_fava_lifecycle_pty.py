@@ -80,8 +80,8 @@ def drain_fd(fd):
             break
 
 try:
-    # 1. Wait for Home screen
-    wait_for("LOAM / Today")
+    # 1. Wait for Calendar Home
+    wait_for("LOAM Home")
 
     # 2. Enter Reports workspace
     os.write(master, b"v")
@@ -115,7 +115,7 @@ try:
 
     # 5. Exit back to Home then exit loamTui
     os.write(master, b"q")
-    wait_for("LOAM / Today")
+    wait_for("LOAM Home")
     os.write(master, b"q")
     drain_fd(master)
 

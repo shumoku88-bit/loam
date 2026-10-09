@@ -659,7 +659,7 @@ Minimal daily confirmation surface. Recent Actuals are explicitly recorded facts
 current-open Scheduled items are obligations recorded in the system, not proof that
 every future bill has been entered. Neither list is a new accounting calculation.
 -/
-private def dailyHomeBody
+private def summaryBody
     (bounds : Bounds) (snapshot : Snapshot) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let paceRows :=
@@ -701,7 +701,7 @@ private def dailyHomeBody
           ("   " ++ record.date.getD "undated" ++ "  " ++
             Loam.ActualReview.summary record)
   [ ruleLine bounds '='
-  , plainLine (" LOAM / Today   " ++ snapshot.actual.today)
+  , plainLine (" LOAM / Summary   " ++ snapshot.actual.today)
   , ruleLine bounds '='
   , blankLine
   ] ++ paceRows ++
@@ -716,7 +716,7 @@ private def dailyHomeBody
 
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
-  if state.homeMode == .daily then dailyHomeBody bounds snapshot
+  if state.homeMode == .summary then summaryBody bounds snapshot
   else if bounds.width ≥ 120 then wideHomeBody bounds footerRows snapshot state
   else if state.activePane == .detail then
     [ruleLine bounds '=', plainLine " LOAM Home / Transactions", ruleLine bounds '='] ++
@@ -830,11 +830,11 @@ private def actionHelp (state : State) : List HelpItem :=
     ]
 
 private def householdHelp : List HelpItem :=
-  [ { key := "[d]", label := "pace" }
+  [ { key := "[d]", label := "daily pace" }
   , { key := "[i]", label := "attention" }
   , { key := "[b]", label := "balances" }
   , { key := "[u]", label := "settlements" }
-  , { key := "[c]", label := "daily" }
+  , { key := "[g]", label := "summary" }
   , { key := "[Space]", label := "commands" }
   , { key := "[v]", label := "reports" }
   ]
@@ -864,10 +864,10 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
       let hintLine := mutedLine " [Enter] jump  [Esc] cancel  (e.g. 2026-10-15, 2026-10, 2026, 15)"
       [ruleLine bounds '-', promptLine, hintLine]
   | none =>
-      if state.homeMode == .daily then
+      if state.homeMode == .summary then
         let tokens :=
-          ["[r] record", "[a] actual", "[s] scheduled", "[d] pace trend",
-           "[b] balances", "[c] calendar", "[Space] commands", "[q] quit"]
+          ["[r] record", "[a] actual", "[s] scheduled", "[d] daily pace",
+           "[b] balances", "[v] reports", "[g/Esc] back to calendar", "[Space] commands", "[q] quit"]
         let help := (Loam.Tui.Layout.flowTokens
           (Loam.Tui.Layout.contentWidth bounds) "   " tokens).map mutedLine
         if state.notice.isEmpty then help
@@ -949,8 +949,10 @@ def moveDetailCursor
 
 /-- Reconcile reloads and geometry without changing any household evidence. -/
 def reconcileState (bounds : Bounds) (snapshot : Snapshot) (state : State) : State :=
-  let state := normalizeDetailCursor snapshot state
-  if state.activePane == .detail then moveDetailCursor bounds snapshot state 0 else state
+  if state.homeMode == .summary then state
+  else
+    let state := normalizeDetailCursor snapshot state
+    if state.activePane == .detail then moveDetailCursor bounds snapshot state 0 else state
 
 private def repeatUpdate (state : State) (event : Loam.Tui.Main.Event) (repeatCount : Nat) : State :=
   let rec loop (st : State) (rem : Nat) : State :=
@@ -965,10 +967,16 @@ def navigationKey
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1) : Option State :=
   let state := reconcileState bounds snapshot state
   let handled := fun next => some (reconcileState bounds snapshot next)
-  if state.jumpPrompt.isNone && (key == .input 'c' || key == .input 'C') then
-    handled (Loam.Tui.Main.toggleHomeMode state snapshot.actual.today)
-  else if state.homeMode == .daily && state.jumpPrompt.isNone then
-    none
+  if state.jumpPrompt.isNone && (key == .input 'g' || key == .input 'G' ||
+      (state.homeMode == .summary && key == .escape)) then
+    some (Loam.Tui.Main.toggleHomeMode state)
+  else if state.homeMode == .summary then
+    -- Date navigation belongs to Calendar, not the temporary glance.
+    match key with
+    | .left | .right | .up | .down
+    | .input 'h' | .input 'H' | .input 'l' | .input 'L'
+    | .input 'k' | .input 'K' | .input 'j' | .input 'J' => some state
+    | _ => none
   else if state.jumpPrompt.isSome then
     handled <| match key with
     | .escape => closeJumpPrompt state

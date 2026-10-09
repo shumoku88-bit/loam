@@ -114,8 +114,6 @@ def expect_local_unavailability(key, subject):
 
 
 try:
-    wait_for("LOAM / Today")
-    os.write(master, b"c")
     wait_for("LOAM Home")
     # Move beyond the next boundary in Calendar mode.
     # The current Budget must ignore this historical focus.
@@ -312,9 +310,11 @@ try:
                                 stderr=slave2, env=env, preexec_fn=controlling_terminal2)
     os.close(slave2)
     try:
+        wait_for_fd(master2, "LOAM Home")
+        os.write(master2, b"g")
         startup = wait_for_fd(master2, "cash -> wifi: 250 jpy")
-        assert "LOAM / Today" in startup, "malformed legacy Scheduled prevented Home from starting"
-        assert "Upcoming Scheduled" in startup, "Home stopped reading Household Scheduled evidence"
+        assert "LOAM / Summary" in startup, "malformed legacy Scheduled prevented Summary from opening"
+        assert "Upcoming Scheduled" in startup, "Summary stopped reading Household Scheduled evidence"
         assert process2.poll() is None, "TUI exited after ignoring malformed legacy Scheduled"
 
         os.write(master2, b"s")
@@ -322,14 +322,14 @@ try:
         assert "Scheduled" in scheduled_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Scheduled workspace use"
         os.write(master2, b"q")
-        wait_for_fd(master2, "LOAM / Today")
+        wait_for_fd(master2, "LOAM / Summary")
 
         os.write(master2, b"a")
         actual_screen = wait_for_fd(master2, "Household Actuals Workspace")
         assert "Actual" in actual_screen
         assert process2.poll() is None, "malformed legacy Scheduled prevented Actual workspace use"
         os.write(master2, b"q")
-        wait_for_fd(master2, "LOAM / Today")
+        wait_for_fd(master2, "LOAM / Summary")
 
         os.write(master2, b"q")
         drain_fd(master2)
@@ -342,7 +342,7 @@ try:
         scheduled_path.write_bytes(scheduled_bytes)
 
     assert digest() == before, "Scheduled legacy-isolation test changed fixture evidence/config"
-    print("Production PTY: Daily/Calendar, command palette Budget/Capacity/Purpose, local refusals, Scheduled legacy isolation and no writes passed.")
+    print("Production PTY: Calendar/Summary, command palette Budget/Capacity/Purpose, local refusals, Scheduled legacy isolation and no writes passed.")
 except BaseException:
     import traceback
     traceback.print_exc()

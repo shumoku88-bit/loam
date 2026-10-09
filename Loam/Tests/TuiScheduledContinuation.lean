@@ -159,10 +159,10 @@ def main : IO Unit := do
       | .unavailable => .unavailable
       | .available attention => .loaded attention
   }
-  -- Attention is now a Daily Home glance item, not part of Calendar Home.
+  -- Attention belongs to Summary, not Calendar Home.
   -- The deferred continuation must remain discoverable on the actual startup view.
   let homeState : Loam.Tui.Main.State :=
-    { Loam.Tui.Main.initialState "2026-09-15" with homeMode := .daily }
+    { Loam.Tui.Main.initialState "2026-09-15" with homeMode := .summary }
   let homeText := widgetText
     (Loam.Tui.Home.view { width := 100, height := 42 } homeSnapshot homeState)
   expect (contains "Attention: 1 open" homeText &&

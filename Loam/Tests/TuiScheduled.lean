@@ -108,10 +108,10 @@ def main : IO Unit := do
   expect (hasStyledText dueTodayView " 7 " .selectedUnderlined)
     "Large calendar lost today's selected/underlined day or marked it pending"
   let dueTodayText := widgetText dueTodayView
-  let dailyState : Loam.Tui.Main.State := { home with homeMode := .daily }
+  let dailyState : Loam.Tui.Main.State := { home with homeMode := .summary }
   let dailyText := widgetText (Loam.Tui.Home.view bounds snapshot dailyState)
   expect (contains "Daily Pace" dailyText && contains "170 jpy/day" dailyText)
-    "Daily Home did not expose the current Daily Pace answer"
+    "Summary did not expose the current Daily Pace answer"
   expect (!contains "Recent pace" dueTodayText &&
           !contains "09-05  150 jpy/day" dueTodayText)
     "Home let historical Daily Pace compete with the current glance"
@@ -170,7 +170,7 @@ def main : IO Unit := do
       !(contains "jpy/day" usdTrendText))
     "Daily Pace trend rewrote non-JPY history as JPY"
   expect (contains "Upcoming Scheduled" dailyText && contains "2026-09-07" dailyText)
-    "Daily Home did not expose the earliest current-open Scheduled occurrence"
+    "Summary did not expose the earliest current-open Scheduled occurrence"
 
   let stateBounds : Bounds := { width := 100, height := 42 }
 

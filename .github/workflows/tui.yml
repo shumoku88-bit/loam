@@ -3,6 +3,8 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tests/test_launcher_build_check.py'
+      - 'tests/test_record_reload_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
       - 'Loam/Tests/ScheduledBatchReplacement.lean'
       - 'Loam/Tests/TuiScheduledBulkEdit.lean'
@@ -171,6 +173,8 @@ on:
     branches:
       - main
     paths:
+      - 'tests/test_launcher_build_check.py'
+      - 'tests/test_record_reload_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
       - 'Loam/Tests/ScheduledBatchReplacement.lean'
       - 'Loam/Tests/TuiScheduledBulkEdit.lean'
@@ -393,6 +397,11 @@ jobs:
 
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
+
+      - name: Verify launcher freshness and Record reload boundaries
+        run: |
+          python3 tests/test_launcher_build_check.py
+          python3 tests/test_record_reload_pty.py
 
   full:
     name: Full production household TUI qualification
@@ -843,6 +852,11 @@ jobs:
         run: |
           python3 tests/test_terminal_input_latency.py
           python3 tests/test_terminal_mechanics_pty.py
+
+      - name: Verify launcher freshness and Record reload boundaries
+        run: |
+          python3 tests/test_launcher_build_check.py
+          python3 tests/test_record_reload_pty.py
 
       - name: Verify TUI owned Fava lifecycle PTY interactions
         run: python3 tests/test_tui_fava_lifecycle_pty.py

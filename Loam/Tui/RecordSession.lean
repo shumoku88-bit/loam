@@ -26,6 +26,11 @@ the selected world before the session and reloading canonical evidence after
 a successful publication.
 -/
 
+/-- Reload after a publication attempt, including activation's independent policy write. -/
+structure Result where
+  notice : String
+  requiresReload : Bool := false
+
 structure FloatingGeometry where
   top : Nat
   left : Nat
@@ -132,20 +137,22 @@ private partial def runWithSurface
     (bounds : Bounds) (surface : Surface)
     (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO String := do
+    (state : Loam.Tui.Record.State) (frame : CompiledWidget)
+    (requiresReload : Bool := false) : IO Result := do
   let step := Loam.Tui.Record.update world known state (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Record cancelled."
+  if step.cancel then return { notice := "Record cancelled.", requiresReload := requiresReload }
   if step.enableUnresolved then
     match ← Loam.Tui.UnresolvedActivation.enableEditor? root step.state with
     | .error message =>
         let next := Loam.Tui.UnresolvedActivation.withEnableError step.state message
         let nextFrame := frameFor surface known next
         redraw bounds surface frame nextFrame
-        runWithSurface bounds surface root world known next nextFrame
+        -- Activation can publish policy before its subsequent reload fails.
+        runWithSurface bounds surface root world known next nextFrame true
     | .ok enabled =>
         let nextFrame := frameFor surface enabled.known enabled.editor
         redraw bounds surface frame nextFrame
-        runWithSurface bounds surface root enabled.world enabled.known enabled.editor nextFrame
+        runWithSurface bounds surface root enabled.world enabled.known enabled.editor nextFrame true
   else
     match step.publish with
     | some intent =>
@@ -160,7 +167,9 @@ private partial def runWithSurface
                 originalQuantity := original.quantity
               }
         match result with
-        | .ok eventId => return "Recorded " ++ eventId.token ++ "."
+        | .ok eventId => return {
+            notice := "Recorded " ++ eventId.token ++ "."
+            requiresReload := true }
         | .error message =>
             let next := {
               step.state with
@@ -169,17 +178,18 @@ private partial def runWithSurface
             }
             let nextFrame := frameFor surface known next
             redraw bounds surface frame nextFrame
-            runWithSurface bounds surface root world known next nextFrame
+            -- Keep the conservative reload after any attempted publication.
+            runWithSurface bounds surface root world known next nextFrame true
     | none =>
         let nextFrame := frameFor surface known step.state
         redraw bounds surface frame nextFrame
-        runWithSurface bounds surface root world known step.state nextFrame
+        runWithSurface bounds surface root world known step.state nextFrame requiresReload
 
 /-- Run one Record editor session and return its human-facing completion notice. -/
 partial def run
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO String := do
+    (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO Result := do
   placeFocusCursor bounds .full frame
   runWithSurface bounds .full root world known state frame
 
@@ -191,7 +201,7 @@ fresh destination after Record completes.
 def runAdaptive
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.Record.State) (background : CompiledWidget) : IO String := do
+    (state : Loam.Tui.Record.State) (background : CompiledWidget) : IO Result := do
   match floatingGeometry? bounds with
   | none =>
       let frame := frameFor .full known state

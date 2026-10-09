@@ -14,8 +14,8 @@ Run from the repository root:
 ./tools/loam
 ```
 
-This launcher builds the current `loam` executable before starting its TUI, so
-TUI changes are not missed because of an old executable. Pass an optional data
+This launcher builds `loam` when its linked sources or build inputs are newer
+than the executable. Unrelated test changes do not trigger a startup build. Pass an optional data
 directory via `./tools/loam tui LOAM_DATA_DIR`.
 
 For debugging, `lake build loamTui` followed by `./.lake/build/bin/loamTui`
@@ -29,13 +29,17 @@ do not fall back to retired steady-state sidecars.
 
 ## Home grammar
 
-The production TUI opens the **Daily glance** by default. It shows current
-Daily Pace (including its existing current-open Scheduled deductions), the
-three next recorded current-open Scheduled items, five recent current
-Actual entries, and the current Attention read-state. These are read-only projections and do **not** assert that
-all future bills have been entered. `c` switches to the original Calendar
-Home; `c` again returns to Daily. The normal recording and specialized
-workspaces remain available from either view.
+The production TUI opens **Home / Calendar** by default: the date navigator
+is the accounting workspace. `g` (glance) opens a temporary **Summary**;
+`g` or `Esc` returns to the same calendar date, zoom, pane, selection and scroll
+positions. The former `c` toggle is retired.
+
+Summary shows current Daily Pace (including current-open Scheduled deductions),
+the next three recorded current-open Scheduled items, five recent current Actual
+entries, and the Attention read-state. These are read-only projections and do
+**not** assert that all future bills have been entered. Normal recording and
+specialized workspaces remain accessible from either view. Summary's date-based
+actions use today without overwriting the saved Calendar focus.
 
 `Space` opens a short-lived Commands palette. The optional envelope
 operations **Budget**, **Capacity**, and **Purpose routing** live there.
@@ -45,7 +49,7 @@ underlying canonical facts nor the publisher/writer boundaries change.
 The Calendar Home retains these entrances:
 
 ```text
-c          back to the Daily glance
+g          open Summary (g / Esc returns to Calendar)
 Space      optional commands: Budget, Capacity, Purpose routing
 h/l        previous / next day, month, or year (current zoom)
 k/j        previous / next week, quarter, or year (current zoom)
@@ -76,18 +80,19 @@ The prior compact calendar was retired. The Calendar Home now always uses
 the larger role-aware money grid, with Today's underline, open-plan `!`, and
 unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
 still shows dates and explicitly indicates that the financial projection is
-unavailable. The Daily glance owns current Daily Pace, upcoming plans, recent
+unavailable. Summary owns current Daily Pace, upcoming plans, recent
 Actual, and Attention; the calendar does not duplicate those summaries.
 
-Home's selected date is presentation/navigation state. It seeds selected-day,
-Actual, Scheduled, and Record interactions. It does not redefine the current-cycle
+Home's selected date is presentation/navigation state. In Calendar it seeds
+selected-day, Actual, Scheduled, Record, Exchange and Reports interactions;
+in Summary these actions use today. It does not redefine the current-cycle
 Budget observation date or silently manufacture a household cycle.
 
 Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 Home keeps household state in the body and shortcut grammar in the stable footer.
-The current Daily Pace answer stays on Home, while `d` opens a small read-only
+The current Daily Pace answer stays in Summary, while `d` opens a small read-only
 trend over the already-derived retrospective current-truth series. The trend does
 not retain daily pace as household state or introduce a second calculation.
 The footer groups commands by the active Day/Month/Year or Detail context,

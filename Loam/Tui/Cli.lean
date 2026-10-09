@@ -315,8 +315,11 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
         measurePresentation
       let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
-      let notice ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
-      let fresh ← requireReload notice (loadSnapshot dataDir)
+      let result ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
+      let notice := result.notice
+      let fresh ←
+        if result.requiresReload then requireReload notice (loadSnapshot dataDir)
+        else pure snapshot
       let refreshed := Loam.Tui.ActualWorkspace.refreshed fresh step.state
       let next := { refreshed with notice := notice }
       let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
@@ -491,7 +494,9 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot state nextFrame selected
   else if key = .enter then
     let day? :=
-      if state.activePane == .detail then do
+      if state.homeMode == .summary then
+        some (Loam.Tui.SelectedDay.initial snapshot.actual.today)
+      else if state.activePane == .detail then do
         let record ← Loam.Tui.Main.selectedDetailRecord? snapshot state
         Loam.Tui.SelectedDay.initialForActual? snapshot record
       else some (Loam.Tui.SelectedDay.initial state.selectedDate)
@@ -537,7 +542,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   else if (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
     let actual := Loam.Tui.ActualWorkspace.withMetadata
-      (Loam.Tui.ActualWorkspace.initial state.selectedDate) metadata
+      (Loam.Tui.ActualWorkspace.initial (actionDate snapshot state)) metadata
     let actualFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot actual)
     Loam.Tui.Terminal.redrawFromBlank bounds actualFrame
     let fresh ← actualWorkspaceLoop bounds dataDir root snapshot actual actualFrame
@@ -546,7 +551,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
   else if (key = .input 's' || key = .input 'S') then
-    let scheduled := Loam.Tui.ScheduledWorkspace.initial state.selectedDate
+    let scheduled := Loam.Tui.ScheduledWorkspace.initial (actionDate snapshot state)
     let coverage ← Loam.ScheduledCoverageReview.loadSnapshot
       dataDir root snapshot.actual.today 18
     let scheduledFrame := compileWidget
@@ -718,10 +723,10 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
               (Loam.HouseholdPaths.boundaryPresets dataDir) with
           | some presets =>
               pure (Loam.Tui.Reports.initialForDateWithPresetsForMeasure
-                measure state.selectedDate presets)
+                measure (actionDate snapshot state) presets)
           | none =>
               let base := Loam.Tui.Reports.initialForDateForMeasure
-                measure state.selectedDate
+                measure (actionDate snapshot state)
               pure { base with
                 notice := "Boundary preset config malformed; named presets unavailable." }
         Loam.Tui.Terminal.redrawWidgetDirect
@@ -751,7 +756,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     }
     let measurePresentation ← currentMeasurePresentation dataDir
     let editor := Loam.Tui.Exchange.withMeasurePresentation
-      (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate)
+      (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) (actionDate snapshot state))
       measurePresentation
     let editorFrame := compileWidget (Loam.Tui.Exchange.view editor)
     Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
@@ -771,11 +776,14 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let measurePresentation ← currentMeasurePresentation dataDir
     let editor := Loam.Tui.Record.withMeasurePresentation
       (Loam.Tui.Record.withCatalog
-        (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate) catalog)
+        (Loam.Tui.Record.initialWithMeasure (← requireConfiguredMeasure) (actionDate snapshot state)) catalog)
       measurePresentation
-    let notice ←
+    let result ←
       Loam.Tui.RecordSession.runAdaptive bounds root world known editor frame
-    let fresh ← requireReload notice (loadSnapshot dataDir)
+    let notice := result.notice
+    let fresh ←
+      if result.requiresReload then requireReload notice (loadSnapshot dataDir)
+      else pure snapshot
     let destination := { state with notice := notice }
     let nextFrame := compiledFrameFor bounds fresh destination
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
@@ -805,7 +813,7 @@ def run (args : List String) : IO UInt32 := do
   let bounds ← Loam.Tui.Terminal.currentBounds
   Loam.Tui.Terminal.enter
   try
-    let state := { initialState snapshot.actual.today with homeMode := .daily }
+    let state := initialState snapshot.actual.today
     let frame := compiledFrameFor bounds snapshot state
     Loam.Tui.Terminal.redrawFromBlank bounds frame
     loop bounds dataDir root snapshot state frame
