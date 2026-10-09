@@ -477,7 +477,6 @@ private def listPanel
   let remaining := if start + rows < total then " ▼" else ""
   Loam.Tui.Layout.framedPanel width height title (.column (columnHeader ++ content))
     (pane == state.pane) (some (position ++ remaining))
-    (if pane == .loci then .series4 else .series3)
 
 /-- Frames already own their borders; leave just one blank column between them. -/
 private def joinPanels (left right : Widget) : List Widget :=
@@ -539,35 +538,24 @@ private def detailHasMore
   let scroll := min state.detailScroll maxScroll
   total > scroll + capacity
 
-/-- Color the key rather than the whole footer, retaining ordinary terminal palette control. -/
-private def hintLine (hints : List (String × String)) : Widget :=
-  .row (hints.zipIdx.flatMap fun ((key, label), index) =>
-    [span (if index == 0 then "" else "  "), span ("[" ++ key ++ "]") .series2,
-     span (" " ++ label) .muted])
-
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   if state.searchEditing then
     [ mutedLine "Search input: type text   Backspace delete   Enter keep   Esc clear"
     , mutedLine "Matches update live across all current Actual evidence."
     ]
   else if state.pane == .details then
-    [ hintLine [("j/k", "scroll details"), ("h/l", "pane"), ("Esc/i", "return to Actuals")]
-    , hintLine [("Enter", "open selected"), ("n", "new"), ("q", "back to Home")]
+    [ mutedLine "[j/k] scroll details  [h/l] pane  [Esc/i] return to Actuals"
+    , mutedLine "[Enter] open selected  [n] new  [q] back to Home"
     ]
   else
-    let detailedHints :=
-      [("j/k", "select"), ("h/l", "pane"), ("Tab", "cycle"), ("i", "details"),
-       ("f", "filter"), ("s", "sort"), ("/", "search")]
-    let detailedText := String.intercalate "  "
-      (detailedHints.map fun (key, label) => "[" ++ key ++ "] " ++ label)
-    if Loam.Tui.Layout.displayWidth detailedText ≤ Loam.Tui.Layout.contentWidth bounds then
-      [ hintLine detailedHints
-      , hintLine [("Enter", "open selected"), ("n", "new"), ("q", "back")]
+    let detailedRow1 := "[j/k] select  [h/l] pane  [Tab] cycle  [i] details  [f] filter  [s] sort  [/] search"
+    if Loam.Tui.Layout.displayWidth detailedRow1 ≤ Loam.Tui.Layout.contentWidth bounds then
+      [ mutedLine detailedRow1
+      , mutedLine "[Enter] open selected  [n] new  [q] back"
       ]
     else
-      [ hintLine [("j/k", "sel"), ("h/l", "pane"), ("Tab", "cycle"), ("i", "info"),
-          ("f", "filter"), ("s", "sort"), ("/", "search")]
-      , hintLine [("Enter", "open"), ("n", "new"), ("q", "back")]
+      [ mutedLine "[j/k] sel [h/l] pane [Tab] cycle [i] info [f] filter [s] sort [/] search"
+      , mutedLine "[Enter] open [n] new [q] back"
       ]
 
 private def orderText (state : State) : String :=
@@ -638,7 +626,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       else none
     let title := "Details" ++ (if isFocused then " [active]" else "")
     Loam.Tui.Layout.framedPanel width height title
-      (.column (lines.drop 1)) isFocused bottomLabel .series2
+      (.column (lines.drop 1)) isFocused bottomLabel
   let panels :=
     if wide then
       let left : Widget := .column [

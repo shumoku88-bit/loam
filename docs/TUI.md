@@ -264,12 +264,12 @@ The workspace uses thin rounded panels: Loci and selected details on the left,
 with a full-height Actual list on the right when the terminal is wide enough.
 The sidebar targets 30% of the writable width, bounded to 34–50 columns so larger
 terminals give their extra space to the Actual table. Long Locus labels show an
-ellipsis rather than silently clipping. Inactive Loci, Actuals, and Details panels
-use green, magenta, and yellow accents; the focused panel uses the shared cyan
-border, an explicit active label, and (for lists) the selected-row background.
-Shortcut keys are accented separately from their muted action labels. These colors
-identify UI regions only, not expense/income roles, sign, or financial safety; the
-terminal's palette and background remain user-controlled.
+ellipsis rather than silently clipping. The palette is deliberately restrained:
+inactive borders, headings, and shortcut help stay muted. Only the focused panel
+uses the existing cyan border, an explicit active label, and (for lists) the
+selected-row background. Prefer alignment, spacing, and hierarchy over adding
+colors; accents should serve a demonstrated need, not decorate each pane.
+The terminal's palette and background remain user-controlled.
 The two-line context distinguishes scope from the known-through date. Panel
 headings show order, and bottom borders show selection position and overflow.
 `h/l` or Left/Right and Tab/Shift-Tab cycle Loci, Actuals, and Details;

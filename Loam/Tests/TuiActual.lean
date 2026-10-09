@@ -138,39 +138,39 @@ def main : IO Unit := do
       (Loam.Tui.ActualWorkspace.visibleRecords snapshot cancelledSearch).length == 3)
     "Actual workspace Esc-style search cancellation did not restore all-current browsing"
 
-  -- Pane accents identify regions without classifying household quantities.
-  -- Existing frame callers keep their muted inactive defaults.
+  -- Restrained palette: inactive panels and help stay muted; only focus is accented.
   let cornerStyles := fun (widget : Widget) =>
     (widget.lines.flatMap fun line => line.filter (fun cell => cell.glyph == '╭')).map Cell.style
   let defaultFrame := Loam.Tui.Layout.framedPanel 20 4 "Probe" (plainLine "content")
-  let coloredFrame := Loam.Tui.Layout.framedPanel 20 4 "Probe" (plainLine "content")
-    false none .series4
   let focusedFrame := Loam.Tui.Layout.framedPanel 20 4 "Probe" (plainLine "content")
-    true none .series4
-  expect (cornerStyles defaultFrame == [.muted] && cornerStyles coloredFrame == [.series4] &&
-      cornerStyles focusedFrame == [.series1])
-    "Panel accents changed default styling or overrode the shared focus border"
-  expect (widgetText defaultFrame == widgetText coloredFrame &&
-      coloredFrame.lines.all fun cells =>
+    true
+  expect (cornerStyles defaultFrame == [.muted] && cornerStyles focusedFrame == [.series1])
+    "Panel styling lost muted inactive borders or the shared focus accent"
+  expect (widgetText defaultFrame == widgetText focusedFrame &&
+      focusedFrame.lines.all fun cells =>
         Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) == 20)
-    "Panel coloring changed text or fixed-rectangle geometry"
+    "Focus styling changed text or fixed-rectangle geometry"
   for (pane, expected) in
-      [(Loam.Tui.ActualWorkspace.Pane.loci, [Style.series1, .series3, .series2]),
-       (.transactions, [.series4, .series1, .series2]),
-       (.details, [.series4, .series3, .series1])] do
-    let colored := Loam.Tui.ActualWorkspace.view { width := 144, height := 40 }
+      [(Loam.Tui.ActualWorkspace.Pane.loci, [Style.series1, .muted, .muted]),
+       (.transactions, [.muted, .series1, .muted]),
+       (.details, [.muted, .muted, .series1])] do
+    let rendered := Loam.Tui.ActualWorkspace.view { width := 144, height := 40 }
       snapshot { actualStart with pane }
-    expect (cornerStyles colored == expected)
-      "Actual panel colors lost pane identity or focused more than one wide panel"
-    let footerRow := colored.lines[colored.lines.length - 2]?.getD []
-    expect (footerRow.any fun cell => cell.glyph == '[' && cell.style == .series2)
-      "Actual footer no longer distinguishes shortcut keys from labels"
+    expect (cornerStyles rendered == expected)
+      "Actual panels added decorative colors or focused more than one wide panel"
+    for footerRow in rendered.lines.drop (rendered.lines.length - 2) do
+      expect (footerRow.all fun cell => cell.style == .muted)
+        "Actual footer introduced accent colors instead of remaining quiet"
   for bounds in [{ width := 144, height := 40 }, { width := 80, height := 24 },
       { width := 48, height := 10 }] do
     for pane in [Loam.Tui.ActualWorkspace.Pane.loci, .transactions, .details] do
       let rendered := Loam.Tui.ActualWorkspace.view bounds snapshot { actualStart with pane }
       expect (((cornerStyles rendered).filter (· == .series1)).length == 1)
         "Responsive Actual layout highlighted zero or multiple focused panels"
+      expect (rendered.lines.all fun cells => cells.all fun cell =>
+          cell.style == .normal || cell.style == .muted ||
+          cell.style == .series1 || cell.style == .selected)
+        "Responsive Actual layout introduced unnecessary accent colors"
       if pane == .details then
         expect (contains "Details [active]" (widgetText rendered) &&
             !rendered.lines.any (fun cells => cells.any (fun cell => cell.style == .selected)))
