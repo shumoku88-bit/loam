@@ -17,9 +17,11 @@ raw changes can be classified, admitted, or applied incrementally.
 
 - `Loam/Tests/IncrementalDailyDelta.lean`: self-contained Lean 4 laws and
   concrete date-change and currency-isolation examples.
-- `lake test -- application` includes the proof module in the regular
-  application test group (compilation rejects an unproved declaration).
-- Focused command: `lake test -- IncrementalDailyDelta`.
+- The existing Lean Application workflow separately checks the proof via
+  `lake env lean Loam/Tests/IncrementalDailyDelta.lean`, after its usual application
+  tests; the regular test groups remain unchanged.
+- Focused command: `lake env lean Loam/Tests/IncrementalDailyDelta.lean`
+  (or `lake test -- IncrementalDailyDelta`).
 
 The model uses one signed integer amount at a `(day, Measure)` bucket.
 Only an already admitted/selected row contributes to the modeled input list.
