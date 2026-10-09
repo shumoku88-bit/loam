@@ -76,16 +76,6 @@ private partial def loop (bounds : Bounds)
       pure next
   let bounds := activeBounds
   if key == .other then return (← loop bounds dataDir root state prepared frame)
-  if key = .input 'y' || key = .input 'Y' then
-    let success ← Loam.Tui.Terminal.copyScreenToClipboard bounds frame
-    let next := { state with notice := if success then "Copied visible screen." else "Clipboard unavailable." }
-    let prepared := Loam.Tui.Reports.prepareScrollView? bounds next
-    let view := match prepared with
-      | some cached => Loam.Tui.Reports.viewPreparedScroll bounds next cached
-      | none => Loam.Tui.Reports.viewForBounds bounds next
-    let nextFrame := Loam.Tui.Runtime.compileWidget view
-    Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    return (← loop bounds dataDir root next prepared nextFrame)
   match prepared, scrollDirection? key with
   | some cached, some forward =>
       let next := Loam.Tui.Reports.scrollPrepared state cached forward repeatCount
