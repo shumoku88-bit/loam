@@ -89,6 +89,7 @@ jobs:
 
       - name: Prove incremental daily delta law
         run: |
+          lake build Loam.Tests.IncrementalDailyDelta
           lake env lean Loam/Tests/IncrementalDailyDelta.lean
           lake env lean Loam/Tests/IncrementalCorrectedFrontier.lean
 
