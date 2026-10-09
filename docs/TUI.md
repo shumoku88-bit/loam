@@ -117,9 +117,9 @@ Regression coverage is in `Loam/Tests/TuiHomeNavigation.lean` and
 In Day view, an empty Pending set remains visible as `Pending: 0` but does not
 allocate a separate empty `Pending Scheduled` section.
 
-The Home labels distinguish the user-facing action from the narrower implementation
-module name. `p` edits Actual-to-Purpose routing, `m` admits new Locus identities, and
-`o` publishes one complete current quantity observation image.
+The Commands labels distinguish user-facing actions from narrower implementation
+modules. Purpose routing edits Actual-to-Purpose routing, Manage Loci admits new
+Locus identities, and Observe quantities publishes a current observation image.
 
 ## Terminal selection and plain-text reports
 
@@ -365,7 +365,7 @@ and the shared `ScheduledCoverageReview` projection after durable writes.
 
 ## Attention
 
-Home `i` opens `Attention / Manage` over the shared `Loam.AttentionReview`
+Commands > Plans and attention > Attention opens `Attention / Manage` over the shared `Loam.AttentionReview`
 answer. The surface preserves unavailable separately from configured-empty evidence
 and keeps `due on`, `no due date`, and `due unknown` distinct.
 
@@ -376,14 +376,14 @@ does not invent priority, selected-day membership, or a second lifecycle engine.
 
 ## Balances
 
-Home `b` opens the read-only Balances workspace over `Loam.BalanceReview`.
+Commands > Reports and analysis > Balances opens the read-only Balances workspace over `Loam.BalanceReview`.
 Coordinates remain neutral `Locus × Measure` selections. Presentation does not
 classify them as Account, Asset, Liability, cash, or any other accounting role.
 Explicit zero-origin evidence and correction-aware review remain shared boundaries.
 
 ## Current-cycle Budget
 
-Home `c` opens the current-cycle Budget surface. The observation date is the
+Commands > Envelope budget > Budget opens the current-cycle Budget surface. The observation date is the
 known-through Actual date, not Home's navigated focus date. The cycle coordinates
 come from the explicit current boundary preset; the TUI does not infer a cycle from
 a month, first Capacity movement, or selected day.
@@ -402,13 +402,13 @@ q / Esc    Home
 ```
 
 The former Budget `e -> Capacity` detour is retired. `e` inside Budget is not an
-alternate Capacity entrance. General/raw Capacity remains available from Home `e`.
+alternate Capacity entrance. General/raw Capacity remains available from Commands > Envelope budget > Capacity.
 After Budget actions, the executable reloads the current Budget evidence before
 rendering the workspace again.
 
 ## Capacity
 
-Home `e` opens Capacity. The base snapshot is the shared all-retained
+Commands > Envelope budget > Capacity opens Capacity. The base snapshot is the shared all-retained
 `Loam.CapacityReview` answer. When the explicit current boundary preset is available,
 the caller also attaches the shared `CurrentCoverageReview` answer for current
 decision support.
@@ -432,27 +432,27 @@ publication sessions own authoritative writes and fresh review.
 
 ## Purpose routing
 
-Home `p` opens Actual-to-Purpose routing administration. The surface edits explicit
+Commands > Envelope budget > Purpose routing opens Actual-to-Purpose routing administration. The surface edits explicit
 routing evidence; it does not infer a Purpose from an AccountingRole, sign, account
 name, or current balance. Expense Loci remain the default audit scope while admitted
 non-Expense Loci can be entered explicitly when a generic Purpose question needs it.
 
 ## Locus administration
 
-Home `m` opens add-only Locus administration. It shows the currently admitted
+Commands > Household setup > Manage Loci opens add-only Locus administration. It shows the currently admitted
 vocabulary before proposing one new stable Locus token. Admission does not also
 create a label, AccountingRole, Purpose route, rename, or alias.
 
 ## Current quantity observation
 
-Home `o` opens the current quantity observation editor. It collects one complete set
+Commands > Household setup > Observe quantities opens the current quantity observation editor. It collects one complete set
 of `Locus × Measure × observed Quantity` rows observed together and publishes the
 whole image through the shared boundary. The editor does not merge the image with an
 older observation or derive reconciliation semantics locally.
 
 ## Reports
 
-Home `v` opens Reports. Reports are explicit read queries rather than hidden household
+Commands > Reports and analysis > Reports opens Reports. Reports are explicit read queries rather than hidden household
 period authority. Current report queries include Budget Window, Stock-Flow,
 Transactions Flow, and conditional Liquidity.
 
