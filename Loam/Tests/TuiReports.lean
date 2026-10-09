@@ -90,7 +90,7 @@ def main : IO Unit := do
   expect ((Loam.Tui.PlainTextPrint.prepare
     [String.ofList (List.replicate (Loam.Tui.PlainTextPrint.maxBytes + 1) 'x')]).isError)
     "bounded print admitted an oversized single line"
-  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\\t\\x01c"] with
+  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\t\x01c"] with
   | .error message => throw (IO.userError message)
   | .ok prepared =>
       expect (prepared.byteCount >= 12 && prepared.lineCount == 3)
@@ -101,7 +101,7 @@ def main : IO Unit := do
   match Loam.Tui.Balances.preparePrint selectedBalances with
   | .error message => throw (IO.userError message)
   | .ok prepared =>
-      expect (contains "unsupported" (String.intercalate "\\n" prepared.lines))
+      expect (contains "unsupported" (String.intercalate "\n" prepared.lines))
         "selected balance printing turned unsupported state into an amount"
   expect ((Loam.Tui.Balances.preparePrint {
       rows := List.replicate 250 (.unsupported ⟨⟨"unknown-wallet"⟩, ⟨"jpy"⟩⟩)
