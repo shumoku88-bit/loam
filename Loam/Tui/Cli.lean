@@ -518,7 +518,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if fromPalette && (key = .input 'd' || key = .input 'D') then
+  else if (key = .input 'd' || key = .input 'D') then
     let paceState : Loam.Tui.DailyPaceTrend.State := {}
     let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot paceState)
     Loam.Tui.Terminal.redrawFromBlank bounds paceFrame
@@ -593,7 +593,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let nextFrame := compiledFrameFor bounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
         loop bounds dataDir root snapshot home nextFrame
-  else if fromPalette && (key = .input 'b' || key = .input 'B') then
+  else if (key = .input 'b' || key = .input 'B') then
     match ← Loam.BalanceViewConfig.load? (Loam.HouseholdPaths.balanceView dataDir) with
     | none =>
         let home := {

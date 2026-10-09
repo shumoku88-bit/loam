@@ -221,7 +221,7 @@ try:
         cwd=repo_root,
         check=True,
     )
-    os.write(master, b" jj\rj\r")
+    os.write(master, b"b")
     anchored_balances = wait_for("Balances / Current")
     assert "anchored-wallet" in anchored_balances and "42 jpy" in anchored_balances, (
         "Home Balances did not compose CurrentQuantityAnchor support"
@@ -251,7 +251,7 @@ try:
     household_path.write_bytes(household)
 
     balance_view_path.write_text("bad row\n")
-    expect_local_unavailability(b" jj\rj\r", "Balances")
+    expect_local_unavailability(b"B", "Balances")
     balance_view_path.write_bytes(balance_view)
 
     household_path = root / "household.loam"

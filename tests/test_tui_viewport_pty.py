@@ -84,6 +84,42 @@ try:
     assert b"LOAM / Summary" not in moved and b"Focus: " + expected in moved, (
         "retired g/G changed Home or swallowed subsequent Calendar navigation"
     )
+    # Only d/b are restored from the palette-only analysis shortcuts. Both cases
+    # work from Calendar and transaction focus without changing the selected date.
+    for detail in (False, True):
+        if detail:
+            os.write(master, b"\t")
+            capture(b"[Esc/Tab/w]")
+        for key, marker, back in (
+            (b"d", b"Daily Pace / Trend", b"q"),
+            (b"D", b"Daily Pace / Trend", b"\x1b"),
+            (b"b", b"Balances / Current", b"q"),
+            (b"B", b"Balances / Current", b"\x1b"),
+        ):
+            os.write(master, key)
+            workspace = ansi.sub(b"", capture(marker))
+            assert b"Home / Commands" not in workspace, "direct shortcut opened the palette"
+            os.write(master, back)
+            restored = ansi.sub(b"", capture(b"LOAM Home"))
+            assert b"Focus: " + expected in restored, "analysis shortcut changed Calendar focus"
+            assert (b"[Esc/Tab/w]" in restored) == detail, "analysis shortcut changed Home pane"
+            assert b"[d] daily pace" in restored and b"[b] balances" in restored
+    os.write(master, b"\t")
+    capture(b"[h/l] day")
+    # The grouped entrances still reach the same existing workspaces.
+    for keys, marker in (
+        (b" jj\r\r", b"Daily Pace / Trend"),
+        (b" jj\rj\r", b"Balances / Current"),
+    ):
+        os.write(master, keys)
+        capture(marker)
+        os.write(master, b"q")
+        capture(b"LOAM Home")
+    # Other formerly direct keys remain ignored, including retired Summary.
+    os.write(master, b"xiuvmocepgGl")
+    moved = ansi.sub(b"", capture(b"Focus:"))
+    expected = str(datetime.date.fromisoformat(expected.decode()) + datetime.timedelta(days=1)).encode()
+    assert b"Focus: " + expected in moved and b"LOAM / Summary" not in moved
     # Resizing while idle must reflow Calendar Home, not wait for a non-navigation key.
     resize(22, 80)
     output = capture(b"LOAM Home")
@@ -122,7 +158,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Reports: idle resize, palette navigation, retired copy help; evidence unchanged.")
+    print("Home/Reports: direct d/b shortcuts, preserved date/pane, palette navigation, idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

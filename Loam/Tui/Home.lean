@@ -741,7 +741,10 @@ private def actionHelp (state : State) : List HelpItem :=
     ]
 
 private def commandHelp : List HelpItem :=
-  [ { key := "[Space]", label := "commands" } ]
+  [ { key := "[d]", label := "daily pace" }
+  , { key := "[b]", label := "balances" }
+  , { key := "[Space]", label := "commands" }
+  ]
 
 private def helpLines (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds

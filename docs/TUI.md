@@ -61,14 +61,17 @@ Enter      Year -> Month -> Day -> selected-day workspace
 r          Record (selected date prefilled)
 a          Actual workspace
 s          Scheduled workspace
+d          Daily Pace trend (D also accepted)
+b          Current Balances (B also accepted)
 q          quit
 ```
 
-The former direct Home shortcuts for Exchange (`x`), Daily Pace (`d`),
-Attention (`i`), Balances (`b`), Settlements (`u`), Reports (`v`),
-Manage Loci (`m`), Observe quantities (`o`) and optional-budget
-operations (`c/e/p`) are no longer direct Home entrances. Open all of them
-through the Commands palette. Local keys within a workspace are unchanged.
+Daily Pace (`d`) and Balances (`b`) are direct Home shortcuts in both calendar
+and transaction focus, and also remain in Commands > Reports and analysis.
+The former direct Home shortcuts for Exchange (`x`), Attention (`i`),
+Settlements (`u`), Reports (`v`), Manage Loci (`m`), Observe quantities (`o`)
+and optional-budget operations (`c/e/p`) remain palette-only.
+Local keys within a workspace are unchanged.
 
 The prior compact calendar was retired. The Calendar Home now always uses
 the larger role-aware money grid, with Today's underline on the date row only
@@ -76,7 +79,7 @@ the larger role-aware money grid, with Today's underline on the date row only
 unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
 still shows dates and explicitly indicates that the financial projection is
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
-use Commands for those workspaces.
+use `d` for Daily Pace and Commands for Attention.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine
@@ -86,7 +89,8 @@ Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 Home keeps household state in the body and shortcut grammar in the stable footer.
-Commands > Reports and analysis > Daily Pace opens a small read-only trend over the already-derived retrospective
+Home `d` or Commands > Reports and analysis > Daily Pace opens a small read-only
+trend over the already-derived retrospective
 current-truth series, including its latest point. The trend does not retain daily
 pace as household state or introduce a second calculation.
 The footer groups navigation by Day/Month/Year or Detail context,
