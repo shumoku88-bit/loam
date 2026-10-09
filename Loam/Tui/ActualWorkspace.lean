@@ -282,16 +282,16 @@ def update (snapshot : Snapshot) (state : State) (event : Event) : Step :=
   | .home => { state := moveHome snapshot state }
   | .«end» => { state := moveEnd snapshot state }
   | .focusLeft =>
-      let nextPane := match state.pane with
-        | .transactions => Pane.loci
-        | .details => Pane.loci
+      let prevPane := match state.pane with
         | .loci => Pane.details
-      { state := { state with pane := nextPane, notice := "" } }
+        | .transactions => Pane.loci
+        | .details => Pane.transactions
+      { state := { state with pane := prevPane, notice := "" } }
   | .focusRight =>
       let nextPane := match state.pane with
         | .loci => Pane.transactions
-        | .details => Pane.transactions
         | .transactions => Pane.details
+        | .details => Pane.loci
       { state := { state with pane := nextPane, notice := "" } }
   | .cyclePane =>
       let nextPane := match state.pane with

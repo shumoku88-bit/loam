@@ -216,19 +216,25 @@ def main : IO Unit := do
   expect (cycledToDetails.pane == .details)
     "cyclePane from transactions did not cycle to details"
 
-  -- Test arrow-key looping navigation
+  -- Test arrow-key looping navigation (symmetric with cyclePane / cyclePaneBack)
   let rightFromTx := (Loam.Tui.ActualWorkspace.update snapshot cycledToTx .focusRight).state
   expect (rightFromTx.pane == .details)
     "focusRight from transactions did not loop to details"
   let rightFromDetails := (Loam.Tui.ActualWorkspace.update snapshot rightFromTx .focusRight).state
-  expect (rightFromDetails.pane == .transactions)
-    "focusRight from details did not navigate to transactions"
-  let leftFromLoci := (Loam.Tui.ActualWorkspace.update snapshot cycledToLoci .focusLeft).state
+  expect (rightFromDetails.pane == .loci)
+    "focusRight from details did not navigate to loci"
+  let rightFromLoci := (Loam.Tui.ActualWorkspace.update snapshot rightFromDetails .focusRight).state
+  expect (rightFromLoci.pane == .transactions)
+    "focusRight from loci did not navigate to transactions"
+  let leftFromTx := (Loam.Tui.ActualWorkspace.update snapshot rightFromLoci .focusLeft).state
+  expect (leftFromTx.pane == .loci)
+    "focusLeft from transactions did not loop to loci"
+  let leftFromLoci := (Loam.Tui.ActualWorkspace.update snapshot leftFromTx .focusLeft).state
   expect (leftFromLoci.pane == .details)
     "focusLeft from loci did not loop to details"
   let leftFromDetails := (Loam.Tui.ActualWorkspace.update snapshot leftFromLoci .focusLeft).state
-  expect (leftFromDetails.pane == .loci)
-    "focusLeft from details did not navigate to loci"
+  expect (leftFromDetails.pane == .transactions)
+    "focusLeft from details did not navigate to transactions"
 
   -- Production Actual workspace should use the available terminal height rather than
   -- keeping the former fixed eight-row viewport, while still scrolling long lists.

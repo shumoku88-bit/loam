@@ -144,7 +144,7 @@ try:
     os.write(master, b"a")
     actual = capture(b"Household Actuals Workspace")
     bounded(actual, 36, 140)
-    assert "┌".encode() in actual and b"====" not in actual
+    assert ("╭".encode() in actual or "┌".encode() in actual) and b"====" not in actual
     # Resize with no keypress: cross both width and height breakpoints, then
     # return to a wide layout. Pane switching remains reachable in compact mode.
     for rows, cols in ((24, 80), (10, 48), (30, 99), (40, 144)):
