@@ -303,6 +303,13 @@ The date index is process-local derived data, never persisted state.
 
 ## Residual work
 
+Performance work is paused after implementation checkpoint `91991df9`.
+Remaining priorities, reproduction conditions and acceptance boundaries are tracked
+in [GitHub issue #1863](https://github.com/shumoku88-bit/loam/issues/1863).
+The observations above are chronological checkpoints, not a claim that every
+remaining pressure shape is qualified. Creating the issue does not authorize
+pushing pending commits or advancing operational household revision pins.
+
 - Hours-long soak, repeated successful publication/correction and Fava child
   lifecycle are outside this read-only workload. Existing writer/Fava tests are
   separate evidence, not coverage supplied by this probe.
