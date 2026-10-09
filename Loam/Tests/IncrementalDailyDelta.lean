@@ -81,9 +81,9 @@ theorem outside_affected_unchanged
     (bucket : Bucket) (oldTotal : Int) (removed added : Contribution)
     (hOutside : bucket ∉ affectedBuckets removed added) :
     afterReplacement bucket oldTotal removed added = oldTotal := by
-  simp only [affectedBuckets, List.mem_cons, List.mem_singleton, not_or] at hOutside
+  simp only [affectedBuckets, List.mem_cons, not_or] at hOutside
   exact unrelated_replacement bucket oldTotal removed added
-    hOutside.1.symm hOutside.2.symm
+    (Ne.symm hOutside.1) (Ne.symm hOutside.2)
 
 private def original : Contribution :=
   { bucket := { day := "2026-10-03", measure := "jpy" }, signedQuanta := 500 }
