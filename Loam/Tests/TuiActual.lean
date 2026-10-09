@@ -58,6 +58,17 @@ private def actualWorkspaceSnapshot : IO Loam.Tui.Main.Snapshot := do
 
 
 def main : IO Unit := do
+  -- Width-based wrapping preserves Japanese, combining marks, and complete text.
+  for columns in [2, 3, 10, 32, 80] do
+    for text in ["", "abc def 123", "日本語と長い説明を途中で失わない", "e\u0301と日本語", "☕🙂coffee"] do
+      let lines := Loam.Tui.Layout.wrapColumns columns text
+      expect (String.intercalate "" lines == text &&
+          lines.all fun line => Loam.Tui.Layout.displayWidth line <= columns)
+        "Column wrapping lost text or exceeded its physical width"
+  expect (Loam.Tui.Layout.wrapColumns 0 "日本語" == [] &&
+      Loam.Tui.Layout.wrapColumns 1 "a日b" == ["a", "…", "b"])
+    "Degenerate wrapping silently lost a wide glyph or exceeded its bounds"
+
   let snapshot ← actualWorkspaceSnapshot
   let actualStart := Loam.Tui.ActualWorkspace.initial "2026-09-07"
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).length == 2)
@@ -74,6 +85,50 @@ def main : IO Unit := do
     "Actual workspace shell heading disappeared"
   expect (contains "╭ Details" hraText && contains "beta" hraText)
     "Actual workspace did not keep selected transaction details visible without a detail transition"
+  -- Detail hierarchy: quantities first, descriptive text readable, identity quiet.
+  let ordinaryDetails := Loam.Tui.ActualWorkspace.detailLines snapshot actualStart
+  let detailTexts := ordinaryDetails.map widgetText
+  expect (match detailTexts.findIdx? (contains "100 jpy"),
+      detailTexts.findIdx? (contains "alpha"), detailTexts.findIdx? (contains "ID:") with
+    | some amount, some description, some identity => amount < description && description < identity
+    | _, _, _ => false)
+    "Actual details did not prioritize quantities ahead of description and identity"
+  expect ((Widget.column ordinaryDetails).lines.any fun cells =>
+      cells.any (fun cell => cell.glyph == 'D' && cell.style == .muted))
+    "Actual detail metadata became visually stronger than the quantities"
+  expect (!contains "Status: Current" (widgetText (.column ordinaryDetails)) &&
+      !contains "Selected Actual Details:" (widgetText (.column ordinaryDetails)))
+    "Actual details retained redundant status or a second heading inside the frame"
+
+  let longDescription := String.intercalate "" (List.replicate 8 "長い説明も日本語の幅で折り返して最後まで読む。")
+  let longIdentity := "wrapped-id-" ++ String.intercalate "" (List.replicate 8 "1234567890") ++ "-tail"
+  let wrappedRecord ← requireSome (actualRecord? longIdentity "2026-09-07"
+    longDescription "paypay" "food" 12345) "wrapped details fixture was not admitted"
+  let wrappedSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with actual := { today := "2026-09-07", allRecords := [wrappedRecord] } }
+  -- A one-row detail viewport exposes each real content row without duplicate headers.
+  let scanned := (List.range 64).map fun scroll =>
+    let rendered := Loam.Tui.ActualWorkspace.view { width := 48, height := 6 }
+      wrappedSnapshot { actualStart with pane := .details, detailScroll := scroll }
+    let cells := rendered.lines[1]?.getD []
+    String.ofList ((cells.drop 1).take (cells.length - 2) |>.map Cell.glyph)
+  let reconstructed := (String.intercalate "" scanned).replace " " ""
+  expect (contains longDescription reconstructed && contains longIdentity reconstructed &&
+      contains "-12,345jpy" reconstructed && contains "12,345jpy" reconstructed)
+    "Scrollable details lost a wrapped description, identity, or signed Effect"
+  let geometry := fun (widget : Widget) => widget.lines.map fun cells =>
+    cells.any (fun cell => cell.glyph == '╭' || cell.glyph == '╰')
+  let normalView := Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot actualStart
+  let wrappedView := Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
+    wrappedSnapshot actualStart
+  expect (geometry normalView == geometry wrappedView)
+    "A wrapped description changed panel heights or moved the list/detail divider"
+  let stationaryDetails := widgetText (Loam.Tui.ActualWorkspace.view
+    { width := 100, height := 30 } snapshot
+    { actualStart with pane := .details, detailScroll := 999 })
+  expect (!contains "▲" stationaryDetails)
+    "Details advertised an upward scroll when the complete content already fit"
+
   let allCurrent := (Loam.Tui.ActualWorkspace.update snapshot second .cycleFilter).state
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot allCurrent).length == 3)
     "Actual workspace filter did not expand from Focus Day to all current Actual evidence"
@@ -264,6 +319,16 @@ def main : IO Unit := do
     oversizedSnapshot actualStart).lines.map fun cells => String.ofList (cells.map Cell.glyph)
   expect (oversizedLines.any fun line => contains "huge-row" line && line.endsWith "see details│")
     "Actual table silently clipped an oversized amount"
+  let oversizedDetailRows := (List.range 32).map fun scroll =>
+    let rendered := Loam.Tui.ActualWorkspace.view { width := 32, height := 6 }
+      oversizedSnapshot { actualStart with pane := .details, detailScroll := scroll }
+    let cells := rendered.lines[1]?.getD []
+    String.ofList ((cells.drop 1).take (cells.length - 2) |>.map Cell.glyph)
+  let oversizedDetailText := (String.intercalate "" oversizedDetailRows).replace " " ""
+  expect (contains "Amount(wrapped):" oversizedDetailText &&
+      contains "-12,345,678,901,234,567,890jpy" oversizedDetailText &&
+      contains "12,345,678,901,234,567,890jpy" oversizedDetailText)
+    "Narrow details silently clipped an oversized signed quantity instead of wrapping it"
   let unknownSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
     today := "2026-09-07", allRecords := [{ decimalRecord with date := none }] } }
   let unknownText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }

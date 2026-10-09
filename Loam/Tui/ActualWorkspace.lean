@@ -495,48 +495,48 @@ def detailCapacityForBounds (bounds : Bounds) : Nat :=
 private def detailRawLines
     (state : State) (record? : Option ReviewRecord)
     (width : Nat := 80) : List Widget :=
-  let effectLine := fun (effect : Loam.Core.Effect) =>
+  let wrapped : String → Style → List Widget := fun text style =>
+    (Loam.Tui.Layout.wrapColumns (width - 1) text).map fun line =>
+      .row [span " ", span line style]
+  let effectLines : Loam.Core.Effect → List Widget := fun effect =>
     let amount := effectAmount state effect
-    let labelWidth := width - Loam.Tui.Layout.displayWidth amount - 3
-    plainLine (" " ++ fit labelWidth (displayLocus state effect.locus.token) ++ "  " ++ amount)
+    let label := displayLocus state effect.locus.token
+    let amountWidth := Loam.Tui.Layout.displayWidth amount
+    if amountWidth + 4 <= width then
+      let labelWidth := width - amountWidth - 3
+      [plainLine (" " ++ fitDescription labelWidth label ++ "  " ++ amount)]
+    else
+      -- The complete value remains scrollable, never a silently clipped number.
+      wrapped label .normal ++ wrapped "Amount (wrapped):" .muted ++ wrapped amount .normal
   match record? with
-  | none =>
-      [ plainLine " Selected Actual Details:"
-      , mutedLine "   (no Actual selected)"
-      ]
+  | none => wrapped "(no Actual selected)" .muted
   | some record =>
       let effects := record.event.effects
-      let renderedEffects : List Widget := effects.map effectLine
-      [ plainLine " Selected Actual Details:"
-      , plainLine (" Date: " ++ record.date.getD "date unknown")
-      , plainLine (" " ++ if record.description.isEmpty then "(no description)" else Loam.ActualReview.displayText record.description)
-      , plainLine (" ID: " ++ record.event.id.token)
-      , plainLine " Status: Current"
-      , plainLine " Effects:"
-      ] ++ renderedEffects
+      wrapped ("Date: " ++ record.date.getD "date unknown") .muted ++
+        wrapped s!"Effects ({effects.length}):" .muted ++
+        (if effects.isEmpty then wrapped "(no Effects)" .muted
+         else effects.flatMap effectLines) ++
+        [blankLine] ++
+        wrapped (descriptionText record) .normal ++
+        wrapped ("ID: " ++ record.event.id.token) .muted
 
-private def fixedDetailLines
-    (state : State) (record? : Option ReviewRecord) (capacity : Nat)
-    (width : Nat := 80) : List Widget :=
+/-- One geometry-derived window shared by content and overflow indicators. -/
+private structure DetailWindow where
+  lines : List Widget
+  scroll : Nat
+  maxScroll : Nat
+
+private def detailWindow
+    (state : State) (record? : Option ReviewRecord) (capacity width : Nat) : DetailWindow :=
   let allLines := detailRawLines state record? width
-  let total := allLines.length
-  let maxScroll := if total > capacity then total - capacity else 0
+  let maxScroll := allLines.length - capacity
   let scroll := min state.detailScroll maxScroll
-  let visibleBase := (allLines.drop scroll).take capacity
-  let padding := capacity - visibleBase.length
-  visibleBase ++ List.replicate padding blankLine
+  let visible := (allLines.drop scroll).take capacity
+  { lines := visible ++ List.replicate (capacity - visible.length) blankLine
+    scroll, maxScroll }
 
 def detailLines (snapshot : Snapshot) (state : State) : List Widget :=
-  fixedDetailLines state (selectedRecord? snapshot state) 8
-
-private def detailHasMore
-    (state : State) (record? : Option ReviewRecord) (capacity : Nat)
-    (width : Nat := 80) : Bool :=
-  let allLines := detailRawLines state record? width
-  let total := allLines.length
-  let maxScroll := if total > capacity then total - capacity else 0
-  let scroll := min state.detailScroll maxScroll
-  total > scroll + capacity
+  (detailWindow state (selectedRecord? snapshot state) 8 80).lines
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   if state.searchEditing then
@@ -610,9 +610,9 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let detailHeight := if panelHeight >= 16 then detailCapacityForBounds bounds + 1 else 0
   let detailPanel := fun width height =>
     let isFocused := state.pane == .details
-    let lines := fixedDetailLines state selectedRecord (height - 1) (width - 2)
-    let hasMore := detailHasMore state selectedRecord (height - 1) (width - 2)
-    let canScrollUp := state.detailScroll > 0
+    let window := detailWindow state selectedRecord (height - 2) (width - 2)
+    let hasMore := window.scroll < window.maxScroll
+    let canScrollUp := window.scroll > 0
     let bottomLabel :=
       if isFocused then
         let scrollIndicator :=
@@ -626,7 +626,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       else none
     let title := "Details" ++ (if isFocused then " [active]" else "")
     Loam.Tui.Layout.framedPanel width height title
-      (.column (lines.drop 1)) isFocused bottomLabel
+      (.column window.lines) isFocused bottomLabel
   let panels :=
     if wide then
       let left : Widget := .column [

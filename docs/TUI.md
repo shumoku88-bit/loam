@@ -287,8 +287,14 @@ retaining explicit Measure tokens. A simple row shows its single positive Effect
 amount, not an inferred expense or account balance. Multiple positive or negative
 Effects show `split`; multiple Measures show `multi (count)` instead of an invented
 total. Missing Effects show `—`, not zero. Amounts too wide for their column show
-`see details`, never a partially clipped number. Details retain the signed Effects
-separately. No filtering, selection identity, or household authority changes.
+`see details`, never a partially clipped number. Details put the signed Effects
+first, followed by the complete description and exact Event identity. Descriptions
+and IDs wrap by terminal-column width, including Japanese text, and remain
+scrollable rather than silently clipped. Oversized Effect amounts use explicitly
+labelled wrapped lines instead of partial numbers. Date, Effect count, and identity
+use muted text; there is no duplicate internal heading or redundant Current status.
+Panel sizes stay fixed across records, and content and overflow arrows share one
+clamped viewport. No filtering, selection identity, or household authority changes.
 
 Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
 Movement editor and delegates execution to `MovementPublisher`, reloading canonical

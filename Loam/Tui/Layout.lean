@@ -62,6 +62,29 @@ private def takeColumnsList : List Char → Nat → List Char
 def clip (columns : Nat) (text : String) : String :=
   String.ofList (takeColumnsList text.toList columns)
 
+/--
+Wrap text at physical terminal columns without discarding fitting characters.
+Combining marks remain with their preceding character. At a one-column width,
+a two-column glyph is explicitly replaced by an ellipsis; zero columns yield no
+lines. Callers still own text sanitization, scrolling, and semantic meaning.
+-/
+def wrapColumns (columns : Nat) (text : String) : List String :=
+  if columns == 0 then []
+  else
+    let rec loop (remaining current : List Char) (used : Nat) (done : List String) : List String :=
+      match remaining with
+      | [] =>
+          if current.isEmpty then done.reverse
+          else (String.ofList current.reverse :: done).reverse
+      | char :: rest =>
+          let glyph := if charWidth char > columns then '…' else char
+          let width := charWidth glyph
+          if used + width <= columns then
+            loop rest (glyph :: current) (used + width) done
+          else
+            loop rest [glyph] width (String.ofList current.reverse :: done)
+    loop text.toList [] 0 []
+
 private def spaces (count : Nat) : String :=
   String.ofList (List.replicate count ' ')
 
