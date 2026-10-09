@@ -139,7 +139,12 @@ private partial def runWithSurface
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.Record.State) (frame : CompiledWidget)
     (requiresReload : Bool := false) : IO Result := do
-  let step := Loam.Tui.Record.update world known state (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  -- A short-read timeout carries no editing intent. Keep the compiled frame and
+  -- caret instead of rebuilding the editor and emitting a cursor move every tick.
+  if key == .other then
+    return (← runWithSurface bounds surface root world known state frame requiresReload)
+  let step := Loam.Tui.Record.update world known state key
   if step.cancel then return { notice := "Record cancelled.", requiresReload := requiresReload }
   if step.enableUnresolved then
     match ← Loam.Tui.UnresolvedActivation.enableEditor? root step.state with

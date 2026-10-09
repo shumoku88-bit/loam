@@ -454,6 +454,9 @@ partial def dailyPaceTrendLoop
   let key ← Loam.Tui.Terminal.readKey
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.DailyPaceTrend.view active snapshot state)
+  -- Geometry still refreshes on idle ticks, but an unchanged chart needs no work.
+  if key == .other then
+    return (← dailyPaceTrendLoop bounds snapshot state frame)
   if key == .escape || key == .input 'q' || key == .input 'Q' then
     return bounds
   let next :=
