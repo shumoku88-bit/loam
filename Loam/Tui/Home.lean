@@ -741,7 +741,8 @@ private def actionHelp (state : State) : List HelpItem :=
     ]
 
 private def commandHelp : List HelpItem :=
-  [ { key := "[d]", label := "daily pace" }
+  [ { key := "[i]", label := "attention" }
+  , { key := "[d]", label := "daily pace" }
   , { key := "[b]", label := "balances" }
   , { key := "[Space]", label := "commands" }
   ]

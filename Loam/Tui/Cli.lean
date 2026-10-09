@@ -569,7 +569,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds fresh home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root fresh home nextFrame
-  else if fromPalette && (key = .input 'i' || key = .input 'I') then
+  else if (key = .input 'i' || key = .input 'I') then
     match ← Loam.AttentionReview.loadHouseholdEvidence root with
     | .error message =>
         let home := { state with notice := unavailableNotice "Attention" message }

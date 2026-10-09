@@ -61,16 +61,17 @@ Enter      Year -> Month -> Day -> selected-day workspace
 r          Record (selected date prefilled)
 a          Actual workspace
 s          Scheduled workspace
+i          Attention administration (I also accepted)
 d          Daily Pace trend (D also accepted)
 b          Current Balances (B also accepted)
 q          quit
 ```
 
-Daily Pace (`d`) and Balances (`b`) are direct Home shortcuts in both calendar
-and transaction focus, and also remain in Commands > Reports and analysis.
-The former direct Home shortcuts for Exchange (`x`), Attention (`i`),
-Settlements (`u`), Reports (`v`), Manage Loci (`m`), Observe quantities (`o`)
-and optional-budget operations (`c/e/p`) remain palette-only.
+Attention (`i`), Daily Pace (`d`), and Balances (`b`) are direct Home shortcuts
+in both calendar and transaction focus, and also remain in Commands.
+The former direct Home shortcuts for Exchange (`x`), Settlements (`u`),
+Reports (`v`), Manage Loci (`m`), Observe quantities (`o`) and optional-budget
+operations (`c/e/p`) remain palette-only.
 Local keys within a workspace are unchanged.
 
 The prior compact calendar was retired. The Calendar Home now always uses
@@ -79,7 +80,7 @@ the larger role-aware money grid, with Today's underline on the date row only
 unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
 still shows dates and explicitly indicates that the financial projection is
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
-use `d` for Daily Pace and Commands for Attention.
+use `i` for Attention and `d` for Daily Pace.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine

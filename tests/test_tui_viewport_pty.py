@@ -84,13 +84,15 @@ try:
     assert b"LOAM / Summary" not in moved and b"Focus: " + expected in moved, (
         "retired g/G changed Home or swallowed subsequent Calendar navigation"
     )
-    # Only d/b are restored from the palette-only analysis shortcuts. Both cases
+    # Only i/d/b are restored from the palette-only analysis shortcuts. Both cases
     # work from Calendar and transaction focus without changing the selected date.
     for detail in (False, True):
         if detail:
             os.write(master, b"\t")
             capture(b"[Esc/Tab/w]")
         for key, marker, back in (
+            (b"i", b"Attention / Manage", b"q"),
+            (b"I", b"Attention / Manage", b"\x1b"),
             (b"d", b"Daily Pace / Trend", b"q"),
             (b"D", b"Daily Pace / Trend", b"\x1b"),
             (b"b", b"Balances / Current", b"q"),
@@ -103,7 +105,7 @@ try:
             restored = ansi.sub(b"", capture(b"LOAM Home"))
             assert b"Focus: " + expected in restored, "analysis shortcut changed Calendar focus"
             assert (b"[Esc/Tab/w]" in restored) == detail, "analysis shortcut changed Home pane"
-            assert b"[d] daily pace" in restored and b"[b] balances" in restored
+            assert b"[i] attention" in restored and b"[d] daily pace" in restored and b"[b] balances" in restored
     os.write(master, b"\t")
     capture(b"[h/l] day")
     # The grouped entrances still reach the same existing workspaces.
@@ -116,7 +118,7 @@ try:
         os.write(master, b"q")
         capture(b"LOAM Home")
     # Other formerly direct keys remain ignored, including retired Summary.
-    os.write(master, b"xiuvmocepgGl")
+    os.write(master, b"xuvmocepgGl")
     moved = ansi.sub(b"", capture(b"Focus:"))
     expected = str(datetime.date.fromisoformat(expected.decode()) + datetime.timedelta(days=1)).encode()
     assert b"Focus: " + expected in moved and b"LOAM / Summary" not in moved

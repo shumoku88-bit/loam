@@ -152,7 +152,7 @@ def main : IO Unit := do
 
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[Enter] open", "[r] record",
-    "[a] actual", "[s] scheduled", "[d] daily pace", "[b] balances",
+    "[a] actual", "[s] scheduled", "[i] attention", "[d] daily pace", "[b] balances",
     "[Space] commands", "[q] quit"
   ]
 
@@ -195,7 +195,7 @@ def main : IO Unit := do
   let dividerCount := occurrences " │ " wideText
   expect (dividerCount > 12)
     "unified money calendar lost its stable wide side-by-side geometry"
-  for token in ["[d] daily pace", "[b] balances", "[Space] commands"] do
+  for token in ["[i] attention", "[d] daily pace", "[b] balances", "[Space] commands"] do
     expect (occurrences token wideText == 1)
       s!"Home should advertise {token} exactly once in the footer"
 
@@ -310,10 +310,10 @@ def main : IO Unit := do
         expect (!contains "[g]" homeText && !contains "LOAM / Summary" homeText &&
           !contains "Upcoming Scheduled" homeText && !contains "Recent recorded Actual" homeText)
           "retired Summary or its shortcut reappeared on Home"
-        for token in ["[d] daily pace", "[b] balances"] do
+        for token in ["[i] attention", "[d] daily pace", "[b] balances"] do
           expect (occurrences token homeText == 1)
             s!"Home lost or duplicated the direct shortcut {token} at a zoom/pane"
-        for key in [Loam.Tui.Terminal.Key.input 'd', .input 'D', .input 'b', .input 'B'] do
+        for key in [Loam.Tui.Terminal.Key.input 'i', .input 'I', .input 'd', .input 'D', .input 'b', .input 'B'] do
           expect (Loam.Tui.Home.navigationKey bounds snapshot home key).isNone
             "Home navigation intercepted a direct analysis workspace entrance"
         for key in [Loam.Tui.Terminal.Key.input 'g', .input 'G', .input 'c'] do
@@ -322,7 +322,7 @@ def main : IO Unit := do
   expect (!contains "[e] capacity" narrowText && !contains "[p] purpose routing" narrowText)
     "optional budget shortcuts leaked back to the Home footer"
   -- The Home footer lists only habitual actions; rare workspaces are in Commands.
-  for token in ["[x] exchange", "[i] attention", "[u] settlements", "[v] reports",
+  for token in ["[x] exchange", "[u] settlements", "[v] reports",
       "[m] manage loci", "[o] observe quantities", "[y] copy screen",
       "[Shift+drag]"] do
     expect (!contains token wideText)
