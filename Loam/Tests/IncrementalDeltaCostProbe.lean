@@ -106,9 +106,11 @@ private def medianUs (repetitions : Nat) (expected : List Int)
   for _ in List.range repetitions do
     let t0 ← IO.monoNanosNow
     let candidate := action ()
-    let t1 ← IO.monoNanosNow
+    -- Force the complete result *inside* the timed region. Otherwise the
+    -- interpreter may evaluate only a deferred thunk before the clock stops.
     unless candidate == some expected do
       throw (IO.userError "delta benchmark answer/refusal mismatch")
+    let t1 ← IO.monoNanosNow
     times := times.push ((t1 - t0) / 1000)
   let sorted := times.qsort (· < ·)
   return sorted[sorted.size / 2]!
