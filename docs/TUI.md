@@ -141,6 +141,26 @@ These write to standard output and can be selected across terminal scrollback
 according to the terminal's own settings. Other report types may need a future
 plain-text export; removing `y` does not by itself enable scrollback in the TUI.
 
+## Bounded terminal Print view (initial Balances rollout)
+
+Within **Balances / Current** or **Reports / Balances**, press `p` to prepare a
+plain-text report using the same current read-only review evidence. This leaves
+the alternate-screen TUI temporarily. LOAM displays the exact prepared line
+count and UTF-8 byte count, warns that household content can persist in normal
+terminal scrollback, and asks for explicit `y` + Enter consent. Any other answer
+cancels without printing report lines. After copying or scrolling, Enter returns
+to the TUI with its terminal modes and viewport restored.
+
+The shared boundary refuses reports above **200 logical lines or 32,768 UTF-8
+bytes** *before emitting any report line*. There is no automatic truncation,
+silent fallback, clipboard access, file creation, or unbounded "print all"
+mode. The richer Reports/Balances projection also has a conservative 70-balance
+evidence gate before expanding its repeated Balance Sheet / Trial Balance
+presentation. If these checks refuse, use an explicit narrower selection or a
+future ranged report. This rollout does not enable printing the entire Actual
+or Scheduled lifetime history; those producers need explicit range/filter UI
+before joining the shared print boundary.
+
 ## Resize and scroll mechanics
 
 Home, Actual, Selected Day, Scheduled, Balances, Settlement, Capacity, Budget,
