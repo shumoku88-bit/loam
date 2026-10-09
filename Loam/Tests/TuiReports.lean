@@ -88,7 +88,7 @@ private def testBoundedPrint : IO Unit := do
   expectRefusal (Loam.Tui.PlainTextPrint.prepare
     [String.ofList (List.replicate (Loam.Tui.PlainTextPrint.maxBytes + 1) 'x')])
     "bounded print admitted an oversized single line"
-  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\\t\\x01c"] with
+  match Loam.Tui.PlainTextPrint.prepare ["a", "日本", "b\t\x01c"] with
   | .error message => throw (IO.userError message)
   | .ok prepared =>
       expect (prepared.byteCount == 12 && prepared.lineCount == 3 &&
@@ -100,7 +100,7 @@ private def testBoundedPrint : IO Unit := do
   match Loam.Tui.Balances.preparePrint selectedBalances with
   | .error message => throw (IO.userError message)
   | .ok prepared =>
-      expect (contains "unsupported" (String.intercalate "\\n" prepared.lines))
+      expect (contains "unsupported" (String.intercalate "\n" prepared.lines))
         "selected balance printing turned unsupported state into an amount"
   expectRefusal (Loam.Tui.Balances.preparePrint {
       rows := List.replicate 250 (.unsupported ⟨⟨"unknown-wallet"⟩, ⟨"jpy"⟩⟩)
@@ -114,7 +114,7 @@ private def testReportsBalancesPrint (state : Loam.Tui.Reports.State) : IO Unit 
   match Loam.Tui.Reports.prepareBalancesPrint state with
   | .error message => throw (IO.userError ("bounded Reports/Balances refused fixture: " ++ message))
   | .ok prepared =>
-      let printed := String.intercalate "\\n" prepared.lines
+      let printed := String.intercalate "\n" prepared.lines
       expect (contains "Qualified Net Worth: UNKNOWN" printed &&
         contains "liability-unsupported" printed && contains "balance unsupported" printed)
         "Reports/Balances print omitted evidence qualifiers or unknown amounts"
