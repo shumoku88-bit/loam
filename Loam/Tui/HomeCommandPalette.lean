@@ -113,11 +113,25 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Transition :=
       .stay { state with selected := min (entries state.page).length.pred (state.selected + 1) }
   | _ => .stay state
 
+private def canFloat (bounds : Bounds) : Bool :=
+  Loam.Tui.Layout.contentWidth bounds >= 64 && bounds.height >= 18
+
+/-- Keep one rectangle across pages, sized for the largest current command group.
+Eight rows cover borders, context and help. Leave two rows above/below a floating
+panel; compact terminals use their available height and retain scrolling. -/
+private def panelHeight (bounds : Bounds) : Nat :=
+  let largest := (entries .commands).foldl (fun count (entry, _) =>
+    match entry with
+    | .page target => max count (entries target).length
+    | .action _ => count) (entries .commands).length
+  let available := if canFloat bounds then bounds.height - 4 else bounds.height
+  min (largest + 8) available
+
 /-- A bounded selection-relative viewport, recomputed on resize. No second
 selection or retained scroll authority is needed for this short chooser. -/
 def view (bounds : Bounds) (state : State) : Widget :=
   let panelWidth := min 54 (Loam.Tui.Layout.contentWidth bounds)
-  let height := min 13 bounds.height
+  let height := panelHeight bounds
   let framed := height >= 5 && panelWidth >= 2
   let bodyHeight := if framed then height - 2 else height
   let (path, description, backLabel) :=
@@ -147,7 +161,8 @@ def view (bounds : Bounds) (state : State) : Widget :=
     let width := if framed then panelWidth - 2 else panelWidth
     let text := Loam.Tui.Layout.padRight width (markerText ++ title)
     .row [span text (if state.selected == index then .selected else .normal)]
-  let body : Widget := .column (header ++ lines ++ footer)
+  let body : Widget := .column <|
+    header ++ lines ++ List.replicate (page - lines.length) (.row []) ++ footer
   if framed then
     Loam.Tui.Layout.framedPanel panelWidth height "Commands" body
   else
@@ -157,11 +172,11 @@ def view (bounds : Bounds) (state : State) : Widget :=
 
 private def floating? (bounds : Bounds) : Option (Nat × Nat × Nat × Nat) :=
   let available := Loam.Tui.Layout.contentWidth bounds
-  if available < 64 || bounds.height < 18 then
+  if !canFloat bounds then
     none
   else
     let width := min 54 (available - 4)
-    let height := 13
+    let height := panelHeight bounds
     some ((bounds.height - height) / 2,
       (available - width) / 2, width, height)
 

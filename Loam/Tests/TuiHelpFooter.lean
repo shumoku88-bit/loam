@@ -420,8 +420,18 @@ def main : IO Unit := do
       contains "Capacity / allocations" envelopeText && contains "Purpose routing" envelopeText &&
       contains "Esc back" envelopeText)
       "envelope group lost its existing actions"
-    expect (rootView.lines.length == 13 && envelopeView.lines.length == 13)
-      "command pages lost fixed-height geometry"
+    let analysisView := Loam.Tui.HomeCommandPalette.view bounds analysisGroup
+    expect (rootView.lines.length == 19 && envelopeView.lines.length == 19 &&
+      analysisView.lines.length == 19)
+      "command pages did not share the expanded nineteen-row rectangle"
+    for label in ["Daily Pace", "Balances / Current"] ++
+        Loam.Tui.Reports.Destination.all.map (·.label) do
+      expect (contains label (widgetText analysisView))
+        "roomy palette scrolled despite room for all eleven entries"
+    for pageView in [rootView, envelopeView, analysisView] do
+      let footer := pageView.lines[17]?.getD []
+      expect (contains "Enter open" (String.ofList (footer.map Cell.glyph)))
+        "palette help moved away from the bottom between pages"
     for selectedState in [commandRoot, { commandRoot with selected := 4 },
         envelopes, { envelopes with selected := 2 }, transactionGroup, maintenanceGroup] do
       let selectedView := Loam.Tui.HomeCommandPalette.view bounds selectedState
@@ -455,7 +465,7 @@ def main : IO Unit := do
 
   -- Every analysis leaf stays selected/visible at every usable terminal height.
   for width in [1, 2, 8, 32, 48, 80, 120] do
-    for height in List.range 20 do
+    for height in List.range 27 ++ [32, 40, 48] do
       for index in List.range 11 do
         let bounds : Bounds := { width, height }
         let leaf := { analysisGroup with selected := index }
@@ -469,6 +479,16 @@ def main : IO Unit := do
           expect ((rendered.lines.filter fun cells =>
             cells.any fun cell => cell.style == .selected).length == 1)
             "long palette lost selected row on compact/degenerate geometry"
+  -- Floating panels retain two rows of margin even near the full-list threshold;
+  -- compact panels can use the full height. Every page shares that rectangle.
+  for (bounds, expected) in [
+      (({ width := 80, height := 18 } : Bounds), 14),
+      ({ width := 80, height := 22 }, 18), ({ width := 80, height := 23 }, 19),
+      ({ width := 48, height := 18 }, 18), ({ width := 48, height := 19 }, 19),
+      ({ width := 120, height := 48 }, 19)] do
+    for page in [commandRoot, analysisGroup, maintenanceGroup] do
+      expect ((Loam.Tui.HomeCommandPalette.view bounds page).lines.length == expected)
+        "palette height lost terminal margins or stable page geometry"
   for key in [Loam.Tui.Terminal.Key.down, .input 'j'] do
     expect (Loam.Tui.HomeCommandPalette.update { analysisGroup with selected := 10 } key ==
       .stay { analysisGroup with selected := 10 }) "analysis selection exceeded eleven entries"
