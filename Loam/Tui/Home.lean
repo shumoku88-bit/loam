@@ -529,8 +529,7 @@ private def homeContext (bounds : Bounds) (snapshot : Snapshot) (state : State) 
   [ Widget.row [span " LOAM Home" .normal, span (if width ≥ 80 then " / Calendar   known through " else "  known through ") .muted, span snapshot.actual.today]
   , Widget.row [span " Focus: " .muted, span state.selectedDate,
       span "   View: " .muted, span (Loam.Tui.DateJump.zoomLabel state.zoomLevel)]
-  ].map fun row => .row ((Loam.Tui.Layout.clipCells width row.lines.flatten).map fun cell =>
-    span (String.singleton cell.glyph) cell.style)
+  ].map fun row => Loam.Tui.Layout.clipWidgetRow width row
 
 private def calendarRows
     (width : Nat) (snapshot : Snapshot) (state : State) (includeDetails : Bool) : List Widget :=
@@ -943,8 +942,7 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State)
   let footer := homeFooter bounds state
   let body := homeBody bounds footer.length snapshot state layout
   .column ((Loam.Tui.Layout.fitWithFooter bounds body footer).map fun row =>
-    .row ((Loam.Tui.Layout.clipCells (Loam.Tui.Layout.contentWidth bounds) row.lines.flatten).map fun cell =>
-      span (String.singleton cell.glyph) cell.style))
+    Loam.Tui.Layout.clipWidgetRow (Loam.Tui.Layout.contentWidth bounds) row)
 
 /-- Production root rendering is Home-only; object workspaces run in their own sessions. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State)
