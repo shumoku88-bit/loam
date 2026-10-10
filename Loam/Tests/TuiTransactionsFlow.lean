@@ -60,13 +60,9 @@ private def snapshot? : Option Loam.TransactionsFlowReview.Snapshot := do
 
 def main : IO Unit := do
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
-  let menuText := widgetText (Loam.Tui.Reports.view initial)
-  expect (contains "Transactions Flow" menuText)
-    "Reports menu did not expose Transactions Flow"
-
-  let direct := (Loam.Tui.Reports.update initial (.input 't')).state
+  let direct := (Loam.Tui.Reports.openReport .transactionsFlow initial).state
   expect (isTransactionsFlow direct)
-    "Transactions Flow direct key did not enter the report"
+    "typed Transactions Flow entrance did not enter the report"
   expect (direct.window.form.start == "2026-09-01" && direct.window.form.endExclusive == "2026-10-01")
     "Transactions Flow did not reuse the shared explicit report window"
 
@@ -144,9 +140,8 @@ def main : IO Unit := do
   let summaryAgain := (Loam.Tui.Reports.update detailState .escape).state
   expect (!summaryAgain.transactions.detail && isTransactionsFlow summaryAgain)
     "Transactions Flow detail Escape did not return to summary"
-  let menuAgain := (Loam.Tui.Reports.update summaryAgain .escape).state
-  expect (match menuAgain.mode with | .menu => true | _ => false)
-    "Transactions Flow summary Escape did not return to Reports menu"
+  expect (Loam.Tui.Reports.update summaryAgain .escape).back
+    "Transactions Flow summary Escape did not return Home"
 
   let editStart := (Loam.Tui.Reports.update report .tab).state
   expect (editStart.window.form.focus.val == 0)

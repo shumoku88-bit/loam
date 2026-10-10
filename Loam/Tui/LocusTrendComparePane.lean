@@ -741,7 +741,7 @@ private def footerTokens (state : State) : List String :=
            "O clear overlays"]
       else
         []
-    common ++ range ++ overlay ++ ["q/Esc Reports"]
+    common ++ range ++ overlay ++ ["q/Esc Home"]
 
 private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens

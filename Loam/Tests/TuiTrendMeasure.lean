@@ -17,7 +17,7 @@ def main : IO Unit := do
   let initial := Loam.Tui.Reports.initialForDateForMeasure usd "2026-09-07"
   expect (initial.measure == usd)
     "Reports did not retain the configured USD Measure in workspace state"
-  let trendStep := Loam.Tui.Reports.update initial (.input 'v')
+  let trendStep := Loam.Tui.Reports.openReport .locusTrendCompare initial
   match trendStep.query with
   | some (.locusTrendCompare _ _ _ series) =>
       expect (series.all fun spec => decide (spec.coordinate.measure = usd))

@@ -3,6 +3,9 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tests/test_reports_navigation_pty.py'
+      - 'Loam/Tests/TuiReportLaunch.lean'
+      - 'Loam/Tui/ReportDestination.lean'
       - 'tests/test_actual_detail_pty.py'
       - 'tools/benchmark-home-scroll.py'
       - 'tests/test_attention_pty.py'
@@ -202,6 +205,9 @@ on:
     branches:
       - main
     paths:
+      - 'tests/test_reports_navigation_pty.py'
+      - 'Loam/Tests/TuiReportLaunch.lean'
+      - 'Loam/Tui/ReportDestination.lean'
       - 'tests/test_actual_detail_pty.py'
       - 'tools/benchmark-home-scroll.py'
       - 'tests/test_attention_pty.py'
@@ -470,6 +476,9 @@ jobs:
 
       - name: Verify single-transaction Actual actions and return on isolated data
         run: python3 tests/test_actual_detail_pty.py
+
+      - name: Verify direct Reports navigation, shared answer parity and palette resize
+        run: python3 tests/test_reports_navigation_pty.py
 
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
@@ -945,6 +954,9 @@ jobs:
 
       - name: Verify single-transaction Actual actions and return on isolated data
         run: python3 tests/test_actual_detail_pty.py
+
+      - name: Verify direct Reports navigation, shared answer parity and palette resize
+        run: python3 tests/test_reports_navigation_pty.py
 
       - name: Verify Cycle Budget TUI PTY interactions
         run: |

@@ -196,7 +196,7 @@ class Terminal:
 # Home shortcuts are intentionally minimal. Benchmarks must use real palette paths.
 PALETTE_PACE = b" jj\r\r"
 PALETTE_BALANCES = b" jj\rj\r"
-PALETTE_REPORTS = b" jj\rjj\r"
+PALETTE_REPORTS = b" jj\rjjjj\r"  # direct Stock–Flow
 
 
 def run(binary: Path, root: Path, cycles: int, idle_seconds: float, check: bool) -> dict:

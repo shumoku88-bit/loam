@@ -12,6 +12,7 @@ import Loam.Review.StockFlowReview
 import Loam.Review.TransactionsFlowReview
 import Loam.Review.RoleFlowReview
 import Loam.Review.RoleBalanceReview
+import Loam.Tui.ReportDestination
 import Loam.Tui.ReportComparison
 import Loam.Tui.ReportWindow
 import Loam.Tui.LocusTrendComparePane
@@ -38,7 +39,6 @@ Observations 229 and 231.
 -/
 
 inductive Mode where
-  | menu
   | stockFlow
   | stockFlowCompare
   | transactionsFlow
@@ -108,8 +108,7 @@ def defaultTrendCompareSeries : List Loam.LocusTrendCompareReview.SeriesSpec :=
 
 structure State where
   measure : Loam.Core.MeasureId := ⟨"jpy"⟩
-  mode : Mode := .menu
-  menuIndex : Fin 9 := ⟨0, by decide⟩
+  mode : Mode := .stockFlow
   window : Loam.Tui.ReportWindow.State := {}
   comparison : Loam.Tui.ReportComparison.State := {}
   liquidityForm : LiquidityForm := {}
@@ -160,7 +159,7 @@ def initialForDateWithPresetsForMeasure
   let windowResult := Loam.Tui.ReportWindow.initialForDateWithPresets selectedDate presets
   {
     measure := measure
-    mode := .menu
+    mode := .stockFlow
     window := windowResult.state
     liquidityForm := liquidityFormForEndExclusive windowResult.state.form.endExclusive
     trendCompareSeries := defaultTrendCompareSeriesForMeasure measure
@@ -337,13 +336,6 @@ private def moveLiquidityFocus (form : LiquidityForm) : LiquidityForm :=
       dsimp [next]
       exact Nat.mod_lt _ (by decide)⟩ }
 
-private def moveMenu (state : State) (back : Bool) : State :=
-  let next := if back then (state.menuIndex.val + 8) % 9 else (state.menuIndex.val + 1) % 9
-  { state with menuIndex := ⟨next, by
-      dsimp [next]
-      split <;> exact Nat.mod_lt _ (by decide)⟩, notice := "" }
-
-
 private def editLiquidityActive
     (form : LiquidityForm) (edit : String → String) : LiquidityForm :=
   if form.focus.val = 0 then
@@ -392,66 +384,30 @@ private def resetLiquidityHorizon (state : State) : State :=
   | none =>
       withError state "Conditional horizon reset unavailable; enter an explicit date."
 
-private def selectMenuMode (state : State) : State :=
-  let mode :=
-    match state.menuIndex.val with
-    | 0 => Mode.stockFlow
-    | 1 => Mode.transactionsFlow
-    | 2 => Mode.incomeExpense
-    | 3 => Mode.balances
-    | 4 => Mode.liquidity
-    | 5 => Mode.budgetWindow
-    | 6 => Mode.multimeasureSpend
-    | 7 => Mode.locusTrendCompare
-    | _ => Mode.stockFlow
-  { state with mode := mode, notice := "", scroll := 0 }
-
-private def selectMenuStep (state : State) : Step :=
-  if state.menuIndex.val == 8 then
-    { state, query := some .favaProjection }
-  else
-    let next := selectMenuMode state
-    match next.mode with
-    | .balances => { state := next, query := some .roleBalances }
+/-- Typed launch plan. Editable windows still wait for Run; balances and Trend
+load immediately. Fava is an external action, not an internal report screen. -/
+def openReport (destination : Destination) (base : State) : Step :=
+  let mode := match destination with
+    | .stockFlow => Mode.stockFlow
+    | .transactionsFlow => Mode.transactionsFlow
+    | .incomeExpense => Mode.incomeExpense
+    | .balances => Mode.balances
+    | .liquidity => Mode.liquidity
+    | .budgetWindow => Mode.budgetWindow
+    | .multimeasureSpend => Mode.multimeasureSpend
+    | .locusTrendCompare => Mode.locusTrendCompare
+    | .favaProjection => base.mode
+  let next := { base with mode := mode, scroll := 0 }
+  let query := match destination with
+    | .balances => some Query.roleBalances
     | .locusTrendCompare =>
-        { state := next,
-          query := some (.locusTrendCompare
-            next.window.calendarAnchor next.trendCompare.granularity
-            (Loam.Tui.LocusTrendComparePane.effectiveScope next.trendCompare)
-            next.trendCompareSeries) }
-    | _ => { state := next }
-
-private def updateMenu (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
-  match key with
-  | .escape | .input 'q' | .input 'Q' => { state, back := true }
-  | .up | .input 'k' | .input 'K' => { state := moveMenu state true }
-  | .down | .input 'j' | .input 'J' => { state := moveMenu state false }
-  | .enter => selectMenuStep state
-  | .input 's' | .input 'S' =>
-      { state := { state with mode := .stockFlow, notice := "", scroll := 0 } }
-  | .input 't' | .input 'T' =>
-      { state := { state with mode := .transactionsFlow, notice := "", scroll := 0 } }
-  | .input 'i' | .input 'I' =>
-      { state := { state with mode := .incomeExpense, notice := "", scroll := 0 } }
-  | .input 'r' | .input 'R' =>
-      { state := { state with mode := .balances, notice := "", scroll := 0 },
-        query := some .roleBalances }
-  | .input 'l' | .input 'L' =>
-      { state := { state with mode := .liquidity, notice := "", scroll := 0 } }
-  | .input 'w' | .input 'W' =>
-      { state := { state with mode := .budgetWindow, notice := "", scroll := 0 } }
-  | .input 'x' | .input 'X' =>
-      { state := { state with mode := .multimeasureSpend, notice := "", scroll := 0 } }
-  | .input 'v' | .input 'V' =>
-      let next := { state with mode := .locusTrendCompare, notice := "", scroll := 0 }
-      { state := next,
-        query := some (.locusTrendCompare
+        some (.locusTrendCompare
           next.window.calendarAnchor next.trendCompare.granularity
           (Loam.Tui.LocusTrendComparePane.effectiveScope next.trendCompare)
-          next.trendCompareSeries) }
-  | .input 'f' | .input 'F' =>
-      { state, query := some .favaProjection }
-  | _ => { state }
+          next.trendCompareSeries)
+    | .favaProjection => some .favaProjection
+    | _ => none
+  { state := next, query }
 
 private def queryForMode (state : State) : Option Query :=
   match state.mode with
@@ -529,7 +485,7 @@ private def updateComparison
 private def updateWindowReport (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
-      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+      { state, back := true }
   | .up | .input 'k' | .input 'K' =>
       { state := { state with scroll := state.scroll - 1 } }
   | .down | .input 'j' | .input 'J' =>
@@ -572,7 +528,7 @@ private def updateTransactionsFlow
   else
     match key with
     | .escape | .input 'q' | .input 'Q' =>
-        { state := { state with mode := .menu, notice := "", scroll := 0 } }
+        { state, back := true }
     | .up | .input 'k' | .input 'K' =>
         { state := { state with
             transactions := Loam.Tui.TransactionsFlowPane.moveSelection state.transactions true
@@ -752,7 +708,7 @@ private def updateLocusTrendCompare
   else
     match key with
     | .escape | .input 'q' | .input 'Q' =>
-      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+      { state, back := true }
     | .left | .up | .input 'h' | .input 'H' =>
       { state := { state with
           trendCompare :=
@@ -823,7 +779,7 @@ private def updateLocusTrendCompare
 private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
-      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+      { state, back := true }
   | .up | .input 'k' | .input 'K' =>
       { state := { state with scroll := state.scroll - 1 } }
   | .down | .input 'j' | .input 'J' =>
@@ -834,7 +790,7 @@ private def updateBalances (state : State) (key : Loam.Tui.Terminal.Key) : Step 
 private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match key with
   | .escape | .input 'q' | .input 'Q' =>
-      { state := { state with mode := .menu, notice := "", scroll := 0 } }
+      { state, back := true }
   | .up | .input 'k' | .input 'K' =>
       { state := { state with scroll := state.scroll - 1 } }
   | .down | .input 'j' | .input 'J' =>
@@ -865,7 +821,6 @@ private def updateLiquidity (state : State) (key : Loam.Tui.Terminal.Key) : Step
 
 def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match state.mode with
-  | .menu => updateMenu state key
   | .stockFlow =>
       match key with
       | .input 'c' | .input 'C' =>

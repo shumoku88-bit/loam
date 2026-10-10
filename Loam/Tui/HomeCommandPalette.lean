@@ -2,6 +2,7 @@ import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
+import Loam.Tui.ReportDestination
 
 namespace Loam.Tui.HomeCommandPalette
 
@@ -25,7 +26,7 @@ inductive Choice where
   | settlements
   | dailyPace
   | balances
-  | reports
+  | report (destination : Loam.Tui.Reports.Destination)
   | budget
   | capacity
   | purposeRouting
@@ -71,9 +72,9 @@ private def entries : Page → List (Entry × String)
       ]
   | .analysis =>
       [ (.action .dailyPace, "Daily Pace")
-      , (.action .balances, "Balances")
-      , (.action .reports, "Reports")
-      ]
+      , (.action .balances, "Balances / Current")
+      ] ++ Loam.Tui.Reports.Destination.all.map fun destination =>
+        (.action (.report destination), destination.label)
   | .envelopeBudget =>
       [ (.action .budget, "Budget / current cycle")
       , (.action .capacity, "Capacity / allocations")
@@ -112,14 +113,13 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Transition :=
       .stay { state with selected := min (entries state.page).length.pred (state.selected + 1) }
   | _ => .stay state
 
+/-- A bounded selection-relative viewport, recomputed on resize. No second
+selection or retained scroll authority is needed for this short chooser. -/
 def view (bounds : Bounds) (state : State) : Widget :=
   let panelWidth := min 54 (Loam.Tui.Layout.contentWidth bounds)
-  let lines :=
-    (entries state.page).zipIdx.map fun ((_, title), index) =>
-      let markerText := if state.selected == index then "  > " else "    "
-      -- Keep the background beyond the final glyph, including arrow overhang.
-      let text := Loam.Tui.Layout.padRight (panelWidth - 2) (markerText ++ title)
-      .row [span text (if state.selected == index then .selected else .normal)]
+  let height := min 13 bounds.height
+  let framed := height >= 5 && panelWidth >= 2
+  let bodyHeight := if framed then height - 2 else height
   let (path, description, backLabel) :=
     match state.page with
     | .commands => (" Home / Commands", " Choose a command group.", "Esc close")
@@ -129,16 +129,31 @@ def view (bounds : Bounds) (state : State) : Widget :=
     | .envelopeBudget =>
         (" Commands / Envelope budget", " Budget features are optional.", "Esc back")
     | .maintenance => (" Commands / Household setup", " Explicit household evidence.", "Esc back")
-  let body : Widget := .column <|
-    [ .row [span path]
-    , .row [span description]
-    , .row []
-    ] ++ lines ++
-    [ .row []
-    , .row [span " ↑/↓ select  → group  ← back" .muted]
-    , .row [span (" Enter open  " ++ backLabel) .muted] ]
-  Loam.Tui.Layout.framedPanel
-    panelWidth (min 13 bounds.height) "Commands" body
+  let header : List Widget :=
+    if bodyHeight >= 9 then [.row [span path], .row [span description], .row []]
+    else if bodyHeight >= 3 then [.row [span path]] else []
+  let footer : List Widget :=
+    if bodyHeight >= 9 then
+      [.row [], .row [span " ↑/↓ select  → group  ← back" .muted],
+       .row [span (" Enter open  " ++ backLabel) .muted]]
+    else if bodyHeight >= 2 then
+      [.row [span (" ↑↓/jk Enter  " ++ backLabel) .muted]]
+    else []
+  let page := bodyHeight - (header.length + footer.length)
+  let items := entries state.page
+  let offset := min (items.length - page) ((state.selected + 1) - page)
+  let lines := (items.zipIdx.drop offset |>.take page).map fun ((_, title), index) =>
+    let markerText := if state.selected == index then "  > " else "    "
+    let width := if framed then panelWidth - 2 else panelWidth
+    let text := Loam.Tui.Layout.padRight width (markerText ++ title)
+    .row [span text (if state.selected == index then .selected else .normal)]
+  let body : Widget := .column (header ++ lines ++ footer)
+  if framed then
+    Loam.Tui.Layout.framedPanel panelWidth height "Commands" body
+  else
+    .column <| body.lines.map fun cells =>
+      .row ((Loam.Tui.Layout.clipCells panelWidth cells).map fun cell =>
+        span (String.singleton cell.glyph) cell.style)
 
 private def floating? (bounds : Bounds) : Option (Nat × Nat × Nat × Nat) :=
   let available := Loam.Tui.Layout.contentWidth bounds
@@ -159,33 +174,38 @@ private def renderPanel
   | none =>
       Loam.Tui.Terminal.redrawFromBlank bounds next
 
-/-- Run a short-lived modal chooser. Unhandled keys leave navigation unchanged. -/
+/-- Run a short-lived modal chooser, including idle resize polling. -/
 private partial def session
     (bounds : Bounds) (geometry : Option (Nat × Nat × Nat × Nat))
     (state : State) (frame : CompiledWidget) : IO (Option Choice) := do
   let key ← Loam.Tui.Terminal.readKey
+  let active ← Loam.Tui.Terminal.currentBounds
+  let geometry := if active == bounds then geometry else floating? active
+  let frame ←
+    if active == bounds then pure frame
+    else do
+      let next := compileWidget (view active state)
+      -- Clear the old rectangle when switching between floating and compact.
+      Loam.Tui.Terminal.redrawFromBlank active (compileWidget (.row []))
+      renderPanel active geometry (compileWidget (.row [])) next
+      pure next
   match update state key with
   | .close => return none
   | .open choice => return some choice
   | .stay next =>
       if next == state then
-        session bounds geometry state frame
+        session active geometry state frame
       else
-        let nextFrame := compileWidget (view bounds next)
-        renderPanel bounds geometry frame nextFrame
-        session bounds geometry next nextFrame
+        let nextFrame := compileWidget (view active next)
+        renderPanel active geometry frame nextFrame
+        session active geometry next nextFrame
 
 /-- Prefer a floating panel above Home; use full-width on small terminals. -/
 def run (bounds : Bounds) : IO (Option Choice) := do
   let geometry := floating? bounds
   let state : State := {}
   let frame := compileWidget (view bounds state)
-  match geometry with
-  | some (top, left, width, _) =>
-      Loam.Tui.Terminal.emitDirtyRegion bounds top left width
-        (compileWidget (.row [])) frame
-  | none =>
-      Loam.Tui.Terminal.redrawFromBlank bounds frame
+  renderPanel bounds geometry (compileWidget (.row [])) frame
   session bounds geometry state frame
 
 end Loam.Tui.HomeCommandPalette

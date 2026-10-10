@@ -19,11 +19,6 @@ private def widgetLineTexts (widget : Widget) : List String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
-private def isMenu (state : Loam.Tui.Reports.State) : Bool :=
-  match state.mode with
-  | .menu => true
-  | _ => false
-
 private def isStockFlow (state : Loam.Tui.Reports.State) : Bool :=
   match state.mode with
   | .stockFlow => true
@@ -175,22 +170,43 @@ def main : IO Unit := do
     "lazy viewport source did not preserve cross-source slicing"
 
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
-  let menuText := widgetText (Loam.Tui.Reports.view initial)
-  expect (contains "Reports" menuText) "Reports menu heading was not rendered"
-  expect (contains "Stock–Flow" menuText) "Reports menu lost Stock–Flow"
-  expect (contains "Income & Expense" menuText) "Reports menu lost Income & Expense"
-  expect (contains "Balances" menuText) "Reports menu lost evidence-aware Balances"
-  expect (contains "Liquidity" menuText) "Reports menu lost Liquidity"
-  expect (contains "Budget Window" menuText) "Reports menu lost Budget Window"
-  expect (!(contains "Scheduled Coverage" menuText))
-    "Reports menu still exposed Scheduled Coverage after it moved to Scheduled"
-  expect (contains "Multicurrency Spend" menuText) "Reports menu lost Multicurrency Spend"
-  expect (contains "Trend" menuText) "Reports menu lost unified Trend"
-  expect (!(contains "Locus Trend" menuText)) "Reports menu still exposed retired Locus Trend"
-  expect (contains "Fava Projection" menuText) "Reports menu lost Fava Projection"
-  let favaStep := Loam.Tui.Reports.update initial (.input 'f')
+  -- Entrances preserve the explicit seed, independent query policies and Home return.
+  let usdBase := Loam.Tui.Reports.initialForDateWithPresetsForMeasure
+    ⟨"usd"⟩ "2026-09-07" []
+  let warned := { usdBase with notice := "Named presets unavailable." }
+  for (destination, mode) in [
+      (Loam.Tui.Reports.Destination.incomeExpense, Loam.Tui.Reports.Mode.incomeExpense),
+      (.transactionsFlow, .transactionsFlow), (.stockFlow, .stockFlow),
+      (.locusTrendCompare, .locusTrendCompare), (.balances, .balances),
+      (.liquidity, .liquidity), (.budgetWindow, .budgetWindow),
+      (.multimeasureSpend, .multimeasureSpend)] do
+    let launch := Loam.Tui.Reports.openReport destination warned
+    expect (launch.state.mode == mode && launch.state.measure == ⟨"usd"⟩ &&
+      launch.state.window == warned.window &&
+      launch.state.liquidityForm == warned.liquidityForm &&
+      launch.state.notice == warned.notice)
+      "typed entrance altered configured Measure, date/window, assumption or seed error"
+    expect ((destination == .balances || destination == .locusTrendCompare) == launch.query.isSome)
+      "typed entrance changed immediate-versus-editable query policy"
+    for key in [Loam.Tui.Terminal.Key.escape, .input 'q', .input 'Q'] do
+      expect (Loam.Tui.Reports.update launch.state key).back
+        "report root failed to return directly Home"
+  for mode in [Loam.Tui.Reports.Mode.stockFlowCompare, .incomeExpenseCompare] do
+    let compared := { initial with mode := mode }
+    for key in [Loam.Tui.Terminal.Key.escape, .input 'q'] do
+      let step := Loam.Tui.Reports.update compared key
+      expect (!step.back && (step.state.mode == .stockFlow || step.state.mode == .incomeExpense))
+        "comparison skipped its report root"
+  let trend := (Loam.Tui.Reports.openReport .locusTrendCompare initial).state
+  for key in [Loam.Tui.Terminal.Key.escape, .input 'q'] do
+    let picker := (Loam.Tui.Reports.update trend (.input 'a')).state
+    let closed := Loam.Tui.Reports.update picker key
+    expect (!closed.back && !Loam.Tui.LocusTrendComparePane.isPickerOpen closed.state.trendCompare)
+      "Trend series picker did not pop one level"
+
+  let favaStep := Loam.Tui.Reports.openReport .favaProjection initial
   expect (favaStep.query == some .favaProjection)
-    "Reports direct Fava key 'f' did not trigger favaProjection query"
+    "typed Fava entrance did not request external projection"
   expect (initial.window.form.start == "2026-09-01")
     "Reports did not seed the selected-day calendar month start"
   expect (initial.window.form.endExclusive == "2026-10-01")
@@ -201,11 +217,11 @@ def main : IO Unit := do
   expect (initial.liquidityForm.focus.val == 1)
     "conditional outlook prefill did not focus explicit Run"
   expect ((Loam.Tui.Reports.update initial (.input 'q')).back)
-    "Reports menu q did not return Home"
+    "report root q did not return Home"
   expect (!(Loam.Tui.Reports.update initial (.input 'b')).back)
     "retired Reports b Home alias survived"
 
-  let compareStep := Loam.Tui.Reports.update initial (.input 'v')
+  let compareStep := Loam.Tui.Reports.openReport .locusTrendCompare initial
   expect (isLocusTrendCompare compareStep.state)
     "Reports direct Trend key did not enter the comparison surface"
   match compareStep.query with
@@ -724,6 +740,9 @@ def main : IO Unit := do
   expect (Loam.Tui.LocusTrendComparePane.isOverlayEditing invalidApplied.state.trendCompare &&
       contains "Day 31 is not in 2026-09" invalidApplied.state.notice)
     "Trend overlay accepted an impossible day for the selected month"
+  let typedQ := Loam.Tui.Reports.update invalidApplied.state (.input 'q')
+  expect (!typedQ.back && Loam.Tui.LocusTrendComparePane.isOverlayEditing typedQ.state.trendCompare)
+    "overlay free-text editor stole q from the existing input grammar"
   let invalidCancelled := (Loam.Tui.Reports.update invalidApplied.state .escape).state
   let overlaysCleared := (Loam.Tui.Reports.update invalidCancelled (.input 'O')).state
   expect (overlaysCleared.trendCompare.overlays.isEmpty &&
@@ -782,14 +801,10 @@ def main : IO Unit := do
       ignoredTrendRendererKey.state.trendCompare.selected ==
         comparePointer.trendCompare.selected)
     "retired Trend renderer key still changed the Trend interaction state"
-  expect (isMenu (Loam.Tui.Reports.update comparePointer .escape).state)
-    "Trend escape did not return to Reports menu"
+  expect (Loam.Tui.Reports.update comparePointer .escape).back
+    "Trend root escape did not return Home"
 
-  let retiredTrendKey := Loam.Tui.Reports.update initial (.input 'g')
-  expect (isMenu retiredTrendKey.state && retiredTrendKey.query.isNone)
-    "retired Locus Trend direct key still opened a second Trend surface"
-
-  let multicurrencyStep := Loam.Tui.Reports.update initial (.input 'x')
+  let multicurrencyStep := Loam.Tui.Reports.openReport .multimeasureSpend initial
   expect (isMultimeasureSpend multicurrencyStep.state)
     "Reports direct Multicurrency Spend key did not enter the report surface"
   let multicurrencyText := widgetText (Loam.Tui.Reports.view multicurrencyStep.state)
@@ -854,7 +869,7 @@ def main : IO Unit := do
       !contains "2500 usd" multicurrencyReportText)
     "Multicurrency Spend ignored configured Measure decimal presentation"
 
-  let balancesStep := Loam.Tui.Reports.update initial (.input 'r')
+  let balancesStep := Loam.Tui.Reports.openReport .balances initial
   expect (match balancesStep.state.mode with | .balances => true | _ => false)
     "Reports direct Balances key did not enter the shared RoleBalance surface"
   match balancesStep.query with
@@ -890,7 +905,7 @@ def main : IO Unit := do
     boundaries := ["2026-08-15", "2026-10-15"]
   }
   let presetInitial := Loam.Tui.Reports.initialForDateWithPresets "2026-09-07" [pension]
-  let presetStock := (Loam.Tui.Reports.update presetInitial .enter).state
+  let presetStock := (Loam.Tui.Reports.openReport .stockFlow presetInitial).state
   let pensionState := (Loam.Tui.Reports.update presetStock (.input ']')).state
   expect (Loam.Tui.Reports.windowSourceLabel pensionState == "Pension")
     "named report preset was not selected"
@@ -916,7 +931,7 @@ def main : IO Unit := do
   }
   let comparePresetInitial :=
     Loam.Tui.Reports.initialForDateWithPresets "2026-09-07" [pensionCompare]
-  let comparePresetStock := (Loam.Tui.Reports.update comparePresetInitial .enter).state
+  let comparePresetStock := (Loam.Tui.Reports.openReport .stockFlow comparePresetInitial).state
   let comparePresetSingle := (Loam.Tui.Reports.update comparePresetStock (.input ']')).state
   expect (Loam.Tui.Reports.windowSourceLabel comparePresetSingle == "Pension Cycle")
     "comparison fixture did not select its named preset"
@@ -942,7 +957,7 @@ def main : IO Unit := do
     "right did not shift the whole named-preset comparison pair"
 
   let compareCalendarBase :=
-    (Loam.Tui.Reports.update comparePresetInitial .enter).state
+    (Loam.Tui.Reports.openReport .stockFlow comparePresetInitial).state
   let compareCalendar := (Loam.Tui.Reports.update compareCalendarBase (.input 'c')).state
   let compareCycledPreset := (Loam.Tui.Reports.update compareCalendar (.input ']')).state
   expect (Loam.Tui.Reports.comparisonSourceLabel compareCycledPreset == "Pension Cycle")
@@ -969,15 +984,15 @@ def main : IO Unit := do
     "manual coordinate edit did not become Custom presentation state"
 
   let outBase := Loam.Tui.Reports.initialForDateWithPresets "2026-10-15" [pension]
-  let outStock := (Loam.Tui.Reports.update outBase .enter).state
+  let outStock := (Loam.Tui.Reports.openReport .stockFlow outBase).state
   let outPreset := (Loam.Tui.Reports.update outStock (.input ']')).state
   expect (outPreset.window.form.start.isEmpty && outPreset.window.form.endExclusive.isEmpty)
     "preset without a later explicit boundary left stale coordinates visible"
   expect (contains "no explicit adjacent boundary window" outPreset.notice)
     "preset exhaustion did not fail closed with an explanation"
 
-  let stock := (Loam.Tui.Reports.update initial .enter).state
-  expect (isStockFlow stock) "default Reports selection did not open Stock–Flow"
+  let stock := (Loam.Tui.Reports.openReport .stockFlow initial).state
+  expect (isStockFlow stock) "typed Stock–Flow entrance did not open report"
   let stockText := widgetText (Loam.Tui.Reports.view stock)
   expect (contains "Reports / Stock–Flow" stockText) "Stock–Flow heading was not rendered"
   expect (contains "Start: 2026-09-01" stockText) "Stock–Flow lost explicit start"
@@ -986,8 +1001,7 @@ def main : IO Unit := do
   expect (contains "Calendar month is only a coordinate convenience" stockText)
     "Stock–Flow surface lost the calendar-coordinate non-claim"
   let stockBack := Loam.Tui.Reports.update stock (.input 'q')
-  expect (isMenu stockBack.state && !stockBack.back)
-    "Reports detail q did not return exactly one level to the Reports menu"
+  expect stockBack.back "Stock–Flow root q did not return Home"
 
   let previous := (Loam.Tui.Reports.update stock .left).state
   expect (previous.window.form.start == "2026-08-01") "left did not shift to previous calendar month"
@@ -1000,7 +1014,7 @@ def main : IO Unit := do
     "right did not keep an explicit half-open calendar month"
 
   let decemberBase := Loam.Tui.Reports.initialForDate "2026-12-20"
-  let december := (Loam.Tui.Reports.update decemberBase .enter).state
+  let december := (Loam.Tui.Reports.openReport .stockFlow decemberBase).state
   let january := (Loam.Tui.Reports.update december .right).state
   expect (january.window.form.start == "2027-01-01") "calendar month shift lost year rollover"
   expect (january.window.form.endExclusive == "2027-02-01")
@@ -1138,13 +1152,10 @@ def main : IO Unit := do
   expect edited.stockFlowSnapshot.isNone
     "editing Stock–Flow coordinates left a stale report snapshot visible"
 
-  let backToMenu := (Loam.Tui.Reports.update stockReport .escape).state
-  expect (isMenu backToMenu) "Stock–Flow escape did not return to Reports menu"
-  match Loam.Tui.Reports.update backToMenu .escape with
-  | { back := true, .. } => pure ()
-  | _ => throw (IO.userError "Reports menu escape did not return Home intent")
+  expect (Loam.Tui.Reports.update stockReport .escape).back
+    "Stock–Flow escape did not return Home intent"
 
-  let incomeExpense := { initial with mode := Loam.Tui.Reports.Mode.incomeExpense }
+  let incomeExpense := (Loam.Tui.Reports.openReport .incomeExpense initial).state
   let incomeExpenseText := widgetText (Loam.Tui.Reports.view incomeExpense)
   expect (contains "Reports / Income & Expense" incomeExpenseText)
     "Income & Expense heading was not rendered"
@@ -1522,7 +1533,7 @@ def main : IO Unit := do
   expect incomeExpenseEdited.incomeExpenseSnapshot.isNone
     "editing Income & Expense coordinates left a stale role-flow snapshot visible"
 
-  let liquidity := { initial with mode := Loam.Tui.Reports.Mode.liquidity }
+  let liquidity := (Loam.Tui.Reports.openReport .liquidity initial).state
   expect (isLiquidity liquidity) "Liquidity fixture did not enter the Liquidity surface"
   let liquidityText := widgetText (Loam.Tui.Reports.view liquidity)
   expect (contains "Forecast path: UNKNOWN" liquidityText)
@@ -1625,21 +1636,12 @@ def main : IO Unit := do
     "Budget Window rendering rewrote the snapshot Measure as JPY"
 
   let small : Bounds := { width := 80, height := 9 }
-  let lastMenuItem := (List.range 5).foldl
-    (fun state _ => (Loam.Tui.Reports.updateForBounds small state .down).state)
-    initial
-  let smallMenuText := widgetText (Loam.Tui.Reports.viewForBounds small lastMenuItem)
-  expect (contains "Budget Window" smallMenuText)
-    "bounded Reports menu let its selected item leave the viewport"
-  expect (contains "q / Esc home" smallMenuText)
-    "bounded Reports menu did not pin its navigation"
-
   let topBoundedText := widgetText (Loam.Tui.Reports.viewForBounds small stockReport)
   expect (contains "Reports / Stock–Flow" topBoundedText)
     "bounded Stock–Flow lost the top of its report body"
   expect (contains "Lines 1–" topBoundedText)
     "bounded report did not expose its scroll position"
-  expect (contains "q / Esc Reports menu" topBoundedText)
+  expect (contains "q / Esc Home" topBoundedText)
     "bounded report did not pin navigation at the top position"
   expect ((Loam.Tui.Reports.viewForBounds small stockReport).lines.length <= small.height)
     "bounded report exceeded the terminal height"
@@ -1652,7 +1654,7 @@ def main : IO Unit := do
   let bottomBoundedText := widgetText (Loam.Tui.Reports.viewForBounds small bottom)
   expect (contains "not income/spending" bottomBoundedText)
     "bounded report could not scroll to the end of its body"
-  expect (contains "q / Esc Reports menu" bottomBoundedText)
+  expect (contains "q / Esc Home" bottomBoundedText)
     "bounded report did not pin navigation at the bottom position"
   expect ((Loam.Tui.Reports.updateForBounds small bottom .down).state.scroll == bottom.scroll)
     "bounded report scrolled beyond its final meaningful offset"
@@ -1664,12 +1666,11 @@ def main : IO Unit := do
     "bounded report did not return to its first offset"
   expect ((Loam.Tui.Reports.updateForBounds small returnedTop .up).state.scroll == 0)
     "bounded report scrolled above its first offset"
-  let returnedMenu := (Loam.Tui.Reports.updateForBounds small bottom .escape).state
-  expect (isMenu returnedMenu && returnedMenu.scroll == 0)
-    "returning to the Reports menu retained stale report scrolling"
-  let reopened := (Loam.Tui.Reports.updateForBounds small returnedMenu .enter).state
+  expect (Loam.Tui.Reports.updateForBounds small bottom .escape).back
+    "scrolled report root did not return Home"
+  let reopened := (Loam.Tui.Reports.openReport .stockFlow initial).state
   expect (isStockFlow reopened && reopened.scroll == 0)
-    "opening a report retained stale scrolling from the previous mode"
+    "fresh report entrance retained stale scrolling"
 
   let tall : Bounds := { width := 120, height := 100 }
   for report in [stockReport, liquidityReport, budgetReport] do
@@ -1688,4 +1689,4 @@ def main : IO Unit := do
         ("Reports lost essential navigation at tiny terminal height " ++ toString tiny.height)
 
   IO.println
-    "TUI Reports: menu, two-period Stock–Flow and Income & Expense comparison, conditional Liquidity, Budget Window and navigation passed."
+    "TUI Reports: direct entrances, two-period Stock–Flow and Income & Expense comparison, conditional Liquidity, Budget Window and navigation passed."
