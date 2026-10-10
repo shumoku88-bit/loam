@@ -125,10 +125,7 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
     [ Loam.Tui.Layout.shortcutRow navigation " "
     , Loam.Tui.Layout.shortcutRow [("C-u/d", "page"), ("Home/End", "ends"), ("p", "print view")] " "
     ]
-  let capacity := bounds.height - 1
-  if rows.length ≤ capacity then rows
-  else if capacity == 0 then []
-  else rows.take (capacity - 1) ++ [mutedLine " … more feedback/help; enlarge terminal"]
+  Loam.Tui.Layout.boundFeedbackFooter bounds rows
 
 private structure Geometry where
   width : Nat
