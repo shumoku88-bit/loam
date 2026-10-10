@@ -885,8 +885,13 @@ The ordered entries are:
 11. Fava Projection (external)
 
 `↑/↓` or `j/k` selects; `Enter` opens; `Esc` returns one palette level (or closes
-at the root). The bounded item viewport follows selection, including after idle
-resize. Compact terminals retain the selected row and abbreviated help; extremely
+at the root). The palette uses one stable rectangle across pages, sized for the
+largest command group plus context/help (currently **19 rows**, showing all eleven
+analysis entries). Floating panels leave two terminal rows above and below; at
+23 rows or taller, all eleven items fit without scrolling. Added group items can
+increase the preferred height automatically; the terminal remains the upper bound.
+The bounded item viewport follows selection when the list cannot fit, including
+after idle resize. Compact terminals retain the selected row and abbreviated help; extremely
 short terminals prioritize the selected row over headings/borders/help.
 
 `q/Esc` exits a report's internal detail/comparison/series picker one level

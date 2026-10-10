@@ -77,17 +77,21 @@ def main():
         try:
             # Each independent expected label must be selectable and visible,
             # moving down with both key grammars and back up across the viewport.
-            send(terminal, ANALYSIS, b"> Daily Pace")
+            opened = send(terminal, ANALYSIS, b"> Daily Pace")
+            assert all(label.encode() in opened for label in LABELS), "roomy palette hid an entry"
             for index, label in enumerate(LABELS[1:], 1):
                 key = b"j" if index % 2 else b"\x1b[B"
                 frame = send(terminal, key, ("> " + label).encode())
                 assert ("> " + label).encode() in frame
             assert terminal.idle(.3) == 0, "idle palette emitted redundant frames"
-            for rows, cols in [(10, 48), (6, 32), (3, 32), (1, 32), (13, 80), (40, 120)]:
+            for rows, cols in [(10, 48), (6, 32), (3, 32), (1, 32), (13, 80),
+                               (22, 80), (23, 80), (24, 80), (40, 120)]:
                 frame = resize(terminal, rows, cols, b"> Fava Projection")
                 assert b"> Fava Projection" in frame
-                if rows <= 13:
+                if rows <= 13 or (rows == 22 and cols == 80):
                     assert b"Daily Pace" not in frame, "palette did not scroll its viewport"
+                if rows >= 23:
+                    assert all(label.encode() in frame for label in LABELS), "roomy resize hid an entry"
             for index in range(9, -1, -1):
                 key = b"k" if index % 2 else b"\x1b[A"
                 send(terminal, key, ("> " + LABELS[index]).encode())
