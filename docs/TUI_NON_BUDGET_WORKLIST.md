@@ -24,7 +24,7 @@
 
 | ID | 画面・範囲 | UI 改修の状態 | 残作業 / 完了の証跡 |
 | --- | --- | --- | --- |
-| UI-01 | Home / Calendar / Detail | 一部完了 | 既存の導線・ナビ改善あり。現在の枠・余白・情報階層との統一を点検 |
+| UI-01 | Home / Calendar / Detail | 完了 | 控えめな丸角枠、2行の文脈、符号付き quanta の整列・折返し、フォーカス追従／手動スクロール、枠内の可視範囲、予約通知行と固定ナビ。`TuiHomeNavigation` / `TuiHelpFooter`、代表 TUI テスト、Home 世代・DateJump、Viewport / Record PTY、合成データでの resource check を検証。Selected Day は UI-04 として別作業 |
 | UI-02 | Commands パレット | 一部完了 | 階層ナビは既存。ラベル・選択・余白を今回の方針で点検 |
 | UI-03 | Actual 一覧・詳細・検索・移動 | 完了 | `2b347e0e`〜`b753e6c1` |
 | UI-04 | Selected Day | 未着手 | Actual / Scheduled の配置、一覧・詳細・フォーカス・下部ナビ。48×14 で子画面から戻った通知が見えない点も改善対象 |
@@ -91,7 +91,7 @@
 5. **残りの非予算画面**：Home / Commands、Reports、Attention、
    Settlements、Exchange、設定・補助表示。
 
-現在、作業中の UI 項目はなし。**次の候補は UI-10：Actual 日付修正 入力・確認画面。**
+現在、作業中の UI 項目はなし。**UI-01：Home / Calendar / Detail は完了**。日常の使用頻度を優先して先行した。**次の候補は UI-04：Selected Day**。
 
 ## 各改修で更新すること
 

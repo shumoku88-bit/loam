@@ -74,6 +74,9 @@ try:
     assert b"[g]" not in clean_initial and b"[Space] commands" in clean_initial, (
         "Home retained Summary or lost the command hub entrance"
     )
+    assert "╭".encode() in clean_initial and "╰".encode() in clean_initial and b"====" not in clean_initial, (
+        "Home retained heavy rules or lost quiet rounded panels", clean_initial
+    )
     assert b"[y] copy screen" not in clean_initial and b"Shift+drag" not in clean_initial
     assert b"[a] actual" in clean_initial and b"[s] scheduled" in clean_initial
     # Retired g/G must be ignored; the following key still navigates Calendar.
@@ -128,6 +131,28 @@ try:
     bounded(output, 22, 80)
     os.write(master, b"l")
     bounded(capture(), 22, 80)
+    # Compact Home keeps a visible focused pane, feedback and bounded jump input.
+    resize(14, 48)
+    compact = capture(b"LOAM Home")
+    bounded(compact, 14, 48)
+    assert b"Calendar [active]" in ansi.sub(b"", compact)
+    os.write(master, b"/")
+    bounded(capture(b"Jump to date"), 14, 48)
+    os.write(master, b"2026-10-31\r")
+    jumped = capture(b"Focus: 2026-10-31")
+    bounded(jumped, 14, 48)
+    assert b"Jumped to 2026-10-31" in ansi.sub(b"", jumped), "compact Home hid jump feedback"
+    os.write(master, b"\t")
+    bounded(capture(b"Detail [active]"), 14, 48)
+    os.write(master, b"\x1b")
+    bounded(capture(b"Calendar [active]"), 14, 48)
+    # Manual browsing and subsequent date navigation remain distinct.
+    os.write(master, b"\x15")
+    bounded(capture(), 14, 48)
+    os.write(master, b"h")
+    bounded(capture(b"Focus: 2026-10-30"), 14, 48)
+    resize(22, 80)
+    bounded(capture(b"LOAM Home"), 22, 80)
     # Reports now lives in Space -> Reports and analysis -> Reports.
     os.write(master, b" jj\rjj\r")
     report = capture(b"Stock")
@@ -195,7 +220,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Reports/Scheduled/Actuals: shortcuts, pane navigation and responsive idle resize; evidence unchanged.")
+    print("Home/Reports/Scheduled/Actuals: quiet frames, compact jump/feedback, shortcuts and idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

@@ -57,6 +57,8 @@ structure State where
   detailScroll : Nat := 0
   /-- Scroll of the calendar surface, independent of record selection. -/
   overviewScroll : Nat := 0
+  /-- Manual calendar browsing temporarily releases focus-following until date/zoom changes. -/
+  overviewManualScroll : Bool := false
   /-- Zero-based index of the currently selected Actual transaction in detail view. -/
   detailCursor : Nat := 0
   /-- Calendar zoom level: Day, Month, or Year. -/
@@ -102,6 +104,7 @@ def setZoomLevel (state : State) (zoom : Loam.Tui.DateJump.ZoomLevel) : State :=
   { state with
     zoomLevel := zoom
     overviewScroll := 0
+    overviewManualScroll := false
     notice := s!"View: {Loam.Tui.DateJump.zoomLabel zoom}"
     detailScroll := 0
     detailCursor := 0
@@ -141,6 +144,7 @@ def executeJump (state : State) : State :=
           { state with
             selectedDate := target.date
             overviewScroll := 0
+            overviewManualScroll := false
             zoomLevel := target.zoom
             jumpPrompt := none
             notice := s!"Jumped to {target.date} ({Loam.Tui.DateJump.zoomLabel target.zoom})."
@@ -180,7 +184,9 @@ def selectedMonth (state : State) : Loam.Tui.Calendar.Month :=
 def moveDate (state : State) (offset : Int) : State :=
   match Loam.ActualDate.shiftDays? state.selectedDate offset with
   | none => { state with notice := "Calendar boundary reached." }
-  | some date => { state with selectedDate := date, notice := "", detailScroll := 0, detailCursor := 0, overviewScroll := 0 }
+  | some date => { state with
+      selectedDate := date, notice := "", detailScroll := 0, detailCursor := 0
+      overviewScroll := 0, overviewManualScroll := false }
 
 def moveMonth (state : State) (offset : Int) : State :=
   let cur := selectedMonth state
@@ -199,7 +205,9 @@ def moveMonth (state : State) (offset : Int) : State :=
       let maxDay := (Loam.Tui.Calendar.daysInMonth? { year := targetYear, month := targetMonth }).getD 31
       let clampedDay := if day > maxDay then maxDay else if day == 0 then 1 else day
       let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := targetMonth } clampedDay
-      { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0, overviewScroll := 0 }
+      { state with
+        selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0
+        overviewScroll := 0, overviewManualScroll := false }
 
 def moveYear (state : State) (offset : Int) : State :=
   match Loam.Tui.Calendar.parseDate? state.selectedDate with
@@ -213,7 +221,9 @@ def moveYear (state : State) (offset : Int) : State :=
         let maxDay := (Loam.Tui.Calendar.daysInMonth? { year := targetYear, month := m }).getD 31
         let clampedDay := if d > maxDay then maxDay else d
         let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := m } clampedDay
-        { state with selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0, overviewScroll := 0 }
+        { state with
+          selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0
+          overviewScroll := 0, overviewManualScroll := false }
 
 /-- Home-only root navigation. Household evidence is consumed by presentation, not this transition. -/
 def update (state : State) (event : Event) : Step :=

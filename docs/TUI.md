@@ -82,8 +82,10 @@ Local keys within a workspace are unchanged.
 The prior compact calendar was retired. The Calendar Home now always uses
 the larger role-aware money grid, with Today's underline on the date row only
 (not the amount or blank rows), open-plan `!`, and
-unresolved-role `?` markers. If money flow evidence is unavailable, the calendar
-still shows dates and explicitly indicates that the financial projection is
+unresolved-role `?` markers. A daily amount too wide for its cell shows `…`, with
+an explicit legend, never misleading partial digits. Monthly totals wrap below the
+grid; a failed money read has a distinct label and a wrapped, scrollable diagnostic.
+If money flow evidence is unavailable, the calendar still shows dates and explicitly indicates that the financial projection is
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
 
@@ -94,7 +96,24 @@ the current-cycle Budget observation date or silently manufacture a household cy
 Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
-Home keeps household state in the body and shortcut grammar in the stable footer.
+Home keeps household evidence in the body and shortcut grammar in the stable footer.
+Calendar and Detail use thin rounded frames separated by one blank column in the
+wide layout. Only the focused frame uses the existing cyan border; inactive borders,
+section headings, selection markers, and help labels stay muted. Context occupies
+two quiet rows above the frames: known-through date, then navigated focus and zoom.
+There are no heavy `=` rules or extra accent colors. Detail's period belongs in its
+frame title, and each bottom border shows the visible line range and hidden-row
+arrows. Wide terminals give Detail a bounded share of the width while leaving the
+remaining space to the money grid.
+
+A feedback row is reserved above the footer even when empty. One-line notices do
+not move frames or operations; longer notices wrap, including Japanese and unbroken
+tokens. If feedback/help exceeds the entire available height, the last row explicitly
+asks for a larger terminal rather than silently claiming the text is complete.
+Below 80 columns, four abbreviated operation rows keep compact Home usable (`C-`
+means Ctrl); bindings are unchanged. Date-jump input uses the same footer area and
+retains its ordinary height when its prompt fits.
+
 Home `d` or Commands > Reports and analysis > Daily Pace opens a small read-only
 trend over the already-derived retrospective
 current-truth series, including its latest point. The trend does not retain daily
@@ -104,9 +123,15 @@ plus frequent actions and the Commands entrance. In Detail, j/k selects transact
 selected transaction in its day workspace, and Esc/Tab/w returns to the calendar.
 At widths below 120 columns, Detail takes the full body instead of selecting
 invisible rows below a stacked calendar. Selection follows the viewport at every
-width; oversized records keep their title visible. With no Actual rows, Ctrl-u/d
-scrolls the remaining Scheduled evidence. In calendar focus, Enter or Esc drills
-Year -> Month -> Day; Esc at Day does nothing.
+width; oversized records keep their title visible. Descriptions wrap by terminal
+columns, including Japanese. Actual Effects and Scheduled changes align their signed,
+grouped **retained quanta** with the explicit Measure token; optional money-calendar
+availability does not change this convention. Long Loci and oversized quantities
+wrap into labelled lines rather than losing digits. An inactive Detail retains its
+muted selected-record marker without a selected background. Enter still opens that
+exact record in Selected Day for object-local review and actions.
+With no Actual rows, Ctrl-u/d scrolls the remaining Scheduled evidence. In calendar
+focus, Enter or Esc drills Year -> Month -> Day; Esc at Day does nothing.
 
 Month/Year summaries consume the same role-aware CalendarMoneyReview as the money
 calendar. Every represented Measure is labelled and shown separately, including
@@ -118,7 +143,13 @@ distinct labels. Long summaries remain accessible with Ctrl-u/d and an explicit
 overflow indicator. The duplicate Peak Month transaction-count decoration is not
 part of this financial summary.
 
-Date/zoom changes reset selection and scrolling. Reloads after workspace edits
+Date/zoom changes reset selection and scrolling. In short terminals, Calendar's
+viewport follows the selected day (date and its two amount rows when they fit),
+month, or year. Explicit Ctrl-u/d browsing releases this follow behavior so summaries,
+legends, and evidence remain reachable; date navigation, zoom, a successful jump,
+or Today resumes it. Resize derives the viewport from live bounds without changing
+the selected date. This manual-browsing flag is ephemeral presentation state only.
+Reloads after workspace edits
 clamp selection to current records; rendering and Enter use the same selection.
 These are ephemeral presentation states, not additional household authority.
 Regression coverage is in `Loam/Tests/TuiHomeNavigation.lean` and

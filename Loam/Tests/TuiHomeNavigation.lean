@@ -17,6 +17,14 @@ private def text (widget : Widget) : String :=
 private def contains (needle haystack : String) : Bool :=
   (haystack.splitOn needle).length > 1
 
+private def rowIndex? (needle : String) (view : Widget) : Option Nat :=
+  (view.lines.zipIdx.find? fun (cells, _) =>
+    contains needle (String.ofList (cells.map Cell.glyph))).map Prod.snd
+
+private def compactText (view : Widget) : String :=
+  String.ofList (view.lines.flatten.map Cell.glyph |>.filter fun char =>
+    char != ' ' && char != '\n' && char != '│')
+
 private def press (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (key : Loam.Tui.Terminal.Key) : IO State :=
   requireSome (Loam.Tui.Home.navigationKey bounds snapshot state key) "unhandled local key"
@@ -67,6 +75,60 @@ def main : IO Unit := do
   let snapshot ← fixture
   let base : State := {selectedDate := "2026-10-01", zoomLevel := .month}
   let wide : Bounds := {width := 150, height := 45}
+
+  -- Quiet frames and stable feedback: one-line notices cannot move borders/help.
+  for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, wide] do
+    for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
+      for pane in [Loam.Tui.Main.HomePane.calendar, .detail] do
+        let state := {base with zoomLevel := zoom, activePane := pane}
+        let before := Loam.Tui.Home.view bounds snapshot state
+        let after := Loam.Tui.Home.view bounds snapshot {state with notice := "Saved."}
+        expect (contains "╭" (text before) && contains "╰" (text before) &&
+          !contains "====" (text before)) "Home retained heavy rules or lost rounded frames"
+        expect (before.lines.length == bounds.height - 1 && after.lines.length == before.lines.length)
+          "Home feedback changed frame height"
+        expect (rowIndex? "╭" before == rowIndex? "╭" after &&
+          rowIndex? "╰" before == rowIndex? "╰" after &&
+          rowIndex? "[q]" before == rowIndex? "[q]" after)
+          "short feedback moved panes or navigation"
+        expect (contains "Saved." (text after)) "short feedback was hidden"
+        expect (before.lines.flatten.all fun cell =>
+          cell.style == .normal || cell.style == .muted || cell.style == .series1 ||
+          cell.style == .selected || cell.style == .selectedUnderlined || cell.style == .underlined)
+          "Home introduced a decorative accent"
+        for cells in before.lines do
+          expect (Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) ≤ bounds.width - 1)
+            "compact Home exceeded its writable width"
+        if pane == .detail then
+          expect (contains "▶ - " (text before)) "compact Detail hid the selected record"
+  let notice := String.ofList (List.replicate 65 '界') ++ "通知末尾"
+  let feedbackView := Loam.Tui.Home.view {width := 48, height := 14} snapshot {base with notice}
+  expect (contains notice (compactText feedbackView)) "long feedback lost its complete cause"
+  let enormousNotice := String.ofList (List.replicate 600 '界')
+  let overflow := Loam.Tui.Home.view {width := 48, height := 14} snapshot {base with notice := enormousNotice}
+  expect (overflow.lines.length == 13 && contains "more feedback/help; enlarge terminal" (text overflow))
+    "over-height feedback was silently truncated"
+
+  -- Small calendars follow the selected date; explicit scrolling remains free.
+  for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 20}] do
+    let state := {base with selectedDate := "2026-10-31", zoomLevel := .day}
+    let view := Loam.Tui.Home.view bounds snapshot state
+    let focusRows := view.lines.filter fun cells => cells.any fun cell => cell.style == .selected
+    expect (contains "31" (String.ofList (focusRows.flatten.map Cell.glyph)))
+      "short calendar hid its selected date"
+    let mut scrolled := state
+    for _ in List.range 10 do
+      scrolled ← press bounds snapshot scrolled (.ctrl 'u')
+    expect (scrolled.overviewManualScroll && scrolled.overviewScroll == 0 &&
+      scrolled.selectedDate == state.selectedDate) "manual overview browsing changed date or snapped back"
+    expect (contains "Mon" (text (Loam.Tui.Home.view bounds snapshot scrolled)))
+      "manual overview browsing could not reach the calendar header"
+    let moved ← press bounds snapshot scrolled (.input 'h')
+    expect (!moved.overviewManualScroll && moved.overviewScroll == 0)
+      "date navigation did not resume focus-following"
+    expect (contains "30" (String.ofList ((Loam.Tui.Home.view bounds snapshot moved).lines.filter
+      (fun cells => cells.any fun cell => cell.style == .selected) |>.flatten.map Cell.glyph)))
+      "date navigation left calendar focus outside its viewport"
 
   -- All entrances use the same reset, including shrinking the record set via Enter/Esc.
   for key in [Loam.Tui.Terminal.Key.enter, .escape, .input 'z'] do
@@ -139,6 +201,50 @@ def main : IO Unit := do
     expect (contains "▶ - 2026-10-01  OVERSIZED" (text (Loam.Tui.Home.view bounds large selected)))
       "oversized selected record hid its title"
 
+  -- Wrapped CJK descriptions and exact oversized Effects share selection geometry.
+  let huge : Int := 12345678901234567890123456789012345678901234567890123456789012345678901234567890
+  let longLocus := String.ofList (List.replicate 30 '界') ++ "-end"
+  let longDescription := "長い説明先頭" ++ String.ofList (List.replicate 70 '界') ++ "説明末尾"
+  let longEvent ← requireSome (Event.ofEffects? ⟨"wrapped"⟩
+    [Effect.ofQuantity ⟨"wrapped-from"⟩ ⟨longLocus⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-huge)),
+     Effect.ofQuantity ⟨"wrapped-to"⟩ ⟨"food"⟩ ⟨"usd"⟩ (Quantity.ofQuanta huge)]) "wrapped event"
+  let longRecord : ReviewRecord := {
+    event := longEvent, date := some "2026-10-01"
+    description := longDescription, replacement := none}
+  let wrappedSnapshot := {snapshot with actual := {snapshot.actual with allRecords := [longRecord]}}
+  let wrappedState := {base with activePane := .detail}
+  let fullView := Loam.Tui.Home.view {width := 80, height := 80} wrappedSnapshot wrappedState
+  let joined := compactText fullView
+  expect (contains longDescription joined && contains longLocus joined)
+    "wrapped Detail lost Japanese description or Locus text"
+  let grouped := Loam.MeasurePresentation.formatGroupedQuanta [] ⟨"usd"⟩ huge
+  expect (contains ("+" ++ grouped ++ "usd") joined && contains ("-" ++ grouped ++ "usd") joined)
+    "wrapped Detail truncated or changed exact signed quantities"
+  let .loaded calendarMoney := snapshot.moneyCalendar | throw (IO.userError "calendar money fixture")
+  let moneyReads : List (Loam.Presentation.ReadState MoneyCalendarSnapshot) :=
+    [.loaded {calendarMoney with presentation := [{measure := ⟨"usd"⟩, scale := 2}]},
+     .unavailable, .failed "role map unreadable"]
+  for moneyCalendar in moneyReads do
+    let observed := Loam.Tui.Home.view {width := 80, height := 80}
+      {wrappedSnapshot with moneyCalendar} wrappedState
+    expect (contains ("+" ++ grouped ++ "usd") (compactText observed))
+      "optional money-calendar availability changed retained Detail quanta"
+  for width in [48, 80, 120, 150] do
+    let bounds : Bounds := {width, height := 20}
+    let selected := Loam.Tui.Home.moveDetailCursor bounds wrappedSnapshot wrappedState 0
+    expect (contains "▶ - 2026-10-01  長い説明先頭" (text (Loam.Tui.Home.view bounds wrappedSnapshot selected)))
+      "wrapped oversized record hid its selected title"
+    expect ((selectedDetailRecord? wrappedSnapshot selected).map (fun record => record.event.id) == some longEvent.id)
+      "wrapped presentation changed selected identity"
+  let hugeMoney := {snapshot with moneyCalendar := .loaded {
+    presentation := []
+    flow := {rows := [{
+      date := "2026-10-01", measure := ⟨"usd"⟩
+      income := Quantity.ofQuanta 0, expense := Quantity.ofQuanta huge, unresolvedEffectCount := 0}]}
+  }}
+  let calendar := Loam.Tui.Home.view {width := 150, height := 45} hugeMoney {base with zoomLevel := .day}
+  expect (contains "…" (text calendar)) "calendar silently clipped an oversized daily amount"
+
   -- Reloads can remove a selected transaction. Rendering and Enter must use the same clamp.
   let fresh := {snapshot with actual := {snapshot.actual with allRecords := snapshot.actual.allRecords.take 2}}
   let state := Loam.Tui.Home.reconcileState wide fresh {base with activePane := .detail, detailCursor := 9}
@@ -169,6 +275,13 @@ def main : IO Unit := do
         expect (contains marker observed) s!"availability collapsed: {marker}"
         if marker == "flow read failed" then
           expect (contains "role-map broken" observed) "read diagnostic disappeared"
+
+  -- Day flow failures also preserve complete diagnostics through overview scrolling.
+  let failure := "read-failed-" ++ String.ofList (List.replicate 90 '界') ++ "-tail"
+  let failed := {snapshot with moneyCalendar := .failed failure}
+  let rendered ← browseOverview {width := 80, height := 24} failed {base with zoomLevel := .day}
+  expect (contains "read failed" rendered && contains "-tail" rendered)
+    "day calendar collapsed a failed read or hid its diagnostic tail"
 
   -- Presentation scales remain attached to their measure, including rounded averages.
   let .loaded money := snapshot.moneyCalendar | throw (IO.userError "money fixture")
