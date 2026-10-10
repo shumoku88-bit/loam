@@ -43,6 +43,57 @@ private def readyForm : Form := {
     { locus := "paypay", amount := "-2470" },
     { locus := "books", amount := "2470" }] }
 
+private def checkBoundedEditing : IO Unit := do
+  let bounds : Bounds := { width := 80, height := 24 }
+  let opened := initial "2026-09-06"
+  let frame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] opened)
+  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 frame == some (3, 15))
+    "bounded Record did not anchor the initial Description caret"
+  let japanese := { opened with form := { opened.form with description := "食事" } }
+  let japaneseFrame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] japanese)
+  expect (Loam.Tui.RecordSession.focusedCursorPosition? 5 10 japaneseFrame == some (8, 28))
+    "bounded Record lost CJK caret width or floating origin"
+  let catalog : Loam.LocusCatalog.Catalog := (List.range 12).map fun index =>
+    { locus := ⟨s!"locus-{index}"⟩, label := "日本語の長い候補ラベル",
+      help := "候補の意味を説明する長い日本語のヘルプ" }
+  let sixRows : Form := { readyForm with rows := Array.replicate 6 {}, focus := ⟨1, by simp⟩ }
+  for width in [48, 80, 120] do
+    for height in [14, 24, 40] do
+      let active : Bounds := { width, height }
+      for index in List.range (3 + sixRows.rows.size * 2 + 4) do
+        have count : 0 < 3 + sixRows.rows.size * 2 + 4 := by omega
+        let form := { sixRows with focus := ⟨index % _, Nat.mod_lt _ count⟩ }
+        let state : State := { form, candidateCatalog := catalog }
+        let widget := viewForBounds active [] state
+        expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
+          s!"editing escaped {width}x{height} at focus {index}"
+        let some (row, col) := Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+            (Loam.Tui.Runtime.compileWidget widget)
+          | throw (IO.userError s!"focus {index} was hidden at {width}x{height}")
+        expect (row < height - 1 && col < width - 1)
+          "editing caret escaped usable terminal bounds"
+  let focusLocus := { readyForm with rows := #[{}, {}], focus := ⟨3, by decide⟩ }
+  let first : State := { form := focusLocus, candidateCatalog := catalog }
+  let last := { first with candidateIndex := 11 }
+  let firstView := viewForBounds bounds [] first
+  let lastView := viewForBounds bounds [] last
+  expect (contains "12/12" (widgetText lastView) && contains "locus-11" (widgetText lastView))
+    "candidate viewport did not follow the selected canonical token"
+  expect (firstView.lines.drop 18 == lastView.lines.drop 18)
+    "candidate count or selection moved the fixed editing footer"
+  expect (contains "…" (widgetText lastView)) "long candidate labels lost their truncation indicator"
+  let noticed := { first with notice := "Invalid quantity." }
+  expect (firstView.lines.drop 20 == (viewForBounds bounds [] noticed).lines.drop 20)
+    "ordinary feedback moved editing actions or navigation"
+  let longDescription := String.join (List.replicate 50 "日本語") ++ "末尾"
+  let long := { opened with form := { opened.form with description := longDescription } }
+  let compact : Bounds := { width := 48, height := 14 }
+  let longText := widgetText (viewForBounds compact [] long)
+  expect (contains "…" longText && contains "末尾" longText &&
+    long.form.description == longDescription)
+    "editing a long field hid its tail or changed stored input"
+
 private def checkBoundedConfirmation (w : Loam.MovementAdmission.World) : IO Unit := do
   let bounds : Bounds := { width := 80, height := 24 }
   let editor := preview w { form := readyForm }
@@ -96,6 +147,7 @@ def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let w ← world
+  checkBoundedEditing
   checkBoundedConfirmation w
   let compactBounds : Bounds := { width := 80, height := 24 }
   expect (Loam.Tui.RecordSession.floatingGeometry? compactBounds).isNone

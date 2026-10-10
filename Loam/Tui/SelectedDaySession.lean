@@ -419,7 +419,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
         (Loam.Tui.Record.withCatalog
           (Loam.Tui.Record.initialWithMeasure (← configuredMeasure) state.focusDate) catalog)
         measurePresentation
-      let editorFrame := compileWidget (Loam.Tui.Record.view known editor)
+      let editorFrame := compileWidget (Loam.Tui.Record.viewForBounds bounds known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let result ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
       let notice := result.notice

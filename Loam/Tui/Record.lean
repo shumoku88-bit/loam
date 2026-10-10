@@ -724,9 +724,138 @@ def scrollPreview (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key
       some { state with previewScroll := offset }
   | _ => none
 
-/-- Bounds-aware standalone Record confirmation; embedded editing surfaces retain their contract. -/
+private def ellipsize (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then text
+  else if width == 0 then ""
+  else Loam.Tui.Layout.clip (width - 1) text ++ "…"
+
+/-- Keep the end of an edited field visible without changing its stored text. -/
+private def fieldTail (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then text
+  else if width == 0 then ""
+  else
+    let (chars, _, _) := text.toList.reverse.foldl
+      (fun (acc : List Char × Nat × Bool) char =>
+        let (chars, used, stopped) := acc
+        let next := used + Loam.Tui.Layout.charWidth char
+        if stopped || next > width - 1 then (chars, used, true)
+        else (char :: chars, next, false)) ([], 0, false)
+    "…" ++ String.ofList chars
+
+private def editingField (width : Nat) (form : Form) (index : Nat)
+    (label text : String) : Widget :=
+  let labelWidth := min 13 (width / 2)
+  let active := form.focus.val == index
+  let value := if text.isEmpty then "_" else text
+  .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
+    span (if active then fieldTail (width - labelWidth) value
+          else ellipsize (width - labelWidth) value)
+      (if active then .selected else .normal)]
+
+private def editingFields (width : Nat) (form : Form) : List Widget :=
+  [editingField width form 0 "Date" form.date,
+   editingField width form 1 "Description" form.description,
+   editingField width form 2 "Measure" form.measure] ++
+  (List.range form.rows.size).flatMap fun index =>
+    let row := form.rows[index]!
+    [editingField width form (3 + index * 2) (s!"Posting {index + 1}") row.locus,
+     editingField width form (4 + index * 2) "Amount" row.amount]
+
+private def editingFooter (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  [muted (ellipsize width (originalSummary state))] ++
+    (if feedback.isEmpty then [blank] else feedback) ++
+    [.row ((["Preview", "Add row", "Drop row", "Cancel"].zipIdx).map fun (label, index) =>
+      span ("[" ++ label ++ "] ")
+        (if state.form.focus.val == 3 + state.form.rows.size * 2 + index then .selected else .normal)),
+     Loam.Tui.Layout.shortcutRow [("Tab/⇧Tab", "focus"), ("Enter", "next"), ("Esc", "cancel")] " ",
+     Loam.Tui.Layout.shortcutRow [("C-n/d", "rows"), ("C-u", "remainder"), ("C-o", "original")] " "]
+
+private def candidateSummary (width : Nat) (state : State) : Widget :=
+  let text := match activeLocus? state.form, selectedCatalogCandidate? state with
+    | none, _ => "Locus: focus a Posting to choose"
+    | some _, none => "Locus: no matching candidate"
+    | some _, some entry => "↑/↓ Enter: " ++ Loam.Tui.LocusPicker.display entry
+  muted (ellipsize width text)
+
+private def candidatesPanel (width height : Nat) (state : State) : Widget :=
+  let options := catalogCandidates state
+  let selected := if options.isEmpty then 0 else state.candidateIndex % options.length
+  let capacity := height - 4
+  let start := Loam.Tui.Layout.trailingWindowStart selected capacity
+  let visible := (options.drop start).take capacity
+  let rows := if options.isEmpty then [candidateSummary (width - 2) state] else
+    (visible.zipIdx).map fun (entry, index) =>
+      .row [span (if start + index == selected then "> " else "  "),
+        span (ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
+          (if start + index == selected then .normal else .muted)]
+  let help := match selectedCatalogCandidate? state with
+    | some entry => if entry.help.isEmpty then "↑/↓ choose · Enter accept" else "↳ " ++ entry.help
+    | none => "↑/↓ choose · Enter accept"
+  let content := rows ++ List.replicate (capacity - rows.length) blank ++
+    [muted (ellipsize (width - 2) help), muted "Admitted Locus only"]
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + capacity < options.length then " ▼" else "")
+  Loam.Tui.Layout.framedPanel width height "Locus candidates" (.column content) false
+    (some (if options.isEmpty then "0 candidates" else s!"{selected + 1}/{options.length}" ++ more))
+
+private def postingsPanel (width height : Nat) (state : State) : Widget :=
+  let form := state.form
+  let capacity := (height - 3) / 2
+  let active := form.focus.val >= 3 && form.focus.val < 3 + form.rows.size * 2
+  let selected := if active then (form.focus.val - 3) / 2
+    else if form.focus.val < 3 then 0 else form.rows.size - 1
+  let start := min (form.rows.size - capacity)
+    (Loam.Tui.Layout.trailingWindowStart selected capacity)
+  let fields := ((editingFields (width - 2) form).drop (3 + start * 2)).take (capacity * 2)
+  let context := ellipsize (width - 2)
+    ("Signed " ++ form.measure ++ " · decimal scale per Measure")
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + capacity < form.rows.size then " ▼" else "")
+  Loam.Tui.Layout.framedPanel width height "Postings" (.column (fields ++ [muted context])) active
+    (some (s!"{min (start + capacity) form.rows.size}/{form.rows.size} rows" ++ more))
+
+private def editingView (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let footer := editingFooter bounds state
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let paneHeight := available - 6
+  let wide := width >= 72
+  let body : Widget := if (wide && paneHeight >= 7) || (!wide && paneHeight >= 11) then
+    let metadata := Loam.Tui.Layout.framedPanel width 5 "Movement"
+      (.column ((editingFields (width - 2) state.form).take 3)) (state.form.focus.val < 3)
+    let panes := if wide then
+        let left := width * 3 / 5
+        Widget.column (Loam.Tui.Layout.sideBySide paneHeight left (width - left - 1)
+          (postingsPanel left paneHeight state)
+          (candidatesPanel (width - left - 1) paneHeight state) " ")
+      else .column [postingsPanel width (paneHeight - 6) state, candidatesPanel width 6 state]
+    .column [line "Record / Edit", metadata, panes]
+  else
+    let height := available - 1
+    let capacity := height - 3
+    let fields := editingFields (width - 2) state.form
+    let focus := min state.form.focus.val (fields.length - 1)
+    let start := min (fields.length - capacity)
+      (Loam.Tui.Layout.trailingWindowStart focus capacity)
+    let more := (if start > 0 then " ▲" else "") ++
+      (if start + capacity < fields.length then " ▼" else "")
+    .column [line "Record / Edit",
+      Loam.Tui.Layout.framedPanel width height "Fields"
+        (.column ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state]))
+        (state.form.focus.val < fields.length)
+        (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))]
+  let rows := body.lines.map fun cells =>
+    Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  .column (((Loam.Tui.Layout.fitWithFooter bounds rows footer).take (bounds.height - 1)).map
+    fun widget => .column (widget.lines.map fun cells => .row
+      ((Loam.Tui.Layout.clipCells width cells).map fun cell => span (String.singleton cell.glyph) cell.style)))
+
+/-- Bounds-aware standalone Record surfaces; embedded editors retain their contract. -/
 def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widget :=
   match state.mode with
+  | .editing => editingView bounds state
   | .preview draft choice =>
       let width := Loam.Tui.Layout.contentWidth bounds
       let footer := confirmationFooter bounds state choice

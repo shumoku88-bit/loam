@@ -93,6 +93,24 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Actual navigation changed fixture evidence"
 
+    # Editing follows the active row, keeps IME tails visible, and adapts while idle.
+    terminal = Terminal(root)
+    try:
+        terminal.send(b"r", b"Record movement")
+        terminal.send(("日本語" * 35 + "末尾").encode(), "末尾".encode())
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
+        resized = ANSI.sub(b"", terminal.capture(b"Locus candidates"))
+        assert b"Postings" in resized and "末尾".encode() in resized, "editing resize hid input tail"
+        terminal.send(b"\x0e" * 4, b"Posting 6:")  # Ctrl-N follows the newly appended Locus
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
+        compact = ANSI.sub(b"", terminal.capture(b"[Esc] cancel"))
+        assert b"Posting 6:" in compact and b"Fields" in compact, "compact editor hid focused row"
+        terminal.send(b"\x04" * 4, b"4/7 fields")  # Ctrl-D returns safely to the two-row form
+        terminal.send(b"\x1b", b"Record cancelled.")
+    finally:
+        terminal.close()
+    assert digest() == frozen_navigation, "read-only Record editing changed evidence"
+
     # Confirmation owns a bounded review viewport, not recording authority.
     terminal = Terminal(root)
     try:
@@ -177,4 +195,4 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
             hidden.rename(authority)
         terminal.close()
 
-print("Actual navigation and Record reload PTY: compact Home/End/pages, boundary recovery, three cancel entrances and activation passed.")
+print("Actual navigation and Record PTY: editing focus/IME/resize, confirmation review, reload, cancellation and activation passed.")

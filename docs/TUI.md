@@ -629,6 +629,16 @@ On terminals with enough room, the Home `r` entrance opens Record as a centered
 floating panel. Compact terminals keep the existing full-screen Record surface.
 Only presentation changes; Record validation and publication are shared.
 
+Record input uses aligned muted labels, with a focus accent on the active field
+pane only. At wider widths, signed Postings and the admitted Locus candidate list
+sit side by side; narrower terminals stack them. Low terminals show a bounded
+Fields viewport that follows focus. Adding a posting never hides the active row.
+The selected candidate follows its own window, without taking the input caret;
+long labels/help show an ellipsis. Long active input shows its tail, including
+CJK text, without changing the stored value. Actions, two operation rows, and a
+reserved feedback row remain below the panes. `C-` denotes Ctrl in the compact
+footer; row limits, exact candidate acceptance, and publication rules are unchanged.
+
 Record confirmation uses a quiet rounded frame with signed Effects, their exact
 Measure quantities and Locus tokens, plus date, description, and any attached
 original amount. Long values wrap without dropping digits or identities.
