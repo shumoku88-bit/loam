@@ -344,9 +344,6 @@ private def editorPanel (g : Geometry) (state : State) : Widget :=
     | _ => "Review"
   Loam.Tui.Layout.framedPanel g.width g.panelHeight title (.column (pinned ++ rows)) true (some position)
 
-private def widgetRows (widget : Widget) : List Widget :=
-  widget.lines.map fun cells => .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
-
 /-- All modes are bounded; full text lives in a scrollable review, not a clipped draft. -/
 def viewForBounds (bounds : Bounds) (rawState : State) : Widget :=
   let state := normalizedForBounds bounds rawState
@@ -357,12 +354,12 @@ def viewForBounds (bounds : Bounds) (rawState : State) : Widget :=
     | .newDue _ => [line " Attention / New / Due meaning", muted " n/u publishes now; d enters a known date."]
     | .newDate _ _ => [line " Attention / New / Due date", muted " Enter publishes due-on; Esc cancels."]
     | .confirmClose _ kind => [line (" Attention / " ++ kindLabel kind), line (" Record " ++ kindLabel kind ++ " on " ++ state.today ++ "?")]
-  let panels := if state.mode != .browse then widgetRows (editorPanel g state)
+  let panels := if state.mode != .browse then Loam.Tui.Layout.widgetRows (editorPanel g state)
     else if g.wide then Loam.Tui.Layout.sideBySide g.listHeight g.listWidth g.detailWidth (listPanel g state) (detailPanel g state) " "
-    else if g.detailOnly then widgetRows (detailPanel g state)
-    else widgetRows (listPanel g state) ++ (if g.detailHeight == 0 then [] else [blank] ++ widgetRows (detailPanel g state))
+    else if g.detailOnly then Loam.Tui.Layout.widgetRows (detailPanel g state)
+    else Loam.Tui.Layout.widgetRows (listPanel g state) ++ (if g.detailHeight == 0 then [] else [blank] ++ Loam.Tui.Layout.widgetRows (detailPanel g state))
   .column ((Loam.Tui.Layout.fitWithFooter bounds (context.take g.contextRows ++ panels) (footer bounds state)).map fun row =>
-    .row ((Loam.Tui.Layout.clipCells g.width row.lines.flatten).map fun cell => span (String.singleton cell.glyph) cell.style))
+    Loam.Tui.Layout.clipWidgetRow g.width row)
 
 def view (state : State) : Widget := viewForBounds {width := 80, height := 24} state
 

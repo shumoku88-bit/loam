@@ -173,6 +173,16 @@ private def cellsWidth (cells : List Cell) : Nat :=
 private def cellsToSpans (cells : List Cell) : List Span :=
   cells.map fun cell => span (String.ofList [cell.glyph]) cell.style
 
+/-- Lower a possibly nested Widget into physical rows without losing Cell styles.
+    Callers still own viewport, focus, and footer policy. -/
+def widgetRows (widget : Widget) : List Widget :=
+  widget.lines.map fun cells => .row (cellsToSpans cells)
+
+/-- Clip physical row cells to terminal columns, preserving retained Cell styles.
+    Matches the former screen-local Widget.lines.flatten operation. -/
+def clipWidgetRow (columns : Nat) (widget : Widget) : Widget :=
+  .row (cellsToSpans (clipCells columns widget.lines.flatten))
+
 /--
 Horizontally compose two rendered widgets into fixed-width panes.
 

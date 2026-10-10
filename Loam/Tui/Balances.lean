@@ -237,9 +237,6 @@ private def detailPanel (g : Geometry) (state : State) : Widget :=
     ("Selected balance" ++ (if state.detailFocused then " [active]" else ""))
     (.column ((raw.drop offset).take visible)) state.detailFocused (some position)
 
-private def widgetRows (widget : Widget) : List Widget :=
-  widget.lines.map fun cells => .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
-
 /-- Read-only selection/scroll intents; no household reads, writes or role inference. -/
 def update (bounds : Bounds) (rawState : State) (key : Loam.Tui.Terminal.Key)
     (repeatCount : Nat := 1) : Step :=
@@ -284,12 +281,11 @@ def viewForBounds (bounds : Bounds) (rawState : State) : Widget :=
   let panels := if g.wide then
       Loam.Tui.Layout.sideBySide g.listHeight g.listWidth g.detailWidth
         (listPanel g state) (detailPanel g state) " "
-    else if g.detailOnly then widgetRows (detailPanel g state)
-    else widgetRows (listPanel g state) ++
-      (if g.detailHeight == 0 then [] else [blankLine] ++ widgetRows (detailPanel g state))
+    else if g.detailOnly then Loam.Tui.Layout.widgetRows (detailPanel g state)
+    else Loam.Tui.Layout.widgetRows (listPanel g state) ++
+      (if g.detailHeight == 0 then [] else [blankLine] ++ Loam.Tui.Layout.widgetRows (detailPanel g state))
   .column ((Loam.Tui.Layout.fitWithFooter bounds (context.take g.contextRows ++ panels) (footer bounds state)).map fun row =>
-    .row ((Loam.Tui.Layout.clipCells g.width row.lines.flatten).map fun cell =>
-      span (String.singleton cell.glyph) cell.style))
+    Loam.Tui.Layout.clipWidgetRow g.width row)
 
 /-- Standard-bound rendering retained for current presentation/print boundary tests. -/
 def view (state : State) : Widget := viewForBounds {width := 80, height := 24} state
