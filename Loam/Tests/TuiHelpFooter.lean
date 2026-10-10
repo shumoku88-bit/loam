@@ -71,7 +71,33 @@ private def anchorAssertion
   quantity := Quantity.ofQuanta quanta
 }
 
+/-- Previous screen-local cutoff shape: comparison checks Cell text and style. -/
+private def oldBoundFeedbackFooter (bounds : Bounds) (rows : List Widget) : List Widget :=
+  let capacity := bounds.height - 1
+  if rows.length ≤ capacity then rows
+  else if capacity == 0 then []
+  else rows.take (capacity - 1) ++ [mutedLine " … more feedback/help; enlarge terminal"]
+
+private def testBoundFeedbackFooter : IO Unit := do
+  for height in [0, 1, 2, 3, 4, 5, 6, 8, 14, 24, 48] do
+    let bounds : Bounds := { width := 48, height }
+    for count in [0, 1, 2, 3, 4, 5, 10, 20, 50] do
+      let rows := (List.range count).map fun index =>
+        if index % 3 == 0 then
+          mutedLine ("通知界" ++ toString index)
+        else
+          plainLine ("row-" ++ toString index)
+      let old := Widget.column (oldBoundFeedbackFooter bounds rows)
+      let current := Widget.column (boundFeedbackFooter bounds rows)
+      expect (decide (old.lines = current.lines))
+        "shared feedback cutoff changed row order, warning glyphs or Cell styles"
+  let minimal : Bounds := { width := 24, height := 2 }
+  expect (widgetText (Widget.column (boundFeedbackFooter minimal [plainLine "one", mutedLine "two"])) ==
+      " … more feedback/help; enlarge terminal")
+    "single writable footer row lost its overflow explanation"
+
 def main : IO Unit := do
+  testBoundFeedbackFooter
   let snapshot ← buildSnapshot
 
   -- 0. Money calendar is role-aware: assets/transfers do not become fake +/- flow.
