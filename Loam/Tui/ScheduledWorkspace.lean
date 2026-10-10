@@ -1028,13 +1028,10 @@ private def reservedNoticeFooter (bounds : Bounds) (state : State) (help : List 
 /-- Shared physical clipping for all framed Scheduled workspaces. -/
 private def boundedWorkspace (bounds : Bounds) (body : Widget) (footerLines : List Widget) : Widget :=
   let writable := Loam.Tui.Layout.contentWidth bounds
-  let bodyLines := body.lines.map fun cells =>
-    Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  let bodyLines := Loam.Tui.Layout.widgetRows body
   let fitted := Loam.Tui.Layout.fitWithFooter bounds bodyLines footerLines
   .column ((fitted.take (bounds.height - 1)).map fun row =>
-    .column (row.lines.map fun cells => .row
-      ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
-        span (String.singleton cell.glyph) cell.style)))
+    .column (Loam.Tui.Layout.clippedWidgetRows writable row))
 
 private def selectedDetailLines
     (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
