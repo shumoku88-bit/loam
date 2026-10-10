@@ -27,7 +27,7 @@
 | UI-01 | Home / Calendar / Detail | 完了 | 控えめな丸角枠、2行の文脈、符号付き quanta の整列・折返し、フォーカス追従／手動スクロール、枠内の可視範囲、予約通知行と固定ナビ。`TuiHomeNavigation` / `TuiHelpFooter`、代表 TUI テスト、Home 世代・DateJump、Viewport / Record PTY、合成データでの resource check を検証。Selected Day は UI-04 として別作業 |
 | UI-02 | Commands パレット | 一部完了 | 階層ナビは既存。ラベル・選択・余白を今回の方針で点検 |
 | UI-03 | Actual 一覧・詳細・検索・移動 | 完了 | `2b347e0e`〜`b753e6c1` |
-| UI-04 | Selected Day | 未着手 | Actual / Scheduled の配置、一覧・詳細・フォーカス・下部ナビ。48×14 で子画面から戻った通知が見えない点も改善対象 |
+| UI-04 | Selected Day | 完了 | 控えめな丸角枠と整列、全幅のコンパクト一覧、i/Tab の折返し・スクロール可能な詳細、可視行に合った移動、固定2段ナビと予約通知行。子画面・親への復帰時にサイズ再取得。`TuiSelectedDay` を代表 TUI テストへ追加し、Unknown / Unavailable、巨大数量・複数 Measure、48×14 の通知と親への復帰、Record キャンセルの再読込なし／確定後の再読込を Lean / Viewport・Record PTY で検証。Scheduled 作成・完了／取消／置換、Merchant の共有処理と resource check も確認。子の編集・確認画面は別項目 |
 | UI-05 | Record 通常入力・Locus 候補 | 完了 | `4d9d261b` |
 | UI-06 | Record 確認 | 完了 | `61eb1baa` |
 | UI-07 | Record / Original amount 入力 | 完了 | 入力・説明の枠、共通ラベルと末尾・IME 表示、固定2段ナビ、折返し通知。`TuiRecord` / Record PTY で検証。macOS の Ctrl-O 吸収も修正 |
@@ -91,7 +91,7 @@
 5. **残りの非予算画面**：Home / Commands、Reports、Attention、
    Settlements、Exchange、設定・補助表示。
 
-現在、作業中の UI 項目はなし。**UI-01：Home / Calendar / Detail は完了**。日常の使用頻度を優先して先行した。**次の候補は UI-04：Selected Day**。
+現在、作業中の UI 項目はなし。**UI-04：Selected Day は完了**。UI-01 の Home と同じ方針で日常の使用頻度を優先した。**次の候補は UI-24：Balances / Current**。
 
 ## 各改修で更新すること
 

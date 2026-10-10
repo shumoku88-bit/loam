@@ -301,6 +301,7 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
               Loam.Tui.Terminal.redrawFromBlank bounds dayFrame
               let fresh ← Loam.Tui.SelectedDaySession.run
                 bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let refreshed := Loam.Tui.ActualWorkspace.refreshed fresh step.state
               let next := { refreshed with notice := "" }
               let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
@@ -520,6 +521,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds dayFrame
         let fresh ← Loam.Tui.SelectedDaySession.run
           bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
+        let bounds ← Loam.Tui.Terminal.currentBounds
         let home := Loam.Tui.Home.reconcileState bounds fresh { state with notice := "" }
         let nextFrame := compiledFrameFor bounds fresh home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame

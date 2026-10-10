@@ -289,6 +289,58 @@ admission, writer ownership, and publication.
 After a successful write, the executable reloads canonical evidence before returning
 to the surrounding workspace. A cached TUI answer is never promoted into authority.
 
+### Selected Day workspace
+
+Home Calendar Enter, or opening one dated Actual, enters **Household Day Workspace**
+without changing its fixed day coordinate. At 100 columns and wider, Actual and
+Scheduled use separate quiet rounded lists with one blank column between them.
+Narrower terminals give the active list the full width; `h/l` or Left/Right still
+selects Actual/Scheduled. Only keyboard focus uses the existing cyan border and
+selected-row background. Inactive lists retain a muted `*` selection marker.
+
+Actual aligns Description and right-aligned Quanta. A simple row shows one explicit
+positive Effect, not inferred spending or a balance; split Effects and multiple
+Measures show `split` / `multi (count)` instead of an invented total. Scheduled
+aligns the signed-Locus Shape and its simple receiving quanta, with split movements
+left explicit. Long labels end in an ellipsis; an oversized quantity says
+`see details`, never partial digits. The day is in the context row rather than
+repeated in every list row. Headers may disappear on short terminals before a
+record row does. Bottom borders show selected position and hidden rows.
+
+The bounds-sized **Selected Actual / Selected Scheduled** frame puts exact signed
+Effects first, then description (Actual), date, and complete identity. Quanta remain
+retained quanta with grouped digits and explicit Measure tokens; this does not
+rely on optional money-calendar roles/scales or perform conversion. Long Loci,
+quantities, descriptions and IDs wrap by terminal columns, including Japanese.
+Effect columns are bounded to a readable width even in a very wide detail frame.
+
+`i` / Tab / Shift-Tab toggles Detail focus. In Detail, `j/k` and wheel motion scroll
+wrapped lines; Page Up/Down or Ctrl-u/d pages the visible detail rows, and Home/End
+reaches the actual top/bottom. Esc/q/i/Tab returns to the list; `h/l` selects a list.
+When a separate detail region cannot fit, focused Detail takes the full body and
+returning restores the list. In list focus, Page Up/Down moves by visible data rows
+(excluding borders and the column heading), and Home/End selects first/last. Resize
+clamps only local offsets; selection changes and canonical reloads reset Detail to
+the top. No action or object identity is inferred from similarity or layout.
+
+Two operation rows and a reserved feedback row stay below the panels in both panes.
+An ordinary one-line child-return notice cannot move borders or disappear below
+the body, including at 48×14. Longer refusals wrap completely while they fit; if
+feedback/help exceeds the entire height, an explicit overflow hint asks for a larger
+terminal. Compact operation labels are abbreviated without changing bindings.
+After a child editor or Selected Day itself returns, the caller re-observes terminal
+geometry before the first redraw, rather than clipping a frame built for an old
+size. This geometry query does not reload household data. In particular, cancelling
+an unchanged Record draft still returns over the existing snapshot without a
+household re-read. Successful writes retain their existing canonical reload path.
+
+Unknown Scheduled evidence and unavailable reads remain distinct from an admitted
+empty Actual list. Unknown/unavailable Scheduled headers and details do not display
+an invented zero count or claim NotDue. Full diagnostics remain reviewable in
+Detail. Record, Correction/date/reversal/Merchant, Manage Loci, and Scheduled
+create/complete/cancel/replace still delegate the same shared actions; their child
+editor refinements are separate UI work items.
+
 ## Actual workspace
 
 Home `a` opens the Actual workspace (`Loam.Tui.ActualWorkspace`). It projects current

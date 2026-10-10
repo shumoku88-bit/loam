@@ -77,12 +77,13 @@ def eventOfKey
     Loam.Tui.Terminal.Key → Loam.Tui.SelectedDay.Event
   | .up | .input 'k' | .input 'K' => .previous
   | .down | .input 'j' | .input 'J' => .next
-  | .pageUp => .pageUp
-  | .pageDown => .pageDown
+  | .pageUp | .ctrl 'u' => .pageUp
+  | .pageDown | .ctrl 'd' => .pageDown
   | .home => .home
   | .«end» => .«end»
   | .left | .input 'h' | .input 'H' => .focusLeft
   | .right | .input 'l' | .input 'L' => .focusRight
+  | .tab | .shiftTab | .input 'i' | .input 'I' => .focusDetails
   | .input 'n' | .input 'N' =>
       match pane with
       | .actual => .recordNew
@@ -160,7 +161,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.SelectedDay.view active snapshot state)
-  let step := Loam.Tui.SelectedDay.updateWithRepeat snapshot state
+  let step := Loam.Tui.SelectedDay.updateForBounds bounds snapshot state
     (eventOfKey state.pane key) repeatCount
   match step.command with
   | .back => return snapshot
@@ -176,6 +177,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
       let notice ← Loam.Tui.LocusAdmissionAdministrationSession.run
         bounds dataDir root admin adminFrame
+      let bounds ← Loam.Tui.Terminal.currentBounds
       let fresh ← requireReload notice reload
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
@@ -195,6 +197,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
         bounds root known editor editorFrame
+      let bounds ← Loam.Tui.Terminal.currentBounds
       let fresh ← requireReload notice reload
       let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
       let next := { refreshed with notice := notice }
@@ -227,6 +230,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let completed ← Loam.Tui.ScheduledCompletionSession.run
                 bounds root world known editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let notice ←
                 if !completed then
                   pure "Scheduled completion cancelled."
@@ -234,6 +238,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
                   Loam.Tui.ScheduledContinuationSession.runAfterCompletion
                     bounds root known record snapshot.actual.today
                     (currentLocusCatalog dataDir world)
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -253,6 +258,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
           Loam.Tui.Terminal.redrawFromBlank bounds confirmationFrame
           let notice ← Loam.Tui.ScheduledCancellationSession.run
             bounds root confirmation confirmationFrame
+          let bounds ← Loam.Tui.Terminal.currentBounds
           let fresh ← requireReload notice reload
           let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
           let next := { refreshed with notice := notice }
@@ -283,6 +289,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← Loam.Tui.ScheduledReplacementSession.run
                 bounds root known editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -308,6 +315,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← actualDateCorrectionLoop
                 bounds root editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -339,6 +347,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               let editorFrame := compileWidget (Loam.Tui.EventMerchant.view editor)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← eventMerchantLoop bounds root editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -375,6 +384,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← Loam.Tui.CorrectionSession.run bounds root
                 world known editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -401,6 +411,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               let notice ← Loam.Tui.ActualReversalSession.run
                 bounds root
                   editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
               let next := { refreshed with notice := notice }
@@ -422,6 +433,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
       let editorFrame := compileWidget (Loam.Tui.Record.viewForBounds bounds known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let result ← Loam.Tui.RecordSession.run bounds root world known editor editorFrame
+      let bounds ← Loam.Tui.Terminal.currentBounds
       let notice := result.notice
       let fresh ←
         if result.requiresReload then requireReload notice reload

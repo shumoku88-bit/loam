@@ -153,6 +153,34 @@ try:
     bounded(capture(b"Focus: 2026-10-30"), 14, 48)
     resize(22, 80)
     bounded(capture(b"LOAM Home"), 22, 80)
+    # Selected Day owns separate Actual/Scheduled lists and a focusable Detail.
+    os.write(master, b"\r")
+    day = capture(b"Household Day Workspace")
+    bounded(day, 22, 80)
+    assert "╭".encode() in day and b"====" not in day, "Selected Day retained heavy rules"
+    for rows, cols in ((14, 48), (24, 80), (30, 99), (40, 144), (10, 48)):
+        resize(rows, cols)
+        bounded(capture(b"Household Day Workspace"), rows, cols)
+        os.write(master, b"i")
+        bounded(capture(b"Selected Actual [active]"), rows, cols)
+        os.write(master, b"\x1b")
+        bounded(capture(b"Actual [active]"), rows, cols)
+        os.write(master, b"l")
+        plan = capture(b"Scheduled")
+        bounded(plan, rows, cols)
+        assert b"Unknown" in ansi.sub(b"", plan), "empty Scheduled became a completeness claim"
+        os.write(master, b"\t")
+        bounded(capture(b"Selected Scheduled [active]"), rows, cols)
+        os.write(master, b"q")
+        bounded(capture(b"Scheduled"), rows, cols)
+        os.write(master, b"h")
+        bounded(capture(b"Actual [active]"), rows, cols)
+    os.write(master, b"q")
+    restored_home = capture(b"LOAM Home")
+    bounded(restored_home, 10, 48)
+    assert b"[Space] cmds" in ansi.sub(b"", restored_home), "parent Home returned with stale wide geometry"
+    resize(22, 80)
+    bounded(capture(b"LOAM Home"), 22, 80)
     # Reports now lives in Space -> Reports and analysis -> Reports.
     os.write(master, b" jj\rjj\r")
     report = capture(b"Stock")
@@ -220,7 +248,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Reports/Scheduled/Actuals: quiet frames, compact jump/feedback, shortcuts and idle resize; evidence unchanged.")
+    print("Home/Selected Day/Reports/Scheduled/Actuals: quiet frames, compact feedback, details and idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

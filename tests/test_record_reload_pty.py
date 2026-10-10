@@ -205,7 +205,12 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         assert b"Original stays retained; date stays kept." in review
         terminal.send(b"\x1b[F", b"Replacement positive total:")
         terminal.send(b"\x1b[H", b"Target retained:")
-        terminal.send(b"\x1b", b"Household Day Workspace")
+        returned = ANSI.sub(b"", terminal.send(b"\x1b", b"Household Day Workspace"))
+        assert b"Correction cancelled." in returned and b"[q] back" in returned, (
+            "48x14 Selected Day hid child return feedback or navigation", returned
+        )
+        parent = ANSI.sub(b"", terminal.send(b"q", b"Household Actuals Workspace"))
+        assert b"[n] new" in parent, "Actual parent returned with stale wide geometry"
     finally:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Correction changed household evidence"
@@ -221,11 +226,15 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
                 terminal.send(b"n", b"Description")
             elif route == "selected-day":
                 terminal.send(b"\r", b"Selected")
+                fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
+                terminal.capture(b"Household Day Workspace")
                 terminal.send(b"n", b"Description")
             else:
                 terminal.send(b"r", b"Record movement")
             authority.rename(hidden)
-            terminal.send(b"\x1b", b"Record cancelled.")
+            cancelled = ANSI.sub(b"", terminal.send(b"\x1b", b"Record cancelled."))
+            if route == "selected-day":
+                assert b"[q] back" in cancelled and b"[g] loci" in cancelled, "compact return lost fixed operations"
             assert terminal.process.poll() is None, route
             assert not authority.exists(), "cancel published a replacement image"
         finally:
