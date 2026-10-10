@@ -144,22 +144,55 @@ private def groupedQuantaText
     (quanta : Int) : String :=
   Loam.MeasurePresentation.formatGroupedAmount money.presentation measure quanta
 
-private def moneyMonthSummaryText
-    (snapshot : Snapshot) (state : State) : String :=
-  match moneyMeasureInfo snapshot state with
-  | none => ""
-  | some (_, []) => ""
-  | some (money, measure :: _) =>
-      let window := moneyWindow state
-      let summary := money.flow.summaryForWindow window.1 window.2 measure
-      let plusText := "+" ++ groupedQuantaText money measure summary.plus.quanta
-      let minusText := "-" ++ groupedQuantaText money measure summary.minus.quanta
-      let net := summary.plus.quanta - summary.minus.quanta
-      let netText :=
-        if net > 0 then "+" ++ groupedQuantaText money measure net
-        else groupedQuantaText money measure net
-      plusText ++ "   " ++ minusText ++ "   = " ++ netText ++
-        (if summary.unresolvedEffectCount = 0 then "" else "  ?")
+/-- Shared period flow presentation over the existing directional summary.
+Day zoom names its month totals; every Measure and read state remains distinct. -/
+private def periodSummaryLines
+    (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+  let m := selectedMonth state
+  let isYear := state.zoomLevel == .year
+  let firstMonth := if isYear then { m with month := 1 } else m
+  let lastMonth := if isYear then { m with month := 12 } else m
+  -- Lexical bounds over admitted ISO dates, not dates to publish. Day 32 includes
+  -- the final month's last day without overflowing the four-digit year domain.
+  let window := (Loam.Tui.Calendar.dateForDay firstMonth 1, Loam.Tui.Calendar.dateForDay lastMonth 32)
+  let label := if isYear then s!"Year Flow ({m.year})" else s!"Month Flow ({monthTitle state})"
+  let tokens (items : List String) : List Widget :=
+    (Loam.Tui.Layout.flowTokens (width - 3) "  " items).flatMap fun line =>
+      wrappedLines width line
+  let flowLines :=
+    match snapshot.moneyCalendar with
+    | .notRequested => wrappedLines width "flow not requested" .muted
+    | .unavailable => wrappedLines width "flow unavailable" .muted
+    | .failed message =>
+        wrappedLines width "flow read failed" ++ wrappedLines width message .muted
+    | .loaded money =>
+        let measures := money.flow.measuresInWindow window.1 window.2
+        if measures.isEmpty then
+          wrappedLines width "No recorded income/expense flow." .muted
+        else
+          measures.flatMap fun measure =>
+            let summary := money.flow.summaryForWindow window.1 window.2 measure
+            let format := groupedQuantaText money measure
+            let net := summary.plus.quanta - summary.minus.quanta
+            let netText := (if net > 0 then "+" else "") ++ format net
+            let divisor := if isYear then some 12 else Loam.Tui.Calendar.daysInMonth? m
+            wrappedLines width ("Measure: " ++ measure.token ++
+              (if summary.unresolvedEffectCount == 0 then "" else " [partial]")) ++
+            (if summary.unresolvedEffectCount == 0 then [] else
+              tokens [s!"? {summary.unresolvedEffectCount} unresolved effects"]) ++
+            tokens ["In: +" ++ format summary.plus.quanta, "Out: -" ++ format summary.minus.quanta] ++
+            tokens ["Net: " ++ netText] ++
+            (if state.zoomLevel == .day then [] else
+              match divisor with
+              | some days =>
+                  let avg := format (summary.minus.quanta / (days : Int))
+                  let unit := if isYear then "month" else "day"
+                  tokens [s!"Out/{unit}: ~{avg}", if isYear then "(full year)" else "(full month)"]
+              | none => [])
+  wrappedLines width label ++
+    (if state.zoomLevel == .day then [] else
+      wrappedLines width s!"{(homeActualRecords snapshot state).length} transactions recorded" .muted) ++
+    flowLines
 
 private def moneyAmountSpan
     (paneWidth : Nat)
@@ -230,13 +263,8 @@ private def moneyCalendarBlock
   , moneyRule paneWidth '├' '┼' '┤'
   ] ++
   moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state ++
-  (let summary := moneyMonthSummaryText snapshot state
-   if summary.isEmpty then []
-   else wrappedLines paneWidth summary) ++
-  wrappedLines paneWidth "underline = today; ! = Scheduled still open; ? = unresolved role; … = amount too wide" .muted ++
-  (match snapshot.moneyCalendar with
-   | .failed message => wrappedLines paneWidth message .muted
-   | _ => [])
+  periodSummaryLines paneWidth snapshot state ++
+  wrappedLines paneWidth "underline = today; ! = Scheduled still open; ? = unresolved role; … = amount too wide" .muted
 
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
@@ -324,15 +352,13 @@ private def pendingSection (width : Nat) (pending : PendingEvidence) : List Widg
 private def monthNames : List String :=
   ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-private def centeredYearTitle (year : Nat) : String :=
-  let title := s!"Year {year}"
-  let width := Loam.Tui.Layout.displayWidth title
-  let padding := if width < 35 then (35 - width) / 2 else 0
-  repeatChar padding ' ' ++ title
+private def centeredYearTitle (paneWidth year : Nat) : String :=
+  centeredText (min 35 paneWidth) s!"Year {year}"
 
 private def monthCellSpans
     (today : String) (state : State) (snapshot : Snapshot) (year month : Nat) : List Span :=
-  let mName := monthNames.getD (month - 1) (toString month)
+  let mName := Loam.Tui.Calendar.padded 2 month ++ " " ++
+    monthNames.getD (month - 1) (toString month)
   let count := (recordsForMonth snapshot year month).length
   let cur := selectedMonth state
   let isSelected := cur.year == year && cur.month == month
@@ -352,29 +378,31 @@ private def monthCellSpans
   , span "  "
   ]
 
-private def monthQuarterRow
-    (today : String) (state : State) (snapshot : Snapshot) (year startMonth : Nat) : Widget :=
-  let spans := (List.range 3).flatMap fun col =>
-    monthCellSpans today state snapshot year (startMonth + col)
-  .row (span " " :: spans)
+private def monthQuarterRows
+    (width : Nat) (today : String) (state : State) (snapshot : Snapshot)
+    (year startMonth : Nat) : List Widget := Id.run do
+  let mut rows := []
+  let mut current := [span " "]
+  let mut used := 1
+  for col in List.range 3 do
+    let cell := monthCellSpans today state snapshot year (startMonth + col)
+    let cellWidth := cell.foldl (fun n item => n + Loam.Tui.Layout.displayWidth item.text) 0
+    if used > 1 && used + cellWidth > width then
+      rows := rows ++ [.row current]
+      current := [span " "]
+      used := 1
+    current := current ++ cell
+    used := used + cellWidth
+  return rows ++ [.row current]
 
 private def monthCalendarPane
-    (snapshot : Snapshot) (state : State) : List Widget :=
+    (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
   let year := (selectedMonth state).year
   let today := snapshot.actual.today
-  [ plainLine (centeredYearTitle year)
-  , blankLine
-  , monthQuarterRow today state snapshot year 1
-  , blankLine
-  , monthQuarterRow today state snapshot year 4
-  , blankLine
-  , monthQuarterRow today state snapshot year 7
-  , blankLine
-  , monthQuarterRow today state snapshot year 10
-  , blankLine
-  , mutedLine " underline = current month"
-  , blankLine
-  ]
+  [plainLine (centeredYearTitle width year), blankLine] ++
+    [1, 4, 7, 10].flatMap (fun startMonth =>
+      monthQuarterRows width today state snapshot year startMonth ++ [blankLine]) ++
+    wrappedLines width "underline = current month" .muted ++ [blankLine]
 
 private def yearOverviewPane
     (snapshot : Snapshot) (state : State) : List Widget :=
@@ -409,54 +437,6 @@ private def yearOverviewPane
   , blankLine
   ]
 
-/-- One period summary for both layouts. Measures and read states remain distinct. -/
-private def periodSummaryLines
-    (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
-  let m := selectedMonth state
-  let isYear := state.zoomLevel == .year
-  let firstMonth := if isYear then { m with month := 1 } else m
-  let lastMonth := if isYear then { m with month := 12 } else m
-  -- Lexical bounds over admitted ISO dates, not dates to publish. Day 32 includes
-  -- the final month's last day without overflowing the four-digit year domain.
-  let window := (Loam.Tui.Calendar.dateForDay firstMonth 1, Loam.Tui.Calendar.dateForDay lastMonth 32)
-  let label := if isYear then s!"Year Flow ({m.year})" else s!"Month Flow ({monthTitle state})"
-  let tokens (items : List String) : List Widget :=
-    (Loam.Tui.Layout.flowTokens (width - 3) "  " items).flatMap fun line =>
-      wrappedLines width line
-  let flowLines :=
-    match snapshot.moneyCalendar with
-    | .notRequested => [mutedLine "   flow not requested"]
-    | .unavailable => [mutedLine "   flow unavailable"]
-    | .failed message =>
-        [plainLine "   flow read failed"] ++
-        wrappedLines width message .muted
-    | .loaded money =>
-        let measures := money.flow.measuresInWindow window.1 window.2
-        if measures.isEmpty then
-          [mutedLine "   No recorded income/expense flow."]
-        else
-          measures.flatMap fun measure =>
-            let summary := money.flow.summaryForWindow window.1 window.2 measure
-            let format := groupedQuantaText money measure
-            let net := summary.plus.quanta - summary.minus.quanta
-            let netText := (if net > 0 then "+" else "") ++ format net
-            let divisor := if isYear then some 12 else Loam.Tui.Calendar.daysInMonth? m
-            [plainLine (" " ++ measure.token ++
-              (if summary.unresolvedEffectCount == 0 then "" else " [partial]"))] ++
-            (if summary.unresolvedEffectCount == 0 then [] else
-              tokens [s!"? {summary.unresolvedEffectCount} unresolved effects"]) ++
-            tokens ["In: +" ++ format summary.plus.quanta, "Out: -" ++ format summary.minus.quanta] ++
-            tokens ["Net: " ++ netText] ++
-            (match divisor with
-             | some days =>
-                 let avg := format (summary.minus.quanta / (days : Int))
-                 let unit := if isYear then "month" else "day"
-                 tokens [s!"Out/{unit}: ~{avg}", if isYear then "(full year)" else "(full month)"]
-             | none => [])
-  [ plainLine (" " ++ label)
-  , mutedLine s!" {(homeActualRecords snapshot state).length} transactions recorded"
-  ] ++ flowLines
-
 private def wideCalendarPane
     (paneWidth : Nat)
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : List Widget :=
@@ -464,7 +444,7 @@ private def wideCalendarPane
   | .day =>
       moneyCalendarBlock paneWidth snapshot state pastOpenDates
   | .month =>
-      monthCalendarPane snapshot state ++ periodSummaryLines paneWidth snapshot state
+      monthCalendarPane paneWidth snapshot state ++ periodSummaryLines paneWidth snapshot state
   | .year =>
       yearOverviewPane snapshot state ++ periodSummaryLines paneWidth snapshot state
 
@@ -824,9 +804,11 @@ private def scrollOverview
   let rows := calendarRows width snapshot state (!usesWideLayout bounds)
   let visible := widePanelRows bounds footerRows - 2
   let current := overviewOffset visible rows state
+  -- Short viewports must not skip rows between successive overview pages.
+  let step := min 5 (max 1 visible)
   let next :=
-    if forward then Loam.Tui.Scroll.forward rows.length visible current 5
-    else Loam.Tui.Scroll.backward rows.length visible current 5
+    if forward then Loam.Tui.Scroll.forward rows.length visible current step
+    else Loam.Tui.Scroll.backward rows.length visible current step
   { state with overviewScroll := next, overviewManualScroll := true }
 
 /-- Move detail cursor and scroll viewport so the selected record is visible. -/
