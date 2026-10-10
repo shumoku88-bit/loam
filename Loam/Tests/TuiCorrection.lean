@@ -2,6 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.Correction
+import Loam.Tui.RecordSession
 import Loam.Publisher.MovementPublisher
 import Loam.Review.ActualReview
 import Lean.Elab.Tactic.Omega
@@ -62,6 +63,107 @@ private def usdRecord? : Option Loam.Tui.Main.ReviewRecord := do
     description := "usd"
     replacement := none }
 
+private def checkBoundedSurface (world : Loam.MovementAdmission.World)
+    (editor : Loam.Tui.Correction.State) : IO Unit := do
+  let bounds : Bounds := { width := 80, height := 24 }
+  let opened := Loam.Tui.Correction.view bounds [] editor
+  expect (contains "Correction / Edit" (widgetText opened) &&
+    contains "Date (kept)" (widgetText opened) && !contains "C-o" (widgetText opened))
+    "Correction shared input lost its fixed-date or Original suppression labels"
+  let japanese := { editor with editor := { editor.editor with form :=
+    { editor.editor.form with description := "修正" } } }
+  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+    (Loam.Tui.Runtime.compileWidget (Loam.Tui.Correction.view bounds [] japanese)) == some (3, 18))
+    "Correction did not place its CJK Description caret at the active field"
+  let six : Loam.Tui.Record.Form := { editor.editor.form with
+    rows := Array.replicate 6 {}, focus := ⟨1, by simp⟩ }
+  for width in [48, 80, 120] do
+    for height in [14, 24, 40] do
+      let active : Bounds := { width, height }
+      for index in (List.range (3 + six.rows.size * 2 + 4)).drop 1 do
+        have count : 0 < 3 + six.rows.size * 2 + 4 := by omega
+        let form := { six with focus := ⟨index % _, Nat.mod_lt _ count⟩ }
+        let state := { editor with editor := { editor.editor with form := form } }
+        let widget := Loam.Tui.Correction.view active [] state
+        expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
+          "Correction input escaped terminal bounds"
+        let some (row, col) := Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+            (Loam.Tui.Runtime.compileWidget widget)
+          | throw (IO.userError "Correction hid its active field/action")
+        expect (row < height - 1 && col < width - 1) "Correction caret escaped terminal bounds"
+  let form : Loam.Tui.Record.Form := { editor.editor.form with
+    description := "after", rows := #[{ locus := "paypay", amount := "-650" },
+                                     { locus := "coffee", amount := "650" }], focus := ⟨1, by omega⟩ }
+  let replacementEditor := Loam.Tui.Record.preview world { editor.editor with form := form }
+  let replacement := { editor with editor := replacementEditor }
+  let text := widgetText (Loam.Tui.Correction.view bounds [] replacement)
+  expect (contains "Before / selected snapshot" text && contains "-640 jpy  paypay" text &&
+    contains "+640 jpy  coffee" text && contains "Description: before" text &&
+    contains "Replacement" text && contains "-650 jpy  paypay" text &&
+    contains "+650 jpy  coffee" text && contains "Description: after" text)
+    "Correction confirmation did not distinguish exact before/replacement evidence"
+  expect (contains "Original stays retained; date stays kept." text &&
+    contains "[Publish] [Edit] [Cancel]" text)
+    "Correction confirmation lost its retained-history boundary or actions"
+  let longDescription := String.join (List.replicate 60 "長い変更内容") ++ "末尾"
+  let longForm := { form with description := longDescription }
+  let longEditor := Loam.Tui.Record.preview world { replacement.editor with form := longForm }
+  let long := { replacement with editor := longEditor }
+  let compact : Bounds := { width := 48, height := 14 }
+  let limit := Loam.Tui.Correction.previewScrollLimit compact long
+  expect (limit > 0) "long Correction preview had no review viewport"
+  let some tail := Loam.Tui.Correction.scrollPreview compact long .«end»
+    | throw (IO.userError "Correction End did not handle review")
+  expect (tail.editor.previewScroll == limit && tail.target == editor.target &&
+    tail.before.event.id == editor.before.event.id && tail.editor.form.rows == form.rows)
+    "Correction review changed target, before snapshot, or replacement inputs"
+  expect (contains "Replacement positive total" (widgetText (Loam.Tui.Correction.view compact [] tail)))
+    "Correction End did not reach the complete replacement tail"
+  expect ((Loam.Tui.Correction.view compact [] long).lines.drop 7 ==
+    (Loam.Tui.Correction.view compact [] tail).lines.drop 7)
+    "Correction preview scrolling moved the fixed footer"
+  let some atEnd := Loam.Tui.Correction.scrollPreview compact tail .down
+    | throw (IO.userError "Correction Down did not handle review")
+  expect (atEnd.editor.previewScroll == limit) "Correction review overshot its bounds"
+  let expanded := Loam.Tui.Correction.normalizedForBounds { width := 160, height := 80 } tail
+  expect (expanded.editor.previewScroll <=
+    Loam.Tui.Correction.previewScrollLimit { width := 160, height := 80 } expanded)
+    "Correction resize did not clamp review scrolling"
+  let some home := Loam.Tui.Correction.scrollPreview compact tail .home
+    | throw (IO.userError "Correction Home did not handle review")
+  expect (home.editor.previewScroll == 0) "Correction Home did not reach review start"
+  expect ((Loam.Tui.Correction.update world [] tail .enter).publish.isSome &&
+    (Loam.Tui.Correction.update world [] tail .escape).publish.isNone)
+    "Correction review altered explicit publication or cancellation"
+  let hugeForm : Loam.Tui.Record.Form := { form with rows := #[
+    { locus := "paypay", amount := "-12345678901234567890" },
+    { locus := "coffee", amount := "12345678901234567890" }], focus := ⟨1, by omega⟩ }
+  let hugeEditor := Loam.Tui.Record.preview world { replacement.editor with form := hugeForm }
+  let huge := { replacement with editor := hugeEditor }
+  let hugeText := widgetText (Loam.Tui.Correction.view { width := 120, height := 40 } [] huge)
+  expect (contains "12,345,678,901,234,567,890" hugeText)
+    "Correction confirmation clipped exact replacement digits"
+  let usdForm : Loam.Tui.Record.Form := {
+    form with
+    measure := "usd"
+    rows := #[{ locus := "paypay", amount := "-12.34" }, { locus := "coffee", amount := "12.34" }]
+    focus := ⟨1, by omega⟩ }
+  let usdBase : Loam.Tui.Record.State := {
+    editor.editor with
+    form := usdForm
+    measurePresentation := [{ measure := ⟨"usd"⟩, scale := 2 }] }
+  let usdEditor := Loam.Tui.Record.preview world usdBase
+  let usd := { editor with editor := usdEditor }
+  let usdText := widgetText (Loam.Tui.Correction.view { width := 120, height := 40 } [] usd)
+  expect (contains "+640 jpy" usdText && contains "+12.34 usd" usdText)
+    "Correction before/replacement display collapsed distinct Measures"
+  let longTarget := String.join (List.replicate 30 "target-") ++ "identity-tail"
+  let identified := { long with target := ⟨longTarget⟩ }
+  let identifiedText := widgetText (Loam.Tui.Correction.view { width := 48, height := 80 } [] identified)
+  expect (contains "identity-tail" identifiedText)
+    "Correction confirmation hid the end of an oversized target identity"
+
 def main (args : List String) : IO Unit := do
   let [dataPath] := args | throw (IO.userError "supply isolated data directory")
   let root := System.FilePath.mk dataPath
@@ -96,6 +198,7 @@ def main (args : List String) : IO Unit := do
 
   let .ok world ← Loam.MovementWorldLoader.loadSelectedWorld? root
     | throw (IO.userError "reload selected world")
+  checkBoundedSurface world editor
   let known := ["paypay", "coffee", "receivable:counterparty"]
   let forcedForm : Loam.Tui.Record.Form := {
     editor.editor.form with focus := ⟨0, by omega⟩ }
@@ -131,8 +234,8 @@ def main (args : List String) : IO Unit := do
   let filteredState : Loam.Tui.Correction.State := {
     editor with editor := filteredEditor
   }
-  let filteredText := widgetText (Loam.Tui.Correction.view known filteredState)
-  expect (contains "[Preview] [Add posting] [Drop last row] [Cancel]" filteredText)
+  let filteredText := widgetText (Loam.Tui.Correction.view { width := 120, height := 40 } known filteredState)
+  expect (contains "[Preview] [Add row] [Drop row] [Cancel]" filteredText)
     "Correction action labels drifted from Record action semantics"
   expect (contains "receivable:counterparty" filteredText && contains "立替金" filteredText)
     "Correction did not expose filtered human-facing Locus candidates"
@@ -144,8 +247,8 @@ def main (args : List String) : IO Unit := do
   let amountFocusState : Loam.Tui.Correction.State := {
     filteredState with editor := { filteredState.editor with form := amountFocusForm }
   }
-  let amountFocusText := widgetText (Loam.Tui.Correction.view known amountFocusState)
-  expect (contains "focus a Locus field to search admitted Loci" amountFocusText)
+  let amountFocusText := widgetText (Loam.Tui.Correction.view { width := 120, height := 40 } known amountFocusState)
+  expect (contains "focus a Locus field" amountFocusText)
     "Correction amount focus still pretended the Locus search had no matches"
   expect (!contains "(no matching admitted Locus)" amountFocusText)
     "Correction amount focus still showed a false no-matching-Locus warning"
@@ -167,6 +270,9 @@ def main (args : List String) : IO Unit := do
     Loam.Tui.Correction.update world known unresolvedPromptState (.ctrl 'u')
   expect (!unresolvedPrompt.enableUnresolved)
     "Correction requested unresolved policy before confirmation"
+  expect (contains "[Esc] cancel Correction"
+    (widgetText (Loam.Tui.Correction.view { width := 48, height := 14 } known unresolvedPrompt.state)))
+    "Correction unresolved confirmation claimed to cancel a new Record"
   match unresolvedPrompt.state.editor.mode with
   | .enableUnresolved => pure ()
   | _ => throw (IO.userError "Correction did not open unresolved activation confirmation")

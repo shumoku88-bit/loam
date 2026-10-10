@@ -19,6 +19,24 @@ EXE = Path(sys.argv[1] if len(sys.argv) > 1 else REPO / ".lake/build/bin/loamTui
 ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
+def household_sections(path):
+    """Exact Unicode-length framing from HouseholdImagePersistence; test evidence only."""
+    text = path.read_text()
+    prefix = "LOAM-HOUSEHOLD-IMAGE\t2\n"
+    assert text.startswith(prefix), "unexpected Household image version"
+    pos, sections = len(prefix), {}
+    while pos < len(text):
+        end = text.index("\n", pos)
+        marker, name, count = text[pos:end].split("\t")
+        assert marker == "SECTION" and name not in sections
+        start, length = end + 1, int(count)
+        body = text[start:start + length]
+        assert len(body) == length, "truncated Household section"
+        sections[name] = body
+        pos = start + length
+    return sections
+
+
 class Terminal:
     def __init__(self, root):
         self.fd, slave = pty.openpty()
@@ -171,6 +189,27 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.close()
     assert digest() == frozen_navigation, "cancelled enable confirmation changed household evidence"
 
+    # Correction owns fixed-date input and a scrollable before/replacement review.
+    terminal = Terminal(root)
+    try:
+        terminal.send(b"af", b"paid Wi-Fi")
+        terminal.send(b"\r", b"Selected")
+        terminal.send(b"c", b"Correction / Edit")
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
+        editing = ANSI.sub(b"", terminal.capture(b"Date (kept)"))
+        assert b"Postings" in editing and b"Locus candidates" in editing
+        terminal.send(("長い修正内容" * 30).encode() + b"\t\t\t\t\t\r", b"Correction / Preview")
+        assert digest() == frozen_navigation, "Correction Preview published without confirmation"
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
+        review = ANSI.sub(b"", terminal.capture(b"[Enter] confirm"))
+        assert b"Original stays retained; date stays kept." in review
+        terminal.send(b"\x1b[F", b"Replacement positive total:")
+        terminal.send(b"\x1b[H", b"Target retained:")
+        terminal.send(b"\x1b", b"Household Day Workspace")
+    finally:
+        terminal.close()
+    assert digest() == frozen_navigation, "read-only Correction changed household evidence"
+
     # Removing the read authority while the editor is open makes any unwanted
     # caller reload deterministic, without asserting a machine-specific latency.
     for route in ("home", "actual", "selected-day"):
@@ -206,15 +245,42 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     finally:
         terminal.close()
 
+    # Publish an ordinary (not paid Scheduled) replacement and verify fresh review.
+    terminal = Terminal(root)
+    try:
+        terminal.send(b"a", b"reload-specimen")
+        terminal.send(b"\r", b"Selected")
+        terminal.send(b"c", b"Correction / Edit")
+        original_sections = household_sections(authority)
+        original_wire = original_sections["Actual"]
+        reviewed = ANSI.sub(b"", terminal.send(
+            b"-corrected\t\t\t\x7f\x7f20\t\t\x7f\x7f20\r", b"Correction / Preview"))
+        assert b"Before / selected snapshot" in reviewed and b"Replacement" in reviewed
+        assert b"-10 jpy" in reviewed and b"-20 jpy" in reviewed
+        assert household_sections(authority) == original_sections, "replacement Preview published"
+        terminal.send(b"\r", b"Corrected ")
+        revised_sections = household_sections(authority)
+        revised_wire = revised_sections["Actual"]
+        assert revised_wire != original_wire, "confirmed Correction did not publish"
+        assert revised_wire.count("reload-specimen") > original_wire.count("reload-specimen"), "replacement lost original description evidence"
+        assert {k: v for k, v in revised_sections.items() if k != "Actual"} == {
+            k: v for k, v in original_sections.items() if k != "Actual"
+        }, "ordinary Correction changed another Household section"
+        # Resize forces a full redraw of the freshly reloaded selected day.
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
+        terminal.capture(b"reload-specimen-corrected")
+    finally:
+        terminal.close()
+
     terminal = Terminal(root)
     hidden = root / "held-image"
     try:
         terminal.send(b"r", b"Record movement")
-        actual_before_activation = (root / "actual.loam").read_bytes()
+        actual_before_activation = household_sections(authority)["Actual"]
         terminal.send(b"\x15", b"Enable")  # Ctrl-U, first-use suspense admission
         terminal.send(b"\r", b"Unresolved recording enabled")
         assert b"suspense" in authority.read_bytes(), "activation did not publish policy"
-        assert (root / "actual.loam").read_bytes() == actual_before_activation, "activation recorded a Movement"
+        assert household_sections(authority)["Actual"] == actual_before_activation, "activation recorded a Movement"
         authority.rename(hidden)
         terminal.send(b"\x1b", b"Reload failed")
         assert terminal.process.wait(timeout=5) != 0, "activation followed by cancel skipped reload"
@@ -240,4 +306,4 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
             hidden.rename(authority)
         terminal.close()
 
-print("Actual navigation and Record PTY: editing focus/IME/resize, Original amount, confirmation review, unresolved enable/return, reload, cancellation and activation passed.")
+print("Actual navigation and Record PTY: editing focus/IME/resize, Original amount, Correction before/replacement/resize/publication, unresolved enable/return, reload and cancellation passed.")

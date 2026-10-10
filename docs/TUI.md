@@ -28,8 +28,9 @@ rebuilding it first.
 
 `LOAM_DATA_DIR` may select the household data directory; otherwise `loamTui` uses
 `../loam-data`. The selected directory is also the production Actual authority root,
-and normalized Actual evidence is retained in `actual.loam`. Actual reads and writes
-do not fall back to retired steady-state sidecars.
+and normalized Actual evidence is retained in the required `Actual` section of
+`household.loam`. Production root reads and writes do not fall back to the legacy
+standalone `actual.loam` diagnostic/migration file.
 
 ## Home grammar
 
@@ -316,6 +317,24 @@ clamped viewport. No filtering, selection identity, or household authority chang
 Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
 Movement editor and delegates execution to `MovementPublisher`, reloading canonical
 evidence after durable writes.
+
+### Actual Correction input and confirmation
+
+Selected Day's Actual `c` action opens a bounds-aware Correction editor. It shares
+Record's aligned fields, framed Postings/candidates, active-field tail and IME
+caret, focus-following compact viewport, feedback row, and two operation rows.
+The date is labelled `Date (kept)` and remains unfocusable; the target context is
+muted, with an ellipsis if necessary. Original amount is not edited here.
+
+Correction Preview separately labels **Before / selected snapshot** and
+**Replacement**, retaining exact signed Effects and Measure tokens, descriptions,
+kept date, and the complete target identity. Long content wraps and can be reviewed
+with arrows, Page Up/Down, and Home/End; actions and two navigation rows stay fixed.
+Idle resize rebuilds geometry and clamps review offsets without reloading or
+publishing. The before snapshot is display-only, not fresh household authority.
+Publish still appends an explicit Correction and replacement Event through the
+shared publisher's current-world recheck; the original Event stays retained.
+Enter in the input opens Preview, not publication. Esc cancels Correction.
 
 ## Scheduled workspace
 

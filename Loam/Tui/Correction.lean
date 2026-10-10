@@ -5,6 +5,7 @@ import Loam.Tui.Main
 import Loam.Tui.Record
 import Lean.Elab.Tactic.Omega
 import Loam.Tui.Layout
+import Loam.Tui.Scroll
 
 namespace Loam.Tui.Correction
 
@@ -20,6 +21,8 @@ from the selected current Actual; publication authority remains
 -/
 structure State where
   target : EventId
+  /-- Selected read snapshot for before/after display only; the publisher re-reads authority. -/
+  before : Loam.Tui.Main.ReviewRecord
   editor : Loam.Tui.Record.State
 
 structure Step where
@@ -70,6 +73,7 @@ def initialWithPresentation?
   }
   pure {
     target := record.event.id
+    before := record
     editor := { form := form, measurePresentation := metadata }
   }
 
@@ -120,85 +124,94 @@ def update
 def withPublishError (state : State) (message : String) : State :=
   { state with editor := { state.editor with mode := .editing, notice := message } }
 
-/-- User-facing correction editor. Date remains visible but never focusable/editable. -/
-def view (_known : List String) (state : State) : Widget :=
+private def line (text : String) : Widget := .row [span text]
+private def muted (text : String) : Widget := .row [span text .muted]
+
+private def previewLines (width : Nat) (state : State)
+    (draft : Loam.MovementAdmission.Draft) : List Widget :=
+  let wrapped := fun text => (Loam.Tui.Layout.wrapColumns width text).map line
+  let metadata := fun text => (Loam.Tui.Layout.wrapColumns width text).map muted
+  let effects := fun (items : List Effect) => items.flatMap fun effect =>
+    wrapped ((if effect.quantity.quanta >= 0 then "+" else "") ++
+      Loam.MeasurePresentation.formatGroupedQuanta state.editor.measurePresentation
+        effect.measure effect.quantity.quanta ++ " " ++ effect.measure.token ++ "  " ++ effect.locus.token)
+  let measure := (draft.effects.head?.map Effect.measure).getD ⟨"?"⟩
+  metadata ("Target retained: " ++ state.target.token) ++ metadata ("Date kept: " ++ draft.validOn) ++
+    [line "Before / selected snapshot"] ++ effects state.before.event.effects ++
+    wrapped ("Description: " ++ state.before.description) ++ [.row []] ++
+    [line "Replacement"] ++ effects draft.effects ++
+    wrapped ("Description: " ++ draft.description.getD "(no description)") ++
+    wrapped ("Replacement positive total: " ++
+      Loam.MeasurePresentation.formatGroupedQuanta state.editor.measurePresentation
+        measure (Effect.positiveQuantaTotal draft.effects) ++ " " ++ measure.token)
+
+private def previewFooter (bounds : Bounds) (state : State) (choice : Fin 3) : List Widget :=
+  let feedback := (Loam.Tui.Layout.wrapColumns (Loam.Tui.Layout.contentWidth bounds)
+    state.editor.notice).map line
+  (if feedback.isEmpty then [.row []] else feedback) ++
+    [muted "Appends Correction + replacement Event.",
+     muted "Original stays retained; date stays kept.",
+     .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+       span ("[" ++ label ++ "] ") (if choice.val == index then .selected else .normal)),
+     Loam.Tui.Layout.shortcutRow [("↑/↓", "review"), ("PgUp/Dn", "page"), ("Home/End", "edges")] " ",
+     Loam.Tui.Layout.shortcutRow [("Tab", "action"), ("Enter", "confirm"), ("Esc", "cancel")] " "]
+
+private def previewCapacity (bounds : Bounds) (state : State) (choice : Fin 3) : Nat :=
+  Loam.Tui.Layout.footerBodyCapacity bounds (previewFooter bounds state choice).length - 3
+
+def previewScrollLimit (bounds : Bounds) (state : State) : Nat :=
+  match state.editor.mode with
+  | .preview draft choice => Loam.Tui.Scroll.maxOffset
+      (previewLines (Loam.Tui.Layout.contentWidth bounds - 2) state draft).length
+      (previewCapacity bounds state choice)
+  | _ => 0
+
+/-- Clamp only presentation scrolling after resize; target and replacement inputs stay intact. -/
+def normalizedForBounds (bounds : Bounds) (state : State) : State :=
+  let offset := min state.editor.previewScroll (previewScrollLimit bounds state)
+  { state with editor := { state.editor with previewScroll := offset } }
+
+/-- Review keys never emit Correction or policy publication intents. -/
+def scrollPreview (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Option State :=
+  match state.editor.mode with
+  | .preview _ choice => do
+      let limit := previewScrollLimit bounds state
+      let current := min state.editor.previewScroll limit
+      let page := max 1 (previewCapacity bounds state choice)
+      let offset ← match key with
+        | .up => some (current - 1)
+        | .down => some (min limit (current + 1))
+        | .pageUp => some (current - page)
+        | .pageDown => some (min limit (current + page))
+        | .home => some 0
+        | .«end» => some limit
+        | _ => none
+      some { state with editor := { state.editor with previewScroll := offset } }
+  | _ => none
+
+/-- Correction shares input geometry with Record, but owns its before/after and retained-target meaning. -/
+def view (bounds : Bounds) (known : List String) (rawState : State) : Widget :=
+  let state := { rawState with editor := skipDateFocus rawState.editor false }
   match state.editor.mode with
   | .editing =>
-      let form := state.editor.form
-      let rowLines := Loam.Tui.Record.postingFieldLines form
-      let actions := ["Preview", "Add posting", "Drop last row", "Cancel"]
-      let options := Loam.Tui.Record.catalogCandidates state.editor
-      let selectedIndex :=
-        if options.isEmpty then 0 else state.editor.candidateIndex % options.length
-      let candidateStart := Loam.Tui.Layout.trailingWindowStart selectedIndex 5
-      let visible := (options.drop candidateStart).take 5
-      let candidateLines :=
-        match Loam.Tui.Record.activeLocus? state.editor.form with
-        | none =>
-            [Loam.Tui.Record.line "  (focus a Locus field to search admitted Loci)"]
-        | some _ =>
-            if visible.isEmpty then
-              [Loam.Tui.Record.line "  (no matching admitted Locus)"]
-            else
-              (visible.zipIdx).map fun (entry, index) =>
-                let marker := if candidateStart + index = selectedIndex then "> " else "  "
-                Loam.Tui.Record.line (marker ++ Loam.Tui.LocusPicker.display entry)
-      let helpLines :=
-        match Loam.Tui.Record.selectedCatalogCandidate? state.editor with
-        | some entry =>
-            if entry.help.isEmpty then [] else [Loam.Tui.Record.line ("  " ++ entry.help)]
-        | none => []
-      .column <|
-        [ Loam.Tui.Record.line "Correction / Edit"
-        , Loam.Tui.Record.line ("Target: " ++ state.target.token)
-        , Loam.Tui.Record.line ("Date (kept): " ++ form.date)
-        , Loam.Tui.Record.field form 1 "Description" form.description
-        , Loam.Tui.Record.field form 2 "Measure" form.measure
-        ] ++ rowLines ++
-        [ .row ((actions.zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if form.focus.val = 3 + form.rows.size * 2 + index then .selected else .normal))
-        , Loam.Tui.Record.line "Locus catalog:"
-        ] ++ candidateLines ++ helpLines ++
-        [ Loam.Tui.Record.line
-            ("Posting " ++ form.measure ++ " is signed; negative and positive rows may appear in any order.")
-        , Loam.Tui.Record.line
-            "Type to filter   Up / Down choose   Enter / Right accept candidate"
-        , Loam.Tui.Record.line
-            "Tab / Shift-Tab focus   Ctrl-U unresolved   Ctrl-N add row   Ctrl-D drop row"
-        , Loam.Tui.Record.line "Esc cancel   Date is retained from the selected Actual"
-        , Loam.Tui.Record.line state.editor.notice
-        ]
+      Loam.Tui.Record.editingView bounds state.editor "Correction / Edit"
+        (some ("Target: " ++ state.target.token)) true false
   | .enableUnresolved =>
-      Loam.Tui.Record.view _known state.editor
+      Loam.Tui.Record.unresolvedEnableView bounds state.editor "cancel Correction"
   | .originalAmount _ =>
-      Loam.Tui.Record.view _known state.editor
+      Loam.Tui.Record.viewForBounds bounds known state.editor
   | .preview draft choice =>
-      let measure := (draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩
-      .column <|
-        [ Loam.Tui.Record.line "Correction / Preview"
-        , Loam.Tui.Record.line ("Target remains retained: " ++ state.target.token)
-        , Loam.Tui.Record.line ("Date kept: " ++ draft.validOn)
-        , Loam.Tui.Record.line (draft.description.getD "(no description)")
-        ] ++
-        (draft.effects.take 12).map (fun effect =>
-          Loam.Tui.Record.line
-            (effect.locus.token ++ "  " ++
-              Loam.MeasurePresentation.formatQuanta
-                state.editor.measurePresentation effect.measure effect.quantity.quanta ++
-              " " ++ effect.measure.token)) ++
-        [ Loam.Tui.Record.line
-            ("Replacement positive total: " ++
-              Loam.MeasurePresentation.formatQuanta
-                state.editor.measurePresentation measure (Effect.positiveQuantaTotal draft.effects) ++
-              " " ++ measure.token)
-        , Loam.Tui.Record.line
-            "Publish appends an explicit Correction and replacement Event; it does not rewrite the original."
-        , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if choice.val = index then .selected else .normal))
-        , Loam.Tui.Record.line "Tab / Shift-Tab select   Enter confirm   Esc cancel"
-        , Loam.Tui.Record.line state.editor.notice
-        ]
+      let width := Loam.Tui.Layout.contentWidth bounds
+      let footer := previewFooter bounds state choice
+      let height := Loam.Tui.Layout.footerBodyCapacity bounds footer.length - 1
+      let capacity := height - 2
+      let lines := previewLines (width - 2) state draft
+      let offset := Loam.Tui.Scroll.clamp lines.length capacity state.editor.previewScroll
+      let more := (if offset > 0 then " ▲" else "") ++
+        (if offset + capacity < lines.length then " ▼" else "")
+      let panel := Loam.Tui.Layout.framedPanel width height "Correction / signed postings"
+        (.column ((lines.drop offset).take capacity)) true
+        (some (s!"{min (offset + capacity) lines.length}/{lines.length} lines" ++ more))
+      Loam.Tui.Record.boundedWithFooter bounds (.column [line "Correction / Preview", panel]) footer
 
 end Loam.Tui.Correction

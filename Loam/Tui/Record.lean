@@ -755,7 +755,7 @@ private def editingField (width : Nat) (form : Form) (index : Nat)
   boundedField width (form.focus.val == index) label text
 
 /-- Fit rendered rows above a stable footer and reserve the terminal's final row/column. -/
-private def boundedWithFooter (bounds : Bounds) (body : Widget) (footer : List Widget) : Widget :=
+def boundedWithFooter (bounds : Bounds) (body : Widget) (footer : List Widget) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let rows := body.lines.map fun cells =>
     Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
@@ -782,13 +782,14 @@ private def originalAmountView (bounds : Bounds) (state : State)
       (Loam.Tui.Layout.wrapColumns (width - 2) text).map muted))
   boundedWithFooter bounds (.column [line "Record / Original amount", fields, meaning]) footer
 
-private def unresolvedEnableView (bounds : Bounds) (state : State) : Widget :=
+def unresolvedEnableView (bounds : Bounds) (state : State)
+    (cancelLabel : String := "cancel Record") : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
   let footer := (if feedback.isEmpty then [blank] else feedback) ++
     [.row [span "[Enable unresolved recording]" .selected],
      Loam.Tui.Layout.shortcutRow [("Enter", "enable"), ("e/E", "return")] " ",
-     Loam.Tui.Layout.shortcutRow [("Backspace", "return"), ("Esc", "cancel Record")] " "]
+     Loam.Tui.Layout.shortcutRow [("Backspace", "return"), ("Esc", cancelLabel)] " "]
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let change := Loam.Tui.Layout.framedPanel width 3 "Household vocabulary"
     (line "Admit ordinary Locus: suspense.") true
@@ -800,8 +801,8 @@ private def unresolvedEnableView (bounds : Bounds) (state : State) : Widget :=
       (Loam.Tui.Layout.wrapColumns (width - 2) text).map muted))
   boundedWithFooter bounds (.column [line "Unresolved recording / Enable", change, meaning]) footer
 
-private def editingFields (width : Nat) (form : Form) : List Widget :=
-  [editingField width form 0 "Date" form.date,
+private def editingFields (width : Nat) (form : Form) (dateKept : Bool := false) : List Widget :=
+  [boundedField width (!dateKept && form.focus.val == 0) (if dateKept then "Date (kept)" else "Date") form.date,
    editingField width form 1 "Description" form.description,
    editingField width form 2 "Measure" form.measure] ++
   (List.range form.rows.size).flatMap fun index =>
@@ -809,20 +810,22 @@ private def editingFields (width : Nat) (form : Form) : List Widget :=
     [editingField width form (3 + index * 2) (s!"Posting {index + 1}") row.locus,
      editingField width form (4 + index * 2) "Amount" row.amount]
 
-private def editingFooter (bounds : Bounds) (state : State) : List Widget :=
+private def editingFooter (bounds : Bounds) (state : State)
+    (context : Option String) (originalShortcut : Bool) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
-  [muted (ellipsize width (originalSummary state))] ++
+  [muted (ellipsize width (context.getD (originalSummary state)))] ++
     (if feedback.isEmpty then [blank] else feedback) ++
     [.row ((["Preview", "Add row", "Drop row", "Cancel"].zipIdx).map fun (label, index) =>
       span ("[" ++ label ++ "] ")
         (if state.form.focus.val == 3 + state.form.rows.size * 2 + index then .selected else .normal)),
      Loam.Tui.Layout.shortcutRow [("Tab/⇧Tab", "focus"), ("Enter", "next"), ("Esc", "cancel")] " ",
-     Loam.Tui.Layout.shortcutRow [("C-n/d", "rows"), ("C-u", "remainder"), ("C-o", "original")] " "]
+     Loam.Tui.Layout.shortcutRow ([("C-n/d", "rows"), ("C-u", "remainder")] ++
+       (if originalShortcut then [("C-o", "original")] else [])) " "]
 
 private def candidateSummary (width : Nat) (state : State) : Widget :=
   let text := match activeLocus? state.form, selectedCatalogCandidate? state with
-    | none, _ => "Locus: focus a Posting to choose"
+    | none, _ => "Locus: focus a Locus field"
     | some _, none => "Locus: no matching candidate"
     | some _, some entry => "↑/↓ Enter: " ++ Loam.Tui.LocusPicker.display entry
   muted (ellipsize width text)
@@ -864,32 +867,36 @@ private def postingsPanel (width height : Nat) (state : State) : Widget :=
   Loam.Tui.Layout.framedPanel width height "Postings" (.column (fields ++ [muted context])) active
     (some (s!"{min (start + capacity) form.rows.size}/{form.rows.size} rows" ++ more))
 
-private def editingView (bounds : Bounds) (state : State) : Widget :=
+/-- Shared Record-shaped input presentation; fixed-date policy remains in each editor's update. -/
+def editingView (bounds : Bounds) (state : State)
+    (heading : String := "Record / Edit") (context : Option String := none)
+    (dateKept : Bool := false) (originalShortcut : Bool := true) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let footer := editingFooter bounds state
+  let footer := editingFooter bounds state context originalShortcut
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let paneHeight := available - 6
   let wide := width >= 72
   let body : Widget := if (wide && paneHeight >= 7) || (!wide && paneHeight >= 11) then
     let metadata := Loam.Tui.Layout.framedPanel width 5 "Movement"
-      (.column ((editingFields (width - 2) state.form).take 3)) (state.form.focus.val < 3)
+      (.column ((editingFields (width - 2) state.form dateKept).take 3))
+        (state.form.focus.val < 3 && (!dateKept || state.form.focus.val > 0))
     let panes := if wide then
         let left := width * 3 / 5
         Widget.column (Loam.Tui.Layout.sideBySide paneHeight left (width - left - 1)
           (postingsPanel left paneHeight state)
           (candidatesPanel (width - left - 1) paneHeight state) " ")
       else .column [postingsPanel width (paneHeight - 6) state, candidatesPanel width 6 state]
-    .column [line "Record / Edit", metadata, panes]
+    .column [line heading, metadata, panes]
   else
     let height := available - 1
     let capacity := height - 3
-    let fields := editingFields (width - 2) state.form
+    let fields := editingFields (width - 2) state.form dateKept
     let focus := min state.form.focus.val (fields.length - 1)
     let start := min (fields.length - capacity)
       (Loam.Tui.Layout.trailingWindowStart focus capacity)
     let more := (if start > 0 then " ▲" else "") ++
       (if start + capacity < fields.length then " ▼" else "")
-    .column [line "Record / Edit",
+    .column [line heading,
       Loam.Tui.Layout.framedPanel width height "Fields"
         (.column ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state]))
         (state.form.focus.val < fields.length)

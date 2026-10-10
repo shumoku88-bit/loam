@@ -371,7 +371,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
                 rawEditor with
                 editor := Loam.Tui.Record.withCatalog rawEditor.editor catalog
               }
-              let editorFrame := compileWidget (Loam.Tui.Correction.view known editor)
+              let editorFrame := compileWidget (Loam.Tui.Correction.view bounds known editor)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← Loam.Tui.CorrectionSession.run bounds root
                 world known editor editorFrame

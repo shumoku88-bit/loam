@@ -27,12 +27,12 @@
 | UI-01 | Home / Calendar / Detail | 一部完了 | 既存の導線・ナビ改善あり。現在の枠・余白・情報階層との統一を点検 |
 | UI-02 | Commands パレット | 一部完了 | 階層ナビは既存。ラベル・選択・余白を今回の方針で点検 |
 | UI-03 | Actual 一覧・詳細・検索・移動 | 完了 | `2b347e0e`〜`b753e6c1` |
-| UI-04 | Selected Day | 未着手 | Actual / Scheduled の配置、一覧・詳細・フォーカス・下部ナビ |
+| UI-04 | Selected Day | 未着手 | Actual / Scheduled の配置、一覧・詳細・フォーカス・下部ナビ。48×14 で子画面から戻った通知が見えない点も改善対象 |
 | UI-05 | Record 通常入力・Locus 候補 | 完了 | `4d9d261b` |
 | UI-06 | Record 確認 | 完了 | `61eb1baa` |
 | UI-07 | Record / Original amount 入力 | 完了 | 入力・説明の枠、共通ラベルと末尾・IME 表示、固定2段ナビ、折返し通知。`TuiRecord` / Record PTY で検証。macOS の Ctrl-O 吸収も修正 |
 | UI-08 | Record / unresolved 有効化確認 | 完了 | 語彙追加と「Movement は記録しない」の枠、固定アクション・2段ナビ・折返し通知。`TuiRecord` / Record PTY で確認・戻る・リサイズ・Actual 不変を検証 |
-| UI-09 | Actual Correction 入力・確認 | 未着手 | Record と揃える。修正対象と変更前後を読みやすくする |
+| UI-09 | Actual Correction 入力・確認 | 完了 | Record 共通の入力・候補・IME、固定日付と対象、選択時／置換後の符号付き Effects、固定ナビと確認スクロール・リサイズ。`TuiCorrection` / Record PTY で履歴保持・再読込・他セクション不変を検証 |
 | UI-10 | Actual 日付修正 入力・確認 | 未着手 | 元の日付・新しい日付、対象、確定アクションの階層 |
 | UI-11 | Actual reversal 入力・確認 | 未着手 | 対象・結果の表示、確認アクション、ナビ |
 | UI-12 | Scheduled / Series Calendar | 完了 | `e91c62a3`、`61c21874` |
@@ -91,7 +91,7 @@
 5. **残りの非予算画面**：Home / Commands、Reports、Attention、
    Settlements、Exchange、設定・補助表示。
 
-現在、作業中の UI 項目はなし。**次の候補は UI-09：Actual Correction 入力・確認画面。**
+現在、作業中の UI 項目はなし。**次の候補は UI-10：Actual 日付修正 入力・確認画面。**
 
 ## 各改修で更新すること
 
