@@ -478,10 +478,7 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
   let feedback := if state.notice.isEmpty then [blankLine]
     else wrapped (Loam.Tui.Layout.contentWidth bounds) state.notice .muted
   let rows := feedback ++ operationRows bounds state
-  let capacity := bounds.height - 1
-  if rows.length ≤ capacity then rows
-  else if capacity == 0 then []
-  else rows.take (capacity - 1) ++ [mutedLine " … more feedback/help; enlarge terminal"]
+  Loam.Tui.Layout.boundFeedbackFooter bounds rows
 
 private structure Geometry where
   width : Nat
