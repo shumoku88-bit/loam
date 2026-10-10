@@ -120,6 +120,31 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
             else:
                 assert b"Months [compact]" in clean_months and b"[v] List" in clean_months
         assert authority.read_text() == before, "Months idle resize changed household evidence"
+        listed = ansi.sub(b"", send(b"v", b"Scheduled / List"))
+        assert "╭ Loci".encode() in listed and "╭ Scheduled (4)".encode() in listed
+        # The shared Selected pane can stay byte-identical across the mode switch,
+        # so a dirty diff need not emit its title again.
+        assert b"Date" in listed and b"Quanta" in listed, listed
+        send(b"hj", b"Locus: bank")
+        send(b"l")
+        for rows, columns in ((24, 80), (10, 48), (30, 120), (24, 100)):
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+            output = capture(b"Scheduled / List")
+            clean_list = ansi.sub(b"", output)
+            positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+            assert positions and all(1 <= int(r) <= rows and 1 <= int(c) <= columns
+                                     for r, c in positions)
+            assert b"> 2026-11-08" in clean_list and b"4,800 jpy" in clean_list
+            if rows >= 24:
+                assert b"Selected Scheduled" in clean_list and b"ID: first" in clean_list
+            if columns < 80:
+                assert "╭ Loci".encode() not in clean_list, "compact List showed an inactive sidebar"
+        feedback = send(b"k", b"No previous Scheduled row.")
+        changed_rows = {int(r) for r, _ in re.findall(rb"\x1b\[(\d+);(\d+)H", feedback)}
+        assert changed_rows == {rows - 3}, "List boundary feedback moved its panes/footer"
+        assert authority.read_text() == before and coverage_config.read_text() == coverage_definition
+        send(b"v", b"Series Calendar")
+        send(b"v", b"Scheduled / Months")
         configure_sheet()
         preview = check_and_preview()
         clean = ansi.sub(b"", preview)
@@ -161,7 +186,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         os.close(master)
         master = -1
         assert process.wait(timeout=5) == 0
-        print("Scheduled PTY: fixed feedback/footer rows, framed Plan Detail, idle resize, gap refusal and batch publication passed.")
+        print("Scheduled PTY: fixed footers, framed Plan/Months/List, Locus filtering, idle resize, gap refusal and batch publication passed.")
     finally:
         if master >= 0:
             os.close(master)

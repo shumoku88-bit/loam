@@ -167,10 +167,11 @@ Horizontally compose two rendered widgets into fixed-width panes.
 
 This is presentation geometry only. Callers own pane meaning, focus, scrolling,
 and responsive policy. Each side is clipped independently and the left side is
-padded before the muted divider.
+padded before the caller-selected muted separator (a divider by default).
 -/
 def sideBySide
-    (height leftWidth rightWidth : Nat) (left right : Widget) : List Widget :=
+    (height leftWidth rightWidth : Nat) (left right : Widget)
+    (separator : String := " │ ") : List Widget :=
   let leftLines := left.lines
   let rightLines := right.lines
   (List.range height).map fun row =>
@@ -187,7 +188,7 @@ def sideBySide
     let leftPadding := leftWidth - cellsWidth clippedLeft
     .row
       (cellsToSpans clippedLeft ++
-       [span (spaces leftPadding), span " │ " .muted] ++
+       [span (spaces leftPadding), span separator .muted] ++
        cellsToSpans clippedRight)
 
 /--

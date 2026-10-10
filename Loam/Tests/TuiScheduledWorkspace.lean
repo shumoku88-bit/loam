@@ -191,8 +191,94 @@ private def checkMonthsLayout : IO Unit := do
   expect (contains (String.ofList (List.replicate 100 'x')) (refused.replace "\n" ""))
     "Months clipped an unbroken publisher refusal token"
 
+private def checkListLayout : IO Unit := do
+  let snapshot ← longScheduledWorkspaceSnapshot 40
+  let state := { Loam.Tui.ScheduledWorkspace.initialList "2026-09-07" with occurrenceRow := 35 }
+  let selected ← requireSome (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state)
+    "List layout specimen lost its selected occurrence"
+  let quantity := Loam.MeasurePresentation.groupDisplayedNumber
+    (toString (selected.quantityAt ⟨"food"⟩).quanta) ++ " jpy"
+  let borderRows := fun (widget : Widget) => widget.lines.zipIdx.filterMap fun (cells, index) =>
+    if cells.any (fun cell => cell.glyph == '╭' || cell.glyph == '╰') then some index else none
+  for bounds in [{ width := 80, height := 24 }, { width := 100, height := 30 },
+      { width := 140, height := 40 }, { width := 48, height := 10 }] do
+    let rendered := Loam.Tui.ScheduledWorkspace.view bounds snapshot state
+    let text := widgetText rendered
+    let selection := rendered.lines.flatten.filter (fun cell => cell.style == .selected)
+    expect (contains quantity (String.ofList (selection.map Cell.glyph)) &&
+        contains "36/40" text && contains "Date" text && contains "Quanta" text &&
+        !contains "====" text)
+      "List lost its aligned columns, selected quantity, or selection position"
+    if bounds.height >= 24 then
+      expect (contains selected.id.token text && contains ("+" ++ quantity) text &&
+          contains ("-" ++ quantity) text)
+        "List detail changed the selected identity or signed movement quantities"
+    let blocked := Loam.Tui.ScheduledWorkspace.view bounds snapshot
+      { state with notice := "No next Scheduled row." }
+    let next := Loam.Tui.ScheduledWorkspace.view bounds snapshot { state with occurrenceRow := 36 }
+    expect (borderRows rendered == borderRows blocked && borderRows rendered == borderRows next)
+      "List geometry changed with ordinary feedback or selection"
+    expect (rendered.lines.all fun cells => cells.all fun cell =>
+        cell.style == .normal || cell.style == .muted ||
+        cell.style == .series1 || cell.style == .selected)
+      "List introduced decorative accent colors"
+  for width in [0, 1, 2, 20, 32, 48, 80, 120] do
+    for height in [0, 1, 2, 6, 10, 18, 24, 50] do
+      for pane in [Loam.Tui.ScheduledWorkspace.Pane.loci, .occurrences] do
+        let rendered := Loam.Tui.ScheduledWorkspace.view { width, height } snapshot { state with pane }
+        expect (rendered.lines.length <= height - 1 && rendered.lines.all (fun cells =>
+            Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+              Loam.Tui.Layout.contentWidth { width, height }))
+          "List escaped its physical rectangle in one of its focus panes"
+  let mixed ← scheduledWorkspaceSnapshot
+  let all := (Loam.Tui.ScheduledWorkspace.update mixed
+    (Loam.Tui.ScheduledWorkspace.initialList "2026-09-07") .cycleFilter).state
+  let foodIndex ← requireSome (((Loam.Tui.ScheduledWorkspace.lociForScope mixed all).zipIdx.find?
+    (fun (token, _) => token == "food")).map Prod.snd) "mixed List fixture lost food"
+  let filtered := { all with pane := .loci, locusRow := foodIndex + 1 }
+  let filteredRecord ← requireSome (Loam.Tui.ScheduledWorkspace.selectedRecord? mixed filtered)
+    "List filtering lost its exact selected occurrence"
+  expect (filteredRecord.id.token == "scheduled-0" &&
+      (Loam.Tui.ScheduledWorkspace.visibleRecords mixed filtered).length == 1)
+    "List Locus filtering changed the canonical browse selection"
+  let leftText := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 48, height := 24 } mixed filtered)
+  let right := (Loam.Tui.ScheduledWorkspace.update mixed filtered .focusRight).state
+  let rightText := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 48, height := 24 } mixed right)
+  expect (contains "╭ Loci" leftText && !contains "╭ Scheduled (" leftText &&
+      contains "Locus: food" rightText && contains "╭ Scheduled (1)" rightText &&
+      contains filteredRecord.id.token rightText && !contains "scheduled-1" rightText &&
+      !contains "scheduled-2" rightText)
+    "Compact List showed the wrong focus pane or leaked nonmatching occurrences"
+  let unavailable := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 }
+    { mixed with scheduled := .error "List read refused" } all)
+  let unknown := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } mixed
+    (Loam.Tui.ScheduledWorkspace.initialList "2026-09-09"))
+  let emptyMemory ← requireSome (ScheduledMemory.ofOccurrences? []) "empty List memory was not admitted"
+  let evidence ← match mixed.scheduled with
+    | .error message => throw (IO.userError message)
+    | .ok evidence => pure evidence
+  let empty := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 }
+    { mixed with scheduled := .ok { evidence with scheduled := emptyMemory } } all)
+  expect (contains "Scheduled [Unavailable]" unavailable && !contains "Scheduled (0)" unavailable &&
+      contains "Scheduled [Unknown]" unknown && !contains "none due" unknown &&
+      contains "Scheduled (0)" empty && contains "no current-open Scheduled occurrences" empty &&
+      !contains "Unavailable" empty && !contains "Unknown" empty)
+    "List merged unavailable, unknown, and known-empty evidence"
+  let longLabel := "日本語の長いLocus名が左側の枠を超えるときには省略を明示する"
+  let longRecord ← requireSome (scheduledRecord? "long-label" "2026-09-07" "wallet" longLabel 100)
+    "long-label List fixture was not admitted"
+  let longMemory ← requireSome (ScheduledMemory.ofOccurrences? [longRecord])
+    "long-label List memory was not admitted"
+  let longSnapshot := { mixed with scheduled := .ok { evidence with scheduled := longMemory } }
+  let longState := { all with pane := .loci, locusRow := 2 }
+  let longText := widgetText (Loam.Tui.ScheduledWorkspace.view
+    { width := 80, height := 24 } longSnapshot longState)
+  expect (contains "…" longText && contains "long-label" longText)
+    "List silently clipped a Japanese label or changed the selected record"
+
 def main : IO Unit := do
   checkMonthsLayout
+  checkListLayout
   let snapshot ← scheduledWorkspaceSnapshot
 
   -- Shared current-open read order is date first, then Scheduled identity.
@@ -305,9 +391,9 @@ def main : IO Unit := do
   -- 3. Rendering check
   let viewWidget := Loam.Tui.ScheduledWorkspace.view { width := 100, height := 30 } snapshot second
   let viewText := widgetText viewWidget
-  expect (contains "Household Scheduled Workspace" viewText)
+  expect (contains "Scheduled / List" viewText)
     "Scheduled workspace heading was not rendered"
-  expect (contains "Selected Scheduled Details:" viewText && contains "scheduled-1" viewText)
+  expect (contains "Selected Scheduled" viewText && contains "scheduled-1" viewText)
     "Scheduled workspace details did not render selected occurrence information"
   let refusalMessage :=
     "This Scheduled occurrence uses a non-JPY measure and cannot be represented by the JPY replacement editor."

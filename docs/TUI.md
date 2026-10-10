@@ -375,8 +375,19 @@ columns the two-column board fits; narrower or very short screens explain the Li
 fallback while retaining selected details when space permits. Failed Scheduled
 reads show Unavailable instead of six fabricated empty months.
 
-**List** retains the older Focus Day / All Current-Open scopes
-(`f`) and Locus filter pane.
+**List** retains Focus Day / All Current-Open scopes (`f`) and exact Locus filtering.
+Its quiet Loci and Scheduled frames use the existing focus accent only on the
+active pane. The occurrence table aligns Date, signed-Locus Shape, and right-aligned
+Quanta; split quantities remain explicit rather than becoming totals. Each frame
+shows selection position and hidden rows. At 80 columns and wider both panes stay
+visible; narrower terminals give the focused pane the full width, and `h/l` switches
+between them without changing the underlying filter or selected occurrence.
+
+The shared Selected Scheduled panel keeps signed expected Effects, date, and exact
+ID in a bounds-sized viewport, so selection and short notices do not resize List.
+Long labels show an ellipsis. Unknown day evidence, unavailable Scheduled reads,
+and an admitted empty current-open inventory remain distinct in both pane labels
+and content; no unreadable evidence becomes a zero count or NotDue claim.
 
 The Series Calendar is the primary recurring-plan management surface:
 
@@ -393,7 +404,7 @@ n         create one explicit Scheduled plan
 v         Months / List alternate projections
 ```
 
-Series Calendar, Plan Detail, and Months share an operation-only **two-row footer**:
+All four Scheduled projections share an operation-only **two-row footer**:
 selection, Enter, and back on the first row; maintenance on the second. Keys use
 the existing normal foreground while labels and spacing stay muted—no extra accent
 colors. At 80 columns and wider, all advertised maintenance actions fit without
