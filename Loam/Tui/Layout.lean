@@ -183,6 +183,11 @@ def widgetRows (widget : Widget) : List Widget :=
 def clipWidgetRow (columns : Nat) (widget : Widget) : Widget :=
   .row (cellsToSpans (clipCells columns widget.lines.flatten))
 
+/-- Clip every physical row separately, retaining row boundaries and Cell styles.
+    Use this for nested Widgets; clipWidgetRow intentionally flattens one row. -/
+def clippedWidgetRows (columns : Nat) (widget : Widget) : List Widget :=
+  widget.lines.map fun cells => .row (cellsToSpans (clipCells columns cells))
+
 /--
 Horizontally compose two rendered widgets into fixed-width panes.
 
