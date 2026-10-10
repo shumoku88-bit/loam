@@ -3,6 +3,7 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tests/test_actual_detail_pty.py'
       - 'tools/benchmark-home-scroll.py'
       - 'tests/test_attention_pty.py'
       - 'tests/AttentionPtyFixture.lean'
@@ -201,6 +202,7 @@ on:
     branches:
       - main
     paths:
+      - 'tests/test_actual_detail_pty.py'
       - 'tools/benchmark-home-scroll.py'
       - 'tests/test_attention_pty.py'
       - 'tests/AttentionPtyFixture.lean'
@@ -436,6 +438,9 @@ jobs:
           lake test -- tui-representative
           lake env lean --run Loam/Tests/BoundedHistorySupport.lean
           lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal-pr"
+          lake env lean --run Loam/Tests/TuiActualReversal.lean "$(mktemp -d)/tui-reversal-pr"
+          lake env lean --run Loam/Tests/TuiActualDateCorrection.lean "$(mktemp -d)/tui-date-pr"
+          lake env lean --run Loam/Tests/TuiCorrection.lean "$(mktemp -d)/tui-correction-pr"
           lake env lean --run Loam/Tests/AccountingRolePublisher.lean "$(mktemp -d)/accounting-role-pr"
           lake env lean --run Loam/Tests/BudgetWindowReview.lean "$(mktemp -d)/budget-window-review-pr"
           lake env lean --run Loam/Tests/TuiScheduled.lean
@@ -462,6 +467,9 @@ jobs:
 
       - name: Verify Attention navigation, cancellation and publication on isolated data
         run: python3 tests/test_attention_pty.py
+
+      - name: Verify single-transaction Actual actions and return on isolated data
+        run: python3 tests/test_actual_detail_pty.py
 
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
@@ -934,6 +942,9 @@ jobs:
 
       - name: Verify Attention navigation, cancellation and publication on isolated data
         run: python3 tests/test_attention_pty.py
+
+      - name: Verify single-transaction Actual actions and return on isolated data
+        run: python3 tests/test_actual_detail_pty.py
 
       - name: Verify Cycle Budget TUI PTY interactions
         run: |

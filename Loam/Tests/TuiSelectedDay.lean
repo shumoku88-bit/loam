@@ -274,6 +274,104 @@ private def testScheduledDetails (snapshot : Loam.Tui.Main.Snapshot) : IO Unit :
     "Scheduled Detail lost exact expected Effects, Locus or identity"
   expect (state.scheduledRow == 0 && state.actualRow == 0) "Scheduled detail scroll moved object selection"
 
+private def testTransaction (snapshot : Loam.Tui.Main.Snapshot) : IO Unit := do
+  let record ← requireSome actualRecord? "transaction reference"
+  let unrelated := { record with
+    event := {record.event with id := ⟨"other-event"⟩}
+    description := "UNRELATED-TRANSACTION" }
+  let observed := {snapshot with actual := {snapshot.actual with allRecords := [unrelated, record]}}
+  let base := Loam.Tui.SelectedDay.initialTransaction record
+  expect (base.actualTarget? == some record.event.id &&
+    (Loam.Tui.SelectedDay.selectedActual? observed base).map (·.event.id) == some record.event.id)
+    "focused entrance selected a day row rather than the requested Event"
+  let actions : List (Loam.Tui.SelectedDay.Event × Loam.Tui.SelectedDay.Command) :=
+    [(.correctActual, .correctActual), (.correctDate, .correctDate), (.reverseActual, .reverseActual),
+     (.classifyMerchant, .classifyMerchant), (.manageLoci, .manageLoci), (.recordNew, .recordNew)]
+  for (event, command) in actions do
+    expect ((Loam.Tui.SelectedDay.update observed base event).command == command)
+      "focused detail lost an existing Actual action"
+  for event in [Loam.Tui.SelectedDay.Event.focusRight, .focusLeft, .focusDetails] do
+    let next := (Loam.Tui.SelectedDay.update observed base event).state
+    expect (next.actualTarget? == base.actualTarget? && next.pane == .actual && next.detailFocused)
+      "focused detail leaked into day-browser navigation"
+  expect ((Loam.Tui.SelectedDay.update observed base .back).command == .back)
+    "focused detail required another back press before returning to Actual"
+  for event in [Loam.Tui.SelectedDay.Event.createScheduled, .completeScheduled, .cancelScheduled, .replaceScheduled] do
+    expect ((Loam.Tui.SelectedDay.update observed base event).command == .stay)
+      "focused Actual emitted a Scheduled intent"
+
+  for width in [0, 1, 2, 24, 32, 48, 80, 100, 160] do
+    for height in [0, 1, 2, 6, 10, 14, 24, 40] do
+      let bounds : Bounds := {width, height}
+      let view := Loam.Tui.SelectedDay.view bounds observed base
+      expect (view.lines.length <= height - 1 && view.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= Loam.Tui.Layout.contentWidth bounds)
+        s!"transaction detail exceeded {width}x{height}"
+      let text := widgetText view
+      expect (!contains unrelated.description text && !contains "Household Day" text &&
+        !contains "Scheduled" text && !contains "Description  " text)
+        "focused detail rendered another transaction or day list"
+  let bounds : Bounds := {width := 100, height := 30}
+  let text := widgetText (Loam.Tui.SelectedDay.view bounds observed base)
+  for needle in ["Actual / Transaction detail", "Status: Current", "コンビニ", "2026-09-07",
+      "paypay", "food", "-640 jpy", "+640 jpy", "event-day",
+      "Correct contents / description", "Change date", "Reverse", "Merchant", "Manage Loci", "Record new"] do
+    expect (contains needle text) ("transaction detail lost: " ++ needle)
+
+  let reversedRecord := {record with reversedBy := some ⟨"inverse-event"⟩, merchant := some .nonmerchant}
+  let reversedSnapshot := {observed with actual := {observed.actual with allRecords := [reversedRecord]}}
+  let reversedText := widgetText (Loam.Tui.SelectedDay.view bounds reversedSnapshot base)
+  expect (contains "Reversed by: inverse-event" reversedText && contains "Merchant: Nonmerchant" reversedText &&
+    !contains "[r] Reverse" reversedText && !contains "[c] Correct" reversedText &&
+    !contains "[m] Merchant classification" reversedText && contains "[d] Change date" reversedText)
+    "focused actions or status ignored explicit reversal / Merchant evidence"
+
+  let moved := {observed with actual := {observed.actual with allRecords :=
+    [unrelated, {record with date := some "2026-09-08"}]}}
+  let reloaded := Loam.Tui.SelectedDay.refreshed moved base
+  expect (reloaded.focusDate == "2026-09-08" &&
+    (Loam.Tui.SelectedDay.selectedActual? moved reloaded).map (·.event.id) == some record.event.id)
+    "date correction replaced focused identity with another day row"
+  let replaced := {observed with actual := {observed.actual with allRecords :=
+    [unrelated, {record with replacement := some unrelated.event.id}]}}
+  let unavailable := Loam.Tui.SelectedDay.refreshed replaced base
+  expect ((Loam.Tui.SelectedDay.selectedActual? replaced unavailable).isNone)
+    "correction selected an unrelated replacement implicitly"
+  let unavailableText := widgetText (Loam.Tui.SelectedDay.view bounds replaced unavailable)
+  expect (contains "no longer current" unavailableText && contains "event-day" unavailableText &&
+    !contains "コンビニ" unavailableText && !contains unrelated.description unavailableText)
+    "corrected detail showed stale Effects or a different Event"
+  for event in [Loam.Tui.SelectedDay.Event.correctActual, .correctDate, .reverseActual, .classifyMerchant] do
+    expect ((Loam.Tui.SelectedDay.update replaced unavailable event).command == .stay)
+      "corrected target emitted a stale mutation intent"
+
+  let undated := {record with date := none}
+  let unknown := {snapshot with actual := {snapshot.actual with allRecords := [undated]}}
+  let undatedState := Loam.Tui.SelectedDay.initialTransaction undated
+  let unknownText := widgetText (Loam.Tui.SelectedDay.view bounds unknown undatedState)
+  expect (contains "date unknown" unknownText && !contains "[c] Correct" unknownText &&
+    !contains "[d] Change date" unknownText && !contains "[n] Record new" unknownText &&
+    (Loam.Tui.SelectedDay.update unknown undatedState .recordNew).command == .stay &&
+    (Loam.Tui.SelectedDay.refreshed unknown base).focusDate.isEmpty)
+    "undated detail invented a recording date or advertised an unsupported editor"
+
+  let long := {record with description := String.join (List.replicate 40 "長い説明") ++ "description-tail"}
+  let longSnapshot := {observed with actual := {observed.actual with allRecords := [unrelated, long]}}
+  let compactBounds : Bounds := {width := 32, height := 10}
+  let compactState := Loam.Tui.SelectedDay.initialTransaction long
+  let last := press compactBounds longSnapshot compactState .«end»
+  expect (last.detailScroll > 0 && contains "Merchant classification"
+    (widgetText (Loam.Tui.SelectedDay.view compactBounds longSnapshot last)))
+    "compact focused detail could not reach its actions"
+  let page := press compactBounds longSnapshot compactState .pageDown
+  expect (page.detailScroll == 5) "focused detail page did not match the visible body rows"
+  expect ((press compactBounds longSnapshot last .previous).detailScroll + 1 == last.detailScroll &&
+    (press compactBounds longSnapshot last .home).detailScroll == 0)
+    "focused detail retained phantom scroll offsets"
+  let enlarged := Loam.Tui.SelectedDay.normalizedForBounds bounds longSnapshot last
+  expect (enlarged.actualTarget? == base.actualTarget? && enlarged.detailScroll <= last.detailScroll)
+    "focused resize changed identity or failed to clamp scrolling"
+
 def main : IO Unit := do
   let snapshot ← fixture
   let state := Loam.Tui.SelectedDay.initial "2026-09-07"
@@ -363,4 +461,5 @@ def main : IO Unit := do
   testWrappedDetails snapshot
   testReadStates snapshot
   testScheduledDetails snapshot
+  testTransaction snapshot
   IO.println "TUI selected day: quiet frames, compact feedback, selection/paging, wrapped details and shared read/write delegation passed."

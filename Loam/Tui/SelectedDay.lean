@@ -1,3 +1,7 @@
+import Loam.Tui.ActualDateCorrection
+import Loam.Tui.ActualReversal
+import Loam.Tui.Correction
+import Loam.Tui.EventMerchant
 import Loam.Tui.Layout
 import Loam.Tui.Main
 import Loam.Tui.Scroll
@@ -16,6 +20,9 @@ inductive Pane where
 
 structure State where
   focusDate : String
+  /-- A single-transaction entrance, anchored by retained identity rather than a day row.
+      None keeps Home's dated browser. This is process-local navigation only. -/
+  actualTarget? : Option Loam.Core.EventId := none
   pane : Pane := .actual
   actualRow : Nat := 0
   scheduledRow : Nat := 0
@@ -79,6 +86,11 @@ def initialForActual? (snapshot : Snapshot) (record : ReviewRecord) : Option Sta
     item.event.id == record.event.id
   some { focusDate := date, pane := .actual, actualRow := index }
 
+/-- Actual Enter opens one Event without requiring or manufacturing an occurrence date. -/
+def initialTransaction (record : ReviewRecord) : State :=
+  { focusDate := record.date.getD "", actualTarget? := some record.event.id,
+    detailFocused := true }
+
 /-- Selected-day Actual is exactly the existing shared ActualReview day answer. -/
 def actualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   recordsForDay snapshot state.focusDate
@@ -98,7 +110,10 @@ def scheduledRecords (snapshot : Snapshot) (state : State) : List ScheduledRecor
 
 
 def selectedActual? (snapshot : Snapshot) (state : State) : Option ReviewRecord :=
-  (actualRecords snapshot state)[state.actualRow]?
+  match state.actualTarget? with
+  | some target => snapshot.actual.allRecords.find? fun record =>
+      record.event.id == target && record.isCurrent
+  | none => (actualRecords snapshot state)[state.actualRow]?
 
 
 def selectedScheduled? (snapshot : Snapshot) (state : State) : Option ScheduledRecord :=
@@ -110,6 +125,14 @@ private def scheduledUnavailableNotice? (snapshot : Snapshot) : Option String :=
   | .ok _ => none
 
 private def clampState (snapshot : Snapshot) (state : State) : State :=
+  if state.actualTarget?.isSome then
+    { state with
+      pane := .actual
+      detailFocused := true
+      focusDate := match selectedActual? snapshot state with
+        | some record => record.date.getD ""
+        | none => state.focusDate }
+  else
   let actualCount := (actualRecords snapshot state).length
   let scheduledCount := (scheduledRecords snapshot state).length
   let actualRow := if actualCount = 0 then 0 else min state.actualRow (actualCount - 1)
@@ -192,7 +215,9 @@ private def updateIntent (snapshot : Snapshot) (state : State) (event : Event) :
   | .focusRight => { state := { state with pane := .scheduled, detailFocused := false, notice := "" } }
   | .focusDetails => { state := { state with detailFocused := !state.detailFocused, notice := "" } }
   | .recordNew =>
-      match state.pane with
+      if state.actualTarget?.isSome && state.focusDate.isEmpty then
+        {state := {state with notice := "Date unknown; return to Actual to record a new Movement."}}
+      else match state.pane with
       | .actual => { state, command := .recordNew }
       | .scheduled =>
           { state := { state with notice := "New Actual is available from the Actual pane." } }
@@ -282,13 +307,18 @@ private def updateIntent (snapshot : Snapshot) (state : State) (event : Event) :
                   { state := { state with notice := "No current-open Scheduled occurrence is selected for supersede." } }
               | some _ => { state, command := .replaceScheduled }
   | .back =>
-      if state.detailFocused then { state := {state with detailFocused := false, notice := ""} }
+      if state.detailFocused && state.actualTarget?.isNone then
+        { state := {state with detailFocused := false, notice := ""} }
       else { state, command := .back }
   | .other => { state }
 
 /-- Geometry-free action/selection entrance used by shared-boundary interaction tests. -/
 def update (snapshot : Snapshot) (rawState : State) (event : Event) : Step :=
   let state := clampState snapshot rawState
+  let event := if state.actualTarget?.isSome then match event with
+      | .focusLeft | .focusRight | .focusDetails => Event.other
+      | _ => event
+    else event
   let step := updateIntent snapshot state event
   if step.state.pane != state.pane || step.state.actualRow != state.actualRow ||
       step.state.scheduledRow != state.scheduledRow then
@@ -346,18 +376,21 @@ private def effectLines
     [plainLine (" " ++ Loam.Tui.Layout.padRight (width - quantityWidth - 3) locus ++ "  " ++ quantity)]
   else wrapped width locus ++ wrapped width ("Quanta: " ++ quantity)
 
+/-- The day browser and focused Event use the same exact, wrapped Actual evidence. -/
+private def actualRawLines (width : Nat) (record? : Option ReviewRecord) : List Widget :=
+  match record? with
+  | none => wrapped width "(no Actual selected)" .muted
+  | some record =>
+      wrapped width s!"Effects ({record.event.effects.length}, exact quanta):" .muted ++
+      (record.event.effects.flatMap fun effect =>
+        effectLines (min width 80) effect.locus.token effect.measure effect.quantity.quanta) ++
+      [blankLine] ++ wrapped width (descriptionText record) ++
+      wrapped width ("Date: " ++ record.date.getD "date unknown") .muted ++
+      wrapped width ("ID: " ++ record.event.id.token) .muted
+
 private def detailRawLines (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
   match state.pane with
-  | .actual =>
-      match selectedActual? snapshot state with
-      | none => wrapped width "(no Actual selected)" .muted
-      | some record =>
-          wrapped width s!"Effects ({record.event.effects.length}, exact quanta):" .muted ++
-          (record.event.effects.flatMap fun effect =>
-            effectLines (min width 80) effect.locus.token effect.measure effect.quantity.quanta) ++
-          [blankLine] ++ wrapped width (descriptionText record) ++
-          wrapped width ("Date: " ++ record.date.getD "date unknown") .muted ++
-          wrapped width ("ID: " ++ record.event.id.token) .muted
+  | .actual => actualRawLines width (selectedActual? snapshot state)
   | .scheduled =>
       match selectedScheduled? snapshot state with
       | none =>
@@ -372,6 +405,48 @@ private def detailRawLines (width : Nat) (snapshot : Snapshot) (state : State) :
             effectLines (min width 80) change.coordinate.token record.measure change.quantity.quanta) ++
           wrapped width ("Due: " ++ record.scheduledOn) .muted ++
           wrapped width ("ID: " ++ record.id.token) .muted
+
+private def transactionRawLines (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+  let record? := selectedActual? snapshot state
+  let details := match record? with
+    | some record =>
+        wrapped width "Status: Current Event (correction frontier)" .muted ++
+        (record.reversedBy.toList.flatMap fun id =>
+          wrapped width ("Reversed by: " ++ id.token ++ " (original retained)")) ++
+        (record.reversalOf.toList.flatMap fun id => wrapped width ("Reversal of: " ++ id.token)) ++
+        wrapped width ("Merchant: " ++ (record.merchant.map Loam.Tui.EventMerchant.dispositionText).getD "Unresolved") .muted ++
+        actualRawLines width record?
+    | none =>
+        wrapped width "This Event is no longer current or available. Return to Actual to choose a current Event." ++
+        wrapped width ("ID: " ++ (state.actualTarget?.map (·.token)).getD "") .muted
+  let actions := match record? with
+    | some record =>
+        (if record.reversedBy.isNone && record.reversalOf.isNone &&
+            (Loam.Tui.Correction.initialWithPresentation? [] record).isOk then
+          ["[c] Correct contents / description"] else []) ++
+        (if (Loam.Tui.ActualDateCorrection.initial? record).isOk then ["[d] Change date"] else []) ++
+        (if record.reversedBy.isNone && record.reversalOf.isNone &&
+            (Loam.Tui.ActualReversal.initial? record snapshot.actual.today).isOk then ["[r] Reverse"] else []) ++
+        (if record.merchant.isNone then ["[m] Merchant classification"] else []) ++ ["[g] Manage Loci"] ++
+        (if state.focusDate.isEmpty then [] else ["[n] Record new Movement"])
+    | none => ["[g] Manage Loci"] ++
+        (if state.focusDate.isEmpty then [] else ["[n] Record new Movement"])
+  details ++ [blankLine] ++ wrapped width "Actions (existing editors / confirmations):" .muted ++
+    actions.flatMap (fun text => wrapped width text) ++
+    wrapped width "[Esc/q] Return to Actual list" .muted
+
+private def transactionFooter (bounds : Bounds) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  [Loam.Tui.Layout.shortcutRow [("j/k", "scroll"), ("PgUp/Dn", "page")] " ",
+   Loam.Tui.Layout.shortcutRow [("Esc/q", if width >= 40 then "Actual list" else "back"), ("End", "actions")] " "].take (bounds.height - 1)
+
+private def transactionCapacity (bounds : Bounds) : Nat :=
+  Loam.Tui.Layout.footerBodyCapacity bounds (transactionFooter bounds).length - 2
+
+private def transactionLines (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds - 2
+  let notice := if state.notice.isEmpty then [] else wrapped width state.notice .muted ++ [blankLine]
+  notice ++ transactionRawLines width snapshot state
 
 /-- Bounds, not the selected record, determine the ordinary detail rectangle. -/
 def detailCapacityForBounds (bounds : Bounds) : Nat :=
@@ -436,7 +511,10 @@ private def detailLimit (g : Geometry) (snapshot : Snapshot) (state : State) : N
 /-- Geometry normalization never changes the selected day or evidence identity. -/
 def normalizedForBounds (bounds : Bounds) (snapshot : Snapshot) (state : State) : State :=
   let state := clampState snapshot state
-  {state with detailScroll := min state.detailScroll (detailLimit (geometry bounds state) snapshot state)}
+  let maximum := if state.actualTarget?.isSome then
+      Loam.Tui.Scroll.maxOffset (transactionLines bounds snapshot state).length (transactionCapacity bounds)
+    else detailLimit (geometry bounds state) snapshot state
+  {state with detailScroll := min state.detailScroll maximum}
 
 private def listCapacity (height : Nat) : Nat :=
   height - 2 - (if height ≥ 4 then 1 else 0)
@@ -513,10 +591,24 @@ private def detailPanel (g : Geometry) (snapshot : Snapshot) (state : State) : W
 def updateForBounds (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
     (event : Event) (repeatCount : Nat := 1) : Step :=
   let state := normalizedForBounds bounds snapshot rawState
-  let clean := {state with notice := ""}
-  let g := geometry bounds clean
   let directional := event == .previous || event == .next || event == .pageUp ||
     event == .pageDown || event == .home || event == .«end»
+  if state.actualTarget?.isSome then
+    if !directional then
+      let step := update snapshot state event
+      {step with state := normalizedForBounds bounds snapshot step.state}
+    else
+    let count := (transactionLines bounds snapshot state).length
+    let visible := transactionCapacity bounds
+    let amount := if event == .pageUp || event == .pageDown then max 1 visible else max 1 repeatCount
+    let offset := if event == .home then 0 else if event == .«end» then Loam.Tui.Scroll.maxOffset count visible
+      else if event == .previous || event == .pageUp then
+        Loam.Tui.Scroll.backward count visible state.detailScroll amount
+      else Loam.Tui.Scroll.forward count visible state.detailScroll amount
+    {state := {state with detailScroll := offset}}
+  else
+  let clean := {state with notice := ""}
+  let g := geometry bounds clean
   let step := if state.detailFocused && directional then
       let maximum := detailLimit g snapshot clean
       let count := (detailRawLines (g.width - 2) snapshot clean).length
@@ -541,9 +633,24 @@ def updateForBounds (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
       else update snapshot state event
   {step with state := normalizedForBounds bounds snapshot step.state}
 
-/-- One-date projection and local UI intents; all authoritative reads/writes stay shared. -/
+/-- One focused record and its actions, never a day/transaction list or active form. -/
+private def transactionView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let capacity := transactionCapacity bounds
+  let raw := transactionLines bounds snapshot state
+  let offset := Loam.Tui.Scroll.clamp raw.length capacity state.detailScroll
+  let position := (if offset > 0 then "↑ " else "") ++
+    (if offset + capacity < raw.length then "↓ " else "") ++ "End: actions"
+  let panel := Loam.Tui.Layout.framedPanel width (capacity + 2) "Actual / Transaction detail"
+    (.column ((raw.drop offset).take capacity)) true (some position)
+  .column ((Loam.Tui.Layout.fitWithFooter bounds (widgetRows panel) (transactionFooter bounds)).map fun row =>
+    .row ((Loam.Tui.Layout.clipCells width row.lines.flatten).map fun cell =>
+      span (String.singleton cell.glyph) cell.style))
+
+/-- Separate dated-browser and single-Event presentations; authoritative reads/writes stay shared. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let state := normalizedForBounds bounds snapshot rawState
+  if state.actualTarget?.isSome then transactionView bounds snapshot state else
   let g := geometry bounds state
   let context :=
     [plainLine " Household Day Workspace",

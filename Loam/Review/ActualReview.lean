@@ -26,6 +26,11 @@ structure Record where
   date : Option String
   description : String
   replacement : Option EventId
+  /-- Record-local presentation evidence from the same admitted Actual generation.
+      Reversal does not remove either Event from the correction frontier. -/
+  reversedBy : Option EventId := none
+  reversalOf : Option EventId := none
+  merchant : Option MerchantDisposition := none
 
 /--
 A review record is current exactly when no admitted Correction leaves its Event.
@@ -130,6 +135,9 @@ def recordsFromActualEvidence?
           date := validities.findByEventId? event.id
           description := (evidence.descriptions.findText? event.id).getD ""
           replacement := (evidence.corrections.corrections.find? fun c => c.target == event.id).map (·.replacement)
+          reversedBy := (evidence.reversals.findByTarget? event.id).map (·.reversal)
+          reversalOf := (evidence.reversals.findByReversal? event.id).map (·.target)
+          merchant := evidence.merchants.findDisposition? event.id
         })
 
 private def currentValidityIndex
@@ -166,11 +174,20 @@ def recordsFromActualImage
   let validities := currentValidityIndex image.currentValidities
   let descriptions := descriptionIndex evidence.descriptions
   let replacements := replacementIndex evidence.corrections
+  let reversedBy : Std.HashMap String EventId := evidence.reversals.reversals.foldl
+    (fun index relation => index.insert relation.target.token relation.reversal) {}
+  let reversalOf : Std.HashMap String EventId := evidence.reversals.reversals.foldl
+    (fun index relation => index.insert relation.reversal.token relation.target) {}
+  let merchants : Std.HashMap String MerchantDisposition := evidence.merchants.entries.foldl
+    (fun index entry => index.insert entry.event.token entry.disposition) {}
   evidence.events.events.map fun event => {
     event := event
     date := validities[event.id.token]?
     description := descriptions[event.id.token]?.getD ""
     replacement := replacements[event.id.token]?
+    reversedBy := reversedBy[event.id.token]?
+    reversalOf := reversalOf[event.id.token]?
+    merchant := merchants[event.id.token]?
   }
 
 /--

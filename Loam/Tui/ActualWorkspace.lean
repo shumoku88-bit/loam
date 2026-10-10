@@ -173,6 +173,26 @@ private def clampState (snapshot : Snapshot) (state : State) : State :=
 def refreshed (snapshot : Snapshot) (state : State) : State :=
   clampState snapshot { state with detailScroll := 0, notice := "" }
 
+/-- Return from a single Event without resetting search/order/focus or an unchanged preview.
+    Re-anchor filters and selection by token; otherwise keep the nearest visible row. -/
+def returnedFromDetail (before after : Snapshot) (state : State) : State :=
+  let locus := selectedLocus? before state
+  let loci := lociForScope after state
+  let locusRow := match locus with
+    | none => 0
+    | some token => (loci.findIdx? (· == token)).map (· + 1) |>.getD 0
+  let base := { state with
+    locusRow := locusRow
+    notice := if locus.isSome && locusRow == 0 then
+      "Selected Locus is no longer in scope; showing all loci." else "" }
+  let target := (selectedRecord? before state).map (·.event.id)
+  let row := (visibleRecords after base).findIdx? fun record => some record.event.id == target
+  match row with
+  | some transactionRow => {base with transactionRow}
+  | none =>
+      let fresh := refreshed after base
+      {fresh with notice := "Selected Event no longer matches this list; selection moved to the nearest row."}
+
 private def movePrevious (snapshot : Snapshot) (state : State) : State :=
   match state.pane with
   | .loci =>

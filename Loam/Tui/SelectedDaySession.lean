@@ -38,9 +38,9 @@ open Loam.Tui.Main
 set_option autoImplicit false
 
 /-!
-# Selected Day workspace session
+# Selected Day / single-transaction session
 
-Owns only the terminal/session lifetime for the existing one-date presentation.
+Owns only the terminal/session lifetime for the dated browser and focused Event entrance.
 Shared Home snapshot evidence remains the read source. Record, correction,
 reversal, Scheduled, date, and Merchant publication continue through their
 existing writer/session boundaries.
@@ -153,7 +153,8 @@ partial def eventMerchantLoop
       eventMerchantLoop bounds root step.state nextFrame
 
 
-/-- Selected-day session. Shared reads remain the workspace source; writes are delegated. -/
+/-- Both entrances use the same editors, confirmations, publishers and required reloads.
+    SelectedDay resolves focused actions by Event ID, never a neighboring day row. -/
 partial def run (bounds : Bounds) (dataDir root : System.FilePath)
     (reload : IO (Except String Snapshot))
     (snapshot : Snapshot) (state : Loam.Tui.SelectedDay.State)

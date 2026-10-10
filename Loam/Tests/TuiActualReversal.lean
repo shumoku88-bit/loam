@@ -138,6 +138,15 @@ def main (args : List String) : IO Unit := do
   expect (fresh.any fun item => item.event.id == relation.reversal && item.date == some "2026-09-08")
     "fresh Actual review did not expose the canonical reversal occurrence"
 
+  let .ok rawReview := Loam.ActualReview.recordsFromActualEvidence? evidence
+    | throw (IO.userError "raw reversal review")
+  for review in [fresh, rawReview] do
+    expect ((review.find? (·.event.id == recorded)).bind (·.reversedBy) == some relation.reversal &&
+      (review.find? (·.event.id == relation.reversal)).bind (·.reversalOf) == some recorded)
+      "Actual detail read projection lost explicit reversal endpoints"
+    expect ((review.find? (·.event.id == recorded)).any (·.isCurrent))
+      "reversal presentation changed correction-frontier currentness"
+
   let cancelled := Loam.Tui.ActualReversal.update editor .escape
   expect (cancelled.cancel && cancelled.publish.isNone)
     "Esc from reversal editor emitted publication"
