@@ -74,6 +74,14 @@ def main : IO Unit := do
         span (String.singleton cell.glyph) cell.style)
     expect (decide ((clipWidgetRow width styled).lines = priorClip.lines))
       "shared clipWidgetRow changed terminal-column clipping or Cell styles"
+    let oldPerRow : List Widget := styled.lines.map fun cells =>
+      .row ((clipCells width cells).map fun cell =>
+        span (String.singleton cell.glyph) cell.style)
+    expect (decide ((Widget.column (clippedWidgetRows width styled)).lines =
+      (Widget.column oldPerRow).lines))
+      "shared clippedWidgetRows changed physical row boundaries or Cell styles"
+    expect ((clippedWidgetRows width styled).length == styled.lines.length)
+      "shared clippedWidgetRows dropped or merged physical rows"
 
   let widget : Widget := .column [.row [span "alpha"], .row [span "beta"]]
   let compiled := Loam.Tui.Runtime.compileWidget widget

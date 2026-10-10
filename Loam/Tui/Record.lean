@@ -757,11 +757,9 @@ private def editingField (width : Nat) (form : Form) (index : Nat)
 /-- Fit rendered rows above a stable footer and reserve the terminal's final row/column. -/
 def boundedWithFooter (bounds : Bounds) (body : Widget) (footer : List Widget) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let rows := body.lines.map fun cells =>
-    Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  let rows := Loam.Tui.Layout.widgetRows body
   .column (((Loam.Tui.Layout.fitWithFooter bounds rows footer).take (bounds.height - 1)).map
-    fun widget => .column (widget.lines.map fun cells => .row
-      ((Loam.Tui.Layout.clipCells width cells).map fun cell => span (String.singleton cell.glyph) cell.style)))
+    fun widget => .column (Loam.Tui.Layout.clippedWidgetRows width widget))
 
 private def originalAmountView (bounds : Bounds) (state : State)
     (editor : OriginalAmountEditor) : Widget :=

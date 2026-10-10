@@ -744,12 +744,9 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       [listPanel state recordsArr loci listPane writable (geometry.listHeight listPane) title] ++
         (if detailHeight > 0 then [detailPanel detailBounds.width detailBounds.height] else [])
   -- Flatten before footer fitting: a panel is many physical terminal rows.
-  let body := (Widget.column (context ++ panels ++ notice)).lines.map fun cells =>
-    .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  let body := Loam.Tui.Layout.widgetRows (Widget.column (context ++ panels ++ notice))
   let fitted := Loam.Tui.Layout.fitWithFooter bounds body footerLines
   .column (fitted.map fun row =>
-    .column (row.lines.map fun cells =>
-      .row ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
-        span (String.singleton cell.glyph) cell.style)))
+    .column (Loam.Tui.Layout.clippedWidgetRows writable row))
 
 end Loam.Tui.ActualWorkspace
