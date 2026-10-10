@@ -38,11 +38,118 @@ private def typeText
       (Loam.Tui.AttentionAdministration.update current (.input char)).state)
     state
 
+private def compact (text : String) : String :=
+  String.ofList (text.toList.filter fun char => char != ' ' && char != '\n' && char != '│')
+
+private def contentRows (view : Widget) (title : String) : List String :=
+  let rows := view.lines.map fun cells => String.ofList (cells.map Cell.glyph)
+  ((rows.dropWhile fun row => !contains ("╭ " ++ title) row).drop 1).takeWhile fun row => !contains "╰" row
+
+private def testBoundedPresentation : IO Unit := do
+  let items : List (Attention String) := (List.range 30).map fun i => {
+    id := ⟨s!"attention-{i + 1}"⟩
+    context := s!"MATTER-{i + 1}#"
+    due := if i % 3 == 0 then .dueOn "2026-10-01" else if i % 3 == 1 then .noDueDate else .dueUndetermined
+  }
+  let initial := Loam.Tui.AttentionAdministration.initial (.available {openItems := items}) "2026-09-16"
+  for bounds in [{width := 48, height := 14}, {width := 80, height := 24},
+      {width := 100, height := 30}, {width := 150, height := 45}] do
+    let step := Loam.Tui.AttentionAdministration.updateForBounds bounds initial .«end»
+    expect (!step.back && step.add.isNone && step.close.isNone && step.state.cursor == 29)
+      "Attention endpoint navigation emitted intent or missed the last item"
+    let view := Loam.Tui.AttentionAdministration.viewForBounds bounds step.state
+    expect (view.lines.length == bounds.height - 1 && view.lines.all fun cells =>
+      Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) ≤ bounds.width - 1)
+      "Attention frame escaped usable terminal geometry"
+    expect (contains "MATTER-30#" (widgetText view) && contains "╭ Open [active]" (widgetText view) &&
+      !contains "====" (widgetText view)) "Attention selection remained outside the quiet bounded list"
+    expect (view.lines.flatten.all fun cell => cell.style == .normal || cell.style == .muted ||
+      cell.style == .series1 || cell.style == .selected) "Attention added decorative colors"
+    let first := (Loam.Tui.AttentionAdministration.updateForBounds bounds step.state .home).state
+    let paged := Loam.Tui.AttentionAdministration.updateForBounds bounds first .pageDown
+    expect (paged.state.cursor > 0 && paged.state.cursor < 30 && paged.add.isNone && paged.close.isNone)
+      "Attention paging manufactured a target or publication"
+    let focused := (Loam.Tui.AttentionAdministration.updateForBounds bounds step.state (.input 'i')).state
+    expect (focused.detailFocused && focused.cursor == 29) "Attention Detail changed identity"
+    let detail := Loam.Tui.AttentionAdministration.viewForBounds bounds focused
+    expect (!detail.lines.flatten.any fun cell => cell.style == .selected) "inactive Attention list kept selection background"
+    let back := Loam.Tui.AttentionAdministration.updateForBounds bounds focused .escape
+    expect (!back.back && !back.state.detailFocused && back.state.cursor == 29) "Detail back escaped the workspace"
+    let confirm := (Loam.Tui.AttentionAdministration.updateForBounds bounds step.state (.input 'x')).state
+    let scrolled := Loam.Tui.AttentionAdministration.updateForBounds bounds confirm .«end»
+    expect (scrolled.close.isNone && scrolled.add.isNone && scrolled.state.mode == confirm.mode)
+      "confirmation review changed frozen target or emitted a write"
+    let published := Loam.Tui.AttentionAdministration.updateForBounds bounds scrolled.state .enter
+    expect (published.close.map (·.attention) == some ⟨"attention-30"⟩) "closure confirmed an off-screen/wrong identity"
+    let oneLine := Loam.Tui.AttentionAdministration.viewForBounds bounds {step.state with notice := "Publication refused."}
+    let borders : Widget → List Nat := fun widget => widget.lines.zipIdx.filterMap fun (cells, i) =>
+      let row := String.ofList (cells.map Cell.glyph)
+      if contains "╭" row || contains "╰" row then some i else none
+    expect (borders view == borders oneLine) "one-line Attention feedback shifted the frames"
+  let bounds : Bounds := {width := 48, height := 14}
+  let longContext := String.ofList (List.replicate 90 '界') ++ "-context-tail"
+  let longId := "attention-" ++ String.ofList (List.replicate 60 'x') ++ "-id-tail"
+  let item : Attention String := {id := ⟨longId⟩, context := longContext, due := .dueUndetermined}
+  let longState := Loam.Tui.AttentionAdministration.initial (.available {openItems := [item]}) "2026-09-16"
+  for (mode, title) in [(Loam.Tui.AttentionAdministration.Mode.browse, "Selected matter"),
+      (.newDue longContext, "Due meaning"), (.newDate longContext "2026-10-01", "Due date"),
+      (.confirmClose item.id .resolved, "resolve confirmation"), (.confirmClose item.id .dropped, "drop confirmation")] do
+    let mut state := {longState with mode, detailFocused := mode == .browse}
+    let mut seen := String.intercalate "\n" (contentRows (Loam.Tui.AttentionAdministration.viewForBounds bounds state) title)
+    for _ in List.range 100 do
+      let next := Loam.Tui.AttentionAdministration.updateForBounds bounds state .down
+      -- Due/date modes review using pages, since j/k remain ordinary input.
+      let next := if mode == .browse || (match mode with | .confirmClose _ _ => true | _ => false) then next
+        else Loam.Tui.AttentionAdministration.updateForBounds bounds state .pageDown
+      expect (next.add.isNone && next.close.isNone && !next.back) "review navigation published/cancelled a draft"
+      if next.state.contentScroll == state.contentScroll then break
+      if mode == .browse || (match mode with | .confirmClose _ _ => true | _ => false) then
+        seen := seen ++ "\n" ++ (contentRows (Loam.Tui.AttentionAdministration.viewForBounds bounds next.state) title).getLast!
+      else
+        seen := seen ++ "\n" ++ String.intercalate "\n" (contentRows (Loam.Tui.AttentionAdministration.viewForBounds bounds next.state) title)
+      state := next.state
+    expect (contains "-context-tail" seen) "Attention full review lost the context tail"
+    if mode == .browse then
+      expect (contains longContext (compact seen) && contains longId (compact seen))
+        "Attention Detail lost full Unicode context or identity"
+    let endState := Loam.Tui.AttentionAdministration.updateForBounds bounds state .«end»
+    expect ((Loam.Tui.AttentionAdministration.updateForBounds bounds endState.state .«end»).state.contentScroll == endState.state.contentScroll)
+      "Attention review exceeded true bottom"
+    let cancel := Loam.Tui.AttentionAdministration.updateForBounds bounds endState.state .escape
+    expect (cancel.add.isNone && cancel.close.isNone) "review cancel emitted a publication"
+  let typed := Loam.Tui.AttentionAdministration.updateForBounds bounds {longState with mode := .newContext ""}
+    (.paste (longContext ++ "\nnot part of a single-line field"))
+  expect (typed.state.mode == .newContext longContext && typed.add.isNone) "paste changed context or published before due choice"
+  expect (contains "-context-tail" (widgetText (Loam.Tui.AttentionAdministration.viewForBounds bounds typed.state)))
+    "Attention input tail/IME focus disappeared"
+  let qText := Loam.Tui.AttentionAdministration.updateForBounds bounds typed.state (.input 'q')
+  expect (!qText.back && qText.state.mode == .newContext (longContext ++ "q")) "text q became application back"
+  let next := Loam.Tui.AttentionAdministration.updateForBounds bounds typed.state .enter
+  expect (next.add.isNone && next.state.mode == .newDue longContext) "Context Enter acquired publication authority"
+  let published := Loam.Tui.AttentionAdministration.updateForBounds bounds next.state (.input 'u')
+  expect (published.add.map (·.context) == some longContext &&
+    published.add.map (·.due) == some AttentionDue.dueUndetermined)
+    "input-tail/full-review presentation clipped the emitted context or changed due meaning"
+  let notice := String.ofList (List.replicate 80 '界') ++ "通知末尾"
+  let notified := Loam.Tui.AttentionAdministration.viewForBounds bounds {longState with notice}
+  expect (contains notice (compact (widgetText notified))) "Attention feedback lost Japanese cause"
+  let overflow := Loam.Tui.AttentionAdministration.viewForBounds bounds {longState with notice := String.ofList (List.replicate 600 '界')}
+  expect (overflow.lines.length == 13 && contains "more feedback/help; enlarge terminal" (widgetText overflow))
+    "Attention over-height feedback silently disappeared"
+  for small in [{width := 12, height := 5}, {width := 24, height := 8}] do
+    for mode in [Loam.Tui.AttentionAdministration.Mode.browse, .newContext longContext, .newDue longContext,
+        .newDate longContext "2026-10-01", .confirmClose item.id .dropped] do
+      let view := Loam.Tui.AttentionAdministration.viewForBounds small {longState with mode}
+      expect (view.lines.length ≤ small.height - 1 && view.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) ≤ small.width - 1)
+        "Attention editor escaped tiny bounds"
+
 def main : IO Unit := do
+  testBoundedPresentation
   let admin0 := Loam.Tui.AttentionAdministration.initial .unavailable "2026-09-16"
   let adminText := widgetText (Loam.Tui.AttentionAdministration.view admin0)
-  expect (contains "No canonical Attention stream yet" adminText)
-    "administration hid the unavailable bootstrap state"
+  expect (contains "No canonical Attention stream yet" adminText && !contains "0 open" adminText)
+    "administration hid the unavailable bootstrap state or relabelled it as zero open"
   expect (contains "Press n to create the first household matter" adminText)
     "administration did not expose the first-write entrance"
 
@@ -159,8 +266,8 @@ def main : IO Unit := do
   expect (contains "Attention / Manage" manageText) "view missing Attention / Manage heading"
   expect (contains "Household matters that should not disappear from view" manageText)
     "view missing descriptive subtitle"
-  expect (contains "j/k or ↑/↓ select   n new   r resolve today   x drop today" manageText)
-    "view missing action help footer"
+  expect (contains "[j/k] select" manageText && contains "[n] new [r] resolve [x] drop" manageText)
+    "view missing stable action help footer"
   expect (contains "due 2026-10-01" manageText)
     "known due meaning was not rendered in the production Attention surface"
   expect (contains "no due date" manageText)
@@ -174,11 +281,8 @@ def main : IO Unit := do
   -- 3. Reloading HouseholdImage evidence reflects the new item in Attention / Manage.
   -- 4. closeAttention resolves the item.
   -- 5. Reloading evidence reflects 0 open items.
-  let tmpRoot := (System.FilePath.mk "/tmp") / "loam-attention-tui-test"
+  let tmpRoot ← IO.FS.createTempDir
   try
-    if ← tmpRoot.pathExists then
-      IO.FS.removeDirAll tmpRoot
-    IO.FS.createDirAll tmpRoot
 
     let .ok _ ← Loam.HouseholdAuthority.installInitial? tmpRoot { sections := [] }
       | throw (IO.userError "TUI Attention HouseholdImage bootstrap failed")

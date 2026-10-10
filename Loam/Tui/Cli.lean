@@ -580,7 +580,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         loop bounds dataDir root snapshot home nextFrame
     | .ok evidence =>
         let admin := Loam.Tui.AttentionAdministration.initial evidence snapshot.actual.today
-        let adminFrame := compileWidget (Loam.Tui.AttentionAdministration.view admin)
+        let adminFrame := compileWidget (Loam.Tui.AttentionAdministration.viewForBounds bounds admin)
         Loam.Tui.Terminal.redrawFromBlank bounds adminFrame
         let changed ← Loam.Tui.AttentionAdministrationSession.run
           bounds root admin adminFrame
@@ -592,6 +592,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             requireReload "Attention administration completed." (loadSnapshot dataDir)
           else
             pure snapshot
+        let bounds ← Loam.Tui.Terminal.currentBounds
         let home := { state with notice := "" }
         let nextFrame := compiledFrameFor bounds fresh home
         Loam.Tui.Terminal.redrawFromBlank bounds nextFrame

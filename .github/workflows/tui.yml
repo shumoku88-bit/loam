@@ -3,6 +3,8 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tests/test_attention_pty.py'
+      - 'tests/AttentionPtyFixture.lean'
       - 'tests/test_daily_pace_pty.py'
       - 'Loam/Tests/TuiDailyPaceTrend.lean'
       - 'tests/test_balances_pty.py'
@@ -198,6 +200,8 @@ on:
     branches:
       - main
     paths:
+      - 'tests/test_attention_pty.py'
+      - 'tests/AttentionPtyFixture.lean'
       - 'tests/test_daily_pace_pty.py'
       - 'Loam/Tests/TuiDailyPaceTrend.lean'
       - 'tests/test_balances_pty.py'
@@ -450,6 +454,9 @@ jobs:
 
       - name: Verify Daily Pace navigation, read refusal and resize on isolated data
         run: python3 tests/test_daily_pace_pty.py
+
+      - name: Verify Attention navigation, cancellation and publication on isolated data
+        run: python3 tests/test_attention_pty.py
 
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
@@ -919,6 +926,9 @@ jobs:
         run: |
           lake env lean --run Loam/Tests/TuiDailyPaceTrend.lean
           python3 tests/test_daily_pace_pty.py
+
+      - name: Verify Attention navigation, cancellation and publication on isolated data
+        run: python3 tests/test_attention_pty.py
 
       - name: Verify Cycle Budget TUI PTY interactions
         run: |

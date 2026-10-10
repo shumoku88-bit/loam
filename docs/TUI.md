@@ -681,14 +681,51 @@ and the shared `ScheduledCoverageReview` projection after durable writes.
 
 ## Attention
 
-Commands > Plans and attention > Attention opens `Attention / Manage` over the shared `Loam.AttentionReview`
-answer. The surface preserves unavailable separately from configured-empty evidence
-and keeps `due on`, `no due date`, and `due unknown` distinct.
+Home `i` or Commands > Plans and attention > Attention opens `Attention / Manage`
+over the shared `Loam.AttentionReview` answer. Unavailable is not a configured-empty
+stream; neither the body nor its frame caption claims `0 open` for absent evidence.
+`due on`, `no due date`, and `due unknown` remain distinct, in source order, without
+priority, taxonomy, amounts, selected-day membership, or a second lifecycle engine.
 
-The TUI may collect Add / Resolve / Drop intent, but durable publication remains in
-the shared `HouseholdCommand -> AttentionPublisher` path. After publication the
-session reloads canonical `attention.loam` evidence before continuing. The surface
-does not invent priority, selected-day membership, or a second lifecycle engine.
+Quiet rounded frames align due meaning and context. At 100 columns and sufficient
+height the list and Detail sit side by side; narrower terminals stack them when
+space permits, or show focused Detail alone. Selection follows the visible list,
+not a fixed first twelve rows. `j/k` or arrows retains cyclic one-row selection;
+Ctrl-u/d or Page Up/Down pages by visible data rows and Home/End reaches the ends.
+`i`, Enter, Tab or Shift-Tab toggles full wrapped Detail. Its selection background
+is inactive when reviewing Detail; `j/k`, pages and Home/End scroll context, ID and
+due meaning. `q`/Esc leaves Detail first, then returns to Home.
+
+`n` starts Add; `r` and `x` review Resolve / Drop of the exact retained ID on the
+known-through date, not Home's navigated day. Context/date fields keep their full
+stored text while the selected input tail stays visible for long text and IME.
+Bracketed paste follows the same single-line convention as Record. Due choices
+stay visible above their scrollable context; confirmation keeps the operation/date
+in the heading while its full target scrolls. Every mode reserves feedback above
+two fixed operation rows; long causes wrap with an explicit over-height indicator.
+
+Publication keys are unchanged: Context Enter only chooses due meaning; there `n`
+explicitly publishes no due date, `u` publishes unknown timing, and `d` enters the
+known-date field whose valid-date Enter publishes. Resolve/Drop publishes only on
+confirmation Enter. Esc cancels editors/confirmations without an intent; `q` in a
+text field is text. Review scrolling and endpoint keys never acquire write intent.
+
+Durable publication still crosses `HouseholdCommand -> AttentionPublisher`, which
+re-reads and re-admits under shared authority ownership, including stale-target
+refusal. Only accepted writes reload the canonical **HouseholdImage Attention
+section** and then all Home reviews. Read-only visits, cancellation and refusal do
+not manufacture a reload/success. Live resize observes geometry without household
+reads; Home re-observes tty bounds on return. Legacy `attention.loam` is not the
+production source or write target. The shared previous-image recovery backup still
+advances normally on accepted publication.
+
+Qualification: `TuiAttentionAdministration` (also representative tests), Attention
+persistence/Household adapter and Scheduled continuation neighbors, plus synthetic
+`tests/test_attention_pty.py` / `tests/AttentionPtyFixture.lean` in both TUI CI tiers.
+These cover full text/identity, all due meanings, cancellation/date refusal,
+resolve/drop, stale re-admission, resize and unchanged non-Attention families/config.
+UI-26 includes list/Detail and these Add/Resolve/Drop forms. It is the final screen
+in this refinement round; pending work elsewhere remains separate.
 
 ## Balances
 

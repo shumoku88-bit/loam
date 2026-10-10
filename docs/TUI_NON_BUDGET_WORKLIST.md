@@ -49,7 +49,7 @@
 | UI-23 | Scheduled coverage 設定 | 未着手 | 設定欄、ラベル、監視と実予定の違いが分かる説明 |
 | UI-24 | Balances / Current | 完了 | 控えめな丸角枠、Locus × Measure・符号付き quanta・根拠状態の整列、選択追従、折返し・スクロール可能な詳細、固定2段ナビと予約通知行。巨大数量は不完全な桁ではなく詳細へ誘導。Print は全選択の完全な値と既存の行／UTF-8 byte 制限・明示同意を保持。`TuiBalances` を代表 TUI テストへ、合成 Balances PTY を両 CI tier へ追加。build、代表 TUI、CurrentBalanceReview、ナビ・tall display、Balances／Viewport／Record／Cycle Budget PTY、resource check を検証。巨大数量・長い識別子・日本語通知・複数 Measure・空選択・各根拠状態と、親へのリサイズ復帰・Print 同意／取消／拒否・fixture 不変を確認。Reports / Balances と Print の補助画面 UI は別項目 |
 | UI-25 | 非予算 Reports / メニュー・各表示・期間指定・比較 | 未着手 | 下の子画面一覧に沿って、枠・期間・列・詳細・ナビを統一 |
-| UI-26 | Attention 一覧・詳細・Add / Resolve / Drop | 未着手 | 一覧と期日の整列、入力・確認、フォーカス・ナビ |
+| UI-26 | Attention 一覧・詳細・Add / Resolve / Drop | 完了 | 控えめな丸角枠と due／文脈の整列、可視行に合った選択・ページと全文詳細、Add の入力末尾・due 選択・日付入力、対象 ID／日付を固定した Resolve／Drop 確認、固定2段ナビと折返し通知。Unavailable／empty と3つの due 意味、既存の発行キーと共有 Publisher／成功時の再読込を維持。代表 Lean と専用の合成 Attention PTY を両 CI tier へ追加。build（standalone Attention 含む）、代表 TUI／Attention persistence・Household adapter、Scheduled continuation、Home 世代、ナビ・tall display、Attention／Viewport／Record／Cycle Budget PTY、resource check を検証。全文・IME／paste・全モードのリサイズ、取消／日付拒否の不変、各 due・Resolve／Drop、共有再検証による stale 対象の拒否、他 family・設定・legacy の不変と正規 recovery backup を確認 |
 | UI-27 | Settlements 一覧・詳細 | 未着手 | 数量と状態の整列、詳細の階層、スクロール・ナビ |
 | UI-28 | Settlement 操作・確認 | 未着手 | 対象・実行内容、入力・確認、ナビ |
 | UI-29 | Exchange 入力・確認 | 未着手 | Measure 別の数量、入力・確認の階層、ナビ |
@@ -93,7 +93,7 @@
 5. **残りの非予算画面**：Home / Commands、Reports、Attention、
    Settlements、Exchange、設定・補助表示。
 
-現在、**UI-01・UI-04・UI-24・UI-33 の日常閲覧 UI は完了**。次の候補は、よく使う Scheduled の操作画面。Daily Pace の支援設定・補助画面と予算 UI は、この完了範囲に含めない。
+現在、**UI-26：Attention は完了。今回の UI 改修はここで一区切り**。Home・Selected Day・Balances・Daily Pace・Attention の日常利用画面を整えた。ユーザーの希望により、未完了の画面・支援設定・予算 UI へは続けて着手しない。
 
 ## 各改修で更新すること
 
