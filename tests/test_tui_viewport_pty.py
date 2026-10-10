@@ -203,14 +203,14 @@ try:
     assert b"[Space] cmds" in ansi.sub(b"", restored_home), "parent Home returned with stale wide geometry"
     resize(22, 80)
     bounded(capture(b"LOAM Home"), 22, 80)
-    # Reports now lives in Space -> Reports and analysis -> Reports.
-    os.write(master, b" jj\rjj\r")
+    # Direct Stock–Flow entrance, with no intermediate Reports chooser.
+    os.write(master, b" jj\rjjjj\r")
     report = capture(b"Stock")
     assert b"Reports" in report and b"[y] copy screen" not in report
     resize(10, 48)
     report = capture(b"Reports")
     bounded(report, 10, 48)
-    # Repeated menu navigation stays within the new viewport.
+    # Repeated report scrolling stays within the viewport.
     os.write(master, b"jjj")
     bounded(capture(), 10, 48)
     resize(36, 140)

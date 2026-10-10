@@ -41,7 +41,7 @@ Actual, and Attention remain available through their individual workspaces.
 
 `Space` opens a short-lived, hierarchical Commands palette with five groups:
 **Transactions** (Record, Actual, Exchange), **Plans and attention** (Scheduled,
-Attention, Settlements), **Reports and analysis** (Daily Pace, Balances, Reports),
+Attention, Settlements), **Reports and analysis** (eleven direct report/analysis entries),
 **Envelope budget** (Budget, Capacity, Purpose routing), and **Household setup**
 (Manage Loci, Observe quantities). `↑` / `↓` selects an item, `→` enters a group,
 and `←` returns one level (closing the palette at its root). `Enter` opens the
@@ -74,9 +74,10 @@ q          quit
 
 Attention (`i`), Daily Pace (`d`), and Balances (`b`) are direct Home shortcuts
 in both calendar and transaction focus, and also remain in Commands.
-The former direct Home shortcuts for Exchange (`x`), Settlements (`u`),
-Reports (`v`), Manage Loci (`m`), Observe quantities (`o`) and optional-budget
-operations (`c/e/p`) remain palette-only.
+Exchange, Settlements, individual reports, Manage Loci, Observe quantities and
+optional-budget operations remain palette-only. The old Home Reports shortcut
+`v` and the Reports chooser's mnemonic keys are retired; choose the report in
+Commands instead.
 Each workspace keeps its own local key grammar.
 
 The prior compact calendar was retired. The Calendar Home now always uses
@@ -791,7 +792,7 @@ in this refinement round; pending work elsewhere remains separate.
 
 ## Balances
 
-Commands > Reports and analysis > Balances opens the read-only Balances workspace over `Loam.BalanceReview`.
+Commands > Reports and analysis > Balances / Current opens the read-only Balances workspace over `Loam.BalanceReview`.
 Coordinates remain neutral `Locus × Measure` selections. Presentation does not
 classify them as Account, Asset, Liability, cash, or any other accounting role.
 Explicit zero-origin evidence and correction-aware review remain shared boundaries.
@@ -867,9 +868,43 @@ older observation or derive reconciliation semantics locally.
 
 ## Reports
 
-Commands > Reports and analysis > Reports opens Reports. Reports are explicit read queries rather than hidden household
-period authority. Current report queries include Budget Window, Stock-Flow,
-Transactions Flow, and conditional Liquidity.
+Home → `Space` → **Reports and analysis** → **specific report** opens that
+report directly. There is no intermediate Reports chooser or extra subcategory.
+The ordered entries are:
+
+1. Daily Pace
+2. Balances / Current
+3. Income & Expense
+4. Transactions Flow
+5. Stock–Flow
+6. Trend / Locus comparison
+7. Balances / Accounting
+8. Liquidity
+9. Budget Window
+10. Multicurrency Spend
+11. Fava Projection (external)
+
+`↑/↓` or `j/k` selects; `Enter` opens; `Esc` returns one palette level (or closes
+at the root). The bounded item viewport follows selection, including after idle
+resize. Compact terminals retain the selected row and abbreviated help; extremely
+short terminals prioritize the selected row over headings/borders/help.
+
+`q/Esc` exits a report's internal detail/comparison/series picker one level
+at a time, then returns directly to Home from the report root. The existing Trend
+overlay free-text form keeps `q` as text input and uses `Esc` to cancel back to
+Trend (so overlay names are not restricted by navigation). Home's date, pane
+and selection are retained. Daily Pace and Trend are distinct projections, as are
+Current and role-aware Accounting Balances. Fava launches the existing disposable
+external browser projection and returns its success/refusal notice to Home;
+select it again to refresh/retry. No internal Fava chooser is opened.
+
+Reports are explicit read queries rather than hidden household period authority.
+Window-based reports retain their editable dates, calendar-month/named presets and
+explicit Run. Accounting Balances and Trend still load immediately. Income &
+Expense retains Summary/Monthly/Daily, Stock–Flow and Income & Expense retain
+period comparison, Transactions Flow retains focused contributors, Trend retains
+series/comparison controls, Balances retain evidence and bounded Print, Liquidity
+retains assumption input, and Budget Window and Multicurrency Spend remain available.
 
 Visible query coordinates are the coordinates sent to the shared Review boundary.
 Calendar-month defaults are presentation conveniences only; they do not establish a

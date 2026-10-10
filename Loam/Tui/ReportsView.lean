@@ -102,34 +102,6 @@ private def liquidityField (state : State) : Widget :=
         (if state.liquidityForm.focus.val = 0 then .selected else .normal)
     ]
 
-private def menuRow (state : State) (index : Nat) (label note : String) : Widget :=
-  .row
-    [ span (if state.menuIndex.val = index then "> " else "  ")
-    , span label (if state.menuIndex.val = index then .selected else .normal)
-    , span ("  " ++ note) .muted
-    ]
-
-private def menuView (state : State) : Widget :=
-  .column
-    [ line "Reports"
-    , muted "Home > Reports"
-    , muted "Small derived views over shared production evidence."
-    , blank
-    , menuRow state 0 "Stock–Flow" "state change across an explicit window"
-    , menuRow state 1 "Transactions Flow" "where quantity moved, including zero-net circulation"
-    , menuRow state 2 "Income & Expense" "occurrence-time role flow"
-    , menuRow state 3 "Balances" "evidence-aware current accounting projections"
-    , menuRow state 4 "Liquidity" "UNKNOWN baseline + explicit conditional overlay"
-    , menuRow state 5 "Budget Window" "explicit entitlement / consumption query"
-    , menuRow state 6 "Multicurrency Spend" "expense, original amount, and exchange evidence kept separate"
-    , menuRow state 7 "Trend" "one to three exact Loci on one shared time axis"
-    , menuRow state 8 "Fava Projection" "launch disposable Beancount/Fava observation in browser"
-    , blank
-    , muted "↑/↓ or j/k select   Enter open   s/t/i/r/l/w/x/v/f direct"
-    , muted "q / Esc home"
-    , line state.notice
-    ]
-
 private def stockFlowMeasureSuffix (measure : Option Loam.Core.MeasureId) : String :=
   match measure with
   | none => ""
@@ -172,7 +144,7 @@ private def stockFlowView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "c compare periods   q / Esc Reports menu"
+    , muted "c compare periods   q / Esc Home"
     , line state.notice
     ]
 
@@ -240,7 +212,7 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
       [ blank
       , muted "[ / ] source   ← / → Month   m sel-day month"
       , muted "↑/↓ select coord   Enter detail   Tab window focus"
-      , muted "q / Esc Reports menu"
+      , muted "q / Esc Home"
       , line state.notice
       ]
 
@@ -917,7 +889,7 @@ private def incomeExpenseHeaderLines (state : State) : List Widget :=
 private def incomeExpenseFooterLines (state : State) : List Widget :=
   [ muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
   , muted "g Summary/Monthly/Daily   Tab / Shift-Tab focus   Enter next/run"
-  , muted "c compare periods   q / Esc Reports menu"
+  , muted "c compare periods   q / Esc Home"
   , line state.notice
   ]
 
@@ -1097,7 +1069,7 @@ private def multimeasureSpendView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc Reports menu"
+    , muted "q / Esc Home"
     , line state.notice
     ]
 
@@ -1137,7 +1109,7 @@ private def balancesView (state : State) : Widget :=
     balancesResultLines state ++
     [ blank
     , muted "Enter refresh   ↑/↓ or j/k scroll   [p] print view"
-    , muted "q / Esc Reports menu"
+    , muted "q / Esc Home"
     , line state.notice
     ]
 
@@ -1205,7 +1177,7 @@ private def liquidityView (state : State) : Widget :=
     liquidityResultLines state ++
     [ blank
     , muted "m selected-day month end   Tab / Shift-Tab focus"
-    , muted "Enter next/run   Backspace delete   q / Esc Reports menu"
+    , muted "Enter next/run   Backspace delete   q / Esc Home"
     , line state.notice
     ]
 
@@ -1253,14 +1225,13 @@ private def budgetView (state : State) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc Reports menu"
+    , muted "q / Esc Home"
     , line state.notice
     ]
 
 
 private def fullView (state : State) (bounds : Option Bounds := none) : Widget :=
   match state.mode with
-  | .menu => menuView state
   | .stockFlow => stockFlowView state
   | .stockFlowCompare => stockFlowCompareView state bounds
   | .transactionsFlow => transactionsFlowView state bounds
@@ -1276,7 +1247,6 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
 
 /-- Number of existing trailing notice/help rows kept outside the scrolling body. -/
 private def fixedFooterSize : Mode → Nat
-  | .menu => 3
   | .stockFlow => 4
   | .stockFlowCompare => 3
   | .transactionsFlow => 4
@@ -1368,7 +1338,6 @@ private def scrollPositionLine
   let first := if total = 0 then 0 else offset + 1
   let last := min total (offset + page)
   let action := match mode with
-    | .menu => "select"
     | .transactionsFlow | .locusTrendCompare => "navigate"
     | _ => "scroll"
   muted ("Lines " ++ toString first ++ "–" ++ toString last ++ "/" ++ toString total ++
@@ -1376,9 +1345,6 @@ private def scrollPositionLine
 
 private def requestedOffset (state : State) (page : Nat) : Nat :=
   match state.mode with
-  | .menu =>
-      -- The nine menu rows follow four heading/context rows in `menuView`.
-      (4 + state.menuIndex.val + 1) - page
   | .transactionsFlow =>
     if state.transactions.detail then
       state.scroll

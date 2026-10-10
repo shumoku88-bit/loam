@@ -471,7 +471,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     | some .settlements => pure (Loam.Tui.Terminal.Key.input 'u', 1)
     | some .dailyPace => pure (Loam.Tui.Terminal.Key.input 'd', 1)
     | some .balances => pure (Loam.Tui.Terminal.Key.input 'b', 1)
-    | some .reports => pure (Loam.Tui.Terminal.Key.input 'v', 1)
+    | some (.report _) => pure (Loam.Tui.Terminal.Key.other, 1)
     | some .budget => pure (Loam.Tui.Terminal.Key.input 'c', 1)
     | some .capacity => pure (Loam.Tui.Terminal.Key.input 'e', 1)
     | some .purposeRouting => pure (Loam.Tui.Terminal.Key.input 'p', 1)
@@ -481,7 +481,8 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compiledFrameFor active snapshot state detailCache
   let detail := some (Loam.Tui.Home.detailLayoutFor bounds snapshot state detailCache)
-  if key == .other then return (← loop bounds dataDir root snapshot state frame none detail)
+  if key == .other && !fromPalette then
+    return (← loop bounds dataDir root snapshot state frame none detail)
   let state := Loam.Tui.Home.reconcileState bounds snapshot state detail
   if let some home :=
       (if fromPalette then none
@@ -492,6 +493,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot home nextFrame none nextDetail
   else if key == .input ' ' && !fromPalette then
     let selected ← Loam.Tui.HomeCommandPalette.run bounds
+    let bounds ← Loam.Tui.Terminal.currentBounds
     let nextFrame := compiledFrameFor bounds snapshot state detail
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot state nextFrame selected detail
@@ -710,7 +712,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
-  else if fromPalette && (key = .input 'v' || key = .input 'V') then
+  else if let some (.report destination) := paletteChoice then
     match ← configuredMeasure with
     | .error message =>
         let home := { state with notice := message }
@@ -729,11 +731,9 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
                 measure state.selectedDate
               pure { base with
                 notice := "Boundary preset config malformed; named presets unavailable." }
-        Loam.Tui.Terminal.redrawWidgetDirect
-          bounds (Loam.Tui.Reports.viewForBounds bounds reports)
-        let nextBounds ←
-          Loam.Tui.ReportsSession.run bounds dataDir root reports
-        let home := { state with notice := "" }
+        let (nextBounds, notice) ←
+          Loam.Tui.ReportsSession.run dataDir root destination reports
+        let home := { state with notice := notice }
         let nextFrame := compiledFrameFor nextBounds snapshot home
         Loam.Tui.Terminal.redrawFromBlank nextBounds nextFrame
         loop nextBounds dataDir root snapshot home nextFrame

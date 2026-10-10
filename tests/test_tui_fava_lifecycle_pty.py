@@ -1,148 +1,85 @@
 #!/usr/bin/env python3
-"""PTY-based end-to-end integration test verifying that loamTui cleans up its owned Fava process group upon exit."""
+"""Real Fava launch/refresh/shutdown through the direct palette; synthetic data only."""
+from __future__ import annotations
 
-import fcntl
+import importlib.util
 import os
 from pathlib import Path
-import pty
-import re
-import select
 import shutil
-import struct
-import subprocess
-import termios
+import signal
+import socket
+import tempfile
 import time
 import urllib.request
 
-if not shutil.which("uvx"):
-    print("uvx not found in PATH; skipping live PTY Fava lifecycle test.")
-    exit(0)
+ROOT = Path(__file__).resolve().parents[1]
+spec = importlib.util.spec_from_file_location("loam_resource_probe", ROOT / "tools/benchmark-tui-resources.py")
+probe = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(probe)
+FAVA = b" jj\r" + b"j" * 10 + b"\r"
 
-repo_root = Path(__file__).resolve().parent.parent
-executable = (repo_root / ".lake/build/bin/loamTui").resolve()
-data_root = (repo_root.parent / "loam-data").resolve()
 
-if not executable.exists():
-    print(f"loamTui executable not found at {executable}; build first.")
-    exit(1)
+def send(terminal, keys, expected):
+    os.write(terminal.fd, keys)
+    _, output = terminal.capture(expected)
+    return probe.ANSI.sub(b"", output)
 
-if not data_root.exists():
-    print(f"loam-data root not found at {data_root}; skipping.")
-    exit(0)
 
-# Ensure no lingering fava prior to test
-subprocess.run(["pkill", "-f", "fava --port 5001"], capture_output=True)
-time.sleep(0.3)
-
-master, slave = pty.openpty()
-fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
-env = dict(os.environ, TERM="xterm-256color", LOAM_DATA_DIR=str(data_root))
-
-def controlling_terminal():
-    os.setsid()
-    fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
-
-process = subprocess.Popen(
-    [str(executable), str(data_root)],
-    stdin=slave,
-    stdout=slave,
-    stderr=slave,
-    env=env,
-    preexec_fn=controlling_terminal,
-)
-os.close(slave)
-
-ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-
-def wait_for(expected, timeout=15):
-    data = b""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if select.select([master], [], [], 0.1)[0]:
-            try:
-                chunk = os.read(master, 65536)
-                if not chunk:
-                    break
-                data += chunk
-            except OSError:
-                break
-            clean = ansi.sub("", data.decode("utf-8", errors="replace"))
-            if expected in clean:
-                return clean
-    raise AssertionError(f"Did not see {expected!r}")
-
-def drain_fd(fd):
-    while select.select([fd], [], [], 0.1)[0]:
+def main():
+    if not shutil.which("uvx"):
+        print("uvx not found; skipping live Fava qualification (deterministic refusal PTY remains required).")
+        return
+    # Never kill an unrelated service or reuse somebody else's household ledger.
+    with socket.socket() as check:
+        assert check.connect_ex(("127.0.0.1", 5001)) != 0, "port 5001 already occupied; no process was killed"
+    pid_file = Path("/tmp/loam-fava.pid")
+    assert not pid_file.exists(), "existing Fava PID file; no process was killed"
+    with tempfile.TemporaryDirectory(prefix="loam-fava-lifecycle-pty-") as tmp:
+        root = Path(tmp) / "household"
+        probe.fixture(root, events=4)
+        frozen = probe.digest(root)
+        commands = Path(tmp) / "commands"
+        commands.mkdir()
+        browser_log = Path(tmp) / "browser.log"
+        for name in ["open", "xdg-open"]:
+            command = commands / name
+            command.write_text(f'#!/bin/sh\nprintf "%s\\n" "$1" >> "{browser_log}"\n')
+            command.chmod(0o755)
+        old_path = os.environ["PATH"]
+        os.environ["PATH"] = str(commands) + os.pathsep + old_path
+        terminal = probe.Terminal(ROOT / ".lake/build/bin/loamTui", root)
+        owned_pid = None
         try:
-            if not os.read(fd, 1024):
-                break
-        except OSError:
-            break
+            opened = send(terminal, FAVA, b"-> Fava started & opened")
+            assert b"LOAM Home" in opened and b"Reports menu" not in opened
+            owned_pid = int(pid_file.read_text().strip())
+            with urllib.request.urlopen("http://127.0.0.1:5001/", timeout=5) as response:
+                body = response.read().lower()
+                assert response.status == 200 and (b"fava" in body or b"beancount" in body), body[:500]
+            assert browser_log.read_text().splitlines() == ["http://127.0.0.1:5001"]
+            refreshed = send(terminal, FAVA, b"refreshed projection (browser updated)")
+            assert b"LOAM Home" in refreshed and int(pid_file.read_text().strip()) == owned_pid
+            assert len(browser_log.read_text().splitlines()) == 1, "refresh opened another browser"
+            terminal.quit()  # Already Home: no intermediate Reports back step.
+            time.sleep(.3)
+            assert not pid_file.exists(), "owned Fava PID file not removed"
+            with socket.socket() as check:
+                assert check.connect_ex(("127.0.0.1", 5001)) != 0, "owned Fava still listening after TUI exit"
+            assert probe.digest(root) == frozen, "external projection changed household/config bytes"
+            owned_pid = None  # Successful shutdown: never signal a potentially reused PID.
+        finally:
+            terminal.close()
+            os.environ["PATH"] = old_path
+            # On a failed assertion only, clean up this test's observed owned group.
+            if owned_pid is not None:
+                try:
+                    os.killpg(owned_pid, signal.SIGTERM)
+                except ProcessLookupError:
+                    pass
+                if pid_file.exists() and int(pid_file.read_text().strip()) == owned_pid:
+                    pid_file.unlink()
+    print("Fava PTY: real external launch/HTTP/browser dispatch, same-owned-server refresh, Home return, shutdown and unchanged synthetic fixture passed.")
 
-try:
-    # 1. Wait for Calendar Home
-    wait_for("LOAM Home")
 
-    # 2. Enter Reports workspace
-    os.write(master, b" jj\rjj\r")
-    wait_for("Stock")
-
-    # 3. Trigger Fava projection
-    os.write(master, b"f")
-    # The menu already contains "Fava Projection"; require the launch result,
-    # not a label printed before the shortcut was handled.
-    wait_for("-> Fava started & opened", timeout=15)
-
-    # 4. Verify Fava HTTP endpoint responds
-    fava_ok = False
-    for _ in range(30):
-        try:
-            req = urllib.request.urlopen("http://127.0.0.1:5001/", timeout=1)
-            if req.status == 200:
-                fava_ok = True
-                break
-        except Exception:
-            time.sleep(0.2)
-
-    assert fava_ok, "Fava HTTP endpoint did not respond on port 5001"
-
-    # Verify PID file exists
-    assert os.path.exists("/tmp/loam-fava.pid"), "PID file /tmp/loam-fava.pid must exist"
-
-    # Verify process exists in process table
-    check_ps = subprocess.run(["ps", "aux"], capture_output=True, text=True)
-    assert "fava --port 5001" in check_ps.stdout, "Fava not found in ps output"
-
-    # 5. Exit back to Home then exit loamTui
-    os.write(master, b"q")
-    wait_for("LOAM Home")
-    os.write(master, b"q")
-    drain_fd(master)
-
-    exit_code = process.wait(timeout=5)
-    assert exit_code == 0, f"loamTui exited with code {exit_code}"
-
-    time.sleep(0.3)
-
-    # 6. Verify Fava process group was cleanly terminated
-    check_ps_after = subprocess.run(["ps", "aux"], capture_output=True, text=True)
-    lingering = [
-        l for l in check_ps_after.stdout.splitlines()
-        if "fava --port 5001" in l and "grep" not in l
-    ]
-    assert not lingering, f"Lingering Fava processes found: {lingering}"
-
-    # 7. Verify PID file was removed
-    assert not os.path.exists("/tmp/loam-fava.pid"), "PID file /tmp/loam-fava.pid was not cleaned up!"
-
-    print("PTY E2E: TUI owned Fava lifecycle and shutdown verified successfully.")
-
-finally:
-    if process.poll() is None:
-        process.terminate()
-        try:
-            process.wait(timeout=2)
-        except Exception:
-            process.kill()
-    os.close(master)
-    subprocess.run(["pkill", "-f", "fava --port 5001"], capture_output=True)
+if __name__ == "__main__":
+    main()

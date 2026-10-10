@@ -366,7 +366,10 @@ def main : IO Unit := do
   for (group, choices) in [
       (transactionGroup, [Loam.Tui.HomeCommandPalette.Choice.record, .actual, .exchange]),
       (planningGroup, [.scheduled, .attention, .settlements]),
-      (analysisGroup, [.dailyPace, .balances, .reports]),
+      (analysisGroup, [.dailyPace, .balances, .report .incomeExpense,
+        .report .transactionsFlow, .report .stockFlow, .report .locusTrendCompare,
+        .report .balances, .report .liquidity, .report .budgetWindow,
+        .report .multimeasureSpend, .report .favaProjection]),
       (maintenanceGroup, [.manageLoci, .observeQuantities])] do
     for (choice, index) in choices.zipIdx do
       let leaf := { group with selected := index }
@@ -449,6 +452,33 @@ def main : IO Unit := do
         expect (displayWidth (String.ofList (cells.map Cell.glyph)) ==
           min 54 (contentWidth bounds))
           "command page lost fixed-width padding"
+
+  -- Every analysis leaf stays selected/visible at every usable terminal height.
+  for width in [1, 2, 8, 32, 48, 80, 120] do
+    for height in List.range 20 do
+      for index in List.range 11 do
+        let bounds : Bounds := { width, height }
+        let leaf := { analysisGroup with selected := index }
+        let rendered := Loam.Tui.HomeCommandPalette.view bounds leaf
+        expect (rendered.lines.length <= height)
+          "palette exceeded terminal height"
+        for cells in rendered.lines do
+          expect (displayWidth (String.ofList (cells.map Cell.glyph)) <= contentWidth bounds)
+            "palette exceeded terminal width"
+        if height > 0 && contentWidth bounds > 0 then
+          expect ((rendered.lines.filter fun cells =>
+            cells.any fun cell => cell.style == .selected).length == 1)
+            "long palette lost selected row on compact/degenerate geometry"
+  for key in [Loam.Tui.Terminal.Key.down, .input 'j'] do
+    expect (Loam.Tui.HomeCommandPalette.update { analysisGroup with selected := 10 } key ==
+      .stay { analysisGroup with selected := 10 }) "analysis selection exceeded eleven entries"
+  for key in [Loam.Tui.Terminal.Key.up, .input 'k'] do
+    expect (Loam.Tui.HomeCommandPalette.update { analysisGroup with selected := 10 } key ==
+      .stay { analysisGroup with selected := 9 }) "analysis reverse navigation failed"
+  for (destination, index) in Loam.Tui.Reports.Destination.all.zipIdx do
+    let text := widgetText (Loam.Tui.HomeCommandPalette.view { width := 80, height := 13 }
+      { analysisGroup with selected := index + 2 })
+    expect (contains destination.label text) "analysis viewport hid a report label"
 
   -- 3. Test SelectedDay footer geometry
   let selState := Loam.Tui.SelectedDay.initial "2026-09-10"
