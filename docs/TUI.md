@@ -628,3 +628,12 @@ source/tests are the current TUI contract.
 On terminals with enough room, the Home `r` entrance opens Record as a centered
 floating panel. Compact terminals keep the existing full-screen Record surface.
 Only presentation changes; Record validation and publication are shared.
+
+Record confirmation uses a quiet rounded frame with signed Effects, their exact
+Measure quantities and Locus tokens, plus date, description, and any attached
+original amount. Long values wrap without dropping digits or identities.
+`↑/↓`, Page Up/Down, and Home/End review overflowing content; publication actions
+and the operation bar remain below the viewport. Idle resize recomputes the frame
+without reloading or writing household evidence. Tab selects Publish/Edit/Cancel;
+Enter confirms the selected action. Opening Preview still never publishes.
+Embedded correction/completion surfaces retain their existing presentation contract.

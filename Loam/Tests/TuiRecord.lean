@@ -43,10 +43,60 @@ private def readyForm : Form := {
     { locus := "paypay", amount := "-2470" },
     { locus := "books", amount := "2470" }] }
 
+private def checkBoundedConfirmation (w : Loam.MovementAdmission.World) : IO Unit := do
+  let bounds : Bounds := { width := 80, height := 24 }
+  let editor := preview w { form := readyForm }
+  let rendered := viewForBounds bounds [] editor
+  let text := widgetText rendered
+  expect (contains "╭" text && contains "Movement / signed postings" text &&
+    contains "-2,470 jpy  paypay" text && contains "+2,470 jpy  books" text)
+    "bounded confirmation lost its quiet frame or signed Effects"
+  expect (rendered.lines.length == bounds.height - 1 &&
+    rendered.lines.all (fun cells => Loam.Tui.Layout.displayWidth
+      (String.ofList (cells.map Cell.glyph)) <= bounds.width - 1))
+    "confirmation escaped terminal bounds"
+  expect (contains "[Publish] [Edit] [Cancel]" text && contains "[Enter] confirm" text)
+    "bounded confirmation hid its publication controls"
+  let longDescription := String.intercalate " " (List.replicate 20 "長い確認内容")
+  let longForm := { readyForm with description := longDescription }
+  let longEditor := preview w { form := longForm }
+  let compact : Bounds := { width := 48, height := 14 }
+  let limit := previewScrollLimit compact longEditor
+  expect (limit > 0) "long confirmation did not expose a review viewport"
+  let some tail := scrollPreview compact longEditor .«end»
+    | throw (IO.userError "End did not review confirmation")
+  expect (tail.previewScroll == limit && tail.form.rows == longEditor.form.rows &&
+    tail.form.description == longEditor.form.description && tail.form.date == longEditor.form.date &&
+    tail.form.measure == longEditor.form.measure)
+    "review scrolling changed recording inputs"
+  let startRows := (viewForBounds compact [] longEditor).lines
+  let endRows := (viewForBounds compact [] tail).lines
+  expect (startRows.drop (startRows.length - 6) == endRows.drop (endRows.length - 6))
+    "review scrolling moved confirmation controls"
+  expect (contains "Balanced total" (widgetText (viewForBounds compact [] tail)))
+    "End did not reach the complete confirmation tail"
+  let some atEnd := scrollPreview compact tail .down
+    | throw (IO.userError "Down did not handle confirmation review")
+  expect (atEnd.previewScroll == limit) "review scrolling overshot its visible bounds"
+  let some atStart := scrollPreview compact tail .home
+    | throw (IO.userError "Home did not handle confirmation review")
+  expect (atStart.previewScroll == 0) "Home did not return to confirmation start"
+  expect ((update w [] tail .enter).publish.isSome &&
+    (update w [] tail .escape).publish.isNone)
+    "review scrolling changed explicit publication or cancellation"
+  let hugeForm := { readyForm with rows := #[
+    { locus := "paypay", amount := "-12345678901234567890" },
+    { locus := "books", amount := "12345678901234567890" }] }
+  let huge := preview w { form := hugeForm }
+  expect (contains "12,345,678,901,234,567,890" (widgetText (viewForBounds bounds [] huge)) &&
+    contains "12,345,678,901,234,567,890" (widgetText (view [] huge)))
+    "confirmation clipped a large exact amount into a different quantity"
+
 def main (args : List String) : IO Unit := do
   let [rootPath] := args | throw (IO.userError "supply isolated data root")
   let root := System.FilePath.mk rootPath
   let w ← world
+  checkBoundedConfirmation w
   let compactBounds : Bounds := { width := 80, height := 24 }
   expect (Loam.Tui.RecordSession.floatingGeometry? compactBounds).isNone
     "compact terminal unexpectedly forced floating Record"

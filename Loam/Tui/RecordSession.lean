@@ -111,16 +111,21 @@ private def placeFocusCursor
       let safeCol := min col (Loam.Tui.Layout.contentWidth bounds - 1)
       Loam.Tui.Terminal.placeCursor safeRow safeCol
 
+private def surfaceBounds (bounds : Bounds) (surface : Surface) : Bounds :=
+  match surface with
+  | .full => bounds
+  | .floating geometry => { width := geometry.width - 1, height := geometry.height - 1 }
+
 private def frameFor
-    (surface : Surface) (known : List String)
+    (bounds : Bounds) (surface : Surface) (known : List String)
     (state : Loam.Tui.Record.State) : CompiledWidget :=
   match surface with
   | .full =>
-      compileWidget (Loam.Tui.Record.view known state)
+      compileWidget (Loam.Tui.Record.viewForBounds bounds known state)
   | .floating geometry =>
       compileWidget <|
         Loam.Tui.Layout.framedPanel geometry.width geometry.height
-          "Record movement" (Loam.Tui.Record.view known state)
+          "Record movement" (Loam.Tui.Record.viewForBounds (surfaceBounds bounds surface) known state)
 
 private def redraw
     (bounds : Bounds) (surface : Surface)
@@ -140,22 +145,44 @@ private partial def runWithSurface
     (state : Loam.Tui.Record.State) (frame : CompiledWidget)
     (requiresReload : Bool := false) : IO Result := do
   let key ← Loam.Tui.Terminal.readKey
+  let active ← Loam.Tui.Terminal.currentBounds
+  let (bounds, surface, frame) ← if active == bounds then pure (bounds, surface, frame) else do
+    let nextSurface := match surface with
+      | .full => Surface.full
+      | .floating _ => match floatingGeometry? active with
+          | some geometry => Surface.floating geometry
+          | none => Surface.full
+    let next := frameFor active nextSurface known state
+    let screen := match nextSurface with
+      | .full => next
+      | .floating geometry => compileWidget (.column (
+          List.replicate geometry.top (.row []) ++
+          next.lines.toList.map fun cells =>
+            Widget.row ([span (Loam.Tui.Layout.padRight geometry.left "")] ++
+              cells.toList.map (fun cell => span (String.singleton cell.glyph) cell.style))))
+    Loam.Tui.Terminal.redrawFromBlank active screen
+    placeFocusCursor active nextSurface next
+    pure (active, nextSurface, next)
   -- A short-read timeout carries no editing intent. Keep the compiled frame and
   -- caret instead of rebuilding the editor and emitting a cursor move every tick.
   if key == .other then
     return (← runWithSurface bounds surface root world known state frame requiresReload)
-  let step := Loam.Tui.Record.update world known state key
+  let limit := Loam.Tui.Record.previewScrollLimit (surfaceBounds bounds surface) state
+  let state := { state with previewScroll := min state.previewScroll limit }
+  let step := match Loam.Tui.Record.scrollPreview (surfaceBounds bounds surface) state key with
+    | some next => { state := next : Loam.Tui.Record.Step }
+    | none => Loam.Tui.Record.update world known state key
   if step.cancel then return { notice := "Record cancelled.", requiresReload := requiresReload }
   if step.enableUnresolved then
     match ← Loam.Tui.UnresolvedActivation.enableEditor? root step.state with
     | .error message =>
         let next := Loam.Tui.UnresolvedActivation.withEnableError step.state message
-        let nextFrame := frameFor surface known next
+        let nextFrame := frameFor bounds surface known next
         redraw bounds surface frame nextFrame
         -- Activation can publish policy before its subsequent reload fails.
         runWithSurface bounds surface root world known next nextFrame true
     | .ok enabled =>
-        let nextFrame := frameFor surface enabled.known enabled.editor
+        let nextFrame := frameFor bounds surface enabled.known enabled.editor
         redraw bounds surface frame nextFrame
         runWithSurface bounds surface root enabled.world enabled.known enabled.editor nextFrame true
   else
@@ -181,12 +208,12 @@ private partial def runWithSurface
               mode := Loam.Tui.Record.Mode.editing
               notice := message
             }
-            let nextFrame := frameFor surface known next
+            let nextFrame := frameFor bounds surface known next
             redraw bounds surface frame nextFrame
             -- Keep the conservative reload after any attempted publication.
             runWithSurface bounds surface root world known next nextFrame true
     | none =>
-        let nextFrame := frameFor surface known step.state
+        let nextFrame := frameFor bounds surface known step.state
         redraw bounds surface frame nextFrame
         runWithSurface bounds surface root world known step.state nextFrame requiresReload
 
@@ -209,13 +236,13 @@ def runAdaptive
     (state : Loam.Tui.Record.State) (background : CompiledWidget) : IO Result := do
   match floatingGeometry? bounds with
   | none =>
-      let frame := frameFor .full known state
+      let frame := frameFor bounds .full known state
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 background frame
       placeFocusCursor bounds .full frame
       runWithSurface bounds .full root world known state frame
   | some geometry =>
       let surface := Surface.floating geometry
-      let frame := frameFor surface known state
+      let frame := frameFor bounds surface known state
       let blank := compileWidget (.row [])
       Loam.Tui.Terminal.emitDirtyRegion
         bounds geometry.top geometry.left geometry.width blank frame

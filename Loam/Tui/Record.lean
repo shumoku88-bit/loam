@@ -58,6 +58,8 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  /-- Read-only viewport over the confirmation content; never publication input. -/
+  previewScroll : Nat := 0
   /-- Human-facing overlay scoped to exactly the current admitted vocabulary. -/
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   /-- Presentation-only cursor within the currently filtered Locus candidates. -/
@@ -354,6 +356,7 @@ def preview (world : Loam.MovementAdmission.World) (state : State) : State :=
   | .error message => { state with notice := message }
   | .ok preview => { state with
       mode := .preview preview.draft ⟨0, by omega⟩
+      previewScroll := 0
       notice := "" }
 
 def dropRow (form : Form) : Form :=
@@ -529,8 +532,9 @@ private def previewAmount
 private def previewPostingRow (state : State) (effect : Loam.Core.Effect) : Widget :=
   .row
     [ span "  "
-    , span (Loam.Tui.Layout.padRight 28 effect.locus.token)
-    , span (Loam.Tui.Layout.padLeft 14
+    , span (Loam.Tui.Layout.padRight (max 28 (Loam.Tui.Layout.displayWidth effect.locus.token)) effect.locus.token)
+    , span (Loam.Tui.Layout.padLeft
+        (max 14 (Loam.Tui.Layout.displayWidth (previewAmount state effect.measure effect.quantity.quanta)))
         (previewAmount state effect.measure effect.quantity.quanta))
     , span (" " ++ effect.measure.token) .muted
     ]
@@ -640,11 +644,12 @@ def view (_known : List String) (state : State) : Widget :=
         [ blank
         , line "Postings"
         ] ++
-        (draft.effects.take 12).map (previewPostingRow state) ++
+        draft.effects.map (previewPostingRow state) ++
         [ blank
         , .row
             [ span (Loam.Tui.Layout.padRight 30 "Balanced total") .muted
-            , span (Loam.Tui.Layout.padLeft 14
+            , span (Loam.Tui.Layout.padLeft
+                (max 14 (Loam.Tui.Layout.displayWidth (previewAmount state measure draft.total)))
                 (previewAmount state measure draft.total))
             , span (" " ++ measure.token) .muted
             ]
@@ -660,5 +665,87 @@ def view (_known : List String) (state : State) : Widget :=
         , muted "Tab / Shift-Tab select   Enter confirm   Esc cancel"
         , line state.notice
         ]
+
+/-- Complete exact confirmation content, wrapped without losing amounts or identities. -/
+private def confirmationLines (width : Nat) (state : State)
+    (draft : Loam.MovementAdmission.Draft) : List Widget :=
+  let wrapped := fun (text : String) => (Loam.Tui.Layout.wrapColumns width text).map line
+  let metadata := fun (text : String) => (Loam.Tui.Layout.wrapColumns width text).map muted
+  let original := match state.originalAmount with
+    | none => []
+    | some value => metadata ("Original: " ++ previewAmount state value.measure value.quantity.quanta ++
+        " " ++ value.measure.token ++ " (not another posting)")
+  metadata ("Date: " ++ draft.validOn) ++
+    wrapped ("Description: " ++ draft.description.getD "(no description)") ++ original ++ [blank] ++
+    (draft.effects.flatMap fun effect =>
+      let sign := if effect.quantity.quanta >= 0 then "+" else ""
+      wrapped (sign ++ previewAmount state effect.measure effect.quantity.quanta ++ " " ++
+        effect.measure.token ++ "  " ++ effect.locus.token)) ++ [blank] ++
+    wrapped ("Balanced total: " ++ previewAmount state
+      ((draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩) draft.total ++ " " ++
+      ((draft.effects.head?.map Loam.Core.Effect.measure).getD ⟨"?"⟩).token)
+
+private def confirmationFooter (bounds : Bounds) (state : State) (choice : Fin 3) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  (if feedback.isEmpty then [blank] else feedback) ++
+    [muted "Publication gate",
+     muted "recheck evidence + Locus admission",
+     .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+       span ("[" ++ label ++ "] ") (if choice.val == index then .selected else .normal)),
+     Loam.Tui.Layout.shortcutRow [("↑/↓", "review"), ("PgUp/Dn", "page"), ("Home/End", "edges")] " ",
+     Loam.Tui.Layout.shortcutRow [("Tab", "action"), ("Enter", "confirm"), ("Esc", "cancel")] " "]
+
+private def confirmationCapacity (bounds : Bounds) (state : State) (choice : Fin 3) : Nat :=
+  Loam.Tui.Layout.footerBodyCapacity bounds (confirmationFooter bounds state choice).length - 3
+
+def previewScrollLimit (bounds : Bounds) (state : State) : Nat :=
+  match state.mode with
+  | .preview draft choice =>
+      (confirmationLines (Loam.Tui.Layout.contentWidth bounds - 2) state draft).length -
+        confirmationCapacity bounds state choice
+  | _ => 0
+
+/-- Review keys only move presentation, preserving the draft and selected publication action. -/
+def scrollPreview (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key) : Option State :=
+  match state.mode with
+  | .preview _ choice => do
+      let limit := previewScrollLimit bounds state
+      let current := min state.previewScroll limit
+      let page := max 1 (confirmationCapacity bounds state choice)
+      let offset ← match key with
+        | .up => some (current - 1)
+        | .down => some (min limit (current + 1))
+        | .pageUp => some (current - page)
+        | .pageDown => some (min limit (current + page))
+        | .home => some 0
+        | .«end» => some limit
+        | _ => none
+      some { state with previewScroll := offset }
+  | _ => none
+
+/-- Bounds-aware standalone Record confirmation; embedded editing surfaces retain their contract. -/
+def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widget :=
+  match state.mode with
+  | .preview draft choice =>
+      let width := Loam.Tui.Layout.contentWidth bounds
+      let footer := confirmationFooter bounds state choice
+      let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+      let panelHeight := bodyCapacity - 1
+      let lines := confirmationLines (width - 2) state draft
+      let capacity := panelHeight - 2
+      let offset := min state.previewScroll (lines.length - capacity)
+      let more := (if offset > 0 then " ▲" else "") ++
+        (if offset + capacity < lines.length then " ▼" else "")
+      let panel := Loam.Tui.Layout.framedPanel width panelHeight "Movement / signed postings"
+        (.column ((lines.drop offset).take capacity)) true
+        (some (s!"{min (offset + capacity) lines.length}/{lines.length} lines" ++ more))
+      let body := (Widget.column [line "Record / Preview", panel]).lines.map fun cells =>
+        Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+      .column (((Loam.Tui.Layout.fitWithFooter bounds body footer).take (bounds.height - 1)).map
+        fun widget => .column (widget.lines.map fun cells => .row
+          ((Loam.Tui.Layout.clipCells width cells).map fun cell =>
+            span (String.singleton cell.glyph) cell.style)))
+  | _ => view known state
 
 end Loam.Tui.Record

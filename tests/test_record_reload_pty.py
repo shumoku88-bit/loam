@@ -93,6 +93,23 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Actual navigation changed fixture evidence"
 
+    # Confirmation owns a bounded review viewport, not recording authority.
+    terminal = Terminal(root)
+    try:
+        terminal.send(b"r", b"Record movement")
+        terminal.send(b"long-review " * 30 + b"\t\tbank\t-10\twifi\t10\r",
+                      b"Record / Preview")
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
+        resized = terminal.capture(b"[Enter] confirm")
+        assert b"Record / Preview" in ANSI.sub(b"", resized), "idle Record resize lost heading"
+        tail = terminal.send(b"\x1b[F", b"Balanced total")
+        assert b"10 jpy" in ANSI.sub(b"", tail), "review End lost exact total"
+        terminal.send(b"\x1b[H", b"Description:")
+        terminal.send(b"\x1b", b"Record cancelled.")
+    finally:
+        terminal.close()
+    assert digest() == frozen_navigation, "read-only confirmation review changed evidence"
+
     # Removing the read authority while the editor is open makes any unwanted
     # caller reload deterministic, without asserting a machine-specific latency.
     for route in ("home", "actual", "selected-day"):
