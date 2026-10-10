@@ -113,6 +113,9 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "record Nonmerchant target")
   let .ok freshRecords ← Loam.ActualReview.loadRecordsFromActual root
     | throw (IO.userError "reload Nonmerchant target review")
+  expect ((freshRecords.find? (·.event.id == purchaseId)).bind (·.merchant) == some (.merchant ⟨"sanwa"⟩) &&
+    (freshRecords.find? (·.event.id == rentId)).bind (·.merchant) == none)
+    "Actual detail read projection confused retained Merchant and unresolved disposition"
   let rent ← requireSome
     ((Loam.ActualReview.select freshRecords (.day "2026-09-17")).find? fun record =>
       record.event.id == rentId)

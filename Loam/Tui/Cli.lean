@@ -290,24 +290,17 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           actualWorkspaceLoop bounds dataDir root snapshot next nextFrame
       | some record =>
-          match Loam.Tui.SelectedDay.initialForActual? snapshot record with
-          | none =>
-              let next := { step.state with
-                notice := "The selected Actual has no dated day workspace coordinate." }
-              let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds snapshot next)
-              Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-              actualWorkspaceLoop bounds dataDir root snapshot next nextFrame
-          | some day =>
-              let dayFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot day)
-              Loam.Tui.Terminal.redrawFromBlank bounds dayFrame
-              let fresh ← Loam.Tui.SelectedDaySession.run
-                bounds dataDir root (loadSnapshot dataDir) snapshot day dayFrame
-              let bounds ← Loam.Tui.Terminal.currentBounds
-              let refreshed := Loam.Tui.ActualWorkspace.refreshed fresh step.state
-              let next := { refreshed with notice := "" }
-              let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
-              Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-              actualWorkspaceLoop bounds dataDir root fresh next nextFrame
+          let detail := Loam.Tui.SelectedDay.initialTransaction record
+          let detailFrame := compileWidget (Loam.Tui.SelectedDay.view bounds snapshot detail)
+          Loam.Tui.Terminal.redrawFromBlank bounds detailFrame
+          let fresh ← Loam.Tui.SelectedDaySession.run
+            bounds dataDir root (loadSnapshot dataDir) snapshot detail detailFrame
+          let bounds ← Loam.Tui.Terminal.currentBounds
+          let next := Loam.Tui.ActualWorkspace.normalizedForBounds bounds fresh
+            (Loam.Tui.ActualWorkspace.returnedFromDetail snapshot fresh step.state)
+          let nextFrame := compileWidget (Loam.Tui.ActualWorkspace.view bounds fresh next)
+          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+          actualWorkspaceLoop bounds dataDir root fresh next nextFrame
   | .recordNew =>
       let world ←
         match ← Loam.MovementWorldLoader.loadSelectedWorld? root with

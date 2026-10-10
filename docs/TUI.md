@@ -381,7 +381,7 @@ to the surrounding workspace. A cached TUI answer is never promoted into authori
 
 ### Selected Day workspace
 
-Home Calendar Enter, or opening one dated Actual, enters **Household Day Workspace**
+Home Calendar Enter enters **Household Day Workspace**
 without changing its fixed day coordinate. At 100 columns and wider, Actual and
 Scheduled use separate quiet rounded lists with one blank column between them.
 Narrower terminals give the active list the full width; `h/l` or Left/Right still
@@ -491,9 +491,56 @@ Like the selected-day Actual pane, recording new Movements (`n`) opens the share
 Movement editor and delegates execution to `MovementPublisher`, reloading canonical
 evidence after durable writes.
 
+### Single-transaction detail and actions
+
+Actual list / preview Enter opens **Actual / Transaction detail**, not Selected Day
+and not an automatically active editor. It shows only the chosen Event: exact
+signed quanta and explicit Measures at each Locus, description, occurrence date
+(or explicitly unknown), complete ID, correction-frontier currentness, retained
+reversal endpoints and Merchant disposition. Missing Merchant evidence remains
+`Unresolved`, never Nonmerchant. Reversal does not remove the original from the
+correction frontier; `Reversed by` names the retained inverse Event separately.
+These record-local fields come from the same admitted Actual generation as the
+rest of the shared review, not a second household read or new retained state.
+
+Actions reuse SelectedDaySession's existing editors / writers:
+
+| Key | Existing operation |
+| --- | --- |
+| `c` | Correct contents, including description, through Correction Preview |
+| `d` | Change occurrence date through date Preview |
+| `r` | Exact inverse Reversal through date / Preview |
+| `m` | First Merchant / Nonmerchant classification through Preview |
+| `g` | Shared Locus administration |
+| `n` | New Movement recording, seeded by the known occurrence date |
+
+The action list uses the existing editor representability checks; unsupported
+correction/reversal shapes do not advertise those actions. Already reversed or
+reversal Events do not advertise contents correction / reversal, and classified
+Events show their disposition instead of advertising first classification.
+Shared publisher current-world, relation/discharge, Scheduled-completion, writer
+and other authority checks remain decisive; shortcuts still surface existing
+refusals rather than introducing a parallel permission engine.
+
+`j/k` / arrows / wheel scroll the wrapped record and action rows, Page Up/Down or
+Ctrl-u/d pages visible rows, and Home/End reaches the top/actions. On short/narrow
+terminals all content remains scrollable in the same bounded frame; idle resize
+clamps the local offset without changing Event identity. Esc/q returns directly
+to Actual in one step. Search, scope, chronology, pane and selection are preserved;
+Locus and Event selection are re-anchored by stable tokens after reload. The list's
+viewport remains selection-following, including an unchanged preview offset.
+
+After an editor returns, existing canonical reloads refresh the same Event even
+when its date changes. A replaced/missing Event shows an explicit unavailable
+message and its original ID, never stale Effects or an unrelated day row. Esc/q
+then returns to the same filtered Actual list with a nearest-row fallback and
+notice if the original no longer matches. A successor is not inferred from shape
+or description. Cancel before confirmation publishes nothing. Home's fixed-date
+Actual/Scheduled browser and all of its operations remain separate and unchanged.
+
 ### Actual Correction input and confirmation
 
-Selected Day's Actual `c` action opens a bounds-aware Correction editor. It shares
+Selected Day's Actual and single-transaction detail `c` action opens a bounds-aware Correction editor. It shares
 Record's aligned fields, framed Postings/candidates, active-field tail and IME
 caret, focus-following compact viewport, feedback row, and two operation rows.
 The date is labelled `Date (kept)` and remains unfocusable; the target context is

@@ -193,7 +193,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     terminal = Terminal(root)
     try:
         terminal.send(b"af", b"paid Wi-Fi")
-        terminal.send(b"\r", b"Selected")
+        terminal.send(b"\r", b"Actual / Transaction detail")
         terminal.send(b"c", b"Correction / Edit")
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
         editing = ANSI.sub(b"", terminal.capture(b"Date (kept)"))
@@ -205,9 +205,9 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         assert b"Original stays retained; date stays kept." in review
         terminal.send(b"\x1b[F", b"Replacement positive total:")
         terminal.send(b"\x1b[H", b"Target retained:")
-        returned = ANSI.sub(b"", terminal.send(b"\x1b", b"Household Day Workspace"))
-        assert b"Correction cancelled." in returned and b"[q] back" in returned, (
-            "48x14 Selected Day hid child return feedback or navigation", returned
+        returned = ANSI.sub(b"", terminal.send(b"\x1b", b"Actual / Transaction detail"))
+        assert b"Correction cancelled." in returned and b"[Esc/q]" in returned, (
+            "48x14 transaction detail hid child return feedback or navigation", returned
         )
         parent = ANSI.sub(b"", terminal.send(b"q", b"Household Actuals Workspace"))
         assert b"[n] new" in parent, "Actual parent returned with stale wide geometry"
@@ -217,12 +217,16 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
 
     # Removing the read authority while the editor is open makes any unwanted
     # caller reload deterministic, without asserting a machine-specific latency.
-    for route in ("home", "actual", "selected-day"):
+    for route in ("home", "actual", "actual-detail", "selected-day"):
         terminal = Terminal(root)
         hidden = root / "held-image"
         try:
             if route == "actual":
                 terminal.send(b"a", b"Actual")
+                terminal.send(b"n", b"Description")
+            elif route == "actual-detail":
+                terminal.send(b"af", b"paid Wi-Fi")
+                terminal.send(b"\r", b"Actual / Transaction detail")
                 terminal.send(b"n", b"Description")
             elif route == "selected-day":
                 terminal.send(b"\r", b"Selected")
@@ -262,7 +266,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     terminal = Terminal(root)
     try:
         terminal.send(b"a", b"reload-specimen")
-        terminal.send(b"\r", b"Selected")
+        terminal.send(b"\r", b"Actual / Transaction detail")
         terminal.send(b"c", b"Correction / Edit")
         original_sections = household_sections(authority)
         original_wire = original_sections["Actual"]
@@ -271,7 +275,11 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         assert b"Before / selected snapshot" in reviewed and b"Replacement" in reviewed
         assert b"-10 jpy" in reviewed and b"-20 jpy" in reviewed
         assert household_sections(authority) == original_sections, "replacement Preview published"
-        terminal.send(b"\r", b"Corrected ")
+        corrected = ANSI.sub(b"", terminal.send(b"\r", b"Corrected "))
+        assert b"no longer current" in corrected and b"reload-specimen-corrected" not in corrected, (
+            "replaced Event detail showed stale or unrelated content", corrected
+        )
+        terminal.send(b"q", b"Household Actuals Workspace")
         revised_sections = household_sections(authority)
         revised_wire = revised_sections["Actual"]
         assert revised_wire != original_wire, "confirmed Correction did not publish"
@@ -279,7 +287,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         assert {k: v for k, v in revised_sections.items() if k != "Actual"} == {
             k: v for k, v in original_sections.items() if k != "Actual"
         }, "ordinary Correction changed another Household section"
-        # Resize forces a full redraw of the freshly reloaded selected day.
+        # Resize forces a full redraw of the freshly reloaded Actual list.
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 40, 120, 0, 0))
         terminal.capture(b"reload-specimen-corrected")
     finally:

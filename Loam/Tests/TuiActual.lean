@@ -196,16 +196,16 @@ def main : IO Unit := do
   let gammaRecord ← requireSome
     (Loam.Tui.ActualWorkspace.selectedRecord? snapshot keptSearch)
     "Actual workspace search result selection disappeared"
-  let gammaDay ← requireSome
-    (Loam.Tui.SelectedDay.initialForActual? snapshot gammaRecord)
-    "Selected-day workspace could not initialize from the searched Actual"
-  expect (gammaDay.focusDate == "2026-09-06")
+  let gammaDetail := Loam.Tui.SelectedDay.initialTransaction gammaRecord
+  expect (gammaDetail.focusDate == "2026-09-06")
     "Actual search did not preserve the selected record occurrence date"
   let openedGamma ← requireSome
-    (Loam.Tui.SelectedDay.selectedActual? snapshot gammaDay)
-    "Selected-day search handoff lost the exact selected Actual"
+    (Loam.Tui.SelectedDay.selectedActual? snapshot gammaDetail)
+    "Single-transaction search handoff lost the exact selected Actual"
   expect (openedGamma.event.id.token == "event-2")
-    "Selected-day search handoff selected a different Actual on the target date"
+    "Single-transaction search handoff selected a different Actual"
+  expect (Loam.Tui.ActualWorkspace.returnedFromDetail snapshot snapshot keptSearch == keptSearch)
+    "returning from an unchanged detail reset search, selection or offsets"
 
   let dateSearch := { searching with searchQuery := "2026-09-06", searchEditing := false }
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot dateSearch).map (·.description) == ["gamma"])
@@ -693,5 +693,25 @@ def main : IO Unit := do
     { width := 100, height := 30 } snapshot { actualStart with searchQuery := "missing" })
   expect (contains "no matching Actual records" emptyText)
     "Empty responsive Actual pane lost its explanation"
+
+  -- Reordering canonical evidence must not redirect either the Locus filter or Event selection.
+  let anchored := {paypayAscSecond with searchQuery := "a", detailScroll := 1}
+  let rearranged := {snapshot with actual := {snapshot.actual with allRecords := snapshot.actual.allRecords.reverse}}
+  let returned := Loam.Tui.ActualWorkspace.returnedFromDetail snapshot rearranged anchored
+  expect (Loam.Tui.ActualWorkspace.selectedLocus? rearranged returned == some "paypay" &&
+    (Loam.Tui.ActualWorkspace.selectedRecord? rearranged returned).map (·.event.id) ==
+      (Loam.Tui.ActualWorkspace.selectedRecord? snapshot anchored).map (·.event.id) &&
+    returned.searchQuery == anchored.searchQuery && returned.scope == anchored.scope &&
+    returned.order == anchored.order && returned.pane == anchored.pane && returned.detailScroll == 1)
+    "detail return lost stable filter/Event identity or browsing state"
+  let chosen ← requireSome (Loam.Tui.ActualWorkspace.selectedRecord? snapshot anchored) "return anchor"
+  let replacedRecords := snapshot.actual.allRecords.map fun record =>
+    if record.event.id == chosen.event.id then {record with replacement := some ⟨"replacement"⟩} else record
+  let replaced := {snapshot with actual := {snapshot.actual with allRecords := replacedRecords}}
+  let fallback := Loam.Tui.ActualWorkspace.returnedFromDetail snapshot replaced anchored
+  expect (fallback.searchQuery == anchored.searchQuery && fallback.order == anchored.order &&
+    !fallback.notice.isEmpty && fallback.detailScroll == 0 &&
+    (Loam.Tui.ActualWorkspace.selectedRecord? replaced fallback).map (·.event.id) != some chosen.event.id)
+    "detail return retained a corrected Event or silently lost the return path"
 
   IO.println "TUI Actual: search/open, navigation and responsive frame checks passed."
