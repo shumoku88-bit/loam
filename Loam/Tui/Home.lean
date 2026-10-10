@@ -773,10 +773,7 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
           wrappedLines width "e.g. 2026-10-15, 2026-10, 2026, 15" .muted
         prompt ++ List.replicate (help.length - prompt.length) blankLine
   let rows := feedback ++ operations
-  let capacity := bounds.height - 1
-  if rows.length ≤ capacity then rows
-  else if capacity == 0 then []
-  else rows.take (capacity - 1) ++ [mutedLine " … more feedback/help; enlarge terminal"]
+  Loam.Tui.Layout.boundFeedbackFooter bounds rows
 
 /-- Scroll non-selectable detail evidence when there are no Actual rows. -/
 private def scrollDetail

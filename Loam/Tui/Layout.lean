@@ -118,6 +118,17 @@ def fitWithFooter (bounds : Bounds) (body footer : List Widget) : List Widget :=
   visibleBody ++ List.replicate padding (.row []) ++ footer
 
 /--
+Bound caller-owned feedback and shortcut rows to the writable terminal height.
+The final physical row is reserved; visible overflow is explained instead of
+silently truncated. The caller owns wrapping, semantics and shortcut choices.
+-/
+def boundFeedbackFooter (bounds : Bounds) (rows : List Widget) : List Widget :=
+  let capacity := bounds.height - 1
+  if rows.length ≤ capacity then rows
+  else if capacity == 0 then []
+  else rows.take (capacity - 1) ++ [mutedLine " … more feedback/help; enlarge terminal"]
+
+/--
 Return at most `maxVisible` list items with their original indices, keeping the
 selected index near the middle when the list is larger than the window.
 
