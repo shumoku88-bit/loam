@@ -133,11 +133,19 @@ exact record in Selected Day for object-local review and actions.
 With no Actual rows, Ctrl-u/d scrolls the remaining Scheduled evidence. In calendar
 focus, Enter or Esc drills Year -> Month -> Day; Esc at Day does nothing.
 
-Month/Year summaries consume the same role-aware CalendarMoneyReview as the money
-calendar. Every represented Measure is labelled and shown separately, including
-unresolved-role counts. In/Out are role-classified directional flow, not all asset
-movements or a cash-balance claim. Out/day and Out/month are approximate quanta
-quotients over the **full selected calendar period**, not elapsed-period spending
+Month zoom labels include both the month number and English abbreviation (`01 Jan`
+through `12 Dec`). Quarter rows reflow on narrow terminals without clipping month
+labels or transaction counts; selection and the current-month underline are unchanged.
+
+Beneath the day calendar, `Month Flow (YYYY-MM)` names the selected month's recorded
+`In`, `Out`, and `Net`, with currency formatting and an explicit `Measure:` token.
+These are period totals, not balances, budgets, or Daily Pace. All zooms consume the
+same role-aware CalendarMoneyReview. Every represented Measure is labelled and shown
+separately, including `[partial]` and unresolved-role counts. In/Out are the existing
+gross directional flow of role-classified Income/Expense evidence, not all asset
+movements: Expense reversals can contribute to In and Income reversals to Out.
+Net is In minus Out; different Measures are never added together. Out/day and Out/month are approximate quanta
+quotients in Month/Year zoom over the **full selected calendar period**, not elapsed-period spending
 pace or forecasts. Empty flow, not requested, unavailable, and failed reads have
 distinct labels. Long summaries remain accessible with Ctrl-u/d and an explicit
 overflow indicator. The duplicate Peak Month transaction-count decoration is not

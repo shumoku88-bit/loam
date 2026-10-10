@@ -153,6 +153,28 @@ try:
     bounded(capture(b"Focus: 2026-10-30"), 14, 48)
     resize(22, 80)
     bounded(capture(b"LOAM Home"), 22, 80)
+    # Numeric month labels reflow without hiding the selected month. Live resize
+    # must not change the date, zoom, current-month styling or transaction counts.
+    os.write(master, b"z")
+    month = capture(b"View: Month")
+    assert b"[10 Oct]" in ansi.sub(b"", month), "month zoom lost its numeric selected label"
+    for rows, cols in ((14, 48), (14, 32), (24, 80), (20, 120), (48, 160)):
+        resize(rows, cols)
+        month = capture(b"LOAM Home")
+        bounded(month, rows, cols)
+        clean = ansi.sub(b"", month)
+        assert b"Focus: 2026-10-30" in clean and b"[10 Oct]" in clean
+    for label in (b"01 Jan", b"02 Feb", b"03 Mar", b"04 Apr", b"05 May", b"06 Jun",
+                  b"07 Jul", b"08 Aug", b"09 Sep", b"10 Oct", b"11 Nov", b"12 Dec"):
+        assert label in clean, ("month label clipped on wide resize", label)
+    os.write(master, b"zz")
+    day_flow = capture(b"Month Flow (2026-10)")
+    bounded(day_flow, 48, 160)
+    assert b"No recorded income/expense flow." in ansi.sub(b"", day_flow), (
+        "empty day-calendar flow became a balance or invented zero", day_flow
+    )
+    resize(22, 80)
+    bounded(capture(b"LOAM Home"), 22, 80)
     # Selected Day owns separate Actual/Scheduled lists and a focusable Detail.
     os.write(master, b"\r")
     day = capture(b"Household Day Workspace")

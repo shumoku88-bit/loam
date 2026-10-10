@@ -300,17 +300,47 @@ def main : IO Unit := do
   expect (emptyState.detailCursor == 0 && (selectedDetailRecord? empty emptyState).isNone)
     "empty reload manufactured a selection"
 
+  -- Numeric month labels retain selection/Today styles and complete counts through
+  -- width reflow. Browse actual viewports to include every quarter on short screens.
+  let monthLabels := ["01 Jan", "02 Feb", "03 Mar", "04 Apr", "05 May", "06 Jun",
+    "07 Jul", "08 Aug", "09 Sep", "10 Oct", "11 Nov", "12 Dec"]
+  for bounds in [{width := 32, height := 14}, {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 20}, wide] do
+    let rendered ← browseOverview bounds snapshot {base with
+      selectedDate := "2026-01-01", overviewManualScroll := true}
+    for label in monthLabels do
+      expect (contains label rendered) s!"month label clipped at {bounds.width}: {label}"
+    expect (contains "10t" rendered && contains "2t" rendered) "month reflow lost exact counts"
+    for month in List.range 12 do
+      let date := Loam.Tui.Calendar.dateForDay {year := 2026, month := month + 1} 1
+      let state := {base with selectedDate := date}
+      let view := Loam.Tui.Home.view bounds snapshot state
+      let selected := view.lines.flatten.filter fun cell =>
+        cell.style == .selected || cell.style == .selectedUnderlined
+      expect (contains ("[" ++ monthLabels[month]! ++ "]")
+        (String.ofList (selected.map Cell.glyph))) "month selection hidden after reflow"
+      let today := view.lines.flatten.filter fun cell =>
+        cell.style == .underlined || cell.style == .selectedUnderlined
+      if month == 9 then
+        expect (contains "10 Oct" (String.ofList (today.map Cell.glyph)))
+          "current month lost its underline"
+
   -- Exact per-measure sums, explicit uncertainty, and no layout-dependent read semantics.
-  for bounds in [wide, {width := 80, height := 24}, {width := 120, height := 20}] do
-    for zoom in [Loam.Tui.DateJump.ZoomLevel.month, .year] do
+  for bounds in [wide, {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 20}] do
+    for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
       let state := {base with zoomLevel := zoom}
       let rendered ← browseOverview bounds snapshot state
-      for token in ["jpy", "usd", "Out: -$100", "? 2 unresolved effects", "Net:", "(full"] do
+      for token in ["Measure: jpy", "Measure: usd [partial]", "In: +¥0", "Out: -$100",
+          "? 2 unresolved effects", "Net: -¥", if zoom == .year then "Year Flow (2026)" else "Month Flow (2026-10)"] do
         expect (contains token rendered) s!"period overview lost {token}"
-      expect (contains (if zoom == .month then "Out: -¥3,100" else "Out: -¥3,720") rendered)
+      expect (contains (if zoom == .year then "Out: -¥3,720" else "Out: -¥3,100") rendered)
         "period sum changed or mixed measures"
-      expect (!contains "[h/l] day" rendered && !contains "[k/j] week" rendered)
-        "zoom footer advertised daily navigation"
+      if zoom != .day then
+        expect (contains "(full" rendered && !contains "[h/l] day" rendered && !contains "[k/j] week" rendered)
+          "zoom footer advertised daily navigation or lost its existing average"
+      else
+        expect (!contains "Out/day:" rendered && !contains "(full month)" rendered)
+          "day footer added a pace-like average"
       let cases : List (Loam.Presentation.ReadState MoneyCalendarSnapshot × String) :=
         [(.notRequested, "flow not requested"), (.unavailable, "flow unavailable"),
          (.failed "role-map broken", "flow read failed"),
@@ -328,21 +358,47 @@ def main : IO Unit := do
   expect (contains "read failed" rendered && contains "-tail" rendered)
     "day calendar collapsed a failed read or hid its diagnostic tail"
 
+  -- Positive/negative directions and Net reuse the existing summary, including
+  -- reversal-shaped rows. Long exact numbers wrap without losing digits.
+  let signedMoney := {snapshot with moneyCalendar := .loaded {
+    presentation := []
+    flow := {rows := [{
+      date := "2026-10-01", measure := ⟨"usd"⟩
+      income := Quantity.ofQuanta (-25), expense := Quantity.ofQuanta (-100), unresolvedEffectCount := 0
+    }, {
+      date := "2026-09-30", measure := ⟨"usd"⟩
+      income := Quantity.ofQuanta 999, expense := Quantity.ofQuanta 0, unresolvedEffectCount := 0
+    }]}
+  }}
+  for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month] do
+    let rendered ← browseOverview {width := 48, height := 14} signedMoney {base with zoomLevel := zoom}
+    for token in ["Month Flow (2026-10)", "Measure: usd", "In: +$100", "Out: -$25", "Net: +$75"] do
+      expect (contains token rendered) s!"directional sign/window changed: {token}"
+  for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
+    let rendered := compactText (Loam.Tui.Home.view {width := 48, height := 200}
+      hugeMoney {base with zoomLevel := zoom, overviewManualScroll := true})
+    expect (contains ("Out:-$" ++ Loam.MeasurePresentation.groupDisplayedNumber (toString huge)) rendered &&
+      contains ("Net:-$" ++ Loam.MeasurePresentation.groupDisplayedNumber (toString huge)) rendered)
+      "flow footer lost oversized exact digits"
+
   -- Presentation scales remain attached to their measure, including rounded averages.
   let .loaded money := snapshot.moneyCalendar | throw (IO.userError "money fixture")
   let scaled := {snapshot with moneyCalendar := .loaded {money with
     presentation := [{measure := ⟨"usd"⟩, scale := 2}]
   }}
-  let scaledText ← browseOverview wide scaled base
-  expect (contains "Out: -$1.00" scaledText && contains "Out/day: ~$0.03" scaledText)
-    "USD summary ignored presentation scale"
-  expect (contains "usd [partial]" scaledText) "partial sum looked complete"
+  for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month] do
+    let scaledText ← browseOverview wide scaled {base with zoomLevel := zoom}
+    expect (contains "Out: -$1.00" scaledText && contains "Net: -$1.00" scaledText)
+      "USD summary ignored presentation scale"
+    if zoom == .month then
+      expect (contains "Out/day: ~$0.03" scaledText) "existing average changed"
+    expect (contains "Measure: usd [partial]" scaledText) "partial sum looked complete"
 
   -- Lexical period bounds also include December in the last supported year.
   let lastYear := {snapshot with moneyCalendar := .loaded {money with
     flow := {rows := money.flow.rows.map fun row => {row with date := "9999-12-31"}}
   }}
-  for zoom in [Loam.Tui.DateJump.ZoomLevel.month, .year] do
+  for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
     let rendered ← browseOverview wide lastYear {base with selectedDate := "9999-12-31", zoomLevel := zoom}
     expect (contains "Out: -¥3,720" rendered && contains "Out: -$100" rendered)
       "last supported period lost flow"
