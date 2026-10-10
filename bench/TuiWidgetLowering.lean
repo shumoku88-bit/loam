@@ -1,3 +1,7 @@
+import Loam.Tui.Layout
+import Loam.Tui.Runtime
+import Loam.Tui.Terminal
+
 /-!
 Read-only, manually useful TUI presentation-phase microbenchmark.
 
@@ -15,9 +19,6 @@ Numbers are exploratory, not CI pass/fail thresholds. Compare matched
 machines and workloads before using them to justify a code change.
 -/
 
-import Loam.Tui.Layout
-import Loam.Tui.Runtime
-import Loam.Tui.Terminal
 
 open Loam.Tui.Kernel
 
