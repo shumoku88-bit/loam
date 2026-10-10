@@ -6,6 +6,10 @@ The TUI owns presentation and interaction state only. Household meaning, admissi
 review, and publication stay in shared LOAM boundaries so that TUI, CLI, and future
 frontends do not grow separate semantic engines.
 
+Current improvement queue: [非予算の家計管理：TUI 作業リスト](TUI_NON_BUDGET_WORKLIST.md).
+It distinguishes existing capabilities from pending UI refinements and keeps
+budget-management improvements deferred during the non-budget household trial.
+
 ## Current production entrance
 
 Run from the repository root:
