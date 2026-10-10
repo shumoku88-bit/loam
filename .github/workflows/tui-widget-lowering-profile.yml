@@ -1,0 +1,41 @@
+name: TUI Widget Lowering Profile
+
+on:
+  pull_request:
+    paths:
+      - 'bench/TuiWidgetLowering.lean'
+      - '.github/workflows/tui-widget-lowering-profile.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  measure:
+    name: Measure synthetic Widget lowering phases
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install Lean
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: false
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: false
+
+      - name: Build TUI terminal module
+        run: lake build Loam.Tui.Terminal
+
+      - name: Print exploratory phase timings
+        run: lake env lean --run bench/TuiWidgetLowering.lean
+
+# The workflow is opt-in by touching the benchmark or manual dispatch.
+# Numbers are never used as pass/fail performance thresholds.
