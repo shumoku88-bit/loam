@@ -155,6 +155,52 @@ private def checkOriginalAmountSurface (w : Loam.MovementAdmission.World) : IO U
   expect ((update w [] base .escape).publish.isNone && (update w [] base .escape).cancel)
     "Original amount cancellation emitted publication"
 
+private def checkUnresolvedEnableSurface (w : Loam.MovementAdmission.World) : IO Unit := do
+  let prompted := update w [] { form := readyForm } (.ctrl 'u')
+  expect (prompted.publish.isNone && !prompted.enableUnresolved)
+    "opening unresolved confirmation activated policy or published"
+  let state := prompted.state
+  for width in [48, 80, 120] do
+    for height in [14, 24, 40] do
+      let bounds : Bounds := { width, height }
+      let widget := viewForBounds bounds [] state
+      let text := widgetText widget
+      expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
+        "unresolved confirmation escaped terminal bounds"
+      expect (contains "Household vocabulary" text && contains "Admit ordinary Locus: suspense." text &&
+        contains "does not record the Movement" text && contains "No Measure change or category guessing" text &&
+        contains "Preview before Publish" text && contains "[Enter] enable" text &&
+        contains "[e/E] return" text && contains "[Backspace] return" text && contains "[Esc] cancel Record" text)
+        "unresolved confirmation lost its household-change boundary or operation bar"
+      expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+        (Loam.Tui.Runtime.compileWidget widget) ==
+        some (height - 4, Loam.Tui.Layout.displayWidth "[Enable unresolved recording]"))
+        "unresolved confirmation lost its fixed action caret"
+      for notice in ["Confirmation required.",
+          "Read failed: この世帯の語彙を読み込めません。No authority was guessed."] do
+        let noticed := { state with notice }
+        let next := viewForBounds bounds [] noticed
+        expect (widget.lines.drop (height - 3) == next.lines.drop (height - 3))
+          "unresolved confirmation feedback moved its navigation rows"
+        expect (contains notice ((widgetText next).replace "\n" ""))
+          "unresolved confirmation clipped wrapped feedback"
+  for key in [Loam.Tui.Terminal.Key.input 'e', .input 'E', .backspace] do
+    let returned := update w [] state key
+    expect (!returned.enableUnresolved && returned.publish.isNone && !returned.cancel &&
+      returned.state.form.rows == readyForm.rows && returned.state.form.description == readyForm.description &&
+      returned.state.form.date == readyForm.date && returned.state.form.measure == readyForm.measure)
+      "returning from unresolved confirmation changed input or requested a write"
+    match returned.state.mode with
+    | .editing => pure ()
+    | _ => throw (IO.userError "unresolved confirmation return did not restore editing")
+  let confirmed := update w [] state .enter
+  expect (confirmed.enableUnresolved && confirmed.publish.isNone && confirmed.state.form.rows == readyForm.rows)
+    "explicit unresolved confirmation changed Movement publication semantics"
+  let cancelled := update w [] state .escape
+  expect (cancelled.cancel && !cancelled.enableUnresolved && cancelled.publish.isNone)
+    "unresolved confirmation cancellation requested a write"
+
 private def checkBoundedConfirmation (w : Loam.MovementAdmission.World) : IO Unit := do
   let bounds : Bounds := { width := 80, height := 24 }
   let editor := preview w { form := readyForm }
@@ -210,6 +256,7 @@ def main (args : List String) : IO Unit := do
   let w ← world
   checkBoundedEditing
   checkOriginalAmountSurface w
+  checkUnresolvedEnableSurface w
   checkBoundedConfirmation w
   let compactBounds : Bounds := { width := 80, height := 24 }
   expect (Loam.Tui.RecordSession.floatingGeometry? compactBounds).isNone

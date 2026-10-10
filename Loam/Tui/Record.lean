@@ -782,6 +782,24 @@ private def originalAmountView (bounds : Bounds) (state : State)
       (Loam.Tui.Layout.wrapColumns (width - 2) text).map muted))
   boundedWithFooter bounds (.column [line "Record / Original amount", fields, meaning]) footer
 
+private def unresolvedEnableView (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  let footer := (if feedback.isEmpty then [blank] else feedback) ++
+    [.row [span "[Enable unresolved recording]" .selected],
+     Loam.Tui.Layout.shortcutRow [("Enter", "enable"), ("e/E", "return")] " ",
+     Loam.Tui.Layout.shortcutRow [("Backspace", "return"), ("Esc", "cancel Record")] " "]
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let change := Loam.Tui.Layout.framedPanel width 3 "Household vocabulary"
+    (line "Admit ordinary Locus: suspense.") true
+  let explanation := ["This does not record the Movement.",
+    "No Measure change or category guessing.",
+    "Return to draft; Preview before Publish."]
+  let meaning := Loam.Tui.Layout.framedPanel width (available - 4) "Not a Movement publication"
+    (.column (explanation.flatMap fun text =>
+      (Loam.Tui.Layout.wrapColumns (width - 2) text).map muted))
+  boundedWithFooter bounds (.column [line "Unresolved recording / Enable", change, meaning]) footer
+
 private def editingFields (width : Nat) (form : Form) : List Widget :=
   [editingField width form 0 "Date" form.date,
    editingField width form 1 "Description" form.description,
@@ -879,10 +897,11 @@ private def editingView (bounds : Bounds) (state : State) : Widget :=
   boundedWithFooter bounds body footer
 
 /-- Bounds-aware standalone Record surfaces; embedded editors retain their contract. -/
-def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widget :=
+def viewForBounds (bounds : Bounds) (_known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing => editingView bounds state
   | .originalAmount editor => originalAmountView bounds state editor
+  | .enableUnresolved => unresolvedEnableView bounds state
   | .preview draft choice =>
       let width := Loam.Tui.Layout.contentWidth bounds
       let footer := confirmationFooter bounds state choice
@@ -897,6 +916,5 @@ def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widg
         (.column ((lines.drop offset).take capacity)) true
         (some (s!"{min (offset + capacity) lines.length}/{lines.length} lines" ++ more))
       boundedWithFooter bounds (.column [line "Record / Preview", panel]) footer
-  | _ => view known state
 
 end Loam.Tui.Record

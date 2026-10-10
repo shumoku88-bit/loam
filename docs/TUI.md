@@ -653,6 +653,15 @@ Record Preview confirmation. Ctrl-O returns without attaching local edits, Ctrl-
 clears the attached original, and Esc cancels Record. Terminal input disables
 extended tty editing so macOS does not consume Ctrl-O before the TUI receives it.
 
+Record's first-use Ctrl-U confirmation separates a focused **Household vocabulary**
+frame (admit the ordinary `suspense` Locus) from a quiet explanation that this does
+not record a Movement, change its Measure, or guess a category. The Enable action,
+reserved wrapping feedback, and two operation rows stay below the bounded body.
+Enter confirms household policy admission; e/E or Backspace returns to the draft,
+and Esc cancels Record. Opening, returning, and cancelling before confirmation do
+not publish. After confirmed admission, the existing canonical reload and draft
+remainder assistance still run; any Actual publication requires Record Preview.
+
 Record confirmation uses a quiet rounded frame with signed Effects, their exact
 Measure quantities and Locus tokens, plus date, description, and any attached
 original amount. Long values wrap without dropping digits or identities.

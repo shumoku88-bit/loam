@@ -151,6 +151,26 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.close()
     assert digest() == frozen_navigation, "read-only confirmation review changed evidence"
 
+    # First-use confirmation clearly separates policy admission from a Movement write.
+    terminal = Terminal(root)
+    try:
+        terminal.send(b"r", b"Record movement")
+        opened = ANSI.sub(b"", terminal.send(b"\x15", b"Household vocabulary"))
+        assert b"Admit ordinary Locus: suspense." in opened
+        assert b"does not record the Movement" in opened
+        assert digest() == frozen_navigation, "opening enable confirmation published policy"
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
+        compact = ANSI.sub(b"", terminal.capture(b"[Esc] cancel Record"))
+        assert b"Preview before Publish" in compact and b"[e/E] return" in compact
+        for back in (b"e", b"E", b"\x7f"):
+            terminal.send(back, b"Record / Edit")
+            assert digest() == frozen_navigation, "returning from enable confirmation published policy"
+            terminal.send(b"\x15", b"Household vocabulary")
+        terminal.send(b"\x1b", b"Record cancelled.")
+    finally:
+        terminal.close()
+    assert digest() == frozen_navigation, "cancelled enable confirmation changed household evidence"
+
     # Removing the read authority while the editor is open makes any unwanted
     # caller reload deterministic, without asserting a machine-specific latency.
     for route in ("home", "actual", "selected-day"):
@@ -190,9 +210,11 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     hidden = root / "held-image"
     try:
         terminal.send(b"r", b"Record movement")
+        actual_before_activation = (root / "actual.loam").read_bytes()
         terminal.send(b"\x15", b"Enable")  # Ctrl-U, first-use suspense admission
         terminal.send(b"\r", b"Unresolved recording enabled")
         assert b"suspense" in authority.read_bytes(), "activation did not publish policy"
+        assert (root / "actual.loam").read_bytes() == actual_before_activation, "activation recorded a Movement"
         authority.rename(hidden)
         terminal.send(b"\x1b", b"Reload failed")
         assert terminal.process.wait(timeout=5) != 0, "activation followed by cancel skipped reload"
@@ -218,4 +240,4 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
             hidden.rename(authority)
         terminal.close()
 
-print("Actual navigation and Record PTY: editing focus/IME/resize, Original amount, confirmation review, reload, cancellation and activation passed.")
+print("Actual navigation and Record PTY: editing focus/IME/resize, Original amount, confirmation review, unresolved enable/return, reload, cancellation and activation passed.")
