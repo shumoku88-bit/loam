@@ -333,9 +333,6 @@ private def wrapped (width : Nat) (text : String) (style : Style := .normal) : L
   (Loam.Tui.Layout.wrapColumns (width - 1) text).map fun line =>
     .row [span " ", span line style]
 
-private def widgetRows (widget : Widget) : List Widget :=
-  widget.lines.map fun cells => .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
-
 private def quantaText (measure : Loam.Core.MeasureId) (quanta : Int) : String :=
   Loam.MeasurePresentation.groupDisplayedNumber (toString quanta) ++ " " ++ measure.token
 
@@ -640,9 +637,8 @@ private def transactionView (bounds : Bounds) (snapshot : Snapshot) (state : Sta
     (if offset + capacity < raw.length then "↓ " else "") ++ "End: actions"
   let panel := Loam.Tui.Layout.framedPanel width (capacity + 2) "Actual / Transaction detail"
     (.column ((raw.drop offset).take capacity)) true (some position)
-  .column ((Loam.Tui.Layout.fitWithFooter bounds (widgetRows panel) (transactionFooter bounds)).map fun row =>
-    .row ((Loam.Tui.Layout.clipCells width row.lines.flatten).map fun cell =>
-      span (String.singleton cell.glyph) cell.style))
+  .column ((Loam.Tui.Layout.fitWithFooter bounds (Loam.Tui.Layout.widgetRows panel) (transactionFooter bounds)).map fun row =>
+    Loam.Tui.Layout.clipWidgetRow width row)
 
 /-- Separate dated-browser and single-Event presentations; authoritative reads/writes stay shared. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
@@ -658,12 +654,11 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
       Loam.Tui.Layout.sideBySide g.listHeight leftWidth (g.width - 1 - leftWidth)
         (listPanel leftWidth g.listHeight .actual snapshot state)
         (listPanel (g.width - 1 - leftWidth) g.listHeight .scheduled snapshot state) " "
-    else widgetRows (listPanel g.width g.listHeight state.pane snapshot state)
+    else Loam.Tui.Layout.widgetRows (listPanel g.width g.listHeight state.pane snapshot state)
   let details := if g.detailHeight == 0 then [] else
-    (if g.detailOnly then [] else [blankLine]) ++ widgetRows (detailPanel g snapshot state)
+    (if g.detailOnly then [] else [blankLine]) ++ Loam.Tui.Layout.widgetRows (detailPanel g snapshot state)
   let body := context.take g.contextRows ++ lists ++ details
   .column ((Loam.Tui.Layout.fitWithFooter bounds body (footer bounds state)).map fun row =>
-    .row ((Loam.Tui.Layout.clipCells g.width row.lines.flatten).map fun cell =>
-      span (String.singleton cell.glyph) cell.style))
+    Loam.Tui.Layout.clipWidgetRow g.width row)
 
 end Loam.Tui.SelectedDay
