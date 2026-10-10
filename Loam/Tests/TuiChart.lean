@@ -13,6 +13,11 @@ private def text (rows : List Widget) : String :=
     String.ofList (cells.map Cell.glyph)
 
 def main : IO Unit := do
+  for values in [[], [5], [-10, 4, 20], [0, -100, 0, 100], (List.range 1500).map (fun n => Int.ofNat n - 750)] do
+    for width in [0, 1, 2, 3, 79, 160] do
+      for x in List.range (width + 2) do
+        expect (Loam.Tui.Chart.sampleArrayAt values.toArray width x == Loam.Tui.Chart.sampleAt values width x)
+          "indexed chart sampling changed interpolation or endpoint clamping"
   let flat := Loam.Tui.Chart.rangeFor [500, 500, 500]
   expect (flat.low < 500 && 500 < flat.high)
     "portable chart range did not give a flat series vertical breathing room"

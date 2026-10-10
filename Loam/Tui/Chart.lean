@@ -192,6 +192,21 @@ def sampleAt (values : List Int) (width x : Nat) : Int :=
     let right := values[segment + 1]?.getD left
     interpolate left right remainder denominator
 
+/-- Indexed sampling for rasterization: same interpolation as `sampleAt`, without
+walking the entire history for each terminal cell. -/
+def sampleArrayAt (values : Array Int) (width x : Nat) : Int :=
+  let count := values.size
+  if count = 0 then 0
+  else if count = 1 || width <= 1 then values[0]?.getD 0
+  else if x + 1 >= width then values[count - 1]?.getD 0
+  else
+    let denominator := width - 1
+    let scaled := x * (count - 1)
+    let segment := scaled / denominator
+    let left := values[segment]?.getD 0
+    let right := values[segment + 1]?.getD left
+    interpolate left right (scaled % denominator) denominator
+
 def rowForValue
     (height : Nat) (range : Range) (value : Int) : Nat :=
   if height <= 1 || range.high <= range.low then 0
@@ -221,7 +236,7 @@ private def dotValue (dx dy : Nat) : Nat :=
   | _, _ => 0
 
 private def brailleGlyph
-    (values : List Int) (range : Range)
+    (sample : Nat → Nat → Int) (range : Range)
     (width height cellX cellY : Nat) : Char :=
   let subWidth := max 1 (width * 2)
   let subHeight := max 1 (height * 4)
@@ -232,7 +247,7 @@ private def brailleGlyph
           (fun inner dy =>
             let subX := cellX * 2 + dx
             let subY := cellY * 4 + dy
-            let value := sampleAt values subWidth subX
+            let value := sample subWidth subX
             let lineY := rowForValue subHeight range value
             if lineY = subY then inner + dotValue dx dy else inner)
           current)
@@ -241,15 +256,15 @@ private def brailleGlyph
 
 private def cellGlyph
     (renderer : Renderer)
-    (values : List Int) (range : Range)
+    (sample : Nat → Nat → Int) (range : Range)
     (width height x y : Nat) : Char :=
   match renderer with
-  | .braille => brailleGlyph values range width height x y
+  | .braille => brailleGlyph sample range width height x y
   | .block =>
-      let value := sampleAt values width x
+      let value := sample width x
       if rowForValue height range value = y then '█' else ' '
   | .ascii =>
-      let value := sampleAt values width x
+      let value := sample width x
       if rowForValue height range value = y then '*' else ' '
 
 private def selectedPoint
@@ -293,6 +308,7 @@ def renderInRange
     (gridRows : List Nat := []) : List Widget :=
   let actualWidth := max 1 width
   let actualHeight := max 1 height
+  let indexed := values.toArray
   let selectedX :=
     xForIndex actualWidth values.length selected
   let selectedY :=
@@ -300,7 +316,7 @@ def renderInRange
   (List.range actualHeight).map fun row =>
     let spans :=
       (List.range actualWidth).map fun col =>
-        let base := cellGlyph renderer values range actualWidth actualHeight col row
+        let base := cellGlyph renderer (sampleArrayAt indexed) range actualWidth actualHeight col row
         match markerAt? markers values range actualWidth actualHeight col row with
         | some marker =>
             span (String.ofList [markerGlyph marker selected])
@@ -340,7 +356,7 @@ private def plotSeriesLineAt?
     (range : Range)
     (width height col row : Nat) : Option (Char × Style) :=
   series.findSome? fun item =>
-    let glyph := cellGlyph renderer item.values range width height col row
+    let glyph := cellGlyph renderer (sampleAt item.values) range width height col row
     if glyph = ' ' then none else some (glyph, item.style)
 
 /--

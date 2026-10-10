@@ -1,4 +1,4 @@
-import Loam.Review.CycleSpendingPaceReview
+import Loam.Review.DailyPacePeriods
 import Loam.Tests.ActualWorldFixture
 import Loam.Config.DailyPaceConfig
 import Loam.Persistence.BoundedHistorySupportPersistence
@@ -277,6 +277,59 @@ def main : IO Unit := do
       [some 120, some 77, some 87])
     "Daily Pace history did not reconstruct completion-aware pace"
 
+  let configured : List Loam.BoundaryPresetConfig.Preset := [{name := "explicit", boundaries :=
+    ["2026-08-08", "2026-09-08", "2026-09-18", "2026-10-08"]}]
+  let periods := Loam.DailyPacePeriods.project yen image historicalEvidence selection historyBalances historyScheduled configured "2026-09-10"
+  let currentPeriod ← requireSome (periods.find? fun period => period.preset == .cycle) "current cycle missing"
+  expect (match currentPeriod.history with | .loaded points => points == history | _ => false)
+    "extended current-cycle history changed the existing calculation"
+  let previous ← requireSome (periods.find? fun period => period.preset == .previousCycle) "previous cycle missing"
+  expect (match previous.history with | .failed message => (message.splitOn "precedes bounded history start").length > 1 | _ => false)
+    "unsupported previous cycle fabricated points"
+  let coverage ← requireSome (ZeroOriginCoverage.ofCoordinates? selection) "period zero origin"
+  let allDays : Loam.HistoricalBalanceReview.Evidence := {
+    zeroOrigin := coverage, opening := OpeningSupportMap.empty,
+    bounded := Loam.BoundedHistorySupport.Evidence.empty,
+    anchor := Loam.CurrentQuantityAnchor.Evidence.empty}
+  let complete := Loam.DailyPacePeriods.project yen image allDays selection historyBalances historyScheduled configured "2026-09-10"
+  let source ← requireSome configured.head? "test boundary source missing"
+  for period in complete do
+    let .loaded points := period.history | throw (IO.userError ("daily period failed: " ++ period.preset.label))
+    let dates ← match period.range.bind Loam.DailyPacePeriods.Range.dates with
+      | .ok dates => pure dates | .error message => throw (IO.userError message)
+    expect (points.map (·.observedAt) == dates) "display range lost daily grain"
+    for point in points do
+      let some (start, endExclusive) := Loam.BoundaryPresetConfig.windowForDate? source point.observedAt
+        | throw (IO.userError "explicit test boundary missing")
+      let some next := Loam.ActualDate.shiftDays? point.observedAt 1 | throw (IO.userError "next day missing")
+      let pool ← match Loam.HistoricalBalanceReview.projectStartOfDay image allDays next selection with
+        | .ok pool => pure pool | .error message => throw (IO.userError message)
+      expect (point.eligiblePool.quanta == pool.rows.foldl (fun total row => total + row.quantity.quanta) 0)
+        "batch changed historical balance/correction meaning"
+      let expectedDeductions := if endExclusive == "2026-09-08" then 0
+        else if point.observedAt < "2026-09-10" then 800 else 500
+      expect (point.automaticDeductions.quanta == expectedDeductions &&
+        point.availableThroughEnd.quanta == point.eligiblePool.quanta - expectedDeductions)
+        "daily reconstruction changed completion/deduction arithmetic"
+      expect (start ≤ point.observedAt) "point outside explicit cycle"
+      expect (point.endExclusive == endExclusive && point.measure == yen && point.remainingDays > 0)
+        "period used calendar-month end or mixed Measures"
+  let ten ← requireSome complete.head? "10d period missing"
+  let .loaded crossed := ten.history | throw (IO.userError "10d missing")
+  let firstCrossed ← requireSome crossed.head? "10d first missing"
+  let lastCrossed ← requireSome crossed.getLast? "10d last missing"
+  expect (crossed.length == 10 && firstCrossed.endExclusive == "2026-09-08" && lastCrossed.endExclusive == "2026-09-18")
+    "10d did not cross explicit cycle boundary day by day"
+  let previousPeriod ← requireSome complete.getLast? "previous period missing"
+  let .loaded prior := previousPeriod.history | throw (IO.userError "previous cycle missing")
+  let lastPrior ← requireSome prior.getLast? "previous last missing"
+  expect (prior.length == 31 && lastPrior.observedAt == "2026-09-07" && lastPrior.remainingDays == 1)
+    "previous completed cycle end was included or compressed to a single point"
+  let mismatch := Loam.DailyPacePeriods.project yen image allDays selection
+    {historyBalances with rows := []} historyScheduled configured "2026-09-10"
+  expect (mismatch.all fun period => match period.history with | .failed _ => true | _ => false)
+    "current-pace disagreement allowed historical values"
+
   expectError
     (Loam.CycleSpendingPaceReview.projectHistory
       image
@@ -419,6 +472,12 @@ def main : IO Unit := do
       "2026-09-08" "2026-09-10" "2026-09-18"
       selection historyBalances retiredScheduled 7)
     "Daily Pace history invented a retirement date"
+
+  let retiredPeriods := Loam.DailyPacePeriods.project yen image allDays selection historyBalances
+    retiredScheduled configured "2026-09-10"
+  let retiredCycle ← requireSome (retiredPeriods.find? fun period => period.preset == .cycle) "retired cycle missing"
+  expect (match retiredCycle.history with | .failed _ => true | _ => false)
+    "extended history invented Scheduled retirement time"
 
   IO.println
     "Cycle Spending Pace: explicit pool, per-Scheduled deduction, boundary and earliest-open checks passed."

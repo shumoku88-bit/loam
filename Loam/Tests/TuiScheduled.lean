@@ -88,6 +88,10 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
     actual := actual
     scheduled := .ok scheduledSnapshot
     paceHistory := .loaded paceHistory
+    pacePeriods := .loaded [
+      { preset := .tenDays
+        range := .ok {start := "2026-09-05", through := "2026-09-07"}
+        history := .loaded paceHistory }]
   }
 
 def main : IO Unit := do
@@ -147,7 +151,12 @@ def main : IO Unit := do
   let .loaded baseHistory := snapshot.paceHistory
     | throw (IO.userError "fixture Daily Pace history unavailable")
   let usdHistory := baseHistory.map fun point => { point with measure := usd }
-  let usdSnapshot := { snapshot with paceHistory := .loaded usdHistory }
+  let usdSnapshot := { snapshot with
+    paceHistory := .loaded usdHistory
+    pacePeriods := .loaded [
+      { preset := .tenDays
+        range := .ok {start := "2026-09-05", through := "2026-09-07"}
+        history := .loaded usdHistory }] }
   let usdTrendText := widgetText (Loam.Tui.DailyPaceTrend.view bounds usdSnapshot)
   expect
     (contains "150 usd/day" usdTrendText &&
@@ -159,7 +168,12 @@ def main : IO Unit := do
   let stateBounds : Bounds := { width := 100, height := 42 }
   for historyState in [Loam.Presentation.ReadState.notRequested, .unavailable,
       .failed "pace history read failed", .loaded []] do
-    let optionalSnapshot := { snapshot with paceHistory := historyState }
+    let optionalSnapshot := { snapshot with
+      paceHistory := historyState
+      pacePeriods := .loaded [
+        { preset := .tenDays
+          range := .ok {start := "2026-09-05", through := "2026-09-07"}
+          history := historyState }] }
     let homeText := widgetText (Loam.Tui.Home.view bounds optionalSnapshot home)
     expect (contains "Scheduled: Due (12)" homeText &&
       !contains "Recent pace" homeText && !contains "pace history read failed" homeText)

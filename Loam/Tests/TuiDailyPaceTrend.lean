@@ -26,7 +26,8 @@ private def point (day : String) (quanta : Int) (measure : String := "jpy") : Lo
 private def snapshot (history : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot)) : Loam.Tui.Main.Snapshot := {
   actual := {today := "2026-10-30", allRecords := []}
   scheduled := .error "synthetic fixture"
-  paceHistory := history
+  pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
+    {preset, range := .error "synthetic display fixture", history})
 }
 
 private def press (bounds : Bounds) (world : Loam.Tui.Main.Snapshot) (state : Loam.Tui.DailyPaceTrend.State)
@@ -170,7 +171,61 @@ private def testTiny : IO Unit := do
         let bottom ← press bounds world state .«end»
         expect ((← press bounds world bottom .«end») == bottom) "pace scroll exceeded true endpoint"
 
-def main : IO Unit := do
+private def testPeriods : IO Unit := do
+  let configured : List Loam.BoundaryPresetConfig.Preset := [{name := "explicit", boundaries :=
+    ["2026-08-21", "2026-09-21", "2026-10-21", "2026-11-21"]}]
+  let periods ← Loam.DailyPacePeriods.presets.mapM fun preset => do
+    let range ← match Loam.DailyPacePeriods.resolve preset "2026-10-30" configured with
+      | .ok range => pure range | .error message => throw (IO.userError message)
+    let days ← match range.dates with
+      | .ok days => pure days | .error message => throw (IO.userError message)
+    pure ({preset, range := .ok range, history := .loaded (days.map fun day => point day 123)} : Loam.DailyPacePeriods.Period)
+  let world := {snapshot .notRequested with pacePeriods := .loaded periods}
+  let bounds : Bounds := {width := 160, height := 48}
+  let mut state ← press bounds world {} .home
+  expect (state.selectedDay == some "2026-10-21") "default 10d was not inclusive"
+  for (key, preset) in [(.input '1', Loam.DailyPacePeriods.Preset.tenDays), (.input '2', .thirtyDays),
+      (.input '3', .month), (.input '4', .cycle), (.input '5', .previousCycle)] do
+    state ← press bounds world state key
+    expect (state.period == preset) "period key selected wrong preset"
+    expect (state.selectedDay == some (if preset == .previousCycle then "2026-10-20" else "2026-10-21"))
+      "range change unnecessarily reset selection or did not clamp"
+    let rendered := text (Loam.Tui.DailyPaceTrend.view bounds world state)
+    expect (contains ("Selected " ++ state.selectedDay.getD "missing") rendered && contains preset.label rendered)
+      "chart/detail period and selected day diverged"
+  state ← press bounds world state (.input '4')
+  expect (state.selectedDay == some "2026-10-21") "out-of-range selection did not clamp to start"
+  state ← press bounds world state (.input '2')
+  state ← press bounds world state .home
+  expect (state.selectedDay == some "2026-10-01") "30d earliest day wrong"
+  state ← press bounds world state (.input '3')
+  expect (state.selectedDay == some "2026-10-01") "month was confused with cycle"
+  let view := Loam.Tui.DailyPaceTrend.view bounds world state
+  let rows := view.lines.map fun cells => String.ofList (cells.map Cell.glyph)
+  let trend := (rows.findIdx? (contains "╭ Trend")).getD 999
+  let history := (rows.findIdx? (contains "╭ History")).getD 0
+  let detail := (rows.findIdx? (contains "╭ Selected day")).getD 0
+  expect (trend < history && history == detail && Loam.Tui.Layout.displayWidth rows[trend]! == 159)
+    "wide layout did not give chart full width above History/Detail"
+  for tty in [{width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 40}, bounds] do
+    let resized := Loam.Tui.DailyPaceTrend.normalizedForBounds tty world state
+    expect (resized.selectedDay == state.selectedDay && resized.period == state.period) "resize reset period/day"
+  let unavailable := {world with pacePeriods := .loaded (periods.map fun period =>
+    if period.preset == .cycle then {period with history := .failed "explicit refusal"} else period)}
+  let failed ← press bounds unavailable state (.input '4')
+  let restored ← press bounds unavailable failed (.input '3')
+  expect (restored.selectedDay == state.selectedDay) "refused period destroyed the selected date anchor"
+  let longHistory := (List.range 1500).filterMap fun index =>
+    (Loam.ActualDate.shiftDays? "2022-01-01" (Int.ofNat index)).map fun day => point day (Int.ofNat index)
+  let longWorld := snapshot (.loaded longHistory)
+  let mut cursor ← press bounds longWorld {} .home
+  for _ in List.range 100 do cursor ← press bounds longWorld cursor .down
+  expect (cursor.selected == some 100) "continuous input dropped day movements"
+  cursor ← press bounds longWorld cursor .up 75
+  expect (cursor.selected == some 25) "rapid reversal left scroll tail or lost events"
+
+ def main : IO Unit := do
+  testPeriods
   testGeometryAndMovement
   testReadStates
   testQuantities

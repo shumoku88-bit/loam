@@ -289,6 +289,34 @@ private def reconstructedSnapshot
     availableThroughEnd := Quantity.ofQuanta (eligible - deductions)
   }
 
+/-- Daily current-truth points with caller-resolved explicit cycle ends.
+Only historical pool preparation is batched; arithmetic and Scheduled lifecycle
+reconstruction are the same as the existing current-cycle history. -/
+def projectHistoricalDaysForMeasure
+    (measure : MeasureId)
+    (image : Loam.ActualAuthority.Image)
+    (historicalEvidence : Loam.HistoricalBalanceReview.Evidence)
+    (selection : List EffectCoordinate)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (days : List (String × String)) : List (Except String Snapshot) :=
+  let starts := days.map fun (date, _) => (Loam.ActualDate.shiftDays? date 1).getD ""
+  let pools := Loam.HistoricalBalanceReview.projectStartsOfDays image historicalEvidence starts selection
+  let records := Loam.ActualReview.recordsFromActualImage image
+  let validation := do
+    if !decide selection.Nodup || !selection.all (fun coordinate => coordinate.measure == measure) then
+      throw "loam: Daily Pace history requires a unique single-Measure pool"
+    let _ ← Loam.ScheduledReview.currentOpenRecords scheduled
+    pure ()
+  (days.zip pools).map fun ((date, endExclusive), pool) => do
+    let _ ← validation
+    if !Loam.ActualDate.validIsoDate date || !Loam.ActualDate.validIsoDate endExclusive then
+      throw "loam: Daily Pace history requires real daily and cycle-end dates"
+    let pool ← pool
+    if pool.rows.map (·.coordinate) != selection then
+      throw "loam: Daily Pace history balance answer does not match the selected pool"
+    let eligible := pool.rows.foldl (fun total row => total + row.quantity.quanta) 0
+    reconstructedSnapshot measure endExclusive selection records scheduled eligible date
+
 private def recentDates
     (windowStart observedAt : String)
     (days : Nat) : List String :=
