@@ -162,6 +162,47 @@ The Commands labels distinguish user-facing actions from narrower implementation
 modules. Purpose routing edits Actual-to-Purpose routing, Manage Loci admits new
 Locus identities, and Observe quantities publishes a current observation image.
 
+## Daily Pace / Trend
+
+Home `d` opens the existing retrospective current-truth series, initially selecting
+its latest reconstructed day. The series is not a saved daily observation and does
+not claim what LOAM knew on a past day. Household loading, the seven-day request,
+cycle boundaries, pool selection and Scheduled/correction-aware reconstruction
+remain in their existing shared owners; this screen changes presentation only.
+
+Thin rounded frames hold the shared Braille chart, bounded history and selected-day
+Detail. At 120 columns and sufficient height they sit side by side; tall narrower
+terminals stack them. Otherwise `i` opens a full-body Detail instead of clipping it
+under the chart. Even at 48×14, Trend keeps the selected date, pace, change and a
+small plot. History rows follow selection when present; the frame explicitly marks
+`list hidden` when only the summary/plot fits. Only the focused pane has a colored
+border or selected background. Chart interpolation/scale remain the shared Chart
+renderer, not a new pace calculation.
+
+`h/l` or left/right selects a day in either pane. In Trend, `j/k` or up/down also
+selects days; Ctrl-u/d or Page Up/Down moves by visible history rows (one day if the
+list is hidden), and Home/End reaches the first/last point. `i`, Enter, Tab or
+Shift-Tab toggles Detail. There `j/k`/arrows, pages and Home/End scroll full wrapped
+values, change, range and reconstruction explanation. `q`/Esc leaves Detail first,
+then returns to Home. Feedback has a reserved row above two fixed operation rows.
+Idle resize reflows/clamps presentation only and returning Home preserves its date.
+
+Pace and change display the exact **integer quanta/day** returned by
+`CycleSpendingPaceReview`, grouped with their explicit Measure, without optional
+money scales. Values too wide for the summary/table/axis use `see details` or `…`,
+never partial digits; full selected values and long Measure tokens wrap in Detail.
+Not-requested, unavailable, failed reads and loaded-empty series remain distinct;
+failed causes, including long Japanese tokens, are scrollable in Detail. A missing
+pace does not become zero. A mixed-Measure series is not plotted or subtracted
+across Measures. Chart values above magnitude 10²⁴ are explicitly unplottable here,
+before the shared renderer's bounded nice-step search can expand excessive ticks;
+the valid quantities remain available in Detail, not relabelled as missing history.
+
+Qualification: `Loam/Tests/TuiDailyPaceTrend.lean` (representative tests and full TUI
+CI), existing `TuiScheduled` / `CycleSpendingPaceReview` neighbors, and synthetic
+`tests/test_daily_pace_pty.py` in both CI tiers. UI-33 covers this screen only, not
+Daily Pace configuration, supporting editors, or budget UI.
+
 ## Selected current balances
 
 Home `b` opens **Balances / Current** in `balance-view` configuration order,

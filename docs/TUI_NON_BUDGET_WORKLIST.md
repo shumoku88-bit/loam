@@ -56,6 +56,7 @@
 | UI-30 | Manage Loci 一覧・追加 | 未着手 | トークンと説明の配置、入力・確認、ナビ |
 | UI-31 | Observe quantities 入力・確認 | 未着手 | Locus / Measure / 数量の行、フォーカス追従、確認・ナビ |
 | UI-32 | Print / 補助表示 | 未着手 | 現行の出力・補助画面を着手時に分割し、読みやすさを整える |
+| UI-33 | Daily Pace / Trend 本画面 | 完了 | 控えめな丸角枠、既存 Braille グラフと選択追従する履歴、数量／変化・範囲・再構成の説明を読める詳細、固定2段ナビと予約フィードバック行。48×14 でも選択日・数量・変化・グラフを保持。全文・巨大数量・日本語原因は詳細でスクロールし、ReadState／Measure と既存の計算を保持。極端な値は描画のみ保留し、数量を欠落／ゼロにしない。`TuiDailyPaceTrend` と合成 Daily Pace PTY を両 CI tier へ追加。build、代表 TUI、TuiScheduled／CycleSpendingPaceReview、Home 世代、ナビ・tall display、Daily Pace／Balances／Viewport／Record PTY、resource check を検証。計算・訂正／完了を含む再構成、fixture 不変を確認。支援設定・補助画面は別範囲 |
 
 ### UI-25：Reports の子画面
 
@@ -76,8 +77,9 @@
 - **今回対象外**：Budget / current cycle、Capacity、Cycle Grant、
   Actual / Scheduled の Purpose routing、Reports の Budget Window。
   既存機能やデータは削除しない。
-- **対象確認**：Daily Pace とその支援設定・補助画面。
-  非予算の UI 改修に含める範囲を確認してから一覧に追加する。
+- **Daily Pace**：既存の Trend 本画面だけを UI-33 として対象に追加。
+  `daily-pace.tsv`・期間設定・支援設定／補助画面はこの完了範囲に含めず、
+  計算・履歴再構成・設定内容は変更しない。
 
 ## 進める順序
 
@@ -91,7 +93,7 @@
 5. **残りの非予算画面**：Home / Commands、Reports、Attention、
    Settlements、Exchange、設定・補助表示。
 
-現在、**UI-01・UI-04・UI-24 の日常閲覧 UI は完了**。UI-01・UI-04 と同じ方針で日常の使用頻度を優先して進める。次の候補は Daily Pace の既存画面（範囲確認後に追加）、続いてよく使う Scheduled の操作画面。予算 UI は引き続き対象外。
+現在、**UI-01・UI-04・UI-24・UI-33 の日常閲覧 UI は完了**。次の候補は、よく使う Scheduled の操作画面。Daily Pace の支援設定・補助画面と予算 UI は、この完了範囲に含めない。
 
 ## 各改修で更新すること
 

@@ -449,24 +449,18 @@ partial def dailyPaceTrendLoop
     (bounds : Bounds) (snapshot : Snapshot)
     (state : Loam.Tui.DailyPaceTrend.State)
     (frame : CompiledWidget) : IO Bounds := do
-  let key ← Loam.Tui.Terminal.readKey
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.DailyPaceTrend.view active snapshot state)
   -- Geometry still refreshes on idle ticks, but an unchanged chart needs no work.
   if key == .other then
     return (← dailyPaceTrendLoop bounds snapshot state frame)
-  if key == .escape || key == .input 'q' || key == .input 'Q' then
-    return bounds
-  let next :=
-    match key with
-    | .left | .input 'h' | .input 'H' =>
-        Loam.Tui.DailyPaceTrend.moveSelection state snapshot true
-    | .right | .input 'l' | .input 'L' =>
-        Loam.Tui.DailyPaceTrend.moveSelection state snapshot false
-    | _ => state
-  let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot next)
-  Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-  dailyPaceTrendLoop bounds snapshot next nextFrame
+  match Loam.Tui.DailyPaceTrend.update bounds snapshot state key repeatCount with
+  | .back => return bounds
+  | .stay next =>
+      let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot next)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      dailyPaceTrendLoop bounds snapshot next nextFrame
 
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget)
