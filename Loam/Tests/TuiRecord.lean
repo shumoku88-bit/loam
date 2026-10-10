@@ -94,6 +94,67 @@ private def checkBoundedEditing : IO Unit := do
     long.form.description == longDescription)
     "editing a long field hid its tail or changed stored input"
 
+private def checkOriginalAmountSurface (w : Loam.MovementAdmission.World) : IO Unit := do
+  let editor : OriginalAmountEditor := { measure := "usd", amount := "30.00" }
+  let base : State := { form := readyForm, mode := .originalAmount editor }
+  let bounds : Bounds := { width := 80, height := 24 }
+  let frame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] base)
+  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 frame == some (2, 17))
+    "Original amount Measure caret lost aligned field geometry"
+  let focused : State := { base with mode := .originalAmount { editor with focus := ⟨1, by decide⟩ } }
+  let amountFrame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] focused)
+  expect (Loam.Tui.RecordSession.focusedCursorPosition? 5 10 amountFrame == some (8, 29))
+    "Original amount caret lost Amount focus or floating origin"
+  let japanese : State := { base with mode := .originalAmount { editor with measure := "原通貨" } }
+  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+    (Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] japanese)) == some (2, 20))
+    "Original amount caret lost CJK terminal width"
+  for width in [48, 80, 120] do
+    for height in [14, 24, 40] do
+      let active : Bounds := { width, height }
+      for index in [0, 1] do
+        let next := { editor with focus := ⟨index % 2, Nat.mod_lt _ (by decide)⟩ }
+        let state : State := { base with mode := .originalAmount next }
+        let widget := viewForBounds active [] state
+        let text := widgetText widget
+        expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
+          "Original amount escaped terminal bounds"
+        expect (contains "╭" text && contains "not another posting" text &&
+          contains "No FX inference" text && contains "Publish later in Preview" text &&
+          contains "[Enter] next/attach" text && contains "[Esc] cancel" text)
+          "Original amount lost its meaning hierarchy or complete operation bar"
+        let some (row, col) := Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+            (Loam.Tui.Runtime.compileWidget widget)
+          | throw (IO.userError "Original amount hid its active field")
+        expect (row < height - 1 && col < width - 1)
+          "Original amount caret escaped usable terminal bounds"
+        let noticed := { state with notice := "Original amount must be positive." }
+        let longNotice := "Enter a positive original amount with at most 2 decimal places."
+        let refused := { state with notice := longNotice }
+        expect (widget.lines.drop (height - 3) ==
+          (viewForBounds active [] noticed).lines.drop (height - 3) &&
+          widget.lines.drop (height - 3) ==
+          (viewForBounds active [] refused).lines.drop (height - 3))
+          "Original amount feedback moved its two navigation rows"
+        let refusalText := widgetText (viewForBounds active [] refused)
+        expect (contains "positive original amount" refusalText && contains "decimal places." refusalText)
+          "Original amount clipped its complete validation cause"
+  let longMeasure := String.join (List.replicate 30 "通貨") ++ "末尾"
+  let longAmount := String.join (List.replicate 10 "1234567890") ++ "99"
+  let compact : Bounds := { width := 48, height := 14 }
+  for (index, measure, amount, tail) in [(0, longMeasure, "30", "末尾"), (1, "usd", longAmount, "99")] do
+    let next : OriginalAmountEditor := { measure, amount, focus := ⟨index % 2, Nat.mod_lt _ (by decide)⟩ }
+    let text := widgetText (viewForBounds compact [] { base with mode := .originalAmount next })
+    expect (contains "…" text && contains tail text)
+      "Original amount hid a long active field's tail"
+  let returned := update w [] base (.ctrl 'o')
+  expect (returned.publish.isNone && returned.state.form.rows == readyForm.rows &&
+    returned.state.form.description == readyForm.description)
+    "returning from Original amount changed postings or published"
+  expect ((update w [] base .escape).publish.isNone && (update w [] base .escape).cancel)
+    "Original amount cancellation emitted publication"
+
 private def checkBoundedConfirmation (w : Loam.MovementAdmission.World) : IO Unit := do
   let bounds : Bounds := { width := 80, height := 24 }
   let editor := preview w { form := readyForm }
@@ -148,6 +209,7 @@ def main (args : List String) : IO Unit := do
   let root := System.FilePath.mk rootPath
   let w ← world
   checkBoundedEditing
+  checkOriginalAmountSurface w
   checkBoundedConfirmation w
   let compactBounds : Bounds := { width := 80, height := 24 }
   expect (Loam.Tui.RecordSession.floatingGeometry? compactBounds).isNone

@@ -643,6 +643,16 @@ CJK text, without changing the stored value. Actions, two operation rows, and a
 reserved feedback row remain below the panes. `C-` denotes Ctrl in the compact
 footer; row limits, exact candidate acceptance, and publication rules are unchanged.
 
+Record's Ctrl-O Original amount editor uses the same aligned muted labels,
+active-field tail display and caret geometry, with a quiet input frame and a
+separate meaning panel. Feedback has a reserved row and wraps completely;
+two fixed operation rows show focus/attach and clear/return/cancel. The editor
+states that this is the merchant/card amount, not another posting or an inferred
+FX rate. Enter attaches only to the local draft; durable publication still needs
+Record Preview confirmation. Ctrl-O returns without attaching local edits, Ctrl-D
+clears the attached original, and Esc cancels Record. Terminal input disables
+extended tty editing so macOS does not consume Ctrl-O before the TUI receives it.
+
 Record confirmation uses a quiet rounded frame with signed Effects, their exact
 Measure quantities and Locus tokens, plus date, description, and any attached
 original amount. Long values wrap without dropping digits or identities.

@@ -111,6 +111,29 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Record editing changed evidence"
 
+    # Original amount attaches only to the draft; edits/clear/return never publish.
+    terminal = Terminal(root)
+    try:
+        terminal.send(b"r", b"Record movement")
+        assert not (termios.tcgetattr(terminal.fd)[3] & termios.IEXTEN), "tty intercepted editor control keys"
+        opened = ANSI.sub(b"", terminal.send(b"\x0f", b"Record / Original amount"))
+        assert b"not another posting" in opened and b"No FX inference" in opened
+        terminal.send(b"usd\r0\r", b"Original amount must be positive.")
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
+        compact = ANSI.sub(b"", terminal.capture(b"[Enter] next/attach"))
+        assert b"Original amount must be positive." in compact, "resize hid validation feedback"
+        assert b"[C-d] clear" in compact and b"[Esc] cancel" in compact, "compact Original hid controls"
+        terminal.send(b"\x7f30\r", b"Original amount: 30")
+        terminal.send(b"\x0f", b"Record / Original amount")
+        # Ctrl-O abandons local Measure edits while retaining the attached value.
+        terminal.send(b"\x7f\x7f\x7feur\x0f", b"Original amount: 30")
+        terminal.send(b"\x0f", b"Record / Original amount")
+        terminal.send(b"\x04", b"Original amount cleared.")
+        terminal.send(b"\x1b", b"Record cancelled.")
+    finally:
+        terminal.close()
+    assert digest() == frozen_navigation, "Original amount editing changed household evidence"
+
     # Confirmation owns a bounded review viewport, not recording authority.
     terminal = Terminal(root)
     try:
@@ -195,4 +218,4 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
             hidden.rename(authority)
         terminal.close()
 
-print("Actual navigation and Record PTY: editing focus/IME/resize, confirmation review, reload, cancellation and activation passed.")
+print("Actual navigation and Record PTY: editing focus/IME/resize, Original amount, confirmation review, reload, cancellation and activation passed.")

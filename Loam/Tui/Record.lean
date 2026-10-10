@@ -742,15 +742,45 @@ private def fieldTail (width : Nat) (text : String) : String :=
         else (char :: chars, next, false)) ([], 0, false)
     "…" ++ String.ofList chars
 
-private def editingField (width : Nat) (form : Form) (index : Nat)
-    (label text : String) : Widget :=
+private def boundedField (width : Nat) (active : Bool) (label text : String) : Widget :=
   let labelWidth := min 13 (width / 2)
-  let active := form.focus.val == index
   let value := if text.isEmpty then "_" else text
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
     span (if active then fieldTail (width - labelWidth) value
           else ellipsize (width - labelWidth) value)
       (if active then .selected else .normal)]
+
+private def editingField (width : Nat) (form : Form) (index : Nat)
+    (label text : String) : Widget :=
+  boundedField width (form.focus.val == index) label text
+
+/-- Fit rendered rows above a stable footer and reserve the terminal's final row/column. -/
+private def boundedWithFooter (bounds : Bounds) (body : Widget) (footer : List Widget) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let rows := body.lines.map fun cells =>
+    Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  .column (((Loam.Tui.Layout.fitWithFooter bounds rows footer).take (bounds.height - 1)).map
+    fun widget => .column (widget.lines.map fun cells => .row
+      ((Loam.Tui.Layout.clipCells width cells).map fun cell => span (String.singleton cell.glyph) cell.style)))
+
+private def originalAmountView (bounds : Bounds) (state : State)
+    (editor : OriginalAmountEditor) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  let footer := (if feedback.isEmpty then [blank] else feedback) ++
+    [Loam.Tui.Layout.shortcutRow [("Tab/⇧Tab", "focus"), ("Enter", "next/attach")] " ",
+     Loam.Tui.Layout.shortcutRow [("C-d", "clear"), ("C-o", "return"), ("Esc", "cancel")] " "]
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let fields := Loam.Tui.Layout.framedPanel width 4 "Original amount"
+    (.column [boundedField (width - 2) (editor.focus.val == 0) "Measure" editor.measure,
+              boundedField (width - 2) (editor.focus.val == 1) "Amount" editor.amount]) true
+  let explanation := ["Merchant/card amount; not another posting.",
+    "No FX inference or Movement Measure change.",
+    "Attach to draft; Publish later in Preview."]
+  let meaning := Loam.Tui.Layout.framedPanel width (available - 5) "Meaning"
+    (.column (explanation.flatMap fun text =>
+      (Loam.Tui.Layout.wrapColumns (width - 2) text).map muted))
+  boundedWithFooter bounds (.column [line "Record / Original amount", fields, meaning]) footer
 
 private def editingFields (width : Nat) (form : Form) : List Widget :=
   [editingField width form 0 "Date" form.date,
@@ -846,16 +876,13 @@ private def editingView (bounds : Bounds) (state : State) : Widget :=
         (.column ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state]))
         (state.form.focus.val < fields.length)
         (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))]
-  let rows := body.lines.map fun cells =>
-    Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
-  .column (((Loam.Tui.Layout.fitWithFooter bounds rows footer).take (bounds.height - 1)).map
-    fun widget => .column (widget.lines.map fun cells => .row
-      ((Loam.Tui.Layout.clipCells width cells).map fun cell => span (String.singleton cell.glyph) cell.style)))
+  boundedWithFooter bounds body footer
 
 /-- Bounds-aware standalone Record surfaces; embedded editors retain their contract. -/
 def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing => editingView bounds state
+  | .originalAmount editor => originalAmountView bounds state editor
   | .preview draft choice =>
       let width := Loam.Tui.Layout.contentWidth bounds
       let footer := confirmationFooter bounds state choice
@@ -869,12 +896,7 @@ def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widg
       let panel := Loam.Tui.Layout.framedPanel width panelHeight "Movement / signed postings"
         (.column ((lines.drop offset).take capacity)) true
         (some (s!"{min (offset + capacity) lines.length}/{lines.length} lines" ++ more))
-      let body := (Widget.column [line "Record / Preview", panel]).lines.map fun cells =>
-        Widget.row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
-      .column (((Loam.Tui.Layout.fitWithFooter bounds body footer).take (bounds.height - 1)).map
-        fun widget => .column (widget.lines.map fun cells => .row
-          ((Loam.Tui.Layout.clipCells width cells).map fun cell =>
-            span (String.singleton cell.glyph) cell.style)))
+      boundedWithFooter bounds (.column [line "Record / Preview", panel]) footer
   | _ => view known state
 
 end Loam.Tui.Record

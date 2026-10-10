@@ -602,7 +602,9 @@ def setButtonMotion (enabled : Bool) : IO Unit := do
 
 def enter : IO Unit := do
   resetInputBuffer
-  setTerminalMode "-echo -icanon min 0 time 1"
+  -- Extended tty editing can consume Ctrl-O (VDISCARD on macOS) before readKey.
+  -- The TUI, not the line discipline, owns editor control-key interpretation.
+  setTerminalMode "-echo -icanon -iexten min 0 time 1"
   -- Width is approximate (especially ambiguous Unicode). Never let a physical
   -- glyph-width disagreement wrap the bottom row and scroll the entire screen.
   IO.print "\x1b[?1049h\x1b[?7l\x1b[?25l\x1b[?1000h\x1b[?1006h\x1b[?2004h\x1b[2J\x1b[H"
