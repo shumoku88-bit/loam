@@ -296,5 +296,22 @@ def main : IO Unit := do
   expect (quantityFor? indexed cash == some 7 && quantityFor? indexed usdCash == some 9)
     "indexed date lookup confused Event identity or coordinate order"
 
+  -- Batch preparation must return the very same per-boundary answer/refusal,
+  -- including coordinate order, duplicate inputs, support edges and corrections.
+  let starts := ["2026-05-31", "2026-06-01", "2026-06-02", "2026-06-04", "2026-06-08", "bad"]
+  for support in [evidence, mixedEvidence, {evidence with opening := openingOnly},
+      {evidence with anchor := staleAnchor}, {evidence with zeroOrigin := overlapZero},
+      {evidence with opening := overlapOpening},
+      {evidence with anchor := Loam.CurrentQuantityAnchor.Evidence.empty},
+      {evidence with bounded := Loam.BoundedHistorySupport.Evidence.empty}] do
+    for coordinates in [[cash], [usdCash, cash, cash], [jpyOffset, cash], [expense], []] do
+      let batch := Loam.HistoricalBalanceReview.projectStartsOfDays image support starts coordinates
+      let ordinary := starts.map fun day => Loam.HistoricalBalanceReview.projectStartOfDay image support day coordinates
+      expect (batch.length == ordinary.length && (batch.zip ordinary).all fun (left, right) =>
+        match left, right with
+        | .ok a, .ok b => a == b
+        | .error a, .error b => a == b
+        | _, _ => false) "batched historical projection changed values/refusal or support routing"
+
   IO.println
     "Historical Balance Review: bounded/zero routes, correction/date refinement, multimeasure independence, indexed date refusals and fail-closed support gates passed."

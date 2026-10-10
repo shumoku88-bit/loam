@@ -1,6 +1,6 @@
 import Loam.Review.ActualReview
 import Loam.Review.CalendarMoneyReview
-import Loam.Review.CycleSpendingPaceReview
+import Loam.Review.DailyPacePeriods
 import Loam.Presentation.MeasurePresentation
 import Loam.Presentation.ReadState
 import Loam.Review.ScheduledReview
@@ -38,6 +38,8 @@ structure Snapshot where
   -/
   paceHistory : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) :=
     .notRequested
+  /-- Prepared once on Daily Pace entry, discarded with the read snapshot. -/
+  pacePeriods : Loam.Presentation.ReadState (List Loam.DailyPacePeriods.Period) := .notRequested
   /--
   Optional role-aware daily money projection used by Home's money calendar and
   period summaries. Failure must not prevent ordinary navigation or accounting workspaces.

@@ -142,16 +142,26 @@ def loadSnapshotFromActualImage
     (dataDir : System.FilePath)
     (today : String)
     (image : Loam.ActualAuthority.Image)
-    (generation? : Option Loam.HouseholdAuthority.Generation := none) : IO (Except String Snapshot) := do
+    (generation? : Option Loam.HouseholdAuthority.Generation := none)
+    (preparePacePeriods : Bool := false) : IO (Except String Snapshot) := do
   let actualRecords := Loam.ActualReview.recordsFromActualImage image
   let scheduled ←
     match generation? with
     | some generation =>
         pure (Loam.ScheduledReview.fromGenerationForEvents generation image.evidence.events)
     | none => Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
+  let pacePeriods ← if preparePacePeriods then
+      match scheduled, generation? with
+      | .ok scheduledEvidence, some generation =>
+          match ← Loam.DailyPacePeriods.load dataDir today image generation scheduledEvidence with
+          | .ok periods => pure (Loam.Presentation.ReadState.loaded periods)
+          | .error message => pure (.failed message)
+      | .error message, _ => pure (.failed message)
+      | _, none => pure (.failed "Daily Pace: paired Household generation unavailable")
+    else pure Loam.Presentation.ReadState.notRequested
   let paceHistory :
       Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) ←
-    match scheduled with
+    if preparePacePeriods then pure .notRequested else match scheduled with
     | .error message => pure (.failed message)
     | .ok scheduledEvidence =>
         match ← Loam.CycleSpendingPaceReview.loadHistoryFromActualImageWithScheduledAt
@@ -181,6 +191,7 @@ def loadSnapshotFromActualImage
     actual := actual
     scheduled := scheduled
     paceHistory := paceHistory
+    pacePeriods := pacePeriods
     moneyCalendar := moneyCalendar
   }
 
@@ -535,10 +546,17 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
   else if (key = .input 'd' || key = .input 'D') then
+    -- Fresh entry owns one generation; cursor/range/resize never perform IO.
+    let paceSnapshot ← match ← Loam.ActualAuthority.loadHouseholdObserved? dataDir with
+      | .error message => pure {snapshot with pacePeriods := .failed message}
+      | .ok observed =>
+          match ← loadSnapshotFromActualImage dataDir snapshot.actual.today observed.image (some observed.generation) true with
+          | .ok fresh => pure fresh
+          | .error message => pure {snapshot with pacePeriods := .failed message}
     let paceState : Loam.Tui.DailyPaceTrend.State := {}
-    let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot paceState)
+    let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds paceSnapshot paceState)
     Loam.Tui.Terminal.redrawFromBlank bounds paceFrame
-    let bounds ← dailyPaceTrendLoop bounds snapshot paceState paceFrame
+    let bounds ← dailyPaceTrendLoop bounds paceSnapshot paceState paceFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame

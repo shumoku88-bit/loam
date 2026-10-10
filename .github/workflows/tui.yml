@@ -3,6 +3,9 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'Loam/Review/DailyPacePeriods.lean'
+      - 'Loam/Tests/DailyPacePeriods.lean'
+      - 'tools/benchmark-daily-pace.py'
       - 'tests/test_reports_navigation_pty.py'
       - 'Loam/Tests/TuiReportLaunch.lean'
       - 'Loam/Tui/ReportDestination.lean'
@@ -205,6 +208,9 @@ on:
     branches:
       - main
     paths:
+      - 'Loam/Review/DailyPacePeriods.lean'
+      - 'Loam/Tests/DailyPacePeriods.lean'
+      - 'tools/benchmark-daily-pace.py'
       - 'tests/test_reports_navigation_pty.py'
       - 'Loam/Tests/TuiReportLaunch.lean'
       - 'Loam/Tui/ReportDestination.lean'
@@ -468,8 +474,10 @@ jobs:
       - name: Verify selected Balances navigation and bounded Print on isolated data
         run: python3 tests/test_balances_pty.py
 
-      - name: Verify Daily Pace navigation, read refusal and resize on isolated data
-        run: python3 tests/test_daily_pace_pty.py
+      - name: Verify Daily Pace periods, read refusal, resize and long-cycle input tail
+        run: |
+          python3 tests/test_daily_pace_pty.py
+          python3 tools/benchmark-daily-pace.py --check --events 1000 --days 100 --cycle-days 1500 --rounds 1
 
       - name: Verify Attention navigation, cancellation and publication on isolated data
         run: python3 tests/test_attention_pty.py
@@ -947,7 +955,9 @@ jobs:
       - name: Verify Daily Pace navigation, read refusal and resize on isolated data
         run: |
           lake env lean --run Loam/Tests/TuiDailyPaceTrend.lean
+          lake env lean --run Loam/Tests/DailyPacePeriods.lean
           python3 tests/test_daily_pace_pty.py
+          python3 tools/benchmark-daily-pace.py --check --events 1000 --days 100 --cycle-days 1500 --rounds 1
 
       - name: Verify Attention navigation, cancellation and publication on isolated data
         run: python3 tests/test_attention_pty.py

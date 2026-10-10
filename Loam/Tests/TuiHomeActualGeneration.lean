@@ -174,11 +174,15 @@ def main : IO Unit := do
   let household := Loam.HouseholdAuthority.path root
   let held := root / "held-household"
   IO.FS.rename household held
-  let paired ←
+  let (paired, prepared) ←
     try
-      requireOk (← Loam.Tui.Cli.loadSnapshotFromActualImage
+      let paired ← requireOk (← Loam.Tui.Cli.loadSnapshotFromActualImage
         root "2026-09-24" observedA.image (some observedA.generation))
         "compose paired Home without reopening household"
+      let prepared ← requireOk (← Loam.Tui.Cli.loadSnapshotFromActualImage
+        root "2026-09-24" observedA.image (some observedA.generation) true)
+        "prepare all Daily Pace periods without reopening household"
+      pure (paired, prepared)
     finally
       IO.FS.rename held household
   match paired.scheduled with
@@ -195,6 +199,20 @@ def main : IO Unit := do
   match paired.moneyCalendar with
   | .loaded _ => pure ()
   | _ => throw (IO.userError "paired Home reopened AccountingRole storage")
+
+  let .loaded periods := prepared.pacePeriods | throw (IO.userError "prepared periods reopened support storage")
+  let ten ← requireSome (periods.find? fun period => period.preset == .tenDays) "10d not prepared"
+  let .loaded points := ten.history | throw (IO.userError "prepared current range refused")
+  let latest ← requireSome points.getLast? "prepared series empty"
+  expect (latest.eligiblePool.quanta == 1000) "prepared periods mixed Actual/support generations"
+  let observedB ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? root) "fresh B"
+  let refreshed ← requireOk (← Loam.Tui.Cli.loadSnapshotFromActualImage
+    root "2026-09-24" observedB.image (some observedB.generation) true) "refresh prepared Daily Pace"
+  let .loaded newPeriods := refreshed.pacePeriods | throw (IO.userError "fresh periods unavailable")
+  let newTen ← requireSome (newPeriods.find? fun period => period.preset == .tenDays) "fresh 10d missing"
+  let .loaded newPoints := newTen.history | throw (IO.userError "fresh 10d refused")
+  let newLatest ← requireSome newPoints.getLast? "fresh current missing"
+  expect (newLatest.eligiblePool.quanta == 2000) "fresh reload retained stale pace cache"
 
   IO.println
     "Home generation: selected Actual, Scheduled, Daily Pace trend and paired family composition survived advancement and no-reopen pressure."

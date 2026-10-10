@@ -155,6 +155,9 @@ tui_representative_tests=(
   TuiSelectedDay
   TuiBalances
   TuiDailyPaceTrend
+  DailyPacePeriods
+  CycleSpendingPaceReview
+  TuiChart
   TuiAttentionAdministration
   TuiScheduledWorkspace
   TuiScheduledBulkEdit

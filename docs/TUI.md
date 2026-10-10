@@ -180,26 +180,40 @@ Locus identities, and Observe quantities publishes a current observation image.
 
 ## Daily Pace / Trend
 
-Home `d` opens the existing retrospective current-truth series, initially selecting
-its latest reconstructed day. The series is not a saved daily observation and does
-not claim what LOAM knew on a past day. Household loading, the seven-day request,
-cycle boundaries, pool selection and Scheduled/correction-aware reconstruction
-remain in their existing shared owners; this screen changes presentation only.
+Home `d` opens a freshly admitted, read-only retrospective current-truth series,
+initially selecting the latest day in **10d**. `1`–`5` choose **10d**, **30d**,
+**Month**, **Cycle**, **Previous Cycle**. 10d/30d are inclusive calendar-day
+windows through the observation day; Month starts at calendar month start; Cycle
+starts at the explicit current accounting boundary; Previous Cycle is the adjacent
+completed interval from the **same uniquely selected boundary preset**. Every
+window contains daily integer-quanta/day samples, never a monthly aggregate.
+Each day uses its own explicitly represented cycle end. Missing/ambiguous boundaries
+are not extrapolated; unsupported historical evidence is disclosed with its cause.
+A refused window is not silently shortened to its available portion.
 
-Thin rounded frames hold the shared Braille chart, bounded history and selected-day
-Detail. At 120 columns and sufficient height they sit side by side; tall narrower
-terminals stack them. Otherwise `i` opens a full-body Detail instead of clipping it
-under the chart. Even at 48×14, Trend keeps the selected date, pace, change and a
-small plot. History rows follow selection when present; the frame explicitly marks
-`list hidden` when only the summary/plot fits. Only the focused pane has a colored
-border or selected background. Chart interpolation/scale remain the shared Chart
-renderer, not a new pace calculation.
+These are reconstructed from current admitted truth and current query configuration,
+not saved daily observations or a replay of what LOAM knew/configured then. Later-added
+Scheduled occurrences may affect earlier days. Undated pool-affecting retirement or
+replacement still refuses reconstruction. Existing HistoricalBalanceReview and
+CycleSpendingPaceReview own all support routing, correction/date interpretation,
+completion timing, deductions and pace arithmetic.
+
+The provisional layout gives the upper Braille trend **full usable width**. With
+sufficient room (79 usable columns and 15 body-panel rows), History is lower-left
+and compact selected-day Detail lower-right. Tall narrower terminals stack the lower
+panels. Otherwise `i` opens full-body Detail. At 48×14, Trend still keeps the selected
+date, pace, change and a small plot; `list hidden` explicitly marks a hidden history.
+History follows the shared graph/detail selection. Range changes preserve the selected
+date when included, otherwise clamp to the nearest endpoint; a refused window keeps
+the date anchor. Resize preserves range/day and only clamps detail scrolling. This
+is a small local policy, not a new generic layout or panel-switch framework.
 
 `h/l` or left/right selects a day in either pane. In Trend, `j/k` or up/down also
 selects days; Ctrl-u/d or Page Up/Down moves by visible history rows (one day if the
 list is hidden), and Home/End reaches the first/last point. `i`, Enter, Tab or
 Shift-Tab toggles Detail. There `j/k`/arrows, pages and Home/End scroll full wrapped
-values, change, range and reconstruction explanation. `q`/Esc leaves Detail first,
+values, change, inclusive display range, cycle end, remaining days, pool, Scheduled
+deductions, arithmetic basis and reconstruction explanation. `q`/Esc leaves Detail first,
 then returns to Home. Feedback has a reserved row above two fixed operation rows.
 Idle resize reflows/clamps presentation only and returning Home preserves its date.
 
@@ -214,10 +228,19 @@ across Measures. Chart values above magnitude 10²⁴ are explicitly unplottable
 before the shared renderer's bounded nice-step search can expand excessive ticks;
 the valid quantities remain available in Detail, not relabelled as missing history.
 
-Qualification: `Loam/Tests/TuiDailyPaceTrend.lean` (representative tests and full TUI
-CI), existing `TuiScheduled` / `CycleSpendingPaceReview` neighbors, and synthetic
-`tests/test_daily_pace_pty.py` in both CI tiers. UI-33 covers this screen only, not
-Daily Pace configuration, supporting editors, or budget UI.
+Period preparation happens once per fresh entry from one admitted Actual/Household
+and Scheduled generation. Overlapping presets reuse each reconstructed day; historical
+effects are bucketed once per selected coordinate. Cursor, paging, range selection
+and idle resize perform no household IO or accounting reconstruction. History expands
+only visible rows; the shared chart uses indexed sampling rather than traversing the
+whole daily list per raster cell. Re-entry discards old prepared information.
+
+Qualification: `DailyPacePeriods`, `CycleSpendingPaceReview`, `HistoricalBalanceReview`,
+`TuiDailyPaceTrend`, `TuiChart`, `TuiHomeActualGeneration` tests and synthetic
+`tests/test_daily_pace_pty.py` / `tools/benchmark-daily-pace.py`. Costs and limits:
+[Daily Pace periods evidence](research/TUI_DAILY_PACE_PERIODS_2026-10-10.md).
+Arbitrary input windows, past-cycle traversal and overlaid comparison are deferred;
+inclusive start/through coordinates leave room for those later questions.
 
 ## Selected current balances
 

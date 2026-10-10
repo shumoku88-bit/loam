@@ -275,6 +275,47 @@ def projectStartOfDay
         return row
   return { startOfDay := startOfDay, rows := rows }
 
+/-- Batch of the same start-of-day questions. Bucket admitted effects once per
+coordinate; retain per-boundary routing/refusal and never substitute unknown zero.
+This transient acceleration is scoped to the caller's immutable admitted image. -/
+def projectStartsOfDays
+    (image : Loam.ActualAuthority.Image) (evidence : Evidence)
+    (starts : List String) (coordinates : List EffectCoordinate) :
+    List (Except String Snapshot) := Id.run do
+  let selected := coordinates.eraseDups
+  let dates := admittedDateIndex image
+  let buckets := selected.map fun coordinate => do
+    let grouped ← image.currentEvents.events.foldlM (fun (grouped : Std.HashMap String Int) event => do
+      let quantity := (Event.quantityAt event coordinate.locus coordinate.measure).quanta
+      if quantity == 0 then return grouped
+      let date ← admittedEventDate dates event
+      return grouped.insert date ((grouped[date]?).getD 0 + quantity))
+      ({} : Std.HashMap String Int)
+    return grouped.toList
+  let bounded := selected.filter fun coordinate => (evidence.bounded.supportFor? coordinate).isSome
+  let currents := Loam.CurrentQuantityAnchor.inspectQuantities
+    image.evidence.events image.evidence.corrections evidence.anchor bounded
+  return starts.map fun startOfDay => do
+    if !Loam.ActualDate.validIsoDate startOfDay then
+      throw "loam: historical balance boundary must be a real YYYY-MM-DD calendar date"
+    let rows ← (selected.zip buckets).mapM fun (coordinate, bucket) => do
+      let route ← routeCoordinate evidence startOfDay coordinate
+      let bucket ← bucket
+      let quantity ← match route with
+        | .zeroOrigin => pure (bucket.foldl (fun total (date, quantity) =>
+            if decide (date < startOfDay) then total + quantity else total) 0)
+        | .bounded => do
+            let currents ← currents
+            let some index := bounded.idxOf? coordinate
+              | throw ("loam: historical balance unavailable: bounded projection lost " ++ coordinateLabel coordinate)
+            let some (some current) := currents[index]?
+              | throw ("loam: historical balance unavailable: exact current anchor did not resolve for " ++ coordinateLabel coordinate)
+            let delta := bucket.foldl (fun total (date, quantity) =>
+              if decide (startOfDay ≤ date) then total + quantity else total) 0
+            pure (current.quanta - delta)
+      return {coordinate, quantity := Quantity.ofQuanta quantity}
+    return {startOfDay, rows}
+
 /-- Decode independently justified support from one qualified physical generation. -/
 def evidenceFromGeneration
     (generation : Loam.HouseholdAuthority.Generation) : Except String Evidence := do
