@@ -202,8 +202,9 @@ private def requireReload {α : Type} (notice : String)
 private def unavailableNotice (subject message : String) : String :=
   "[Unavailable] " ++ subject ++ ": " ++ message
 
-def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State) : CompiledWidget :=
-  compileWidget (Loam.Tui.Home.view bounds snapshot state)
+def compiledFrameFor (bounds : Bounds) (snapshot : Snapshot) (state : State)
+    (detail : Option Loam.Tui.Home.DetailLayout := none) : CompiledWidget :=
+  compileWidget (Loam.Tui.Home.view bounds snapshot state detail)
 
 
 theorem compiledFrameFor_spec (bounds : Bounds) (snapshot : Snapshot) (state : State) :
@@ -464,7 +465,8 @@ partial def dailyPaceTrendLoop
 
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget)
-    (paletteChoice : Option Loam.Tui.HomeCommandPalette.Choice := none) : IO Unit := do
+    (paletteChoice : Option Loam.Tui.HomeCommandPalette.Choice := none)
+    (detailCache : Option Loam.Tui.Home.DetailLayout := none) : IO Unit := do
   let (key, repeatCount) ←
     match paletteChoice with
     | none => Loam.Tui.Terminal.readKeyWithRepeat
@@ -484,20 +486,22 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     | some .observeQuantities => pure (Loam.Tui.Terminal.Key.input 'o', 1)
   let fromPalette := paletteChoice.isSome
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
-    compiledFrameFor active snapshot (Loam.Tui.Home.reconcileState active snapshot state)
-  if key == .other then return (← loop bounds dataDir root snapshot state frame)
-  let state := Loam.Tui.Home.reconcileState bounds snapshot state
+    compiledFrameFor active snapshot state detailCache
+  let detail := some (Loam.Tui.Home.detailLayoutFor bounds snapshot state detailCache)
+  if key == .other then return (← loop bounds dataDir root snapshot state frame none detail)
+  let state := Loam.Tui.Home.reconcileState bounds snapshot state detail
   if let some home :=
       (if fromPalette then none
-       else Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount) then
-    let nextFrame := compiledFrameFor bounds snapshot home
+       else Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount detail) then
+    let nextDetail := some (Loam.Tui.Home.detailLayoutFor bounds snapshot home detail)
+    let nextFrame := compiledFrameFor bounds snapshot home nextDetail
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    loop bounds dataDir root snapshot home nextFrame none nextDetail
   else if key == .input ' ' && !fromPalette then
     let selected ← Loam.Tui.HomeCommandPalette.run bounds
-    let nextFrame := compiledFrameFor bounds snapshot state
+    let nextFrame := compiledFrameFor bounds snapshot state detail
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot state nextFrame selected
+    loop bounds dataDir root snapshot state nextFrame selected detail
   else if key = .enter then
     let day? :=
       if state.activePane == .detail then do
@@ -795,9 +799,9 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let event := homeEventOfKey key
     let step := update state event
     if step.quit then return
-    let nextFrame := compiledFrameFor bounds snapshot step.state
+    let nextFrame := compiledFrameFor bounds snapshot step.state detail
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-    loop bounds dataDir root snapshot step.state nextFrame
+    loop bounds dataDir root snapshot step.state nextFrame none detail
 
 
 def run (args : List String) : IO UInt32 := do

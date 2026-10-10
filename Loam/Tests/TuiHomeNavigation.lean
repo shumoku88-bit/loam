@@ -245,6 +245,51 @@ def main : IO Unit := do
   let calendar := Loam.Tui.Home.view {width := 150, height := 45} hugeMoney {base with zoomLevel := .day}
   expect (contains "…" (text calendar)) "calendar silently clipped an oversized daily amount"
 
+  -- Prepared rows are a projection, not another selection/evidence owner. The same
+  -- cache survives rapid reversals and height-only resize; width/period changes rebuild.
+  for source in [snapshot, wrappedSnapshot, large] do
+    for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
+      let start := {base with zoomLevel := zoom, activePane := .detail}
+      let cache := some (Loam.Tui.Home.prepareDetail wide source start)
+      let mut cachedState := start
+      let mut freshState := start
+      for key in [Loam.Tui.Terminal.Key.down, .down, .up, .pageDown, .pageUp,
+          .home, .«end», .up, .escape, .tab] do
+        cachedState ← requireSome (Loam.Tui.Home.navigationKey wide source cachedState key 1 cache)
+          "cached navigation unhandled"
+        freshState ← press wide source freshState key
+        expect (cachedState.detailCursor == freshState.detailCursor &&
+          cachedState.detailScroll == freshState.detailScroll &&
+          cachedState.activePane == freshState.activePane) "prepared geometry changed navigation"
+        expect ((Loam.Tui.Home.view wide source cachedState cache).lines ==
+          (Loam.Tui.Home.view wide source freshState).lines) "prepared viewport changed cells/styles"
+      for bounds in [{width := 150, height := 14}, {width := 48, height := 14},
+          {width := 119, height := 24}, {width := 120, height := 20}] do
+        expect ((Loam.Tui.Home.view bounds source cachedState cache).lines ==
+          (Loam.Tui.Home.view bounds source cachedState).lines) "resize retained stale wrapping"
+      for changed in [{start with selectedDate := "2026-09-01"},
+          {start with zoomLevel := .year}, {start with zoomLevel := .day}] do
+        expect ((Loam.Tui.Home.view wide source changed cache).lines ==
+          (Loam.Tui.Home.view wide source changed).lines) "period change retained stale rows"
+  let longRecords := (List.range 2000).map fun i =>
+    {longRecord with description := s!"LONG-{i}"}
+  let longSnapshot := {snapshot with actual := {snapshot.actual with allRecords := longRecords}}
+  let longState := {base with zoomLevel := .year, activePane := .detail}
+  let longCache := some (Loam.Tui.Home.prepareDetail wide longSnapshot longState)
+  let batched ← requireSome
+    (Loam.Tui.Home.navigationKey wide longSnapshot longState .down 37 longCache) "wheel batch"
+  let mut individual := longState
+  for _ in List.range 37 do
+    individual ← requireSome
+      (Loam.Tui.Home.navigationKey wide longSnapshot individual (.input 'j') 1 longCache) "key burst"
+  expect (batched.detailCursor == 37 && individual.detailCursor == 37 &&
+    batched.detailScroll == individual.detailScroll) "wheel/key count or geometry diverged"
+  let reversed ← requireSome
+    (Loam.Tui.Home.navigationKey wide longSnapshot batched .up 37 longCache) "reverse batch"
+  expect (reversed.detailCursor == 0 && reversed.detailScroll ≤ 1 &&
+    contains "▶ - 2026-10-01  LONG-1999" (text (Loam.Tui.Home.view wide longSnapshot reversed longCache)))
+    "rapid reversal did not return to the visible first record"
+
   -- Reloads can remove a selected transaction. Rendering and Enter must use the same clamp.
   let fresh := {snapshot with actual := {snapshot.actual with allRecords := snapshot.actual.allRecords.take 2}}
   let state := Loam.Tui.Home.reconcileState wide fresh {base with activePane := .detail, detailCursor := 9}

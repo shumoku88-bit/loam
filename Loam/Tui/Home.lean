@@ -491,6 +491,32 @@ private def detailInnerWidth (bounds : Bounds) (state : State) : Nat :=
   (if bounds.width ≥ 120 then detailPaneWidth bounds state
    else Loam.Tui.Layout.contentWidth bounds) - 2
 
+/-- Width-dependent rows over one immutable admitted Home snapshot. Session-local only.
+The IO shell discards this projection whenever a workspace returns/reloads evidence. -/
+structure DetailLayout where
+  width : Nat
+  columns : Nat
+  selectedDate : String
+  zoomLevel : Loam.Tui.DateJump.ZoomLevel
+  records : Array ReviewRecord
+  starts : Array Nat
+  counts : Array Nat
+  rows : Array Widget
+  /-- Wide overview is independent of the transaction cursor; avoid rescanning history. -/
+  overviewRows : List Widget
+  pending : Except String (List Loam.ScheduledReview.Record)
+
+private def detailViewport (layout : DetailLayout) (state : State)
+    (offset visible : Nat) : List Widget :=
+  let selectedRows := match layout.records[state.detailCursor]? with
+    | none => #[]
+    | some record => (actualRecordLines layout.width true state record).toArray
+  let start := layout.starts[state.detailCursor]?.getD layout.rows.size
+  (List.range (min visible (layout.rows.size - offset))).filterMap fun i =>
+    let row := offset + i
+    if start ≤ row && row < start + selectedRows.size then selectedRows[row - start]?
+    else layout.rows[row]?
+
 private def selectedPeriod (state : State) : String :=
   match state.zoomLevel with
   | .day => "Day " ++ state.selectedDate
@@ -504,17 +530,19 @@ private def viewportLabel (total visible offset : Nat) : String :=
     (if offset > 0 then " ↑" else "") ++ (if offset + visible < total then " ↓" else "")
 
 private def detailPanel
-    (width height : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : Widget :=
-  let details := wideDetailLines (width - 2) snapshot state pending
+    (width height : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence)
+    (layout : DetailLayout) : Widget :=
   let visible := wideDetailVisibleRows height
-  let offset := Loam.Tui.Scroll.clamp details.length visible state.detailScroll
+  let offset := Loam.Tui.Scroll.clamp layout.rows.size visible state.detailScroll
   let focused := state.activePane == .detail
-  let status := String.intercalate "  " (statusTokens snapshot state pending)
+  let status := match state.zoomLevel with
+    | .day => String.intercalate "  " (statusTokens snapshot state pending)
+    | .month | .year => s!"Transactions: {layout.records.size}"
   let content := [mutedLine (fitText (width - 2) (" " ++ status)), blankLine] ++
-    (details.drop offset).take visible
+    detailViewport layout state offset visible
   let title := selectedPeriod state ++ " / Detail" ++ (if focused then " [active]" else "")
   Loam.Tui.Layout.framedPanel width height title (.column content) focused
-    (some (viewportLabel details.length visible offset))
+    (some (viewportLabel layout.rows.size visible offset))
 
 private def homeContext (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
@@ -534,6 +562,47 @@ private def calendarRows
       wideDetailLines width snapshot state pending
      else [])
 
+/-- Prepare wrapping and the wide overview once, not for every queued selection event. -/
+def prepareDetail (bounds : Bounds) (snapshot : Snapshot) (state : State) : DetailLayout := Id.run do
+  let width := detailInnerWidth bounds state
+  let records := (homeActualRecords snapshot state).reverse.toArray
+  let pending := pendingEvidence snapshot
+  let mut start := match state.zoomLevel with
+    | .day => (pendingSection width pending).length + 1
+    | .month | .year => 1
+  let mut starts := #[]
+  let mut counts := #[]
+  for record in records do
+    let count := (actualRecordLines width false state record).length
+    starts := starts.push start
+    counts := counts.push count
+    start := start + count
+  return {
+    width := width
+    columns := bounds.width
+    selectedDate := state.selectedDate
+    zoomLevel := state.zoomLevel
+    records := records
+    starts := starts
+    counts := counts
+    pending := pending
+    rows := (wideDetailLines width snapshot {state with detailCursor := records.size} pending).toArray
+    overviewRows := if bounds.width ≥ 120 then
+      calendarRows (Loam.Tui.Layout.contentWidth bounds - 1 - detailPaneWidth bounds state - 2)
+        snapshot state false
+      else []
+  }
+
+/-- Reuse only while period and wrapping width agree. Snapshot lifetime is shell-owned. -/
+def detailLayoutFor (bounds : Bounds) (snapshot : Snapshot) (state : State)
+    (cached : Option DetailLayout := none) : DetailLayout :=
+  match cached with
+  | some layout =>
+      if layout.columns == bounds.width &&
+          layout.selectedDate == state.selectedDate && layout.zoomLevel == state.zoomLevel then layout
+      else prepareDetail bounds snapshot state
+  | none => prepareDetail bounds snapshot state
+
 /-- Follow the selected calendar cell, but never undo explicit overview browsing. -/
 private def overviewOffset (visible : Nat) (rows : List Widget) (state : State) : Nat :=
   let offset := if state.overviewManualScroll then state.overviewScroll else
@@ -547,8 +616,10 @@ private def overviewOffset (visible : Nat) (rows : List Widget) (state : State) 
 
 /-- Overflow is in the border rather than consuming or moving a content row. -/
 private def calendarPanel
-    (width height : Nat) (snapshot : Snapshot) (state : State) (includeDetails : Bool) : Widget :=
-  let rows := calendarRows (width - 2) snapshot state includeDetails
+    (width height : Nat) (snapshot : Snapshot) (state : State) (includeDetails : Bool)
+    (layout : DetailLayout) : Widget :=
+  let rows := if includeDetails then calendarRows (width - 2) snapshot state true
+    else layout.overviewRows
   let visible := height - 2
   let offset := overviewOffset visible rows state
   let focused := state.activePane == .calendar
@@ -558,20 +629,21 @@ private def calendarPanel
     (some (viewportLabel rows.length visible offset))
 
 private def homeBody
-    (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+    (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State)
+    (layout : DetailLayout) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let height := widePanelRows bounds footerRows
   let context := homeContext bounds snapshot state
   if bounds.width ≥ 120 then
     let rightWidth := detailPaneWidth bounds state
     let leftWidth := width - 1 - rightWidth
-    let left := calendarPanel leftWidth height snapshot state false
-    let right := detailPanel rightWidth height snapshot state (pendingEvidence snapshot)
+    let left := calendarPanel leftWidth height snapshot state false layout
+    let right := detailPanel rightWidth height snapshot state layout.pending layout
     context ++ Loam.Tui.Layout.sideBySide height leftWidth rightWidth left right " "
   else
     let panel := if state.activePane == .detail then
-        detailPanel width height snapshot state (pendingEvidence snapshot)
-      else calendarPanel width height snapshot state true
+        detailPanel width height snapshot state layout.pending layout
+      else calendarPanel width height snapshot state true layout
     context ++ panel.lines.map fun cells =>
       .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
 
@@ -759,30 +831,22 @@ private def scrollOverview
 
 /-- Move detail cursor and scroll viewport so the selected record is visible. -/
 def moveDetailCursor
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) (offset : Int) : State :=
-  let nextState := Loam.Tui.Main.moveDetailCursor snapshot state offset
-  let records := (homeActualRecords snapshot nextState).reverse
-  if records.isEmpty then nextState
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (offset : Int)
+    (cached : Option DetailLayout := none) : State :=
+  let layout := detailLayoutFor bounds snapshot state cached
+  let nextCursor := max 0 (min ((layout.records.size - 1 : Nat) : Int)
+    ((state.detailCursor : Int) + offset))
+  let nextState := {state with detailCursor := nextCursor.toNat}
+  if layout.records.isEmpty then nextState
   else
     let footerRows := (homeFooter bounds nextState).length
     let panelRows := widePanelRows bounds footerRows
     let visible := wideDetailVisibleRows panelRows
-    let pending := pendingEvidence snapshot
-    let width := detailInnerWidth bounds nextState
-    let actualHeaderRows :=
-      match nextState.zoomLevel with
-      | .day => (pendingSection width pending).length + 1
-      | .month | .year => 1
     let idx := nextState.detailCursor
-    match records[idx]? with
-    | none => nextState
-    | some currentRec =>
-        let recordRows := fun record =>
-          (actualRecordLines width false nextState record).length
-        let prevRows := (records.take idx).foldl (fun acc r => acc + recordRows r) 0
-        let recStart := actualHeaderRows + prevRows
-        let recEnd := recStart + recordRows currentRec
-        let content := (wideDetailLines width snapshot nextState pending).length
+    match layout.starts[idx]?, layout.counts[idx]? with
+    | some recStart, some count =>
+        let recEnd := recStart + count
+        let content := layout.rows.size
         let currentScroll := Loam.Tui.Scroll.clamp content visible nextState.detailScroll
         let adjustedScroll :=
           if recStart < currentScroll || recEnd - recStart > visible then
@@ -792,11 +856,17 @@ def moveDetailCursor
           else currentScroll
         let finalScroll := Loam.Tui.Scroll.clamp content visible adjustedScroll
         { nextState with detailScroll := finalScroll }
+    | _, _ => nextState
 
 /-- Reconcile reloads and geometry without changing any household evidence. -/
-def reconcileState (bounds : Bounds) (snapshot : Snapshot) (state : State) : State :=
-  let state := normalizeDetailCursor snapshot state
-  if state.activePane == .detail then moveDetailCursor bounds snapshot state 0 else state
+def reconcileState (bounds : Bounds) (snapshot : Snapshot) (state : State)
+    (cached : Option DetailLayout := none) : State :=
+  if state.activePane == .detail then moveDetailCursor bounds snapshot state 0 cached
+  else match cached with
+    | none => normalizeDetailCursor snapshot state
+    | some _ =>
+        let layout := detailLayoutFor bounds snapshot state cached
+        {state with detailCursor := min state.detailCursor (layout.records.size - 1)}
 
 private def repeatUpdate (state : State) (event : Loam.Tui.Main.Event) (repeatCount : Nat) : State :=
   let rec loop (st : State) (rem : Nat) : State :=
@@ -808,9 +878,11 @@ private def repeatUpdate (state : State) (event : Loam.Tui.Main.Event) (repeatCo
 /-- Pure local navigation. `none` delegates a workspace entrance to the IO shell. -/
 def navigationKey
     (bounds : Bounds) (snapshot : Snapshot) (state : State)
-    (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1) : Option State :=
-  let state := reconcileState bounds snapshot state
-  let handled := fun next => some (reconcileState bounds snapshot next)
+    (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1)
+    (cached : Option DetailLayout := none) : Option State :=
+  let layout := some (detailLayoutFor bounds snapshot state cached)
+  let state := reconcileState bounds snapshot state layout
+  let handled := fun next => some (reconcileState bounds snapshot next layout)
   if state.jumpPrompt.isSome then
     handled <| match key with
     | .escape => closeJumpPrompt state
@@ -841,12 +913,12 @@ def navigationKey
     | .ctrl 'u' | .ctrl 'd' | .pageUp | .pageDown =>
         let forward := key == .ctrl 'd' || key == .pageDown
         if state.activePane == .calendar then handled (scrollOverview bounds snapshot state forward)
-        else if (homeActualRecords snapshot state).isEmpty then
+        else if (detailLayoutFor bounds snapshot state layout).records.isEmpty then
           some (scrollDetail bounds snapshot state forward 5)
-        else handled (moveDetailCursor bounds snapshot { state with notice := "" } (if forward then 5 else -5))
+        else handled (moveDetailCursor bounds snapshot { state with notice := "" } (if forward then 5 else -5) layout)
     | .home =>
         if state.activePane == .detail then
-          handled (moveDetailCursor bounds snapshot { state with notice := "" } (-10000))
+          handled (moveDetailCursor bounds snapshot { state with notice := "" } (-10000) layout)
         else
           handled { state with
             selectedDate := snapshot.actual.today
@@ -858,7 +930,7 @@ def navigationKey
           }
     | .«end» =>
         if state.activePane == .detail then
-          handled (moveDetailCursor bounds snapshot { state with notice := "" } 10000)
+          handled (moveDetailCursor bounds snapshot { state with notice := "" } 10000 layout)
         else handled state
     | .escape | .enter =>
         if state.activePane == .detail then
@@ -874,10 +946,10 @@ def navigationKey
         handled (if state.activePane == .detail then state else (update state .right).state)
     | .input 'j' | .input 'J' | .down =>
         let delta : Int := repeatCount
-        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state delta else repeatUpdate state .down repeatCount)
+        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state delta layout else repeatUpdate state .down repeatCount)
     | .input 'k' | .input 'K' | .up =>
         let delta : Int := - (repeatCount : Int)
-        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state delta else repeatUpdate state .up repeatCount)
+        handled (if state.activePane == .detail then moveDetailCursor bounds snapshot state delta layout else repeatUpdate state .up repeatCount)
     | _ => none
 
 /--
@@ -885,16 +957,19 @@ Production Home presentation over LOAM's already-admitted read answers.
 This is presentation only: it adds no household authority, cycle policy,
 Scheduled completeness claim, or retained pending status.
 -/
-def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
-  let state := reconcileState bounds snapshot state
+def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State)
+    (cached : Option DetailLayout := none) : Widget :=
+  let layout := detailLayoutFor bounds snapshot state cached
+  let state := reconcileState bounds snapshot state (some layout)
   let footer := homeFooter bounds state
-  let body := homeBody bounds footer.length snapshot state
+  let body := homeBody bounds footer.length snapshot state layout
   .column ((Loam.Tui.Layout.fitWithFooter bounds body footer).map fun row =>
     .row ((Loam.Tui.Layout.clipCells (Loam.Tui.Layout.contentWidth bounds) row.lines.flatten).map fun cell =>
       span (String.singleton cell.glyph) cell.style))
 
 /-- Production root rendering is Home-only; object workspaces run in their own sessions. -/
-def view (bounds : Bounds) (snapshot : Snapshot) (state : State) : Widget :=
-  homeView bounds snapshot state
+def view (bounds : Bounds) (snapshot : Snapshot) (state : State)
+    (cached : Option DetailLayout := none) : Widget :=
+  homeView bounds snapshot state cached
 
 end Loam.Tui.Home

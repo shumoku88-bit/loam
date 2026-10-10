@@ -245,9 +245,13 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
 
     terminal = Terminal(root)
     try:
+        # Warm Year's row/overview projection before a real publication. Returning
+        # to the same period must discard it, not present the previous generation.
+        terminal.send(b"zz", b"View: Year")
         terminal.send(b"r", b"Record movement")
         terminal.send(b"reload-specimen\t\tbank\t-10\twifi\t10\r", b"Record / Preview")
-        terminal.send(b"\r", b"Recorded ")
+        home = ANSI.sub(b"", terminal.send(b"\r", b"Recorded "))
+        assert b"reload-specimen" in home and b"Year " in home, "Year reused pre-publication rows"
         assert authority.read_bytes() != before, "confirmed Record did not publish"
         # The new row in the Actual workspace requires a refreshed snapshot.
         terminal.send(b"a", b"reload-specimen")

@@ -152,6 +152,13 @@ the selected date. This manual-browsing flag is ephemeral presentation state onl
 Reloads after workspace edits
 clamp selection to current records; rendering and Enter use the same selection.
 These are ephemeral presentation states, not additional household authority.
+Home reuses wrapped transaction rows/positions, the wide calendar overview, and
+qualified Pending evidence within that immutable read snapshot. Selection renders
+only its visible row window; width/date/zoom changes rebuild the projection, and
+workspace returns discard it before using refreshed evidence. Keyboard actions and
+wheel repeat counts remain unchanged—no input is dropped to hide latency.
+Year-scroll reproduction and measurement limits:
+[`TUI_YEAR_SCROLL_2026-10-10.md`](research/TUI_YEAR_SCROLL_2026-10-10.md).
 Regression coverage is in `Loam/Tests/TuiHomeNavigation.lean` and
 `Loam/Tests/TuiHelpFooter.lean`, run by both TUI CI tiers.
 
