@@ -988,107 +988,68 @@ private def monthWindow
   | some selected => Loam.Tui.Layout.centeredListWindow records selected maxVisible
   | none => (records.take maxVisible).zipIdx.map fun (record, index) => (index, record)
 
+/-- A receiving quantity, never an invented total across split movement changes. -/
+private def recordQuantity (record : Record) : String :=
+  let negative := record.movement.changes.filter (fun change => change.quantity.quanta < 0)
+  let positive := record.movement.changes.filter (fun change => 0 < change.quantity.quanta)
+  match negative, positive with
+  | [_], [destination] =>
+      Loam.MeasurePresentation.groupDisplayedNumber (toString destination.quantity.quanta) ++
+        " " ++ record.measure.token
+  | _, _ => if record.movement.changes.isEmpty then "—"
+      else s!"split ({record.movement.changes.length})"
+
+private def fitLabel (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then fit width text
+  else fit width (Loam.Tui.Layout.clip (width - 1) text ++ "…")
+
 private def monthCard
-    (width maxVisible : Nat) (snapshot : Snapshot) (state : State)
+    (width height : Nat) (snapshot : Snapshot) (state : State)
     (selectedId? : Option String) (month : Loam.Tui.Calendar.Month) : Widget :=
   let records := recordsInMonth snapshot state month
+  let maxVisible := height - 2
+  let innerWidth := width - 2
   let shown := monthWindow records selectedId? maxVisible
-  let header :=
-    "[" ++ Loam.Tui.Calendar.monthLabel month ++ "]  " ++
-      toString records.length ++ " plan" ++ (if records.length = 1 then "" else "s")
+  let focused := records.any (fun record => selectedId? == some record.id.token)
+  let quantityWidth := min (innerWidth - 16) (min 22 (max 12
+    (records.foldl (fun widest record => max widest
+      (Loam.Tui.Layout.displayWidth (recordQuantity record))) 0)))
   let recordLines := shown.map fun (_, record) =>
-    let selected :=
-      match selectedId? with
-      | some id => id == record.id.token
-      | none => false
+    let selected := selectedId? == some record.id.token
     let marker := if selected then "> " else "  "
-    let text :=
-      marker ++ recordDay record ++ "  " ++ Loam.ScheduledReview.summary record
-    .row [span (Loam.Tui.Layout.clip width text)
-      (if selected then .selected else .normal)]
-  let padding := List.replicate (maxVisible - recordLines.length) (.row [])
-  let footerText :=
-    if records.length > maxVisible then
-      "  " ++ toString records.length ++ " explicit plans; j/k moves the selection"
-    else if records.isEmpty then
-      "  (no explicit plan)"
-    else
-      ""
-  .column <|
-    [.row [span (Loam.Tui.Layout.clip width header) .muted]] ++
-    recordLines ++ padding ++
-    [.row [span (Loam.Tui.Layout.clip width footerText) .muted]]
-
-private def emptyMonthCard (height : Nat) : Widget :=
-  .column (List.replicate height (.row []))
-
-private def futureBoardHelpLines (bounds : Bounds) : List String :=
-  Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) "  "
-    ["[j/k or wheel] select", "[h/l or ←/→] months", "[e] extend", "[s] undecided",
-     "[v] List", "[n] new", "[c/Enter] complete", "[r] replace", "[b] batch amount",
-     "[x] cancel", "[q] back"]
-
-private def futureBoardFooterRowCount (bounds : Bounds) : Nat :=
-  (futureBoardHelpLines bounds).length
-
-private def futureBoardCardHeight
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) : Nat :=
-  let bodyCapacity :=
-    Loam.Tui.Layout.footerBodyCapacity bounds (futureBoardFooterRowCount bounds)
-  let fixedBodyRows :=
-    5 + 1 + (detailLines snapshot state).length +
-      (noticeLines bounds state).length
-  let available := bodyCapacity - fixedBodyRows
-  max 5 (available / 3)
+    let selector := Loam.ScheduledCoverageSelector.ofRecord record
+    let shape := String.intercalate "," selector.negativeLoci ++ " -> " ++
+      String.intercalate "," selector.positiveLoci
+    let quantity := recordQuantity record
+    let text := marker ++ recordDay record ++ "  " ++
+      fitLabel (innerWidth - 8 - quantityWidth) shape ++ "  " ++
+      Loam.Tui.Layout.padLeft quantityWidth
+        (if Loam.Tui.Layout.displayWidth quantity <= quantityWidth then quantity else "too wide")
+    .row [span (fit innerWidth text) (if selected then .selected else .normal)]
+  let start := shown.head?.map Prod.fst |>.getD 0
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + shown.length < records.length then " ▼" else "")
+  let content := if records.isEmpty then [mutedLine " No explicit plan"] else recordLines
+  Loam.Tui.Layout.framedPanel width height (Loam.Tui.Calendar.monthLabel month)
+    (.column content) focused (some (s!"{records.length} explicit" ++ more))
 
 private def futureBoardRows
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
-  let writable := Loam.Tui.Layout.contentWidth bounds
-  if writable < 80 then
-    [ mutedLine " Months needs at least 80 terminal columns; press v for List." ]
-  else
-    let leftWidth := (writable - 3) / 2
-    let rightWidth := writable - leftWidth - 3
-    let months := futureBoardMonths snapshot state
-    let selectedId? := (selectedRecord? snapshot state).map fun record => record.id.token
-    let cardHeight := futureBoardCardHeight bounds snapshot state
-    let maxVisible := cardHeight - 2
-    (List.range 3).flatMap fun row =>
-      let left :=
-        match months[row * 2]? with
-        | some month => monthCard leftWidth maxVisible snapshot state selectedId? month
-        | none => emptyMonthCard cardHeight
-      let right :=
-        match months[row * 2 + 1]? with
-        | some month => monthCard rightWidth maxVisible snapshot state selectedId? month
-        | none => emptyMonthCard cardHeight
-      Loam.Tui.Layout.sideBySide cardHeight leftWidth rightWidth left right
-
-private def futureBoardFooter (bounds : Bounds) : List Widget :=
-  (futureBoardHelpLines bounds).map mutedLine
-
-private def futureBoardView
-    (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
-  let state := clampState snapshot rawState
+    (width cardHeight : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+  let leftWidth := (width - 1) / 2
+  let rightWidth := width - leftWidth - 1
   let months := futureBoardMonths snapshot state
-  let startMonth :=
-    months.head?.getD { year := 1970, month := 1 }
-  let endMonth :=
-    months.getLast?.getD startMonth
-  let body :=
-    [ rule bounds '='
-    , plainLine " Scheduled / Months"
-    , mutedLine (" Explicit current-open plans: " ++
-        Loam.Tui.Calendar.monthLabel startMonth ++ " .. " ++
-        Loam.Tui.Calendar.monthLabel endMonth)
-    , mutedLine " Wheel/j/k moves the selected plan; h/l or horizontal wheel freely shifts the six-month window."
-    , rule bounds '='
-    ] ++
-    futureBoardRows bounds snapshot state ++
-    [rule bounds '-'] ++
-    detailLines snapshot state
-  .column (Loam.Tui.Layout.fitWithFooter bounds body
-    (withNoticeFooter bounds state (futureBoardFooter bounds)))
+  let selectedId? := (selectedRecord? snapshot state).map fun record => record.id.token
+  (List.range 3).flatMap fun row =>
+    let left := months[row * 2]?.map
+      (monthCard leftWidth cardHeight snapshot state selectedId?) |>.getD (.row [])
+    let right := months[row * 2 + 1]?.map
+      (monthCard rightWidth cardHeight snapshot state selectedId?) |>.getD (.row [])
+    let leftLines := left.lines
+    let rightLines := right.lines
+    (List.range cardHeight).map fun index => Widget.row
+      (((leftLines[index]?.getD []).map fun cell => span (String.singleton cell.glyph) cell.style) ++
+       [span " " .muted] ++
+       ((rightLines[index]?.getD []).map fun cell => span (String.singleton cell.glyph) cell.style))
 
 private def paceLabel (rule : Loam.ScheduledCoverageConfig.Rule) : String :=
   match rule.everyMonths with
@@ -1099,15 +1060,7 @@ private def paceLabel (rule : Loam.ScheduledCoverageConfig.Rule) : String :=
 /-- Align quantity summaries without inventing a total or guessing a display scale. -/
 private def planDetailQuantity : PlanDetailEntry → String
   | .missing _ => "—"
-  | .occurrence record _ =>
-      let negative := record.movement.changes.filter (fun change => change.quantity.quanta < 0)
-      let positive := record.movement.changes.filter (fun change => 0 < change.quantity.quanta)
-      match negative, positive with
-      | [_], [destination] =>
-          Loam.MeasurePresentation.groupDisplayedNumber (toString destination.quantity.quanta) ++
-            " " ++ record.measure.token
-      | _, _ => if record.movement.changes.isEmpty then "—"
-          else s!"split ({record.movement.changes.length})"
+  | .occurrence record _ => recordQuantity record
 
 private def planDetailTableRow
     (width quantityWidth : Nat) (date status quantity : String) : String :=
@@ -1137,11 +1090,17 @@ private def planDetailEntryLine
   .row [span fitted (if selected then .selected else .normal)]
 
 /-- Two operation-only rows, independent of notice text and terminal height. -/
-private def navigationFooter (bounds : Bounds) (planDetail : Bool) : List Widget :=
+private def navigationFooter (bounds : Bounds) (mode : ViewMode) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
+  let planDetail := mode == .planDetail
+  let months := mode == .futureBoard
   let (primary, secondary) : List (String × String) × List (String × String) :=
     if width >= 79 then
-      if planDetail then
+      if months then
+        ([("j/k", "select"), ("h/l", "months"), ("c/Enter", "complete"), ("q", "back")],
+         [("e", "extend"), ("b", "batch"), ("r", "replace"), ("x", "cancel"),
+          ("s", "undecided"), ("n", "new"), ("v", "List")])
+      else if planDetail then
         ([("j/k", "select"), ("c/Enter", "complete"), ("q", "overview")],
          [("e", "replenish"), ("b", "batch"), ("r", "replace"), ("x", "cancel"),
           ("p", "pace"), ("s", "undecided")])
@@ -1150,14 +1109,19 @@ private def navigationFooter (bounds : Bounds) (planDetail : Bool) : List Widget
          [("e", "replenish"), ("b", "batch"), ("p", "pace"), ("s", "undecided"),
           ("n", "new"), ("v", "views")])
     else if width >= 47 then
-      if planDetail then
+      if months then
+        ([("j/k", "select"), ("c/Enter", "complete"), ("q", "back")],
+         [("h/l", "months"), ("b", "batch"), ("x", "cancel"), ("v", "List")])
+      else if planDetail then
         ([("j/k", "select"), ("c/Enter", "complete"), ("q", "overview")],
          [("e", "replenish"), ("b", "batch"), ("r", "replace"), ("x", "cancel")])
       else
         ([("j/k", "plan"), ("h/l", "months"), ("Enter", "detail"), ("q", "back")],
          [("e", "replenish"), ("b", "batch"), ("p", "pace"), ("s", "undecided")])
     else if width >= 29 then
-      if planDetail then
+      if months then
+        ([("j/k", "select"), ("q", "back")], [("h/l", "months"), ("v", "List")])
+      else if planDetail then
         ([("j/k", "select"), ("q", "overview")], [("c/Enter", "complete"), ("x", "cancel")])
       else
         ([("j/k", "plan"), ("q", "back")], [("Enter", "detail"), ("v", "views")])
@@ -1165,7 +1129,7 @@ private def navigationFooter (bounds : Bounds) (planDetail : Bool) : List Widget
       ([("j/k", ""), ("q", "back")],
         if planDetail then [("c/Enter", ""), ("x", "")] else [("Enter", ""), ("e", "")])
     else ([("q", "back")], [(if planDetail then "c/Enter" else "Enter", "")])
-  let separator := if width >= 79 then "  " else " "
+  let separator := if width >= 79 && !months then "  " else " "
   [Loam.Tui.Layout.shortcutRow primary separator, Loam.Tui.Layout.shortcutRow secondary separator]
 
 /-- Meaning belongs next to the table, not in its operation bar. -/
@@ -1195,11 +1159,71 @@ private def boundedWorkspace (bounds : Bounds) (body : Widget) (footerLines : Li
       ((Loam.Tui.Layout.clipCells writable cells).map fun cell =>
         span (String.singleton cell.glyph) cell.style)))
 
+private def futureBoardDetails
+    (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
+  let metadata := fun (text : String) => (Loam.Tui.Layout.wrapColumns width text).map mutedLine
+  match selectedRecord? snapshot state with
+  | none => [mutedLine " No current-open Scheduled occurrence selected."]
+  | some record =>
+      [mutedLine " Expected Effects (exact quanta):"] ++
+      (record.movement.changes.flatMap fun change =>
+        let sign := if change.quantity.quanta >= 0 then "+" else ""
+        let text := sign ++ Loam.MeasurePresentation.groupDisplayedNumber
+          (toString change.quantity.quanta) ++ " " ++ record.measure.token ++
+          "  " ++ change.coordinate.token
+        (Loam.Tui.Layout.wrapColumns width text).map plainLine) ++
+      metadata ("Date: " ++ record.scheduledOn) ++ metadata ("ID: " ++ record.id.token)
+
+private def futureBoardView
+    (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
+  let state := clampState snapshot rawState
+  let writable := Loam.Tui.Layout.contentWidth bounds
+  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds .futureBoard)
+  let legend := (Loam.Tui.Layout.flowTokens writable " "
+    ["Explicit plans;", "exact quanta;", "wheel = select;", "horizontal wheel = months"]).map mutedLine
+  let tableCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length - legend.length
+  let contextRows := if tableCapacity >= 11 then 2 else if tableCapacity >= 4 then 1 else 0
+  let available := tableCapacity - contextRows
+  let months := futureBoardMonths snapshot state
+  let window := match months.head?, months.getLast? with
+    | some first, some last => Loam.Tui.Calendar.monthLabel first ++ " .. " ++ Loam.Tui.Calendar.monthLabel last
+    | _, _ => "(no visible month window)"
+  let context := [plainLine " Scheduled / Months",
+    mutedLine (" " ++ window ++ "  |  known through " ++ snapshot.actual.today)]
+  let content : List Widget := match scopeEvidence snapshot state with
+    | .error message =>
+        [Loam.Tui.Layout.framedPanel writable available "Months [Unavailable]"
+          (.column ((Loam.Tui.Layout.wrapColumns (writable - 2)
+            ("[Unavailable] " ++ message)).map plainLine))]
+    | .ok .unknown =>
+        [Loam.Tui.Layout.framedPanel writable available "Months [Unknown]"
+          (mutedLine " Unknown; no completeness horizon claimed.")]
+    | .ok (.records _) =>
+        let canShowBoard := bounds.width >= 80 && available >= 9
+        let detailRoom := if canShowBoard then available - 9 else available / 2
+        let detailHeight := if detailRoom >= 3 then min 8 detailRoom else 0
+        let boardHeight := available - detailHeight
+        let board := if canShowBoard then
+            futureBoardRows writable (boardHeight / 3) snapshot state ++
+              List.replicate (boardHeight % 3) blankLine
+          else
+            [Loam.Tui.Layout.framedPanel writable boardHeight "Months [compact]"
+              (.column ((Loam.Tui.Layout.wrapColumns (writable - 2)
+                "The six-month board needs 80 columns and more height; v opens List.").map mutedLine))]
+        let detailContent := futureBoardDetails (writable - 2) snapshot state
+        let visibleDetails := detailHeight - 2
+        let overflow := if detailContent.length > visibleDetails then some
+            (s!"{visibleDetails}/{detailContent.length} lines ▼") else none
+        board ++ (if detailHeight == 0 then [] else
+          [Loam.Tui.Layout.framedPanel writable detailHeight "Selected Scheduled"
+            (.column detailContent) false overflow])
+  boundedWorkspace bounds (.column (context.take contextRows ++ content ++ legend)) footerLines
+
 private def planDetailView
     (bounds : Bounds) (snapshot : Snapshot) (rawState : State)
     (coverage : CoverageEvidence) : Widget :=
   let state := clampPlanDetailState snapshot coverage (clampCoverageState coverage rawState)
-  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds true)
+  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds .planDetail)
   let legend := workspaceLegend bounds true
   let writable := Loam.Tui.Layout.contentWidth bounds
   let tableCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length - legend.length
@@ -1262,7 +1286,7 @@ private def coverageView
   let state := clampCoverageState coverage state
   let writable := Loam.Tui.Layout.contentWidth bounds
   let legend := workspaceLegend bounds false
-  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds false)
+  let footerLines := reservedNoticeFooter bounds state (navigationFooter bounds .coverage)
   let tableCapacity := Loam.Tui.Layout.footerBodyCapacity bounds footerLines.length - legend.length
   let contextRows := if tableCapacity >= 7 then 2 else if tableCapacity >= 4 then 1 else 0
   let panelHeight := tableCapacity - contextRows

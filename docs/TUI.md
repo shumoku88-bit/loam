@@ -360,7 +360,22 @@ Series Calendar -> Months -> List -> Series Calendar
 
 **Months** remains the six-month, two-column calendar-board projection for answering
 "what exists in this month?" and for exact occurrence actions. `j/k` selects one
-occurrence there. **List** retains the older Focus Day / All Current-Open scopes
+occurrence there. Six thin rounded month frames replace the heavy screen rules;
+only the month containing the selected occurrence uses the existing focus accent.
+Day, signed-Locus shape, and right-aligned exact quanta stay separate. Long shapes
+show an ellipsis; split quantities are never summed, and oversized quantities say
+`too wide`. Frame bottoms show explicit counts and hidden-row indicators, without
+asserting NotDue or generating future occurrences.
+
+Months geometry depends on terminal bounds, not on the selected movement's number
+of changes. Taller screens grow the month windows. The fixed-height Selected
+Scheduled panel puts signed expected Effects first, then muted date and exact ID;
+wrapping and an overflow label make hidden detail lines explicit. At 80 terminal
+columns the two-column board fits; narrower or very short screens explain the List
+fallback while retaining selected details when space permits. Failed Scheduled
+reads show Unavailable instead of six fabricated empty months.
+
+**List** retains the older Focus Day / All Current-Open scopes
 (`f`) and Locus filter pane.
 
 The Series Calendar is the primary recurring-plan management surface:
@@ -378,11 +393,12 @@ n         create one explicit Scheduled plan
 v         Months / List alternate projections
 ```
 
-Series Calendar and Plan Detail share an operation-only **two-row footer**:
+Series Calendar, Plan Detail, and Months share an operation-only **two-row footer**:
 selection, Enter, and back on the first row; maintenance on the second. Keys use
 the existing normal foreground while labels and spacing stay muted—no extra accent
 colors. At 80 columns and wider, all advertised maintenance actions fit without
-wrapping; `batch` means batch amount editing and `views` means Months/List. Narrow
+wrapping; `batch` means batch amount editing, `views` means Months/List, and Months
+advertises its direct `v` switch to List. Narrow
 screens abbreviate hints but do not remove any binding or action. Table meaning
 (days, gaps, pace, quanta) stays next to the frame rather than among shortcuts.
 

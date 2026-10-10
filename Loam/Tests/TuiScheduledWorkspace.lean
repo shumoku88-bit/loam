@@ -130,7 +130,69 @@ private def checkNavigationFooter
     expect (contains opaqueCause (text.replace "\n" ""))
       "Scheduled status clipped an unbroken publisher refusal token"
 
+private def checkMonthsLayout : IO Unit := do
+  let snapshot ← longScheduledWorkspaceSnapshot 40
+  let state : Loam.Tui.ScheduledWorkspace.State := {
+    focusDate := "2026-09-07", viewMode := .futureBoard, occurrenceRow := 35 }
+  let selected ← requireSome (Loam.Tui.ScheduledWorkspace.selectedRecord? snapshot state)
+    "Months layout specimen lost its selected occurrence"
+  let quantity := Loam.MeasurePresentation.groupDisplayedNumber
+    (toString (selected.quantityAt ⟨"food"⟩).quanta) ++ " jpy"
+  let borderRows := fun (widget : Widget) => widget.lines.zipIdx.filterMap fun (cells, index) =>
+    if cells.any (fun cell => cell.glyph == '╭' || cell.glyph == '╰') then some index else none
+  for bounds in [{ width := 80, height := 18 }, { width := 80, height := 24 },
+      { width := 120, height := 30 }, { width := 144, height := 50 }] do
+    let rendered := Loam.Tui.ScheduledWorkspace.view bounds snapshot state
+    let text := widgetText rendered
+    let selectedLines := rendered.lines.filter fun cells => cells.any
+      (fun cell => cell.style == .selected)
+    expect (selectedLines.length == 1 && contains quantity
+        (String.ofList ((selectedLines.flatten.filter (fun cell => cell.style == .selected)).map Cell.glyph)) &&
+        contains "40 explicit" text && !contains "====" text)
+      "Framed Months lost its selected row, exact quantity, or explicit count"
+    for month in ["2026-09", "2026-10", "2026-11", "2026-12", "2027-01", "2027-02"] do
+      expect (contains ("╭ " ++ month) text) "Framed Months did not retain all six calendar months"
+    expect (rendered.lines.all fun cells => cells.all fun cell =>
+        cell.style == .normal || cell.style == .muted ||
+        cell.style == .series1 || cell.style == .selected)
+      "Months added decorative accent colors"
+    if bounds.height >= 24 then
+      expect (contains ("+" ++ quantity) text && contains ("-" ++ quantity) text &&
+          contains ("ID: " ++ selected.id.token) text && contains "Selected Scheduled" text)
+        "Months details lost signed quantities or the exact selected identity"
+    let notice := Loam.Tui.ScheduledWorkspace.view bounds snapshot
+      { state with notice := "At first month." }
+    let next := Loam.Tui.ScheduledWorkspace.view bounds snapshot { state with occurrenceRow := 36 }
+    expect (borderRows rendered == borderRows notice && borderRows rendered == borderRows next)
+      "Months geometry changed with a short notice or a different selected occurrence"
+    let lastTwo := rendered.lines.drop (rendered.lines.length - 2)
+    expect (lastTwo.length == 2 && lastTwo.all (fun cells => cells.all
+        (fun cell => cell.style == .normal || cell.style == .muted)))
+      "Months did not reuse the operation-only two-row footer"
+  for width in [0, 1, 2, 20, 32, 48, 80, 120] do
+    for height in [0, 1, 2, 6, 10, 18, 24, 50] do
+      let rendered := Loam.Tui.ScheduledWorkspace.view { width, height } snapshot state
+      expect (rendered.lines.length <= height - 1 && rendered.lines.all (fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth { width, height }))
+        "Months escaped its physical terminal rectangle"
+  let narrow := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 48, height := 24 } snapshot state)
+  expect (contains "Months [compact]" narrow && contains "[v] List" narrow &&
+      contains "Selected Scheduled" narrow && contains selected.id.token narrow)
+    "Narrow Months lost its List fallback or selected-record detail"
+  let failed := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 }
+    { snapshot with scheduled := .error "Scheduled read refused" } state)
+  expect (contains "Months [Unavailable]" failed && contains "Scheduled read refused" failed &&
+      !contains "0 explicit" failed && !contains "No explicit plan" failed)
+    "Months collapsed failed Scheduled evidence into empty month counts"
+  let refusal := "publisher refuses the complete cause " ++ String.ofList (List.replicate 100 'x')
+  let refused := widgetText (Loam.Tui.ScheduledWorkspace.view { width := 48, height := 30 }
+    snapshot { state with notice := refusal })
+  expect (contains (String.ofList (List.replicate 100 'x')) (refused.replace "\n" ""))
+    "Months clipped an unbroken publisher refusal token"
+
 def main : IO Unit := do
+  checkMonthsLayout
   let snapshot ← scheduledWorkspaceSnapshot
 
   -- Shared current-open read order is date first, then Scheduled identity.
@@ -226,8 +288,8 @@ def main : IO Unit := do
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } longSnapshot longBoard)
   let tallBoardText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 50 } longSnapshot longBoard)
-  expect (!(contains "wallet -> food: 7 jpy" compactBoardText) &&
-    contains "wallet -> food: 7 jpy" tallBoardText)
+  expect (!(contains "7 jpy" compactBoardText) &&
+    contains "7 jpy" tallBoardText)
     "Scheduled Months did not expand month-card capacity with terminal height"
 
   -- 2. Scheduled opens on occurrences so j/k browses records before any explicit Locus filtering.
@@ -670,9 +732,9 @@ def main : IO Unit := do
   let boardText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } snapshot board)
   expect (contains "Scheduled / Months" boardText &&
-    contains "[2026-09]" boardText && contains "[2026-10]" boardText)
+    contains "╭ 2026-09" boardText && contains "╭ 2026-10" boardText)
     "Scheduled Months view did not render its six-month calendar blocks"
-  expect (contains "Selected Scheduled Details:" boardText)
+  expect (contains "Selected Scheduled" boardText && contains "Expected Effects (exact quanta)" boardText)
     "Scheduled Months view lost the shared selected-record details"
   let boardLeft := (Loam.Tui.ScheduledWorkspace.update snapshot board .focusLeft).state
   expect (boardLeft.pane == .occurrences && boardLeft.futureBoardMonthOffset == 0 &&
@@ -685,7 +747,7 @@ def main : IO Unit := do
   let boardRightText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 120, height := 30 } snapshot boardRight)
   expect (contains "2026-10 .. 2027-03" boardRightText &&
-    contains "[2026-10]" boardRightText && contains "[2027-03]" boardRightText &&
+    contains "╭ 2026-10" boardRightText && contains "╭ 2027-03" boardRightText &&
     contains "horizontal wheel" boardRightText)
     "Scheduled Months shifted window did not render the expected later calendar range"
   let boardBack :=
@@ -730,7 +792,7 @@ def main : IO Unit := do
   let shortNoticeText := widgetText
     (Loam.Tui.ScheduledWorkspace.view { width := 80, height := 18 } snapshot shortNoticeState)
   expect (contains shortNoticeState.notice shortNoticeText &&
-    contains "[b] batch amount" shortNoticeText && contains "[x] cancel" shortNoticeText &&
+    contains "[b] batch" shortNoticeText && contains "[x] cancel" shortNoticeText &&
     contains "[q] back" shortNoticeText)
     "short Months viewport hid batch publication feedback or displaced an existing action"
   for mode in [Loam.Tui.ScheduledWorkspace.ViewMode.list, .coverage, .planDetail] do

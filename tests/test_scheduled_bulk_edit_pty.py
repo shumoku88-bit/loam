@@ -105,7 +105,21 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         assert authority.read_text() == before, "viewing or trying to cancel a gap changed authority"
         assert coverage_config.read_text() == coverage_definition, "navigation changed monitoring"
         send(b"q", b"Series Calendar")
-        send(b"v", b"Scheduled / Months")
+        months = ansi.sub(b"", send(b"v", b"Scheduled / Months"))
+        assert len(re.findall("╭ ".encode() + rb"\d{4}-\d{2}", months)) == 6
+        assert b"Selected Scheduled" in months and b"-4,800 jpy" in months and b"+4,800 jpy" in months
+        for rows, columns in ((18, 80), (10, 48), (30, 120), (24, 100)):
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+            output = capture(b"Scheduled / Months")
+            clean_months = ansi.sub(b"", output)
+            positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+            assert positions and all(1 <= int(r) <= rows and 1 <= int(c) <= columns
+                                     for r, c in positions)
+            if columns >= 80:
+                assert len(re.findall("╭ ".encode() + rb"\d{4}-\d{2}", clean_months)) == 6
+            else:
+                assert b"Months [compact]" in clean_months and b"[v] List" in clean_months
+        assert authority.read_text() == before, "Months idle resize changed household evidence"
         configure_sheet()
         preview = check_and_preview()
         clean = ansi.sub(b"", preview)
