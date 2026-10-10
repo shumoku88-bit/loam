@@ -25,11 +25,12 @@ open Loam.Tui.Kernel
 set_option autoImplicit false
 
 private def syntheticRow (index : Nat) (selected : Bool) : Widget :=
-  let marker := if selected && index == 3 then "selected" else "unselected"
+  let marker := if selected && index == 3 then ">" else " "
   .row
-    [ span ("  " ++ toString index ++ "  食費/食材  ") .normal
+    [ span (" " ++ marker ++ " ") .selected
+    , span (toString index ++ "  食費/食材  ") .normal
     , span ("数量: " ++ toString (index * 1357 + 100) ++ " jpy  ") .muted
-    , span ("sample-emoji 🐸 " ++ marker ++ "  ") .selected
+    , span "sample-emoji 🐸  " .selected
     , span "café / テスト / very-long-description" .normal
     ]
 
