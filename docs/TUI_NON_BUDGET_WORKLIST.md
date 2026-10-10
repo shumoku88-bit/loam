@@ -47,7 +47,7 @@
 | UI-21 | Scheduled 生成 入力・確認 | 未着手 | 入力と生成対象、確認一覧、ナビ |
 | UI-22 | Scheduled 継続の操作画面 | 未着手 | 対象・次の内容、確認、ナビ |
 | UI-23 | Scheduled coverage 設定 | 未着手 | 設定欄、ラベル、監視と実予定の違いが分かる説明 |
-| UI-24 | Balances / Current | 未着手 | Locus × Measure の整列、数量、詳細・スクロール・ナビ |
+| UI-24 | Balances / Current | 完了 | 控えめな丸角枠、Locus × Measure・符号付き quanta・根拠状態の整列、選択追従、折返し・スクロール可能な詳細、固定2段ナビと予約通知行。巨大数量は不完全な桁ではなく詳細へ誘導。Print は全選択の完全な値と既存の行／UTF-8 byte 制限・明示同意を保持。`TuiBalances` を代表 TUI テストへ、合成 Balances PTY を両 CI tier へ追加。build、代表 TUI、CurrentBalanceReview、ナビ・tall display、Balances／Viewport／Record／Cycle Budget PTY、resource check を検証。巨大数量・長い識別子・日本語通知・複数 Measure・空選択・各根拠状態と、親へのリサイズ復帰・Print 同意／取消／拒否・fixture 不変を確認。Reports / Balances と Print の補助画面 UI は別項目 |
 | UI-25 | 非予算 Reports / メニュー・各表示・期間指定・比較 | 未着手 | 下の子画面一覧に沿って、枠・期間・列・詳細・ナビを統一 |
 | UI-26 | Attention 一覧・詳細・Add / Resolve / Drop | 未着手 | 一覧と期日の整列、入力・確認、フォーカス・ナビ |
 | UI-27 | Settlements 一覧・詳細 | 未着手 | 数量と状態の整列、詳細の階層、スクロール・ナビ |
@@ -91,7 +91,7 @@
 5. **残りの非予算画面**：Home / Commands、Reports、Attention、
    Settlements、Exchange、設定・補助表示。
 
-現在、作業中の UI 項目はなし。**UI-04：Selected Day は完了**。UI-01 の Home と同じ方針で日常の使用頻度を優先した。**次の候補は UI-24：Balances / Current**。
+現在、**UI-01・UI-04・UI-24 の日常閲覧 UI は完了**。UI-01・UI-04 と同じ方針で日常の使用頻度を優先して進める。次の候補は Daily Pace の既存画面（範囲確認後に追加）、続いてよく使う Scheduled の操作画面。予算 UI は引き続き対象外。
 
 ## 各改修で更新すること
 

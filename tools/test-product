@@ -153,6 +153,7 @@ tui_representative_tests=(
   TuiRecord
   TuiActual
   TuiSelectedDay
+  TuiBalances
   TuiScheduledWorkspace
   TuiScheduledBulkEdit
   TuiCapacity

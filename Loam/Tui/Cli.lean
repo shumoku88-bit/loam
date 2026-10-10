@@ -340,12 +340,13 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualWorkspaceLoop bounds dataDir root snapshot step.state nextFrame
 
-/-- Read-only balance-view session; q/Esc returns to Home. -/
+/-- Read-only balance-view session; q/Esc leaves Detail first, then returns to Home. -/
 partial def balancesLoop (bounds : Bounds)
     (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Unit := do
-  let key ← Loam.Tui.Terminal.readKey
+  let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.Balances.viewForBounds active state)
+  if key == .other then return (← balancesLoop bounds state frame)
   if key == .input 'p' || key == .input 'P' then
     match Loam.Tui.Balances.preparePrint state with
     | .error message =>
@@ -360,8 +361,7 @@ partial def balancesLoop (bounds : Bounds)
         Loam.Tui.Terminal.redrawFromBlank active nextFrame
         balancesLoop active state nextFrame
   else
-    let back := key = .escape || key = .input 'q' || key = .input 'Q'
-    match Loam.Tui.Balances.update state back with
+    match Loam.Tui.Balances.update bounds state key repeatCount with
     | .back => return ()
     | .stay next =>
         let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
@@ -641,6 +641,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             let balancesFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds balances)
             Loam.Tui.Terminal.redrawFromBlank bounds balancesFrame
             balancesLoop bounds balances balancesFrame
+            let bounds ← Loam.Tui.Terminal.currentBounds
             let home := { state with notice := "" }
             let nextFrame := compiledFrameFor bounds snapshot home
             Loam.Tui.Terminal.redrawFromBlank bounds nextFrame

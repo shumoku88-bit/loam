@@ -3,6 +3,7 @@ name: Production TUI
 on:
   pull_request:
     paths:
+      - 'tests/test_balances_pty.py'
       - 'Loam/Persistence/TokenSyntax.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
       - 'Loam/Tests/TokenSyntax.lean'
@@ -195,6 +196,7 @@ on:
     branches:
       - main
     paths:
+      - 'tests/test_balances_pty.py'
       - 'Loam/Persistence/TokenSyntax.lean'
       - 'Loam/Persistence/NormalizedActualPersistence.lean'
       - 'Loam/Tests/TokenSyntax.lean'
@@ -438,6 +440,9 @@ jobs:
           lake env lean --run Loam/Tests/CycleBudgetReview.lean "$FIXTURE_DIR"
           python3 tests/test_cycle_budget_tui.py "$FIXTURE_DIR" .lake/build/bin/loamTui
           python3 tests/test_tui_viewport_pty.py "$FIXTURE_DIR" .lake/build/bin/loamTui
+
+      - name: Verify selected Balances navigation and bounded Print on isolated data
+        run: python3 tests/test_balances_pty.py
 
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
@@ -899,6 +904,9 @@ jobs:
 
       - name: Verify Cycle Grant TUI interaction
         run: lake env lean --run Loam/Tests/TuiCycleGrant.lean "$(mktemp -d)/tui-cycle-grant"
+
+      - name: Verify selected Balances navigation and bounded Print on isolated data
+        run: python3 tests/test_balances_pty.py
 
       - name: Verify Cycle Budget TUI PTY interactions
         run: |

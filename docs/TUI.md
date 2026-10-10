@@ -77,7 +77,7 @@ in both calendar and transaction focus, and also remain in Commands.
 The former direct Home shortcuts for Exchange (`x`), Settlements (`u`),
 Reports (`v`), Manage Loci (`m`), Observe quantities (`o`) and optional-budget
 operations (`c/e/p`) remain palette-only.
-Local keys within a workspace are unchanged.
+Each workspace keeps its own local key grammar.
 
 The prior compact calendar was retired. The Calendar Home now always uses
 the larger role-aware money grid, with Today's underline on the date row only
@@ -162,6 +162,36 @@ The Commands labels distinguish user-facing actions from narrower implementation
 modules. Purpose routing edits Actual-to-Purpose routing, Manage Loci admits new
 Locus identities, and Observe quantities publishes a current observation image.
 
+## Selected current balances
+
+Home `b` opens **Balances / Current** in `balance-view` configuration order,
+normalizing duplicate Locus × Measure selections only. This neutral current
+projection is not the role-aware Reports / Balances or an Account taxonomy.
+`CurrentBalanceReview` remains the owner of exact, present-but-amount-unknown,
+and unsupported answers; exact zero is never inferred from either unknown state.
+
+The table aligns Locus, signed grouped **quanta**, Measure and support state.
+At 120 columns and sufficient height, quiet rounded table and Detail frames sit
+side by side; narrower terminals stack them, and short terminals show Detail
+alone when focused. Narrow table rows combine Locus / Measure with value or state.
+Clipped coordinates use `…`; oversized quantities use `see details` or `…`, never
+partial digits or a combined multi-Measure total. Detail wraps full identifiers,
+exact signed quanta and support explanations without optional money scales.
+
+`j/k` or arrows selects a row; Ctrl-u/d or Page Up/Down moves by visible data rows,
+and Home/End reaches the first/last row. Selection follows the viewport. `i`, Enter,
+Tab or Shift-Tab toggles Detail; its arrows/page/endpoint keys scroll wrapped lines.
+`q`/Esc returns from Detail to the list, then from the list to Home. `p` retains the
+bounded Print entrance. Feedback has a reserved row above fixed two-row operations;
+long causes wrap, and over-height feedback/help has an explicit overflow indicator.
+Live resize clamps presentation offsets only. Home re-observes tty geometry on return,
+without a household reload or a change to Calendar focus.
+
+Qualification: `Loam/Tests/TuiBalances.lean` (also in representative TUI tests),
+`tests/test_balances_pty.py` in both TUI CI tiers, and adjacent CurrentBalanceReview /
+Reports Print tests. All native interaction fixtures are temporary and synthetic.
+This completes UI-24 only, not Reports / Balances or the shared Print prompt's UI work.
+
 ## Terminal selection and plain-text reports
 
 The retired `y` command no longer copies the visible TUI screen. Its
@@ -187,6 +217,10 @@ count and UTF-8 byte count, warns that household content can persist in normal
 terminal scrollback, and asks for explicit `y` + Enter consent. Any other answer
 cancels without printing report lines. After copying or scrolling, Enter returns
 to the TUI with its terminal modes and viewport restored.
+
+Current Balances prints all configured selected rows from its current read snapshot,
+not just the keyboard selection or visible window. Full Locus/Measure identifiers,
+exact grouped quanta and support labels are preserved independently of table clipping.
 
 The shared boundary refuses reports above **200 logical lines or 32,768 UTF-8
 bytes** *before emitting any report line*. There is no automatic truncation,
