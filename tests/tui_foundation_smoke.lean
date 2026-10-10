@@ -58,6 +58,23 @@ def main : IO Unit := do
   expect (widgetText (.column fitted) == "body\n\n\nfooter-a\nfooter-b")
     "stable footer geometry no longer pads above caller-owned footer rows"
 
+  -- Compare shared lowering against previous screen-local expressions.
+  -- Full Cell equality also checks glyph styles and clipping on tiny widths.
+  let styled : Widget := .column
+    [ .row [span "Aあ🐸" .normal, span "é" .muted]
+    , .column [.row [span "1234" .selected], .row [span "" .normal]]
+    ]
+  let priorRows : List Widget := styled.lines.map fun cells =>
+    .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  expect (decide ((Widget.column (widgetRows styled)).lines = (Widget.column priorRows).lines))
+    "shared widgetRows changed glyph order, physical rows, or Cell styles"
+  for width in [0, 1, 2, 3, 4, 5, 8, 48, 80] do
+    let priorClip : Widget :=
+      .row ((clipCells width styled.lines.flatten).map fun cell =>
+        span (String.singleton cell.glyph) cell.style)
+    expect (decide ((clipWidgetRow width styled).lines = priorClip.lines))
+      "shared clipWidgetRow changed terminal-column clipping or Cell styles"
+
   let widget : Widget := .column [.row [span "alpha"], .row [span "beta"]]
   let compiled := Loam.Tui.Runtime.compileWidget widget
   expect (compiled.lines.size == 2)
