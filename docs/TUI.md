@@ -766,7 +766,17 @@ coverage evidence shows Unavailable, never a fabricated empty plan or gap list.
 
 Completion (`c` / `Enter`), replacement (`r`), and cancellation (`x`) operate on
 exact explicit occurrences; a MISSING row is not a Scheduled occurrence and cannot
-be completed, replaced, or cancelled. `q` returns to the Series Calendar. The older
+be completed, replaced, or cancelled. `q` returns to the Series Calendar.
+
+The Scheduled cancellation confirmation has a bounded **Expected effects**
+review, with the selected due date and retained Scheduled identity above it.
+Long identity text and signed posting rows remain reachable by Up/Down,
+Page Up/Down and Home/End. The bottom actions always default to **Keep**;
+Tab/Left/Right select between Keep and **Cancel Scheduled**, Enter confirms,
+and Esc keeps the occurrence. Retirement evidence remains retained; this never
+silently deletes the Scheduled. The child session follows live terminal resize.
+If the terminal has no review rows available, Enter on Cancel refuses until
+the terminal is enlarged; this is only a presentation safety gate. The older
 `g` generation and `m` monitoring keys remain compatibility/advanced paths but are
 no longer part of the ordinary footer grammar.
 

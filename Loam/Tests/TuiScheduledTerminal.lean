@@ -207,6 +207,48 @@ def main (args : List String) : IO Unit := do
   let cancelEditor := Loam.Tui.ScheduledCancellation.initial cancelTarget
   expect (cancelEditor.choice.val == 1)
     "Scheduled cancellation did not default to Keep"
+  -- UI-18: exact retained target and effect lines must remain reviewable on
+  -- compact terminals, while Keep/Cancel stay visible at the bottom.
+  let reviewState : Loam.Tui.ScheduledCancellation.State :=
+    { cancelEditor with expected :=
+        cancelEditor.expected ++ [String.ofList (List.replicate 90 'x'), "last-locus  +999 jpy"] }
+  for bounds in
+      ([ { width := 32, height := 9 },
+         { width := 48, height := 14 },
+         { width := 80, height := 24 } ] : List Loam.Tui.Kernel.Bounds) do
+    let widget := Loam.Tui.ScheduledCancellation.view bounds reviewState
+    let glyphs := String.ofList (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (widget.lines.length <= bounds.height - 1 &&
+        (glyphs.splitOn "Expected effects").length > 1 &&
+        (glyphs.splitOn "Keep").length > 1)
+      "Scheduled cancellation lost review panel or protective action"
+    expect (widget.lines.any fun row => row.any fun cell => cell.style == .selected)
+      "Scheduled cancellation no longer highlights protective Keep"
+    for row in widget.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <=
+        Loam.Tui.Layout.contentWidth bounds)
+        "Scheduled cancellation review overflowed physical terminal width"
+    let endState := (Loam.Tui.ScheduledCancellation.updateForBounds
+      bounds reviewState .«end»).state
+    let endText := String.ofList
+      ((Loam.Tui.ScheduledCancellation.view bounds endState).lines.flatten.map
+        Loam.Tui.Kernel.Cell.glyph)
+    expect ((endText.splitOn "last-locus").length > 1)
+      "Scheduled cancellation could not scroll to its final expected posting"
+  let tinyBounds : Loam.Tui.Kernel.Bounds := { width := 32, height := 6 }
+  let armedForTiny := (Loam.Tui.ScheduledCancellation.update cancelEditor .tab).state
+  let unsafeEnter := Loam.Tui.ScheduledCancellation.updateForBounds
+    tinyBounds armedForTiny .enter
+  expect (unsafeEnter.publish.isNone &&
+      (unsafeEnter.state.notice.splitOn "Enlarge terminal").length > 1)
+    "Scheduled cancellation published without room to inspect expected effects"
+  let recoveredEnter := Loam.Tui.ScheduledCancellation.updateForBounds
+    ({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds)
+    unsafeEnter.state .enter
+  expect (recoveredEnter.publish.isSome &&
+      recoveredEnter.state.target == cancelEditor.target)
+    "resized cancellation review lost its exact target or confirmation action"
   let kept := Loam.Tui.ScheduledCancellation.update cancelEditor .enter
   expect (kept.cancel && kept.publish.isNone)
     "default cancellation confirmation retired the occurrence"

@@ -419,7 +419,7 @@ partial def run
           run bounds dataDir root reload snapshot coverage next nextFrame
       | some record =>
           let confirmation := Loam.Tui.ScheduledCancellation.initial record
-          let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view confirmation)
+          let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view bounds confirmation)
           Loam.Tui.Terminal.redrawFromBlank bounds confirmationFrame
           let notice ← Loam.Tui.ScheduledCancellationSession.run
             bounds root confirmation confirmationFrame
