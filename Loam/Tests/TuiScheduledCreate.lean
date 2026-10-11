@@ -158,7 +158,7 @@ def main (args : List String) : IO Unit := do
   let enteredImage := Loam.Tui.ScheduledCreation.view regular [] entered
   let enteredText := String.ofList
     (enteredImage.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
-  expect (contains ("Posting 1" ++
+  expect (contains (
     Loam.Tui.Layout.padRight 15 "Posting 1: " ++
     highlighted.locus.token) enteredText)
     "chosen Scheduled Locus was not visible in the Posting field"
