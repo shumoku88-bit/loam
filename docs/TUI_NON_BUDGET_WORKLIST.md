@@ -33,7 +33,7 @@
 | UI-07 | Record / Original amount 入力 | 完了 | 入力・説明の枠、共通ラベルと末尾・IME 表示、固定2段ナビ、折返し通知。`TuiRecord` / Record PTY で検証。macOS の Ctrl-O 吸収も修正 |
 | UI-08 | Record / unresolved 有効化確認 | 完了 | 語彙追加と「Movement は記録しない」の枠、固定アクション・2段ナビ・折返し通知。`TuiRecord` / Record PTY で確認・戻る・リサイズ・Actual 不変を検証 |
 | UI-09 | Actual Correction 入力・確認 | 完了 | Record 共通の入力・候補・IME、固定日付と対象、選択時／置換後の符号付き Effects、固定ナビと確認スクロール・リサイズ。`TuiCorrection` / Record PTY で履歴保持・再読込・他セクション不変を検証 |
-| UI-10 | Actual 日付修正 入力・確認 | 未着手 | 元の日付・新しい日付、対象、確定アクションの階層 |
+| UI-10 | Actual 日付修正 入力・確認 | 検証待ち | 元の日付・新しい日付・対象の枠内階層、編集中の強調、確認とPublishの明示、固定ナビ・通知。TuiActualDateCorrectionと関連CIで検証 |
 | UI-11 | Actual reversal 入力・確認 | 未着手 | 対象・結果の表示、確認アクション、ナビ |
 | UI-12 | Scheduled / Series Calendar | 完了 | `e91c62a3`、`61c21874` |
 | UI-13 | Scheduled / Plan Detail | 完了 | `eb1cfa91`、`61c21874` |
