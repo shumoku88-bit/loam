@@ -146,12 +146,12 @@ def updateForBounds (bounds : Bounds) (state : State)
   if state.mode == .preview then
     let limit := previewScrollLimit bounds state
     let page := max 1 (previewCapacity bounds state)
-    let at := min state.previewScroll limit
+    let current := min state.previewScroll limit
     match key with
-    | .up => { state := { state with previewScroll := at - 1 } }
-    | .down => { state := { state with previewScroll := min limit (at + 1) } }
-    | .pageUp => { state := { state with previewScroll := at - page } }
-    | .pageDown => { state := { state with previewScroll := min limit (at + page) } }
+    | .up => { state := { state with previewScroll := current - 1 } }
+    | .down => { state := { state with previewScroll := min limit (current + 1) } }
+    | .pageUp => { state := { state with previewScroll := current - page } }
+    | .pageDown => { state := { state with previewScroll := min limit (current + page) } }
     | .home => { state := { state with previewScroll := 0 } }
     | .«end» => { state := { state with previewScroll := limit } }
     | .enter =>
