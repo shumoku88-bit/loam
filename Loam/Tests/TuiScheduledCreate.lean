@@ -99,6 +99,61 @@ def main (args : List String) : IO Unit := do
   let editor := Loam.Tui.ScheduledCreation.initial scheduledState.focusDate
   expect (editor.form.date == "2026-09-12" && editor.form.rows.size == 2)
     "new Scheduled editor did not seed the focused date and two neutral posting rows"
+  -- UI-16 input: every focused posting remains visible, including the sixth
+  -- row on compact terminals. Field selection never mutates household evidence.
+  let many : Array Loam.Tui.Record.Row :=
+    #[ { locus := "paypay", amount := "-1" },
+       { locus := "food", amount := "1" },
+       { locus := "paypay", amount := "-2" },
+       { locus := "food", amount := "2" },
+       { locus := "paypay", amount := "-3" },
+       { locus := "last-locus", amount := "987654321" } ]
+  let manyEditor : Loam.Tui.ScheduledCreation.State := {
+    editor with form := { editor.form with rows := many, focus := 12 } }
+  for bounds in
+      ([ { width := 32, height := 10 },
+         { width := 48, height := 14 },
+         { width := 80, height := 24 },
+         { width := 140, height := 40 } ] : List Loam.Tui.Kernel.Bounds) do
+    let image := Loam.Tui.ScheduledCreation.view bounds [] manyEditor
+    let glyphs := String.ofList (image.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (image.lines.length <= bounds.height - 1)
+      "Scheduled input editor exceeded terminal height"
+    for cells in image.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)) <=
+        Loam.Tui.Layout.contentWidth bounds)
+        "Scheduled input editor exceeded terminal width"
+    expect (contains "987654321" glyphs)
+      "Scheduled input did not keep the last focused posting amount visible"
+    expect (contains "[Preview]" glyphs && contains "[Cancel]" glyphs)
+      "Scheduled input clipped its fixed action choices"
+
+  let catalog : Loam.LocusCatalog.Catalog :=
+    [ { locus := ⟨"paypay"⟩, label := "電子マネー", help := "支払元" },
+      { locus := ⟨"food"⟩, label := "食費", help := "食料品" } ]
+  let locusEditor := Loam.Tui.ScheduledCreation.withCatalog
+    { editor with form := { editor.form with focus := 1 } } catalog
+  let regular : Loam.Tui.Kernel.Bounds := { width := 80, height := 24 }
+  let firstImage := Loam.Tui.ScheduledCreation.view regular [] locusEditor
+  let firstText := String.ofList
+    (firstImage.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains "Locus candidates" firstText &&
+    contains "paypay" firstText && contains "food" firstText)
+    "regular Scheduled input did not expose admitted candidates"
+  let moved := (Loam.Tui.ScheduledCreation.update [] locusEditor .down).state
+  let movedImage := Loam.Tui.ScheduledCreation.view regular [] moved
+  expect (firstImage.lines.length == movedImage.lines.length)
+    "candidate selection caused the Scheduled editor to jump vertically"
+  let editedAction : Loam.Tui.ScheduledCreation.State := {
+    manyEditor with form := { manyEditor.form with focus := 15 } }
+  let actionText := String.ofList
+    ((Loam.Tui.ScheduledCreation.view
+      ({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds)
+      [] editedAction).lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains "[Preview]" actionText)
+    "Scheduled input hid the Preview action after six rows"
+
   let rows : Array Loam.Tui.Record.Row :=
     #[ { locus := "paypay", amount := "-700" }
      , { locus := "food", amount := "700" } ]
