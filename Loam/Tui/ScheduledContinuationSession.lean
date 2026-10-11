@@ -219,7 +219,7 @@ private def addNext
   | .ok editor =>
       let catalog ← loadCatalog
       let editor := Loam.Tui.ScheduledCreation.withCatalog editor catalog
-      let frame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
+      let frame := compileWidget (Loam.Tui.ScheduledCreation.view bounds known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds frame
       let (created?, creationNotice) ← Loam.Tui.ScheduledCreationSession.runWithScheduledId
         bounds root known editor frame
