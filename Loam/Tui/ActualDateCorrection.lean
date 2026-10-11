@@ -5,6 +5,7 @@ import Loam.Tui.Main
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 import Loam.Tui.Layout
+import Loam.Tui.ModalSurface
 
 namespace Loam.Tui.ActualDateCorrection
 
@@ -114,4 +115,31 @@ def view (bounds : Bounds) (state : State) : Widget :=
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows panel) footer).map fun row =>
       Loam.Tui.Layout.clipWidgetRow width row)
+/-!
+# Shared adaptive presentation surface
+
+Only the placement of the existing date editor changes. Target selection,
+date validation, edit/preview intent and Actual publication remain owned by
+their existing modules and the Selected Day session.
+-/
+
+/-- A compact date form can float without hiding either date or the target. -/
+def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
+  Loam.Tui.ModalSurface.centered? bounds 72 23 76 18
+
+/-- The date editor receives only the visible space inside the outer frame. -/
+def editorBounds (bounds : Bounds) : Bounds :=
+  match floatingGeometry? bounds with
+  | none => bounds
+  | some region => { width := region.width - 1, height := region.height - 1 }
+
+/-- Keep the original edit and preview renderer, including its compact fallback. -/
+def viewForBounds (bounds : Bounds) (state : State) : Widget :=
+  match floatingGeometry? bounds with
+  | none => view bounds state
+  | some region =>
+      Loam.Tui.Layout.framedPanel region.width region.height
+        "Actual / Date"
+        (view (editorBounds bounds) state) true
+
 end Loam.Tui.ActualDateCorrection
