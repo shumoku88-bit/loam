@@ -32,20 +32,22 @@ partial def run
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.ScheduledCompletion.State) (frame : CompiledWidget) :
     IO Bool := do
-  let step := Loam.Tui.ScheduledCompletion.update world known state
-    (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.ScheduledCompletion.view active known state)
+  let step := Loam.Tui.ScheduledCompletion.updateForBounds bounds world known state key
   if step.cancel then return false
   if step.enableUnresolved then
     match ← Loam.Tui.UnresolvedActivation.enableEditor? root step.state.editor with
     | .error message =>
         let editor := Loam.Tui.UnresolvedActivation.withEnableError step.state.editor message
         let next := { step.state with editor := editor }
-        let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
+        let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view bounds known next)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         run bounds root world known next nextFrame
     | .ok enabled =>
         let next := { step.state with editor := enabled.editor }
-        let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view enabled.known next)
+        let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view bounds enabled.known next)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         run bounds root enabled.world enabled.known next nextFrame
   else
@@ -55,11 +57,11 @@ partial def run
         | .ok () => return true
         | .error message =>
             let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
-            let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known next)
+            let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view bounds known next)
             Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
             run bounds root world known next nextFrame
     | none =>
-        let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known step.state)
+        let nextFrame := compileWidget (Loam.Tui.ScheduledCompletion.view bounds known step.state)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
         run bounds root world known step.state nextFrame
 
