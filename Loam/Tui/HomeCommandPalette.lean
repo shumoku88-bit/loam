@@ -91,13 +91,21 @@ inductive Transition where
   | close
   deriving Repr, DecidableEq
 
+/-- Restore the selected parent group from the actual Commands entries.
+    This avoids a second copy of the group order or retained navigation state. -/
+private def rootGroupSelection (page : Page) : Nat :=
+  ((entries .commands).findIdx? (fun (entry, _) =>
+    match entry with
+    | .page target => decide (target = page)
+    | .action _ => false)).getD 0
+
 /-- Pure navigation; only a leaf can request an existing workspace. -/
 def update (state : State) (key : Loam.Tui.Terminal.Key) : Transition :=
   match key with
   | .left | .escape | .input 'q' | .input 'Q' | .input ' ' =>
       match state.page with
       | .commands => .close
-      | _ => .stay {}
+      | _ => .stay { selected := rootGroupSelection state.page }
   | .right =>
       match (entries state.page)[state.selected]? with
       | some (.page target, _) => .stay { page := target }
@@ -164,7 +172,9 @@ def view (bounds : Bounds) (state : State) : Widget :=
   let body : Widget := .column <|
     header ++ lines ++ List.replicate (page - lines.length) (.row []) ++ footer
   if framed then
-    Loam.Tui.Layout.framedPanel panelWidth height "Commands" body
+    -- Use the existing active-frame accent only for a truly floating overlay.
+    -- Compact full-width presentations keep their quiet border.
+    Loam.Tui.Layout.framedPanel panelWidth height "Commands" body (canFloat bounds)
   else
     .column <| body.lines.map fun cells =>
       .row ((Loam.Tui.Layout.clipCells panelWidth cells).map fun cell =>
