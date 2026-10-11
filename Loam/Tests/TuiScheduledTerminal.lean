@@ -513,6 +513,51 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "build Scheduled replacement draft")
   let replacementPreview : Loam.Tui.ScheduledReplacement.State := {
     movedEditor with mode := .preview replacementDraft ⟨0, by omega⟩ }
+  -- Live-size rendering protects the selected field and the preview action bar.
+  for bounds in
+      ([ {width := 112, height := 40}, {width := 80, height := 24},
+         {width := 48, height := 14}, {width := 32, height := 9},
+         {width := 10, height := 1} ] : List Loam.Tui.Kernel.Bounds) do
+    for editor in [replacementEditor, replacementPreview] do
+      let frame := Loam.Tui.ScheduledReplacement.viewForBounds
+        bounds replacementKnown editor
+      expect (frame.lines.length <= bounds.height - 1)
+        "replacement editor exceeded live terminal rows"
+      for row in frame.lines do
+        expect (Loam.Tui.Layout.displayWidth
+          (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth bounds)
+          "replacement editor exceeded live terminal columns"
+  let compactFocus : Loam.Tui.ScheduledReplacement.State := {
+    replacementEditor with form := {replacementEditor.form with focus := 3} }
+  let visibleFocused := String.ofList
+    ((Loam.Tui.ScheduledReplacement.viewForBounds
+      ({width := 32, height := 9} : Loam.Tui.Kernel.Bounds)
+      replacementKnown compactFocus).lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect ((visibleFocused.splitOn "Posting 2:").length > 1)
+    "compact replacement hid the actively focused Posting"
+  let compactPreview : Loam.Tui.Kernel.Bounds := {width := 32, height := 9}
+  let blocked := Loam.Tui.ScheduledReplacement.updateForBounds
+    compactPreview replacementKnown replacementPreview .enter
+  expect (blocked.publish.isNone &&
+      (blocked.state.notice.splitOn "Enlarge terminal").length > 1)
+    "replacement published without sufficient preview evidence"
+  let tinyPreview : Loam.Tui.Kernel.Bounds := {width := 10, height := 1}
+  expect ((Loam.Tui.ScheduledReplacement.updateForBounds
+      tinyPreview replacementKnown replacementPreview .enter).publish.isNone)
+    "replacement published while 10x1 review was invisible"
+  let reviewablePreview : Loam.Tui.Kernel.Bounds := {width := 80, height := 24}
+  let restored := Loam.Tui.ScheduledReplacement.updateForBounds
+    reviewablePreview replacementKnown blocked.state .enter
+  expect (restored.publish.isSome &&
+      restored.state.target == replacementEditor.target)
+    "replacement resize changed the selected source or blocked reviewed intent"
+  let reviewEnd := (Loam.Tui.ScheduledReplacement.updateForBounds
+    reviewablePreview replacementKnown replacementPreview .«end»).state
+  expect (reviewEnd.previewScroll ==
+      Loam.Tui.ScheduledReplacement.previewScrollLimit reviewablePreview reviewEnd)
+    "replacement preview did not track its visible scroll boundary"
+
   let replacementIntentStep := Loam.Tui.ScheduledReplacement.update
     ["paypay", "rent", "food"] replacementPreview .enter
   let replacementIntent ← requireSome replacementIntentStep.publish
