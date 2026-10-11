@@ -116,8 +116,7 @@ private partial def runLoop
         | .error message =>
             let next := Loam.Tui.ScheduledCompletion.withPublishError step.state message
             let nextFrame := frameFor active known next
-            Loam.Tui.ModalSurface.paint active (activeGeometry? active next)
-              .dirtyDiff frame nextFrame
+            paintStateTransition active state next frame nextFrame parent
             runLoop active root world known next nextFrame parent
     | none =>
         let nextFrame := frameFor active known step.state
