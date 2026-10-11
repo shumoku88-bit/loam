@@ -129,7 +129,16 @@ def main (args : List String) : IO Unit := do
     { width := 48, height := 14 } refused).lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
   expect (refused.mode == .editing && contains "Recheck refused" refusedText)
     "publication refusal did not return to the edit mode with visible notice"
-  let publish := Loam.Tui.ActualDateCorrection.update preview.state .enter
+  -- Unreadable compact reviews must refuse Enter rather than silently publish.
+  for tiny in [({ width := 32, height := 9 } : Loam.Tui.Kernel.Bounds),
+      { width := 10, height := 1 }] do
+    let hidden := Loam.Tui.ActualDateCorrection.updateForBounds tiny preview.state .enter
+    expect (hidden.publish.isNone && hidden.state.input == "2026-09-06" &&
+        hidden.state.target == recorded && hidden.state.mode == .preview &&
+        contains "Enlarge terminal" hidden.state.notice)
+      "compact date review emitted hidden publication or lost retained draft"
+  let publish := Loam.Tui.ActualDateCorrection.updateForBounds
+    { width := 120, height := 40 } preview.state .enter
   let dateDraft ← requireSome publish.publish "date preview did not emit publication intent"
   expect (dateDraft.target == recorded && dateDraft.validOn == "2026-09-06")
     "date editor intent changed target or date"
