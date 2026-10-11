@@ -213,41 +213,26 @@ def moveCandidate (state : State) (back : Bool) : State :=
       { state with candidateIndex :=
           Loam.Tui.LocusPicker.move state.candidateCatalog entered state.candidateIndex back }
 
-/-- Accept exactly the currently selected catalog candidate. -/
+/-- Accept the shared picker's admitted token into this Record's active field. -/
 def acceptSelectedCandidate (state : State) : State :=
-  match selectedCatalogCandidate? state with
-  | none => state
-  | some entry =>
-      { state with
-          form := editActive state.form (fun _ => entry.locus.token)
-          candidateIndex := 0 }
-
-/-- Accept candidate and advance focus to the Amount field. If a candidate is selected, use it;
-    otherwise use the first filtered candidate if available. If the typed text is already an
-    exact matching token and the candidate cursor has not moved, preserve the typed token. -/
-def acceptCandidateAndAdvance (state : State) : State :=
   match activeLocus? state.form with
+  | none => state
   | some entered =>
-      if state.candidateIndex == 0 && (Loam.LocusCatalog.exactToken? state.candidateCatalog entered).isSome then
-        { state with form := moveFocus state.form false, candidateIndex := 0 }
-      else
-        match selectedCatalogCandidate? state with
-        | some entry =>
-            let state' := { state with
-              form := editActive state.form (fun _ => entry.locus.token),
+      match Loam.Tui.LocusPicker.commitToken?
+          state.candidateCatalog entered state.candidateIndex with
+      | none => state
+      | some token =>
+          { state with
+              form := editActive state.form (fun _ => token)
               candidateIndex := 0 }
-            { state' with form := moveFocus state'.form false }
-        | none =>
-            match (catalogCandidates state).head? with
-            | some entry =>
-                let state' := { state with
-                  form := editActive state.form (fun _ => entry.locus.token),
-                  candidateIndex := 0 }
-                { state' with form := moveFocus state'.form false }
-            | none =>
-                { state with form := moveFocus state.form false, candidateIndex := 0 }
-  | none =>
-      { state with form := moveFocus state.form false, candidateIndex := 0 }
+
+/-- Record's Enter/Right both commit the picker and advance to Amount.
+    Form focus and publication authority remain Record-owned. -/
+def acceptCandidateAndAdvance (state : State) : State :=
+  let committed := acceptSelectedCandidate state
+  { committed with
+      form := moveFocus committed.form false
+      candidateIndex := 0 }
 
 /-- Compatibility entrance for existing TUI callers and tests. -/
 def draft? (form : Form) : Except String Loam.MovementAdmission.Draft :=
