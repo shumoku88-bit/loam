@@ -407,7 +407,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               run bounds dataDir root reload snapshot next nextFrame
           | .ok editor =>
-              let editorFrame := compileWidget (Loam.Tui.ActualReversal.view editor)
+              let editorFrame := compileWidget (Loam.Tui.ActualReversal.view bounds editor)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← Loam.Tui.ActualReversalSession.run
                 bounds root
