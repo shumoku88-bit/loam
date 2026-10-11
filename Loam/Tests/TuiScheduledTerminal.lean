@@ -283,11 +283,11 @@ def main (args : List String) : IO Unit := do
     replacementKnown highlighted .tab).state
   expect (tabbed.form.rows[0]!.locus.isEmpty && tabbed.form.focus == 2)
     "replacement Tab unexpectedly committed a selected candidate"
-  let partial : Loam.Tui.ScheduledReplacement.State := {
+  let partialLocus : Loam.Tui.ScheduledReplacement.State := {
     emptyLocus with form := { emptyLocus.form with rows := #[
       { locus := "fo", amount := "-300" }, { locus := "rent", amount := "300" }] } }
   let completed := (Loam.Tui.ScheduledReplacement.update
-    replacementKnown partial .enter).state
+    replacementKnown partialLocus .enter).state
   expect (completed.form.rows[0]!.locus == "food" && completed.form.focus == 2)
     "replacement Enter failed to accept filtered candidate"
   let exact : Loam.Tui.ScheduledReplacement.State := {
