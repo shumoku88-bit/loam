@@ -270,6 +270,28 @@ def main (args : List String) : IO Unit := do
     (geometry.top + geometry.height <= largeBounds.height &&
       geometry.left + geometry.width <= Loam.Tui.Layout.contentWidth largeBounds)
     "floating Record geometry escaped the visible terminal"
+  -- Only outer styling may change, not glyphs, editor size, field focus or caret.
+  let editor := initial "2026-09-06"
+  let inner : Bounds := { width := geometry.width - 1, height := geometry.height - 1 }
+  let previous : Widget := Loam.Tui.Layout.framedPanel geometry.width geometry.height
+    "Record movement" (viewForBounds inner [] editor)
+  let current := Loam.Tui.RecordSession.floatingRecordView geometry [] editor
+  expect (previous.lines.map (fun cells => cells.map Cell.glyph) ==
+    current.lines.map (fun cells => cells.map Cell.glyph) &&
+    current.lines.length == geometry.height)
+    "floating Record changed editor text or frame geometry"
+  let oldCursor := Loam.Tui.RecordSession.focusedCursorPosition? geometry.top geometry.left
+    (Loam.Tui.Runtime.compileWidget previous)
+  let newCursor := Loam.Tui.RecordSession.focusedCursorPosition? geometry.top geometry.left
+    (Loam.Tui.Runtime.compileWidget current)
+  expect (oldCursor == newCursor && newCursor.isSome)
+    "floating Record accent displaced its active input caret"
+  let top := current.lines.head!
+  let corners := top.filter fun cell => cell.glyph == '╭' || cell.glyph == '╮'
+  expect (corners.length == 2 && corners.all (fun cell => cell.style == .series1))
+    "floating Record outer frame did not indicate focus"
+  expect ((current.lines.flatten.filter fun cell => cell.style == .selected).length > 0)
+    "floating Record lost active input highlighting"
 
   let openedText := widgetText (view [] (initial "2026-09-06"))
   expect
