@@ -293,7 +293,7 @@ def main (args : List String) : IO Unit := do
         (String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)) <=
         Loam.Tui.Layout.contentWidth bounds)
         "post-creation pace chooser exceeded terminal width"
-  let .ok twoMonthRule ←
+  let .ok twoMonthRule :=
     Loam.Tui.ScheduledCoverageSetup.ruleFor? createdRecord 2
     | throw (IO.userError "post-creation pace could not build rule")
   expect (twoMonthRule.everyMonths == 2 &&
