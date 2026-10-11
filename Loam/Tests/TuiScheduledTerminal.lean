@@ -191,7 +191,7 @@ def main (args : List String) : IO Unit := do
     let glyphs := String.ofList
       (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
     expect (widget.lines.length <= bounds.height - 1 &&
-        (glyphs.splitOn "Review Actual").length > 1 &&
+        (glyphs.splitOn "Complete / Actual").length > 1 &&
         (glyphs.splitOn "Publish").length > 1)
       "completion preview lost Plan/Actual distinction or action bar"
     for row in widget.lines do
