@@ -466,7 +466,7 @@ jobs:
             else
               status=$?
             fi
-            printf 'CI-TIMING seconds=%s exit=%s command=lake %s\\n' \\
+            printf 'CI-TIMING seconds=%s exit=%s command=lake %s\n' \
               "$((SECONDS - started))" "$status" "$*"
             return "$status"
           }
