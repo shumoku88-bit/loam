@@ -176,7 +176,7 @@ private def editingView (bounds : Bounds) (state : State) : Widget :=
   let panel := Loam.Tui.Layout.framedPanel width height "Actual draft (editable)"
     (.column visible) true
     (some (s!"{focus + 1}/{rows.length}" ++ more))
-  let body := .column (header ++ [panel])
+  let body : Widget := .column (header ++ [panel])
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows body) footer).map fun row =>
       Loam.Tui.Layout.clipWidgetRow width row)
@@ -210,11 +210,24 @@ private def previewFooter (bounds : Bounds) (state : State) (choice : Fin 3) : L
     , muted (Loam.Tui.Layout.clip width
         "Up/Down/PgUp/PgDn review  Tab select  Enter confirm  Esc cancel") ]
 
+private def previewContext (bounds : Bounds) (state : State)
+    (draft : Loam.MovementAdmission.Draft) (available : Nat) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let title := "Scheduled / Complete / Review Actual"
+  let header := planHeader bounds state available title
+  let actualDate := line (Loam.Tui.Layout.clip width ("Actual date: " ++ draft.validOn))
+  let description := line (Loam.Tui.Layout.clip width
+    ("Actual description: " ++ draft.description.getD "(no description)"))
+  if available >= 10 then header ++ [actualDate, description]
+  else if available >= 5 then header ++ [actualDate]
+  else header
+
 /-- Physical review rows available below the Plan/Actual context and above actions. -/
-def previewCapacity (bounds : Bounds) (state : State) (choice : Fin 3) : Nat :=
+def previewCapacity (bounds : Bounds) (state : State)
+    (draft : Loam.MovementAdmission.Draft) (choice : Fin 3) : Nat :=
   let available := Loam.Tui.Layout.footerBodyCapacity bounds
     (previewFooter bounds state choice).length
-  available - (planHeader bounds state available "Scheduled / Complete / Review Actual").length - 2
+  available - (previewContext bounds state draft available).length - 2
 
 /-- Preview scrolling is presentation-only. The publisher still owns completion. -/
 def updateForBounds (bounds : Bounds)
@@ -222,7 +235,7 @@ def updateForBounds (bounds : Bounds)
     (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   match state.editor.mode with
   | .preview draft choice =>
-      let visible := previewCapacity bounds state choice
+      let visible := previewCapacity bounds state draft choice
       let count := (previewRows bounds state draft).length
       let current := Loam.Tui.Scroll.clamp count visible state.editor.previewScroll
       let page := max 1 visible
@@ -248,16 +261,7 @@ private def previewView (bounds : Bounds) (state : State)
   let width := Loam.Tui.Layout.contentWidth bounds
   let footer := previewFooter bounds state choice
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
-  let header := planHeader bounds state available "Scheduled / Complete / Review Actual"
-  let dateLine := "Actual date: " ++ draft.validOn
-  let description := "Actual description: " ++ draft.description.getD "(no description)"
-  let context :=
-    if available >= 10 then
-      header ++ [line (Loam.Tui.Layout.clip width dateLine),
-                 line (Loam.Tui.Layout.clip width description)]
-    else if available >= 7 then
-      header ++ [line (Loam.Tui.Layout.clip width dateLine)]
-    else header
+  let context := previewContext bounds state draft available
   let height := available - context.length
   let capacity := height - 2
   let rows := previewRows bounds state draft
@@ -268,7 +272,7 @@ private def previewView (bounds : Bounds) (state : State)
     (if count < rows.length then " ▼" else "")
   let panel := Loam.Tui.Layout.framedPanel width height "Actual effects (to record)"
     (.column ((rows.drop offset).take capacity)) true (some status)
-  let body := .column (context ++ [panel])
+  let body : Widget := .column (context ++ [panel])
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows body) footer).map fun row =>
       Loam.Tui.Layout.clipWidgetRow width row)
@@ -278,11 +282,7 @@ def view (bounds : Bounds) (known : List String) (state : State) : Widget :=
   match state.editor.mode with
   | .editing => editingView bounds state
   | .enableUnresolved | .originalAmount _ =>
-      let width := Loam.Tui.Layout.contentWidth bounds
-      .column ((Loam.Tui.Layout.fitWithFooter bounds
-        (Loam.Tui.Layout.clippedWidgetRows width
-          (Loam.Tui.Record.view known state.editor)) []).map fun row =>
-            Loam.Tui.Layout.clipWidgetRow width row)
+      Loam.Tui.Record.view known state.editor
   | .preview draft choice => previewView bounds state draft choice
 
 end Loam.Tui.ScheduledCompletion
