@@ -229,6 +229,19 @@ try:
     for rows, cols in ((24, 80), (10, 48), (40, 144), (36, 140)):
         resize(rows, cols)
         bounded(capture(b"Scheduled Series Calendar"), rows, cols)
+    # UI-16: the compact editing screen keeps Preview/Cancel in its fixed
+    # action row, without requiring a larger terminal to reach these controls.
+    resize(14, 48)
+    bounded(capture(b"Scheduled Series Calendar"), 14, 48)
+    os.write(master, b"n")
+    compact_edit = capture(b"Scheduled / New / Edit")
+    bounded(compact_edit, 14, 48)
+    assert b"[Preview]" in ansi.sub(b"", compact_edit)
+    assert b"[Cancel]" in ansi.sub(b"", compact_edit)
+    os.write(master, b"\x1b")
+    bounded(capture(b"Scheduled Series Calendar"), 14, 48)
+    resize(36, 140)
+    bounded(capture(b"Scheduled Series Calendar"), 36, 140)
     # UI-16: review signed Scheduled postings in a real PTY, then cancel.
     # No canonical Scheduled or Actual evidence may be published by preview.
     os.write(master, b"n")
