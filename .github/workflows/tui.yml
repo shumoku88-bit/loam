@@ -128,6 +128,8 @@ on:
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiTextFieldGeometry.lean'
+      - 'Loam/Tui/InputEdit.lean'
+      - 'Loam/Tests/TuiInputEdit.lean'
       - 'Loam/Tests/TuiHomeNavigation.lean'
       - 'tests/test_date_jump.lean'
       - 'Loam/Tests/TuiAttentionAdministration.lean'
@@ -323,6 +325,8 @@ on:
       - 'Loam/Tests/TuiSelectedDay.lean'
       - 'Loam/Tests/TuiHelpFooter.lean'
       - 'Loam/Tests/TuiTextFieldGeometry.lean'
+      - 'Loam/Tui/InputEdit.lean'
+      - 'Loam/Tests/TuiInputEdit.lean'
       - 'Loam/Tests/TuiHomeNavigation.lean'
       - 'tests/test_date_jump.lean'
       - 'Loam/Tests/TuiAttention.lean'
@@ -460,6 +464,9 @@ jobs:
           lake env lean --run Loam/Tests/TuiScheduled.lean
           lake env lean --run Loam/Tests/TuiLocusPicker.lean
           lake env lean --run Loam/Tests/TuiTextFieldGeometry.lean
+          lake env lean --run Loam/Tests/TuiInputEdit.lean
+          lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/tui-record-input-pr"
+          lake env lean --run Loam/Tests/TuiAttentionAdministration.lean
           lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create-pr"
           lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal-pr"
           lake env lean --run Loam/Tests/TuiScheduledContinuation.lean

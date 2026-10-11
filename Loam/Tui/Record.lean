@@ -6,6 +6,7 @@ import Loam.Presentation.Record
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
+import Loam.Tui.InputEdit
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
 import Loam.Tui.Layout
@@ -375,22 +376,13 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
                 notice := "Original amount cleared." } }
         | .tab | .shiftTab =>
             { state := { state with mode := .originalAmount (moveOriginalFocus editor), notice := "" } }
-        | .backspace =>
-            { state := { state with
-                mode := .originalAmount
-                  (editOriginalActive editor (fun text => Loam.Tui.Terminal.backspaceText text))
-                notice := "" } }
-        | .input char =>
-            { state := { state with
-                mode := .originalAmount
-                  (editOriginalActive editor (fun text => text.push char))
-                notice := "" } }
-        | .paste text =>
-            let clean := Loam.Tui.Terminal.singleLinePaste text
-            { state := { state with
-                mode := .originalAmount
-                  (editOriginalActive editor (fun curr => curr ++ clean))
-                notice := "" } }
+        | .backspace | .input _ | .paste _ =>
+            match Loam.Tui.InputEdit.operation? key with
+            | none => { state }
+            | some edit =>
+                { state := { state with
+                    mode := .originalAmount (editOriginalActive editor edit)
+                    notice := "" } }
         | .enter =>
             if editor.focus.val = 0 then
               { state := { state with
@@ -434,19 +426,13 @@ def update (world : Loam.MovementAdmission.World) (_known : List String)
             { state := { state with form := dropRow state.form, candidateIndex := 0, notice := "" } }
         | .tab => { state := { state with form := moveFocus state.form false, candidateIndex := 0 } }
         | .shiftTab => { state := { state with form := moveFocus state.form true, candidateIndex := 0 } }
-        | .backspace =>
-            { state := { state with
-                form := editActive state.form (fun text => Loam.Tui.Terminal.backspaceText text),
-                notice := "", candidateIndex := 0 } }
-        | .input char =>
-            { state := { state with
-                form := editActive state.form (fun text => text.push char),
-                notice := "", candidateIndex := 0 } }
-        | .paste text =>
-            let clean := Loam.Tui.Terminal.singleLinePaste text
-            { state := { state with
-                form := editActive state.form (fun curr => curr ++ clean),
-                notice := "", candidateIndex := 0 } }
+        | .backspace | .input _ | .paste _ =>
+            match Loam.Tui.InputEdit.operation? key with
+            | none => { state }
+            | some edit =>
+                { state := { state with
+                    form := editActive state.form edit
+                    notice := "", candidateIndex := 0 } }
         | .up => { state := moveCandidate state true }
         | .down => { state := moveCandidate state false }
         | .right => { state := acceptCandidateAndAdvance state }

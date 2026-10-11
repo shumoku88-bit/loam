@@ -140,6 +140,14 @@ code-point count, and do not alter the retained field value. Record, Scheduled
 creation, and Attention reuse these helpers; each screen still owns its label
 width, focus, retained input, and publication semantics.
 
+Single-line input editing uses `Loam.Tui.InputEdit` for Backspace, typed
+characters, and the existing first-line bracketed-paste normalization.
+Non-text keys return no edit. Record, Scheduled creation/replacement, and
+Attention apply the same pure operation to their active field, while each
+editor still owns its own focus, preview, candidate reset, validation,
+and publication transitions. This does not introduce generic forms or
+override editor-specific actions.
+
 With no Actual rows, Ctrl-u/d scrolls the remaining Scheduled evidence. In calendar
 focus, Enter or Esc drills Year -> Month -> Day; Esc at Day does nothing.
 
