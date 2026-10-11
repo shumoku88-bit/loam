@@ -11,6 +11,7 @@ import Loam.Tui.ScheduledCancellationSession
 import Loam.Tui.ScheduledCreation
 import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.ScheduledCompletion
+import Loam.Tui.ScheduledCompletionSession
 import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
 import Lean.Elab.Tactic.Omega
@@ -167,6 +168,53 @@ def main (args : List String) : IO Unit := do
     editor with
     editor := { editor.editor with
       mode := .preview movementDraft ⟨0, by omega⟩ } }
+  -- Scheduled completion floats only its bounded Actual draft. This must not
+  -- absorb the independently durable post-completion continuation process.
+  let completionRoomy : Loam.Tui.Kernel.Bounds := {width := 120, height := 40}
+  let some completionRegion :=
+      Loam.Tui.ScheduledCompletionSession.floatingGeometry? completionRoomy
+    | throw (IO.userError "Scheduled completion failed to float at 120x40")
+  expect (completionRegion.width == 88 && completionRegion.height == 33 &&
+      completionRegion.top == 3 && completionRegion.left == 15)
+    "Scheduled completion floating rectangle diverged from common surface"
+  for candidate in [editor, previewState] do
+    let some activeRegion :=
+        Loam.Tui.ScheduledCompletionSession.activeGeometry? completionRoomy candidate
+      | throw (IO.userError "Scheduled completion editing/preview did not float")
+    let inside := Loam.Tui.ScheduledCompletionSession.editorBounds
+      completionRoomy candidate
+    expect (inside.width == activeRegion.width - 1 &&
+        inside.height == activeRegion.height - 1)
+      "Scheduled completion saw stale terminal instead of inner bounds"
+    let floated := Loam.Tui.ScheduledCompletionSession.viewForBounds
+      completionRoomy ["paypay", "rent", "food"] candidate
+    expect (floated.lines.length == activeRegion.height)
+      "floating completion frame lost its expected height"
+    for row in floated.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <= activeRegion.width)
+        "floating completion overran ModalSurface width"
+  expect ((Loam.Tui.ScheduledCompletionSession.activeGeometry?
+      completionRoomy unresolvedPrompt.state).isNone)
+    "unresolved admission prompt incorrectly adopted floating completion dimensions"
+  for compact in
+      ([{width := 80, height := 24}, {width := 48, height := 14},
+        {width := 32, height := 9}, {width := 10, height := 1}]
+       : List Loam.Tui.Kernel.Bounds) do
+    expect ((Loam.Tui.ScheduledCompletionSession.activeGeometry?
+      compact previewState).isNone)
+      "compact Scheduled completion inappropriately floated"
+    let view := Loam.Tui.ScheduledCompletionSession.viewForBounds
+      compact ["paypay", "rent", "food"] previewState
+    expect (view.lines.length <= compact.height - 1)
+      "compact completion exceeded terminal rows"
+    if compact.height <= 9 then
+      let guarded := Loam.Tui.ScheduledCompletion.updateForBounds
+        (Loam.Tui.ScheduledCompletionSession.editorBounds compact previewState)
+        initialWorld ["paypay", "rent", "food"] previewState .enter
+      expect (guarded.publish.isNone)
+        "short completion preview allowed hidden Actual publication"
+
   -- UI-17: editing is an Actual draft, anchored to an unchanged Plan target.
   let knownLoci := ["paypay", "rent", "food"]
   let mut previewFocus := editor
