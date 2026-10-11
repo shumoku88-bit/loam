@@ -331,8 +331,8 @@ def view (bounds : Bounds) (_known : List String) (state : State) : Widget :=
         (.column [
           .row [span " Due: " .muted, span draft.scheduledOn],
           .row [span " Measure: " .muted, span draft.movement.measure.token],
-          .row [span " Independent expectation; no Actual or recurrence." .muted]
-        ]) true
+          .row [span " No Actual or recurrence is created." .muted]
+        ]) false
       let postings := previewPostingRows (width - 2) draft
       let visible := previewCapacity bounds state
       let offset := Loam.Tui.Scroll.clamp postings.length visible state.previewScroll
@@ -342,7 +342,7 @@ def view (bounds : Bounds) (_known : List String) (state : State) : Widget :=
         (if count < postings.length then " ▼" else "")
       let review := Loam.Tui.Layout.framedPanel width (capacity - 5)
         "Expected postings" (.column ((postings.drop offset).take visible))
-        false (some progress)
+        true (some progress)
       .column ((Loam.Tui.Layout.fitWithFooter bounds
         (Loam.Tui.Layout.widgetRows (.column [summary, review])) footer).map fun row =>
           Loam.Tui.Layout.clipWidgetRow width row)
