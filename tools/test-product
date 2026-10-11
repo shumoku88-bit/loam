@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Keep the original fail-fast exit status while recording per-test wall time.
+# CI can now distinguish a slow test body from repeated Lake startup/build cost.
 run() {
+  local started=$SECONDS status=0
   printf '==> %s\n' "$*"
-  "$@"
+  if "$@"; then
+    :
+  else
+    status=$?
+  fi
+  printf 'CI-TIMING seconds=%s exit=%s command=%s\n' \
+    "$((SECONDS - started))" "$status" "$*"
+  return "$status"
 }
 
 run_measure_scale_administration() {
