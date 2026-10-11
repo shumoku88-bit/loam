@@ -4,6 +4,7 @@ import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.Tui.EditorSession
 import Loam.Tui.Main
 import Loam.Tui.Record
+import Loam.Tui.LocusPicker
 import Loam.Tui.ScheduledPostingForm
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
@@ -37,6 +38,8 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  /-- Local highlight in the current admitted Locus candidate list. -/
+  candidateIndex : Nat := 0
 
 abbrev Step :=
   Loam.Tui.EditorSession.Step State Loam.ScheduledReplacementPublisher.Draft
@@ -62,14 +65,35 @@ def initial?
     form := { date := record.scheduledOn, rows := rows }
   }
 
-private def candidate? (known : List String) (form : Form) : Option String := do
-  let entered ← Loam.Tui.ScheduledPostingForm.activeLocus? form
-  known.find? fun token => entered.isPrefixOf token && token != entered
+/-- Existing write-admitted token vocabulary, without inventing label metadata. -/
+private def candidateCatalog (known : List String) : Loam.LocusCatalog.Catalog :=
+  Loam.LocusCatalog.forLoci (known.map fun token => (⟨token⟩ : LocusId)) []
 
-private def acceptCandidate (known : List String) (form : Form) : Form :=
-  match candidate? known form with
-  | none => form
-  | some token => Loam.Tui.ScheduledPostingForm.editActive form (fun _ => token)
+private def selectedToken? (known : List String) (state : State) : Option String := do
+  let entered ← Loam.Tui.ScheduledPostingForm.activeLocus? state.form
+  Loam.Tui.LocusPicker.commitToken?
+    (candidateCatalog known) entered state.candidateIndex
+
+private def moveCandidate (known : List String) (state : State) (back : Bool) : State :=
+  match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
+  | none => { state with candidateIndex := 0 }
+  | some entered =>
+      { state with candidateIndex :=
+          Loam.Tui.LocusPicker.move (candidateCatalog known) entered state.candidateIndex back }
+
+private def acceptCandidate (known : List String) (state : State) : State :=
+  match selectedToken? known state with
+  | none => state
+  | some token =>
+      { state with
+          form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun _ => token)
+          candidateIndex := 0 }
+
+private def acceptCandidateAndAdvance (known : List String) (state : State) : State :=
+  let committed := acceptCandidate known state
+  { committed with
+      form := Loam.Tui.ScheduledPostingForm.moveFocus committed.form false
+      candidateIndex := 0 }
 
 /--
 Parse the local form and perform advisory pure checks before preview. The shared
@@ -129,29 +153,33 @@ def update
         | _ => { state }
     | .editing =>
         match key with
-        | .tab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false } }
-        | .shiftTab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form true } }
+        | .tab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false, candidateIndex := 0 } }
+        | .shiftTab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form true, candidateIndex := 0 } }
         | .backspace =>
             { state := { state with
                 form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => Loam.Tui.Terminal.backspaceText text)
-                notice := "" } }
+                notice := "", candidateIndex := 0 } }
         | .input char =>
             { state := { state with
                 form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => text.push char)
-                notice := "" } }
+                notice := "", candidateIndex := 0 } }
         | .paste text =>
             let clean := Loam.Tui.Terminal.singleLinePaste text
             { state := { state with
                 form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun curr => curr ++ clean)
-                notice := "" } }
-        | .right => { state := { state with form := acceptCandidate known state.form } }
+                notice := "", candidateIndex := 0 } }
+        | .up => { state := moveCandidate known state true }
+        | .down => { state := moveCandidate known state false }
+        | .right => { state := acceptCandidate known state }
         | .enter =>
             let action := Loam.Tui.ScheduledPostingForm.firstAction state.form
             let focus := state.form.focus
-            if focus + 1 = action then
+            if (Loam.Tui.ScheduledPostingForm.activeLocus? state.form).isSome then
+              { state := acceptCandidateAndAdvance known state }
+            else if focus + 1 = action then
               { state := preview state }
             else if focus < action then
-              { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false } }
+              { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false, candidateIndex := 0 } }
             else if focus = action && state.form.rows.size >= 6 then
               { state := { state with notice := "This editor supports up to six posting rows." } }
             else if focus = action then
@@ -195,9 +223,9 @@ def view (known : List String) (state : State) : Widget :=
         [ .row ((actions.zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
               (if form.focus = Loam.Tui.ScheduledPostingForm.firstAction form + index then .selected else .normal))
-        , line ("Candidate: " ++ (candidate? known form).getD "")
+        , line ("Candidate: " ++ (selectedToken? known state).getD "")
         , line ("Signed " ++ state.measure.token ++ " postings are editable replacement content; no Actual is created.")
-        , line "Tab / Shift-Tab focus   Enter next/preview/action   Right accept candidate"
+        , line "Tab / Shift-Tab focus   Up / Down choose   Enter accept/next   Right accept"
         , line "Esc cancel   Backspace delete   Drop keeps at least two postings"
         , line state.notice
         ]

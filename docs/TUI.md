@@ -792,6 +792,19 @@ If the just-published Scheduled cannot be re-read, creation remains successful
 and the status explains why pace setup was unavailable. Current child-editor
 resize behavior remains a distinct UI-16 follow-up.
 
+### Scheduled replacement Locus picker
+
+The explicit Scheduled replacement editor (`r` on a selected occurrence)
+keeps the original date and signed posting values until the user edits them.
+When a Posting Locus is focused, Up/Down changes the highlighted entry in the
+currently write-admitted token catalog. Enter commits the highlighted **stable
+Locus token** and moves to Amount; Right commits while staying on Locus.
+Tab changes focus without accepting the candidate. An already exact admitted
+token is kept unchanged; if no admitted candidate matches, existing typed text
+is retained for the publisher's normal validation rather than silently
+replaced. This picker shares `LocusPicker.commitToken?` with Record and
+Scheduled creation. Display metadata never admits or remaps write identities.
+
 ### Checked batch amount editing
 
 `b` opens **Batch amount edit** from the Series Calendar, plan detail, Months, or
