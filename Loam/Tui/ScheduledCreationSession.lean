@@ -27,13 +27,13 @@ partial def collectDraft
     (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
     IO (Option Loam.ScheduledCreationPublisher.Draft) := do
-  let step := Loam.Tui.ScheduledCreation.update known state
+  let step := Loam.Tui.ScheduledCreation.updateForBounds bounds known state
     (← Loam.Tui.Terminal.readKey)
   if step.cancel then return none
   match step.publish with
   | some draft => return some draft
   | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view known step.state)
+      let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view bounds known step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       collectDraft bounds known step.state nextFrame
 
@@ -46,8 +46,8 @@ def runWithScheduledId
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
     IO (Option ScheduledId × String) :=
   Loam.Tui.EditorSession.runUntilPublished bounds
-    (Loam.Tui.ScheduledCreation.update known)
-    (Loam.Tui.ScheduledCreation.view known)
+    (Loam.Tui.ScheduledCreation.updateForBounds bounds known)
+    (Loam.Tui.ScheduledCreation.view bounds known)
     Loam.Tui.ScheduledCreation.withPublishError
     (none, "Scheduled creation cancelled.")
     (fun draft => do
