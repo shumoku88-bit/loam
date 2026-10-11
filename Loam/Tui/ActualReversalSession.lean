@@ -11,14 +11,19 @@ Run one local reversal confirmation session. Durable admission and exact inverse
 construction remain exclusively owned by the shared publisher behind
 `HouseholdCommand`.
 -/
-def run
+def runAdaptive
     (bounds : Loam.Tui.Kernel.Bounds)
     (root : System.FilePath)
     (state : Loam.Tui.ActualReversal.State)
-    (frame : Loam.Tui.Runtime.CompiledWidget) : IO String :=
-  Loam.Tui.EditorSession.runUntilPublishedResizing bounds
-    Loam.Tui.ActualReversal.updateForBounds
-    Loam.Tui.ActualReversal.view
+    (frame : Loam.Tui.Runtime.CompiledWidget)
+    (parent : Loam.Tui.Kernel.Bounds → Loam.Tui.Runtime.CompiledWidget) : IO String :=
+  Loam.Tui.EditorSession.runUntilPublishedAdaptive bounds
+    Loam.Tui.ActualReversal.floatingGeometry?
+    parent
+    (fun active editor key =>
+      Loam.Tui.ActualReversal.updateForBounds
+        (Loam.Tui.ActualReversal.editorBounds active) editor key)
+    Loam.Tui.ActualReversal.viewForBounds
     Loam.Tui.ActualReversal.withPublishError
     "Actual reversal cancelled."
     (fun draft => do

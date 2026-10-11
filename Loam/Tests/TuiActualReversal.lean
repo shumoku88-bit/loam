@@ -123,6 +123,32 @@ def main (args : List String) : IO Unit := do
   expect (!(Loam.Tui.ActualReversal.initial? mixedRecord "2026-09-08").isOk)
     "reversal editor admitted a mixed-Measure Actual"
 
+  -- The floating frame must preserve exact identity, dates and compact view.
+  let roomy : Loam.Tui.Kernel.Bounds := { width := 120, height := 40 }
+  let some rectangle := Loam.Tui.ActualReversal.floatingGeometry? roomy
+    | throw (IO.userError "reversal editor did not float at roomy bounds")
+  expect (rectangle.width == 76 && rectangle.height == 21 &&
+      rectangle.top == 9 && rectangle.left == 21)
+    "reversal floating geometry changed shared centered layout"
+  let floating := Loam.Tui.ActualReversal.viewForBounds roomy editor
+  let floatingText := String.ofList (floating.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (floating.lines.length == rectangle.height &&
+    contains recorded.token floatingText &&
+    contains "Target date" floatingText && contains "Reversal date" floatingText)
+    "floating reversal lost its exact target or date summary"
+  for cells in floating.lines do
+    expect (Loam.Tui.Layout.displayWidth (String.ofList
+      (cells.map Loam.Tui.Kernel.Cell.glyph)) == rectangle.width)
+      "floating reversal overflowed its frame width"
+  for tiny in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
+      { width := 32, height := 9 }, { width := 10, height := 1 }] do
+    expect ((Loam.Tui.ActualReversal.floatingGeometry? tiny).isNone)
+      "compact reversal unexpectedly floated"
+    let compact := Loam.Tui.ActualReversal.viewForBounds tiny editor
+    expect (compact.lines == (Loam.Tui.ActualReversal.view tiny editor).lines &&
+      compact.lines.length <= tiny.height - 1)
+      "compact reversal changed its original visible contract"
+
   let inverse := Loam.Tui.ActualReversal.inversePreview editor
   expect (inverse.length == 2)
     "reversal preview lost postings"
@@ -174,6 +200,10 @@ def main (args : List String) : IO Unit := do
   let last := Loam.Tui.ActualReversal.view smallBounds jumped
   expect (last.lines.length <= smallBounds.height - 1)
     "scrolled long inverse review exceeded terminal height"
+  let floated := Loam.Tui.ActualReversal.updateForBounds
+    (Loam.Tui.ActualReversal.editorBounds roomy) preview.state .enter
+  expect (floated.publish.isSome && floated.state.target == recorded)
+    "floating reversal could not confirm its exact inverse after review"
   let publish := Loam.Tui.ActualReversal.update preview.state .enter
   let draft ← requireSome publish.publish "reversal preview did not emit publication intent"
   expect (draft.target == recorded && draft.validOn == "2026-09-08")

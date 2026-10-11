@@ -6,6 +6,7 @@ import Loam.Tui.Main
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 import Loam.Tui.Layout
+import Loam.Tui.ModalSurface
 import Loam.Tui.Scroll
 
 namespace Loam.Tui.ActualReversal
@@ -198,4 +199,17 @@ def view (bounds : Bounds) (state : State) : Widget :=
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows (.column panels)) actions).map fun row =>
       Loam.Tui.Layout.clipWidgetRow width row)
+/-- Float only when the exact inverse review and explicit confirmation fit.
+    Compact terminals retain the original full-screen view. -/
+def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
+  Loam.Tui.ModalSurface.centered? bounds 72 24 76 21
+
+def editorBounds (bounds : Bounds) : Bounds :=
+  Loam.Tui.ModalSurface.contentBounds bounds (floatingGeometry? bounds)
+
+/-- The same date input, inverse preview and guarded action in either mode. -/
+def viewForBounds (bounds : Bounds) (state : State) : Widget :=
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Actual / Reverse" (fun inner => view inner state)
+
 end Loam.Tui.ActualReversal
