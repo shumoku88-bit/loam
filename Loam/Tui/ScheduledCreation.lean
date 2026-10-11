@@ -11,6 +11,7 @@ import Loam.Tui.ScheduledPostingForm
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
 import Loam.Tui.Layout
+import Loam.Tui.Scroll
 
 namespace Loam.Tui.ScheduledCreation
 
@@ -39,6 +40,8 @@ structure State where
   notice : String := ""
   candidateCatalog : Loam.LocusCatalog.Catalog := []
   candidateIndex : Nat := 0
+  /-- Offset within the wrapped confirmation postings, never household state. -/
+  previewScroll : Nat := 0
 
 abbrev Step :=
   Loam.Tui.EditorSession.Step State Loam.ScheduledCreationPublisher.Draft
@@ -141,7 +144,7 @@ def draft? (state : State) : Except String Loam.ScheduledCreationPublisher.Draft
 private def preview (state : State) : State :=
   match draft? state with
   | .error message => { state with notice := message }
-  | .ok draft => { state with mode := .preview draft ⟨0, by omega⟩, notice := "" }
+  | .ok draft => { state with mode := .preview draft ⟨0, by omega⟩, previewScroll := 0, notice := "" }
 
 /-- Local editor transition. Durable intent is emitted only from preview Publish. -/
 def update
@@ -202,7 +205,7 @@ def update
 
 /-- Failed shared publication returns to editable local evidence. -/
 def withPublishError (state : State) (message : String) : State :=
-  { state with mode := .editing, notice := message }
+  { state with mode := .editing, previewScroll := 0, notice := message }
 
 private def line (text : String) : Widget := .row [span text]
 
@@ -210,8 +213,76 @@ private def field (form : Form) (index : Nat) (label text : String) : Widget :=
   .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
     (if form.focus = index then .selected else .normal)]
 
+private def wrapped (columns : Nat) (text : String) (style : Style) : List Widget :=
+  (Loam.Tui.Layout.wrapColumns columns text).map fun piece => .row [span piece style]
+
+/-- Exact signed quanta and full Locus/Measure tokens, including long Unicode values. -/
+private def previewPostingRows (columns : Nat)
+    (draft : Loam.ScheduledCreationPublisher.Draft) : List Widget :=
+  let postings := draft.movement.changes.flatMap fun change =>
+    let signed := (if change.quantity.quanta > 0 then "+" else "") ++
+      toString change.quantity.quanta
+    wrapped columns
+      (" " ++ change.coordinate.token ++ "  " ++ signed ++
+        " " ++ draft.movement.measure.token) .normal
+  postings ++ wrapped columns
+    (" Balanced total: " ++ toString
+      (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
+      " " ++ draft.movement.measure.token) .muted
+
+private def previewFooter (bounds : Bounds) (state : State) (choice : Fin 3) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := wrapped width state.notice .normal
+  Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    (if feedback.isEmpty then [line ""] else feedback) ++
+    [ .row ((["Publish Scheduled", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+        span ("[" ++ label ++ "] ")
+          (if choice.val = index then .selected else .normal))
+    , .row [span " Tab/Left/Right select  Enter confirm  Esc cancel" .muted]
+    , .row [span " Up/Down/PgUp/PgDn/Home/End review postings" .muted]
+    ]
+
+/-- Capacity is derived from the actual terminal and the reserved confirmation footer. -/
+def previewCapacity (bounds : Bounds) (state : State) : Nat :=
+  match state.mode with
+  | .editing => 0
+  | .preview _ choice =>
+      (Loam.Tui.Layout.footerBodyCapacity bounds
+        (previewFooter bounds state choice).length - 5) - 2
+
+def previewScrollLimit (bounds : Bounds) (state : State) : Nat :=
+  match state.mode with
+  | .editing => 0
+  | .preview draft _ =>
+      Loam.Tui.Scroll.maxOffset
+        (previewPostingRows (Loam.Tui.Layout.contentWidth bounds - 2) draft).length
+        (previewCapacity bounds state)
+
+/-- Review navigation never changes an editable field or the publish draft. -/
+def updateForBounds (bounds : Bounds) (known : List String) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  match state.mode with
+  | .editing => update known state key
+  | .preview _ choice =>
+      let limit := previewScrollLimit bounds state
+      let current := min state.previewScroll limit
+      let page := max 1 (previewCapacity bounds state)
+      match key with
+      | .up => { state := { state with previewScroll := current - 1 } }
+      | .down => { state := { state with previewScroll := min limit (current + 1) } }
+      | .pageUp => { state := { state with previewScroll := current - page } }
+      | .pageDown => { state := { state with previewScroll := min limit (current + page) } }
+      | .home => { state := { state with previewScroll := 0 } }
+      | .«end» => { state := { state with previewScroll := limit } }
+      | .enter =>
+          if choice.val == 0 && previewCapacity bounds state < 2 then
+            { state := { state with
+                notice := "Enlarge terminal to review Scheduled postings before publishing." } }
+          else update known state key
+      | _ => update known state key
+
 /-- Creation exposes only Scheduled content and does not invent an Actual description. -/
-def view (_known : List String) (state : State) : Widget :=
+def view (bounds : Bounds) (_known : List String) (state : State) : Widget :=
   match state.mode with
   | .editing =>
       let form := state.form
@@ -252,22 +323,28 @@ def view (_known : List String) (state : State) : Widget :=
         , line state.notice
         ]
   | .preview draft choice =>
-      .column <|
-        [ line "Scheduled / New / Preview"
-        , line ("Due: " ++ draft.scheduledOn)
-        ] ++
-        (draft.movement.changes.take 12).map (fun change =>
-          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++
-            " " ++ draft.movement.measure.token)) ++
-        [ line ("Balanced total: " ++ toString
-            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
-            " " ++ draft.movement.measure.token)
-        , line "Publish appends one independent Scheduled occurrence."
-        , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if choice.val = index then .selected else .normal))
-        , line "Tab / Shift-Tab select   Enter confirm   Esc cancel"
-        , line state.notice
-        ]
+      let width := Loam.Tui.Layout.contentWidth bounds
+      let footer := previewFooter bounds state choice
+      let capacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+      let summary := Loam.Tui.Layout.framedPanel width (min 5 capacity)
+        "Scheduled / New / Preview"
+        (.column [
+          .row [span " Due: " .muted, span draft.scheduledOn],
+          .row [span " Measure: " .muted, span draft.movement.measure.token],
+          .row [span " No Actual or recurrence is created." .muted]
+        ]) false
+      let postings := previewPostingRows (width - 2) draft
+      let visible := previewCapacity bounds state
+      let offset := Loam.Tui.Scroll.clamp postings.length visible state.previewScroll
+      let count := min (offset + visible) postings.length
+      let progress := s!"{count}/{postings.length} lines" ++
+        (if offset > 0 then " ▲" else "") ++
+        (if count < postings.length then " ▼" else "")
+      let review := Loam.Tui.Layout.framedPanel width (capacity - 5)
+        "Expected postings" (.column ((postings.drop offset).take visible))
+        true (some progress)
+      .column ((Loam.Tui.Layout.fitWithFooter bounds
+        (Loam.Tui.Layout.widgetRows (.column [summary, review])) footer).map fun row =>
+          Loam.Tui.Layout.clipWidgetRow width row)
 
 end Loam.Tui.ScheduledCreation

@@ -12,6 +12,9 @@ open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
   | some result => pure result
@@ -109,6 +112,68 @@ def main (args : List String) : IO Unit := do
 
   let previewState : Loam.Tui.ScheduledCreation.State := {
     edited with mode := .preview draft ⟨0, by omega⟩ }
+  -- UI-16: a compact confirmation must retain the signed meaning, due date,
+  -- selected publication action and enough room to inspect its postings.
+  let compact : Loam.Tui.Kernel.Bounds := { width := 48, height := 14 }
+  let previewWidget := Loam.Tui.ScheduledCreation.view compact [] previewState
+  let previewText := String.ofList
+    (previewWidget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains "Scheduled / New / Preview" previewText &&
+    contains "Expected postings" previewText &&
+    contains "2026-09-12" previewText &&
+    contains "-700 jpy" previewText && contains "+700 jpy" previewText &&
+    contains "Publish Scheduled" previewText)
+    "compact Scheduled confirmation lost due date, signed postings or selected action"
+  expect (previewWidget.lines.length <= compact.height - 1)
+    "Scheduled confirmation exceeded compact terminal height"
+  for cells in previewWidget.lines do
+    expect (Loam.Tui.Layout.displayWidth
+      (String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)) <=
+      Loam.Tui.Layout.contentWidth compact)
+      "Scheduled confirmation exceeded compact terminal width"
+
+  let tiny : Loam.Tui.Kernel.Bounds := { width := 32, height := 9 }
+  let blocked := Loam.Tui.ScheduledCreation.updateForBounds
+    tiny ["paypay", "food"] previewState .enter
+  expect (blocked.publish.isNone && contains "Enlarge terminal" blocked.state.notice)
+    "Scheduled review published without room to inspect its postings"
+  let allowed := Loam.Tui.ScheduledCreation.updateForBounds
+    compact ["paypay", "food"] previewState .enter
+  expect allowed.publish.isSome
+    "Scheduled review blocked publication despite sufficient viewport"
+
+  let large := "123456789012345678901234567890"
+  let longLocus := "long" ++ String.ofList (List.replicate 70 'x')
+  let longEditor : Loam.Tui.ScheduledCreation.State := {
+    edited with form := { edited.form with rows :=
+      #[ { locus := "paypay", amount := "-" ++ large }
+       , { locus := longLocus, amount := large } ] } }
+  let .ok longDraft := Loam.Tui.ScheduledCreation.draft? longEditor
+    | throw (IO.userError "build long Scheduled preview fixture")
+  let longPreview : Loam.Tui.ScheduledCreation.State := {
+    longEditor with mode := .preview longDraft ⟨0, by omega⟩ }
+  let limit := Loam.Tui.ScheduledCreation.previewScrollLimit compact longPreview
+  expect (limit > 0) "long Scheduled confirmation did not offer scrolling"
+  let last := (Loam.Tui.ScheduledCreation.updateForBounds
+    compact [] longPreview .«end»).state
+  expect (last.previewScroll == limit)
+    "Scheduled review End failed to expose trailing postings"
+  let endText := String.ofList
+    ((Loam.Tui.ScheduledCreation.view compact [] last).lines.flatten.map
+      Loam.Tui.Kernel.Cell.glyph)
+  expect (contains "Balanced total" endText)
+    "Scheduled review scrolling could not reach exact total"
+  let reset := (Loam.Tui.ScheduledCreation.updateForBounds
+    compact [] last .home).state
+  expect (reset.previewScroll == 0)
+    "Scheduled review Home failed to return to the first posting"
+  let selectedEdit := (Loam.Tui.ScheduledCreation.updateForBounds
+    compact [] longPreview .tab).state
+  let editStep := Loam.Tui.ScheduledCreation.updateForBounds
+    compact [] selectedEdit .enter
+  expect (editStep.publish.isNone)
+    "Scheduled preview Edit choice unexpectedly published"
+
   let publishStep := Loam.Tui.ScheduledCreation.update
     ["paypay", "rent", "food"] previewState .enter
   let intent ← requireSome publishStep.publish

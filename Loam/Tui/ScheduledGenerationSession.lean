@@ -56,7 +56,7 @@ partial def collectDrafts
       match editorForCandidate source catalog candidate with
       | .error message => return .error message
       | .ok editor =>
-          let frame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
+          let frame := compileWidget (Loam.Tui.ScheduledCreation.view bounds known editor)
           Loam.Tui.Terminal.redrawFromBlank bounds frame
           match ← Loam.Tui.ScheduledCreationSession.collectDraft bounds known editor frame with
           | none => return .ok none

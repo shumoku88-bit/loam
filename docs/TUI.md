@@ -739,6 +739,28 @@ be completed, replaced, or cancelled. `q` returns to the Series Calendar. The ol
 `g` generation and `m` monitoring keys remain compatibility/advanced paths but are
 no longer part of the ordinary footer grammar.
 
+### Scheduled creation review (UI-16, first slice)
+
+The existing `n` entrance collects an explicit due date and two to six signed
+postings with the existing Locus picker. Its editor remains a separate refinement
+task. Enter from the last posting or the Preview action opens a confirmation
+without creating any household evidence.
+
+The confirmation uses a fixed summary for the due date and Measure, a bounded
+scrollable list of **every** signed posting and the balanced total, and a reserved
+notice/action/navigation footer. Positive quanta have an explicit `+`, and long
+Locus tokens, large exact quanta, and Measure tokens wrap by physical terminal
+columns rather than being silently clipped. Up/Down, Page Up/Down, Home/End
+review the postings independently of Tab/Left/Right action selection. The bottom
+border shows line position and overflow arrows. When fewer than two posting
+lines are visible, Enter on Publish refuses with a request to enlarge the
+terminal; Edit and Cancel remain available.
+
+This is a presentation-only review refinement. It does not create an Actual,
+recurrence, replacement relation, or new Scheduled authority. Final publication
+still goes through the existing shared household command. Input field layout,
+candidate stability, and editor resize behavior remain UI-16 follow-up work.
+
 ### Checked batch amount editing
 
 `b` opens **Batch amount edit** from the Series Calendar, plan detail, Months, or
