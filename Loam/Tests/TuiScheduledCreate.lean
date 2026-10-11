@@ -12,6 +12,9 @@ open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
   | some result => pure result
@@ -115,11 +118,11 @@ def main (args : List String) : IO Unit := do
   let previewWidget := Loam.Tui.ScheduledCreation.view compact [] previewState
   let previewText := String.ofList
     (previewWidget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
-  expect (previewText.includes "Scheduled / New / Preview" &&
-    previewText.includes "Expected postings" &&
-    previewText.includes "2026-09-12" &&
-    previewText.includes "-700 jpy" && previewText.includes "+700 jpy" &&
-    previewText.includes "Publish Scheduled")
+  expect (contains "Scheduled / New / Preview" previewText &&
+    contains "Expected postings" previewText &&
+    contains "2026-09-12" previewText &&
+    contains "-700 jpy" previewText && contains "+700 jpy" previewText &&
+    contains "Publish Scheduled" previewText)
     "compact Scheduled confirmation lost due date, signed postings or selected action"
   expect (previewWidget.lines.length <= compact.height - 1)
     "Scheduled confirmation exceeded compact terminal height"
@@ -132,7 +135,7 @@ def main (args : List String) : IO Unit := do
   let tiny : Loam.Tui.Kernel.Bounds := { width := 32, height := 9 }
   let blocked := Loam.Tui.ScheduledCreation.updateForBounds
     tiny ["paypay", "food"] previewState .enter
-  expect (blocked.publish.isNone && blocked.state.notice.includes "Enlarge terminal")
+  expect (blocked.publish.isNone && contains "Enlarge terminal" blocked.state.notice)
     "Scheduled review published without room to inspect its postings"
   let allowed := Loam.Tui.ScheduledCreation.updateForBounds
     compact ["paypay", "food"] previewState .enter
@@ -158,7 +161,7 @@ def main (args : List String) : IO Unit := do
   let endText := String.ofList
     ((Loam.Tui.ScheduledCreation.view compact [] last).lines.flatten.map
       Loam.Tui.Kernel.Cell.glyph)
-  expect (endText.includes "Balanced total")
+  expect (contains "Balanced total" endText)
     "Scheduled review scrolling could not reach exact total"
   let reset := (Loam.Tui.ScheduledCreation.updateForBounds
     compact [] last .home).state
