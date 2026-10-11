@@ -6,6 +6,7 @@ import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.Scroll
+import Loam.Tui.InputEdit
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.AttentionAdministration
@@ -82,9 +83,10 @@ private def updateIntent (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .newContext text =>
       match key with
       | .escape => {state := {state with mode := .browse, notice := ""}}
-      | .backspace => {state := {state with mode := .newContext (Loam.Tui.Terminal.backspaceText text), notice := ""}}
-      | .input char => {state := {state with mode := .newContext (text.push char), notice := ""}}
-      | .paste payload => {state := {state with mode := .newContext (text ++ Loam.Tui.Terminal.singleLinePaste payload), notice := ""}}
+      | .backspace | .input _ | .paste _ =>
+          match Loam.Tui.InputEdit.apply? key text with
+          | none => {state}
+          | some edited => {state := {state with mode := .newContext edited, notice := ""}}
       | .enter =>
           if text.isEmpty then {state := {state with notice := "Enter a short household matter before choosing due meaning."}}
           else {state := {state with mode := .newDue text, notice := ""}}
@@ -99,9 +101,10 @@ private def updateIntent (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .newDate context date =>
       match key with
       | .escape => {state := {state with mode := .browse, notice := ""}}
-      | .backspace => {state := {state with mode := .newDate context (Loam.Tui.Terminal.backspaceText date), notice := ""}}
-      | .input char => {state := {state with mode := .newDate context (date.push char), notice := ""}}
-      | .paste text => {state := {state with mode := .newDate context (date ++ Loam.Tui.Terminal.singleLinePaste text), notice := ""}}
+      | .backspace | .input _ | .paste _ =>
+          match Loam.Tui.InputEdit.apply? key date with
+          | none => {state}
+          | some edited => {state := {state with mode := .newDate context edited, notice := ""}}
       | .enter =>
           if Loam.ActualDate.validIsoDate date then emitAdd state context (.dueOn date)
           else {state := {state with notice := "Enter a real calendar date in YYYY-MM-DD form."}}
