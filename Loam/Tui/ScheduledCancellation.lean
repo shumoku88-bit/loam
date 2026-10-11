@@ -90,9 +90,17 @@ private def header (bounds : Bounds) (state : State) (available : Nat) : List Wi
     [ line "Scheduled / Cancel" ]
 
 private def expectedRows (bounds : Bounds) (state : State) : List Widget :=
-  let columns := Loam.Tui.Layout.contentWidth bounds - 4
-  state.expected.flatMap fun effect =>
-    (Loam.Tui.Layout.wrapColumns columns (" " ++ effect)).map line
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let columns := width - 4
+  -- If a long retained identity cannot fit in the summary, keep every byte
+  -- available in the scrollable review rather than silently clipping it.
+  let target := "Target: " ++ state.target.token
+  let fullTarget :=
+    if Loam.Tui.Layout.displayWidth target > width then
+      (Loam.Tui.Layout.wrapColumns columns target).map line
+    else []
+  fullTarget ++ (state.expected.flatMap fun effect =>
+    (Loam.Tui.Layout.wrapColumns columns (" " ++ effect)).map line)
 
 /-- All size-dependent rows come from live terminal bounds. -/
 def expectedCapacity (bounds : Bounds) (state : State) : Nat :=
