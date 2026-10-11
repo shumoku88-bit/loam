@@ -403,10 +403,12 @@ def main : IO Unit := do
         Loam.Tui.HomeCommandPalette.update leaf .right == .stay leaf)
         "grouped command did not dispatch only on Enter"
   for key in [Loam.Tui.Terminal.Key.left, .escape, .input 'q', .input 'Q', .input ' '] do
-    for group in [envelopes, transactionGroup, planningGroup, analysisGroup, maintenanceGroup] do
+    for (group, parentIndex) in [
+        (transactionGroup, 0), (planningGroup, 1), (analysisGroup, 2),
+        (envelopes, 3), (maintenanceGroup, 4)] do
       expect (Loam.Tui.HomeCommandPalette.update { group with selected := 2 } key ==
-        .stay commandRoot)
-        "group back key did not return to root"
+        .stay { commandRoot with selected := parentIndex })
+        "group back key lost its parent selection"
     expect (Loam.Tui.HomeCommandPalette.update commandRoot key == .close)
       "root back key did not close palette"
   for key in [Loam.Tui.Terminal.Key.down, .input 'j', .input 'J'] do
@@ -471,9 +473,11 @@ def main : IO Unit := do
       expect ((selectedCells.drop 1 |>.take innerWidth).all
         (fun cell => cell.style == .selected))
         "command selection highlight ended before panel edge"
+      let expectedBorder : Style :=
+        if contentWidth bounds >= 64 && bounds.height >= 18 then .series1 else .muted
       expect ((selectedCells.take 1 ++ selectedCells.drop (innerWidth + 1)).all
-        (fun cell => cell.style == .muted))
-        "command selection leaked onto border"
+        (fun cell => cell.style == expectedBorder))
+        "command selection leaked onto border or floating frame lost focus contrast"
       if selectedState.page == .commands then
         let arrowAndPadding := selectedCells.dropWhile (fun cell => cell.glyph != '→')
         expect (arrowAndPadding.length > 2 &&
@@ -488,6 +492,19 @@ def main : IO Unit := do
         expect (displayWidth (String.ofList (cells.map Cell.glyph)) ==
           min 54 (contentWidth bounds))
           "command page lost fixed-width padding"
+
+  -- Only true floating palettes borrow the existing focused frame accent.
+  -- Full-width compact and tiny terminals stay muted without changing geometry.
+  for (bounds, expectedBorder) in [
+      (({ width := 80, height := 24 } : Bounds), Style.series1),
+      ({ width := 120, height := 40 }, .series1),
+      ({ width := 48, height := 14 }, .muted),
+      ({ width := 32, height := 6 }, .muted)] do
+    let palette := Loam.Tui.HomeCommandPalette.view bounds commandRoot
+    let top ← requireSome palette.lines.head? "palette lost its top border"
+    let corners := top.filter fun cell => cell.glyph == '╭' || cell.glyph == '╮'
+    expect (corners.length == 2 && corners.all (fun cell => cell.style == expectedBorder))
+      "floating/nonfloating palette frame focus contrast changed"
 
   -- Every analysis leaf stays selected/visible at every usable terminal height.
   for width in [1, 2, 8, 32, 48, 80, 120] do

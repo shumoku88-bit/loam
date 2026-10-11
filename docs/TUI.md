@@ -44,8 +44,9 @@ Actual, and Attention remain available through their individual workspaces.
 Attention, Settlements), **Reports and analysis** (eleven direct report/analysis entries),
 **Envelope budget** (Budget, Capacity, Purpose routing), and **Household setup**
 (Manage Loci, Observe quantities). `↑` / `↓` selects an item, `→` enters a group,
-and `←` returns one level (closing the palette at its root). `Enter` opens the
-selected group or workspace; `Esc` / `q` / Space also returns one level.
+and `←` returns one level (closing the palette at its root). Returning from a
+group preserves that group's selection in Commands. `Enter` opens the selected
+group or workspace; `Esc` / `q` / Space also returns one level.
 Right on a leaf does nothing: opening a workspace requires `Enter`.
 The page heading shows the current path. Selecting a leaf delegates to the
 existing validated workspace, without changing canonical facts or publishers.
@@ -910,7 +911,9 @@ The ordered entries are:
 `↑/↓` or `j/k` selects; `Enter` opens; `Esc` returns one palette level (or closes
 at the root). The palette uses one stable rectangle across pages, sized for the
 largest command group plus context/help (currently **19 rows**, showing all eleven
-analysis entries). Floating panels leave two terminal rows above and below; at
+analysis entries). Floating panels use the existing focused-frame border accent
+to distinguish the active overlay from Home, while compact nonfloating palettes
+keep the muted border. Floating panels leave two terminal rows above and below; at
 23 rows or taller, all eleven items fit without scrolling. Added group items can
 increase the preferred height automatically; the terminal remains the upper bound.
 The bounded item viewport follows selection when the list cannot fit, including
