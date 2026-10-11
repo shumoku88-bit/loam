@@ -7,6 +7,7 @@ import Loam.Tui.Kernel
 import Loam.Tui.LocusPicker
 import Loam.Tui.Main
 import Loam.Tui.Record
+import Loam.Tui.InputEdit
 import Loam.Tui.ScheduledPostingForm
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
@@ -182,19 +183,13 @@ def update
         match key with
         | .tab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false, candidateIndex := 0 } }
         | .shiftTab => { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form true, candidateIndex := 0 } }
-        | .backspace =>
-            { state := { state with
-                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => Loam.Tui.Terminal.backspaceText text)
-                notice := "", candidateIndex := 0 } }
-        | .input char =>
-            { state := { state with
-                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun text => text.push char)
-                notice := "", candidateIndex := 0 } }
-        | .paste text =>
-            let clean := Loam.Tui.Terminal.singleLinePaste text
-            { state := { state with
-                form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun curr => curr ++ clean)
-                notice := "", candidateIndex := 0 } }
+        | .backspace | .input _ | .paste _ =>
+            match Loam.Tui.InputEdit.operation? key with
+            | none => { state }
+            | some edit =>
+                { state := { state with
+                    form := Loam.Tui.ScheduledPostingForm.editActive state.form edit
+                    notice := "", candidateIndex := 0 } }
         | .up => { state := moveCandidate state true }
         | .down => { state := moveCandidate state false }
         | .right => { state := acceptSelectedCandidate state }
