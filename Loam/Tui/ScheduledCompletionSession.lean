@@ -59,6 +59,18 @@ private def frameFor (bounds : Bounds) (known : List String)
     (state : Loam.Tui.ScheduledCompletion.State) : CompiledWidget :=
   compileWidget (viewForBounds bounds known state)
 
+/-- Changing between floating edit/preview and full-screen admission requires
+    repainting the parent. A dirty diff alone uses incompatible coordinates. -/
+private def paintStateTransition
+    (bounds : Bounds) (before after : Loam.Tui.ScheduledCompletion.State)
+    (old next : CompiledWidget) (parent : Bounds → CompiledWidget) : IO Unit :=
+  let oldGeometry := activeGeometry? bounds before
+  let newGeometry := activeGeometry? bounds after
+  if oldGeometry == newGeometry then
+    Loam.Tui.ModalSurface.paint bounds newGeometry .dirtyDiff old next
+  else
+    Loam.Tui.ModalSurface.repaintOverParent bounds newGeometry (parent bounds) next
+
 /--
 The completion loop changes presentation location only. Policy activation still
 updates its local World / known vocabulary and completion refusal still returns
@@ -89,14 +101,12 @@ private partial def runLoop
         let editor := Loam.Tui.UnresolvedActivation.withEnableError step.state.editor message
         let next := { step.state with editor := editor }
         let nextFrame := frameFor active known next
-        Loam.Tui.ModalSurface.paint active (activeGeometry? active next)
-          .dirtyDiff frame nextFrame
+        paintStateTransition active state next frame nextFrame parent
         runLoop active root world known next nextFrame parent
     | .ok enabled =>
         let next := { step.state with editor := enabled.editor }
         let nextFrame := frameFor active enabled.known next
-        Loam.Tui.ModalSurface.paint active (activeGeometry? active next)
-          .dirtyDiff frame nextFrame
+        paintStateTransition active state next frame nextFrame parent
         runLoop active root enabled.world enabled.known next nextFrame parent
   else
     match step.publish with
@@ -111,8 +121,7 @@ private partial def runLoop
             runLoop active root world known next nextFrame parent
     | none =>
         let nextFrame := frameFor active known step.state
-        Loam.Tui.ModalSurface.paint active (activeGeometry? active step.state)
-          .dirtyDiff frame nextFrame
+        paintStateTransition active state step.state frame nextFrame parent
         runLoop active root world known step.state nextFrame parent
 
 /-- The parent owns its current-bounds frame and the later continuation. -/
