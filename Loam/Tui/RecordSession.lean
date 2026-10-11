@@ -1,6 +1,7 @@
 import Loam.HouseholdCommand
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
+import Loam.Tui.ModalSurface
 import Loam.Tui.Record
 import Loam.Tui.UnresolvedActivation
 import Loam.Tui.Runtime
@@ -31,31 +32,14 @@ structure Result where
   notice : String
   requiresReload : Bool := false
 
-structure FloatingGeometry where
-  top : Nat
-  left : Nat
-  width : Nat
-  height : Nat
-  deriving Repr, DecidableEq, BEq
+abbrev FloatingGeometry := Loam.Tui.ModalSurface.Rectangle
 
 /--
 Use a centered Record panel only when enough terminal room remains around the
-complete bounded editor. Smaller terminals keep the historical full-screen
-surface instead of hiding controls.
+complete bounded editor. Compact terminals retain the full-screen surface.
 -/
 def floatingGeometry? (bounds : Bounds) : Option FloatingGeometry :=
-  let available := Loam.Tui.Layout.contentWidth bounds
-  if available < 78 ∨ bounds.height < 35 then
-    none
-  else
-    let width := min 88 (available - 4)
-    let height := 33
-    some {
-      top := (bounds.height - height) / 2
-      left := (available - width) / 2
-      width := width
-      height := height
-    }
+  Loam.Tui.ModalSurface.centered? bounds 78 35 88 33
 
 private inductive Surface where
   | full
@@ -136,12 +120,10 @@ private def frameFor
 private def redraw
     (bounds : Bounds) (surface : Surface)
     (old new : CompiledWidget) : IO Unit := do
-  match surface with
-  | .full =>
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 old new
-  | .floating geometry =>
-      Loam.Tui.Terminal.emitDirtyRegion
-        bounds geometry.top geometry.left geometry.width old new
+  let geometry? := match surface with
+    | .full => none
+    | .floating geometry => some geometry
+  Loam.Tui.ModalSurface.paint bounds geometry? .dirtyDiff old new
   placeFocusCursor bounds surface new
 
 private partial def runWithSurface
@@ -250,8 +232,7 @@ def runAdaptive
       let surface := Surface.floating geometry
       let frame := frameFor bounds surface known state
       let blank := compileWidget (.row [])
-      Loam.Tui.Terminal.emitDirtyRegion
-        bounds geometry.top geometry.left geometry.width blank frame
+      Loam.Tui.ModalSurface.paint bounds (some geometry) .dirtyDiff blank frame
       placeFocusCursor bounds surface frame
       runWithSurface bounds surface root world known state frame
 
