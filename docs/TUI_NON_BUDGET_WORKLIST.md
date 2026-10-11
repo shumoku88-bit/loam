@@ -39,7 +39,7 @@
 | UI-13 | Scheduled / Plan Detail | 完了 | `eb1cfa91`、`61c21874` |
 | UI-14 | Scheduled / Months | 完了 | `8d0f0582` |
 | UI-15 | Scheduled / List | 完了 | `33f8ef59` |
-| UI-16 | Scheduled 作成 入力・確認 | 未着手 | フィールド、候補、符号付き数量、確認・ナビ |
+| UI-16 | Scheduled 作成 入力・確認 | 作業中 | 第1段階PR：確認画面の符号付き全文、スクロール、固定ナビ、小画面での誤Publish防止、Lean/PTY回帰。入力欄・候補の階層、安定レイアウト、端末リサイズは残る。CI通過・マージ後に証跡を確定 |
 | UI-17 | Scheduled 完了 入力・確認 | 未着手 | 予定の対象と記録する Actual を読み分けられる配置 |
 | UI-18 | Scheduled 取消確認 | 未着手 | 対象・結果・確認アクションの階層 |
 | UI-19 | Scheduled 置換 入力・確認 | 未着手 | 元の予定と置換内容、数量、確認・ナビ |
