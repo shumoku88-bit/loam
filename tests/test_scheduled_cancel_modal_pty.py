@@ -89,6 +89,9 @@ class Terminal:
 
     def bounded(self, output):
         positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+        if not positions and self.rows == 1:
+            assert b"\x1b[2J" in output, output
+            return
         assert positions, output
         assert all(1 <= int(r) <= self.rows and 1 <= int(c) <= self.columns
                    for r, c in positions), positions
@@ -126,9 +129,10 @@ def main():
             assert b"Expected effects" in ANSI.sub(b"", compact)
             small = t.resize(9, 32, b"Scheduled / Cancel")
             assert b"Keep" in ANSI.sub(b"", small)
-            tiny = t.resize(1, 10)
-            t.send(b"\t")
-            t.send(b"\r")
+            t.resize(1, 10)
+            # At 10x1 there are no paintable rows; do not wait for a diff
+            # between the two silent keyboard transitions.
+            os.write(t.master, b"\t\r")
             restored = t.resize(40, 112, b"Scheduled / Cancel")
             assert b"Enlarge terminal" in ANSI.sub(b"", restored), "tiny Enter refusal was lost on resize"
             # A short terminal can never commit; the following Esc preserves all bytes.
