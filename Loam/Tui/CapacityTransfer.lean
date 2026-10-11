@@ -2,6 +2,7 @@ import Loam.Tui.EditorSession
 import Loam.Publisher.CapacityPublisher
 import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
+import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
@@ -115,9 +116,7 @@ private def focusCount : Nat := 6
 private def firstAction : Nat := 4
 
 private def moveFocus (form : Form) (back : Bool) : Form :=
-  let next := if back then (form.focus + focusCount - 1) % focusCount
-              else (form.focus + 1) % focusCount
-  { form with focus := next }
+  { form with focus := Loam.Tui.CyclicIndex.move focusCount form.focus back }
 
 private def editActive (form : Form) (edit : String → String) : Form :=
   if form.focus = 0 then { form with source := edit form.source }
