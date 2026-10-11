@@ -45,6 +45,24 @@ private def readyForm : Form := {
 
 private def checkBoundedEditing : IO Unit := do
   let bounds : Bounds := { width := 80, height := 24 }
+  -- Shared positioning must preserve both large floating and compact fallback.
+  expect ((Loam.Tui.ModalSurface.centered? bounds 78 35 88 33).isNone)
+    "Record should fall back to full screen at 80x24"
+  let large : Bounds := { width := 100, height := 40 }
+  let some centered := Loam.Tui.ModalSurface.centered? large 78 35 88 33
+    | throw (IO.userError "large Record floating placement missing")
+  expect (centered.top == 3 && centered.left == 5 &&
+      centered.width == 88 && centered.height == 33)
+    "Record floating placement changed"
+  let palette : Bounds := { width := 100, height := 40 }
+  let some compactChooser := Loam.Tui.ModalSurface.centered? palette 64 18 54 16
+    | throw (IO.userError "command chooser floating placement missing")
+  expect (compactChooser.top == 12 && compactChooser.left == 22 &&
+      compactChooser.width == 54 && compactChooser.height == 16)
+    "palette modal centered placement changed"
+  expect ((Loam.Tui.ModalSurface.centered?
+      ({ width := 32, height := 9 } : Bounds) 64 18 54 8).isNone)
+    "small terminal must select compact modal"
   let opened := initial "2026-09-06"
   let frame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] opened)
   expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 frame == some (3, 15))
