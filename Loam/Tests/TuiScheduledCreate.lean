@@ -245,9 +245,13 @@ def main (args : List String) : IO Unit := do
   -- draft rather than implicitly publishing or changing its due date/postings.
   let restored := Loam.Tui.ScheduledCreation.updateForBounds
     compact ["paypay", "food"] blocked.state .enter
-  expect (restored.publish.map (·.scheduledOn) == some draft.scheduledOn &&
-    restored.publish.map (·.movement) == some draft.movement)
-    "resized Scheduled draft collection changed or failed to recover the confirmed intent"
+  let resumed ← requireSome restored.publish
+    "resized Scheduled draft collection failed to recover a confirmation"
+  expect (resumed.scheduledOn == draft.scheduledOn &&
+    resumed.movement.measure.token == draft.movement.measure.token &&
+    resumed.movement.changes.map (fun ch => (ch.coordinate.token, ch.quantity.quanta)) ==
+      draft.movement.changes.map (fun ch => (ch.coordinate.token, ch.quantity.quanta)))
+    "resized Scheduled draft collection changed the confirmed intent"
   let tinyAgain := Loam.Tui.ScheduledCreation.updateForBounds
     tiny ["paypay", "food"] blocked.state .enter
   expect tinyAgain.publish.isNone
