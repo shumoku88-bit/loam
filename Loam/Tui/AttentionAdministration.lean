@@ -233,8 +233,8 @@ private def contentGeometry (g : Geometry) (state : State) : Nat × Nat :=
   if state.mode == .browse then (g.detailWidth - 2, g.detailHeight - 2)
   else (g.width - 2, (g.panelHeight - 2) - (pinnedLines (g.width - 2) state).length)
 
-/-- A close intent is refused when the selected matter cannot be reviewed. -/
-private def closeReviewable (bounds : Bounds) (state : State) : Bool :=
+/-- Publication requires visible content, for both add and close intents. -/
+private def writeReviewable (bounds : Bounds) (state : State) : Bool :=
   let g := geometry bounds state
   let (width, visible) := contentGeometry g state
   width >= 24 && visible >= 3
@@ -288,10 +288,14 @@ def updateForBounds (bounds : Bounds) (rawState : State) (key : Loam.Tui.Termina
       let step := updateIntent state key
       {step with state := normalizedForBounds bounds (if step.state.mode != state.mode then
         {step.state with detailFocused := false, contentScroll := 0} else step.state)}
-  else if key == .enter &&
-      (match state.mode with | .confirmClose _ _ => true | _ => false) &&
-      !closeReviewable bounds state then
-    {state := {state with notice := "Enlarge terminal to review the Attention target."}}
+  else if !writeReviewable bounds state &&
+      (match state.mode, key with
+       | .confirmClose _ _, .enter => true
+       | .newDate _ _, .enter => true
+       | .newDue _, .input 'n' | .newDue _, .input 'N'
+       | .newDue _, .input 'u' | .newDue _, .input 'U' => true
+       | _, _ => false) then
+    {state := {state with notice := "Enlarge terminal to review the Attention write."}}
   else if paging || (vertical && match state.mode with | .confirmClose _ _ => true | _ => false) then
     {state := normalizedForBounds bounds (scrollStep bounds state key repeatCount)}
   else

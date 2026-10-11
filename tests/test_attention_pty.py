@@ -88,8 +88,13 @@ def main():
             assert b"Focus: " + selected_date in probe.ANSI.sub(b"", home)
             assert probe.digest(root) == before, "read-only Attention visit changed fixture"
             send(terminal, b"i", b"Attention / Manage")
-            # Long input tail + paste normalization, followed by cancellation.
-            send(terminal, b"n", b"Attention / New")
+            # New-item modes now reuse the *same* floating surface as close.
+            resize(terminal, 35, 150, b"Attention / Manage")
+            os.write(terminal.fd, b"n")
+            _, floating_new = terminal.capture(b"Attention / New")
+            assert b"\x1b[2J" not in floating_new, "floating New cleared its parent"
+            assert b"Context" in probe.ANSI.sub(b"", floating_new)
+            # Float -> compact preserves context input and due-meaning navigation.
             resize(terminal, 18, 70, b"Attention / New")
             paste(terminal, "入力" * 60 + "-new-tail\nnot retained", b"-new-tail")
             send(terminal, b"\r", b"Due meaning")
@@ -126,6 +131,22 @@ def main():
             send(terminal, b"\x1b[F", b"MATTER-29")
             send(terminal, b"x", b"Attention / drop")
             send(terminal, b"\r", b"Dropped attention-29.")
+            # No publication if a no-due choice is pressed while the screen is
+            # too small to show the selected meaning and context.
+            send(terminal, b"n", b"Attention / New")
+            paste(terminal, "hidden new draft", b"hidden new draft")
+            send(terminal, b"\r", b"Due meaning")
+            frozen_add = probe.digest(root)
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 1, 10, 0, 0))
+            time.sleep(.3)
+            os.write(terminal.fd, b"n")
+            time.sleep(.3)
+            assert probe.digest(root) == frozen_add, "hidden no-due action published"
+            resumed = resize(terminal, 14, 48, b"Due meaning")
+            assert b"Enlarge terminal" in resumed, "hidden add refusal was lost"
+            send(terminal, b"\x1b", b"Attention / Manage")
+            assert probe.digest(root) == frozen_add
             for context, choice, notice in [("no due sample", b"n", b"Added attention-31."),
                                              ("unknown sample", b"u", b"Added attention-32.")]:
                 send(terminal, b"n", b"Attention / New")
