@@ -758,8 +758,15 @@ terminal; Edit and Cancel remain available.
 
 This is a presentation-only review refinement. It does not create an Actual,
 recurrence, replacement relation, or new Scheduled authority. Final publication
-still goes through the existing shared household command. Input field layout,
-candidate stability, and editor resize behavior remain UI-16 follow-up work.
+still goes through the existing shared household command. The editing surface now keeps the selected Due or Posting field inside a
+focus-following framed viewport. The candidate summary, action choices, and two
+navigation rows keep stable positions as the user moves across fields. Larger
+terminals show an additional bounded Locus candidate panel; compact terminals
+retain a selectable candidate summary without pushing the action bar away.
+Long values show their editable tail with a visible ellipsis; full stored
+input and the existing publication authority are unchanged. Dynamic terminal
+resize within the open editor remains a separate follow-up; child sessions
+still use their entrance bounds until they return.
 
 ### Checked batch amount editing
 
