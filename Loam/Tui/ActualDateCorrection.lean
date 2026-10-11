@@ -140,17 +140,11 @@ def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle
 
 /-- The date editor receives only the visible space inside the outer frame. -/
 def editorBounds (bounds : Bounds) : Bounds :=
-  match floatingGeometry? bounds with
-  | none => bounds
-  | some region => { width := region.width - 1, height := region.height - 1 }
+  Loam.Tui.ModalSurface.contentBounds bounds (floatingGeometry? bounds)
 
 /-- Keep the original edit and preview renderer, including its compact fallback. -/
 def viewForBounds (bounds : Bounds) (state : State) : Widget :=
-  match floatingGeometry? bounds with
-  | none => view bounds state
-  | some region =>
-      Loam.Tui.Layout.framedPanel region.width region.height
-        "Actual / Date"
-        (view (editorBounds bounds) state) true
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Actual / Date" (fun inner => view inner state)
 
 end Loam.Tui.ActualDateCorrection
