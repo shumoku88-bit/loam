@@ -768,6 +768,21 @@ Completion (`c` / `Enter`), replacement (`r`), and cancellation (`x`) operate on
 exact explicit occurrences; a MISSING row is not a Scheduled occurrence and cannot
 be completed, replaced, or cancelled. `q` returns to the Series Calendar.
 
+The Scheduled completion editor now distinguishes the immutable **Plan reference**
+(ID and expected due date) from the editable **Actual draft** (new Actual date,
+description, Measure and signed postings). Tab moves among the original Record
+fields and explicit actions; the editing pane follows the active field even
+at short heights. Preview shows a scrollable **Actual effects (to record)**
+list with exact signed quantities, Actual date and a retained Plan-reference
+link. Up/Down, Page Up/Down and Home/End review the effects; the bottom
+Publish/Edit/Cancel controls remain visible. If fewer than two review rows
+fit, Enter on Publish refuses and asks to enlarge the terminal. This is a
+presentation guard only: the actual publication still writes one Actual Event
+plus its explicit Scheduled completion relation via existing authority.
+The child session follows live terminal resize; no completion or continuation
+semantics have been changed. The unresolved-Locus activation subdialog retains
+its existing Record-owned semantics.
+
 The Scheduled cancellation confirmation has a bounded **Expected effects**
 review, with the selected due date and retained Scheduled identity above it.
 Long identity text and signed posting rows remain reachable by Up/Down,
