@@ -209,9 +209,128 @@ def withPublishError (state : State) (message : String) : State :=
 
 private def line (text : String) : Widget := .row [span text]
 
-private def field (form : Form) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if form.focus = index then .selected else .normal)]
+private def ellipsize (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then text
+  else if width == 0 then ""
+  else Loam.Tui.Layout.clip (width - 1) text ++ "…"
+
+/-- Keep the insertion end visible without replacing the full stored input. -/
+private def fieldTail (width : Nat) (text : String) : String :=
+  if Loam.Tui.Layout.displayWidth text <= width then text
+  else if width == 0 then ""
+  else
+    let (chars, _, _) := text.toList.reverse.foldl
+      (fun (acc : List Char × Nat × Bool) char =>
+        let (chars, used, stopped) := acc
+        let next := used + Loam.Tui.Layout.charWidth char
+        if stopped || next > width - 1 then (chars, used, true)
+        else (char :: chars, next, false)) ([], 0, false)
+    "…" ++ String.ofList chars
+
+private def boundedField (width : Nat) (form : Form) (index : Nat)
+    (label text : String) : Widget :=
+  let labelWidth := min 15 (width / 2)
+  let valueWidth := width - labelWidth
+  let active := form.focus == index
+  let value := if text.isEmpty then "_" else text
+  .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
+    span (if active then fieldTail valueWidth value else ellipsize valueWidth value)
+      (if active then .selected else .normal)]
+
+private def editingRows (width : Nat) (state : State) : List Widget :=
+  let form := state.form
+  [boundedField width form 0 "Due" form.date] ++
+    ((List.range form.rows.size).flatMap fun index =>
+      let row := form.rows[index]!
+      [ boundedField width form (1 + index * 2)
+          ("Posting " ++ toString (index + 1)) row.locus,
+        boundedField width form (2 + index * 2)
+          ("  " ++ state.measure.token) row.amount ])
+
+private def candidateSummary (width : Nat) (state : State) : Widget :=
+  let options := catalogCandidates state
+  let label := match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
+    | none => "Locus: focus a Posting field"
+    | some _ =>
+        if options.isEmpty then "Locus: no matching candidate"
+        else
+          let index := state.candidateIndex % options.length
+          match options[index]? with
+          | none => "Locus: no matching candidate"
+          | some entry =>
+              s!"Locus {index + 1}/{options.length}: " ++
+                Loam.Tui.LocusPicker.display entry
+  .row [span (ellipsize width label) .muted]
+
+private def candidatesPanel (width height : Nat) (state : State) : Widget :=
+  let options := catalogCandidates state
+  let index := if options.isEmpty then 0 else state.candidateIndex % options.length
+  let capacity := height - 3
+  let start := Loam.Tui.Layout.trailingWindowStart index capacity
+  let entries := (options.drop start).take capacity
+  let rows := if entries.isEmpty then
+      [candidateSummary (width - 2) state]
+    else
+      (entries.zipIdx).map fun (entry, offset) =>
+        .row [span (if start + offset == index then "> " else "  ") .muted,
+          span (ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
+            (if start + offset == index then .selected else .normal)]
+  let help := match selectedCatalogCandidate? state with
+    | none => "Up/Down choose · Right accept"
+    | some entry =>
+        if entry.help.isEmpty then "Up/Down choose · Right accept" else entry.help
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + capacity < options.length then " ▼" else "")
+  Loam.Tui.Layout.framedPanel width height "Locus candidates"
+    (.column (rows ++ [ .row [span (ellipsize (width - 2) help) .muted] ]))
+    false (some (s!"{if options.isEmpty then 0 else index + 1}/{options.length}" ++ more))
+
+private def editingFooter (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  let actionLabels := if width < 58 then
+      ["Add", "Drop", "Preview", "Cancel"]
+    else ["Add posting", "Drop last row", "Preview", "Cancel"]
+  Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    (if feedback.isEmpty then [line ""] else feedback) ++
+    [ candidateSummary width state,
+      .row ((actionLabels.zipIdx).map fun (label, index) =>
+        span ("[" ++ label ++ "] ")
+          (if state.form.focus == Loam.Tui.ScheduledPostingForm.firstAction state.form + index
+           then .selected else .normal)),
+      Loam.Tui.Layout.shortcutRow
+        [("Tab/⇧Tab", "focus"), ("Enter", "next/action"), ("Esc", "cancel")] " ",
+      Loam.Tui.Layout.shortcutRow
+        [("↑/↓", "Locus"), ("→", "accept"), ("Backspace", "delete")] " "
+    ]
+
+/-- Focus-following editor viewport. Candidate and action geometry is stable
+    even when the selected Posting, query, or notice changes. -/
+private def editingView (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let footer := editingFooter bounds state
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let showCandidates := available >= 15
+  let candidateHeight := if showCandidates then 7 else 0
+  let fieldHeight := available - 1 - candidateHeight
+  let capacity := fieldHeight - 2
+  let fields := editingRows (width - 2) state
+  let active := state.form.focus < fields.length
+  let focus := if active then state.form.focus else fields.length - 1
+  let start := min (fields.length - capacity)
+    (Loam.Tui.Layout.trailingWindowStart focus capacity)
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + capacity < fields.length then " ▼" else "")
+  let fieldPanel := Loam.Tui.Layout.framedPanel width fieldHeight
+    "Due / Signed postings"
+    (.column ((fields.drop start).take capacity)) active
+    (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))
+  let body := .column <|
+    [line "Scheduled / New / Edit", fieldPanel] ++
+      (if showCandidates then [candidatesPanel width candidateHeight state] else [])
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (Loam.Tui.Layout.widgetRows body) footer).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
 
 private def wrapped (columns : Nat) (text : String) (style : Style) : List Widget :=
   (Loam.Tui.Layout.wrapColumns columns text).map fun piece => .row [span piece style]
@@ -284,44 +403,7 @@ def updateForBounds (bounds : Bounds) (known : List String) (state : State)
 /-- Creation exposes only Scheduled content and does not invent an Actual description. -/
 def view (bounds : Bounds) (_known : List String) (state : State) : Widget :=
   match state.mode with
-  | .editing =>
-      let form := state.form
-      let activeRow := (form.focus - 1) / 2
-      let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
-      let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
-        let row := form.rows[index]!
-        [ field form (1 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
-        , field form (2 + index * 2) ("  " ++ state.measure.token) row.amount
-        ]
-      let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
-      let options := catalogCandidates state
-      let selectedIndex := if options.isEmpty then 0 else state.candidateIndex % options.length
-      let candidateStart := Loam.Tui.Layout.trailingWindowStart selectedIndex 5
-      let visible := (options.drop candidateStart).take 5
-      let candidateLines := if visible.isEmpty then [line "Loci: (none)"] else
-        (visible.zipIdx).map fun (entry, index) =>
-          let marker := if candidateStart + index = selectedIndex then "> " else "  "
-          line (marker ++ Loam.Tui.LocusPicker.display entry)
-      let helpLine :=
-        match selectedCatalogCandidate? state with
-        | some entry => if entry.help.isEmpty then [] else [line ("  " ++ entry.help)]
-        | none => []
-      .column <|
-        [ line "Scheduled / New / Edit"
-        , field form 0 "Due" form.date
-        ] ++ rowLines ++
-        [ .row ((actions.zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if form.focus = Loam.Tui.ScheduledPostingForm.firstAction form + index then .selected else .normal))
-        , line "Locus catalog:"
-        ] ++ candidateLines ++ helpLine ++
-        [ line ("Signed " ++ state.measure.token ++ " postings describe one independent expected movement.")
-        , line "No recurrence, continuation, replacement relation, or Actual is created."
-        , line "Tab / Shift-Tab focus   Enter next/preview/action"
-        , line "Up / Down choose Locus   Right accept Locus"
-        , line "Esc cancel   Backspace delete   Drop keeps at least two postings"
-        , line state.notice
-        ]
+  | .editing => editingView bounds state
   | .preview draft choice =>
       let width := Loam.Tui.Layout.contentWidth bounds
       let footer := previewFooter bounds state choice
