@@ -709,30 +709,12 @@ def scrollPreview (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key
       some { state with previewScroll := offset }
   | _ => none
 
-private def ellipsize (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text <= width then text
-  else if width == 0 then ""
-  else Loam.Tui.Layout.clip (width - 1) text ++ "…"
-
-/-- Keep the end of an edited field visible without changing its stored text. -/
-private def fieldTail (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text <= width then text
-  else if width == 0 then ""
-  else
-    let (chars, _, _) := text.toList.reverse.foldl
-      (fun (acc : List Char × Nat × Bool) char =>
-        let (chars, used, stopped) := acc
-        let next := used + Loam.Tui.Layout.charWidth char
-        if stopped || next > width - 1 then (chars, used, true)
-        else (char :: chars, next, false)) ([], 0, false)
-    "…" ++ String.ofList chars
-
 private def boundedField (width : Nat) (active : Bool) (label text : String) : Widget :=
   let labelWidth := min 13 (width / 2)
   let value := if text.isEmpty then "_" else text
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (if active then fieldTail (width - labelWidth) value
-          else ellipsize (width - labelWidth) value)
+    span (if active then Loam.Tui.Layout.inputTail (width - labelWidth) value
+          else Loam.Tui.Layout.ellipsize (width - labelWidth) value)
       (if active then .selected else .normal)]
 
 private def editingField (width : Nat) (form : Form) (index : Nat)
@@ -797,7 +779,7 @@ private def editingFooter (bounds : Bounds) (state : State)
     (context : Option String) (originalShortcut : Bool) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
-  [muted (ellipsize width (context.getD (originalSummary state)))] ++
+  [muted (Loam.Tui.Layout.ellipsize width (context.getD (originalSummary state)))] ++
     (if feedback.isEmpty then [blank] else feedback) ++
     [.row ((["Preview", "Add row", "Drop row", "Cancel"].zipIdx).map fun (label, index) =>
       span ("[" ++ label ++ "] ")
@@ -811,7 +793,7 @@ private def candidateSummary (width : Nat) (state : State) : Widget :=
     | none, _ => "Locus: focus a Locus field"
     | some _, none => "Locus: no matching candidate"
     | some _, some entry => "↑/↓ Enter: " ++ Loam.Tui.LocusPicker.display entry
-  muted (ellipsize width text)
+  muted (Loam.Tui.Layout.ellipsize width text)
 
 private def candidatesPanel (width height : Nat) (state : State) : Widget :=
   let options := catalogCandidates state
@@ -822,13 +804,13 @@ private def candidatesPanel (width height : Nat) (state : State) : Widget :=
   let rows := if options.isEmpty then [candidateSummary (width - 2) state] else
     (visible.zipIdx).map fun (entry, index) =>
       .row [span (if start + index == selected then "> " else "  "),
-        span (ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
+        span (Loam.Tui.Layout.ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
           (if start + index == selected then .normal else .muted)]
   let help := match selectedCatalogCandidate? state with
     | some entry => if entry.help.isEmpty then "↑/↓ choose · Enter accept" else "↳ " ++ entry.help
     | none => "↑/↓ choose · Enter accept"
   let content := rows ++ List.replicate (capacity - rows.length) blank ++
-    [muted (ellipsize (width - 2) help), muted "Admitted Locus only"]
+    [muted (Loam.Tui.Layout.ellipsize (width - 2) help), muted "Admitted Locus only"]
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < options.length then " ▼" else "")
   Loam.Tui.Layout.framedPanel width height "Locus candidates" (.column content) false
@@ -843,7 +825,7 @@ private def postingsPanel (width height : Nat) (state : State) : Widget :=
   let start := min (form.rows.size - capacity)
     (Loam.Tui.Layout.trailingWindowStart selected capacity)
   let fields := ((editingFields (width - 2) form).drop (3 + start * 2)).take (capacity * 2)
-  let context := ellipsize (width - 2)
+  let context := Loam.Tui.Layout.ellipsize (width - 2)
     ("Signed " ++ form.measure ++ " · decimal scale per Measure")
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < form.rows.size then " ▼" else "")

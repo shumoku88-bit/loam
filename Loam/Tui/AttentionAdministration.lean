@@ -133,20 +133,10 @@ private def fitText (width : Nat) (text : String) : String :=
   if Loam.Tui.Layout.displayWidth text ≤ width then Loam.Tui.Layout.padRight width text
   else Loam.Tui.Layout.padRight width (Loam.Tui.Layout.clip (width - 1) text ++ "…")
 
-/-- Same end-visible input convention as Record; the retained text is never clipped. -/
-private def fieldTail (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text ≤ width then text else if width == 0 then "" else
-    let (chars, _, _) := text.toList.reverse.foldl
-      (fun (acc : List Char × Nat × Bool) char =>
-        let (chars, used, stopped) := acc
-        let next := used + Loam.Tui.Layout.charWidth char
-        if stopped || next > width - 1 then (chars, used, true) else (char :: chars, next, false)) ([], 0, false)
-    "…" ++ String.ofList chars
-
 private def field (width : Nat) (label value : String) : Widget :=
   let labelWidth := min 10 (width / 2)
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (fieldTail (width - labelWidth) (if value.isEmpty then "_" else value)) .selected]
+    span (Loam.Tui.Layout.inputTail (width - labelWidth) (if value.isEmpty then "_" else value)) .selected]
 
 private def itemLines (width : Nat) (item : Attention String) : List Widget :=
   wrapped width ("Context: " ++ item.context) ++

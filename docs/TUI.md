@@ -132,6 +132,14 @@ availability does not change this convention. Long Loci and oversized quantities
 wrap into labelled lines rather than losing digits. An inactive Detail retains its
 muted selected-record marker without a selected background. Enter still opens that
 exact record in Selected Day for object-local review and actions.
+Shared field presentation: `Loam.Tui.Layout.inputTail` shows the insertion
+end of an active, overflowing single-line input with a leading ellipsis;
+`Loam.Tui.Layout.ellipsize` retains the beginning of a read-only or unfocused
+field with a trailing ellipsis. Both use terminal **column** width, not Unicode
+code-point count, and do not alter the retained field value. Record, Scheduled
+creation, and Attention reuse these helpers; each screen still owns its label
+width, focus, retained input, and publication semantics.
+
 With no Actual rows, Ctrl-u/d scrolls the remaining Scheduled evidence. In calendar
 focus, Enter or Esc drills Year -> Month -> Day; Esc at Day does nothing.
 

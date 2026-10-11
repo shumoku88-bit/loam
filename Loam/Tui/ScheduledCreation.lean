@@ -225,24 +225,6 @@ def withPublishError (state : State) (message : String) : State :=
 
 private def line (text : String) : Widget := .row [span text]
 
-private def ellipsize (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text <= width then text
-  else if width == 0 then ""
-  else Loam.Tui.Layout.clip (width - 1) text ++ "…"
-
-/-- Keep the insertion end visible without replacing the full stored input. -/
-private def fieldTail (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text <= width then text
-  else if width == 0 then ""
-  else
-    let (chars, _, _) := text.toList.reverse.foldl
-      (fun (acc : List Char × Nat × Bool) char =>
-        let (chars, used, stopped) := acc
-        let next := used + Loam.Tui.Layout.charWidth char
-        if stopped || next > width - 1 then (chars, used, true)
-        else (char :: chars, next, false)) ([], 0, false)
-    "…" ++ String.ofList chars
-
 private def boundedField (width : Nat) (form : Form) (index : Nat)
     (label text : String) : Widget :=
   let labelWidth := min 15 (width / 2)
@@ -250,7 +232,7 @@ private def boundedField (width : Nat) (form : Form) (index : Nat)
   let active := form.focus == index
   let value := if text.isEmpty then "_" else text
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (if active then fieldTail valueWidth value else ellipsize valueWidth value)
+    span (if active then Loam.Tui.Layout.inputTail valueWidth value else Loam.Tui.Layout.ellipsize valueWidth value)
       (if active then .selected else .normal)]
 
 private def editingRows (width : Nat) (state : State) : List Widget :=
@@ -276,7 +258,7 @@ private def candidateSummary (width : Nat) (state : State) : Widget :=
           | some entry =>
               s!"Locus {index + 1}/{options.length}: " ++
                 Loam.Tui.LocusPicker.display entry
-  .row [span (ellipsize width label) .muted]
+  .row [span (Loam.Tui.Layout.ellipsize width label) .muted]
 
 private def candidatesPanel (width height : Nat) (state : State) : Widget :=
   let options := catalogCandidates state
@@ -289,7 +271,7 @@ private def candidatesPanel (width height : Nat) (state : State) : Widget :=
     else
       (entries.zipIdx).map fun (entry, offset) =>
         .row [span (if start + offset == index then "> " else "  ") .muted,
-          span (ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
+          span (Loam.Tui.Layout.ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
             (if start + offset == index then .selected else .normal)]
   let help := match selectedCatalogCandidate? state with
     | none => "Up/Down choose · Enter accept/next · Right accept"
@@ -298,7 +280,7 @@ private def candidatesPanel (width height : Nat) (state : State) : Widget :=
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < options.length then " ▼" else "")
   Loam.Tui.Layout.framedPanel width height "Locus candidates"
-    (.column (rows ++ [ .row [span (ellipsize (width - 2) help) .muted] ]))
+    (.column (rows ++ [ .row [span (Loam.Tui.Layout.ellipsize (width - 2) help) .muted] ]))
     false (some (s!"{if options.isEmpty then 0 else index + 1}/{options.length}" ++ more))
 
 private def editingFooter (bounds : Bounds) (state : State) : List Widget :=

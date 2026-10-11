@@ -63,6 +63,33 @@ def clip (columns : Nat) (text : String) : String :=
   String.ofList (takeColumnsList text.toList columns)
 
 /--
+Display a bounded read-only field or compact label with a trailing ellipsis.
+The full string stays with the owning editor; this is only presentation.
+-/
+def ellipsize (columns : Nat) (text : String) : String :=
+  if displayWidth text ≤ columns then text
+  else if columns == 0 then ""
+  else clip (columns - 1) text ++ "…"
+
+/--
+Keep the insertion end of an edited single-line field visible in `columns`.
+Show a leading ellipsis only when the text exceeds the available columns.
+This pure function never modifies the retained input. Its width algorithm is
+identical to the former Record / Scheduled creation / Attention field helpers.
+-/
+def inputTail (columns : Nat) (text : String) : String :=
+  if displayWidth text ≤ columns then text
+  else if columns == 0 then ""
+  else
+    let (chars, _, _) := text.toList.reverse.foldl
+      (fun (acc : List Char × Nat × Bool) char =>
+        let (chars, used, stopped) := acc
+        let next := used + charWidth char
+        if stopped || next > columns - 1 then (chars, used, true)
+        else (char :: chars, next, false)) ([], 0, false)
+    "…" ++ String.ofList chars
+
+/--
 Wrap text at physical terminal columns without discarding fitting characters.
 Combining marks remain with their preceding character. At a one-column width,
 a two-column glyph is explicitly replaced by an ellipsis; zero columns yield no
