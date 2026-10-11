@@ -139,8 +139,12 @@ def main():
             send(terminal, b"\t\r", b"Event Merchant / Preview")
             send(terminal, b"\r", b"Published Nonmerchant")
             send(terminal, b"m", b"Merchant already classified: Nonmerchant")
-            send(terminal, b"r", b"Actual / Reverse / Date")
-            send(terminal, b"\r", b"Actual / Reverse / Preview")
+            _, reverse_edit = send(terminal, b"r", b"Actual / Reverse / Date")
+            assert b"Reversal date:" in reverse_edit and b"Target date:" in reverse_edit
+            _, reverse_preview = send(terminal, b"\r", b"Actual / Reverse / Preview")
+            # The renderer sends only changed rows on transition.
+            assert b"Inverse postings" in reverse_preview and b"Publish reversal" in reverse_preview, (
+                reverse_preview[-1600:])
             before_reversal = probe.digest(root)
             assert "REVERSAL-OF" not in sections(root)["Actual"]
             _, reversed_detail = send(terminal, b"\r", DETAIL)

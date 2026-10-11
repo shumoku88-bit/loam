@@ -5,6 +5,8 @@ import Loam.Publisher.ActualReversalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
+import Loam.Tui.Layout
+import Loam.Tui.Scroll
 
 namespace Loam.Tui.ActualReversal
 
@@ -32,6 +34,8 @@ structure State where
   inputDate : String
   mode : Mode := .editing
   notice : String := ""
+  /-- Scroll position for the derived inverse posting preview only. -/
+  previewScroll : Nat := 0
 
 abbrev Step :=
   Loam.Tui.EditorSession.Step State (Loam.ActualReversalPublisher.Draft)
@@ -97,39 +101,101 @@ def withPublishError (state : State) (message : String) : State :=
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 
+private def wrapped (columns : Nat) (text : String) (style : Style) : List Widget :=
+  (Loam.Tui.Layout.wrapColumns columns text).map fun piece => .row [span piece style]
+
 private def targetDateText (state : State) : String :=
   state.targetDate.getD "(unknown)"
 
 private def descriptionText (state : State) : String :=
   if state.description.isEmpty then "(no description)" else state.description
 
-/-- Minimal exact-reversal editor/preview. No posting field is editable. -/
-def view (state : State) : Widget :=
-  match state.mode with
-  | .editing =>
-      .column [
-        line "Actual / Reverse / Date",
-        line ("Target: " ++ state.target.token),
-        line ("Target date: " ++ targetDateText state),
-        line ("Description: " ++ descriptionText state),
-        line ("Reversal date: " ++ state.inputDate),
-        muted "The postings themselves are not editable: reversal means exact additive inverse.",
-        muted "Type YYYY-MM-DD   Backspace edit   Enter preview   Esc/q cancel",
-        line state.notice
-      ]
-  | .preview =>
-      .column <|
-        [ line "Actual / Reverse / Preview"
-        , line ("Target: " ++ state.target.token)
-        , line ("Target date: " ++ targetDateText state)
-        , line ("Reversal date: " ++ state.inputDate)
-        , line "Inverse postings:"
-        ] ++
-        ((inversePreview state).map fun (locus, quantity, measure) =>
-          line ("  " ++ locus.token ++ "  " ++ toString quantity.quanta ++ " " ++ measure.token)) ++
-        [ muted "Both Actuals remain retained. This is not an input correction."
-        , muted "Enter publish   Esc/e edit date   q cancel"
-        , line state.notice
-        ]
+/-- Wrap complete signed inverse quanta at narrow terminal widths. -/
+private def inverseRows (columns : Nat) (state : State) : List Widget :=
+  (inversePreview state).flatMap fun (locus, quantity, measure) =>
+    let signed := (if quantity.quanta > 0 then "+" else "") ++ toString quantity.quanta
+    wrapped columns (" " ++ locus.token ++ "  " ++ signed ++ " " ++ measure.token) .normal
 
+private def footer (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := wrapped width state.notice .normal
+  Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    (if feedback.isEmpty then [line ""] else feedback) ++
+    (if state.mode == .preview then
+      [ muted " Original retained; inverse Event added."
+      , .row [span "[Publish reversal]" .selected]
+      , muted " Up/Down PgUp/Dn review  Esc/e edit  q cancel"
+      ]
+    else
+      [ muted " Postings are fixed: exact additive inverse."
+      , muted " Date YYYY-MM-DD  Enter preview  Esc/q cancel"
+      ])
+
+/-- Physical rows available after reserved summary, borders and footer. -/
+def previewCapacity (bounds : Bounds) (state : State) : Nat :=
+  (Loam.Tui.Layout.footerBodyCapacity bounds (footer bounds state).length - 5) - 2
+
+def previewScrollLimit (bounds : Bounds) (state : State) : Nat :=
+  Loam.Tui.Scroll.maxOffset
+    (inverseRows (Loam.Tui.Layout.contentWidth bounds - 2) state).length
+    (previewCapacity bounds state)
+
+/-- Read-only preview scrolling; ordinary update retains sole publication intent. -/
+def updateForBounds (bounds : Bounds) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  if state.mode == .preview then
+    let limit := previewScrollLimit bounds state
+    let page := max 1 (previewCapacity bounds state)
+    let current := min state.previewScroll limit
+    match key with
+    | .up => { state := { state with previewScroll := current - 1 } }
+    | .down => { state := { state with previewScroll := min limit (current + 1) } }
+    | .pageUp => { state := { state with previewScroll := current - page } }
+    | .pageDown => { state := { state with previewScroll := min limit (current + page) } }
+    | .home => { state := { state with previewScroll := 0 } }
+    | .«end» => { state := { state with previewScroll := limit } }
+    | .enter =>
+        if previewCapacity bounds state == 0 then
+          { state := { state with notice := "Enlarge terminal to review inverse postings." } }
+        else update state key
+    | _ => update state key
+  else
+    update state key
+
+/-- Bounded date input and exact inverse review. The original stays retained. -/
+def view (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let actions := footer bounds state
+  let capacity := Loam.Tui.Layout.footerBodyCapacity bounds actions.length
+  let panels : List Widget :=
+    if state.mode == .preview then
+      let summary := Loam.Tui.Layout.framedPanel width (min 5 capacity)
+        "Actual / Reverse / Preview"
+        (.column [
+          .row [span " Target: " .muted, span state.target.token],
+          .row [span " Target date: " .muted, span (targetDateText state)],
+          .row [span " Reversal date: " .muted, span state.inputDate]
+        ]) true
+      let lines := inverseRows (width - 2) state
+      let visible := previewCapacity bounds state
+      let offset := Loam.Tui.Scroll.clamp lines.length visible state.previewScroll
+      let count := min (offset + visible) lines.length
+      let progress := s!"{count}/{lines.length} lines" ++
+        (if offset > 0 then " ▲" else "") ++
+        (if count < lines.length then " ▼" else "")
+      let postings := Loam.Tui.Layout.framedPanel width (capacity - 5)
+        "Inverse postings" (.column ((lines.drop offset).take visible))
+        false (some progress)
+      [summary, postings]
+    else
+      let content : List Widget :=
+        [ .row [span " Target: " .muted, span state.target.token],
+          .row [span " Target date: " .muted, span (targetDateText state)],
+          .row [span " Reversal date: " .muted, span state.inputDate .selected]
+        ] ++ wrapped (width - 2) (" Description: " ++ descriptionText state) .muted
+      [Loam.Tui.Layout.framedPanel width (min 9 capacity)
+        "Actual / Reverse / Date" (.column content) true]
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (Loam.Tui.Layout.widgetRows (.column panels)) actions).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
 end Loam.Tui.ActualReversal
