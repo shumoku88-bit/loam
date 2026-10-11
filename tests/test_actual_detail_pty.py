@@ -101,10 +101,24 @@ def main():
                 _, returned = send(terminal, b"\x1b", DETAIL)
                 assert identity in returned and probe.digest(root) == frozen, (key, returned)
 
-            # Date correction retains the Event, follows its new date, and requires confirmation.
-            _, date_edit = send(terminal, b"d", b"Actual / Date / Edit")
+            # Date correction stays over the selected Actual context when roomy.
+            # The same retained target and input survive compact and roomy resizes.
+            os.write(terminal.fd, b"d")
+            _, raw_date_edit = terminal.capture(b"Actual / Date / Edit")
+            assert b"\x1b[2J" not in raw_date_edit, "floating date editor cleared its parent"
+            date_edit = probe.ANSI.sub(b"", raw_date_edit)
             assert all(label in date_edit for label in
                        (b"Current date:", b"New date:", b"Target Actual:", identity))
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 14, 48, 0, 0))
+            _, compact_date = terminal.capture(b"Actual / Date / Edit")
+            assert b"Current date:" in probe.ANSI.sub(b"", compact_date)
+            assert probe.digest(root) == frozen, "date editor resize wrote authority"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            _, resumed_date = terminal.capture(b"Actual / Date / Edit")
+            assert identity in probe.ANSI.sub(b"", resumed_date), (
+                "date editor resize lost selected Actual", resumed_date)
             changed_date = str(datetime.date.today() - datetime.timedelta(days=1)).encode()
             _, date_preview = send(terminal, b"\x7f" * 10 + changed_date + b"\r",
                                    b"Actual / Date / Preview")
@@ -117,6 +131,18 @@ def main():
                 [label for label in expected_changes if label not in date_preview],
                 date_preview[-1600:])
             assert probe.digest(root) == frozen, "date preview published"
+            # The same review cannot Publish while compact geometry hides its
+            # target/confirmation. The draft survives a subsequent enlargement.
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 9, 32, 0, 0))
+            terminal.capture(b"Actual / Date / Preview")
+            _, refused_date = send(terminal, b"\r", b"Enlarge terminal")
+            assert b"Enlarge terminal" in refused_date
+            assert probe.digest(root) == frozen, "compact date review wrote authority"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            _, restored_preview = terminal.capture(b"Actual / Date / Preview")
+            assert b"Proposed date" in probe.ANSI.sub(b"", restored_preview)
             _, dated = send(terminal, b"\r", DETAIL)
             assert identity in dated and b"Date: " + changed_date in dated
             after_date = probe.digest(root)

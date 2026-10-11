@@ -83,6 +83,34 @@ def main (args : List String) : IO Unit := do
       cells.any fun cell => cell.style == .selected && cell.glyph == '2')
       "date editor lost highlighted editable date"
 
+  -- The same editor floats only when it fits, without changing retained input.
+  let roomy : Loam.Tui.Kernel.Bounds := { width := 120, height := 40 }
+  let some rectangle := Loam.Tui.ActualDateCorrection.floatingGeometry? roomy
+    | throw (IO.userError "date editor did not float at roomy bounds")
+  expect (rectangle.width == 76 && rectangle.height == 18 &&
+      rectangle.top == 11 && rectangle.left == 21)
+    "date editor did not use centered shared modal geometry"
+  let floating := Loam.Tui.ActualDateCorrection.viewForBounds roomy editor
+  expect (floating.lines.length == rectangle.height)
+    "floating date form escaped its modal height"
+  let floatingText := String.ofList (floating.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains recorded.token floatingText && contains "Current date" floatingText &&
+      contains "New date" floatingText)
+    "floating date form lost its immutable target or both dates"
+  for cells in floating.lines do
+    expect (Loam.Tui.Layout.displayWidth (String.ofList
+      (cells.map Loam.Tui.Kernel.Cell.glyph)) == rectangle.width)
+      "floating date form escaped its panel width"
+  for tiny in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
+      { width := 32, height := 9 }, { width := 10, height := 1 }] do
+    expect ((Loam.Tui.ActualDateCorrection.floatingGeometry? tiny).isNone)
+      "compact date editor unexpectedly floated"
+    let compact := Loam.Tui.ActualDateCorrection.viewForBounds tiny editor
+    expect (compact.lines == (Loam.Tui.ActualDateCorrection.view tiny editor).lines)
+      "compact date editor changed the existing visible contract"
+    expect (compact.lines.length <= tiny.height - 1)
+      "compact date editor exceeded writable terminal rows"
+
   let erased := (Loam.Tui.ActualDateCorrection.update editor .backspace).state
   let typed := (Loam.Tui.ActualDateCorrection.update erased (.input '6')).state
   expect (typed.input == "2026-09-06")
@@ -101,7 +129,16 @@ def main (args : List String) : IO Unit := do
     { width := 48, height := 14 } refused).lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
   expect (refused.mode == .editing && contains "Recheck refused" refusedText)
     "publication refusal did not return to the edit mode with visible notice"
-  let publish := Loam.Tui.ActualDateCorrection.update preview.state .enter
+  -- Unreadable compact reviews must refuse Enter rather than silently publish.
+  for tiny in [({ width := 32, height := 9 } : Loam.Tui.Kernel.Bounds),
+      { width := 10, height := 1 }] do
+    let hidden := Loam.Tui.ActualDateCorrection.updateForBounds tiny preview.state .enter
+    expect (hidden.publish.isNone && hidden.state.input == "2026-09-06" &&
+        hidden.state.target == recorded && hidden.state.mode == .preview &&
+        contains "Enlarge terminal" hidden.state.notice)
+      "compact date review emitted hidden publication or lost retained draft"
+  let publish := Loam.Tui.ActualDateCorrection.updateForBounds
+    { width := 120, height := 40 } preview.state .enter
   let dateDraft ← requireSome publish.publish "date preview did not emit publication intent"
   expect (dateDraft.target == recorded && dateDraft.validOn == "2026-09-06")
     "date editor intent changed target or date"

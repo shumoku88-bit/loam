@@ -5,6 +5,7 @@ import Loam.Tui.Main
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
 import Loam.Tui.Layout
+import Loam.Tui.ModalSurface
 
 namespace Loam.Tui.ActualDateCorrection
 
@@ -76,6 +77,17 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .input 'q' | .input 'Q' => { state, cancel := true }
       | _ => { state }
 
+/-- Compact terminals without sufficient review space must not accept a
+    blind Publish. This changes no date, target, or draft; larger screens retain
+    the same editor transitions and publisher intent. -/
+def updateForBounds (bounds : Bounds) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  if state.mode == .preview && key == .enter &&
+      (bounds.height < 14 || Loam.Tui.Layout.contentWidth bounds < 46) then
+    { state := { state with
+        notice := "Enlarge terminal to review the date and target before Publish." } }
+  else update state key
+
 /-- Return a failed publication attempt to the local editor without changing its draft. -/
 def withPublishError (state : State) (message : String) : State :=
   { state with mode := .editing, notice := message }
@@ -114,4 +126,31 @@ def view (bounds : Bounds) (state : State) : Widget :=
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows panel) footer).map fun row =>
       Loam.Tui.Layout.clipWidgetRow width row)
+/-!
+# Shared adaptive presentation surface
+
+Only the placement of the existing date editor changes. Target selection,
+date validation, edit/preview intent and Actual publication remain owned by
+their existing modules and the Selected Day session.
+-/
+
+/-- A compact date form can float without hiding either date or the target. -/
+def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
+  Loam.Tui.ModalSurface.centered? bounds 72 23 76 18
+
+/-- The date editor receives only the visible space inside the outer frame. -/
+def editorBounds (bounds : Bounds) : Bounds :=
+  match floatingGeometry? bounds with
+  | none => bounds
+  | some region => { width := region.width - 1, height := region.height - 1 }
+
+/-- Keep the original edit and preview renderer, including its compact fallback. -/
+def viewForBounds (bounds : Bounds) (state : State) : Widget :=
+  match floatingGeometry? bounds with
+  | none => view bounds state
+  | some region =>
+      Loam.Tui.Layout.framedPanel region.width region.height
+        "Actual / Date"
+        (view (editorBounds bounds) state) true
+
 end Loam.Tui.ActualDateCorrection
