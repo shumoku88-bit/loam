@@ -130,27 +130,28 @@ def actualDateCorrectionLoop
     state frame
 
 
-/-- Merchant editing stays local; canonical first-classification semantics remain in the publisher. -/
-partial def eventMerchantLoop
+/-- Classification-specific publisher and reload stay here. Only the
+    adaptive terminal lifecycle is shared with Actual date and reversal. -/
+def eventMerchantLoop
     (bounds : Bounds) (root : System.FilePath)
-    (state : Loam.Tui.EventMerchant.State) (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.EventMerchant.update state (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Merchant classification cancelled."
-  match step.publish with
-  | some draft =>
+    (state : Loam.Tui.EventMerchant.State) (frame : CompiledWidget)
+    (parent : Bounds → CompiledWidget) : IO String :=
+  Loam.Tui.EditorSession.runUntilPublishedAdaptive bounds
+    Loam.Tui.EventMerchant.floatingGeometry?
+    parent
+    (fun active editor key =>
+      Loam.Tui.EventMerchant.updateForBounds
+        (Loam.Tui.EventMerchant.editorBounds active) editor key)
+    Loam.Tui.EventMerchant.viewForBounds
+    Loam.Tui.EventMerchant.withPublishError
+    "Merchant classification cancelled."
+    (fun draft => do
       match ← Loam.HouseholdCommand.classifyEventMerchant root draft with
-      | .ok () =>
-          return "Published " ++ Loam.Tui.EventMerchant.dispositionText draft.disposition ++
-            " for " ++ draft.target.token ++ "."
-      | .error message =>
-          let next := Loam.Tui.EventMerchant.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.EventMerchant.view next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          eventMerchantLoop bounds root next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.EventMerchant.view step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      eventMerchantLoop bounds root step.state nextFrame
+      | .ok () => return .ok
+          ("Published " ++ Loam.Tui.EventMerchant.dispositionText draft.disposition ++
+            " for " ++ draft.target.token ++ ".")
+      | .error message => return .error message)
+    state frame
 
 
 /-- Both entrances use the same editors, confirmations, publishers and required reloads.
@@ -349,9 +350,17 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               run bounds dataDir root reload snapshot next nextFrame
           | none =>
               let editor := Loam.Tui.EventMerchant.initial record
-              let editorFrame := compileWidget (Loam.Tui.EventMerchant.view editor)
-              Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
-              let notice ← eventMerchantLoop bounds root editor editorFrame
+              let parent := fun active =>
+                compileWidget (Loam.Tui.SelectedDay.view active snapshot step.state)
+              let active ← Loam.Tui.Terminal.currentBounds
+              let region := Loam.Tui.EventMerchant.floatingGeometry? active
+              let editorFrame := compileWidget (Loam.Tui.EventMerchant.viewForBounds active editor)
+              if active == bounds then
+                Loam.Tui.ModalSurface.paint active region .fromBlank
+                  (compileWidget (.row [])) editorFrame
+              else
+                Loam.Tui.ModalSurface.repaintOverParent active region (parent active) editorFrame
+              let notice ← eventMerchantLoop active root editor editorFrame parent
               let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
