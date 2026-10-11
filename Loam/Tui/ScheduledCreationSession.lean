@@ -24,22 +24,21 @@ Higher-level construction helpers can therefore collect several explicit drafts,
 show the complete set, and only then publish through the ordinary household
 command boundary.
 -/
-partial def collectDraft
+def collectDraft
     (bounds : Bounds)
     (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) :
-    IO (Option Loam.ScheduledCreationPublisher.Draft) := do
-  let key ← Loam.Tui.Terminal.readKey
-  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
-    compileWidget (Loam.Tui.ScheduledCreation.view active known state)
-  let step := Loam.Tui.ScheduledCreation.updateForBounds bounds known state key
-  if step.cancel then return none
-  match step.publish with
-  | some draft => return some draft
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledCreation.view bounds known step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      collectDraft bounds known step.state nextFrame
+    IO (Option Loam.ScheduledCreationPublisher.Draft) :=
+  -- Reuse the same resize/keyboard/redraw shell as standalone creation.
+  -- Returning a draft to the caller is not a household publication; the
+  -- generation workflow still owns its explicit final review and write.
+  Loam.Tui.EditorSession.runUntilPublishedResizing bounds
+    (fun active editor key => Loam.Tui.ScheduledCreation.updateForBounds active known editor key)
+    (fun active editor => Loam.Tui.ScheduledCreation.view active known editor)
+    Loam.Tui.ScheduledCreation.withPublishError
+    none
+    (fun draft => pure (.ok (some draft)))
+    state frame
 
 /--
 Run one presentation-only Scheduled creation editor session, returning the created Scheduled identity if published.
