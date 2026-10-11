@@ -67,19 +67,15 @@ def runWithScheduledId
     state frame
 
 /--
-Run one presentation-only Scheduled creation editor session.
-
-The session owns no Scheduled authority. It emits at most one draft to the shared
-household command boundary; publication refusal returns to editable local state.
+After a successful ordinary create, re-read its exact identity and optionally
+offer expected-pace monitoring. Both compact and floating sessions use this
+same post-publication continuation; group draft collection never calls it.
 -/
-def run
-    (bounds : Bounds) (dataDir root : System.FilePath)
-    (known : List String)
-    (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) : IO String := do
-  let (created?, notice) ← runWithScheduledId bounds root known state frame
+private def finishCreated
+    (dataDir root : System.FilePath)
+    (created? : Option ScheduledId) (notice : String) : IO String := do
   let some created := created? | return notice
-  -- Re-read the exact published identity. A failed reread is reported, never
-  -- silently treated as an absent or one-off recurrence expectation.
+  -- Never silently infer a one-off or recurrence when the fresh read fails.
   let .ok evidence ← Loam.ScheduledReview.loadHouseholdEvidence dataDir root
     | return notice ++ " Expected-pace setup unavailable: Scheduled evidence could not be reloaded."
   let .ok records := Loam.ScheduledReview.orderedCurrentOpenRecords evidence
@@ -90,6 +86,17 @@ def run
   let paceNotice ← Loam.Tui.ScheduledCoverageSetupSession.runAfterCreation
     bounds dataDir source
   return notice ++ " " ++ paceNotice
+
+/--
+Original full-screen Scheduled creation session. Kept for existing consumers;
+both ordinary workspace launchers now use the adaptive variant below.
+-/
+def run
+    (bounds : Bounds) (dataDir root : System.FilePath)
+    (known : List String)
+    (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) : IO String := do
+  let (created?, notice) ← runWithScheduledId bounds root known state frame
+  finishCreated dataDir root created? notice
 
 
 /-!
@@ -191,16 +198,6 @@ def runAdaptive
     (state : Loam.Tui.ScheduledCreation.State)
     (parent : Bounds → CompiledWidget) : IO String := do
   let (created?, notice) ← runAdaptiveWithScheduledId bounds root known state parent
-  let some created := created? | return notice
-  let .ok evidence ← Loam.ScheduledReview.loadHouseholdEvidence dataDir root
-    | return notice ++ " Expected-pace setup unavailable: Scheduled evidence could not be reloaded."
-  let .ok records := Loam.ScheduledReview.orderedCurrentOpenRecords evidence
-    | return notice ++ " Expected-pace setup unavailable: open Scheduled evidence is unreadable."
-  let some source := records.find? (fun record => record.id.token == created.token)
-    | return notice ++ " Expected-pace setup unavailable: new Scheduled identity not found."
-  let bounds ← Loam.Tui.Terminal.currentBounds
-  let paceNotice ← Loam.Tui.ScheduledCoverageSetupSession.runAfterCreation
-    bounds dataDir source
-  return notice ++ " " ++ paceNotice
+  finishCreated dataDir root created? notice
 
 end Loam.Tui.ScheduledCreationSession
