@@ -735,7 +735,15 @@ ordinary explicit Scheduled occurrence and is individually reviewable before
 publication. The read-side cadence never becomes Scheduled authority.
 
 `p` opens the existing plan-monitoring editor and changes the replaceable expected
-cadence. `s` changes only that replaceable read-side row to `undecided`: its
+cadence. The monitoring chooser now uses a focus-following **Expected pace**
+panel with five explicit cadence options, bounded notice/help rows, and the
+same live-resize geometry as the post-creation chooser. Up/Down or j/k moves,
+Enter saves the selected monitoring cadence, and Esc/q cancels unchanged.
+The panel scrolls on short terminals so the highlighted cadence remains
+visible. This is a read-side monitoring choice only: it neither creates a
+future Scheduled nor claims a canonical recurring series.
+
+`s` changes only that replaceable read-side row to `undecided`: its
 signed-Locus selector and display row remain available, but it expects no future
 month and therefore produces no future `!` markers. Existing explicit Scheduled
 occurrences are untouched. This keeps "I do not yet know whether this continues"
