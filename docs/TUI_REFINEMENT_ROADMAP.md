@@ -61,6 +61,26 @@ LOAM の TUI はすでに強固な基礎を持っています。機能追加や�
     2. **変更・修正（注意）**: 落ち着いたアンバー／イエロー系（既存データの変更・注意）
     3. **取消・削除・逆仕訳（警告）**: 落ち着いたローズ／レッド系（破壊的操作・取消の警戒）
 
+### 課題 6：共通 UI 部品の再利用性を研究に照らして点検する
+
+編集 UI の共通化は**コード行数の削減ではなく、独立した部品を組み合わせられる構造**を目標とする。一方で、不適切な抽象化は依存・例外分岐・理解のコストを増やす。判断履歴は [Issue #1909](https://github.com/shumoku88-bit/loam/issues/1909) に残す。
+
+* **変更の局所化**: Parnas (1972) のモジュール分割論を参考に、表示位置・描画・端末リサイズの変更が記帳や予定取消のドメイン処理に波及しないか確認する。
+* **前提条件の整合**: Garlan, Allen, Ockerbloom (1995) の *Architectural Mismatch* を参考に、Esc/Enter、復帰先、状態保持、リサイズ、発行拒否、親画面の再描画について呼び出し側の暗黙の前提を明示する。
+* **再利用の実益とコスト**: Chen, Usman, Badampudi (2024) の産業事例の系統的レビューを参考に、共通部品の利用実績・テスト容易性・保守コストを評価する。行数・ファイル数だけで合否を決めない。
+* **誤った抽象化からの撤退**: Sandi Metz (2016) の実務記事 *The Wrong Abstraction* を警告として扱う。これは実証研究ではない。共通部品に Actual/Scheduled/Attention 固有の分岐やフラグが増えたら、強引に一般化せず分割・局所化を検討する。
+
+**点検のタイミング**: 新しい共通部品に2つ目の独立した利用先ができたとき、Actual/Scheduled/Attention の領域をまたぐ前、約3画面の移行ごと、あるいは共通 API に専用例外を追加する前。
+
+**点検の記録**: 利用元、変更した共通 API、増えた専用分岐、独立テスト、他画面への影響、ドメイン意味の維持を短く示し、**KEEP / SPLIT / INLINE / DEFER** を判断する。再利用を目的化しない。必要になった部品だけを作る。
+
+参考文献：
+
+* Parnas (1972), *On the Criteria To Be Used in Decomposing Systems into Modules*. https://doi.org/10.1145/361598.361623
+* Garlan, Allen, Ockerbloom (1995), *Architectural Mismatch: Why Reuse Is So Hard*. https://doi.org/10.1109/52.469757
+* Chen, Usman, Badampudi (2024), *Understanding and evaluating software reuse costs and benefits from industrial cases*. https://doi.org/10.1016/j.infsof.2024.107451
+* Sandi Metz (2016), *The Wrong Abstraction*（実務記事）. https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction
+
 ---
 
 ## 3. 各 AI アシスタント・作業者への共通指針
