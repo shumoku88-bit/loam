@@ -12,6 +12,7 @@ import struct
 import subprocess
 import tempfile
 import termios
+import time
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("loam_resource_probe", ROOT / "tools/benchmark-tui-resources.py")
@@ -111,7 +112,16 @@ def main():
             send(terminal, b"\x1b", b"Attention / Manage")
             assert probe.digest(root) == before, "close cancellation wrote a lifecycle fact"
             send(terminal, b"r", b"Attention / resolve")
-            resize(terminal, 14, 48, b"Attention / resolve")
+            # The confirmation is now an overlay; an invisible 10x1 Enter
+            # must never publish the retained Attention identity.
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 1, 10, 0, 0))
+            time.sleep(.3)
+            os.write(terminal.fd, b"\r")
+            time.sleep(.3)
+            assert probe.digest(root) == before, "invisible close changed canonical bytes"
+            recovered = resize(terminal, 14, 48, b"Attention / resolve")
+            assert b"Enlarge terminal" in recovered, "tiny close refusal notice was lost"
             send(terminal, b"\r", b"Resolved attention-30.")
             send(terminal, b"\x1b[F", b"MATTER-29")
             send(terminal, b"x", b"Attention / drop")
