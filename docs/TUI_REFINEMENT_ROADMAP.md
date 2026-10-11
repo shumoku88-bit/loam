@@ -33,8 +33,8 @@ LOAM の TUI はすでに強固な基礎を持っています。機能追加や�
 日常の主要画面（Home, Actual, Balances, Attention, Daily Pace 等）は整っていますが、より洗練された道具にするために以下の改善課題が残されています。
 
 ### 課題 1：残存画面のトーン統一（Coverage）
-* [`docs/TUI_NON_BUDGET_WORKLIST.md`](TUI_NON_BUDGET_WORKLIST.md) に記載されている未着手・検証待ち画面（Scheduled の置換・一括編集、Reports 各子画面、Settlements 等）を、現在の丸角枠・余白・固定ナビのトーンへ揃え切る。
-* 新規作成画面や補助画面を浮かせず、既存の完了画面とシームレスに統一する。
+* 画面ごとの未着手・検証待ちは [`docs/TUI_NON_BUDGET_WORKLIST.md`](TUI_NON_BUDGET_WORKLIST.md) を正とし、現在も残る画面を丸角枠・余白・固定ナビのトーンへ揃える。完了した Scheduled 操作を古い未着手一覧として固定しない。
+* 作成・編集・取消などのモーダル操作は、対応済み画面と同じ `ModalSurface` のフローティング表示を基本とし、狭い端末では安全にコンパクト表示へ切り替える。独立した発行・取消・完了の意味を画面共通化で混同しない。
 
 ### 課題 2：検索・パレットの手触り向上（Interactive Polish）
 * コマンドパレット（UI-02）や Locus / 候補選択における**インクリメンタルなファジー検索（あいまい検索）**の導入。

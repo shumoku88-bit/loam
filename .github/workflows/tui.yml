@@ -483,8 +483,8 @@ jobs:
           lake env lean --run Loam/Tests/TuiLocusPicker.lean
           lake env lean --run Loam/Tests/TuiTextFieldGeometry.lean
           lake env lean --run Loam/Tests/TuiInputEdit.lean
-          lake env lean --run Loam/Tests/TuiRecord.lean "$(mktemp -d)/tui-record-input-pr"
-          lake env lean --run Loam/Tests/TuiAttentionAdministration.lean
+          # Both TuiRecord and TuiAttentionAdministration already run via
+          # 'lake test -- tui-representative' above. Keep one PR execution.
           lake env lean --run Loam/Tests/TuiScheduledCreate.lean "$(mktemp -d)/tui-scheduled-create-pr"
           lake env lean --run Loam/Tests/TuiScheduledTerminal.lean "$(mktemp -d)/tui-scheduled-terminal-pr"
           lake env lean --run Loam/Tests/TuiCapacityTransfer.lean "$(mktemp -d)/tui-capacity-focus-pr"
