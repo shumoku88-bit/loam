@@ -8,6 +8,8 @@ import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.SelectedDay
 import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledCancellationSession
+import Loam.Tui.ScheduledCreation
+import Loam.Tui.ScheduledCreationSession
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledReplacement
 import Loam.Tui.ScheduledReplacementSession
@@ -442,6 +444,55 @@ def main (args : List String) : IO Unit := do
 
   -- The replacement editor now uses the same *admitted-token* picker as
   -- Record and Scheduled creation, with its own focus and publisher state.
+  -- Standalone Scheduled creation has the same physical modal surface as
+  -- cancellation and replacement, but retains its own publisher semantics.
+  let creationSeed := Loam.Tui.ScheduledCreation.initial "2026-09-12"
+  let creationState : Loam.Tui.ScheduledCreation.State := {
+    creationSeed with
+    form := { creationSeed.form with
+      rows := #[{locus := "paypay", amount := "-300"},
+                {locus := "rent", amount := "300"}] } }
+  let .ok creationDraft := Loam.Tui.ScheduledCreation.draft? creationState
+    | throw (IO.userError "build standalone Scheduled creation draft")
+  let creationPreview : Loam.Tui.ScheduledCreation.State := {
+    creationState with mode := .preview creationDraft ⟨0, by omega⟩ }
+  let roomy : Loam.Tui.Kernel.Bounds := {width := 120, height := 40}
+  let some creationRect :=
+      Loam.Tui.ScheduledCreationSession.floatingGeometry? roomy
+    | throw (IO.userError "standalone Scheduled creation did not float at 120x40")
+  expect (creationRect.width == 88 && creationRect.height == 33 &&
+    creationRect.top == 3 && creationRect.left == 15)
+    "standalone Scheduled creation changed shared modal placement"
+  let creationInner := Loam.Tui.ScheduledCreationSession.editorBounds roomy
+  expect (creationInner.width == 87 && creationInner.height == 32)
+    "standalone Scheduled creation did not receive inner geometry"
+  for draftState in [creationState, creationPreview] do
+    let view := Loam.Tui.ScheduledCreationSession.modalViewForBounds
+      roomy ["paypay", "rent"] draftState
+    expect (view.lines.length == creationRect.height)
+      "floating Scheduled creation did not fill its exact panel"
+    for row in view.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <= creationRect.width)
+        "floating Scheduled creation row overran panel"
+  for compact in
+      ([{width := 80, height := 24}, {width := 48, height := 14},
+        {width := 32, height := 9}, {width := 10, height := 1}]
+       : List Loam.Tui.Kernel.Bounds) do
+    expect ((Loam.Tui.ScheduledCreationSession.floatingGeometry? compact).isNone)
+      "standalone creation unexpectedly floated at compact terminal"
+    for draftState in [creationState, creationPreview] do
+      let view := Loam.Tui.ScheduledCreationSession.modalViewForBounds
+        compact ["paypay", "rent"] draftState
+      expect (view.lines.length <= compact.height - 1)
+        "compact Scheduled creation overran terminal"
+    if compact.height <= 9 then
+      let blocked := Loam.Tui.ScheduledCreation.updateForBounds
+        (Loam.Tui.ScheduledCreationSession.editorBounds compact)
+        ["paypay", "rent"] creationPreview .enter
+      expect (blocked.publish.isNone)
+        "Scheduled creation published with hidden review"
+
   let replacementKnown := ["paypay", "rent", "food"]
   let emptyLocus : Loam.Tui.ScheduledReplacement.State := {
     replacementEditor with

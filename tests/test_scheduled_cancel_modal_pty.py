@@ -162,6 +162,15 @@ def main():
             assert b"Target: second" in ANSI.sub(b"", day_modal), day_modal
             t.send(b"\x1b", b"Household Day Workspace")
             assert digest(root) == day_before, "Selected Day Esc wrote household data"
+
+            # Scheduled creation on the same Selected Day parent also floats
+            # through the shared modal. Esc leaves the selected plan untouched.
+            creation_modal = t.send(b"n", b"Scheduled / New / Edit")
+            assert b"Scheduled / New" in ANSI.sub(b"", creation_modal)
+            assert b"\x1b[2J" not in creation_modal, "Selected Day creation cleared parent"
+            t.send(b"\x1b", b"Household Day Workspace")
+            assert digest(root) == day_before, "Selected Day Scheduled creation Esc wrote data"
+
             t.send(b"x", b"Scheduled / Cancel")
             t.send(b"\t")
             t.send(b"\r", b"Cancelled second.")
