@@ -207,7 +207,7 @@ partial def run
       let catalog ← currentLocusCatalog dataDir world
       let editor := Loam.Tui.ScheduledCreation.withCatalog
         (Loam.Tui.ScheduledCreation.initial step.state.focusDate) catalog
-      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view known editor)
+      let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view bounds known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
         bounds root known editor editorFrame
