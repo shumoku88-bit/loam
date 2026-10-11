@@ -11,6 +11,9 @@ open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
   | some result => pure result
@@ -75,6 +78,19 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reversal editor rejected practical Actual")
   expect (editor.target == recorded && editor.inputDate == "2026-09-08")
     "reversal editor did not keep selected target and today as independent coordinates"
+  for bounds in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
+      { width := 80, height := 24 }, { width := 120, height := 40 }] do
+    let widget := Loam.Tui.ActualReversal.view bounds editor
+    let glyphs := String.ofList (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (contains "Target date" glyphs && contains "Reversal date" glyphs &&
+      contains recorded.token glyphs && contains "2026-09-08" glyphs)
+      "reversal date editor lost target or editable date"
+    expect (widget.lines.length <= bounds.height - 1)
+      "reversal date editor exceeded terminal height"
+    for cells in widget.lines do
+      expect (Loam.Tui.Layout.displayWidth (String.ofList
+        (cells.map Loam.Tui.Kernel.Cell.glyph)) <= Loam.Tui.Layout.contentWidth bounds)
+        "reversal date editor exceeded terminal width"
 
   let some usdEvent := Event.ofEffects? ⟨"usd-actual"⟩
       [ Effect.ofQuantity ⟨"usd-effect-1"⟩ ⟨"paypay"⟩ ⟨"usd"⟩ (Quantity.ofQuanta (-25))
@@ -118,6 +134,35 @@ def main (args : List String) : IO Unit := do
   let preview := Loam.Tui.ActualReversal.update editor .enter
   expect (preview.state.mode == .preview && preview.publish.isNone)
     "reversal did not require explicit preview before publication"
+  let smallBounds : Loam.Tui.Kernel.Bounds := { width := 48, height := 14 }
+  let review := Loam.Tui.ActualReversal.view smallBounds preview.state
+  let reviewText := String.ofList (review.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains "Actual / Reverse / Preview" reviewText &&
+    contains "Inverse postings" reviewText &&
+    contains "+640 jpy" reviewText && contains "-640 jpy" reviewText &&
+    contains "Original retained" reviewText && contains "Publish reversal" reviewText)
+    "reversal review lost exact signed inverse or retained-original warning"
+  expect (review.lines.length <= smallBounds.height - 1)
+    "reversal Preview exceeded small terminal height"
+  let tiny : Loam.Tui.Kernel.Bounds := { width := 32, height := 6 }
+  let blocked := Loam.Tui.ActualReversal.updateForBounds tiny preview.state .enter
+  expect (blocked.publish.isNone && blocked.state.mode == .preview)
+    "tiny terminal published a reversal without visible inverse evidence"
+  let expanded := Loam.Tui.ActualReversal.updateForBounds smallBounds preview.state .enter
+  expect expanded.publish.isSome "adequate review viewport lost Enter publication"
+  let repeated : Loam.Tui.ActualReversal.State := {
+    preview.state with targetEffects := List.replicate 18 (record.event.effects.head!) }
+  let limit := Loam.Tui.ActualReversal.previewScrollLimit smallBounds repeated
+  expect (limit > 0) "long inverse preview did not admit scrolling"
+  let jumped := (Loam.Tui.ActualReversal.updateForBounds smallBounds repeated .«end»).state
+  expect (jumped.previewScroll == limit)
+    "reversal End did not reach all postings"
+  let back := (Loam.Tui.ActualReversal.updateForBounds smallBounds jumped .pageUp).state
+  expect (back.previewScroll < jumped.previewScroll)
+    "reversal PageUp did not scroll inverse review"
+  let last := Loam.Tui.ActualReversal.view smallBounds jumped
+  expect (last.lines.length <= smallBounds.height - 1)
+    "scrolled long inverse review exceeded terminal height"
   let publish := Loam.Tui.ActualReversal.update preview.state .enter
   let draft ← requireSome publish.publish "reversal preview did not emit publication intent"
   expect (draft.target == recorded && draft.validOn == "2026-09-08")
