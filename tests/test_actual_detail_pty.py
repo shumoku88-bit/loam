@@ -165,14 +165,39 @@ def main():
             send(terminal, b"\t\r", b"Event Merchant / Preview")
             send(terminal, b"\r", b"Published Nonmerchant")
             send(terminal, b"m", b"Merchant already classified: Nonmerchant")
-            _, reverse_edit = send(terminal, b"r", b"Actual / Reverse / Date")
+            # Floating reversal preserves the selected parent; resizes cannot write.
+            before_reversal = probe.digest(root)
+            os.write(terminal.fd, b"r")
+            _, raw_reverse = terminal.capture(b"Actual / Reverse / Date")
+            assert b"\x1b[2J" not in raw_reverse, "floating reversal cleared its parent"
+            reverse_edit = probe.ANSI.sub(b"", raw_reverse)
             assert b"Reversal date:" in reverse_edit and b"Target date:" in reverse_edit
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 14, 48, 0, 0))
+            _, compact_reverse = terminal.capture(b"Actual / Reverse / Date")
+            assert b"Reversal date:" in probe.ANSI.sub(b"", compact_reverse)
+            assert probe.digest(root) == before_reversal, "compact reversal resize wrote data"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            _, roomy_reverse = terminal.capture(b"Actual / Reverse / Date")
+            assert b"Reversal date:" in probe.ANSI.sub(b"", roomy_reverse)
             _, reverse_preview = send(terminal, b"\r", b"Actual / Reverse / Preview")
             # The renderer sends only changed rows on transition.
             assert b"Inverse postings" in reverse_preview and b"Publish reversal" in reverse_preview, (
                 reverse_preview[-1600:])
-            before_reversal = probe.digest(root)
+            assert probe.digest(root) == before_reversal
             assert "REVERSAL-OF" not in sections(root)["Actual"]
+            # A hidden inverse preview cannot publish and survives enlargement.
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 9, 32, 0, 0))
+            terminal.capture(b"Actual / Reverse / Preview")
+            _, refused_reverse = send(terminal, b"\r", b"Enlarge terminal")
+            assert b"Enlarge terminal" in refused_reverse
+            assert probe.digest(root) == before_reversal, "hidden reversal published"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            _, restored_reverse = terminal.capture(b"Actual / Reverse / Preview")
+            assert b"Inverse postings" in probe.ANSI.sub(b"", restored_reverse)
             _, reversed_detail = send(terminal, b"\r", DETAIL)
             assert b"Reversed " in reversed_detail and query + b"-corrected" in reversed_detail
             assert b"Reversed by:" in reversed_detail and b"Merchant: Nonmerchant" in reversed_detail
