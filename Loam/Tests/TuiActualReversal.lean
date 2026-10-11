@@ -150,8 +150,10 @@ def main (args : List String) : IO Unit := do
     "tiny terminal published a reversal without visible inverse evidence"
   let expanded := Loam.Tui.ActualReversal.updateForBounds smallBounds preview.state .enter
   expect expanded.publish.isSome "adequate review viewport lost Enter publication"
+  let firstEffect ← requireSome record.event.effects.head?
+    "long inverse-preview fixture has no Effect"
   let repeated : Loam.Tui.ActualReversal.State := {
-    preview.state with targetEffects := List.replicate 18 (record.event.effects.head!) }
+    preview.state with targetEffects := List.replicate 18 firstEffect }
   let limit := Loam.Tui.ActualReversal.previewScrollLimit smallBounds repeated
   expect (limit > 0) "long inverse preview did not admit scrolling"
   let jumped := (Loam.Tui.ActualReversal.updateForBounds smallBounds repeated .«end»).state
