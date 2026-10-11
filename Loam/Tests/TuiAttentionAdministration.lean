@@ -1,6 +1,7 @@
 import Loam.Review.AttentionReview
 import Loam.HouseholdCommand
 import Loam.Tui.AttentionAdministration
+import Loam.Tui.AttentionAdministrationSession
 import Loam.Authority.HouseholdAuthority
 
 open Loam.Core Loam.Tui.Kernel
@@ -52,6 +53,43 @@ private def testBoundedPresentation : IO Unit := do
     due := if i % 3 == 0 then .dueOn "2026-10-01" else if i % 3 == 1 then .noDueDate else .dueUndetermined
   }
   let initial := Loam.Tui.AttentionAdministration.initial (.available {openItems := items}) "2026-09-16"
+  -- Research-informed composition checkpoint: close only uses shared geometry.
+  let roomy : Bounds := { width := 112, height := 40 }
+  let some rectangle := Loam.Tui.AttentionAdministrationSession.closeGeometry? roomy
+    | throw (IO.userError "Attention close did not float at roomy bounds")
+  expect (rectangle.top == 9 && rectangle.left == 17 &&
+      rectangle.width == 76 && rectangle.height == 21)
+    "Attention close modal geometry unexpectedly diverged"
+  let closeState := (Loam.Tui.AttentionAdministration.updateForBounds
+    roomy initial (.input 'x')).state
+  let floating := Loam.Tui.AttentionAdministrationSession.closeViewForBounds
+    roomy closeState
+  expect (floating.lines.length == rectangle.height &&
+      contains "Attention / Close" (widgetText floating) &&
+      contains "attention-1" (widgetText floating))
+    "floating Attention close lost its target or panel"
+  for row in floating.lines do
+    expect (Loam.Tui.Layout.displayWidth
+      (String.ofList (row.map Cell.glyph)) <= rectangle.width)
+      "Attention floating modal exceeded physical panel width"
+  for small in
+      ([{width := 48, height := 14}, {width := 32, height := 9},
+        {width := 10, height := 1}] : List Bounds) do
+    expect ((Loam.Tui.AttentionAdministrationSession.closeGeometry? small).isNone)
+      "compact Attention close unexpectedly floated"
+    let compactView := Loam.Tui.AttentionAdministrationSession.closeViewForBounds
+      small closeState
+    expect (compactView.lines.length <= small.height)
+      "compact Attention close overflowed terminal rows"
+  let invisible := (Loam.Tui.AttentionAdministration.updateForBounds
+    ({width := 10, height := 1} : Bounds) closeState .enter)
+  expect (invisible.close.isNone && contains "Enlarge terminal" invisible.state.notice)
+    "Attention close published while the exact target was hidden"
+  let visibleAgain := Loam.Tui.AttentionAdministration.updateForBounds
+    ({width := 48, height := 14} : Bounds) invisible.state .enter
+  expect (visibleAgain.close.map (·.attention) == some ⟨"attention-1"⟩)
+    "Attention close did not retain its target after resizing"
+
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24},
       {width := 100, height := 30}, {width := 150, height := 45}] do
     let step := Loam.Tui.AttentionAdministration.updateForBounds bounds initial .«end»
