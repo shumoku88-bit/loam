@@ -469,10 +469,11 @@ partial def run
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
-              let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.view known editor)
+              let editorFrame := compileWidget (Loam.Tui.ScheduledReplacement.viewForBounds bounds known editor)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← Loam.Tui.ScheduledReplacementSession.run
                 bounds root known editor editorFrame
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
 
               let freshCoverage ← loadCoverage dataDir root fresh.actual.today
