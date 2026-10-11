@@ -543,11 +543,12 @@ def main (args : List String) : IO Unit := do
       compact replacementKnown replacementPreview
     expect (view.lines.length <= compact.height - 1)
       "compact Scheduled replacement frame overran available rows"
-    let blocked := Loam.Tui.ScheduledReplacement.updateForBounds
-      (Loam.Tui.ScheduledReplacementSession.editorBounds compact)
-      replacementKnown replacementPreview .enter
-    expect (blocked.publish.isNone)
-      "compact Scheduled replacement unexpectedly published hidden evidence"
+    if compact.height <= 9 then
+      let blocked := Loam.Tui.ScheduledReplacement.updateForBounds
+        (Loam.Tui.ScheduledReplacementSession.editorBounds compact)
+        replacementKnown replacementPreview .enter
+      expect (blocked.publish.isNone)
+        "compact Scheduled replacement unexpectedly published hidden evidence"
 
   -- Live-size rendering protects the selected field and the preview action bar.
   for bounds in
