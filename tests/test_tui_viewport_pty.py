@@ -229,6 +229,33 @@ try:
     for rows, cols in ((24, 80), (10, 48), (40, 144), (36, 140)):
         resize(rows, cols)
         bounded(capture(b"Scheduled Series Calendar"), rows, cols)
+    # UI-16: review signed Scheduled postings in a real PTY, then cancel.
+    # No canonical Scheduled or Actual evidence may be published by preview.
+    os.write(master, b"n")
+    edit = ansi.sub(b"", capture(b"Scheduled / New / Edit"))
+    assert b"Due:" in edit and b"Posting 1" in edit, edit
+    os.write(master, b"\tpaypay\t-700\tfood\t700\r")
+    preview = ansi.sub(b"", capture(b"[Publish Scheduled]"))
+    assert b"Scheduled / New / Preview" in preview
+    assert b"Expected postings" in preview
+    assert b"-700 jpy" in preview and b"+700 jpy" in preview, preview
+    os.write(master, b"\x1b")
+    bounded(capture(b"Scheduled Series Calendar"), 36, 140)
+    # At a very short terminal the review must reject Enter on Publish,
+    # even if keyboard navigation can technically reach the action.
+    resize(9, 48)
+    bounded(capture(b"Scheduled Series Calendar"), 9, 48)
+    os.write(master, b"n")
+    capture(b"Scheduled / New / Edit")
+    os.write(master, b"\tpaypay\t-700\tfood\t700\r")
+    capture(b"Scheduled / New / Preview")
+    os.write(master, b"\r")
+    refusal = ansi.sub(b"", capture(b"Enlarge terminal"))
+    assert b"Enlarge terminal" in refusal, refusal
+    os.write(master, b"\x1b")
+    capture(b"Scheduled Series Calendar")
+    resize(36, 140)
+    bounded(capture(b"Scheduled Series Calendar"), 36, 140)
     os.write(master, b"q")
     bounded(capture(b"LOAM Home"), 36, 140)
     os.write(master, b"a")
