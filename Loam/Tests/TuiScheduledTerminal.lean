@@ -251,6 +251,67 @@ def main (args : List String) : IO Unit := do
       replacementEditor.form.rows[1]!.amount == "300")
     "Scheduled replacement did not seed date plus signed postings exactly"
 
+  -- The replacement editor now uses the same *admitted-token* picker as
+  -- Record and Scheduled creation, with its own focus and publisher state.
+  let replacementKnown := ["paypay", "rent", "food"]
+  let emptyLocus : Loam.Tui.ScheduledReplacement.State := {
+    replacementEditor with
+    form := { replacementEditor.form with
+      focus := 1
+      rows := #[{ locus := "", amount := "-300" },
+                { locus := "rent", amount := "300" }] } }
+  let highlighted := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown emptyLocus .down).state
+  expect (highlighted.candidateIndex == 1 &&
+    highlighted.form.rows[0]!.locus.isEmpty)
+    "highlighting replacement candidate unexpectedly changed input"
+  let picked := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown highlighted .enter).state
+  expect (picked.form.rows[0]!.locus == "rent" && picked.form.focus == 2 &&
+    picked.candidateIndex == 0)
+    "replacement Enter failed to commit highlighted Locus and move to Amount"
+  let pickedText := String.ofList
+    ((Loam.Tui.ScheduledReplacement.view replacementKnown picked).lines.flatten.map
+      Loam.Tui.Kernel.Cell.glyph)
+  expect ((pickedText.splitOn "Posting 1: rent").length > 1)
+    "replacement selected Locus was not rendered in the Posting field"
+  let right := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown highlighted .right).state
+  expect (right.form.rows[0]!.locus == "rent" && right.form.focus == 1)
+    "replacement Right should commit candidate without changing focus"
+  let tabbed := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown highlighted .tab).state
+  expect (tabbed.form.rows[0]!.locus.isEmpty && tabbed.form.focus == 2)
+    "replacement Tab unexpectedly committed a selected candidate"
+  let partial : Loam.Tui.ScheduledReplacement.State := {
+    emptyLocus with form := { emptyLocus.form with rows := #[
+      { locus := "fo", amount := "-300" }, { locus := "rent", amount := "300" }] } }
+  let completed := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown partial .enter).state
+  expect (completed.form.rows[0]!.locus == "food" && completed.form.focus == 2)
+    "replacement Enter failed to accept filtered candidate"
+  let exact : Loam.Tui.ScheduledReplacement.State := {
+    emptyLocus with form := { emptyLocus.form with rows := #[
+      { locus := "paypay", amount := "-300" }, { locus := "rent", amount := "300" }] } }
+  let exactEntered := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown exact .enter).state
+  expect (exactEntered.form.rows[0]!.locus == "paypay" &&
+    exactEntered.form.focus == 2)
+    "replacement Enter rewrote an exact admitted Locus"
+  let unknown : Loam.Tui.ScheduledReplacement.State := {
+    emptyLocus with form := { emptyLocus.form with rows := #[
+      { locus := "historical-only", amount := "-300" },
+      { locus := "rent", amount := "300" }] } }
+  let unknownEntered := (Loam.Tui.ScheduledReplacement.update
+    replacementKnown unknown .enter).state
+  expect (unknownEntered.form.rows[0]!.locus == "historical-only" &&
+    unknownEntered.form.focus == 2)
+    "replacement completion silently rewrote a historical-only Locus"
+  let cancelled := Loam.Tui.ScheduledReplacement.update
+    replacementKnown picked .escape
+  expect (cancelled.cancel && cancelled.publish.isNone)
+    "replacement chooser cancellation requested a publication"
+
   let amountReplacement := { replacementEditor with
     form := { replacementEditor.form with focus := 2 } }
   let amountEdited := Loam.Tui.ScheduledReplacement.update
