@@ -121,11 +121,11 @@ partial def actualDateCorrectionLoop
           return "Date set to " ++ draft.validOn ++ "."
       | .error message =>
           let next := Loam.Tui.ActualDateCorrection.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view next)
+          let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view bounds next)
           Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
           actualDateCorrectionLoop bounds root next nextFrame
   | none =>
-      let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view step.state)
+      let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       actualDateCorrectionLoop bounds root step.state nextFrame
 
@@ -312,7 +312,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               run bounds dataDir root reload snapshot next nextFrame
           | .ok editor =>
-              let editorFrame := compileWidget (Loam.Tui.ActualDateCorrection.view editor)
+              let editorFrame := compileWidget (Loam.Tui.ActualDateCorrection.view bounds editor)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let notice ← actualDateCorrectionLoop
                 bounds root editor editorFrame
