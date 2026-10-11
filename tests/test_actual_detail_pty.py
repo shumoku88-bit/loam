@@ -108,9 +108,14 @@ def main():
             changed_date = str(datetime.date.today() - datetime.timedelta(days=1)).encode()
             _, date_preview = send(terminal, b"\x7f" * 10 + changed_date + b"\r",
                                    b"Actual / Date / Preview")
-            assert all(label in date_preview for label in
-                       (b"Current date:", b"Proposed date:", b"Publish date change",
-                        b"Only the occurrence date changes.", changed_date, identity))
+            # The production renderer writes dirty rows only. Current date and
+            # target identity remain on screen, but are not re-emitted in the
+            # Edit -> Preview diff; the Lean view test checks the full frame.
+            expected_changes = (b"Proposed date:", b"Publish date change",
+                                b"Only the occurrence date changes.", changed_date)
+            assert all(label in date_preview for label in expected_changes), (
+                [label for label in expected_changes if label not in date_preview],
+                date_preview[-1600:])
             assert probe.digest(root) == frozen, "date preview published"
             _, dated = send(terminal, b"\r", DETAIL)
             assert identity in dated and b"Date: " + changed_date in dated
