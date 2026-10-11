@@ -157,13 +157,16 @@ private def editingView (bounds : Bounds) (state : State) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let candidate := ((Loam.Tui.Record.selectedCatalogCandidate? state.editor).map
     (fun entry => entry.locus.token)).getD "(none)"
+  let help := if width < 55 then
+    "Tab focus  Enter next  Esc cancel"
+  else
+    "Tab focus  Enter next/preview  Right accept  Esc cancel"
   let controls :=
     [ muted ("Candidate: " ++ Loam.Tui.Layout.clip (width - 11) candidate)
-    , muted (Loam.Tui.Layout.clip width
-        "Tab focus  Enter next/preview  Right accept  Esc cancel") ]
+    , muted help ]
   let footer := foot bounds state controls
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
-  let header := planHeader bounds state available "Scheduled / Complete / Edit Actual"
+  let header := planHeader bounds state available "Scheduled / Complete / Actual"
   let height := available - header.length
   let capacity := height - 2
   let rows := editingRows state
@@ -207,13 +210,15 @@ private def previewFooter (bounds : Bounds) (state : State) (choice : Fin 3) : L
     , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
         span ("[" ++ label ++ "] ")
           (if choice.val == index then .selected else .normal))
-    , muted (Loam.Tui.Layout.clip width
+    , muted (if width < 55 then
+        "↑/↓ review  Tab select  Enter  Esc cancel"
+      else
         "Up/Down/PgUp/PgDn review  Tab select  Enter confirm  Esc cancel") ]
 
 private def previewContext (bounds : Bounds) (state : State)
     (draft : Loam.MovementAdmission.Draft) (available : Nat) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let title := "Scheduled / Complete / Review Actual"
+  let title := "Scheduled / Complete / Actual"
   let header := planHeader bounds state available title
   let actualDate := line (Loam.Tui.Layout.clip width ("Actual date: " ++ draft.validOn))
   let description := line (Loam.Tui.Layout.clip width
