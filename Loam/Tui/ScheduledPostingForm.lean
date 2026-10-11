@@ -1,3 +1,4 @@
+import Loam.Tui.CyclicIndex
 import Loam.Tui.Record
 
 namespace Loam.Tui.ScheduledPostingForm
@@ -23,11 +24,10 @@ private def focusCount (form : Form) : Nat :=
 def firstAction (form : Form) : Nat :=
   1 + form.rows.size * 2
 
+/-- Reuse the same cyclic focus arithmetic as Record and Exchange. The
+    form alone still owns how many editable rows/actions are present. -/
 def moveFocus (form : Form) (back : Bool) : Form :=
-  let count := focusCount form
-  let next := if back then (form.focus + count - 1) % count
-              else (form.focus + 1) % count
-  { form with focus := next }
+  { form with focus := Loam.Tui.CyclicIndex.move (focusCount form) form.focus back }
 
 private def replaceRows (form : Form) (rows : Array Loam.Tui.Record.Row) : Form :=
   { form with rows := rows, focus := 0 }
