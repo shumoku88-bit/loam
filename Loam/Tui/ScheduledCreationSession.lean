@@ -78,7 +78,7 @@ def run
   -- silently treated as an absent or one-off recurrence expectation.
   let .ok evidence ← Loam.ScheduledReview.loadHouseholdEvidence dataDir root
     | return notice ++ " Expected-pace setup unavailable: Scheduled evidence could not be reloaded."
-  let .ok records ← Loam.ScheduledReview.orderedCurrentOpenRecords evidence
+  let .ok records := Loam.ScheduledReview.orderedCurrentOpenRecords evidence
     | return notice ++ " Expected-pace setup unavailable: open Scheduled evidence is unreadable."
   let some source := records.find? (fun record => record.id.token == created.token)
     | return notice ++ " Expected-pace setup unavailable: new Scheduled identity not found."
