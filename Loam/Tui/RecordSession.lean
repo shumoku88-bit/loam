@@ -111,10 +111,13 @@ private def placeFocusCursor
       let safeCol := min col (Loam.Tui.Layout.contentWidth bounds - 1)
       Loam.Tui.Terminal.placeCursor safeRow safeCol
 
-private def surfaceBounds (bounds : Bounds) (surface : Surface) : Bounds :=
-  match surface with
-  | .full => bounds
-  | .floating geometry => { width := geometry.width - 1, height := geometry.height - 1 }
+/-- Floating Record uses the existing focused-frame accent without changing form geometry. -/
+def floatingRecordView
+    (geometry : FloatingGeometry) (known : List String)
+    (state : Loam.Tui.Record.State) : Widget :=
+  let inner : Bounds := { width := geometry.width - 1, height := geometry.height - 1 }
+  Loam.Tui.Layout.framedPanel geometry.width geometry.height
+    "Record movement" (Loam.Tui.Record.viewForBounds inner known state) true
 
 private def frameFor
     (bounds : Bounds) (surface : Surface) (known : List String)
@@ -123,9 +126,7 @@ private def frameFor
   | .full =>
       compileWidget (Loam.Tui.Record.viewForBounds bounds known state)
   | .floating geometry =>
-      compileWidget <|
-        Loam.Tui.Layout.framedPanel geometry.width geometry.height
-          "Record movement" (Loam.Tui.Record.viewForBounds (surfaceBounds bounds surface) known state)
+      compileWidget (floatingRecordView geometry known state)
 
 private def redraw
     (bounds : Bounds) (surface : Surface)
