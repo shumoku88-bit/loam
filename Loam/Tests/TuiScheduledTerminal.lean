@@ -163,6 +163,68 @@ def main (args : List String) : IO Unit := do
     editor with
     editor := { editor.editor with
       mode := .preview movementDraft ⟨0, by omega⟩ } }
+  -- UI-17: editing is an Actual draft, anchored to an unchanged Plan target.
+  let knownLoci := ["paypay", "rent", "food"]
+  let mut movedFocus := editor
+  for _ in [:9] do
+    movedFocus := (Loam.Tui.ScheduledCompletion.update
+      initialWorld knownLoci movedFocus .tab).state
+  let compact : Loam.Tui.Kernel.Bounds := { width := 32, height := 9 }
+  let editingWidget := Loam.Tui.ScheduledCompletion.view compact knownLoci movedFocus
+  let editingText := String.ofList
+    (editingWidget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect ((editingText.splitOn "Actual draft").length > 1 &&
+      (editingText.splitOn "Preview").length > 1)
+    "completion editor lost focused Actual action in compact viewport"
+  expect (editingWidget.lines.any fun row => row.any fun cell => cell.style == .selected)
+    "completion editor did not highlight the selected action"
+  let refused := Loam.Tui.ScheduledCompletion.updateForBounds compact
+    initialWorld knownLoci previewState .enter
+  expect (refused.publish.isNone &&
+      (refused.state.editor.notice.splitOn "Enlarge terminal").length > 1)
+    "Scheduled completion published Actual without enough review rows"
+  for bounds in
+      ([ { width := 32, height := 9 },
+         { width := 48, height := 14 },
+         { width := 80, height := 24 } ] : List Loam.Tui.Kernel.Bounds) do
+    let widget := Loam.Tui.ScheduledCompletion.view bounds knownLoci previewState
+    let glyphs := String.ofList
+      (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (widget.lines.length <= bounds.height - 1 &&
+        (glyphs.splitOn "Review Actual").length > 1 &&
+        (glyphs.splitOn "Publish").length > 1)
+      "completion preview lost Plan/Actual distinction or action bar"
+    for row in widget.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <=
+        Loam.Tui.Layout.contentWidth bounds)
+        "completion preview exceeded terminal columns"
+  let roomy : Loam.Tui.Kernel.Bounds := { width := 80, height := 24 }
+  let readable := String.ofList
+    ((Loam.Tui.ScheduledCompletion.view roomy knownLoci previewState).lines.flatten.map
+      Loam.Tui.Kernel.Cell.glyph)
+  expect ((readable.splitOn "Plan due:").length > 1 &&
+      (readable.splitOn "Actual date:").length > 1 &&
+      (readable.splitOn "Actual effects").length > 1)
+    "completion confirmation did not distinguish scheduled date from Actual date"
+  let longDraft := { movementDraft with
+    effects := movementDraft.effects ++ movementDraft.effects ++ movementDraft.effects }
+  let longPreview : Loam.Tui.ScheduledCompletion.State := {
+    previewState with editor := { previewState.editor with
+      mode := .preview longDraft ⟨0, by omega⟩ } }
+  let scrolled := (Loam.Tui.ScheduledCompletion.updateForBounds
+    ({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds)
+    initialWorld knownLoci longPreview .«end»).state
+  let scrollText := String.ofList
+    ((Loam.Tui.ScheduledCompletion.view
+      ({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds)
+      knownLoci scrolled).lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect ((scrollText.splitOn "Plan reference").length > 1)
+    "completion Actual review could not scroll to its unchanged Plan reference"
+  let allowed := Loam.Tui.ScheduledCompletion.updateForBounds roomy
+    initialWorld knownLoci refused.state .enter
+  expect (allowed.publish.isSome && allowed.state.target == editor.target)
+    "completion resize lost the exact Scheduled target or allowed Actual draft"
   let intentStep := Loam.Tui.ScheduledCompletion.update
     initialWorld ["paypay", "rent", "food"] previewState .enter
   let completionIntent ← requireSome intentStep.publish
