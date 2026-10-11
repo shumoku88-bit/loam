@@ -46,7 +46,10 @@ def editorBounds (bounds : Bounds)
 
 def viewForBounds (bounds : Bounds) (known : List String)
     (state : Loam.Tui.ScheduledCompletion.State) : Widget :=
-  match activeGeometry? bounds state with
+  -- A 1-row terminal has no writable content row (the last row is reserved).
+  -- Rendering even a blank Widget.row would exceed that physical contract.
+  if bounds.height <= 1 then .column []
+  else match activeGeometry? bounds state with
   | none =>
       Loam.Tui.ScheduledCompletion.view bounds known state
   | some rect =>
