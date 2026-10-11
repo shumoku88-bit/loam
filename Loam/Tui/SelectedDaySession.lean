@@ -10,6 +10,7 @@ import Loam.Tui.ActualReversalSession
 import Loam.Tui.Correction
 import Loam.Tui.CorrectionSession
 import Loam.Tui.EventMerchant
+import Loam.Tui.EditorSession
 import Loam.Tui.LocusAdmissionAdministration
 import Loam.Tui.LocusAdmissionAdministrationSession
 import Loam.Tui.Kernel
@@ -109,37 +110,24 @@ def eventOfKey
   | _ => .other
 
 
-/-- Date editing stays local; the shared publisher performs every authoritative re-check.
-    The parent is repainted at fresh bounds after a resize, never published. -/
-partial def actualDateCorrectionLoop
+/-- Date editing retains its exact publisher and Selected Day reload boundary.
+    Terminal geometry/resize mechanics are shared with Actual reversal. -/
+def actualDateCorrectionLoop
     (bounds : Bounds) (root : System.FilePath)
     (state : Loam.Tui.ActualDateCorrection.State) (frame : CompiledWidget)
-    (parent : Bounds → CompiledWidget) : IO String := do
-  let key ← Loam.Tui.Terminal.readKey
-  let active ← Loam.Tui.Terminal.currentBounds
-  let region := Loam.Tui.ActualDateCorrection.floatingGeometry? active
-  let frame ←
-    if active == bounds then pure frame
-    else do
-      let resized := compileWidget (Loam.Tui.ActualDateCorrection.viewForBounds active state)
-      Loam.Tui.ModalSurface.repaintOverParent active region (parent active) resized
-      pure resized
-  let step := Loam.Tui.ActualDateCorrection.updateForBounds active state key
-  if step.cancel then return "Date correction cancelled."
-  match step.publish with
-  | some draft =>
+    (parent : Bounds → CompiledWidget) : IO String :=
+  Loam.Tui.EditorSession.runUntilPublishedAdaptive bounds
+    Loam.Tui.ActualDateCorrection.floatingGeometry?
+    parent
+    Loam.Tui.ActualDateCorrection.updateForBounds
+    Loam.Tui.ActualDateCorrection.viewForBounds
+    Loam.Tui.ActualDateCorrection.withPublishError
+    "Date correction cancelled."
+    (fun draft => do
       match ← Loam.HouseholdCommand.correctActualDate root draft with
-      | .ok () =>
-          return "Date set to " ++ draft.validOn ++ "."
-      | .error message =>
-          let next := Loam.Tui.ActualDateCorrection.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.viewForBounds active next)
-          Loam.Tui.ModalSurface.paint active region .dirtyDiff frame nextFrame
-          actualDateCorrectionLoop active root next nextFrame parent
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.ActualDateCorrection.viewForBounds active step.state)
-      Loam.Tui.ModalSurface.paint active region .dirtyDiff frame nextFrame
-      actualDateCorrectionLoop active root step.state nextFrame parent
+      | .ok () => return .ok ("Date set to " ++ draft.validOn ++ ".")
+      | .error message => return .error message)
+    state frame
 
 
 /-- Merchant editing stays local; canonical first-classification semantics remain in the publisher. -/
@@ -423,11 +411,18 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
               run bounds dataDir root reload snapshot next nextFrame
           | .ok editor =>
-              let editorFrame := compileWidget (Loam.Tui.ActualReversal.view bounds editor)
-              Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
-              let notice ← Loam.Tui.ActualReversalSession.run
-                bounds root
-                  editor editorFrame
+              let parent := fun active =>
+                compileWidget (Loam.Tui.SelectedDay.view active snapshot step.state)
+              let active ← Loam.Tui.Terminal.currentBounds
+              let region := Loam.Tui.ActualReversal.floatingGeometry? active
+              let editorFrame := compileWidget (Loam.Tui.ActualReversal.viewForBounds active editor)
+              if active == bounds then
+                Loam.Tui.ModalSurface.paint active region .fromBlank
+                  (compileWidget (.row [])) editorFrame
+              else
+                Loam.Tui.ModalSurface.repaintOverParent active region (parent active) editorFrame
+              let notice ← Loam.Tui.ActualReversalSession.runAdaptive
+                active root editor editorFrame parent
               let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
               let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state
