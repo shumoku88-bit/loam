@@ -55,14 +55,65 @@ private def testBoundedPresentation : IO Unit := do
   let initial := Loam.Tui.AttentionAdministration.initial (.available {openItems := items}) "2026-09-16"
   -- Research-informed composition checkpoint: close only uses shared geometry.
   let roomy : Bounds := { width := 112, height := 40 }
-  let some rectangle := Loam.Tui.AttentionAdministrationSession.closeGeometry? roomy
+  let some rectangle := Loam.Tui.AttentionAdministrationSession.modalGeometry? roomy
     | throw (IO.userError "Attention close did not float at roomy bounds")
   expect (rectangle.top == 9 && rectangle.left == 17 &&
       rectangle.width == 76 && rectangle.height == 21)
     "Attention close modal geometry unexpectedly diverged"
+  let newState := (Loam.Tui.AttentionAdministration.updateForBounds
+    roomy initial (.input 'n')).state
+  let newPanel := Loam.Tui.AttentionAdministrationSession.modalViewForBounds
+    roomy newState
+  expect (newPanel.lines.length == rectangle.height &&
+      contains "Attention / New" (widgetText newPanel) &&
+      contains "Context" (widgetText newPanel))
+    "new Attention editor did not compose the existing modal surface"
+  let context := "長い確認テキスト" ++ String.ofList (List.replicate 35 '界') ++ "-tail"
+  let typed := Loam.Tui.AttentionAdministration.updateForBounds
+    (Loam.Tui.AttentionAdministrationSession.modalContentBounds roomy)
+    newState (.paste context)
+  let choosing := Loam.Tui.AttentionAdministration.updateForBounds
+    (Loam.Tui.AttentionAdministrationSession.modalContentBounds roomy)
+    typed.state .enter
+  expect (choosing.add.isNone && choosing.state.mode == .newDue context)
+    "Attention draft did not preserve Unicode context before due choice"
+  let hide : Bounds := {width := 10, height := 1}
+  for key in [Loam.Tui.Terminal.Key.input 'n', .input 'u'] do
+    let blocked := Loam.Tui.AttentionAdministration.updateForBounds
+      hide choosing.state key
+    expect (blocked.add.isNone &&
+        contains "Enlarge terminal" blocked.state.notice)
+      "hidden no-due or unknown-due choice published Attention"
+  let noneDue := Loam.Tui.AttentionAdministration.updateForBounds
+    ({width := 48, height := 14} : Bounds) choosing.state (.input 'n')
+  expect (noneDue.add.map (·.due) == some AttentionDue.noDueDate)
+    "no-due choice changed household meaning"
+  let unknown := Loam.Tui.AttentionAdministration.updateForBounds
+    ({width := 48, height := 14} : Bounds) choosing.state (.input 'u')
+  expect (unknown.add.map (·.due) == some AttentionDue.dueUndetermined)
+    "unknown due choice became no due date"
+  let editingDate := (Loam.Tui.AttentionAdministration.updateForBounds
+    roomy choosing.state (.input 'd')).state
+  let pastedDate := (Loam.Tui.AttentionAdministration.updateForBounds
+    roomy editingDate (.paste "2026-11-20")).state
+  let blockedDate := Loam.Tui.AttentionAdministration.updateForBounds
+    hide pastedDate .enter
+  expect (blockedDate.add.isNone &&
+      contains "Enlarge terminal" blockedDate.state.notice)
+    "hidden due-date confirmation published Attention"
+  let dated := Loam.Tui.AttentionAdministration.updateForBounds
+    ({width := 48, height := 14} : Bounds) pastedDate .enter
+  expect (dated.add.map (·.due) == some (AttentionDue.dueOn "2026-11-20"))
+    "date publishing lost explicit due-on meaning"
+  let abandoned := Loam.Tui.AttentionAdministration.updateForBounds
+    roomy pastedDate .escape
+  expect (abandoned.add.isNone && abandoned.close.isNone &&
+      abandoned.state.mode == .browse && abandoned.state.cursor == initial.cursor)
+    "cancelling staged Attention creation altered browse selection"
+
   let closeState := (Loam.Tui.AttentionAdministration.updateForBounds
     roomy initial (.input 'x')).state
-  let floating := Loam.Tui.AttentionAdministrationSession.closeViewForBounds
+  let floating := Loam.Tui.AttentionAdministrationSession.modalViewForBounds
     roomy closeState
   expect (floating.lines.length == rectangle.height &&
       contains "Attention / Close" (widgetText floating) &&
@@ -75,9 +126,9 @@ private def testBoundedPresentation : IO Unit := do
   for small in
       ([{width := 48, height := 14}, {width := 32, height := 9},
         {width := 10, height := 1}] : List Bounds) do
-    expect ((Loam.Tui.AttentionAdministrationSession.closeGeometry? small).isNone)
+    expect ((Loam.Tui.AttentionAdministrationSession.modalGeometry? small).isNone)
       "compact Attention close unexpectedly floated"
-    let compactView := Loam.Tui.AttentionAdministrationSession.closeViewForBounds
+    let compactView := Loam.Tui.AttentionAdministrationSession.modalViewForBounds
       small closeState
     expect (compactView.lines.length <= small.height)
       "compact Attention close overflowed terminal rows"
