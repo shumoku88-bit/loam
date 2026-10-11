@@ -709,30 +709,12 @@ def scrollPreview (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key
       some { state with previewScroll := offset }
   | _ => none
 
-private def ellipsize (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text <= width then text
-  else if width == 0 then ""
-  else Loam.Tui.Layout.clip (width - 1) text ++ "…"
-
-/-- Keep the end of an edited field visible without changing its stored text. -/
-private def fieldTail (width : Nat) (text : String) : String :=
-  if Loam.Tui.Layout.displayWidth text <= width then text
-  else if width == 0 then ""
-  else
-    let (chars, _, _) := text.toList.reverse.foldl
-      (fun (acc : List Char × Nat × Bool) char =>
-        let (chars, used, stopped) := acc
-        let next := used + Loam.Tui.Layout.charWidth char
-        if stopped || next > width - 1 then (chars, used, true)
-        else (char :: chars, next, false)) ([], 0, false)
-    "…" ++ String.ofList chars
-
 private def boundedField (width : Nat) (active : Bool) (label text : String) : Widget :=
   let labelWidth := min 13 (width / 2)
   let value := if text.isEmpty then "_" else text
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (if active then fieldTail (width - labelWidth) value
-          else ellipsize (width - labelWidth) value)
+    span (if active then Loam.Tui.Layout.inputTail (width - labelWidth) value
+          else Loam.Tui.Layout.ellipsize (width - labelWidth) value)
       (if active then .selected else .normal)]
 
 private def editingField (width : Nat) (form : Form) (index : Nat)
