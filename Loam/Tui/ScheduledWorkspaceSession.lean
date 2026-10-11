@@ -210,7 +210,7 @@ partial def run
       let editorFrame := compileWidget (Loam.Tui.ScheduledCreation.view bounds known editor)
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
-        bounds root known editor editorFrame
+        bounds dataDir root known editor editorFrame
       let fresh ← requireReload notice reload
       let freshCoverage ← loadCoverage dataDir root fresh.actual.today
       let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
