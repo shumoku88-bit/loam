@@ -419,10 +419,10 @@ partial def run
           run bounds dataDir root reload snapshot coverage next nextFrame
       | some record =>
           let confirmation := Loam.Tui.ScheduledCancellation.initial record
-          let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view bounds confirmation)
-          Loam.Tui.Terminal.redrawFromBlank bounds confirmationFrame
-          let notice ← Loam.Tui.ScheduledCancellationSession.run
-            bounds root confirmation confirmationFrame
+          let notice ← Loam.Tui.ScheduledCancellationSession.runAdaptive
+            bounds root confirmation (fun active =>
+              workspaceFrame active snapshot coverage step.state)
+          let bounds ← Loam.Tui.Terminal.currentBounds
           let fresh ← requireReload notice reload
 
           let freshCoverage ← loadCoverage dataDir root fresh.actual.today
