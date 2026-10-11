@@ -26,19 +26,13 @@ def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle
 
 /-- The existing replacement view receives its actual bounded inner viewport. -/
 def editorBounds (bounds : Bounds) : Bounds :=
-  match floatingGeometry? bounds with
-  | none => bounds
-  | some region => {width := region.width - 1, height := region.height - 1}
+  Loam.Tui.ModalSurface.contentBounds bounds (floatingGeometry? bounds)
 
 def viewForBounds (bounds : Bounds) (known : List String)
     (state : Loam.Tui.ScheduledReplacement.State) : Widget :=
-  match floatingGeometry? bounds with
-  | none => Loam.Tui.ScheduledReplacement.viewForBounds bounds known state
-  | some region =>
-      Loam.Tui.Layout.framedPanel region.width region.height
-        "Scheduled / Supersede"
-        (Loam.Tui.ScheduledReplacement.viewForBounds
-          (editorBounds bounds) known state) true
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Scheduled / Supersede"
+    (fun inner => Loam.Tui.ScheduledReplacement.viewForBounds inner known state)
 
 private def render (bounds : Bounds) (known : List String)
     (state : Loam.Tui.ScheduledReplacement.State) : CompiledWidget :=
