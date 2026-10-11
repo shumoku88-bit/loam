@@ -244,7 +244,7 @@ def main (args : List String) : IO Unit := do
   -- Shrink must never yield a draft; expanding must recover the same exact
   -- draft rather than implicitly publishing or changing its due date/postings.
   let restored := Loam.Tui.ScheduledCreation.updateForBounds
-    compact ["paypay", "food"] blocked.state .enter
+    regular ["paypay", "food"] blocked.state .enter
   let resumed ← requireSome restored.publish
     "resized Scheduled draft collection failed to recover a confirmation"
   expect (resumed.scheduledOn == draft.scheduledOn &&
