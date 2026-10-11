@@ -281,7 +281,7 @@ private def previewRows (width : Nat)
 
 private def previewFooter (bounds : Bounds) (state : State) (choice : Fin 3) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let choices := .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, i) =>
+  let choices : Widget := .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, i) =>
     span ("[" ++ label ++ "] ")
       (if choice.val == i then .selected else .normal))
   let feedback := if state.notice.isEmpty then [line ""] else
