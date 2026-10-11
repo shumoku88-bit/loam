@@ -779,7 +779,7 @@ private def editingFooter (bounds : Bounds) (state : State)
     (context : Option String) (originalShortcut : Bool) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
-  [muted (ellipsize width (context.getD (originalSummary state)))] ++
+  [muted (Loam.Tui.Layout.ellipsize width (context.getD (originalSummary state)))] ++
     (if feedback.isEmpty then [blank] else feedback) ++
     [.row ((["Preview", "Add row", "Drop row", "Cancel"].zipIdx).map fun (label, index) =>
       span ("[" ++ label ++ "] ")
@@ -793,7 +793,7 @@ private def candidateSummary (width : Nat) (state : State) : Widget :=
     | none, _ => "Locus: focus a Locus field"
     | some _, none => "Locus: no matching candidate"
     | some _, some entry => "↑/↓ Enter: " ++ Loam.Tui.LocusPicker.display entry
-  muted (ellipsize width text)
+  muted (Loam.Tui.Layout.ellipsize width text)
 
 private def candidatesPanel (width height : Nat) (state : State) : Widget :=
   let options := catalogCandidates state
@@ -804,13 +804,13 @@ private def candidatesPanel (width height : Nat) (state : State) : Widget :=
   let rows := if options.isEmpty then [candidateSummary (width - 2) state] else
     (visible.zipIdx).map fun (entry, index) =>
       .row [span (if start + index == selected then "> " else "  "),
-        span (ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
+        span (Loam.Tui.Layout.ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
           (if start + index == selected then .normal else .muted)]
   let help := match selectedCatalogCandidate? state with
     | some entry => if entry.help.isEmpty then "↑/↓ choose · Enter accept" else "↳ " ++ entry.help
     | none => "↑/↓ choose · Enter accept"
   let content := rows ++ List.replicate (capacity - rows.length) blank ++
-    [muted (ellipsize (width - 2) help), muted "Admitted Locus only"]
+    [muted (Loam.Tui.Layout.ellipsize (width - 2) help), muted "Admitted Locus only"]
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < options.length then " ▼" else "")
   Loam.Tui.Layout.framedPanel width height "Locus candidates" (.column content) false
@@ -825,7 +825,7 @@ private def postingsPanel (width height : Nat) (state : State) : Widget :=
   let start := min (form.rows.size - capacity)
     (Loam.Tui.Layout.trailingWindowStart selected capacity)
   let fields := ((editingFields (width - 2) form).drop (3 + start * 2)).take (capacity * 2)
-  let context := ellipsize (width - 2)
+  let context := Loam.Tui.Layout.ellipsize (width - 2)
     ("Signed " ++ form.measure ++ " · decimal scale per Measure")
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < form.rows.size then " ▼" else "")
