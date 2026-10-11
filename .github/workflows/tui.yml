@@ -508,6 +508,9 @@ jobs:
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
 
+      - name: Verify Scheduled replacement Locus and Esc in real PTY
+        run: python3 tests/test_scheduled_replacement_pty.py
+
       - name: Verify adaptive Scheduled cancellation modal on isolated data
         run: python3 tests/test_scheduled_cancel_modal_pty.py
 
