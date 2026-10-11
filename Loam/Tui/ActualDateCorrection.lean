@@ -4,6 +4,7 @@ import Loam.Publisher.ActualValidityPublisher
 import Loam.Tui.Main
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
+import Loam.Tui.Layout
 
 namespace Loam.Tui.ActualDateCorrection
 
@@ -79,32 +80,38 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
 def withPublishError (state : State) (message : String) : State :=
   { state with mode := .editing, notice := message }
 
-private def line (text : String) : Widget :=
-  .row [span text]
+private def line (text : String) : Widget := .row [span text]
+private def muted (text : String) : Widget := .row [span text .muted]
 
-private def muted (text : String) : Widget :=
-  .row [span text .muted]
+private def wrapped (columns : Nat) (text : String) (style : Style) : List Widget :=
+  (Loam.Tui.Layout.wrapColumns columns text).map fun piece => .row [span piece style]
 
-/-- Minimal date-only editor. It contains no ActualValidity frontier or writer logic. -/
-def view (state : State) : Widget :=
-  match state.mode with
-  | .editing =>
-      .column [
-        line "Actual Date / Edit",
-        line ("Target: " ++ state.target.token),
-        line ("Current: " ++ state.originalDate),
-        line ("New date: " ++ state.input),
-        muted "Type YYYY-MM-DD   Backspace edit   Enter preview   Esc/q cancel",
-        line state.notice
-      ]
-  | .preview =>
-      .column [
-        line "Actual Date / Preview",
-        line ("Target remains: " ++ state.target.token),
-        line ("Current date: " ++ state.originalDate),
-        line ("Proposed date: " ++ state.input),
-        muted "Enter publish   Esc/e edit   q cancel",
-        line state.notice
-      ]
-
+/-- Distinguish the retained Event, old date and only editable date.
+    The shared Layout owns clipping and the fixed feedback/shortcut footprint. -/
+def view (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let preview := state.mode == .preview
+  let feedback := wrapped width state.notice .normal
+  let footer := Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    (if feedback.isEmpty then [line ""] else feedback) ++
+    (if preview then
+      [.row [span "[Publish date change]" .selected],
+       muted " Enter publish   Esc/e edit   q cancel"]
+     else
+      [muted " Type YYYY-MM-DD   Backspace edit",
+       muted " Enter preview   Esc/q cancel"])
+  let detail : List Widget :=
+    [ .row [span " Current date:  " .muted, span state.originalDate]
+    , .row [span (if preview then " Proposed date: " else " New date:      ") .muted,
+        span state.input (if preview then .normal else .selected)]
+    , line ""
+    ] ++ wrapped (width - 2) (" Target Actual: " ++ state.target.token) .muted ++
+    (if preview then wrapped (width - 2) " Only the occurrence date changes." .muted else [])
+  let title := if preview then "Actual / Date / Preview" else "Actual / Date / Edit"
+  let panel := Loam.Tui.Layout.framedPanel width
+    (min 9 (Loam.Tui.Layout.footerBodyCapacity bounds footer.length))
+    title (.column detail) true
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (Loam.Tui.Layout.widgetRows panel) footer).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
 end Loam.Tui.ActualDateCorrection

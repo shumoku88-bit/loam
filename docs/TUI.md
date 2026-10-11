@@ -539,6 +539,11 @@ Actions reuse SelectedDaySession's existing editors / writers:
 | `g` | Shared Locus administration |
 | `n` | New Movement recording, seeded by the known occurrence date |
 
+The date-change editor has a bounded current/proposed date panel with a selected
+editable value, exact target identity, and distinct Preview/Publish step. Its
+feedback and shortcut rows stay at the bottom while the shared publisher owns
+the final re-check. Reversal's distinct presentation remains UI-11 work.
+
 The action list uses the existing editor representability checks; unsupported
 correction/reversal shapes do not advertise those actions. Already reversed or
 reversal Events do not advertise contents correction / reversal, and classified
