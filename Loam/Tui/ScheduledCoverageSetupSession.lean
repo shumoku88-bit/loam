@@ -63,8 +63,10 @@ private partial def createdPaceLoop
     (bounds : Bounds) (dataDir : System.FilePath)
     (state : Loam.Tui.ScheduledCoverageSetup.CreatedPaceState)
     (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.ScheduledCoverageSetup.updateCreatedPace state
-    (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.ScheduledCoverageSetup.viewCreatedPace active state)
+  let step := Loam.Tui.ScheduledCoverageSetup.updateCreatedPace state key
   match step.action with
   | some .keepOne =>
       return "Expected pace unchanged; no future Scheduled created."
