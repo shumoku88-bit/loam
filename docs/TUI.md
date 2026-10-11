@@ -764,9 +764,13 @@ navigation rows keep stable positions as the user moves across fields. Larger
 terminals show an additional bounded Locus candidate panel; compact terminals
 retain a selectable candidate summary without pushing the action bar away.
 Long values show their editable tail with a visible ellipsis; full stored
-input and the existing publication authority are unchanged. Dynamic terminal
-resize within the open editor remains a separate follow-up; child sessions
-still use their entrance bounds until they return.
+input and the existing publication authority are unchanged. The ordinary Scheduled creation editor and its confirmation now re-measure the
+terminal while open, retaining entered values and focus and rechecking the
+minimum review height against the *current* size before Publish. The optional
+post-create expected-pace chooser and the per-occurrence draft collector
+also reflow their own screens on a resize. The wider Scheduled workspace remains
+responsible for refreshing its parent frame after a child session returns.
+Other non-Scheduled editors continue to use their existing terminal behavior.
 
 After the **ordinary** `n` creation flow successfully publishes one explicit
 Scheduled, a bounded **Expected pace** follow-up appears. It defaults to

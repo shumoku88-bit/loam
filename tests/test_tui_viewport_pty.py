@@ -238,6 +238,15 @@ try:
     bounded(compact_edit, 14, 48)
     assert b"[Preview]" in ansi.sub(b"", compact_edit)
     assert b"[Cancel]" in ansi.sub(b"", compact_edit)
+    # UI-16: resize an *open* Scheduled editor, without closing or losing focus.
+    resize(10, 32)
+    shrunk_edit = capture(b"Scheduled / New / Edit")
+    bounded(shrunk_edit, 10, 32)
+    assert b"Due:" in ansi.sub(b"", shrunk_edit), shrunk_edit
+    resize(14, 48)
+    grown_edit = capture(b"Scheduled / New / Edit")
+    bounded(grown_edit, 14, 48)
+    assert b"[Preview]" in ansi.sub(b"", grown_edit)
     os.write(master, b"\x1b")
     bounded(capture(b"Scheduled Series Calendar"), 14, 48)
     resize(36, 140)
@@ -252,6 +261,18 @@ try:
     assert b"Scheduled / New / Preview" in preview
     assert b"Expected postings" in preview
     assert b"-700 jpy" in preview and b"+700 jpy" in preview, preview
+    # Resize the open confirmation before Enter. Its publish gate must use
+    # the *current* terminal height, not the earlier wide entrance geometry.
+    resize(9, 48)
+    short_preview = capture(b"Scheduled / New / Preview")
+    bounded(short_preview, 9, 48)
+    os.write(master, b"\r")
+    short_refusal = capture(b"Enlarge terminal")
+    assert b"Enlarge terminal" in ansi.sub(b"", short_refusal)
+    resize(36, 140)
+    restored_preview = capture(b"Scheduled / New / Preview")
+    bounded(restored_preview, 36, 140)
+    assert b"Expected postings" in ansi.sub(b"", restored_preview)
     os.write(master, b"\x1b")
     bounded(capture(b"Scheduled Series Calendar"), 36, 140)
     # At a very short terminal the review must reject Enter on Publish,
