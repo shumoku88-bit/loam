@@ -23,7 +23,10 @@ partial def run
     (bounds : Bounds) (root : System.FilePath)
     (state : Loam.Tui.ScheduledCancellation.State)
     (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.ScheduledCancellation.update state (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.ScheduledCancellation.view active state)
+  let step := Loam.Tui.ScheduledCancellation.updateForBounds bounds state key
   if step.cancel then return "Scheduled cancellation kept the occurrence open."
   match step.publish with
   | some draft =>
@@ -31,7 +34,7 @@ partial def run
       | .ok () => return "Cancelled " ++ draft.scheduled.token ++ "."
       | .error message => return "Scheduled cancellation refused: " ++ message
   | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledCancellation.view step.state)
+      let nextFrame := compileWidget (Loam.Tui.ScheduledCancellation.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       run bounds root step.state nextFrame
 
