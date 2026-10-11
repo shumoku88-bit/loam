@@ -113,6 +113,24 @@ private def acceptSelectedCandidate (state : State) : State :=
           form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun _ => entry.locus.token)
           candidateIndex := 0 }
 
+/-- Enter on a focused Locus commits the highlighted catalog choice before
+    advancing to Amount. An already exact token stays unchanged at cursor zero.
+    With no catalog match, the editable text is preserved. This matches the
+    ordinary Record editor without changing Scheduled publication authority. -/
+private def acceptCandidateAndAdvance (state : State) : State :=
+  let committed :=
+    match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
+    | none => state
+    | some entered =>
+        if state.candidateIndex == 0 &&
+            (Loam.LocusCatalog.exactToken? state.candidateCatalog entered).isSome then
+          state
+        else acceptSelectedCandidate state
+  { committed with
+      form := Loam.Tui.ScheduledPostingForm.moveFocus committed.form false
+      candidateIndex := 0
+      notice := "" }
+
 /-- Pure advisory parsing before preview; the shared publisher re-validates under ownership. -/
 def draft? (state : State) : Except String Loam.ScheduledCreationPublisher.Draft := do
   if !Loam.ActualDate.validIsoDate state.form.date then
@@ -187,7 +205,9 @@ def update
         | .enter =>
             let action := Loam.Tui.ScheduledPostingForm.firstAction state.form
             let focus := state.form.focus
-            if focus + 1 = action then
+            if (Loam.Tui.ScheduledPostingForm.activeLocus? state.form).isSome then
+              { state := acceptCandidateAndAdvance state }
+            else if focus + 1 = action then
               { state := preview state }
             else if focus < action then
               { state := { state with form := Loam.Tui.ScheduledPostingForm.moveFocus state.form false, candidateIndex := 0 } }
@@ -276,9 +296,9 @@ private def candidatesPanel (width height : Nat) (state : State) : Widget :=
           span (ellipsize (width - 4) (Loam.Tui.LocusPicker.display entry))
             (if start + offset == index then .selected else .normal)]
   let help := match selectedCatalogCandidate? state with
-    | none => "Up/Down choose · Right accept"
+    | none => "Up/Down choose · Enter accept/next · Right accept"
     | some entry =>
-        if entry.help.isEmpty then "Up/Down choose · Right accept" else entry.help
+        if entry.help.isEmpty then "Enter accept/next · Right accept" else entry.help
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < options.length then " ▼" else "")
   Loam.Tui.Layout.framedPanel width height "Locus candidates"
@@ -299,7 +319,7 @@ private def editingFooter (bounds : Bounds) (state : State) : List Widget :=
           (if state.form.focus == Loam.Tui.ScheduledPostingForm.firstAction state.form + index
            then .selected else .normal)),
       Loam.Tui.Layout.shortcutRow
-        [("Tab/⇧Tab", "focus"), ("Enter", "next/action"), ("Esc", "cancel")] " ",
+        [("Tab/⇧Tab", "focus"), ("Enter", "accept/next"), ("Esc", "cancel")] " ",
       Loam.Tui.Layout.shortcutRow
         [("↑/↓", "Locus"), ("→", "accept"), ("Backspace", "delete")] " "
     ]
