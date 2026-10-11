@@ -74,8 +74,9 @@ private partial def createdPaceLoop
         | .save months =>
             Loam.Tui.ScheduledCoverageSetup.ruleFor? step.state.source months
         | .undecided =>
-            (Loam.Tui.ScheduledCoverageSetup.ruleFor? step.state.source 1).map
-              fun rule => { rule with everyMonths := 0 }
+            match Loam.Tui.ScheduledCoverageSetup.ruleFor? step.state.source 1 with
+            | .ok template => .ok { template with everyMonths := 0 }
+            | .error message => .error message
         | .keepOne =>
             .error "Unreachable one-off creation action."
       match rule? with
