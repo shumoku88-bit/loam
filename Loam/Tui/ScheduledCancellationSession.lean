@@ -28,19 +28,14 @@ def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle
 
 /-- The editor sees the actual size inside the optional surrounding frame. -/
 def editorBounds (bounds : Bounds) : Bounds :=
-  match floatingGeometry? bounds with
-  | none => bounds
-  | some region => { width := region.width - 1, height := region.height - 1 }
+  Loam.Tui.ModalSurface.contentBounds bounds (floatingGeometry? bounds)
 
 /-- The exact same domain review is rendered for floating and compact modes. -/
 def viewForBounds (bounds : Bounds)
     (state : Loam.Tui.ScheduledCancellation.State) : Widget :=
-  match floatingGeometry? bounds with
-  | none => Loam.Tui.ScheduledCancellation.view bounds state
-  | some region =>
-      Loam.Tui.Layout.framedPanel region.width region.height
-        "Scheduled / Cancel"
-        (Loam.Tui.ScheduledCancellation.view (editorBounds bounds) state) true
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Scheduled / Cancel"
+    (fun inner => Loam.Tui.ScheduledCancellation.view inner state)
 
 /--
 Resize/paint loop only. Do not genericize publication refusal: cancellation
