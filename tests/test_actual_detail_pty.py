@@ -161,8 +161,31 @@ def main():
             assert query + b"-corrected" in successor and b"Date: " + changed_date in successor
             assert b"no longer current" not in successor
 
-            send(terminal, b"m", b"Event Merchant / Edit")
+            # Merchant shares the same adaptive terminal loop and keeps authority.
+            before_merchant = probe.digest(root)
+            os.write(terminal.fd, b"m")
+            _, raw_merchant = terminal.capture(b"Event Merchant / Edit")
+            assert b"\x1b[2J" not in raw_merchant, "floating Merchant cleared its parent"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 14, 48, 0, 0))
+            _, compact_merchant = terminal.capture(b"Event Merchant / Edit")
+            assert b"Target:" in probe.ANSI.sub(b"", compact_merchant)
+            assert probe.digest(root) == before_merchant, "Merchant resize wrote authority"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            terminal.capture(b"Event Merchant / Edit")
             send(terminal, b"\t\r", b"Event Merchant / Preview")
+            assert probe.digest(root) == before_merchant, "Merchant preview published"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 9, 32, 0, 0))
+            terminal.capture(b"Event Merchant / Preview")
+            _, refused_merchant = send(terminal, b"\r", b"Enlarge terminal")
+            assert b"Enlarge terminal" in refused_merchant
+            assert probe.digest(root) == before_merchant, "hidden Merchant preview wrote"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            _, readable_merchant = terminal.capture(b"Event Merchant / Preview")
+            assert b"Proposed:" in probe.ANSI.sub(b"", readable_merchant)
             send(terminal, b"\r", b"Published Nonmerchant")
             send(terminal, b"m", b"Merchant already classified: Nonmerchant")
             # Floating reversal preserves the selected parent; resizes cannot write.
