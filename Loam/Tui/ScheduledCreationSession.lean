@@ -1,9 +1,11 @@
 import Loam.HouseholdCommand
 import Loam.Publisher.ScheduledCreationPublisher
+import Loam.Review.ScheduledReview
 import Loam.Tui.EditorSession
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
 import Loam.Tui.ScheduledCreation
+import Loam.Tui.ScheduledCoverageSetupSession
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.ScheduledCreationSession
@@ -67,10 +69,22 @@ The session owns no Scheduled authority. It emits at most one draft to the share
 household command boundary; publication refusal returns to editable local state.
 -/
 def run
-    (bounds : Bounds) (root : System.FilePath)
+    (bounds : Bounds) (dataDir root : System.FilePath)
     (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget) : IO String := do
-  let (_, notice) ← runWithScheduledId bounds root known state frame
-  return notice
+  let (created?, notice) ← runWithScheduledId bounds root known state frame
+  let some created := created? | return notice
+  -- Re-read the exact published identity. A failed reread is reported, never
+  -- silently treated as an absent or one-off recurrence expectation.
+  let .ok evidence ← Loam.ScheduledReview.loadHouseholdEvidence dataDir root
+    | return notice ++ " Expected-pace setup unavailable: Scheduled evidence could not be reloaded."
+  let .ok records ← Loam.ScheduledReview.orderedCurrentOpenRecords evidence
+    | return notice ++ " Expected-pace setup unavailable: open Scheduled evidence is unreadable."
+  let some source := records.find? (fun record => record.id.token == created.token)
+    | return notice ++ " Expected-pace setup unavailable: new Scheduled identity not found."
+  let bounds ← Loam.Tui.Terminal.currentBounds
+  let paceNotice ← Loam.Tui.ScheduledCoverageSetupSession.runAfterCreation
+    bounds dataDir source
+  return notice ++ " " ++ paceNotice
 
 end Loam.Tui.ScheduledCreationSession
