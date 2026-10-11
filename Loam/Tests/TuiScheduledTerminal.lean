@@ -165,19 +165,55 @@ def main (args : List String) : IO Unit := do
       mode := .preview movementDraft ⟨0, by omega⟩ } }
   -- UI-17: editing is an Actual draft, anchored to an unchanged Plan target.
   let knownLoci := ["paypay", "rent", "food"]
-  let mut movedFocus := editor
-  for _ in [:9] do
-    movedFocus := (Loam.Tui.ScheduledCompletion.update
-      initialWorld knownLoci movedFocus .tab).state
+  let mut previewFocus := editor
+  for _ in [:7] do
+    previewFocus := (Loam.Tui.ScheduledCompletion.update
+      initialWorld knownLoci previewFocus .tab).state
+  let addFocus := (Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci previewFocus .tab).state
+  let dropFocus := (Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci addFocus .tab).state
+  let cancelFocus := (Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci dropFocus .tab).state
+  -- Each visible selected label must be the action actually dispatched by
+  -- Record.update. A generic "some selected cell" test missed this regression.
+  for bounds in
+      ([ { width := 32, height := 9 },
+         { width := 80, height := 24 } ] : List Loam.Tui.Kernel.Bounds) do
+    for (focusState, label) in
+        ([(previewFocus, "Preview"), (addFocus, "Add posting"),
+          (dropFocus, "Drop last row"), (cancelFocus, "Cancel")] :
+          List (Loam.Tui.ScheduledCompletion.State × String)) do
+      let widget := Loam.Tui.ScheduledCompletion.view bounds knownLoci focusState
+      let selectedAction := widget.lines.any fun row =>
+        (row.any fun cell => cell.style == .selected) &&
+        ((String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)).splitOn
+          ("[" ++ label ++ "]")).length > 1
+      expect selectedAction ("Scheduled completion action label/focus mismatch: " ++ label)
+  let previewAction := Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci previewFocus .enter
+  match previewAction.state.editor.mode with
+  | .preview _ _ => pure ()
+  | _ => throw (IO.userError "visible Preview did not enter Actual review")
+  let addAction := Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci addFocus .enter
+  expect (addAction.state.editor.form.rows.size == 3 && addAction.publish.isNone)
+    "visible Add posting did not add a row"
+  let dropAction := Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci dropFocus .enter
+  expect (dropAction.state.editor.form.rows.size == 2 && dropAction.publish.isNone)
+    "visible Drop last row did not preserve the two-row minimum"
+  let cancelAction := Loam.Tui.ScheduledCompletion.update
+    initialWorld knownLoci cancelFocus .enter
+  expect (cancelAction.cancel && cancelAction.publish.isNone)
+    "visible Cancel failed to leave completion without publishing"
   let compact : Loam.Tui.Kernel.Bounds := { width := 32, height := 9 }
-  let editingWidget := Loam.Tui.ScheduledCompletion.view compact knownLoci movedFocus
+  let editingWidget := Loam.Tui.ScheduledCompletion.view compact knownLoci previewFocus
   let editingText := String.ofList
     (editingWidget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
   expect ((editingText.splitOn "Actual draft").length > 1 &&
-      (editingText.splitOn "Preview").length > 1)
-    "completion editor lost focused Actual action in compact viewport"
-  expect (editingWidget.lines.any fun row => row.any fun cell => cell.style == .selected)
-    "completion editor did not highlight the selected action"
+      (editingText.splitOn "[Preview]").length > 1)
+    "completion editor lost focused Preview in compact viewport"
   let refused := Loam.Tui.ScheduledCompletion.updateForBounds compact
     initialWorld knownLoci previewState .enter
   expect (refused.publish.isNone &&

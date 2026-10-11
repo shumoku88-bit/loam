@@ -146,7 +146,8 @@ private def editingRows (state : State) : List Widget :=
         ("Posting " ++ toString (index + 1)) row.locus
     , Loam.Tui.Record.field form (4 + index * 2)
         ("  " ++ form.measure) row.amount ]
-  let actions := (["Add posting", "Drop last row", "Preview", "Cancel"].zipIdx).map
+  -- Record.update dispatches these actions in this exact focus order.
+  let actions := (["Preview", "Add posting", "Drop last row", "Cancel"].zipIdx).map
     fun (label, index) =>
       .row [span ("[" ++ label ++ "]")
         (if form.focus.val == 3 + form.rows.size * 2 + index
