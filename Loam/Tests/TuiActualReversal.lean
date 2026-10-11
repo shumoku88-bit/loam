@@ -150,6 +150,15 @@ def main (args : List String) : IO Unit := do
     "tiny terminal published a reversal without visible inverse evidence"
   let expanded := Loam.Tui.ActualReversal.updateForBounds smallBounds preview.state .enter
   expect expanded.publish.isSome "adequate review viewport lost Enter publication"
+  -- A too-small preview must recover when the active terminal becomes usable
+  -- again. The resize-aware session passes the new bounds into this guard.
+  let restored := Loam.Tui.ActualReversal.updateForBounds smallBounds blocked.state .enter
+  expect (restored.publish.isSome && restored.state.target == recorded &&
+    restored.state.inputDate == preview.state.inputDate)
+    "resized reversal preview did not recover the same exact publication intent"
+  let shrunkAgain := Loam.Tui.ActualReversal.updateForBounds tiny blocked.state .enter
+  expect shrunkAgain.publish.isNone
+    "re-shrinking reversal preview bypassed the current viewport publication guard"
   let firstEffect ← requireSome record.event.effects.head?
     "long inverse-preview fixture has no Effect"
   let repeated : Loam.Tui.ActualReversal.State := {
