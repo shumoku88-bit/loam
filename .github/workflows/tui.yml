@@ -457,6 +457,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Time each independently invoked Lake test, preserving the exact
+          # command and exit code. The existing order/coverage is unchanged.
+          lake() {
+            local started=$SECONDS status=0
+            if command lake "$@"; then
+              :
+            else
+              status=$?
+            fi
+            printf 'CI-TIMING seconds=%s exit=%s command=lake %s\\n' \\
+              "$((SECONDS - started))" "$status" "$*"
+            return "$status"
+          }
           lake test -- tui-representative
           lake env lean --run Loam/Tests/BoundedHistorySupport.lean
           lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal-pr"
