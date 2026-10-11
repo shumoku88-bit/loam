@@ -67,17 +67,17 @@ private partial def runLoop
     (editorBounds active) known state key
   if step.cancel then
     return "Scheduled supersede cancelled."
-  let next ←
+  let outcome ←
     match step.publish with
-    | none => pure (some step.state)
+    | none => pure (.ok step.state : Except String Loam.Tui.ScheduledReplacement.State)
     | some draft =>
         match ← Loam.HouseholdCommand.replaceScheduled root draft with
-        | .ok () => return "Superseded " ++ draft.source.token ++ "."
+        | .ok () => pure (.error ("Superseded " ++ draft.source.token ++ "."))
         | .error message =>
-            pure (some (Loam.Tui.ScheduledReplacement.withPublishError step.state message))
-  match next with
-  | none => return "Scheduled supersede cancelled."
-  | some nextState =>
+            pure (.ok (Loam.Tui.ScheduledReplacement.withPublishError step.state message))
+  match outcome with
+  | .error notice => return notice
+  | .ok nextState =>
       let nextFrame := render active known nextState
       Loam.Tui.ModalSurface.paint active surface .dirtyDiff frame nextFrame
       runLoop active root known nextState nextFrame parent
