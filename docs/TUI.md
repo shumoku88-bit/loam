@@ -542,7 +542,15 @@ Actions reuse SelectedDaySession's existing editors / writers:
 The date-change editor has a bounded current/proposed date panel with a selected
 editable value, exact target identity, and distinct Preview/Publish step. Its
 feedback and shortcut rows stay at the bottom while the shared publisher owns
-the final re-check. Reversal's distinct presentation remains UI-11 work.
+the final re-check.
+
+Reversal is an **inverse Event**, not deletion or contents correction. Its framed
+date input shows the selected target and the separately chosen reversal date.
+Preview retains the original target, shows the exact signed inverse postings
+with a scrollable viewport (Up/Down, PgUp/PgDn, Home/End), and places the
+explicit publish action below a retained-original warning. Very short terminals
+cannot publish when no inverse-posting line is reviewable. The same shared
+publisher independently re-derives and checks the exact inverse before writing.
 
 The action list uses the existing editor representability checks; unsupported
 correction/reversal shapes do not advertise those actions. Already reversed or
