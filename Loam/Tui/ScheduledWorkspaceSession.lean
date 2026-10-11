@@ -390,10 +390,10 @@ partial def run
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
-              let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view bounds known editor)
-              Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
-              let completed ← Loam.Tui.ScheduledCompletionSession.run
-                bounds root world known editor editorFrame
+              let completed ← Loam.Tui.ScheduledCompletionSession.runAdaptive
+                bounds root world known editor (fun active =>
+                  workspaceFrame active snapshot coverage step.state)
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let notice ←
                 if !completed then
                   pure "Scheduled completion cancelled."
