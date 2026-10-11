@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Real-terminal Scheduled supersede input contract on an isolated household.
 
-This first probe focuses on the admitted Locus picker, focus movement, Esc and
-byte-identical no-write. Responsive preview / resize is explicitly tracked by
-#1902 and must not be inferred from passing this baseline.
+Cover the admitted Locus picker, edit/preview resize, short-viewport
+publication refusal, and draft retention with byte-identical no-write.
+Accepted publication is a separate qualification item under #1902.
 """
 from __future__ import annotations
 
@@ -76,6 +76,14 @@ class Terminal:
         os.write(self.master, data)
         return self.capture(expected)
 
+    def resize(self, rows: int, cols: int, expected: bytes) -> bytes:
+        self.rows, self.cols = rows, cols
+        fcntl.ioctl(self.master, termios.TIOCSWINSZ,
+                    struct.pack("HHHH", rows, cols, 0, 0))
+        output = self.capture(expected)
+        assert b"\x1b[2J" in output, "resize did not rebuild the replacement frame"
+        return output
+
     def close(self):
         if self.proc.poll() is None:
             self.proc.terminate()
@@ -120,12 +128,34 @@ def main():
             assert b"-480" in ANSI.sub(b"", amended), amended
             assert digest(root) == original, "local amount edit published"
 
+            # Restore the balanced seed, then preview without publication.
+            terminal.send(b"0", b"-4800")
+            terminal.send(b"\t" * 5, b"[Preview]")
+            preview = terminal.send(b"\r", b"Scheduled / Supersede / Preview")
+            assert b"Source: first" in ANSI.sub(b"", preview)
+            assert b"4800 jpy" in ANSI.sub(b"", preview)
+
+            # Preview reflows at current terminal bounds. Short evidence
+            # prevents Publish until the same editor is enlarged.
+            small = terminal.resize(9, 32, b"Scheduled / Supersede / Preview")
+            assert b"[Publish]" in ANSI.sub(b"", small), small
+            refused = terminal.send(b"\r", b"Enlarge terminal")
+            assert b"Enlarge terminal" in ANSI.sub(b"", refused), refused
+            assert digest(root) == original, "short preview published a replacement"
+
+            big = terminal.resize(24, 80, b"Scheduled / Supersede / Preview")
+            assert b"Source: first" in ANSI.sub(b"", big), big
+            terminal.send(b"\t", b"[Edit]")
+            editing = terminal.send(b"\r", b"Scheduled / Supersede / Edit replacement")
+            assert b"Posting 1: wifi" in ANSI.sub(b"", editing), editing
+            assert digest(root) == original, "preview/edit return published"
+
             terminal.send(b"\x1b", b"Scheduled / List")
             assert digest(root) == original, "Esc from replacement published or modified bytes"
             terminal.send(b"q", b"LOAM Home")
         finally:
             terminal.close()
-    print("Scheduled replacement PTY baseline: Locus candidate, Right/Tab, visible field, Esc and no-write passed.")
+    print("Scheduled replacement PTY: Locus/Right/Tab, resized preview refusal, draft recovery, Esc and no-write passed.")
 
 
 if __name__ == "__main__":
