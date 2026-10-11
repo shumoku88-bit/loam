@@ -200,11 +200,11 @@ private def line (text : String) : Widget := .row [span text]
 
 private def boundedField (width : Nat) (form : Form) (index : Nat)
     (label value : String) : Widget :=
-  let prefix := label ++ ": "
-  let available := width - Loam.Tui.Layout.displayWidth prefix
+  let labelText := label ++ ": "
+  let available := width - Loam.Tui.Layout.displayWidth labelText
   let active := form.focus == index
   let content := if value.isEmpty then "_" else value
-  .row [span prefix .muted,
+  .row [span labelText .muted,
         span (if active then Loam.Tui.Layout.inputTail available content
               else Loam.Tui.Layout.ellipsize available content)
           (if active then .selected else .normal)]
