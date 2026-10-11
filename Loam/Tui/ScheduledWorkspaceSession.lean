@@ -211,6 +211,7 @@ partial def run
       Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
       let notice ← Loam.Tui.ScheduledCreationSession.run
         bounds dataDir root known editor editorFrame
+      let bounds ← Loam.Tui.Terminal.currentBounds
       let fresh ← requireReload notice reload
       let freshCoverage ← loadCoverage dataDir root fresh.actual.today
       let refreshed := Loam.Tui.ScheduledWorkspace.refreshed fresh step.state
