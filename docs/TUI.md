@@ -140,6 +140,13 @@ code-point count, and do not alter the retained field value. Record, Scheduled
 creation, and Attention reuse these helpers; each screen still owns its label
 width, focus, retained input, and publication semantics.
 
+Focus arithmetic: the dynamic Scheduled posting form and the fixed six-position
+Capacity transfer form both use the existing `Loam.Tui.CyclicIndex.move`
+primitive, as Record and Exchange already do. Each editor still determines its
+own focus count, editable/action field meanings, Tab/Shift-Tab handling,
+candidate resets, Enter transitions, and publication authority. Shared focus
+movement never commits a Locus or changes household data.
+
 Single-line input editing uses `Loam.Tui.InputEdit` for Backspace, typed
 characters, and the existing first-line bracketed-paste normalization.
 Non-text keys return no edit. Record, Scheduled creation/replacement, and

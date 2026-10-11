@@ -55,6 +55,26 @@ def main (args : List String) : IO Unit := do
   let initialText := widgetText (Loam.Tui.CapacityTransfer.view initial)
   expect (contains "not money available to allocate" initialText)
     "Capacity transfer editor lost the unallocated boundary warning"
+
+  -- Capacity has four text fields and two actions: focus navigation is
+  -- cyclic, but its exact order and publication semantics remain local.
+  let lastFocus := (Loam.Tui.CapacityTransfer.update initial .shiftTab).state
+  expect (lastFocus.form.focus == 5 && lastFocus.form == {initial.form with focus := 5})
+    "Capacity Shift-Tab did not wrap from Source to last action"
+  let wrapped := (Loam.Tui.CapacityTransfer.update lastFocus .tab).state
+  expect (wrapped.form.focus == 0 && wrapped.form == initial.form)
+    "Capacity Tab did not wrap last action to Source"
+  let mut focusState := initial
+  for expected in [1, 2, 3, 4, 5, 0] do
+    focusState := (Loam.Tui.CapacityTransfer.update focusState .tab).state
+    expect (focusState.form.focus == expected &&
+      focusState.form.source == initial.form.source &&
+      focusState.form.effectiveOn == initial.form.effectiveOn)
+      "Capacity focus traversal edited source or effective date"
+  let reverse := (Loam.Tui.CapacityTransfer.update
+    { initial with form := {initial.form with focus := 3} } .shiftTab).state
+  expect (reverse.form.focus == 2)
+    "Capacity Shift-Tab did not move from Amount to Effective date"
   expect (Loam.CapacityPublisher.parseCoordinate? "food" == some (.purpose ⟨"food"⟩))
     "shared Capacity endpoint parser rejected a new Purpose token"
 
