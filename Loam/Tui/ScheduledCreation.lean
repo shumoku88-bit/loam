@@ -105,27 +105,23 @@ private def moveCandidate (state : State) (back : Bool) : State :=
       { state with candidateIndex :=
           Loam.Tui.LocusPicker.move state.candidateCatalog entered state.candidateIndex back }
 
+/-- Commit the exact admitted token selected by the shared Locus picker. -/
 private def acceptSelectedCandidate (state : State) : State :=
-  match selectedCatalogCandidate? state with
+  match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
   | none => state
-  | some entry =>
-      { state with
-          form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun _ => entry.locus.token)
-          candidateIndex := 0 }
+  | some entered =>
+      match Loam.Tui.LocusPicker.commitToken?
+          state.candidateCatalog entered state.candidateIndex with
+      | none => state
+      | some token =>
+          { state with
+              form := Loam.Tui.ScheduledPostingForm.editActive state.form (fun _ => token)
+              candidateIndex := 0 }
 
-/-- Enter on a focused Locus commits the highlighted catalog choice before
-    advancing to Amount. An already exact token stays unchanged at cursor zero.
-    With no catalog match, the editable text is preserved. This matches the
-    ordinary Record editor without changing Scheduled publication authority. -/
+/-- Enter commits the picker then advances to Amount. Right calls the same
+    commitment but keeps focus; Scheduled publication rules remain local. -/
 private def acceptCandidateAndAdvance (state : State) : State :=
-  let committed :=
-    match Loam.Tui.ScheduledPostingForm.activeLocus? state.form with
-    | none => state
-    | some entered =>
-        if state.candidateIndex == 0 &&
-            (Loam.LocusCatalog.exactToken? state.candidateCatalog entered).isSome then
-          state
-        else acceptSelectedCandidate state
+  let committed := acceptSelectedCandidate state
   { committed with
       form := Loam.Tui.ScheduledPostingForm.moveFocus committed.form false
       candidateIndex := 0
