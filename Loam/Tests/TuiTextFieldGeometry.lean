@@ -27,7 +27,7 @@ def main : IO Unit := do
 
   for columns in [0, 1, 2, 3, 4, 5, 7, 10, 24] do
     for original in ["", "abc", "abcdefghijklmnop", "日本語の長い入力末尾",
-        "a\u0301b\u0301", "猫🐸🐸と入力", "USD 123456789.00"] do
+        "áb́", "猫🐸🐸と入力", "USD 123456789.00"] do
       let tail := inputTail columns original
       let head := ellipsize columns original
       expect (displayWidth tail ≤ columns && displayWidth head ≤ columns)
