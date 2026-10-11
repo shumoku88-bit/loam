@@ -508,6 +508,9 @@ jobs:
       - name: Verify checked Scheduled batch terminal flow on isolated data
         run: python3 tests/test_scheduled_bulk_edit_pty.py
 
+      - name: Verify adaptive Scheduled cancellation modal on isolated data
+        run: python3 tests/test_scheduled_cancel_modal_pty.py
+
       - name: Verify launcher freshness and Record reload boundaries
         run: |
           python3 tests/test_launcher_build_check.py
