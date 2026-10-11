@@ -972,7 +972,9 @@ source/tests are the current TUI contract.
 ### Floating Record panel
 
 On terminals with enough room, the Home `r` entrance opens Record as a centered
-floating panel. Compact terminals keep the existing full-screen Record surface.
+floating panel. Its outer frame borrows the Commands overlay's existing focus accent,
+without moving the active input caret or changing selected-field styling.
+Compact terminals keep the existing full-screen Record surface and muted outer framing.
 Only presentation changes; Record validation and publication are shared.
 
 Record input uses aligned muted labels, with a focus accent on the active field
