@@ -391,7 +391,7 @@ partial def run
                 | .error message => throw (IO.userError message)
                 | .ok world => pure world
               let known := world.locusAdmission.approved.map (fun locus => locus.token)
-              let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view known editor)
+              let editorFrame := compileWidget (Loam.Tui.ScheduledCompletion.view bounds known editor)
               Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
               let completed ← Loam.Tui.ScheduledCompletionSession.run
                 bounds root world known editor editorFrame
