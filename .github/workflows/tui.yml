@@ -41,6 +41,7 @@ on:
       - 'tests/test_launcher_build_check.py'
       - 'tests/test_record_reload_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
+      - 'tests/test_scheduled_completion_modal_pty.py'
       - 'Loam/Tests/ScheduledBatchReplacement.lean'
       - 'Loam/Tests/TuiScheduledBulkEdit.lean'
       - 'Loam/Application/ScheduledBulkEdit.lean'
@@ -250,6 +251,7 @@ on:
       - 'tests/test_launcher_build_check.py'
       - 'tests/test_record_reload_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
+      - 'tests/test_scheduled_completion_modal_pty.py'
       - 'Loam/Tests/ScheduledBatchReplacement.lean'
       - 'Loam/Tests/TuiScheduledBulkEdit.lean'
       - 'Loam/Application/ScheduledBulkEdit.lean'
@@ -513,6 +515,9 @@ jobs:
 
       - name: Verify adaptive Scheduled cancellation modal on isolated data
         run: python3 tests/test_scheduled_cancel_modal_pty.py
+
+      - name: Verify adaptive Scheduled completion modal and no-write guard
+        run: python3 tests/test_scheduled_completion_modal_pty.py
 
       - name: Verify launcher freshness and Record reload boundaries
         run: |
