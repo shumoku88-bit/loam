@@ -71,4 +71,20 @@ def paint (bounds : Bounds) (rectangle : Option Rectangle)
       | .dirtyDiff => Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 old next
       | .fromBlank => Loam.Tui.Terminal.redrawFromBlank bounds next
 
+
+/--
+After a terminal resize, reconstruct the visible parent before painting a new
+floating region. Otherwise the old floating rectangle can remain stranded at
+its previous coordinates, or the surrounding parent can be left blank.
+Compact/full-screen mode owns every visible cell instead.
+-/
+def repaintOverParent (bounds : Bounds) (rectangle : Option Rectangle)
+    (parent content : CompiledWidget) : IO Unit := do
+  match rectangle with
+  | none =>
+      Loam.Tui.Terminal.redrawFromBlank bounds content
+  | some region =>
+      Loam.Tui.Terminal.redrawFromBlank bounds parent
+      paint bounds (some region) .dirtyDiff (compileWidget (.row [])) content
+
 end Loam.Tui.ModalSurface
