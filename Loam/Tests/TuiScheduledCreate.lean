@@ -159,7 +159,7 @@ def main (args : List String) : IO Unit := do
   let enteredText := String.ofList
     (enteredImage.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
   expect (contains ("Posting 1" ++
-    Loam.Tui.Layout.spaces (15 - "Posting 1: ".length) ++
+    Loam.Tui.Layout.padRight 15 "Posting 1: " ++
     highlighted.locus.token) enteredText)
     "chosen Scheduled Locus was not visible in the Posting field"
   let tabbed := (Loam.Tui.ScheduledCreation.update [] moved .tab).state
