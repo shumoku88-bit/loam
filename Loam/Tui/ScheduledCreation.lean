@@ -325,7 +325,7 @@ private def editingView (bounds : Bounds) (state : State) : Widget :=
     "Due / Signed postings"
     (.column ((fields.drop start).take capacity)) active
     (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))
-  let body := .column <|
+  let body : Widget := .column <|
     [line "Scheduled / New / Edit", fieldPanel] ++
       (if showCandidates then [candidatesPanel width candidateHeight state] else [])
   .column ((Loam.Tui.Layout.fitWithFooter bounds
