@@ -133,6 +133,8 @@ def main():
             # At 10x1 there are no paintable rows; do not wait for a diff
             # between the two silent keyboard transitions.
             os.write(t.master, b"\t\r")
+            time.sleep(.5)  # both keys must be interpreted while bounds are 10x1
+            assert digest(root) == original, "10x1 Enter changed authority"
             restored = t.resize(40, 112, b"Scheduled / Cancel")
             assert b"Enlarge terminal" in ANSI.sub(b"", restored), "tiny Enter refusal was lost on resize"
             # A short terminal can never commit; the following Esc preserves all bytes.
