@@ -124,7 +124,7 @@ partial def actualDateCorrectionLoop
       let resized := compileWidget (Loam.Tui.ActualDateCorrection.viewForBounds active state)
       Loam.Tui.ModalSurface.repaintOverParent active region (parent active) resized
       pure resized
-  let step := Loam.Tui.ActualDateCorrection.update state key
+  let step := Loam.Tui.ActualDateCorrection.updateForBounds active state key
   if step.cancel then return "Date correction cancelled."
   match step.publish with
   | some draft =>
