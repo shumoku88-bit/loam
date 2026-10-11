@@ -164,6 +164,9 @@ def main():
             # Re-enter the external action to retry without revisiting a dead menu.
             open_report(terminal, 10)
             assert terminal.idle(.2) == 0
+            # Report returns preserved the transaction-detail pane. q now
+            # returns to the Calendar there; only the next q exits Home.
+            send(terminal, b"q", b"[q] quit")
             terminal.quit()
             assert probe.digest(root) == frozen, "read-only report navigation changed household/config bytes"
         finally:
