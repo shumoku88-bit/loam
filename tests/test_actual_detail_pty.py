@@ -94,7 +94,7 @@ def main():
             assert probe.digest(root) == frozen, "read-only focused navigation wrote evidence"
 
             # Every Actual-side action still reaches the old editor/session; cancels publish nothing.
-            for key, marker in ((b"c", b"Correction / Edit"), (b"d", b"Actual Date / Edit"),
+            for key, marker in ((b"c", b"Correction / Edit"), (b"d", b"Actual / Date / Edit"),
                                 (b"r", b"Actual / Reverse / Date"), (b"m", b"Event Merchant / Edit"),
                                 (b"n", b"Record / Edit"), (b"g", b"Locus Administration")):
                 send(terminal, key, marker)
@@ -102,9 +102,15 @@ def main():
                 assert identity in returned and probe.digest(root) == frozen, (key, returned)
 
             # Date correction retains the Event, follows its new date, and requires confirmation.
-            send(terminal, b"d", b"Actual Date / Edit")
+            _, date_edit = send(terminal, b"d", b"Actual / Date / Edit")
+            assert all(label in date_edit for label in
+                       (b"Current date:", b"New date:", b"Target Actual:", identity))
             changed_date = str(datetime.date.today() - datetime.timedelta(days=1)).encode()
-            send(terminal, b"\x7f" * 10 + changed_date + b"\r", b"Actual Date / Preview")
+            _, date_preview = send(terminal, b"\x7f" * 10 + changed_date + b"\r",
+                                   b"Actual / Date / Preview")
+            assert all(label in date_preview for label in
+                       (b"Current date:", b"Proposed date:", b"Publish date change",
+                        b"Only the occurrence date changes.", changed_date, identity))
             assert probe.digest(root) == frozen, "date preview published"
             _, dated = send(terminal, b"\r", DETAIL)
             assert identity in dated and b"Date: " + changed_date in dated
