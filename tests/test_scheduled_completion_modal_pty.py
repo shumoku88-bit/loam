@@ -11,9 +11,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-from scheduled_pty_support import Terminal, ANSI, digest
-
-REPO = Path(__file__).resolve().parents[1]
+from scheduled_pty_support import ANSI, REPO, Terminal, digest
 
 
 def clean(raw: bytes) -> bytes:
