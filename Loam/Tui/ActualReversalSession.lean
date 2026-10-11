@@ -17,8 +17,8 @@ def run
     (state : Loam.Tui.ActualReversal.State)
     (frame : Loam.Tui.Runtime.CompiledWidget) : IO String :=
   Loam.Tui.EditorSession.runUntilPublished bounds
-    (Loam.Tui.ActualReversal.update)
-    Loam.Tui.ActualReversal.view
+    (Loam.Tui.ActualReversal.updateForBounds bounds)
+    (Loam.Tui.ActualReversal.view bounds)
     Loam.Tui.ActualReversal.withPublishError
     "Actual reversal cancelled."
     (fun draft => do
