@@ -146,6 +146,49 @@ def main (args : List String) : IO Unit := do
   let movedImage := Loam.Tui.ScheduledCreation.view regular [] moved
   expect (firstImage.lines.length == movedImage.lines.length)
     "candidate selection caused the Scheduled editor to jump vertically"
+  -- UI-16: Enter commits the highlighted Locus before advancing to Amount,
+  -- matching ordinary Record. Candidate movement alone and Tab do not commit.
+  let highlighted ← requireSome
+    (Loam.Tui.LocusPicker.selected? catalog "" moved.candidateIndex)
+    "Scheduled editor had no selected Locus candidate"
+  let entered := (Loam.Tui.ScheduledCreation.update [] moved .enter).state
+  expect (entered.form.rows[0]!.locus == highlighted.locus.token &&
+    entered.form.focus == 2 && entered.candidateIndex == 0)
+    "Enter skipped highlighted Scheduled Locus without writing it to Posting"
+  let enteredImage := Loam.Tui.ScheduledCreation.view regular [] entered
+  let enteredText := String.ofList
+    (enteredImage.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains (
+    Loam.Tui.Layout.padRight 15 "Posting 1: " ++
+    highlighted.locus.token) enteredText)
+    "chosen Scheduled Locus was not visible in the Posting field"
+  let tabbed := (Loam.Tui.ScheduledCreation.update [] moved .tab).state
+  expect (tabbed.form.rows[0]!.locus.isEmpty && tabbed.form.focus == 2)
+    "Tab unexpectedly committed the highlighted Scheduled candidate"
+  let rightAccepted := (Loam.Tui.ScheduledCreation.update [] moved .right).state
+  expect (rightAccepted.form.rows[0]!.locus == highlighted.locus.token &&
+    rightAccepted.form.focus == 1)
+    "Right no longer accepts the Scheduled candidate in place"
+  let partiallyTyped : Loam.Tui.ScheduledCreation.State := {
+    locusEditor with form := { locusEditor.form with rows :=
+      #[{ locus := "fo", amount := "" }, {}] } }
+  let completed := (Loam.Tui.ScheduledCreation.update [] partiallyTyped .enter).state
+  expect (completed.form.rows[0]!.locus == "food" && completed.form.focus == 2)
+    "Enter did not complete the filtered Scheduled Locus"
+  let exact : Loam.Tui.ScheduledCreation.State := {
+    locusEditor with form := { locusEditor.form with rows :=
+      #[{ locus := "paypay", amount := "" }, {}] } }
+  let exactResult := (Loam.Tui.ScheduledCreation.update [] exact .enter).state
+  expect (exactResult.form.rows[0]!.locus == "paypay" &&
+    exactResult.form.focus == 2)
+    "Enter replaced an already exact Scheduled Locus"
+  let unknown : Loam.Tui.ScheduledCreation.State := {
+    locusEditor with form := { locusEditor.form with rows :=
+      #[{ locus := "not-in-catalog", amount := "" }, {}] } }
+  let unknownResult := (Loam.Tui.ScheduledCreation.update [] unknown .enter).state
+  expect (unknownResult.form.rows[0]!.locus == "not-in-catalog" &&
+    unknownResult.form.focus == 2)
+    "Enter erased a Scheduled Locus when no candidate was available"
   let editedAction : Loam.Tui.ScheduledCreation.State := {
     manyEditor with form := { manyEditor.form with focus := 15 } }
   let actionText := String.ofList

@@ -763,6 +763,10 @@ focus-following framed viewport. The candidate summary, action choices, and two
 navigation rows keep stable positions as the user moves across fields. Larger
 terminals show an additional bounded Locus candidate panel; compact terminals
 retain a selectable candidate summary without pushing the action bar away.
+While the Posting Locus field is focused, Up/Down highlight catalog candidates,
+**Enter commits the highlighted token to the Posting and advances to Amount**,
+and Right commits without advancing. Tab only moves focus and does not commit
+the suggestion. Already exact Locus tokens remain unchanged on Enter.
 Long values show their editable tail with a visible ellipsis; full stored
 input and the existing publication authority are unchanged. The ordinary Scheduled creation editor and its confirmation now re-measure the
 terminal while open, retaining entered values and focus and rechecking the
