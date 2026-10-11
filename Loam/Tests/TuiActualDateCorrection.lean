@@ -11,6 +11,9 @@ open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
   | some result => pure result
@@ -62,6 +65,23 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "date editor did not accept dated current Actual")
   expect (editor.target == recorded && editor.input == "2026-09-07")
     "date editor lost target or visible current date"
+  -- Confirm the target, both dates, focused value and bounded physical frame.
+  for bounds in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
+      { width := 80, height := 24 }, { width := 120, height := 40 }] do
+    let widget := Loam.Tui.ActualDateCorrection.view bounds editor
+    let glyphs := String.ofList (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (contains "Current date" glyphs && contains "New date" glyphs &&
+      contains "2026-09-07" glyphs && contains recorded.token glyphs)
+      "date editor lost its original date, editable date or exact target"
+    expect (widget.lines.length <= bounds.height - 1)
+      "date editor exceeded the writable terminal height"
+    for cells in widget.lines do
+      expect (Loam.Tui.Layout.displayWidth (String.ofList
+        (cells.map Loam.Tui.Kernel.Cell.glyph)) <= Loam.Tui.Layout.contentWidth bounds)
+        "date editor exceeded the writable terminal width"
+    expect (widget.lines.any fun cells =>
+      cells.any fun cell => cell.style == .selected && cell.glyph == '2')
+      "date editor lost highlighted editable date"
 
   let erased := (Loam.Tui.ActualDateCorrection.update editor .backspace).state
   let typed := (Loam.Tui.ActualDateCorrection.update erased (.input '6')).state
@@ -70,6 +90,17 @@ def main (args : List String) : IO Unit := do
   let preview := Loam.Tui.ActualDateCorrection.update typed .enter
   expect (preview.state.mode == .preview && preview.publish.isNone)
     "valid date did not require a separate preview before publication"
+  let review := Loam.Tui.ActualDateCorrection.view
+    { width := 48, height := 14 } preview.state
+  let reviewText := String.ofList (review.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (contains "Proposed date" reviewText && contains "Publish date change" reviewText &&
+    contains "2026-09-06" reviewText && contains recorded.token reviewText)
+    "date preview lost its date, target or explicit confirmation"
+  let refused := Loam.Tui.ActualDateCorrection.withPublishError preview.state "Recheck refused"
+  let refusedText := String.ofList ((Loam.Tui.ActualDateCorrection.view
+    { width := 48, height := 14 } refused).lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (refused.mode == .editing && contains "Recheck refused" refusedText)
+    "publication refusal did not return to the edit mode with visible notice"
   let publish := Loam.Tui.ActualDateCorrection.update preview.state .enter
   let dateDraft ← requireSome publish.publish "date preview did not emit publication intent"
   expect (dateDraft.target == recorded && dateDraft.validOn == "2026-09-06")
