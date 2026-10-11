@@ -401,6 +401,7 @@ partial def run
                   Loam.Tui.ScheduledContinuationSession.runAfterCompletion
                     bounds root known record snapshot.actual.today
                     (currentLocusCatalog dataDir world)
+              let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
 
               let freshCoverage ← loadCoverage dataDir root fresh.actual.today
