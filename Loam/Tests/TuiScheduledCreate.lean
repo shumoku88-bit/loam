@@ -311,6 +311,37 @@ def main (args : List String) : IO Unit := do
 
   let createdRecord ← requireSome due.head?
     "fresh Scheduled read did not expose a seed candidate"
+  -- The separate, existing-plan monitoring chooser now uses the same bounded
+  -- presentation policy as the post-creation pace handoff. No future occurrence
+  -- is created by moving or cancelling this selection.
+  let monitoring := Loam.Tui.ScheduledCoverageSetup.initial createdRecord
+  let monitoringNext := (Loam.Tui.ScheduledCoverageSetup.update monitoring .down).state
+  match (Loam.Tui.ScheduledCoverageSetup.update monitoringNext .enter).action with
+  | some (.save 2) => pure ()
+  | _ => throw (IO.userError "monitoring selection changed the explicit two-month cadence")
+  expect ((Loam.Tui.ScheduledCoverageSetup.update monitoring .escape).action ==
+      some .cancel)
+    "Esc from monitoring chooser no longer preserves existing configuration"
+  let selectedMonitoring : Loam.Tui.ScheduledCoverageSetup.State :=
+    { monitoring with selection := 4 }
+  for bounds in
+      ([ { width := 32, height := 9 },
+         { width := 48, height := 14 },
+         { width := 80, height := 24 } ] : List Loam.Tui.Kernel.Bounds) do
+    let widget := Loam.Tui.ScheduledCoverageSetup.view bounds selectedMonitoring
+    let glyphs := String.ofList
+      (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (widget.lines.length <= bounds.height - 1 &&
+      contains "Expected pace" glyphs && contains "Yearly" glyphs)
+      "monitoring chooser lost its selected cadence on a compact terminal"
+    expect (widget.lines.any fun cells =>
+      cells.any fun cell => cell.style == .selected)
+      "monitoring chooser did not visibly highlight its selected cadence"
+    for cells in widget.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)) <=
+        Loam.Tui.Layout.contentWidth bounds)
+        "monitoring chooser exceeded terminal width"
   -- Optional pace selection after creation changes only the monitoring
   -- intention. It cannot publish a second Scheduled or infer recurrence.
   let pace : Loam.Tui.ScheduledCoverageSetup.CreatedPaceState := {

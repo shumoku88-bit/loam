@@ -103,27 +103,53 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 
-private def choiceLine (state : State) (index : Nat) : Option Widget := do
-  let choice ← choices[index]?
-  let marker := if index = state.selection then "> " else "  "
-  some <| .row
-    [ span (marker ++ choice.label)
-        (if index = state.selection then .selected else .normal) ]
-
-def view (state : State) : Widget :=
-  .column <|
-    [ line "Scheduled / Plan Monitoring"
-    , line ("Selected: " ++ state.source.scheduledOn ++ "  " ++
-        Loam.ScheduledReview.summary state.source)
-    , muted "Choose how often you normally expect an explicit plan."
-    , muted "This only monitors coverage. It does not create plans or claim recurrence."
-    , line ""
-    ] ++
-    (List.range choices.length).filterMap (choiceLine state) ++
-    [ line ""
-    , muted "Enter save monitoring   j/k or arrows choose   q/Esc cancel"
-    ] ++
-    (if state.notice.isEmpty then [] else [line state.notice])
+/-- A bounded selection-following monitoring chooser, matching the creation
+    handoff's presentation without changing Scheduled or monitoring authority. -/
+def view (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  let help := (Loam.Tui.Layout.wrapColumns width
+    "Enter save monitoring  Up/Down choose  Esc cancel").map muted
+  let footer := Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    (if feedback.isEmpty then [line ""] else feedback) ++ help
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let selected := "Selected: " ++ state.source.scheduledOn ++ "  " ++
+    Loam.ScheduledReview.summary state.source
+  let header :=
+    if available >= 8 then
+      [ line "Scheduled / Plan Monitoring"
+      , line (Loam.Tui.Layout.clip width selected)
+      , muted "Choose the expected pace of explicit plans."
+      ]
+    else if available >= 5 then
+      [ line "Scheduled / Plan Monitoring"
+      , line (Loam.Tui.Layout.clip width selected)
+      ]
+    else
+      [line "Scheduled / Plan Monitoring"]
+  let note :=
+    if available >= 10 then
+      [muted "Monitoring only. No future Scheduled is created."] else []
+  let height := min (choices.length + 2) (available - header.length - note.length)
+  let capacity := height - 2
+  let focus := min state.selection (choices.length - 1)
+  let start := min (choices.length - capacity)
+    (Loam.Tui.Layout.trailingWindowStart focus capacity)
+  let visible := ((choices.drop start).take capacity).zipIdx
+  let options : List Widget := visible.map fun (choice, index) =>
+    let active := start + index == focus
+    .row [ span (if active then "> " else "  ") .muted
+         , span (Loam.Tui.Layout.clip (width - 4) choice.label)
+             (if active then .selected else .normal) ]
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + capacity < choices.length then " ▼" else "")
+  let panel := Loam.Tui.Layout.framedPanel width height "Expected pace"
+    (.column options) true
+    (some (s!"{focus + 1}/{choices.length}" ++ more))
+  let body : Widget := .column (header ++ [panel] ++ note)
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (Loam.Tui.Layout.widgetRows body) footer).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
 
 
 /-!
