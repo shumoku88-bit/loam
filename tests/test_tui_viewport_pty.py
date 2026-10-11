@@ -254,7 +254,10 @@ try:
     # UI-16: review signed Scheduled postings in a real PTY, then cancel.
     # No canonical Scheduled or Actual evidence may be published by preview.
     os.write(master, b"n")
-    edit = ansi.sub(b"", capture(b"Scheduled / New / Edit"))
+    opened = capture(b"Scheduled / New / Edit")
+    assert b"\x1b[2J" not in opened, "roomy Scheduled create unexpectedly cleared parent"
+    assert b"Scheduled / New" in ansi.sub(b"", opened)
+    edit = ansi.sub(b"", opened)
     assert b"Due:" in edit and b"Posting 1" in edit, edit
     os.write(master, b"\tpaypay\t-700\tfood\t700\r")
     preview = ansi.sub(b"", capture(b"[Publish Scheduled]"))
