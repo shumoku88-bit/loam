@@ -7,12 +7,11 @@ the existing Lean Scheduled terminal publication tests.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 import subprocess
 import tempfile
 
-from test_scheduled_cancel_modal_pty import Terminal, ANSI, digest
+from scheduled_pty_support import Terminal, ANSI, digest
 
 REPO = Path(__file__).resolve().parents[1]
 
