@@ -1,5 +1,6 @@
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
+import Loam.Tui.ModalSurface
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 import Loam.Tui.ReportDestination
@@ -181,28 +182,17 @@ def view (bounds : Bounds) (state : State) : Widget :=
       .row ((Loam.Tui.Layout.clipCells panelWidth cells).map fun cell =>
         span (String.singleton cell.glyph) cell.style)
 
-private def floating? (bounds : Bounds) : Option (Nat × Nat × Nat × Nat) :=
-  let available := Loam.Tui.Layout.contentWidth bounds
-  if !canFloat bounds then
-    none
-  else
-    let width := min 54 (available - 4)
-    let height := panelHeight bounds
-    some ((bounds.height - height) / 2,
-      (available - width) / 2, width, height)
+private def floating? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
+  Loam.Tui.ModalSurface.centered? bounds 64 18 54 (panelHeight bounds)
 
 private def renderPanel
-    (bounds : Bounds) (geometry : Option (Nat × Nat × Nat × Nat))
-    (old next : CompiledWidget) : IO Unit := do
-  match geometry with
-  | some (top, left, width, _) =>
-      Loam.Tui.Terminal.emitDirtyRegion bounds top left width old next
-  | none =>
-      Loam.Tui.Terminal.redrawFromBlank bounds next
+    (bounds : Bounds) (geometry : Option Loam.Tui.ModalSurface.Rectangle)
+    (old next : CompiledWidget) : IO Unit :=
+  Loam.Tui.ModalSurface.paint bounds geometry .fromBlank old next
 
 /-- Run a short-lived modal chooser, including idle resize polling. -/
 private partial def session
-    (bounds : Bounds) (geometry : Option (Nat × Nat × Nat × Nat))
+    (bounds : Bounds) (geometry : Option Loam.Tui.ModalSurface.Rectangle)
     (state : State) (frame : CompiledWidget) : IO (Option Choice) := do
   let key ← Loam.Tui.Terminal.readKey
   let active ← Loam.Tui.Terminal.currentBounds
