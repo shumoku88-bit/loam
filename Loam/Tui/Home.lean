@@ -803,7 +803,7 @@ private def viewHelp (state : State) : List HelpItem :=
 
 private def actionHelp (state : State) : List HelpItem :=
   if state.activePane == .detail then
-    [{ key := "[q]", label := "quit" }]
+    [{ key := "[q]", label := "back" }]
   else
     [ { key := "[r]", label := "record" }
     , { key := "[a]", label := "actual" }
@@ -830,9 +830,13 @@ private def helpLines (bounds : Bounds) (state : State) : List Widget :=
     let view := if state.activePane == .detail then
         [("Esc/Tab/w", "calendar"), ("t", "today")]
       else [("Tab/w", "pane"), ("C-u/d", "scroll"), ("/", "jump"), ("z", "zoom")]
+    let action := if state.activePane == .detail then
+        [("q", "back")]
+      else
+        [("r", "rec"), ("a", "actual"), ("s", "plans"), ("q", "quit")]
     [ Loam.Tui.Layout.shortcutRow navigation " "
     , Loam.Tui.Layout.shortcutRow view " "
-    , Loam.Tui.Layout.shortcutRow [("r", "rec"), ("a", "actual"), ("s", "plans"), ("q", "quit")] " "
+    , Loam.Tui.Layout.shortcutRow action " "
     , Loam.Tui.Layout.shortcutRow [("i", "attn"), ("d", "pace"), ("b", "bal"), ("Space", "cmds")] " "
     ]
   else
@@ -1005,6 +1009,8 @@ def navigationKey
           | .year => handled (setZoomLevel state .month)
           | .month => handled (setZoomLevel state .day)
           | .day => if key == .escape then handled state else none
+    | .input 'q' | .input 'Q' =>
+        if state.activePane == .detail then handled (focusCalendar state) else none
     | .input 'h' | .input 'H' | .left =>
         handled (if state.activePane == .detail then state else (update state .left).state)
     | .input 'l' | .input 'L' | .right =>
