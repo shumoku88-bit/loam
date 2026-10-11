@@ -6,6 +6,8 @@ import Loam.Tui.Main
 import Loam.Tui.Record
 import Loam.Tui.LocusPicker
 import Loam.Tui.InputEdit
+import Loam.Tui.Layout
+import Loam.Tui.Scroll
 import Loam.Tui.ScheduledPostingForm
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
@@ -39,6 +41,7 @@ structure State where
   form : Form
   mode : Mode := .editing
   notice : String := ""
+  previewScroll : Nat := 0
   /-- Local highlight in the current admitted Locus candidate list. -/
   candidateIndex : Nat := 0
 
@@ -191,57 +194,162 @@ def update
 def withPublishError (state : State) (message : String) : State :=
   { state with mode := .editing, notice := message }
 
+/-- Review/paint behavior is terminal-size dependent; edit and publication semantics
+    remain in the existing `update` state machine. -/
 private def line (text : String) : Widget := .row [span text]
 
-private def field (form : Form) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if form.focus = index then .selected else .normal)]
+private def boundedField (width : Nat) (form : Form) (index : Nat)
+    (label value : String) : Widget :=
+  let labelText := label ++ ": "
+  let available := width - Loam.Tui.Layout.displayWidth labelText
+  let active := form.focus == index
+  let content := if value.isEmpty then "_" else value
+  .row [span labelText .muted,
+        span (if active then Loam.Tui.Layout.inputTail available content
+              else Loam.Tui.Layout.ellipsize available content)
+          (if active then .selected else .normal)]
 
-/-- Replacement exposes only Scheduled content, never an invented Actual description. -/
-def view (known : List String) (state : State) : Widget :=
+private def editingFields (width : Nat) (state : State) : List Widget :=
+  let form := state.form
+  [boundedField width form 0 "Replacement due" form.date] ++
+    (List.range form.rows.size).flatMap fun i =>
+      let row := form.rows[i]!
+      [boundedField width form (1 + i * 2) ("Posting " ++ toString (i + 1)) row.locus,
+       boundedField width form (2 + i * 2) ("  " ++ state.measure.token) row.amount]
+
+private def actionRow (state : State) (labels : List (Nat × String)) : Widget :=
+  let start := Loam.Tui.ScheduledPostingForm.firstAction state.form
+  .row (labels.map fun (offset, label) =>
+    span ("[" ++ label ++ "] ")
+      (if state.form.focus == start + offset then .selected else .normal))
+
+private def editingFooter (bounds : Bounds) (known : List String)
+    (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let actions := if width < 50 then
+    [actionRow state [(0, "Add"), (1, "Drop")],
+     actionRow state [(2, "Preview"), (3, "Cancel")]]
+    else
+    [actionRow state [(0, "Add posting"), (1, "Drop last row"),
+                      (2, "Preview"), (3, "Cancel")]]
+  let candidate := line ("Candidate: " ++ (selectedToken? known state).getD "")
+  let help := line "Tab/Shift-Tab focus  Right accept  Enter next  Esc cancel"
+  let feedback := if state.notice.isEmpty then [line ""] else
+    (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  -- The action bar remains visible even when long feedback overflows a short terminal.
+  Loam.Tui.Layout.boundFeedbackFooter bounds (actions ++ [candidate, help] ++ feedback)
+
+/-- Keep the focused Due, Posting, or action reachable in a height-bounded editor. -/
+private def editingView (bounds : Bounds) (known : List String) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let footer := editingFooter bounds known state
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let fields := editingFields width state
+  let contextHeight := if available >= 3 then 2 else if available > 0 then 1 else 0
+  let capacity := available - contextHeight
+  let focus := min state.form.focus (fields.length - 1)
+  let start := min (fields.length - capacity)
+    (Loam.Tui.Layout.trailingWindowStart focus capacity)
+  let context :=
+    if contextHeight >= 2 then
+      [line "Scheduled / Supersede / Edit replacement",
+       line (Loam.Tui.Layout.ellipsize width
+         ("Source: " ++ state.target.token ++ "   Original due: " ++ state.originalOn))]
+    else if contextHeight == 1 then
+      [line "Scheduled / Supersede / Edit replacement"]
+    else []
+  let rows := context ++ (fields.drop start).take capacity
+  .column ((Loam.Tui.Layout.fitWithFooter bounds rows footer).map fun row =>
+    Loam.Tui.Layout.clipWidgetRow width row)
+
+private def wrapped (columns : Nat) (text : String) : List Widget :=
+  (Loam.Tui.Layout.wrapColumns columns text).map line
+
+/-- The exact source, due and effects are all part of the scrollable review. -/
+private def previewRows (width : Nat)
+    (draft : Loam.ScheduledReplacementPublisher.Draft) : List Widget :=
+  let columns := width - 1
+  wrapped columns ("Source: " ++ draft.source.token) ++
+    wrapped columns ("Replacement due: " ++ draft.scheduledOn) ++
+    (draft.movement.changes.flatMap fun change =>
+      wrapped columns
+        (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++
+          " " ++ draft.movement.measure.token)) ++
+    wrapped columns ("Balanced total: " ++ toString
+      (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
+      " " ++ draft.movement.measure.token)
+
+private def previewFooter (bounds : Bounds) (state : State) (choice : Fin 3) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let choices : Widget := .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, i) =>
+    span ("[" ++ label ++ "] ")
+      (if choice.val == i then .selected else .normal))
+  let feedback := if state.notice.isEmpty then [line ""] else
+    (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    [choices, line "Tab/Shift-Tab choose  Enter confirm  Esc cancel"] ++ feedback
+
+/-- Only an adequately visible review may produce a Scheduled replacement write. -/
+def previewCapacity (bounds : Bounds) (state : State) : Nat :=
   match state.mode with
-  | .editing =>
-      let form := state.form
-      let activeRow := (form.focus - 1) / 2
-      let start := if activeRow < form.rows.size then activeRow - 3 else form.rows.size - 6
-      let rowLines := ((List.range form.rows.size).drop start |>.take 6).flatMap fun index =>
-        let row := form.rows[index]!
-        [ field form (1 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
-        , field form (2 + index * 2) ("  " ++ state.measure.token) row.amount
-        ]
-      let actions := ["Add posting", "Drop last row", "Preview", "Cancel"]
-      .column <|
-        [ line "Scheduled / Supersede / Edit replacement"
-        , line ("Source: " ++ state.target.token ++ "   Original due: " ++ state.originalOn)
-        , field form 0 "Replacement due" form.date
-        ] ++ rowLines ++
-        [ .row ((actions.zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if form.focus = Loam.Tui.ScheduledPostingForm.firstAction form + index then .selected else .normal))
-        , line ("Candidate: " ++ (selectedToken? known state).getD "")
-        , line ("Signed " ++ state.measure.token ++ " postings are editable replacement content; no Actual is created.")
-        , line "Tab / Shift-Tab focus   Up / Down choose   Enter accept/next   Right accept"
-        , line "Esc cancel   Backspace delete   Drop keeps at least two postings"
-        , line state.notice
-        ]
+  | .editing => 0
+  | .preview _ choice =>
+      Loam.Tui.Layout.footerBodyCapacity bounds (previewFooter bounds state choice).length - 1
+
+def previewScrollLimit (bounds : Bounds) (state : State) : Nat :=
+  match state.mode with
+  | .editing => 0
+  | .preview draft _ =>
+      Loam.Tui.Scroll.maxOffset
+        (previewRows (Loam.Tui.Layout.contentWidth bounds) draft).length
+        (previewCapacity bounds state)
+
+/-- Preserve the old key grammar. Only preview scrolling and visibility-gated
+    Publish depend on current terminal bounds. -/
+def updateForBounds (bounds : Bounds) (known : List String) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  match state.mode with
+  | .editing => update known state key
+  | .preview _ choice =>
+      let limit := previewScrollLimit bounds state
+      let current := min state.previewScroll limit
+      let page := max 1 (previewCapacity bounds state)
+      match key with
+      | .up => { state := { state with previewScroll := current - 1 } }
+      | .down => { state := { state with previewScroll := min limit (current + 1) } }
+      | .pageUp => { state := { state with previewScroll := current - page } }
+      | .pageDown => { state := { state with previewScroll := min limit (current + page) } }
+      | .home => { state := { state with previewScroll := 0 } }
+      | .«end» => { state := { state with previewScroll := limit } }
+      | .enter =>
+          if choice.val == 0 && previewCapacity bounds state < 5 then
+            { state := { state with
+                notice := "Enlarge terminal to review the Scheduled replacement before publishing." } }
+          else update known state key
+      | _ => update known state key
+
+/-- All rows are clipped to the active terminal, with a focus-following editor
+    and a bounded review whose action bar stays visible. -/
+def viewForBounds (bounds : Bounds) (known : List String) (state : State) : Widget :=
+  match state.mode with
+  | .editing => editingView bounds known state
   | .preview draft choice =>
-      .column <|
-        [ line "Scheduled / Supersede / Preview"
-        , line ("Source: " ++ state.target.token)
-        , line ("Replacement due: " ++ draft.scheduledOn)
-        ] ++
-        (draft.movement.changes.take 12).map (fun change =>
-          line (change.coordinate.token ++ "  " ++ toString change.quantity.quanta ++
-            " " ++ draft.movement.measure.token)) ++
-        [ line ("Balanced total: " ++ toString
-            (Loam.ScheduledOccurrenceConstruction.positiveTotalQuanta draft.movement) ++
-            " " ++ draft.movement.measure.token)
-        , line "Publish appends an explicit Scheduled replacement relation plus its endpoint."
-        , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
-            span ("[" ++ label ++ "] ")
-              (if choice.val = index then .selected else .normal))
-        , line "Tab / Shift-Tab select   Enter confirm   Esc cancel"
-        , line state.notice
-        ]
+      let width := Loam.Tui.Layout.contentWidth bounds
+      let footer := previewFooter bounds state choice
+      let visible := previewCapacity bounds state
+      let rows := previewRows width draft
+      let offset := Loam.Tui.Scroll.clamp rows.length visible state.previewScroll
+      let progress := s!"{min (offset + visible) rows.length}/{rows.length} review lines" ++
+        (if offset > 0 then " ▲" else "") ++
+        (if offset + visible < rows.length then " ▼" else "")
+      let body := [line "Scheduled / Supersede / Preview"] ++
+        (rows.drop offset).take visible
+      let body := if visible > 0 then body else [line progress] ++ body
+      .column ((Loam.Tui.Layout.fitWithFooter bounds body footer).map fun row =>
+        Loam.Tui.Layout.clipWidgetRow width row)
+
+/-- Retain a stable test-facing renderer; production always supplies live bounds. -/
+def view (known : List String) (state : State) : Widget :=
+  viewForBounds {width := 120, height := 40} known state
 
 end Loam.Tui.ScheduledReplacement

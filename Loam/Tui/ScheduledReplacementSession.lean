@@ -26,9 +26,9 @@ def run
     (known : List String)
     (state : Loam.Tui.ScheduledReplacement.State)
     (frame : Loam.Tui.Runtime.CompiledWidget) : IO String :=
-  Loam.Tui.EditorSession.runUntilPublished bounds
-    (Loam.Tui.ScheduledReplacement.update known)
-    (Loam.Tui.ScheduledReplacement.view known)
+  Loam.Tui.EditorSession.runUntilPublishedResizing bounds
+    (fun active editor key => Loam.Tui.ScheduledReplacement.updateForBounds active known editor key)
+    (fun active editor => Loam.Tui.ScheduledReplacement.viewForBounds active known editor)
     Loam.Tui.ScheduledReplacement.withPublishError
     "Scheduled supersede cancelled."
     (fun draft => do
