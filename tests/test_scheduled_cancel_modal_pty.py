@@ -2,27 +2,13 @@
 """Adaptive Scheduled-cancellation modal: real PTY, isolated synthetic household."""
 from __future__ import annotations
 
-import fcntl
-import hashlib
 import os
-from pathlib import Path
-import pty
-import re
-import select
-import struct
 import subprocess
 import tempfile
-import termios
 import time
+from pathlib import Path
 
-REPO = Path(__file__).resolve().parents[1]
-EXE = REPO / ".lake/build/bin/loamTui"
-ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
-
-
-def digest(root):
-    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in root.rglob("*") if p.is_file()}
+from scheduled_pty_support import ANSI, REPO, Terminal, digest
 
 
 def sections(root):
@@ -35,73 +21,6 @@ def sections(root):
         assert tag == "SECTION"
         result[name], remaining = remaining[:int(count)], remaining[int(count):]
     return result
-
-
-class Terminal:
-    def __init__(self, root):
-        self.master, slave = pty.openpty()
-        self.rows, self.columns = 40, 112
-        fcntl.ioctl(slave, termios.TIOCSWINSZ,
-                    struct.pack("HHHH", self.rows, self.columns, 0, 0))
-
-        def setup():
-            os.setsid()
-            fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
-
-        self.process = subprocess.Popen([str(EXE), str(root)],
-                                        stdin=slave, stdout=slave, stderr=slave,
-                                        cwd=REPO,
-                                        env=dict(os.environ, TERM="xterm-256color",
-                                                 LOAM_DATA_DIR=str(root)),
-                                        preexec_fn=setup)
-        os.close(slave)
-        self.capture(b"LOAM Home")
-
-    def capture(self, expected=None):
-        output = b""
-        deadline = time.monotonic() + 12
-        while time.monotonic() < deadline:
-            if select.select([self.master], [], [], .15)[0]:
-                try:
-                    chunk = os.read(self.master, 65536)
-                except OSError:
-                    break
-                if not chunk:
-                    break
-                output += chunk
-            elif output and (expected is None or expected in ANSI.sub(b"", output)):
-                return output
-        assert expected is None or expected in ANSI.sub(b"", output), (expected, output)
-        assert output, "terminal produced no output"
-        return output
-
-    def send(self, keys, expected=None):
-        os.write(self.master, keys)
-        return self.capture(expected)
-
-    def resize(self, rows, cols, expected=None):
-        self.rows, self.columns = rows, cols
-        fcntl.ioctl(self.master, termios.TIOCSWINSZ,
-                    struct.pack("HHHH", rows, cols, 0, 0))
-        output = self.capture(expected)
-        self.bounded(output)
-        return output
-
-    def bounded(self, output):
-        positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
-        if not positions and self.rows == 1:
-            assert b"\x1b[2J" in output, output
-            return
-        assert positions, output
-        assert all(1 <= int(r) <= self.rows and 1 <= int(c) <= self.columns
-                   for r, c in positions), positions
-        assert b"\n" not in output and b"\r" not in output
-
-    def close(self):
-        if self.process.poll() is None:
-            self.process.terminate()
-            self.process.wait(timeout=5)
-        os.close(self.master)
 
 
 def main():

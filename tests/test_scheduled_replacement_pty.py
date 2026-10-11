@@ -2,94 +2,24 @@
 """Real-terminal Scheduled supersede input contract on an isolated household.
 
 Cover shared floating/compact modal placement, both launchers, Locus picker,
-edit/preview resize, short-viewport
-publication refusal, and draft retention with byte-identical no-write.
-Accepted publication is a separate qualification item under #1902.
+edit/preview resize, short-viewport publication refusal, and draft retention
+with byte-identical no-write. Accepted publication stays separate under #1902.
 """
 from __future__ import annotations
 
-import fcntl
-import hashlib
-import os
 from pathlib import Path
-import pty
-import re
-import select
-import struct
 import subprocess
 import tempfile
-import termios
-import time
 
-REPO = Path(__file__).resolve().parents[1]
-EXE = REPO / ".lake/build/bin/loamTui"
-ANSI = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
+from scheduled_pty_support import ANSI, REPO, Terminal, digest
 
 
-def digest(root: Path) -> dict[str, str]:
-    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in root.rglob("*") if p.is_file()}
-
-
-class Terminal:
-    def __init__(self, root: Path):
-        self.master, slave = pty.openpty()
-        self.rows, self.cols = 40, 120
-        fcntl.ioctl(slave, termios.TIOCSWINSZ,
-                    struct.pack("HHHH", self.rows, self.cols, 0, 0))
-
-        def setup():
-            os.setsid()
-            fcntl.ioctl(slave, termios.TIOCSCTTY, 0)
-
-        self.proc = subprocess.Popen(
-            [str(EXE), str(root)], cwd=REPO,
-            stdin=slave, stdout=slave, stderr=slave,
-            env=dict(os.environ, TERM="xterm-256color", LOAM_DATA_DIR=str(root)),
-            preexec_fn=setup,
-        )
-        os.close(slave)
-        self.capture(b"LOAM Home")
-
-    def capture(self, expected: bytes | None = None) -> bytes:
-        output = b""
-        deadline = time.monotonic() + 12
-        while time.monotonic() < deadline:
-            if select.select([self.master], [], [], .15)[0]:
-                try:
-                    part = os.read(self.master, 65536)
-                except OSError:
-                    break
-                if not part:
-                    break
-                output += part
-            elif output and (expected is None or expected in ANSI.sub(b"", output)):
-                break
-        if expected is not None:
-            assert expected in ANSI.sub(b"", output), (expected, output)
-        assert output, "no terminal output"
-        positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
-        assert all(1 <= int(r) <= self.rows and 1 <= int(c) <= self.cols
-                   for r, c in positions), positions
-        return output
-
-    def send(self, data: bytes, expected: bytes | None = None) -> bytes:
-        os.write(self.master, data)
-        return self.capture(expected)
-
-    def resize(self, rows: int, cols: int, expected: bytes) -> bytes:
-        self.rows, self.cols = rows, cols
-        fcntl.ioctl(self.master, termios.TIOCSWINSZ,
-                    struct.pack("HHHH", rows, cols, 0, 0))
-        output = self.capture(expected)
-        assert b"\x1b[2J" in output, "resize did not rebuild the replacement frame"
-        return output
-
-    def close(self):
-        if self.proc.poll() is None:
-            self.proc.terminate()
-            self.proc.wait(timeout=5)
-        os.close(self.master)
+def resize_with_rebuild(terminal: Terminal, rows: int, cols: int,
+                        expected: bytes) -> bytes:
+    """Replacement requires a full parent rebuild after every live resize."""
+    output = terminal.resize(rows, cols, expected)
+    assert b"\x1b[2J" in output, "resize did not rebuild the replacement frame"
+    return output
 
 
 def main():
@@ -101,7 +31,7 @@ def main():
             cwd=REPO, check=True,
         )
         original = digest(root)
-        terminal = Terminal(root)
+        terminal = Terminal(root, columns=120)
         try:
             terminal.send(b"s", b"Scheduled Series Calendar")
             terminal.send(b"v", b"Scheduled / Months")
@@ -140,15 +70,15 @@ def main():
 
             # Preview reflows at current terminal bounds. Short evidence
             # prevents Publish until the same editor is enlarged.
-            small = terminal.resize(9, 32, b"Scheduled / Supersede / Preview")
+            small = resize_with_rebuild(terminal, 9, 32, b"Scheduled / Supersede / Preview")
             assert b"[Publish]" in ANSI.sub(b"", small), small
             refused = terminal.send(b"\r", b"Enlarge terminal")
             assert b"Enlarge terminal" in ANSI.sub(b"", refused), refused
             assert digest(root) == original, "short preview published a replacement"
 
-            big = terminal.resize(24, 80, b"Scheduled / Supersede / Preview")
+            big = resize_with_rebuild(terminal, 24, 80, b"Scheduled / Supersede / Preview")
             assert b"Source: first" in ANSI.sub(b"", big), big
-            restored = terminal.resize(40, 120, b"Scheduled / Supersede / Preview")
+            restored = resize_with_rebuild(terminal, 40, 120, b"Scheduled / Supersede / Preview")
             assert b"Source: first" in ANSI.sub(b"", restored), restored
             terminal.send(b"\t", b"[Edit]")
             editing = terminal.send(b"\r", b"Scheduled / Supersede / Edit replacement")
