@@ -1,4 +1,5 @@
 import Loam.Review.ActualReview
+import Loam.Review.AttentionReview
 import Loam.Review.CalendarMoneyReview
 import Loam.Review.DailyPacePeriods
 import Loam.Presentation.MeasurePresentation
@@ -32,6 +33,8 @@ structure Snapshot where
   actual : ActualSnapshot
   /-- Scheduled refusal remains explicit and must never be reinterpreted as an empty household. -/
   scheduled : ScheduledAvailability
+  /-- Attention availability is read evidence for Home navigation and badges. -/
+  attention : Loam.AttentionReview.Availability := .unavailable
   /--
   Optional retrospective current-truth series for presentation. This is derived
   from canonical evidence at load time and is never retained as household state.

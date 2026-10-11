@@ -1,3 +1,5 @@
+import Loam.Review.AttentionReview
+import Loam.Review.ScheduledReview
 import Loam.Tui.DateJump
 import Loam.Tui.Layout
 import Loam.Tui.Main
@@ -801,24 +803,110 @@ private def viewHelp (state : State) : List HelpItem :=
     , { key := "[Ctrl-u/d]", label := "scroll" }
     ]
 
-private def actionHelp (state : State) : List HelpItem :=
+/-- Summary of open Scheduled occurrences relative to today for Home indicators. -/
+structure ScheduledSummary where
+  overdueCount : Nat := 0
+  nextDate : Option String := none
+  nextIsToday : Bool := false
+
+def scheduledSummary (snapshot : Snapshot) : ScheduledSummary :=
+  match snapshot.scheduled with
+  | .error _ => {}
+  | .ok scheduled =>
+      match Loam.ScheduledReview.orderedCurrentOpenRecords scheduled with
+      | .error _ => {}
+      | .ok records =>
+          let today := snapshot.actual.today
+          let overdue := records.filter fun r => r.scheduledOn < today
+          let upcoming := records.filter fun r => r.scheduledOn ≥ today
+          let nextDate := upcoming.head?.map fun r => r.scheduledOn
+          let nextIsToday := nextDate == some today
+          { overdueCount := overdue.length, nextDate := nextDate, nextIsToday := nextIsToday }
+
+def scheduledBadge (width : Nat) (summary : ScheduledSummary) : String :=
+  let overdueText :=
+    if summary.overdueCount == 0 then ""
+    else if width ≥ 100 then s!"! {summary.overdueCount} overdue"
+    else s!"!{summary.overdueCount}"
+  let upcomingText :=
+    match summary.nextDate with
+    | none => ""
+    | some date =>
+        if summary.nextIsToday then
+          if width ≥ 100 then "today!" else "today"
+        else
+          let shortDate := if date.length ≥ 10 then (date.drop 5).toString else date
+          if width ≥ 100 && summary.overdueCount == 0 then s!"next: {shortDate}"
+          else shortDate
+  if !overdueText.isEmpty && !upcomingText.isEmpty then
+    s!" ({overdueText}, {upcomingText})"
+  else if !overdueText.isEmpty then
+    s!" ({overdueText})"
+  else if !upcomingText.isEmpty then
+    s!" ({upcomingText})"
+  else ""
+
+/-- Summary of open Attention items relative to today for Home indicators. -/
+structure AttentionSummary where
+  openCount : Nat := 0
+  overdueCount : Nat := 0
+  dueTodayCount : Nat := 0
+  earliestDue : Option String := none
+
+def attentionSummary (snapshot : Snapshot) : AttentionSummary :=
+  match snapshot.attention with
+  | .unavailable => {}
+  | .available snap =>
+      let today := snapshot.actual.today
+      let items := snap.openItems
+      let openCount := items.length
+      let dueDates := items.filterMap fun item =>
+        match item.due with
+        | .dueOn date => some date
+        | _ => none
+      let sortedDue := dueDates.mergeSort (fun a b => a ≤ b)
+      let overdueCount := (sortedDue.filter fun d => d < today).length
+      let dueTodayCount := (sortedDue.filter fun d => d == today).length
+      let upcomingDue := sortedDue.filter fun d => d > today
+      let earliestDue := upcomingDue.head?
+      { openCount, overdueCount, dueTodayCount, earliestDue }
+
+def attentionBadge (width : Nat) (summary : AttentionSummary) : String :=
+  if summary.openCount == 0 then ""
+  else if summary.overdueCount > 0 then
+    if width ≥ 100 then s!" (! {summary.overdueCount} overdue)"
+    else s!" (!{summary.overdueCount})"
+  else if summary.dueTodayCount > 0 then
+    if width ≥ 100 then " (! due today)"
+    else " (!today)"
+  else if let some date := summary.earliestDue then
+    let shortDate := if date.length ≥ 10 then (date.drop 5).toString else date
+    if width ≥ 100 then s!" (due {shortDate})"
+    else s!" (!1)"
+  else
+    if width ≥ 100 then s!" ({summary.openCount} open)"
+    else s!" ({summary.openCount})"
+
+private def actionHelp (width : Nat) (snapshot : Snapshot) (state : State) : List HelpItem :=
   if state.activePane == .detail then
     [{ key := "[q]", label := "back" }]
   else
+    let schedBadge := scheduledBadge width (scheduledSummary snapshot)
     [ { key := "[r]", label := "record" }
     , { key := "[a]", label := "actual" }
-    , { key := "[s]", label := "scheduled" }
+    , { key := "[s]", label := s!"scheduled{schedBadge}" }
     , { key := "[q]", label := "quit" }
     ]
 
-private def commandHelp : List HelpItem :=
-  [ { key := "[i]", label := "attention" }
+private def commandHelp (width : Nat) (snapshot : Snapshot) : List HelpItem :=
+  let attnBadge := attentionBadge width (attentionSummary snapshot)
+  [ { key := "[i]", label := s!"attention{attnBadge}" }
   , { key := "[d]", label := "daily pace" }
   , { key := "[b]", label := "balances" }
   , { key := "[Space]", label := "commands" }
   ]
 
-private def helpLines (bounds : Bounds) (state : State) : List Widget :=
+private def helpLines (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   if width < 79 then
     let navigation := if state.activePane == .detail then
@@ -830,31 +918,33 @@ private def helpLines (bounds : Bounds) (state : State) : List Widget :=
     let view := if state.activePane == .detail then
         [("Esc/Tab/w", "calendar"), ("t", "today")]
       else [("Tab/w", "pane"), ("C-u/d", "scroll"), ("/", "jump"), ("z", "zoom")]
+    let schedBadge := scheduledBadge width (scheduledSummary snapshot)
+    let attnBadge := attentionBadge width (attentionSummary snapshot)
     let action := if state.activePane == .detail then
         [("q", "back")]
       else
-        [("r", "rec"), ("a", "actual"), ("s", "plans"), ("q", "quit")]
+        [("r", "rec"), ("a", "actual"), ("s", s!"plans{schedBadge}"), ("q", "quit")]
     [ Loam.Tui.Layout.shortcutRow navigation " "
     , Loam.Tui.Layout.shortcutRow view " "
     , Loam.Tui.Layout.shortcutRow action " "
-    , Loam.Tui.Layout.shortcutRow [("i", "attn"), ("d", "pace"), ("b", "bal"), ("Space", "cmds")] " "
+    , Loam.Tui.Layout.shortcutRow [("i", s!"attn{attnBadge}"), ("d", "pace"), ("b", "bal"), ("Space", "cmds")] " "
     ]
   else
     let (navigationLabel, navigation) := navigationHelp state
     helpGroupLines width navigationLabel navigation ++
       helpGroupLines width "View" (viewHelp state) ++
-      helpGroupLines width "Action" (actionHelp state) ++
-      helpGroupLines width "Commands" commandHelp
+      helpGroupLines width "Action" (actionHelp width snapshot state) ++
+      helpGroupLines width "Commands" (commandHelp width snapshot)
 
 /-- Wide Home shows both panes; narrow Home gives focused transactions the full body. -/
 def usesWideLayout (bounds : Bounds) : Bool :=
   decide (120 ≤ bounds.width)
 
-private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
+private def homeFooter (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let feedback := if state.notice.isEmpty then [blankLine]
     else wrappedLines width state.notice .muted
-  let help := helpLines bounds state
+  let help := helpLines bounds snapshot state
   let operations := match state.jumpPrompt with
     | none => help
     | some buffer =>
@@ -869,7 +959,7 @@ private def homeFooter (bounds : Bounds) (state : State) : List Widget :=
 private def scrollDetail
     (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) (step : Nat) : State :=
   let state := { state with notice := "" }
-  let footerRows := (homeFooter bounds state).length
+  let footerRows := (homeFooter bounds snapshot state).length
   let panelRows := widePanelRows bounds footerRows
   let visible := wideDetailVisibleRows panelRows
   let pending := pendingEvidence snapshot
@@ -884,7 +974,7 @@ private def scrollDetail
 private def scrollOverview
     (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) : State :=
   let state := { state with notice := "" }
-  let footerRows := (homeFooter bounds state).length
+  let footerRows := (homeFooter bounds snapshot state).length
   let width := if usesWideLayout bounds then
       Loam.Tui.Layout.contentWidth bounds - 1 - detailPaneWidth bounds state - 2
     else Loam.Tui.Layout.contentWidth bounds - 2
@@ -908,7 +998,7 @@ def moveDetailCursor
   let nextState := {state with detailCursor := nextCursor.toNat}
   if layout.records.isEmpty then nextState
   else
-    let footerRows := (homeFooter bounds nextState).length
+    let footerRows := (homeFooter bounds snapshot nextState).length
     let panelRows := widePanelRows bounds footerRows
     let visible := wideDetailVisibleRows panelRows
     let idx := nextState.detailCursor
@@ -1032,7 +1122,7 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (cached : Option DetailLayout := none) : Widget :=
   let layout := detailLayoutFor bounds snapshot state cached
   let state := reconcileState bounds snapshot state (some layout)
-  let footer := homeFooter bounds state
+  let footer := homeFooter bounds snapshot state
   let body := homeBody bounds footer.length snapshot state layout
   .column ((Loam.Tui.Layout.fitWithFooter bounds body footer).map fun row =>
     Loam.Tui.Layout.clipWidgetRow (Loam.Tui.Layout.contentWidth bounds) row)

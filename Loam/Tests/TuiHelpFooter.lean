@@ -1,3 +1,4 @@
+import Loam.Review.AttentionReview
 import Loam.Tui.Layout
 import Loam.Tui.Home
 import Loam.Tui.HomeCommandPalette
@@ -244,6 +245,82 @@ def main : IO Unit := do
   for token in expectedTokens do
     expect (contains token mediumText)
       s!"150-column Home lost token {token}; must not be clipped"
+
+  -- 2c. Test Home Scheduled and Attention footer badges
+  let move ← requireSome (BalancedMovement.ofChanges? ⟨"jpy"⟩
+    [{ coordinate := ⟨"wallet"⟩, quantity := Quantity.ofQuanta (-100) },
+     { coordinate := ⟨"rent"⟩, quantity := Quantity.ofQuanta 100 }]) "movement"
+  let scheduledItem : ScheduledOccurrence String := {
+    id := ⟨"plan-1"⟩
+    scheduledOn := "2026-09-15"
+    movement := move
+  }
+  let overdueItem : ScheduledOccurrence String := {
+    id := ⟨"plan-overdue"⟩
+    scheduledOn := "2026-09-01"
+    movement := move
+  }
+  let .ok baseSched := snapshot.scheduled | throw (IO.userError "sched")
+  let memWithUpcoming ← requireSome (ScheduledMemory.ofOccurrences? [scheduledItem]) "sched upcoming"
+  let schedUpcoming : Loam.ScheduledReview.EvidenceSnapshot := { baseSched with scheduled := memWithUpcoming }
+  let upcomingSnapshot : Loam.Tui.Main.Snapshot := { snapshot with scheduled := .ok schedUpcoming }
+  let upcomingWideText := widgetText (Loam.Tui.Home.view wideBounds upcomingSnapshot state)
+  expect (contains "[s] scheduled (next: 09-15)" upcomingWideText)
+    s!"wide Home did not display upcoming schedule badge: {upcomingWideText}"
+
+  let memWithOverdue ← requireSome (ScheduledMemory.ofOccurrences? [overdueItem, scheduledItem]) "sched overdue"
+  let schedOverdue : Loam.ScheduledReview.EvidenceSnapshot := { baseSched with scheduled := memWithOverdue }
+  let overdueSnapshot : Loam.Tui.Main.Snapshot := { snapshot with scheduled := .ok schedOverdue }
+  let overdueWideText := widgetText (Loam.Tui.Home.view wideBounds overdueSnapshot state)
+  expect (contains "[s] scheduled (! 1 overdue, 09-15)" overdueWideText)
+    s!"wide Home did not display overdue schedule badge: {overdueWideText}"
+
+  let attnDueItem : Attention String := {
+    id := ⟨"attn-1"⟩
+    context := "Tax review"
+    due := .dueOn "2026-09-12"
+  }
+  let attnOverdueItem : Attention String := {
+    id := ⟨"attn-overdue"⟩
+    context := "Urgent bill"
+    due := .dueOn "2026-09-05"
+  }
+  let attnNoDueItem : Attention String := {
+    id := ⟨"attn-nodue"⟩
+    context := "Check insurance"
+    due := .noDueDate
+  }
+  let attnDueSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with attention := .available { openItems := [attnDueItem] }
+  }
+  let attnDueWideText := widgetText (Loam.Tui.Home.view wideBounds attnDueSnapshot state)
+  expect (contains "[i] attention (due 09-12)" attnDueWideText)
+    s!"wide Home did not display attention due badge: {attnDueWideText}"
+
+  let attnOverdueSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with attention := .available { openItems := [attnOverdueItem, attnDueItem] }
+  }
+  let attnOverdueWideText := widgetText (Loam.Tui.Home.view wideBounds attnOverdueSnapshot state)
+  expect (contains "[i] attention (! 1 overdue)" attnOverdueWideText)
+    s!"wide Home did not display attention overdue badge: {attnOverdueWideText}"
+
+  let attnPlainSnapshot : Loam.Tui.Main.Snapshot := {
+    snapshot with attention := .available { openItems := [attnNoDueItem] }
+  }
+  let attnPlainWideText := widgetText (Loam.Tui.Home.view wideBounds attnPlainSnapshot state)
+  expect (contains "[i] attention (1 open)" attnPlainWideText)
+    s!"wide Home did not display open count badge: {attnPlainWideText}"
+
+  -- Narrow terminal badges
+  let narrowTestBounds : Bounds := { width := 60, height := 24 }
+  let narrowCombinedSnapshot : Loam.Tui.Main.Snapshot := {
+    overdueSnapshot with attention := .available { openItems := [attnOverdueItem] }
+  }
+  let narrowCombinedText := widgetText (Loam.Tui.Home.view narrowTestBounds narrowCombinedSnapshot state)
+  expect (contains "[s] plans (!1, 09-15)" narrowCombinedText)
+    s!"narrow Home did not display compact scheduled badge: {narrowCombinedText}"
+  expect (contains "[i] attn (!1)" narrowCombinedText)
+    s!"narrow Home did not display compact attention badge: {narrowCombinedText}"
 
   let moneyFlow : Loam.CalendarMoneyReview.Snapshot := {
     rows := [{

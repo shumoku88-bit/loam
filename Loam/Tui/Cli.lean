@@ -187,9 +187,17 @@ def loadSnapshotFromActualImage
     today := today
     allRecords := actualRecords
   }
+  let attention : Loam.AttentionReview.Availability ←
+    match generation? with
+    | some generation => pure ((Loam.AttentionReview.fromGeneration generation).toOption.getD .unavailable)
+    | none =>
+        match ← Loam.AttentionReview.loadHouseholdEvidence dataDir with
+        | .ok evidence => pure evidence
+        | .error _ => pure .unavailable
   return .ok {
     actual := actual
     scheduled := scheduled
+    attention := attention
     paceHistory := paceHistory
     pacePeriods := pacePeriods
     moneyCalendar := moneyCalendar
