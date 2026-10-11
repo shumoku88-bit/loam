@@ -26,6 +26,35 @@ LOAM is the current day-to-day household system and is still under active develo
 - **Check semantic neighbors after practical changes.** Follow a changed capability through the nearest relevant correction, temporal, routing, persistence, or projection boundaries rather than qualifying one function in isolation.
 - **Delete when evidence supports deletion.** Code volume, old effort, and earlier implementation shape are not reasons to keep an unused or weaker mechanism. Current operational data is a separate concern and must be migrated rather than casually discarded.
 
+## Test, CI, and documentation lifecycle
+
+Treat repository verification and explanation as maintained design, not append-only
+scaffolding. For any change that adds or replaces a test, workflow check, or
+substantive document, review only the applicable points:
+
+1. **Name its distinct obligation.** State the failure mode, observable behavior,
+   or reader question it uniquely covers. Inspect nearby tests and current docs
+   before adding another file or verification step. Reuse existing fixtures and
+   presentation mechanics where safe; do not collapse independently important
+   Actual/Scheduled publisher or fail-closed scenarios.
+2. **Map coverage before changing CI.** Use `docs/CI_OBLIGATION_MAP.md` and
+   `python3 tools/audit-ci-topology` for live triggers, toolchains, permissions,
+   and obligations. Avoid executing the same test twice on the same PR lane.
+   Measure wall time and runner cost before proposing sharding or new jobs.
+   Merge gates must retain every distinct safety and product qualification.
+3. **Keep one current explanation.** Update the owning user, architecture, or
+   development guide when behavior changes. Keep decisions with their rationale
+   and research/history clearly non-current when superseded; preserve independent
+   counterexamples, provenance, and useful results instead of blindly deleting.
+4. **Record succession.** When retiring or consolidating an artifact, name the
+   surviving test/check/doc and how its obligation remains covered. If no
+   replacement is justified, state why the distinct artifact stays. Record
+   meaningful before/after costs for performance-related CI changes.
+
+Use a short PR note rather than another process document. Revisit newly added
+evidence at milestones or on measured regressions; do not schedule a new
+whole-repository cleanup after every feature. See #1929 and CI timing #1927.
+
 ## Formal tool selection
 
 Read the `Method` section of `README.md` as the full tool-selection policy. Use the smallest subset that gives a distinct answer:
