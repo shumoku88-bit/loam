@@ -240,6 +240,18 @@ def main (args : List String) : IO Unit := do
     compact ["paypay", "food"] previewState .enter
   expect allowed.publish.isSome
     "Scheduled review blocked publication despite sufficient viewport"
+  -- Draft collection and standalone creation share live-bounds event handling.
+  -- Shrink must never yield a draft; expanding must recover the same exact
+  -- draft rather than implicitly publishing or changing its due date/postings.
+  let restored := Loam.Tui.ScheduledCreation.updateForBounds
+    compact ["paypay", "food"] blocked.state .enter
+  expect (restored.publish.map (·.scheduledOn) == some draft.scheduledOn &&
+    restored.publish.map (·.movement) == some draft.movement)
+    "resized Scheduled draft collection changed or failed to recover the confirmed intent"
+  let tinyAgain := Loam.Tui.ScheduledCreation.updateForBounds
+    tiny ["paypay", "food"] blocked.state .enter
+  expect tinyAgain.publish.isNone
+    "re-shrinking Scheduled draft collection skipped the visibility guard"
 
   let large := "123456789012345678901234567890"
   let longLocus := "long" ++ String.ofList (List.replicate 70 'x')
