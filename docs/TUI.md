@@ -9,6 +9,7 @@ frontends do not grow separate semantic engines.
 UI refinement progress: [非予算 TUI：画面別 UI 改修の進捗](TUI_NON_BUDGET_WORKLIST.md).
 It tracks completed and pending presentation work on existing screens, not
 feature delivery or trial-readiness gates. Budget screens are outside this queue.
+Quality standards and interaction refinement goals: [TUI：操作体験の洗練化と今後の課題](TUI_REFINEMENT_ROADMAP.md).
 
 ## Current production entrance
 
