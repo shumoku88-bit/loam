@@ -35,6 +35,20 @@ def move
   if options.isEmpty then 0
   else Loam.Tui.CyclicIndex.move options.length index back
 
+/--
+Resolve the highlighted picker choice into an exact, admitted Locus token.
+
+This is the *only* candidate-to-text decision shared by Record and Scheduled
+creation. The caller owns its editable form, focus, and the meaning of Enter
+versus Right. An exact typed token stays first at cursor zero (see candidates);
+a query with no admitted match returns none so the caller retains its text.
+Display labels never become canonical Locus identities.
+-/
+def commitToken?
+    (catalog : Loam.LocusCatalog.Catalog) (entered : String) (index : Nat) :
+    Option String :=
+  (selected? catalog entered index).map (·.locus.token)
+
 /-- Human-facing compact row; token remains visible because it is the stable identity. -/
 def display (entry : Loam.LocusCatalog.Entry) : String :=
   if entry.label == entry.locus.token then entry.locus.token
