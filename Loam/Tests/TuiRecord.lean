@@ -342,6 +342,36 @@ def main (args : List String) : IO Unit := do
   let restored := update w [] dateFocus.state .tab
   expect (restored.state.form.focus.val == 1)
     "Tab must return from Date to Description"
+  -- A Record caller must apply the same pure LocusPicker token outcome as
+  -- Scheduled creation, while retaining its own Right/Enter focus contract.
+  let locusCatalog : Loam.LocusCatalog.Catalog := [
+    { locus := ⟨"paypay"⟩, label := "PayPay", help := "" },
+    { locus := ⟨"books"⟩, label := "書籍", help := "" } ]
+  let locusForm : Form := {
+    readyForm with rows := #[{}, {}], focus := ⟨3, by decide⟩ }
+  let locusState := withCatalog { form := locusForm } locusCatalog
+  let highlighted := (update w [] locusState .down).state
+  expect (highlighted.form.rows[0]!.locus.isEmpty)
+    "moving Record Locus selection changed the entered token"
+  let committed := (update w [] highlighted .enter).state
+  expect (committed.form.rows[0]!.locus == "books" &&
+    committed.form.focus.val == 4 && committed.candidateIndex == 0)
+    "Record Enter did not commit the selected token and move to Amount"
+  expect (contains "books" (widgetText (viewForBounds
+    ({ width := 80, height := 24 } : Bounds) [] committed)))
+    "Record committed Locus was not rendered in the Posting field"
+  let right := (update w [] highlighted .right).state
+  expect (right.form.rows[0]!.locus == "books" && right.form.focus.val == 4)
+    "Record Right lost its existing commit-and-advance behavior"
+  let skipped := (update w [] highlighted .tab).state
+  expect (skipped.form.rows[0]!.locus.isEmpty && skipped.form.focus.val == 4)
+    "Record Tab unexpectedly committed a highlighted Locus"
+  let unknownForm : Form := { locusForm with rows := #[
+    { locus := "not-admitted", amount := "" }, {}] }
+  let unknown := (update w [] (withCatalog { form := unknownForm } locusCatalog) .enter).state
+  expect (unknown.form.rows[0]!.locus == "not-admitted" &&
+    unknown.form.focus.val == 4)
+    "Record candidate handoff destroyed an unmatched typed Locus"
   let sharedInput : Loam.Presentation.Record.Input := {
     date := "2026-09-06"
     description := "数学ガール"
