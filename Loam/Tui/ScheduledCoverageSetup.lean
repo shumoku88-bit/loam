@@ -1,6 +1,7 @@
 import Loam.Config.ScheduledCoverageConfig
 import Loam.Review.ScheduledCoverageSelector
 import Loam.Review.ScheduledReview
+import Loam.Tui.Layout
 import Loam.Tui.Kernel
 import Loam.Tui.Main
 import Loam.Tui.Terminal
@@ -123,5 +124,92 @@ def view (state : State) : Widget :=
     , muted "Enter save monitoring   j/k or arrows choose   q/Esc cancel"
     ] ++
     (if state.notice.isEmpty then [] else [line state.notice])
+
+
+/-!
+## Newly created occurrence handoff
+
+A newly published Scheduled is an individual, explicit occurrence. This optional
+follow-up edits only the replaceable coverage-monitoring expectation, never that
+Scheduled occurrence or its future instances. In particular, skipping the follow-up
+does not remove or overwrite any existing plan monitoring.
+-/
+
+structure CreatedPaceState where
+  source : Record
+  selection : Nat := 0
+  notice : String := ""
+
+inductive CreatedPaceAction where
+  | keepOne
+  | save (months : Nat)
+  | undecided
+
+structure CreatedPaceStep where
+  state : CreatedPaceState
+  action : Option CreatedPaceAction := none
+
+def createdPaceLabels : List String :=
+  ["This occurrence only (leave monitoring unchanged)"] ++
+    choices.map (·.label) ++
+    ["Future pace undecided"]
+
+def updateCreatedPace (state : CreatedPaceState)
+    (key : Loam.Tui.Terminal.Key) : CreatedPaceStep :=
+  let count := createdPaceLabels.length
+  match key with
+  | .escape | .input 'q' | .input 'Q' =>
+      { state, action := some .keepOne }
+  | .up | .left | .shiftTab | .input 'k' | .input 'K' =>
+      { state := { state with selection := (state.selection + count - 1) % count } }
+  | .down | .right | .tab | .input 'j' | .input 'J' =>
+      { state := { state with selection := (state.selection + 1) % count } }
+  | .enter =>
+      if state.selection == 0 then
+        { state, action := some .keepOne }
+      else if state.selection == choices.length + 1 then
+        { state, action := some .undecided }
+      else
+        match choices[state.selection - 1]? with
+        | some choice => { state, action := some (.save choice.months) }
+        | none => { state := { state with notice := "Invalid pace selection." } }
+  | _ => { state }
+
+/-- Bounded follow-up: the footer and selected cadence stay visible on short tty. -/
+def viewCreatedPace (bounds : Bounds) (state : CreatedPaceState) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback :=
+    (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  let footer := Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    (if feedback.isEmpty then [line ""] else feedback) ++
+      [ muted "Enter choose  Up/Down move  Esc keep one" ]
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let height := available - 3
+  let capacity := height - 2
+  let focus := min state.selection (createdPaceLabels.length - 1)
+  let start := min (createdPaceLabels.length - capacity)
+    (Loam.Tui.Layout.trailingWindowStart focus capacity)
+  let displayed := ((createdPaceLabels.drop start).take capacity).zipIdx
+  let options : List Widget := displayed.map fun (label, index) =>
+    let selected := start + index == focus
+    .row [span (if selected then "> " else "  ") .muted,
+      span (Loam.Tui.Layout.clip (width - 4) label)
+        (if selected then .selected else .normal)]
+  let more := (if start > 0 then " ▲" else "") ++
+    (if start + capacity < createdPaceLabels.length then " ▼" else "")
+  let panel := Loam.Tui.Layout.framedPanel width height "Expected pace"
+    (.column options) true
+    (some (s!"{focus + 1}/{createdPaceLabels.length}" ++ more))
+  let body : Widget := .column
+    [ line "Scheduled / Created / Expected pace"
+    , .row [span (Loam.Tui.Layout.clip width
+        ("Published " ++ state.source.scheduledOn ++
+          ". Configure monitoring?"))]
+    , panel
+    , muted "No future Scheduled is created here."
+    ]
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (Loam.Tui.Layout.widgetRows body) footer).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
 
 end Loam.Tui.ScheduledCoverageSetup

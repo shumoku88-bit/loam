@@ -4,6 +4,7 @@ import Loam.Persistence.ScheduledLifecyclePersistence
 import Loam.Publisher.ScheduledCreationPublisher
 import Loam.Review.ScheduledReview
 import Loam.Tui.ScheduledCreation
+import Loam.Tui.ScheduledCoverageSetup
 import Loam.Tui.SelectedDay
 import Lean.Elab.Tactic.Omega
 
@@ -251,6 +252,56 @@ def main (args : List String) : IO Unit := do
 
   let createdRecord ← requireSome due.head?
     "fresh Scheduled read did not expose a seed candidate"
+  -- Optional pace selection after creation changes only the monitoring
+  -- intention. It cannot publish a second Scheduled or infer recurrence.
+  let pace : Loam.Tui.ScheduledCoverageSetup.CreatedPaceState := {
+    source := createdRecord }
+  let onceStep := Loam.Tui.ScheduledCoverageSetup.updateCreatedPace
+    pace .enter
+  match onceStep.action with
+  | some .keepOne => pure ()
+  | _ => throw (IO.userError "new Scheduled pace was not one-off by default")
+  let skipped := Loam.Tui.ScheduledCoverageSetup.updateCreatedPace pace .escape
+  match skipped.action with
+  | some .keepOne => pure ()
+  | _ => throw (IO.userError "Esc did not preserve existing monitoring")
+  for (index, months) in
+      ([(1, 1), (2, 2), (3, 3), (4, 6), (5, 12)] : List (Nat × Nat)) do
+    let selected := { pace with selection := index }
+    match (Loam.Tui.ScheduledCoverageSetup.updateCreatedPace
+      selected .enter).action with
+    | some (.save value) =>
+        expect (value == months) "new Scheduled pace selected wrong cadence"
+    | _ => throw (IO.userError "new Scheduled pace did not offer monitoring")
+  let undecided := { pace with selection := 6 }
+  match (Loam.Tui.ScheduledCoverageSetup.updateCreatedPace
+    undecided .enter).action with
+  | some .undecided => pure ()
+  | _ => throw (IO.userError "new Scheduled pace could not remain undecided")
+  for bounds in
+      ([ { width := 32, height := 9 },
+         { width := 48, height := 14 },
+         { width := 80, height := 24 } ] : List Loam.Tui.Kernel.Bounds) do
+    let widget := Loam.Tui.ScheduledCoverageSetup.viewCreatedPace bounds undecided
+    let glyphs := String.ofList
+      (widget.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+    expect (widget.lines.length <= bounds.height - 1 &&
+      contains "Expected pace" glyphs)
+      "post-creation pace chooser was clipped on a short terminal"
+    for cells in widget.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)) <=
+        Loam.Tui.Layout.contentWidth bounds)
+        "post-creation pace chooser exceeded terminal width"
+  let .ok twoMonthRule ←
+    Loam.Tui.ScheduledCoverageSetup.ruleFor? createdRecord 2
+    | throw (IO.userError "post-creation pace could not build rule")
+  expect (twoMonthRule.everyMonths == 2 &&
+    twoMonthRule.anchor == createdRecord.scheduledOn &&
+    twoMonthRule.negativeLoci == ["paypay"] &&
+    twoMonthRule.positiveLoci == ["food"])
+    "post-creation monitoring changed source or signed-Locus shape"
+
   let .ok nextEditor := Loam.Tui.ScheduledCreation.initialFromScheduled? createdRecord
     | throw (IO.userError "seed next Scheduled from completed expectation")
   expect nextEditor.form.date.isEmpty

@@ -768,6 +768,22 @@ input and the existing publication authority are unchanged. Dynamic terminal
 resize within the open editor remains a separate follow-up; child sessions
 still use their entrance bounds until they return.
 
+After the **ordinary** `n` creation flow successfully publishes one explicit
+Scheduled, a bounded **Expected pace** follow-up appears. It defaults to
+`This occurrence only` (no monitoring change); the user may instead choose
+Monthly, Every 2/3/6 months, Yearly, or Future pace undecided. Esc keeps the
+already-published occurrence and leaves any existing monitoring untouched.
+Choosing a pace writes only the replaceable read-side Scheduled coverage rule,
+anchored to the newly published occurrence's date and exact signed-Locus shape;
+a pre-existing rule for the same shape may therefore be updated. It never
+creates another Scheduled or canonical recurrence. Future explicit occurrences
+are still added by the separate `e` flow with per-occurrence review. This
+follow-up is not shown while generating multiple drafts or when explicitly
+continuing a completed Scheduled; those paths keep their previous contracts.
+If the just-published Scheduled cannot be re-read, creation remains successful
+and the status explains why pace setup was unavailable. Current child-editor
+resize behavior remains a distinct UI-16 follow-up.
+
 ### Checked batch amount editing
 
 `b` opens **Batch amount edit** from the Series Calendar, plan detail, Months, or
