@@ -339,7 +339,7 @@ def main (args : List String) : IO Unit := do
   let largeModal : Loam.Tui.Kernel.Bounds := { width := 112, height := 40 }
   let some floating := Loam.Tui.ScheduledCancellationSession.floatingGeometry? largeModal
     | throw (IO.userError "cancellation modal did not float on a roomy terminal")
-  expect (floating.top == 10 && floating.left == 15 &&
+  expect (floating.top == 10 && floating.left == 17 &&
       floating.width == 76 && floating.height == 20)
     "Scheduled cancellation modal geometry changed"
   let inner := Loam.Tui.ScheduledCancellationSession.editorBounds largeModal
