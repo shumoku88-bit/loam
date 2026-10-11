@@ -163,7 +163,8 @@ def view (bounds : Bounds) (state : State) : Widget :=
     else []
   let page := bodyHeight - (header.length + footer.length)
   let items := entries state.page
-  let offset := min (items.length - page) ((state.selected + 1) - page)
+  let offset := min (items.length - page)
+    (Loam.Tui.Layout.trailingWindowStart state.selected page)
   let lines := (items.zipIdx.drop offset |>.take page).map fun ((_, title), index) =>
     let markerText := if state.selected == index then "  > " else "    "
     let width := if framed then panelWidth - 2 else panelWidth
