@@ -255,10 +255,9 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
           run bounds dataDir root reload snapshot next nextFrame
       | some record =>
           let confirmation := Loam.Tui.ScheduledCancellation.initial record
-          let confirmationFrame := compileWidget (Loam.Tui.ScheduledCancellation.view bounds confirmation)
-          Loam.Tui.Terminal.redrawFromBlank bounds confirmationFrame
-          let notice ← Loam.Tui.ScheduledCancellationSession.run
-            bounds root confirmation confirmationFrame
+          let notice ← Loam.Tui.ScheduledCancellationSession.runAdaptive
+            bounds root confirmation (fun active =>
+              compileWidget (Loam.Tui.SelectedDay.view active snapshot step.state))
           let bounds ← Loam.Tui.Terminal.currentBounds
           let fresh ← requireReload notice reload
           let refreshed := Loam.Tui.SelectedDay.refreshed fresh step.state

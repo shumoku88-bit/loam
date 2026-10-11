@@ -7,6 +7,7 @@ import Loam.Publisher.ScheduledReplacementPublisher
 import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.SelectedDay
 import Loam.Tui.ScheduledCancellation
+import Loam.Tui.ScheduledCancellationSession
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledReplacement
 import Lean.Elab.Tactic.Omega
@@ -334,6 +335,53 @@ def main (args : List String) : IO Unit := do
         Loam.Tui.Kernel.Cell.glyph)
     expect ((endText.splitOn "last-locus").length > 1)
       "Scheduled cancellation could not scroll to its final expected posting"
+  -- The adaptive shell uses the same protected review state in either layout.
+  let largeModal : Loam.Tui.Kernel.Bounds := { width := 112, height := 40 }
+  let some floating := Loam.Tui.ScheduledCancellationSession.floatingGeometry? largeModal
+    | throw (IO.userError "cancellation modal did not float on a roomy terminal")
+  expect (floating.top == 10 && floating.left == 17 &&
+      floating.width == 76 && floating.height == 20)
+    "Scheduled cancellation modal geometry changed"
+  let inner := Loam.Tui.ScheduledCancellationSession.editorBounds largeModal
+  expect (inner.width == 75 && inner.height == 19)
+    "floating editor did not receive bounded inner geometry"
+  let floated := Loam.Tui.ScheduledCancellationSession.viewForBounds largeModal reviewState
+  expect (floated.lines.length == floating.height)
+    "floating cancellation panel height was not bounded"
+  for row in floated.lines do
+    expect (Loam.Tui.Layout.displayWidth
+      (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <= floating.width)
+      "floating cancellation panel overflowed its modal rectangle"
+  let visibleFloat := String.ofList (floated.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect ((visibleFloat.splitOn "Expected effects").length > 1 &&
+      (visibleFloat.splitOn "Keep").length > 1)
+    "floating cancellation lost review or protective Keep"
+  let armedFloat := (Loam.Tui.ScheduledCancellation.update cancelEditor .tab).state
+  let publishFloat := Loam.Tui.ScheduledCancellation.updateForBounds inner armedFloat .enter
+  expect (publishFloat.publish.isSome &&
+      publishFloat.state.target == cancelEditor.target)
+    "floating editor changed explicit cancellation intent"
+
+  for compact in
+      ([ { width := 48, height := 14 },
+         { width := 32, height := 9 },
+         { width := 10, height := 1 } ] : List Loam.Tui.Kernel.Bounds) do
+    expect ((Loam.Tui.ScheduledCancellationSession.floatingGeometry? compact).isNone)
+      "undersized cancellation modal failed to use compact layout"
+    let compactFrame := Loam.Tui.ScheduledCancellationSession.viewForBounds compact reviewState
+    expect (compactFrame.lines.length <= compact.height)
+      "compact cancellation rendered outside physical terminal height"
+    for row in compactFrame.lines do
+      expect (Loam.Tui.Layout.displayWidth
+        (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)) <=
+          Loam.Tui.Layout.contentWidth compact)
+        "compact cancellation rendered outside physical terminal columns"
+
+  let minuscule : Loam.Tui.Kernel.Bounds := { width := 10, height := 1 }
+  let armedAtMinimum := (Loam.Tui.ScheduledCancellation.update cancelEditor .tab).state
+  expect ((Loam.Tui.ScheduledCancellation.updateForBounds
+      minuscule armedAtMinimum .enter).publish.isNone)
+    "invisible cancellation at 10x1 published"
   let tinyBounds : Loam.Tui.Kernel.Bounds := { width := 32, height := 6 }
   let armedForTiny := (Loam.Tui.ScheduledCancellation.update cancelEditor .tab).state
   let unsafeEnter := Loam.Tui.ScheduledCancellation.updateForBounds
