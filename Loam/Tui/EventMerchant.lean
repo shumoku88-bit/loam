@@ -2,6 +2,8 @@ import Loam.Tui.EditorSession
 import Loam.Publisher.EventMerchantPublisher
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
+import Loam.Tui.ModalSurface
 import Loam.Tui.Main
 import Loam.Tui.Terminal
 
@@ -114,9 +116,6 @@ def withPublishError (state : State) (message : String) : State :=
 private def line (text : String) : Widget :=
   .row [span text]
 
-private def muted (text : String) : Widget :=
-  .row [span text .muted]
-
 private def choiceText : Choice → String
   | .merchant => "Merchant"
   | .nonmerchant => "Nonmerchant"
@@ -130,31 +129,72 @@ private def proposalText (state : State) : String :=
   | .merchant => "Merchant " ++ state.partyInput
   | .nonmerchant => "Nonmerchant"
 
-/-- Minimal first-classification editor; replacement semantics are intentionally absent. -/
-def view (state : State) : Widget :=
-  match state.mode with
-  | .editing =>
-      .column ([
-        line "Event Merchant / Edit",
-        line ("Target: " ++ state.target.token),
-        line ("Description: " ++ descriptionText state),
-        line ("Disposition: " ++ choiceText state.choice)
-      ] ++
-      (match state.choice with
-       | .merchant => [line ("Party id: " ++ state.partyInput)]
-       | .nonmerchant => [muted "Party id: (not applicable)"]) ++
-      [ muted "Tab Merchant/Nonmerchant   Type party id   Enter preview   Esc/q cancel"
-      , line state.notice
-      ])
-  | .preview =>
-      .column [
-        line "Event Merchant / Preview",
-        line ("Target remains: " ++ state.target.token),
-        line ("Description: " ++ descriptionText state),
-        line ("Proposed: " ++ proposalText state),
-        muted "Enter publish   Esc/e edit   q cancel",
-        muted "First classification only; replacement is not available here.",
-        line state.notice
-      ]
+/-- Wrap complete CJK labels, target IDs and party text in terminal cells. -/
+private def wrappedRows (width : Nat) (text : String) : List Widget :=
+  (Loam.Tui.Layout.wrapColumns width text).map line
+
+private def contentRows (width : Nat) (state : State) : List Widget :=
+  let labels : List String :=
+    match state.mode with
+    | .editing =>
+        [ "Event Merchant / Edit"
+        , "Target: " ++ state.target.token
+        , "Description: " ++ descriptionText state
+        , "Disposition: " ++ choiceText state.choice
+        , match state.choice with
+          | .merchant => "Party id: " ++ state.partyInput
+          | .nonmerchant => "Party id: (not applicable)" ]
+    | .preview =>
+        [ "Event Merchant / Preview"
+        , "Target remains: " ++ state.target.token
+        , "Description: " ++ descriptionText state
+        , "Proposed: " ++ proposalText state ]
+  labels.flatMap (wrappedRows width)
+
+private def footerRows (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let help := match state.mode with
+    | .editing => "Tab Merchant/Nonmerchant  Type party id  Enter preview  Esc/q cancel"
+    | .preview => "Enter publish  Esc/e edit  q cancel"
+  let footer := (wrappedRows width help) ++
+    (if state.mode == .preview then
+      wrappedRows width "First classification only; replacement is not available here."
+     else []) ++
+    (if state.notice.isEmpty then [line ""] else wrappedRows width state.notice)
+  Loam.Tui.Layout.boundFeedbackFooter bounds footer
+
+/-- Never Publish when target, description or proposal is hidden by clipping.
+    Existing first-classification authority stays in EventMerchantPublisher. -/
+def reviewVisible (bounds : Bounds) (state : State) : Bool :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  bounds.height >= 14 && width >= 46 &&
+    (contentRows width state).length <=
+      Loam.Tui.Layout.footerBodyCapacity bounds (footerRows bounds state).length
+
+def viewForContentBounds (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let footer := footerRows bounds state
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (contentRows width state) footer).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
+
+/-- Keep the local draft on refused, hidden confirmation; resize can recover. -/
+def updateForBounds (bounds : Bounds) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  if state.mode == .preview && key == .enter && !reviewVisible bounds state then
+    { state := { state with
+        notice := "Enlarge terminal to review the Merchant target and proposal before Publish." } }
+  else update state key
+
+def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
+  Loam.Tui.ModalSurface.centered? bounds 72 24 76 21
+
+def editorBounds (bounds : Bounds) : Bounds :=
+  Loam.Tui.ModalSurface.contentBounds bounds (floatingGeometry? bounds)
+
+/-- Geometry only, independent of the first-classification publisher. -/
+def viewForBounds (bounds : Bounds) (state : State) : Widget :=
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Event Merchant" (fun inner => viewForContentBounds inner state)
 
 end Loam.Tui.EventMerchant
