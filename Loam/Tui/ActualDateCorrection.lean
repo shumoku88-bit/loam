@@ -77,6 +77,17 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .input 'q' | .input 'Q' => { state, cancel := true }
       | _ => { state }
 
+/-- Compact terminals without sufficient review space must not accept a
+    blind Publish. This changes no date, target, or draft; larger screens retain
+    the same editor transitions and publisher intent. -/
+def updateForBounds (bounds : Bounds) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  if state.mode == .preview && key == .enter &&
+      (bounds.height < 14 || Loam.Tui.Layout.contentWidth bounds < 46) then
+    { state := { state with
+        notice := "Enlarge terminal to review the date and target before Publish." } }
+  else update state key
+
 /-- Return a failed publication attempt to the local editor without changing its draft. -/
 def withPublishError (state : State) (message : String) : State :=
   { state with mode := .editing, notice := message }
