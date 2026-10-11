@@ -10,6 +10,7 @@ import Loam.Tui.ScheduledCancellation
 import Loam.Tui.ScheduledCancellationSession
 import Loam.Tui.ScheduledCompletion
 import Loam.Tui.ScheduledReplacement
+import Loam.Tui.ScheduledReplacementSession
 import Lean.Elab.Tactic.Omega
 
 open Loam.Core
@@ -513,6 +514,42 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "build Scheduled replacement draft")
   let replacementPreview : Loam.Tui.ScheduledReplacement.State := {
     movedEditor with mode := .preview replacementDraft ⟨0, by omega⟩ }
+  -- Floating placement reuses ModalSurface. The underlying Scheduled state,
+  -- focus and publication intent are identical in floating and compact modes.
+  let large : Loam.Tui.Kernel.Bounds := {width := 120, height := 40}
+  let some surface := Loam.Tui.ScheduledReplacementSession.floatingGeometry? large
+    | throw (IO.userError "Scheduled replacement failed to float at 120x40")
+  expect (surface.width == 88 && surface.height == 33 &&
+      surface.top == 3 && surface.left == 15)
+    "Scheduled replacement floating placement diverged"
+  let inner := Loam.Tui.ScheduledReplacementSession.editorBounds large
+  expect (inner.width == 87 && inner.height == 32)
+    "Scheduled replacement did not receive its inner viewport"
+  for editor in [replacementEditor, replacementPreview] do
+    let floated := Loam.Tui.ScheduledReplacementSession.viewForBounds
+      large replacementKnown editor
+    expect (floated.lines.length == surface.height &&
+        floated.lines.all fun cells =>
+          Loam.Tui.Layout.displayWidth
+            (String.ofList (cells.map Loam.Tui.Kernel.Cell.glyph)) <= surface.width)
+      "Scheduled replacement floating frame overran its geometry"
+  for compact in
+      ([{width := 80, height := 24}, {width := 48, height := 14},
+        {width := 32, height := 9}, {width := 10, height := 1}]
+       : List Loam.Tui.Kernel.Bounds) do
+    expect ((Loam.Tui.ScheduledReplacementSession.floatingGeometry? compact).isNone)
+      "Scheduled replacement floated over a nonviable terminal"
+    let view := Loam.Tui.ScheduledReplacementSession.viewForBounds
+      compact replacementKnown replacementPreview
+    expect (view.lines.length <= compact.height - 1)
+      "compact Scheduled replacement frame overran available rows"
+    if compact.height <= 9 then
+      let blocked := Loam.Tui.ScheduledReplacement.updateForBounds
+        (Loam.Tui.ScheduledReplacementSession.editorBounds compact)
+        replacementKnown replacementPreview .enter
+      expect (blocked.publish.isNone)
+        "compact Scheduled replacement unexpectedly published hidden evidence"
+
   -- Live-size rendering protects the selected field and the preview action bar.
   for bounds in
       ([ {width := 112, height := 40}, {width := 80, height := 24},
