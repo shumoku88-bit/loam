@@ -50,6 +50,21 @@ def centered? (bounds : Bounds)
         height := panelHeight
       }
 
+/-- Inner editor bounds of an optional floating frame; compact keeps full bounds. -/
+def contentBounds (bounds : Bounds) (rectangle : Option Rectangle) : Bounds :=
+  match rectangle with
+  | none => bounds
+  | some region => { width := region.width - 1, height := region.height - 1 }
+
+/-- Share only modal framing, without owning local state, input, or publication. -/
+def framedView (bounds : Bounds) (rectangle : Option Rectangle)
+    (title : String) (inner : Bounds → Widget) : Widget :=
+  match rectangle with
+  | none => inner bounds
+  | some region =>
+      Loam.Tui.Layout.framedPanel region.width region.height title
+        (inner (contentBounds bounds (some region))) true
+
 /--
 Existing full-screen callers have different redraw policies: rich editors
 retain dirty-diff painting; the command palette clears the compact surface.

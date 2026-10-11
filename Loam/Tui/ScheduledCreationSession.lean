@@ -112,19 +112,14 @@ def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle
   Loam.Tui.ModalSurface.centered? bounds 78 35 88 33
 
 def editorBounds (bounds : Bounds) : Bounds :=
-  match floatingGeometry? bounds with
-  | none => bounds
-  | some rect => { width := rect.width - 1, height := rect.height - 1 }
+  Loam.Tui.ModalSurface.contentBounds bounds (floatingGeometry? bounds)
 
 /-- Same Scheduled fields and preview in either physical presentation mode. -/
 def modalViewForBounds (bounds : Bounds) (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) : Widget :=
-  match floatingGeometry? bounds with
-  | none => Loam.Tui.ScheduledCreation.view bounds known state
-  | some rect =>
-      Loam.Tui.Layout.framedPanel rect.width rect.height
-        "Scheduled / New"
-        (Loam.Tui.ScheduledCreation.view (editorBounds bounds) known state) true
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Scheduled / New"
+    (fun inner => Loam.Tui.ScheduledCreation.view inner known state)
 
 private def modalFrame (bounds : Bounds) (known : List String)
     (state : Loam.Tui.ScheduledCreation.State) : CompiledWidget :=

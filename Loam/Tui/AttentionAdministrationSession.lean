@@ -32,21 +32,15 @@ def modalGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
 
 /-- Domain-owned review receives available inner bounds, not terminal bounds. -/
 def modalContentBounds (bounds : Bounds) : Bounds :=
-  match modalGeometry? bounds with
-  | none => bounds
-  | some region => { width := region.width - 1, height := region.height - 1 }
+  Loam.Tui.ModalSurface.contentBounds bounds (modalGeometry? bounds)
 
 def modalViewForBounds (bounds : Bounds)
     (state : Loam.Tui.AttentionAdministration.State) : Widget :=
-  match modalGeometry? bounds with
-  | none => Loam.Tui.AttentionAdministration.viewForBounds bounds state
-  | some region =>
-      let title := match state.mode with
-        | .confirmClose _ _ => "Attention / Close"
-        | _ => "Attention / New"
-      Loam.Tui.Layout.framedPanel region.width region.height title
-        (Loam.Tui.AttentionAdministration.viewForBounds
-          (modalContentBounds bounds) state) true
+  let title := match state.mode with
+    | .confirmClose _ _ => "Attention / Close"
+    | _ => "Attention / New"
+  Loam.Tui.ModalSurface.framedView bounds (modalGeometry? bounds) title
+    (fun inner => Loam.Tui.AttentionAdministration.viewForBounds inner state)
 
 private def parentFrame (bounds : Bounds)
     (browse : Loam.Tui.AttentionAdministration.State) : CompiledWidget :=
