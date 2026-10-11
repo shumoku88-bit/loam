@@ -131,6 +131,18 @@ def main():
                 [label for label in expected_changes if label not in date_preview],
                 date_preview[-1600:])
             assert probe.digest(root) == frozen, "date preview published"
+            # The same review cannot Publish while compact geometry hides its
+            # target/confirmation. The draft survives a subsequent enlargement.
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 9, 32, 0, 0))
+            terminal.capture(b"Actual / Date / Preview")
+            _, refused_date = send(terminal, b"\r", b"Enlarge terminal")
+            assert b"Enlarge terminal" in refused_date
+            assert probe.digest(root) == frozen, "compact date review wrote authority"
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ,
+                        struct.pack("HHHH", 40, 144, 0, 0))
+            _, restored_preview = terminal.capture(b"Actual / Date / Preview")
+            assert b"Proposed date" in probe.ANSI.sub(b"", restored_preview)
             _, dated = send(terminal, b"\r", DETAIL)
             assert identity in dated and b"Date: " + changed_date in dated
             after_date = probe.digest(root)
