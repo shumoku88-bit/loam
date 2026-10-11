@@ -259,6 +259,9 @@ def calendarSlot (state : State) (row col : Nat) : Option String :=
   | none => none
   | some date => date
 
+def calendarDaySlot (state : State) (row col : Nat) : Option Loam.Tui.Calendar.DaySlot :=
+  (Loam.Tui.Calendar.gridSlots (selectedMonth state))[row * 7 + col]?
+
 
 def homeActualRecords (snapshot : Snapshot) (state : State) : List ReviewRecord :=
   match state.zoomLevel with

@@ -110,12 +110,49 @@ def slots (month : Month) : List (Option String) :=
       let used := leading + count
       List.replicate leading none ++ dates ++ List.replicate (42 - used) none
 
+structure DaySlot where
+  date : String
+  isCurrentMonth : Bool
+  deriving Repr, DecidableEq
+
+/-- Six stable calendar rows with full dates, marking current-month vs leading/trailing adjacent days. -/
+def gridSlots (month : Month) : List DaySlot :=
+  match daysInMonth? month with
+  | none => []
+  | some count =>
+      let leading := firstWeekdayMonday month
+      let prevSlots :=
+        match previousMonth? month with
+        | some prev =>
+            match daysInMonth? prev with
+            | some prevCount =>
+                (List.range leading).map fun index =>
+                  let day := prevCount - leading + 1 + index
+                  { date := dateForDay prev day, isCurrentMonth := false }
+            | none => (List.range leading).map fun _ => { date := "", isCurrentMonth := false }
+        | none => (List.range leading).map fun _ => { date := "", isCurrentMonth := false }
+      let curSlots :=
+        (List.range count).map fun index =>
+          { date := dateForDay month (index + 1), isCurrentMonth := true }
+      let used := leading + count
+      let trailing := 42 - used
+      let next := nextMonth month
+      let nextSlots :=
+        (List.range trailing).map fun index =>
+          { date := dateForDay next (index + 1), isCurrentMonth := false }
+      prevSlots ++ curSlots ++ nextSlots
+
 def monthLabel (month : Month) : String :=
   padded 4 month.year ++ "-" ++ padded 2 month.month
 
 example : firstWeekdayMonday { year := 2026, month := 9 } = 1 := by rfl
 example : (slots { year := 2026, month := 9 })[1]? = some (some "2026-09-01") := by rfl
 example : (slots { year := 2026, month := 9 })[30]? = some (some "2026-09-30") := by rfl
+example : (gridSlots { year := 2026, month := 9 })[0]? = some { date := "2026-08-31", isCurrentMonth := false } := by rfl
+example : (gridSlots { year := 2026, month := 9 })[1]? = some { date := "2026-09-01", isCurrentMonth := true } := by rfl
+example : (gridSlots { year := 2026, month := 9 })[30]? = some { date := "2026-09-30", isCurrentMonth := true } := by rfl
+example : (gridSlots { year := 2026, month := 9 })[31]? = some { date := "2026-10-01", isCurrentMonth := false } := by rfl
+example : (gridSlots { year := 2026, month := 9 }).length = 42 := by rfl
 example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by native_decide
 example : shiftCalendarMonthWindow? "2026-12-01" "2027-01-01" true =
     some ("2027-01-01", "2027-02-01") := by native_decide

@@ -77,26 +77,82 @@ private def moneyGridWidth (paneWidth : Nat) : Nat :=
   8 + 7 * moneyCellWidth paneWidth
 
 private def moneyRule
-    (paneWidth : Nat) (left middle right : Char) : Widget :=
+    (paneWidth : Nat) (left middle right : Char)
+    (highlightCol : Option Nat := none)
+    (isTopHighlight isBottomHighlight : Bool := false) : Widget :=
   let cellWidth := moneyCellWidth paneWidth
-  let segment := repeatChar cellWidth '─'
-  mutedLine <|
-    String.ofList [left] ++
-      String.intercalate (String.ofList [middle]) (List.replicate 7 segment) ++
-      String.ofList [right]
+  let normalSegment := repeatChar cellWidth '─'
+  let spans : List Span := Id.run do
+    let mut acc : List Span := []
+    for col in List.range 7 do
+      let jChar := if col == 0 then left else middle
+      let jSpan :=
+        match highlightCol with
+        | some h =>
+            if isTopHighlight && col == h then
+              span "╭" .series1
+            else if isTopHighlight && col == h + 1 then
+              span "╮" .series1
+            else if isBottomHighlight && col == h then
+              span "╰" .series1
+            else if isBottomHighlight && col == h + 1 then
+              span "╯" .series1
+            else
+              span (String.singleton jChar) .muted
+        | none => span (String.singleton jChar) .muted
+      acc := acc ++ [jSpan]
+      let segSpan :=
+        match highlightCol with
+        | some h =>
+            if (isTopHighlight || isBottomHighlight) && col == h then
+              span normalSegment .series1
+            else
+              span normalSegment .muted
+        | none => span normalSegment .muted
+      acc := acc ++ [segSpan]
+    let lastChar := right
+    let lastSpan :=
+      match highlightCol with
+      | some h =>
+          if isTopHighlight && h == 6 then
+            span "╮" .series1
+          else if isBottomHighlight && h == 6 then
+            span "╯" .series1
+          else
+            span (String.singleton lastChar) .muted
+      | none => span (String.singleton lastChar) .muted
+    acc := acc ++ [lastSpan]
+    return acc
+  .row spans
 
-private def moneyGridSpans : List Span → List Span
-  | [] => [span "│" .muted]
-  | cell :: rest => span "│" .muted :: cell :: moneyGridSpans rest
+private def moneyGridSpans
+    (cells : List Span) (highlightCol : Option Nat := none) : List Span :=
+  let sep (col : Nat) : Span :=
+    match highlightCol with
+    | some h =>
+        if col == h || col == h + 1 then span "│" .series1
+        else span "│" .muted
+    | none => span "│" .muted
+  let rec loop (cols : List (Span × Nat)) : List Span :=
+    match cols with
+    | [] => [sep 7]
+    | (cell, idx) :: rest => sep idx :: cell :: loop rest
+  loop cells.zipIdx
 
-private def moneyGridRow (cells : List Span) : Widget :=
-  .row (moneyGridSpans cells)
+private def moneyGridRow (cells : List Span) (highlightCol : Option Nat := none) : Widget :=
+  .row (moneyGridSpans cells highlightCol)
+
+private def centerPill (width : Nat) (text : String) : String :=
+  let textWidth := Loam.Tui.Layout.displayWidth text
+  let leftPad := if textWidth < width then (width - textWidth) / 2 else 0
+  let rightPad := if width > textWidth + leftPad then width - (textWidth + leftPad) else 0
+  repeatChar leftPad ' ' ++ text ++ repeatChar rightPad ' '
 
 private def moneyCalendarHeader (paneWidth : Nat) : Widget :=
   let cellWidth := moneyCellWidth paneWidth
   moneyGridRow <|
     ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map fun label =>
-      span (Loam.Tui.Layout.padRight cellWidth (" " ++ label)) .muted
+      span (centerPill cellWidth label) .muted
 
 private def shortDay (date : String) : String :=
   match date.splitOn "-" with
@@ -114,29 +170,38 @@ private def moneyRowFor?
   money.flow.rowFor? date measure
 
 private def moneyCellStyle
-    (today : String) (state : State) (date : String) : Style :=
+    (today : String) (state : State) (date : String) (isCurrentMonth : Bool := true) : Style :=
   if date == state.selectedDate then
     if date == today then .selectedUnderlined else .selected
+  else if !isCurrentMonth then
+    .muted
   else if date == today then
     .underlined
   else
     .normal
+
+private def moneyDateSlotSpan
+    (paneWidth : Nat) (today : String) (pastOpenDates : List String)
+    (snapshot : Snapshot) (state : State) (slot : Loam.Tui.Calendar.DaySlot) : Span :=
+  let cellWidth := moneyCellWidth paneWidth
+  let pending := slot.isCurrentMonth && pastOpenDates.any fun candidate => candidate == slot.date
+  let unresolved :=
+    if slot.isCurrentMonth then
+      match moneyRowFor? snapshot state slot.date with
+      | some row => decide (0 < row.unresolvedEffectCount)
+      | none => false
+    else false
+  let markers := (if pending then "!" else "") ++ (if unresolved then "?" else "")
+  let text := " " ++ shortDay slot.date ++ markers
+  span (Loam.Tui.Layout.padRight cellWidth text)
+    (moneyCellStyle today state slot.date slot.isCurrentMonth)
 
 /-- One shared calendar day cell; focus, Today, overdue Scheduled and role unknown
 markers all compose in this larger money calendar. -/
 def moneyDateSpan
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
     (snapshot : Snapshot) (state : State) (date : String) : Span :=
-  let cellWidth := moneyCellWidth paneWidth
-  let pending := pastOpenDates.any fun candidate => candidate == date
-  let unresolved :=
-    match moneyRowFor? snapshot state date with
-    | some row => decide (0 < row.unresolvedEffectCount)
-    | none => false
-  let markers := (if pending then "!" else "") ++ (if unresolved then "?" else "")
-  let text := " " ++ shortDay date ++ markers
-  span (Loam.Tui.Layout.padRight cellWidth text)
-    (moneyCellStyle today state date)
+  moneyDateSlotSpan paneWidth today pastOpenDates snapshot state { date := date, isCurrentMonth := true }
 
 private def groupedQuantaText
     (money : MoneyCalendarSnapshot)
@@ -194,60 +259,79 @@ private def periodSummaryLines
       wrappedLines width s!"{(homeActualRecords snapshot state).length} transactions recorded" .muted) ++
     flowLines
 
+private def moneyAmountSlotSpan
+    (paneWidth : Nat)
+    (snapshot : Snapshot) (state : State)
+    (slot : Loam.Tui.Calendar.DaySlot) (positive : Bool) : Span :=
+  let cellWidth := moneyCellWidth paneWidth
+  if !slot.isCurrentMonth then
+    span (repeatChar cellWidth ' ') .muted
+  else
+    let text :=
+      match moneyRowFor? snapshot state slot.date, moneyMeasureInfo snapshot state with
+      | some row, some (money, _) =>
+          let directional := row.directional
+          let amount := if positive then directional.plus.quanta else directional.minus.quanta
+          if amount = 0 then ""
+          else
+            let signText := if positive then "+" else "-"
+            let rendered :=
+              Loam.MeasurePresentation.formatAmount money.presentation row.measure amount
+            let plain := signText ++ rendered
+            let grouped :=
+              signText ++
+                Loam.MeasurePresentation.formatGroupedAmount
+                  money.presentation row.measure amount
+            if Loam.Tui.Layout.displayWidth grouped ≤ cellWidth then grouped
+            else if Loam.Tui.Layout.displayWidth plain ≤ cellWidth then plain
+            else "…"
+      | _, _ => ""
+    span (Loam.Tui.Layout.padLeft cellWidth text)
+      (if slot.date == state.selectedDate then .selected else .normal)
+
 private def moneyAmountSpan
     (paneWidth : Nat)
     (snapshot : Snapshot) (state : State)
     (date : String) (positive : Bool) : Span :=
-  let cellWidth := moneyCellWidth paneWidth
-  let text :=
-    match moneyRowFor? snapshot state date, moneyMeasureInfo snapshot state with
-    | some row, some (money, _) =>
-        let directional := row.directional
-        let amount := if positive then directional.plus.quanta else directional.minus.quanta
-        if amount = 0 then ""
-        else
-          let signText := if positive then "+" else "-"
-          let rendered :=
-            Loam.MeasurePresentation.formatAmount money.presentation row.measure amount
-          let plain := signText ++ rendered
-          let grouped :=
-            signText ++
-              Loam.MeasurePresentation.formatGroupedAmount
-                money.presentation row.measure amount
-          if Loam.Tui.Layout.displayWidth grouped ≤ cellWidth then grouped
-          else if Loam.Tui.Layout.displayWidth plain ≤ cellWidth then plain
-          else "…"
-    | _, _ => ""
-  span (Loam.Tui.Layout.padLeft cellWidth text)
-    (if date == state.selectedDate then .selected else .normal)
+  moneyAmountSlotSpan paneWidth snapshot state { date := date, isCurrentMonth := true } positive
 
 private def blankMoneyCell (paneWidth : Nat) : Span :=
   span (repeatChar (moneyCellWidth paneWidth) ' ')
 
+private def selectedSlotPosition? (state : State) : Option (Nat × Nat) :=
+  let m := selectedMonth state
+  let slots := Loam.Tui.Calendar.gridSlots m
+  (slots.zipIdx.find? (fun (s, _) => s.date == state.selectedDate)).map fun (_, idx) =>
+    (idx / 7, idx % 7)
+
 private def moneyCalendarRows
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
-    (snapshot : Snapshot) (state : State) : List Widget :=
+    (snapshot : Snapshot) (state : State) (selPos? : Option (Nat × Nat)) : List Widget :=
   (List.range 6).flatMap fun row =>
-    let dates := (List.range 7).map fun col => calendarSlot state row col
-    let dateLine := moneyGridRow <| dates.map fun slot =>
-      match slot with
-      | none => blankMoneyCell paneWidth
-      | some date => moneyDateSpan paneWidth today pastOpenDates snapshot state date
-    let plusLine := moneyGridRow <| dates.map fun slot =>
-      match slot with
-      | none => blankMoneyCell paneWidth
-      | some date => moneyAmountSpan paneWidth snapshot state date true
-    let minusLine := moneyGridRow <| dates.map fun slot =>
-      match slot with
-      | none => blankMoneyCell paneWidth
-      | some date => moneyAmountSpan paneWidth snapshot state date false
+    let isSelRow := selPos?.map (·.1) == some row
+    let selCol := if isSelRow then selPos?.map (·.2) else none
+    let slots := (List.range 7).map fun col =>
+      (Loam.Tui.Main.calendarDaySlot state row col).getD { date := "", isCurrentMonth := false }
+    let dateLine := moneyGridRow (slots.map fun slot =>
+      if slot.date.isEmpty then blankMoneyCell paneWidth
+      else moneyDateSlotSpan paneWidth today pastOpenDates snapshot state slot) selCol
+    let plusLine := moneyGridRow (slots.map fun slot =>
+      if slot.date.isEmpty then blankMoneyCell paneWidth
+      else moneyAmountSlotSpan paneWidth snapshot state slot true) selCol
+    let minusLine := moneyGridRow (slots.map fun slot =>
+      if slot.date.isEmpty then blankMoneyCell paneWidth
+      else moneyAmountSlotSpan paneWidth snapshot state slot false) selCol
+    let nextIsSelRow := selPos?.map (·.1) == some (row + 1)
+    let bottomRule :=
+      if row = 5 then
+        moneyRule paneWidth '└' '┴' '┘' selCol false isSelRow
+      else
+        let ruleHighlight := if isSelRow then selCol else if nextIsSelRow then selPos?.map (·.2) else none
+        moneyRule paneWidth '├' '┼' '┤' ruleHighlight nextIsSelRow isSelRow
     [ dateLine
     , plusLine
     , minusLine
-    , if row = 5 then
-        moneyRule paneWidth '└' '┴' '┘'
-      else
-        moneyRule paneWidth '├' '┼' '┤'
+    , bottomRule
     ]
 
 private def moneyCalendarBlock
@@ -257,14 +341,17 @@ private def moneyCalendarBlock
   let title := moneyTitle snapshot state
   let title := if Loam.Tui.Layout.displayWidth title ≤ gridWidth then title
     else Loam.Tui.Layout.clip (gridWidth - 1) title ++ "…"
+  let selPos? := selectedSlotPosition? state
+  let topRowHighlight := if selPos?.map (·.1) == some 0 then selPos?.map (·.2) else none
   [ plainLine (centeredText gridWidth title)
   , moneyRule paneWidth '┌' '┬' '┐'
   , moneyCalendarHeader paneWidth
-  , moneyRule paneWidth '├' '┼' '┤'
+  , moneyRule paneWidth '├' '┼' '┤' topRowHighlight true false
   ] ++
-  moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state ++
+  moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state selPos? ++
   periodSummaryLines paneWidth snapshot state ++
   wrappedLines paneWidth "underline = today; ! = Scheduled still open; ? = unresolved role; … = amount too wide" .muted
+
 
 private def displayDescription (record : ReviewRecord) : String :=
   if record.description.isEmpty then "(no description)"
