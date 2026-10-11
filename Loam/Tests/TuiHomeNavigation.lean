@@ -181,6 +181,12 @@ def main : IO Unit := do
         expect (opened.event.id == record.event.id) "workspace opened a different transaction"
         let back ← press bounds snapshot last .escape
         expect (back.activePane == .calendar) "Escape did not leave detail"
+        let qBack ← press bounds snapshot last (.input 'q')
+        expect (qBack.activePane == .calendar) "q did not leave detail"
+        let capQBack ← press bounds snapshot last (.input 'Q')
+        expect (capQBack.activePane == .calendar) "Q did not leave detail"
+        expect (Loam.Tui.Home.navigationKey bounds snapshot base (.input 'q') |>.isNone)
+          "calendar q was intercepted by local navigation"
 
   -- An oversized record must not scroll its own selected title out of view.
   let effects := (List.range 40).map fun i =>
