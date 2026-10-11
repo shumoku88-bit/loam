@@ -1,4 +1,6 @@
 import Loam.Tui.EditorSession
+import Loam.Tui.Layout
+import Loam.Tui.Scroll
 import Loam.Publisher.ScheduledTerminalPublisher
 import Loam.Tui.Main
 import Loam.Tui.Terminal
@@ -22,6 +24,8 @@ structure State where
   target : Loam.Core.ScheduledId
   scheduledOn : String
   expected : List String
+  scroll : Nat := 0
+  notice : String := ""
   -- 0 = Cancel Scheduled, 1 = Keep. Protective default is Keep.
   choice : Fin 2 := ⟨1, by omega⟩
 
@@ -52,21 +56,94 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | _ => { state }
 
 private def line (text : String) : Widget := .row [span text]
+private def muted (text : String) : Widget := .row [span text .muted]
 
-/-- Consequential retirement gets one explicit, default-safe confirmation boundary. -/
-def view (state : State) : Widget :=
-  .column <|
-    [ line "Scheduled / Cancel"
-    , line ("Target: " ++ state.target.token)
-    , line ("Due: " ++ state.scheduledOn)
-    , line "Expected effects:"
-    ] ++
-    state.expected.map (fun text => line ("  " ++ text)) ++
-    [ line "Cancellation retains explicit retirement evidence; it does not delete the Scheduled occurrence."
+private def footer (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let feedback := (Loam.Tui.Layout.wrapColumns width state.notice).map line
+  let help := if width < 46 then
+    "Tab choose  Enter  Esc keep"
+  else
+    "Tab/Left/Right select  Enter confirm  Esc keep"
+  Loam.Tui.Layout.boundFeedbackFooter bounds <|
+    feedback ++
+    [ muted "Retirement keeps history; no deletion."
     , .row ((["Cancel Scheduled", "Keep"].zipIdx).map fun (label, index) =>
         span ("[" ++ label ++ "] ")
           (if state.choice.val = index then .selected else .normal))
-    , line "Tab / arrows select   Enter confirm   Esc keep"
+    , muted help
     ]
+
+private def header (bounds : Bounds) (state : State) (available : Nat) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  if available >= 7 then
+    [ line "Scheduled / Cancel"
+    , line (Loam.Tui.Layout.clip width ("Due: " ++ state.scheduledOn))
+    , line (Loam.Tui.Layout.clip width ("Target: " ++ state.target.token))
+    ]
+  else if available >= 4 then
+    [ line "Scheduled / Cancel"
+    , line (Loam.Tui.Layout.clip width
+        ("Due: " ++ state.scheduledOn ++ "  Target: " ++ state.target.token))
+    ]
+  else
+    [ line "Scheduled / Cancel" ]
+
+private def expectedRows (bounds : Bounds) (state : State) : List Widget :=
+  let columns := Loam.Tui.Layout.contentWidth bounds - 4
+  state.expected.flatMap fun effect =>
+    (Loam.Tui.Layout.wrapColumns columns (" " ++ effect)).map line
+
+/-- All size-dependent rows come from live terminal bounds. -/
+def expectedCapacity (bounds : Bounds) (state : State) : Nat :=
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds (footer bounds state).length
+  available - (header bounds state available).length - 2
+
+def updateForBounds (bounds : Bounds) (state : State)
+    (key : Loam.Tui.Terminal.Key) : Step :=
+  let content := (expectedRows bounds state).length
+  let capacity := expectedCapacity bounds state
+  let current := Loam.Tui.Scroll.clamp content capacity state.scroll
+  let page := max 1 capacity
+  match key with
+  | .up => { state := { state with scroll :=
+      Loam.Tui.Scroll.backward content capacity current 1 } }
+  | .down => { state := { state with scroll :=
+      Loam.Tui.Scroll.forward content capacity current 1 } }
+  | .pageUp => { state := { state with scroll :=
+      Loam.Tui.Scroll.backward content capacity current page } }
+  | .pageDown => { state := { state with scroll :=
+      Loam.Tui.Scroll.forward content capacity current page } }
+  | .home => { state := { state with scroll := 0 } }
+  | .«end» => { state := { state with scroll :=
+      Loam.Tui.Scroll.maxOffset content capacity } }
+  | .enter =>
+      if state.choice.val == 0 && capacity == 0 then
+        { state := { state with notice := "Enlarge terminal to review the Scheduled effects." } }
+      else
+        update state key
+  | _ => update state key
+
+/-- Bounded confirmation: target and actions stay in view, all expected effects
+    remain reachable by review scrolling; Keep is the protective default. -/
+def view (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let actions := footer bounds state
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds actions.length
+  let context := header bounds state available
+  let height := available - context.length
+  let rows := expectedRows bounds state
+  let visible := expectedCapacity bounds state
+  let offset := Loam.Tui.Scroll.clamp rows.length visible state.scroll
+  let count := min rows.length (offset + visible)
+  let progress := s!"{count}/{rows.length} lines" ++
+    (if offset > 0 then " ▲" else "") ++
+    (if count < rows.length then " ▼" else "")
+  let effects := Loam.Tui.Layout.framedPanel width height "Expected effects"
+    (.column ((rows.drop offset).take visible)) true (some progress)
+  let body : Widget := .column (context ++ [effects])
+  .column ((Loam.Tui.Layout.fitWithFooter bounds
+    (Loam.Tui.Layout.widgetRows body) actions).map fun row =>
+      Loam.Tui.Layout.clipWidgetRow width row)
 
 end Loam.Tui.ScheduledCancellation
