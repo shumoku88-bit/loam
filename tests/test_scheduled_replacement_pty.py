@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Real-terminal Scheduled supersede input contract on an isolated household.
 
-Cover the admitted Locus picker, edit/preview resize, short-viewport
+Cover shared floating/compact modal placement, both launchers, Locus picker,
+edit/preview resize, short-viewport
 publication refusal, and draft retention with byte-identical no-write.
 Accepted publication is a separate qualification item under #1902.
 """
@@ -106,6 +107,8 @@ def main():
             terminal.send(b"v", b"Scheduled / Months")
             terminal.send(b"v", b"Scheduled / List")
             editor = terminal.send(b"r", b"Scheduled / Supersede / Edit replacement")
+            assert b"Scheduled / Supersede" in ANSI.sub(b"", editor)
+            assert b"\x1b[2J" not in editor, "floating editor unexpectedly cleared its parent"
             assert b"Source: first" in ANSI.sub(b"", editor)
             assert b"Posting 1: bank" in ANSI.sub(b"", editor)
             assert b"Replacement due" in ANSI.sub(b"", editor)
@@ -145,6 +148,8 @@ def main():
 
             big = terminal.resize(24, 80, b"Scheduled / Supersede / Preview")
             assert b"Source: first" in ANSI.sub(b"", big), big
+            restored = terminal.resize(40, 120, b"Scheduled / Supersede / Preview")
+            assert b"Source: first" in ANSI.sub(b"", restored), restored
             terminal.send(b"\t", b"[Edit]")
             editing = terminal.send(b"\r", b"Scheduled / Supersede / Edit replacement")
             assert b"Posting 1: wifi" in ANSI.sub(b"", editing), editing
@@ -153,9 +158,21 @@ def main():
             terminal.send(b"\x1b", b"Scheduled / List")
             assert digest(root) == original, "Esc from replacement published or modified bytes"
             terminal.send(b"q", b"LOAM Home")
+
+            # The second launcher retains the Selected Day parent and target.
+            terminal.send(b"/", b"Jump to date")
+            terminal.send(b"2026-12-08\r", b"Focus: 2026-12-08")
+            terminal.send(b"\r", b"Household Day Workspace")
+            terminal.send(b"l", b"Scheduled")
+            selected = terminal.send(b"r", b"Scheduled / Supersede / Edit replacement")
+            assert b"Source: second" in ANSI.sub(b"", selected), selected
+            assert b"\x1b[2J" not in selected, "Selected Day modal cleared its parent"
+            terminal.send(b"\x1b", b"Household Day Workspace")
+            assert digest(root) == original, "Selected Day replacement cancellation wrote"
+            terminal.send(b"q", b"LOAM Home")
         finally:
             terminal.close()
-    print("Scheduled replacement PTY: Locus/Right/Tab, resized preview refusal, draft recovery, Esc and no-write passed.")
+    print("Scheduled replacement modal PTY: two launchers, floating/compact resize, refusal, Locus, Esc and no-write passed.")
 
 
 if __name__ == "__main__":
