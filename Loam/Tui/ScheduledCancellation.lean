@@ -114,17 +114,22 @@ def updateForBounds (bounds : Bounds) (state : State)
   let current := Loam.Tui.Scroll.clamp content capacity state.scroll
   let page := max 1 capacity
   match key with
-  | .up => { state := { state with scroll :=
-      Loam.Tui.Scroll.backward content capacity current 1 } }
-  | .down => { state := { state with scroll :=
-      Loam.Tui.Scroll.forward content capacity current 1 } }
-  | .pageUp => { state := { state with scroll :=
-      Loam.Tui.Scroll.backward content capacity current page } }
-  | .pageDown => { state := { state with scroll :=
-      Loam.Tui.Scroll.forward content capacity current page } }
+  | .up =>
+      let offset := Loam.Tui.Scroll.backward content capacity current 1
+      { state := { state with scroll := offset } }
+  | .down =>
+      let offset := Loam.Tui.Scroll.forward content capacity current 1
+      { state := { state with scroll := offset } }
+  | .pageUp =>
+      let offset := Loam.Tui.Scroll.backward content capacity current page
+      { state := { state with scroll := offset } }
+  | .pageDown =>
+      let offset := Loam.Tui.Scroll.forward content capacity current page
+      { state := { state with scroll := offset } }
   | .home => { state := { state with scroll := 0 } }
-  | .«end» => { state := { state with scroll :=
-      Loam.Tui.Scroll.maxOffset content capacity } }
+  | .«end» =>
+      let offset := Loam.Tui.Scroll.maxOffset content capacity
+      { state := { state with scroll := offset } }
   | .enter =>
       if state.choice.val == 0 && capacity == 0 then
         { state := { state with notice := "Enlarge terminal to review the Scheduled effects." } }
