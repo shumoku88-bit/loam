@@ -4,6 +4,8 @@ Read `DESIGN_PHILOSOPHY.md` and `docs/HOUSEHOLD_OPERATING_MODE.md` before making
 
 Before non-trivial analysis, auditing, or implementation, read `docs/AI_WORKBENCH.md` and select repository instruments by the question they answer. Do not reason over the whole repository unaided when an existing map, DAG, audit, or qualified evidence surface already narrows the question.
 
+For changes to significant Lean 4 algorithms, representations, load paths, caches, or TUI event/render loops, consult `docs/LANGUAGE_AWARE_DESIGN_REVIEW.md` (#1946). Its bounded review is evidence-driven, not a mandate to optimize, profile, or create CI work.
+
 Before modifying TUI screens, layouts, keymaps, or interaction details, read `docs/TUI_REFINEMENT_ROADMAP.md` for shared quality standards and quiet-design principles, and consult `docs/TUI_NON_BUDGET_WORKLIST.md` for screen progress.
 
 LOAM is the current day-to-day household system and is still under active development. It has no external compatibility obligation, but its operational household data must be preserved through explicit, qualified transitions when representations change.
