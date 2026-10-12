@@ -3,7 +3,21 @@ set -euo pipefail
 
 run() {
   printf '==> %s\n' "$*"
-  "$@"
+  if [[ "${LOAM_TEST_TIMING:-0}" != "1" ]]; then
+    "$@"
+    return
+  fi
+  # Optional, per-command wall time within one existing Lake test group.
+  # Preserve the original command, its order, and any nonzero exit status.
+  local started=$SECONDS status=0
+  if "$@"; then
+    :
+  else
+    status=$?
+  fi
+  printf 'CI-TEST-TIMING seconds=%s exit=%s command=%s\n' \
+    "$((SECONDS - started))" "$status" "$*"
+  return "$status"
 }
 
 run_measure_scale_administration() {
