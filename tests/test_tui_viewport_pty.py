@@ -146,7 +146,11 @@ try:
     bounded(capture(b"Detail [active]"), 14, 48)
     os.write(master, b"\x1b")
     bounded(capture(b"Calendar [active]"), 14, 48)
-    # Manual browsing and subsequent date navigation remain distinct.
+    # Compact Day begins with the selected date already in view. Paging up
+    # at the top is intentionally a no-op and may emit no terminal bytes.
+    # First browse down, then back up, to verify actual viewport movement.
+    os.write(master, b"\x04")
+    bounded(capture(), 14, 48)
     os.write(master, b"\x15")
     bounded(capture(), 14, 48)
     os.write(master, b"h")
