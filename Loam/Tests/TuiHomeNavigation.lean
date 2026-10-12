@@ -117,6 +117,33 @@ def main : IO Unit := do
     snapshot {base with zoomLevel := .day})
   expect (contains "┬" regularDay) "wide Day unexpectedly lost its money grid"
 
+  -- UI-only weekly ribbon trial; crossing dates, focus and old view remain.
+  for bounds in [{width := 48, height := 14}, {width := 80, height := 24},
+      {width := 119, height := 20}, {width := 150, height := 45}] do
+    let state : State := {base with zoomLevel := .day, selectedDate := "2026-10-01"}
+    let switched ← press bounds snapshot state (.input 'F')
+    expect (switched.weekTrial && switched.selectedDate == state.selectedDate)
+      "week trial toggle changed date or failed to enter"
+    let rendered ← browseOverview bounds snapshot switched
+    expect (contains "Week 2026-09-28 .. 2026-10-04" rendered &&
+      contains "Selected day: 2026-10-01" rendered)
+      s!"week ribbon failed month-boundary date at {bounds.width}"
+    expect (contains "Month Flow (2026-10)" rendered)
+      "week ribbon lost independent monthly-money overview"
+    let focused ← press bounds snapshot switched .tab
+    expect (contains "▶ - " (text (Loam.Tui.Home.view bounds snapshot focused)))
+      s!"week trial hid exact Detail at {bounds.width}"
+    let returnState ← press bounds snapshot switched (.input 'F')
+    expect (!returnState.weekTrial && returnState.selectedDate == state.selectedDate)
+      "week trial could not return to original Day grid"
+  let yearBorder : State := {base with zoomLevel := .day, selectedDate := "2026-12-31", weekTrial := true}
+  let yearView ← browseOverview {width := 80, height := 24} snapshot yearBorder
+  expect (contains "Week 2026-12-28 .. 2027-01-03" yearView)
+    "weekly ribbon lost December-to-January coordinates"
+  let zoomed ← press wide snapshot yearBorder (.input 'z')
+  expect (!zoomed.weekTrial && zoomed.zoomLevel == .month)
+    "week trial leaked across existing z zoom"
+
   -- Quiet frames and stable feedback: one-line notices cannot move borders/help.
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, wide] do
     for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
