@@ -68,6 +68,8 @@ structure State where
   detailCursor : Nat := 0
   /-- Calendar zoom level: Day, Month, or Year. -/
   zoomLevel : Loam.Tui.DateJump.ZoomLevel := .day
+  /-- Reversible, session-only seven-day ribbon design trial. -/
+  weekTrial : Bool := false
   /-- Active jump input buffer. When `some s`, Home is in jump-prompt mode. -/
   jumpPrompt : Option String := none
   /-- Currently active/focused pane on the Home surface. -/
@@ -108,6 +110,7 @@ def focusDetail (state : State) : State :=
 def setZoomLevel (state : State) (zoom : Loam.Tui.DateJump.ZoomLevel) : State :=
   { state with
     zoomLevel := zoom
+    weekTrial := false
     overviewScroll := 0
     overviewManualScroll := false
     notice := s!"View: {Loam.Tui.DateJump.zoomLabel zoom}"
@@ -151,6 +154,7 @@ def executeJump (state : State) : State :=
             overviewScroll := 0
             overviewManualScroll := false
             zoomLevel := target.zoom
+            weekTrial := false
             jumpPrompt := none
             notice := s!"Jumped to {target.date} ({Loam.Tui.DateJump.zoomLabel target.zoom})."
             detailScroll := 0
