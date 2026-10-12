@@ -784,8 +784,11 @@ def detailLayoutFor (bounds : Bounds) (snapshot : Snapshot) (state : State)
 
 /-- Follow the selected calendar cell, but never undo explicit overview browsing. -/
 private def overviewOffset (visible : Nat) (rows : List Widget) (state : State) : Nat :=
-  let offset := if state.overviewManualScroll then state.overviewScroll else
-    match rows.zipIdx.find? (fun (row, _) => row.lines.flatten.any fun cell =>
+  -- The week ribbon fits its selected day within the first rows. Start at its
+  -- title rather than scrolling the title out of sight to follow the selection.
+  let offset := if state.overviewManualScroll then state.overviewScroll
+    else if state.weekTrial && state.zoomLevel == .day then 0
+    else match rows.zipIdx.find? (fun (row, _) => row.lines.flatten.any fun cell =>
         cell.style == .selected || cell.style == .selectedUnderlined) with
     | none => state.overviewScroll
     | some (_, index) =>
