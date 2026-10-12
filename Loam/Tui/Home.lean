@@ -309,11 +309,12 @@ private def selectedSlotPosition? (state : State) : Option (Nat × Nat) :=
 private def moneyCalendarRows
     (paneWidth : Nat) (today : String) (pastOpenDates : List String)
     (snapshot : Snapshot) (state : State) (selPos? : Option (Nat × Nat)) : List Widget :=
+  let daySlots := Loam.Tui.Calendar.gridSlots (selectedMonth state)
   (List.range 6).flatMap fun row =>
     let isSelRow := selPos?.map (·.1) == some row
     let selCol := if isSelRow then selPos?.map (·.2) else none
     let slots := (List.range 7).map fun col =>
-      (Loam.Tui.Main.calendarDaySlot state row col).getD { date := "", isCurrentMonth := false }
+      (daySlots[row * 7 + col]?).getD { date := "", isCurrentMonth := false }
     let dateLine := moneyGridRow (slots.map fun slot =>
       if slot.date.isEmpty then blankMoneyCell paneWidth
       else moneyDateSlotSpan paneWidth today pastOpenDates snapshot state slot) selCol
