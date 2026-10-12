@@ -957,13 +957,13 @@ private def homeFooter (bounds : Bounds) (snapshot : Snapshot) (state : State) :
 
 /-- Scroll non-selectable detail evidence when there are no Actual rows. -/
 private def scrollDetail
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) (step : Nat) : State :=
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) (step : Nat)
+    (layout : DetailLayout) : State :=
   let state := { state with notice := "" }
   let footerRows := (homeFooter bounds snapshot state).length
   let panelRows := widePanelRows bounds footerRows
   let visible := wideDetailVisibleRows panelRows
-  let pending := pendingEvidence snapshot
-  let content := (wideDetailLines (detailInnerWidth bounds state) snapshot state pending).length
+  let content := layout.rows.size
   let current := Loam.Tui.Scroll.clamp content visible state.detailScroll
   let next :=
     if forward then Loam.Tui.Scroll.forward content visible current step
@@ -972,13 +972,13 @@ private def scrollDetail
 
 /-- Scroll the calendar, including overflow in short terminals. -/
 private def scrollOverview
-    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool) : State :=
+    (bounds : Bounds) (snapshot : Snapshot) (state : State) (forward : Bool)
+    (layout : DetailLayout) : State :=
   let state := { state with notice := "" }
   let footerRows := (homeFooter bounds snapshot state).length
-  let width := if usesWideLayout bounds then
-      Loam.Tui.Layout.contentWidth bounds - 1 - detailPaneWidth bounds state - 2
-    else Loam.Tui.Layout.contentWidth bounds - 2
-  let rows := calendarRows width snapshot state (!usesWideLayout bounds)
+  let rows :=
+    if usesWideLayout bounds then layout.overviewRows
+    else calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state true
   let visible := widePanelRows bounds footerRows - 2
   let current := overviewOffset visible rows state
   -- Short viewports must not skip rows between successive overview pages.
@@ -1039,7 +1039,8 @@ def navigationKey
     (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1)
     (cached : Option DetailLayout := none) : Option State :=
-  let layout := some (detailLayoutFor bounds snapshot state cached)
+  let prepared := detailLayoutFor bounds snapshot state cached
+  let layout := some prepared
   let state := reconcileState bounds snapshot state layout
   let handled := fun next => some (reconcileState bounds snapshot next layout)
   if state.jumpPrompt.isSome then
@@ -1071,9 +1072,10 @@ def navigationKey
         }
     | .ctrl 'u' | .ctrl 'd' | .pageUp | .pageDown =>
         let forward := key == .ctrl 'd' || key == .pageDown
-        if state.activePane == .calendar then handled (scrollOverview bounds snapshot state forward)
-        else if (detailLayoutFor bounds snapshot state layout).records.isEmpty then
-          some (scrollDetail bounds snapshot state forward 5)
+        if state.activePane == .calendar then
+          handled (scrollOverview bounds snapshot state forward prepared)
+        else if prepared.records.isEmpty then
+          some (scrollDetail bounds snapshot state forward 5 prepared)
         else handled (moveDetailCursor bounds snapshot { state with notice := "" } (if forward then 5 else -5) layout)
     | .home =>
         if state.activePane == .detail then
