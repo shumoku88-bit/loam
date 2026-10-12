@@ -97,7 +97,8 @@ The `F` design trial is a reversible, session-only **Week ribbon** variant of
 existing Day Home, not yet an independent zoom. It uses the admitted Monday-first
 seven-day projection, including month/year crossovers, and retains selected-day
 Actual/Scheduled details and separate month totals. Press `F` to restore the
-established money grid. The `z` cycle, date jump, and household writes do not
+established Day layout (the full money grid on wide terminals and the compact
+Day layout on smaller ones). The `z` cycle, date jump, and household writes do not
 change. No guessed week sum or spendable balance is calculated.
 
 At narrow widths below 80 columns, Day Home prioritizes the selected date and
