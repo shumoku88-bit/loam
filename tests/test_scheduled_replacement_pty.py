@@ -8,8 +8,11 @@ with byte-identical no-write. Accepted publication stays separate under #1902.
 from __future__ import annotations
 
 from pathlib import Path
+import os
+import select
 import subprocess
 import tempfile
+import time
 
 from scheduled_pty_support import ANSI, REPO, Terminal, digest
 
@@ -20,6 +23,15 @@ def resize_with_rebuild(terminal: Terminal, rows: int, cols: int,
     output = terminal.resize(rows, cols, expected)
     assert b"\x1b[2J" in output, "resize did not rebuild the replacement frame"
     return output
+
+
+def child_cpu_seconds(pid: int) -> float | None:
+    """Measure the native child on Linux CI; leave macOS functional checks intact."""
+    stat = Path(f"/proc/{pid}/stat")
+    if not stat.exists():
+        return None
+    fields = stat.read_text().rsplit(")", 1)[1].split()
+    return (int(fields[11]) + int(fields[12])) / os.sysconf("SC_CLK_TCK")
 
 
 def main():
@@ -43,6 +55,21 @@ def main():
             assert b"Posting 1: bank" in ANSI.sub(b"", editor)
             assert b"Replacement due" in ANSI.sub(b"", editor)
             assert digest(root) == original, "opening replacement mutated authority"
+
+            # Observe idle child CPU on the CI runner, excluding Python/PTY
+            # overhead. Quiet state must not paint, mutate authority or exit.
+            cpu_start = child_cpu_seconds(terminal.process.pid)
+            idle_start = time.monotonic()
+            time.sleep(1.5)
+            idle_elapsed = time.monotonic() - idle_start
+            cpu_end = child_cpu_seconds(terminal.process.pid)
+            assert not select.select([terminal.master], [], [], 0)[0], (
+                "idle replacement emitted unexpected terminal output")
+            assert digest(root) == original, "idle replacement modified authority"
+            if cpu_start is not None and cpu_end is not None:
+                print(f"CI-TUI-IDLE surface=scheduled-replacement "
+                      f"wall_seconds={idle_elapsed:.3f} "
+                      f"child_cpu_seconds={cpu_end - cpu_start:.3f}", flush=True)
 
             # Tab selects the first Locus. A partial token displays a candidate.
             terminal.send(b"\t", b"Posting 1")
