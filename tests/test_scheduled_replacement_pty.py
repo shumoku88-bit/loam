@@ -153,7 +153,8 @@ def main():
             # Due 2026-11-08 -> 2026-11-09. Two exact signed postings:
             # -4800 -> -4900 bank and +4800 -> +4900 wifi.
             terminal.send(b"\x7f9")
-            terminal.send(b"\t" * 2)  # Due -> bank Locus -> bank amount
+            terminal.send(b"\t")       # Due -> bank Locus
+            terminal.send(b"\r")       # Enter accepts exact bank and advances to amount
             terminal.send(b"\x7f" * 3 + b"900")
             terminal.send(b"\t" * 2)  # bank amount -> wifi Locus -> wifi amount
             terminal.send(b"\x7f" * 3 + b"900")
