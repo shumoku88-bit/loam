@@ -177,11 +177,7 @@ def runAdaptiveWithScheduledId
   let active ← Loam.Tui.Terminal.currentBounds
   let rect := floatingGeometry? active
   let frame := modalFrame active known state
-  if active == bounds then
-    Loam.Tui.ModalSurface.paint active rect .fromBlank
-      (compileWidget (.row [])) frame
-  else
-    Loam.Tui.ModalSurface.repaintOverParent active rect (parent active) frame
+  Loam.Tui.ModalSurface.paintEntrance bounds active rect parent frame
   modalLoop active root known state frame parent
 
 /--
