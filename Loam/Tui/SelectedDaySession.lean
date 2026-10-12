@@ -127,7 +127,7 @@ def actualDateCorrectionLoop
       match ← Loam.HouseholdCommand.correctActualDate root draft with
       | .ok () => return .ok ("Date set to " ++ draft.validOn ++ ".")
       | .error message => return .error message)
-    state frame
+    state frame true
 
 
 /-- Classification-specific publisher and reload stay here. Only the
@@ -152,7 +152,7 @@ def eventMerchantLoop
             Loam.Tui.EventMerchant.dispositionText draft.disposition ++
             " for " ++ draft.target.token ++ ".")
       | .error message => return .error message)
-    state frame
+    state frame true
 
 
 /-- Both entrances use the same editors, confirmations, publishers and required reloads.
