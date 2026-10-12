@@ -80,6 +80,23 @@ def main : IO Unit := do
   let base : State := {selectedDate := "2026-10-01", zoomLevel := .month}
   let wide : Bounds := {width := 150, height := 45}
 
+  -- Compact Day first shows the selected date and exact, per-Measure flow.
+  -- The complete monthly projection and every read-state remain scrollable.
+  for width in [32, 48, 72, 79] do
+    let bounds : Bounds := {width, height := 24}
+    let state : State := {base with zoomLevel := .day}
+    let first := text (Loam.Tui.Home.view bounds snapshot state)
+    expect (contains "Selected: 2026-10-01" first)
+      s!"compact Day did not lead with the focused date at {width}"
+    let rendered ← browseOverview bounds snapshot state
+    for marker in ["jpy", "usd", "In:+", "Out:-", "Net:", "? 2 unresolved",
+                   "Scheduled:", "Pending:", "Month Flow (2026-10)"] do
+      expect (contains marker rendered)
+        s!"compact Day omitted admitted evidence at {width}: {marker}"
+  let regularDay := text (Loam.Tui.Home.view {width := 80, height := 24}
+    snapshot {base with zoomLevel := .day})
+  expect (contains "┬" regularDay) "regular-width Day unexpectedly lost its money grid"
+
   -- Quiet frames and stable feedback: one-line notices cannot move borders/help.
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, wide] do
     for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
