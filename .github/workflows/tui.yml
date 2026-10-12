@@ -472,7 +472,9 @@ jobs:
               "$((SECONDS - started))" "$status" "$*"
             return "$status"
           }
-          lake test -- tui-representative
+          # Emit per-test and one-time build durations inside the existing group.
+          # No extra jobs or test invocations; detailed timing is PR-only.
+          LOAM_TEST_TIMING=1 lake test -- tui-representative
           lake env lean --run Loam/Tests/BoundedHistorySupport.lean
           lake env lean --run Loam/Tests/ActualReversalPublisher.lean "$(mktemp -d)/actual-reversal-pr"
           lake env lean --run Loam/Tests/TuiActualReversal.lean "$(mktemp -d)/tui-reversal-pr"
