@@ -61,6 +61,7 @@ k/j        previous / next week, quarter, or year (current zoom)
 t          return calendar focus to today
 /          jump to a date, month, or year (Enter confirms; Esc cancels)
 z          cycle Day / Month / Year
+F          toggle experimental Week ribbon / existing month grid in Day mode
 Tab/w      switch calendar / transaction focus
 Ctrl-u/d   scroll calendar; page transaction selection in detail
 Enter      Year -> Month -> Day -> selected-day workspace
@@ -91,6 +92,13 @@ grid; a failed money read has a distinct label and a wrapped, scrollable diagnos
 If money flow evidence is unavailable, the calendar still shows dates and explicitly indicates that the financial projection is
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
+
+The `F` design trial is a reversible, session-only **Week ribbon** variant of
+existing Day Home, not yet an independent zoom. It uses the admitted Monday-first
+seven-day projection, including month/year crossovers, and retains selected-day
+Actual/Scheduled details and separate month totals. Press `F` to restore the
+established money grid. The `z` cycle, date jump, and household writes do not
+change. No guessed week sum or spendable balance is calculated.
 
 At narrow widths below 80 columns, Day Home prioritizes the selected date and
 a bounded first Actual description before its admitted per-Measure income/expense/net
