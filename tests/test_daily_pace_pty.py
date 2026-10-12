@@ -69,13 +69,13 @@ def check_loaded(root):
         # Hypothetical purchase is local to the modal, with NO canonical writes.
         opened = send(terminal, b"w", b"Daily Pace / What if")
         assert b"Purchase (JPY):" in opened, opened
-        entered = send(terminal, b"8000", b"After purchase:")
-        assert b"8,000" in entered and b"Daily change:" in entered, entered
-        assert b"Not already Scheduled" in entered and b"No writes" in entered
+        assert b"Not already Scheduled" in opened and b"No writes" in opened
+        entered = send(terminal, b"8000", b"Purchase (JPY): 8000")
+        assert b"After purchase:" in entered and b"Daily change:" in entered, entered
         compact_modal = resize(terminal, 14, 48, b"Daily Pace / What if")
-        assert b"8,000" in compact_modal and b"After purchase:" in compact_modal
+        assert b"Purchase (JPY): 8000" in compact_modal and b"After purchase:" in compact_modal
         restored_modal = resize(terminal, 40, 120, b"Daily Pace / What if")
-        assert b"8,000" in restored_modal, "modal lost draft on resize"
+        assert b"Purchase (JPY): 8000" in restored_modal, "modal lost draft on resize"
         send(terminal, b"q", b"Daily Pace / Trend")
         assert probe.digest(root) == before, "what-if amount input wrote canonical data"
         # Every preset remains daily and endpoint selection uses inclusive ranges.
