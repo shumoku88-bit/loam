@@ -1,4 +1,5 @@
 import Loam.Tui.DailyPaceTrend
+import Loam.Tui.DailyPaceWhatIf
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -224,7 +225,74 @@ private def testPeriods : IO Unit := do
   cursor ← press bounds longWorld cursor .up 75
   expect (cursor.selected == some 25) "rapid reversal left scroll tail or lost events"
 
+private def testWhatIf : IO Unit := do
+  let pointNow : Loam.CycleSpendingPaceReview.Snapshot := {
+    point "2026-10-30" 24000 with remainingDays := 20 }
+  let world := snapshot (.loaded [pointNow])
+  let current ← match Loam.Tui.DailyPaceWhatIf.current? world with
+    | .ok point => pure point
+    | .error message => throw (IO.userError message)
+  let result ← match Loam.Tui.DailyPaceWhatIf.project? current "8000" with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect (result.currentPerDay == 1200 && result.projectedPerDay == 800 &&
+      result.changePerDay == -400 && result.availableAfter == 16000)
+    "what-if did not subtract an unrecorded JPY outflow from the admitted available pool"
+  let overdraw ← match Loam.Tui.DailyPaceWhatIf.project? current "30000" with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect (overdraw.availableAfter == -6000 && overdraw.projectedPerDay == -300)
+    "overdrawn what-if was silently clamped to zero"
+  expect ((Loam.Tui.DailyPaceWhatIf.project? current "").isError &&
+      (Loam.Tui.DailyPaceWhatIf.project? current "-20").isError &&
+      (Loam.Tui.DailyPaceWhatIf.project? current "1.5").isError &&
+      (Loam.Tui.DailyPaceWhatIf.project? current "1234567890123456789").isError)
+    "invalid, negative, decimal or unbounded hypothetical amounts were accepted"
+  let editor ← match Loam.Tui.DailyPaceWhatIf.update {} (.paste "8000") with
+    | .stay state => pure state
+    | .back => throw (IO.userError "paste unexpectedly closed what-if")
+  expect (editor.amount == "8000") "what-if did not accept exact paste"
+  let rejected ← match Loam.Tui.DailyPaceWhatIf.update editor (.paste "-30") with
+    | .stay state => pure state
+    | .back => throw (IO.userError "invalid paste unexpectedly closed what-if")
+  expect (rejected.amount == editor.amount && !rejected.notice.isEmpty)
+    "invalid paste changed the hypothetical amount"
+  let deleted ← match Loam.Tui.DailyPaceWhatIf.update editor .backspace with
+    | .stay state => pure state
+    | .back => throw (IO.userError "backspace unexpectedly closed what-if")
+  expect (deleted.amount == "800") "what-if backspace lost local input"
+  expect (match Loam.Tui.DailyPaceWhatIf.update editor .enter with
+      | .stay next => next == editor
+      | .back => false)
+    "Enter must never publish or close the what-if"
+  expect (match Loam.Tui.DailyPaceWhatIf.update editor .escape with
+      | .back => true | _ => false)
+    "Esc did not close the what-if"
+  let stale := {world with actual := {world.actual with today := "2026-10-31"}}
+  expect ((Loam.Tui.DailyPaceWhatIf.current? stale).isError &&
+      (Loam.Tui.DailyPaceWhatIf.current? (snapshot (.failed "refused"))).isError)
+    "missing today or failed current projection was interpreted as available"
+  let usd := snapshot (.loaded [point "2026-10-30" 1000 "usd"])
+  expect ((Loam.Tui.DailyPaceWhatIf.current? usd).isError)
+    "JPY what-if silently accepted foreign-currency input"
+  for bounds in [{width := 120, height := 40},
+      {width := 48, height := 14}, {width := 24, height := 8}] do
+    let view := Loam.Tui.DailyPaceWhatIf.viewForBounds bounds world editor
+    expect (view.lines.length ≤ bounds.height - 1 &&
+      view.lines.all fun row =>
+        Loam.Tui.Layout.displayWidth (String.ofList (row.map Cell.glyph)) ≤ bounds.width - 1)
+      "what-if floating/compact view escaped visible terminal geometry"
+    expect (contains "Daily Pace / What if" (text view))
+      "what-if lost its screen title on resize"
+  let visible := text (Loam.Tui.DailyPaceWhatIf.viewForBounds
+    {width := 120, height := 40} world editor)
+  expect (contains "800 jpy/day" visible &&
+      contains "-400 jpy/day" visible && contains "16,000 jpy" visible &&
+      contains "No writes" visible && contains "Not already Scheduled" visible)
+    "what-if modal lost projection, safeguard or nonpublication disclosure"
+
  def main : IO Unit := do
+  testWhatIf
   testPeriods
   testGeometryAndMovement
   testReadStates
