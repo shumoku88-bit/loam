@@ -401,10 +401,11 @@ def main : IO Unit := do
   let narrowBounds : Bounds := { width := 80, height := 24 }
   let narrowView := Loam.Tui.Home.view narrowBounds snapshot state
   let narrowText := widgetText narrowView
-  expect (contains "┬" narrowText && contains "Mon" narrowText)
-    "80-column Calendar Home lost its full money-grid geometry"
-  expect (contains "± not requested" narrowText)
-    "80-column Home fell back to the retired plain calendar"
+  expect (contains "Mon" narrowText && contains "Selected: 2026-09-10" narrowText &&
+    contains "Day 2026-09-10 / Detail" narrowText)
+    "80-column Day Home lost the focused week or its simultaneous Detail"
+  expect (contains "Flow not requested" narrowText)
+    "80-column compact Calendar hid the admitted money-read state"
   expect (!contains "Daily pace:" narrowText)
     "Calendar Home unexpectedly embedded Daily Pace answers"
   for token in expectedTokens do
