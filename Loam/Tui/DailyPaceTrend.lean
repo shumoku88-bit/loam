@@ -389,7 +389,7 @@ def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : State
   let choices := Loam.DailyPacePeriods.presets.zipIdx |>.map fun (period, index) =>
     let label := if g.width < 70 && period == .previousCycle then "Prev" else period.label
     toString (index + 1) ++ ":" ++ label ++ (if period == state.period then "*" else "")
-  let context := [line (" Daily Pace / Trend • " ++ state.period.label),
+  let context := [line (" Daily Pace / Trend • " ++ state.period.label ++ "   [w] what-if"),
     muted (" " ++ String.intercalate " " choices)]
   let lower := if g.wide then Loam.Tui.Layout.sideBySide g.historyHeight g.historyWidth g.detailWidth
       (historyPanel g snapshot state) (detailPanel g snapshot state) " "

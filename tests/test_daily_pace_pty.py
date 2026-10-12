@@ -65,6 +65,19 @@ def check_loaded(root):
         latest = datetime.date.fromisoformat(re.search(rb"Selected (\d{4}-\d{2}-\d{2})", initial).group(1).decode())
         first = latest - datetime.timedelta(days=9)
         assert b"1:10d*" in initial and b"5:Previous Cycle" in initial
+        assert b"[w] what-if" in initial, "what-if shortcut is undiscoverable"
+        # Hypothetical purchase is local to the modal, with NO canonical writes.
+        opened = send(terminal, b"w", b"Daily Pace / What if")
+        assert b"Purchase (JPY):" in opened, opened
+        assert b"Not already Scheduled" in opened and b"No writes" in opened
+        entered = send(terminal, b"8000", b"Purchase (JPY): 8000")
+        assert b"After purchase:" in entered and b"Daily change:" in entered, entered
+        compact_modal = resize(terminal, 14, 48, b"Daily Pace / What if")
+        assert b"Purchase (JPY): 8000" in compact_modal and b"After purchase:" in compact_modal
+        restored_modal = resize(terminal, 40, 120, b"Daily Pace / What if")
+        assert b"Purchase (JPY): 8000" in restored_modal, "modal lost draft on resize"
+        send(terminal, b"q", b"Daily Pace / Trend")
+        assert probe.digest(root) == before, "what-if amount input wrote canonical data"
         # Every preset remains daily and endpoint selection uses inclusive ranges.
         choices = [(b"2", b"30d", latest - datetime.timedelta(days=29), latest),
                    (b"3", b"Month", latest.replace(day=1), latest),
@@ -117,6 +130,10 @@ def check_failed(root):
     try:
         opened = send(terminal, b"d", b"Daily Pace / Trend")
         assert b"history unavailable" in opened and b"0 jpy/day" not in opened
+        unavailable = send(terminal, b"w", b"Daily Pace / What if")
+        assert b"Current projection unavailable" in unavailable
+        assert b"0 jpy/day" not in unavailable, "failed read became an invented zero"
+        send(terminal, b"q", b"Daily Pace / Trend")
         send(terminal, b"i", b"Selected day")
         resize(terminal, 14, 48, b"Selected day")
         send(terminal, b"\x1b[F", b"pace-cause-tail")
@@ -156,7 +173,7 @@ def main():
         check_loaded(root)
         check_missing_previous(root)
         check_failed(root)
-    print("Daily Pace PTY: reconstructed graph/day selection, Detail/refusal, idle/parent resize and unchanged fixture passed.")
+    print("Daily Pace PTY: what-if projection/refusal/no-write, graph/day selection, resize and unchanged fixture passed.")
 
 
 if __name__ == "__main__":
