@@ -137,6 +137,39 @@ def main : IO Unit := do
     let returnState ← press bounds snapshot switched (.input 'F')
     expect (!returnState.weekTrial && returnState.selectedDate == state.selectedDate)
       "week trial could not return to original Day grid"
+  -- Day/week alignment and evidence-preserving status marks on all widths.
+  let movement ← requireSome (BalancedMovement.ofChanges? ⟨"jpy"⟩
+    [{coordinate := ⟨"wallet"⟩, quantity := Quantity.ofQuanta (-1)},
+     {coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 1}]) "week Scheduled movement"
+  let openRecords := (List.range 6).map fun i =>
+    { id := ⟨s!"week-due-{i}"⟩, scheduledOn := "2026-10-15", movement }
+  let openScheduled ← requireSome (ScheduledMemory.ofOccurrences? openRecords)
+    "week Scheduled memory"
+  let .ok originalScheduled := snapshot.scheduled |
+    throw (IO.userError "week Scheduled fixture unavailable")
+  let withScheduled := {snapshot with
+    actual := {snapshot.actual with today := "2026-10-12"}
+    scheduled := .ok {originalScheduled with scheduled := openScheduled} }
+  let weekly : State := {base with zoomLevel := .day, weekTrial := true,
+    selectedDate := "2026-10-15"}
+  for bounds in [{width := 32, height := 20}, {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 119, height := 20},
+      {width := 120, height := 30}, {width := 150, height := 45}] do
+    let shown ← browseOverview bounds withScheduled weekly
+    expect (contains "15" shown && contains "S6" shown && contains "Selected day: 2026-10-15" shown)
+      s!"week Scheduled marker or selected date hidden at {bounds.width}"
+    expect (contains "Mon" shown && contains "Sun" shown)
+      s!"week days did not fit at {bounds.width}"
+    expect (!contains "Out/day:" shown && contains "Month Flow (2026-10)" shown)
+      "week strip invented a pace-like sum or lost the monthly evidence"
+    let view := Loam.Tui.Home.view bounds withScheduled weekly
+    for row in view.lines do
+      expect (Loam.Tui.Layout.displayWidth (String.ofList (row.map Cell.glyph)) ≤ bounds.width - 1)
+        s!"week strip exceeds writable width at {bounds.width}"
+    let badRead := {withScheduled with scheduled := .error "scheduled lifecycle read failed"}
+    let shownFailure ← browseOverview bounds badRead weekly
+    expect (contains "S?" shownFailure && contains "unavailable" shownFailure)
+      s!"week strip hid Scheduled failure at {bounds.width}"
   let yearBorder : State := {base with zoomLevel := .day, selectedDate := "2026-12-31", weekTrial := true}
   let yearView ← browseOverview {width := 80, height := 24} snapshot yearBorder
   expect (contains "Week 2026-12-28 .. 2027-01-03" yearView)
