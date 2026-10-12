@@ -136,11 +136,7 @@ def runAdaptive
   let active ← Loam.Tui.Terminal.currentBounds
   let geometry := activeGeometry? active state
   let frame := frameFor active known state
-  if active == bounds then
-    Loam.Tui.ModalSurface.paint active geometry .fromBlank
-      (compileWidget (.row [])) frame
-  else
-    Loam.Tui.ModalSurface.repaintOverParent active geometry (parent active) frame
+  Loam.Tui.ModalSurface.paintEntrance bounds active geometry parent frame
   runLoop active root world known state frame parent
 
 end Loam.Tui.ScheduledCompletionSession
