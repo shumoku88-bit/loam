@@ -315,11 +315,8 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               let active ← Loam.Tui.Terminal.currentBounds
               let region := Loam.Tui.ActualDateCorrection.floatingGeometry? active
               let editorFrame := compileWidget (Loam.Tui.ActualDateCorrection.viewForBounds active editor)
-              if active == bounds then
-                Loam.Tui.ModalSurface.paint active region .fromBlank
-                  (compileWidget (.row [])) editorFrame
-              else
-                Loam.Tui.ModalSurface.repaintOverParent active region (parent active) editorFrame
+              Loam.Tui.ModalSurface.paintEntrance
+                bounds active region parent editorFrame
               let notice ← actualDateCorrectionLoop
                 active root editor editorFrame parent
               let bounds ← Loam.Tui.Terminal.currentBounds
@@ -356,11 +353,8 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               let active ← Loam.Tui.Terminal.currentBounds
               let region := Loam.Tui.EventMerchant.floatingGeometry? active
               let editorFrame := compileWidget (Loam.Tui.EventMerchant.viewForBounds active editor)
-              if active == bounds then
-                Loam.Tui.ModalSurface.paint active region .fromBlank
-                  (compileWidget (.row [])) editorFrame
-              else
-                Loam.Tui.ModalSurface.repaintOverParent active region (parent active) editorFrame
+              Loam.Tui.ModalSurface.paintEntrance
+                bounds active region parent editorFrame
               let notice ← eventMerchantLoop active root editor editorFrame parent
               let bounds ← Loam.Tui.Terminal.currentBounds
               let fresh ← requireReload notice reload
@@ -426,11 +420,8 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
               let active ← Loam.Tui.Terminal.currentBounds
               let region := Loam.Tui.ActualReversal.floatingGeometry? active
               let editorFrame := compileWidget (Loam.Tui.ActualReversal.viewForBounds active editor)
-              if active == bounds then
-                Loam.Tui.ModalSurface.paint active region .fromBlank
-                  (compileWidget (.row [])) editorFrame
-              else
-                Loam.Tui.ModalSurface.repaintOverParent active region (parent active) editorFrame
+              Loam.Tui.ModalSurface.paintEntrance
+                bounds active region parent editorFrame
               let notice ← Loam.Tui.ActualReversalSession.runAdaptive
                 active root editor editorFrame parent
               let bounds ← Loam.Tui.Terminal.currentBounds

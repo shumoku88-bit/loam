@@ -87,12 +87,8 @@ private def openModal
   let active ← Loam.Tui.Terminal.currentBounds
   let rectangle := modalGeometry? active
   let frame := compileWidget (modalViewForBounds active confirmation)
-  if active == bounds then
-    Loam.Tui.ModalSurface.paint active rectangle .fromBlank
-      (compileWidget (.row [])) frame
-  else
-    Loam.Tui.ModalSurface.repaintOverParent active rectangle
-      (parentFrame active browse) frame
+  Loam.Tui.ModalSurface.paintEntrance bounds active rectangle
+    (fun current => parentFrame current browse) frame
   modalLoop active browse confirmation frame
 
 private def draw (bounds : Bounds) (state : Loam.Tui.AttentionAdministration.State)
