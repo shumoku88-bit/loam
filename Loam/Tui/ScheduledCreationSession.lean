@@ -121,54 +121,11 @@ def modalViewForBounds (bounds : Bounds) (known : List String)
     "Scheduled / New"
     (fun inner => Loam.Tui.ScheduledCreation.view inner known state)
 
-private def modalFrame (bounds : Bounds) (known : List String)
-    (state : Loam.Tui.ScheduledCreation.State) : CompiledWidget :=
-  compileWidget (modalViewForBounds bounds known state)
-
 /--
-The standalone creation editor owns refusal-to-edit and its one precise
-publisher. No publication is attempted by merely entering preview or resizing.
--/
-private partial def modalLoop
-    (bounds : Bounds) (root : System.FilePath) (known : List String)
-    (state : Loam.Tui.ScheduledCreation.State) (frame : CompiledWidget)
-    (parent : Bounds → CompiledWidget) : IO (Option ScheduledId × String) := do
-  let key ← Loam.Tui.Terminal.readKey
-  let active ← Loam.Tui.Terminal.currentBounds
-  let rect := floatingGeometry? active
-  let frame ←
-    if active == bounds then pure frame
-    else do
-      let next := modalFrame active known state
-      Loam.Tui.ModalSurface.repaintOverParent active rect (parent active) next
-      pure next
-  if key == .other then
-    return (← modalLoop active root known state frame parent)
-  let step := Loam.Tui.ScheduledCreation.updateForBounds
-    (editorBounds active) known state key
-  if step.cancel then
-    return (none, "Scheduled creation cancelled.")
-  let outcome ←
-    match step.publish with
-    | none => pure (.ok step.state :
-        Except (ScheduledId × String) Loam.Tui.ScheduledCreation.State)
-    | some draft =>
-        match ← Loam.HouseholdCommand.createScheduled root draft with
-        | .ok scheduledId =>
-            pure (.error (scheduledId,
-              "Scheduled " ++ scheduledId.token ++ " for " ++ draft.scheduledOn ++ "."))
-        | .error message =>
-            pure (.ok (Loam.Tui.ScheduledCreation.withPublishError step.state message))
-  match outcome with
-  | .error (created, notice) => return (some created, notice)
-  | .ok nextState =>
-      let nextFrame := modalFrame active known nextState
-      Loam.Tui.ModalSurface.paint active rect .dirtyDiff frame nextFrame
-      modalLoop active root known nextState nextFrame parent
-
-/--
-Return an exact created identity, preserving the ordinary creation publisher
-without changing continuation's independent full-screen call path.
+Return the exact created Scheduled identity. The existing adaptive session now
+owns the standalone modal's key, resize, paint, and refusal-retry loop; this
+caller still owns the creation command and post-publication continuation.
+Group draft collection retains its distinct non-publishing entry point.
 -/
 def runAdaptiveWithScheduledId
     (bounds : Bounds) (root : System.FilePath) (known : List String)
@@ -176,9 +133,24 @@ def runAdaptiveWithScheduledId
     (parent : Bounds → CompiledWidget) : IO (Option ScheduledId × String) := do
   let active ← Loam.Tui.Terminal.currentBounds
   let rect := floatingGeometry? active
-  let frame := modalFrame active known state
+  let frame := compileWidget (modalViewForBounds active known state)
   Loam.Tui.ModalSurface.paintEntrance bounds active rect parent frame
-  modalLoop active root known state frame parent
+  Loam.Tui.EditorSession.runUntilPublishedAdaptive active
+    floatingGeometry?
+    parent
+    (fun current editor key =>
+      Loam.Tui.ScheduledCreation.updateForBounds
+        (editorBounds current) known editor key)
+    (fun current editor => modalViewForBounds current known editor)
+    Loam.Tui.ScheduledCreation.withPublishError
+    (none, "Scheduled creation cancelled.")
+    (fun draft => do
+      match ← Loam.HouseholdCommand.createScheduled root draft with
+      | .ok scheduledId =>
+          return .ok (some scheduledId,
+            "Scheduled " ++ scheduledId.token ++ " for " ++ draft.scheduledOn ++ ".")
+      | .error message => return .error message)
+    state frame
 
 /--
 Standalone create keeps the existing *post-publication* expected-pace setup.
