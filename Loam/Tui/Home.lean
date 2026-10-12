@@ -527,12 +527,71 @@ private def yearOverviewPane
   , blankLine
   ]
 
+/-- Compact Day Home presents the selected date's admitted flow before the
+    month overview. This is display-only: no balance or Daily Pace is inferred. -/
+private def compactDayCalendarPane
+    (paneWidth : Nat) (snapshot : Snapshot) (state : State)
+    (pastOpenDates : List String) : List Widget :=
+  let m := selectedMonth state
+  let grid := Loam.Tui.Calendar.gridSlots m
+  let selectedWeek := ((selectedSlotPosition? state).map (·.1)).getD 0
+  let cellWidth := moneyCellWidth paneWidth
+  let weekCells := (List.range 7).map fun col =>
+    let slot := (grid[selectedWeek * 7 + col]?).getD { date := "", isCurrentMonth := false }
+    if slot.date.isEmpty then blankMoneyCell paneWidth
+    else if cellWidth < 5 then
+      span (Loam.Tui.Layout.padRight cellWidth (shortDay slot.date))
+        (moneyCellStyle snapshot.actual.today state slot.date slot.isCurrentMonth)
+    else
+      moneyDateSlotSpan paneWidth snapshot.actual.today pastOpenDates snapshot state slot
+  let dayFlow :=
+    match snapshot.moneyCalendar with
+    | .notRequested => wrappedLines paneWidth "Flow not requested" .muted
+    | .unavailable => wrappedLines paneWidth "Flow unavailable" .muted
+    | .failed message =>
+        wrappedLines paneWidth "Flow read failed" ++ wrappedLines paneWidth message .muted
+    | .loaded money =>
+        let window := moneyWindow state
+        let measures := money.flow.measuresInWindow window.1 window.2
+        let lines := measures.filterMap fun measure =>
+          (money.flow.rowFor? state.selectedDate measure).map fun row =>
+            let format := groupedQuantaText money measure
+            let plus := row.directional.plus.quanta
+            let minus := row.directional.minus.quanta
+            let net := plus - minus
+            let sign := if net > 0 then "+" else ""
+            let partial := if row.unresolvedEffectCount == 0 then ""
+              else s!"  [? {row.unresolvedEffectCount} unresolved]"
+            s!"{measure.token}  In:+{format plus}  Out:-{format minus}  Net:{sign}{format net}{partial}"
+        if lines.isEmpty then wrappedLines paneWidth "No recorded income/expense flow on this day." .muted
+        else lines.flatMap (wrappedLines paneWidth)
+  let scheduled :=
+    match homeScheduledEvidence snapshot state with
+    | .error _ => "unavailable"
+    | .ok (.due _ rest) => s!"{rest.length + 1} due"
+    | .ok .unknown => "unknown"
+  let pending :=
+    match pendingEvidence snapshot with
+    | .error _ => "unavailable"
+    | .ok records => toString records.length
+  [ moneyCalendarHeader paneWidth
+  , .row [span " Selected: " .muted, span state.selectedDate .selected]
+  ] ++
+  dayFlow ++
+  wrappedLines paneWidth s!"Scheduled: {scheduled}  Pending: {pending}" .muted ++
+  [mutedLine " Focused week:", moneyGridRow weekCells, blankLine] ++
+  periodSummaryLines paneWidth snapshot state ++
+  wrappedLines paneWidth "Week: ! open Scheduled; ? unresolved role; Tab details; Ctrl-d scroll" .muted
+
 private def wideCalendarPane
     (paneWidth : Nat)
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      moneyCalendarBlock paneWidth snapshot state pastOpenDates
+      if paneWidth < 78 then
+        compactDayCalendarPane paneWidth snapshot state pastOpenDates
+      else
+        moneyCalendarBlock paneWidth snapshot state pastOpenDates
   | .month =>
       monthCalendarPane paneWidth snapshot state ++ periodSummaryLines paneWidth snapshot state
   | .year =>
