@@ -48,6 +48,8 @@ import Loam.Tui.Main
 import Loam.Tui.Home
 import Loam.Tui.HomeCommandPalette
 import Loam.Tui.DailyPaceTrend
+import Loam.Tui.DailyPaceWhatIf
+import Loam.Tui.ModalSurface
 import Loam.Tui.ActualWorkspace
 import Loam.Tui.ScheduledWorkspace
 import Loam.Tui.ScheduledWorkspaceSession
@@ -457,6 +459,30 @@ partial def currentQuantityAnchorLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       currentQuantityAnchorLoop bounds root step.state nextFrame
 
+/-- A local, read-only modal over the already-loaded current Daily Pace answer. -/
+partial def dailyPaceWhatIfLoop
+    (bounds : Bounds) (snapshot : Snapshot)
+    (trend : Loam.Tui.DailyPaceTrend.State)
+    (state : Loam.Tui.DailyPaceWhatIf.State)
+    (frame : CompiledWidget) : IO Bounds := do
+  let key ← Loam.Tui.Terminal.readKey
+  let active ← Loam.Tui.Terminal.currentBounds
+  let surface := Loam.Tui.DailyPaceWhatIf.floatingGeometry? active
+  let frame ← if active == bounds then pure frame else do
+    let current := compileWidget (Loam.Tui.DailyPaceWhatIf.viewForBounds active snapshot state)
+    Loam.Tui.ModalSurface.repaintOverParent active surface
+      (compileWidget (Loam.Tui.DailyPaceTrend.view active snapshot trend)) current
+    pure current
+  if key == .other then
+    return (← dailyPaceWhatIfLoop active snapshot trend state frame)
+  match Loam.Tui.DailyPaceWhatIf.update state key with
+  | .back => return active
+  | .stay next =>
+      let nextFrame := compileWidget
+        (Loam.Tui.DailyPaceWhatIf.viewForBounds active snapshot next)
+      Loam.Tui.ModalSurface.paint active surface .dirtyDiff frame nextFrame
+      dailyPaceWhatIfLoop active snapshot trend next nextFrame
+
 /-- Read-only Daily Pace graph selection, with no household writes. -/
 partial def dailyPaceTrendLoop
     (bounds : Bounds) (snapshot : Snapshot)
@@ -468,7 +494,19 @@ partial def dailyPaceTrendLoop
   -- Geometry still refreshes on idle ticks, but an unchanged chart needs no work.
   if key == .other then
     return (← dailyPaceTrendLoop bounds snapshot state frame)
-  match Loam.Tui.DailyPaceTrend.update bounds snapshot state key repeatCount with
+  if key == .input 'w' || key == .input 'W' then
+    let editor : Loam.Tui.DailyPaceWhatIf.State := {}
+    let modal := compileWidget
+      (Loam.Tui.DailyPaceWhatIf.viewForBounds bounds snapshot editor)
+    Loam.Tui.ModalSurface.paintEntrance bounds bounds
+      (Loam.Tui.DailyPaceWhatIf.floatingGeometry? bounds)
+      (fun current => compileWidget (Loam.Tui.DailyPaceTrend.view current snapshot state))
+      modal
+    let bounds ← dailyPaceWhatIfLoop bounds snapshot state editor modal
+    let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot state)
+    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
+    dailyPaceTrendLoop bounds snapshot state nextFrame
+  else match Loam.Tui.DailyPaceTrend.update bounds snapshot state key repeatCount with
   | .back => return bounds
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot next)
