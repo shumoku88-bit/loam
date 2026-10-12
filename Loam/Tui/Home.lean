@@ -591,13 +591,16 @@ private def compactDayCalendarPane
     | _, _ => "Week unavailable"
   let header :=
     if state.weekTrial then
-      [ .row [span " " .muted, span weekSpan .normal]
-      , moneyRule paneWidth '┌' '┬' '┐'
-      , moneyCalendarHeader paneWidth
-      , moneyGridRow weekCells
-      , moneyRule paneWidth '└' '┴' '┘'
-      , .row [span " Selected day: " .muted, span state.selectedDate .selected]
-      ]
+      if paneWidth < 77 then
+        [ .row [span " Selected day: " .muted, span state.selectedDate .selected]
+        , moneyGridRow weekCells
+        ]
+      else
+        [ .row [span " " .muted, span weekSpan .normal]
+        , moneyCalendarHeader paneWidth
+        , moneyGridRow weekCells
+        , .row [span " Selected day: " .muted, span state.selectedDate .selected]
+        ]
     else
       [ .row [span " Selected: " .muted, span state.selectedDate .selected]
       , moneyCalendarHeader paneWidth
@@ -605,6 +608,9 @@ private def compactDayCalendarPane
       ]
   header ++
   actualPreview ++
+  (if state.weekTrial && paneWidth < 77 then
+    wrappedLines paneWidth weekSpan .muted
+   else []) ++
   dayFlow ++
   wrappedLines paneWidth s!"Scheduled: {scheduled}  Pending: {pending}" .muted ++
   [blankLine] ++
@@ -898,7 +904,7 @@ private def navigationHelp (state : State) : String × List HelpItem :=
           , { key := "[t]", label := "today" }
           , { key := "[/]", label := "jump" }
           , { key := "[z]", label := "zoom" }
-          , { key := "[F]", label := if state.weekTrial then "month grid" else "week trial" }
+          , { key := "[F]", label := if state.weekTrial then "Day layout" else "week trial" }
           ])
     | .month =>
         ("Month",
@@ -1199,7 +1205,7 @@ def navigationKey
             weekTrial := !state.weekTrial
             overviewScroll := 0
             overviewManualScroll := false
-            notice := if state.weekTrial then "Month grid." else "Week ribbon trial."
+            notice := if state.weekTrial then "Original Day layout." else "Week ribbon trial."
           }
         else handled state
     | .tab | .input 'w' | .input 'W' => handled (toggleActivePane state)
