@@ -560,9 +560,9 @@ private def compactDayCalendarPane
             let minus := row.directional.minus.quanta
             let net := plus - minus
             let sign := if net > 0 then "+" else ""
-            let partial := if row.unresolvedEffectCount == 0 then ""
+            let unresolvedLabel := if row.unresolvedEffectCount == 0 then ""
               else s!"  [? {row.unresolvedEffectCount} unresolved]"
-            s!"{measure.token}  In:+{format plus}  Out:-{format minus}  Net:{sign}{format net}{partial}"
+            s!"{measure.token}  In:+{format plus}  Out:-{format minus}  Net:{sign}{format net}{unresolvedLabel}"
         if lines.isEmpty then wrappedLines paneWidth "No recorded income/expense flow on this day." .muted
         else lines.flatMap (wrappedLines paneWidth)
   let scheduled :=
