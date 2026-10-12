@@ -96,11 +96,19 @@ private def verifyPtyReplacement (root : System.FilePath) : IO Unit := do
   let routing ← requireSome
     (Loam.Persistence.decodeScheduledRoutingHistory? routingBody)
     "PTY replacement broke ScheduledRouting decoding"
-  for day in ["2026-11-08", "2026-12-01"] do
-    expect (routing.statusAt (routingSubject next.id) day ==
-        routing.statusAt (routingSubject sourceId) day)
-      "PTY replacement lost the source's date-sensitive routing status"
-  IO.println "Scheduled replacement PTY canonical verification: successor, exact date, signed postings, source retention, open review and routing passed."
+  -- Unlike batch replacement, the *single* HouseholdCommand.replaceScheduled
+  -- publishes Scheduled only. It must neither invent successor routing nor
+  -- alter historical assertions on the source or independent Scheduled.
+  let expectedRouting ← requireSome (RoutingHistory.ofEntries?
+    [{ subject := routingSubject sourceId, effectiveOn := "2026-01-01",
+       purpose := some ⟨"internet"⟩ },
+     { subject := routingSubject sourceId, effectiveOn := "2026-12-01",
+       purpose := none },
+     { subject := routingSubject ⟨"second"⟩, effectiveOn := "2026-01-01",
+       purpose := none }]) "expected synthetic Scheduled routing history"
+  expect (routing.entries == expectedRouting.entries)
+    "single PTY replacement unexpectedly changed canonical ScheduledRouting"
+  IO.println "Scheduled replacement PTY canonical verification: exact successor/date/postings, source retention, open review and unchanged routing passed."
 
 def main (args : List String) : IO Unit := do
   let (path, setupOnly, verifyOnly) ←
