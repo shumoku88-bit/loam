@@ -10,6 +10,9 @@ open Loam.Core
 private def expect (condition : Bool) (message : String) : IO Unit := do
   unless condition do throw (IO.userError message)
 
+private def contains (needle haystack : String) : Bool :=
+  (haystack.splitOn needle).length > 1
+
 private def requireSome {α : Type} (value : Option α) (message : String) : IO α :=
   match value with
   | some result => pure result
@@ -89,6 +92,44 @@ def main (args : List String) : IO Unit := do
   let preview := Loam.Tui.EventMerchant.update typed .enter
   expect (preview.state.mode == .preview && preview.publish.isNone)
     "Merchant input did not require preview"
+  let roomy : Loam.Tui.Kernel.Bounds := { width := 120, height := 40 }
+  let some rectangle := Loam.Tui.EventMerchant.floatingGeometry? roomy
+    | throw (IO.userError "Merchant editor did not float at roomy bounds")
+  expect (rectangle.width == 76 && rectangle.height == 21 &&
+      rectangle.top == 9 && rectangle.left == 21)
+    "Merchant editor did not use shared centered geometry"
+  let floating := Loam.Tui.EventMerchant.viewForBounds roomy preview.state
+  let floatingText := String.ofList (floating.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
+  expect (floating.lines.length == rectangle.height &&
+      contains "Event Merchant / Preview" floatingText &&
+      contains purchaseId.token floatingText && contains "Merchant sanwa" floatingText)
+    "Merchant floating review lost immutable identity or disposition"
+  for cells in floating.lines do
+    expect (Loam.Tui.Layout.displayWidth (String.ofList
+      (cells.map Loam.Tui.Kernel.Cell.glyph)) == rectangle.width)
+      "Merchant floating review escaped physical frame width"
+  for tiny in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
+      { width := 32, height := 9 }, { width := 10, height := 1 }] do
+    expect ((Loam.Tui.EventMerchant.floatingGeometry? tiny).isNone)
+      "Merchant compact terminal floated"
+    let compact := Loam.Tui.EventMerchant.viewForBounds tiny preview.state
+    expect (compact.lines.length <= tiny.height - 1)
+      "Merchant compact preview exceeded writable rows"
+  let hidden := Loam.Tui.EventMerchant.updateForBounds
+    { width := 32, height := 9 } preview.state .enter
+  expect (hidden.publish.isNone && hidden.state.mode == .preview &&
+      hidden.state.target == purchaseId && hidden.state.partyInput == "sanwa")
+    "hidden Merchant preview published or lost draft"
+  let expanded := Loam.Tui.EventMerchant.updateForBounds
+    (Loam.Tui.EventMerchant.editorBounds roomy) hidden.state .enter
+  expect expanded.publish.isSome
+    "enlarged Merchant review lost exact publication intent"
+  let longPreview : Loam.Tui.EventMerchant.State := {
+    preview.state with description := String.ofList (List.replicate 2000 'x') }
+  let longBlocked := Loam.Tui.EventMerchant.updateForBounds
+    (Loam.Tui.EventMerchant.editorBounds roomy) longPreview .enter
+  expect longBlocked.publish.isNone
+    "clipped Merchant description allowed hidden Publish"
   let publish := Loam.Tui.EventMerchant.update preview.state .enter
   let merchantDraft ← requireSome publish.publish "Merchant preview did not emit publication intent"
   expect (merchantDraft.target == purchaseId)
