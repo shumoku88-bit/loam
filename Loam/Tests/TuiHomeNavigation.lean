@@ -150,8 +150,12 @@ def main : IO Unit := do
   let withScheduled := {snapshot with
     actual := {snapshot.actual with today := "2026-10-12"}
     scheduled := .ok {originalScheduled with scheduled := openScheduled} }
-  let weekly : State := {base with zoomLevel := .day, weekTrial := true,
-    selectedDate := "2026-10-15"}
+  let weekly : State := {
+    base with
+    zoomLevel := .day
+    weekTrial := true
+    selectedDate := "2026-10-15"
+  }
   for bounds in [{width := 32, height := 20}, {width := 48, height := 14},
       {width := 80, height := 24}, {width := 119, height := 20},
       {width := 120, height := 30}, {width := 150, height := 45}] do
