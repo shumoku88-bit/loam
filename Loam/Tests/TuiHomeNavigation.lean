@@ -65,11 +65,11 @@ private def fixture : IO Snapshot := do
 /-- Collect actual rendered viewports, not private summary strings. -/
 private def browseOverview (bounds : Bounds) (snapshot : Snapshot) (state : State) : IO String := do
   let mut state := state
-  let mut seen := ""
+  let mut frames : Array String := #[]
   for _ in List.range 30 do
-    seen := seen ++ "\n" ++ text (Loam.Tui.Home.view bounds snapshot state)
+    frames := frames.push ("\n" ++ text (Loam.Tui.Home.view bounds snapshot state))
     state ← press bounds snapshot state (.ctrl 'd')
-  pure seen
+  pure (String.intercalate "" frames.toList)
 
 def main : IO Unit := do
   let snapshot ← fixture
