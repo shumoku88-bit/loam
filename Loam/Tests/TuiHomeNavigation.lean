@@ -125,9 +125,10 @@ def main : IO Unit := do
     expect (switched.weekTrial && switched.selectedDate == state.selectedDate)
       "week trial toggle changed date or failed to enter"
     let rendered ← browseOverview bounds snapshot switched
-    expect (contains "Week 2026-09-28 .. 2026-10-04" rendered &&
-      contains "Selected day: 2026-10-01" rendered)
-      s!"week ribbon failed month-boundary date at {bounds.width}"
+    expect (contains "Week 2026-09-28 .. 2026-10-04" rendered)
+      s!"week ribbon lost month-boundary coordinates at {bounds.width}: {rendered}"
+    expect (contains "Selected day: 2026-10-01" rendered)
+      s!"week ribbon lost focused date at {bounds.width}: {rendered}"
     expect (contains "Month Flow (2026-10)" rendered)
       "week ribbon lost independent monthly-money overview"
     let focused ← press bounds snapshot switched .tab
