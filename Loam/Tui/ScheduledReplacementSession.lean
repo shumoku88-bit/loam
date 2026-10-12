@@ -64,6 +64,6 @@ def runAdaptive
           return .ok ("Superseded " ++ draft.source.token ++ ".")
       | .error message =>
           return .error message)
-    state frame
+    state frame true
 
 end Loam.Tui.ScheduledReplacementSession
