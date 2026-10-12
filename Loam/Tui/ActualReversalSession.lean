@@ -32,6 +32,6 @@ def runAdaptive
           return .ok ("Reversed " ++ draft.target.token ++ ".")
       | .error message =>
           return .error message)
-    state frame
+    state frame true
 
 end Loam.Tui.ActualReversalSession
