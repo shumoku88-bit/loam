@@ -147,8 +147,9 @@ def eventMerchantLoop
     "Merchant classification cancelled."
     (fun draft => do
       match ← Loam.HouseholdCommand.classifyEventMerchant root draft with
-      | .ok () => return .ok
-          ("Published " ++ Loam.Tui.EventMerchant.dispositionText draft.disposition ++
+      | .ok () =>
+          return .ok ("Published " ++
+            Loam.Tui.EventMerchant.dispositionText draft.disposition ++
             " for " ++ draft.target.token ++ ".")
       | .error message => return .error message)
     state frame
