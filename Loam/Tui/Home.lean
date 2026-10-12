@@ -527,6 +527,58 @@ private def yearOverviewPane
   , blankLine
   ]
 
+/-- One quiet 7-column Week strip. All three rows share their exact terminal
+    column geometry. Calendar/Actual/Scheduled evidence is not modified. -/
+private def weekStripRow (paneWidth : Nat) (cells : List (String × Style)) : Widget :=
+  let cellWidth := (paneWidth - 8) / 7
+  .row <| [span " "] ++
+    (cells.zipIdx).flatMap fun ((label, style), index) =>
+      (if index == 0 then [] else [span " " .muted]) ++
+      [span (centerPill cellWidth label) style]
+
+/-- An empty marker means *no explicitly open occurrence on this date*, not a
+    proof that no Scheduled obligation exists. Read failures remain S?. -/
+private def weekScheduledMark
+    (openRecords : Except String (List Loam.ScheduledReview.Record))
+    (date : String) (cellWidth : Nat) : String :=
+  match openRecords with
+  | .error _ => "S?"
+  | .ok records =>
+      let count := (records.filter fun record => record.scheduledOn == date).length
+      if count == 0 then ""
+      else
+        let full := "S" ++ toString count
+        if Loam.Tui.Layout.displayWidth full ≤ cellWidth then full else "S+"
+
+private def weekStripRows
+    (paneWidth : Nat) (snapshot : Snapshot) (state : State)
+    (slots : List Loam.Tui.Calendar.DaySlot) : List Widget :=
+  let cellWidth := (paneWidth - 8) / 7
+  let openRecords : Except String (List Loam.ScheduledReview.Record) :=
+    match snapshot.scheduled with
+    | .error message => .error message
+    | .ok scheduled => Loam.ScheduledReview.orderedCurrentOpenRecords scheduled
+  let weekdays := ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  let dayLabels := slots.map fun slot =>
+    let day := shortDay slot.date
+    let label := if slot.date == state.selectedDate then
+      if cellWidth ≥ 4 then "[" ++ day ++ "]" else ">" ++ day
+      else day
+    (label, moneyCellStyle snapshot.actual.today state slot.date slot.isCurrentMonth)
+  let dayStatus := slots.map fun slot =>
+    let scheduled := weekScheduledMark openRecords slot.date cellWidth
+    let label :=
+      if scheduled.isEmpty && slot.date == snapshot.actual.today then
+        if cellWidth ≥ 5 then "Today" else "T"
+      else scheduled
+    (label, if slot.date == state.selectedDate then Style.selected
+       else if slot.date == snapshot.actual.today then Style.underlined
+       else Style.muted)
+  [ weekStripRow paneWidth (weekdays.map fun day => (day, Style.muted))
+  , weekStripRow paneWidth dayLabels
+  , weekStripRow paneWidth dayStatus
+  ]
+
 /-- Compact Day Home presents the selected date's admitted flow before the
     month overview. This is display-only: no balance or Daily Pace is inferred. -/
 private def compactDayCalendarPane
@@ -592,15 +644,14 @@ private def compactDayCalendarPane
   let header :=
     if state.weekTrial then
       if paneWidth < 77 then
-        [ .row [span " Selected day: " .muted, span state.selectedDate .selected]
-        , moneyGridRow weekCells
-        ]
+        -- The short-terminal preview keeps the first Actual row ahead of the
+        -- marker legend and full period flow in the scrollable viewport.
+        [ .row [span " Selected day: " .muted, span state.selectedDate .selected] ] ++
+        (weekStripRows paneWidth snapshot state selectedSlots).take 2
       else
-        [ .row [span " " .muted, span weekSpan .normal]
-        , moneyCalendarHeader paneWidth
-        , moneyGridRow weekCells
-        , .row [span " Selected day: " .muted, span state.selectedDate .selected]
-        ]
+        [ .row [span " " .muted, span weekSpan .normal] ] ++
+        weekStripRows paneWidth snapshot state selectedSlots ++
+        [ .row [span " Selected day: " .muted, span state.selectedDate .selected] ]
     else
       [ .row [span " Selected: " .muted, span state.selectedDate .selected]
       , moneyCalendarHeader paneWidth
@@ -609,13 +660,17 @@ private def compactDayCalendarPane
   header ++
   actualPreview ++
   (if state.weekTrial && paneWidth < 77 then
+    (weekStripRows paneWidth snapshot state selectedSlots).drop 2 ++
     wrappedLines paneWidth weekSpan .muted
    else []) ++
   dayFlow ++
   wrappedLines paneWidth s!"Scheduled: {scheduled}  Pending: {pending}" .muted ++
   [blankLine] ++
   periodSummaryLines paneWidth snapshot state ++
-  wrappedLines paneWidth "Week: ! open Scheduled; ? unresolved role; Tab details; Ctrl-d scroll" .muted
+  (if state.weekTrial then
+    wrappedLines paneWidth "[day] selected; underline today; S# open Scheduled; S? read unavailable; blank = no evidenced open plan" .muted
+   else
+    wrappedLines paneWidth "Week: ! open Scheduled; ? unresolved role; Tab details; Ctrl-d scroll" .muted)
 
 private def wideCalendarPane
     (paneWidth : Nat)

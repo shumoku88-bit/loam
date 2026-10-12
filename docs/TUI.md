@@ -94,7 +94,17 @@ unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
 
 The `F` design trial is a reversible, session-only **Week ribbon** variant of
-existing Day Home, not yet an independent zoom. It uses the admitted Monday-first
+existing Day Home, not yet an independent zoom. Its quiet strip has three aligned
+rows: Monday-first weekday, date and small read-side status. Selected days have
+brackets (or a leading > at the narrowest widths) in addition to the selected
+style; Today stays underlined and can show a Today/T marker. `S6` denotes six
+explicitly **current-open** Scheduled occurrences retained for that date, `S+`
+denotes a positive count too wide for the cell (not a truncated numerical
+claim), and `S?` denotes a failed Scheduled read; no marker is not a
+closed-world NotDue verdict. At very narrow/short widths, status precedes the
+scrollable full-week date and period view only after the first Actual preview.
+The strip removes intra-week vertical rules and shares one consistent column
+geometry for weekday, date and status. It uses the admitted Monday-first
 seven-day projection, including month/year crossovers, and retains selected-day
 Actual/Scheduled details and separate month totals. Press `F` to restore the
 established Day layout (the full money grid on wide terminals and the compact
