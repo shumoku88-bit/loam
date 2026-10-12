@@ -3,7 +3,7 @@
 
 Cover shared floating/compact modal placement, both launchers, Locus picker,
 edit/preview resize, short-viewport publication refusal, and draft retention
-with byte-identical no-write. Accepted publication stays separate under #1902.
+with byte-identical no-write, then accept and verify an exact canonical successor.
 """
 from __future__ import annotations
 
@@ -15,6 +15,19 @@ import tempfile
 import time
 
 from scheduled_pty_support import ANSI, REPO, Terminal, digest
+
+
+def household_sections(root: Path) -> dict[str, str]:
+    """Compare retained image sections including the untouched routing history."""
+    header, rest = (root / "household.loam").read_text().split("\n", 1)
+    assert header == "LOAM-HOUSEHOLD-IMAGE\t2", header
+    sections = {}
+    while rest:
+        frame, rest = rest.split("\n", 1)
+        tag, name, count = frame.split("\t")
+        assert tag == "SECTION", frame
+        sections[name], rest = rest[:int(count)], rest[int(count):]
+    return sections
 
 
 def resize_with_rebuild(terminal: Terminal, rows: int, cols: int,
@@ -127,9 +140,60 @@ def main():
             terminal.send(b"\x1b", b"Household Day Workspace")
             assert digest(root) == original, "Selected Day replacement cancellation wrote"
             terminal.send(b"q", b"LOAM Home")
+
+            # The two cancel/refusal paths above were byte-identical. Now accept
+            # a visibly reviewed replacement from the Scheduled List launcher.
+            before_sections = household_sections(root)
+            terminal.send(b"s", b"Scheduled Series Calendar")
+            terminal.send(b"v", b"Scheduled / Months")
+            terminal.send(b"v", b"Scheduled / List")
+            reopened = terminal.send(b"r", b"Scheduled / Supersede / Edit replacement")
+            assert b"Source: first" in ANSI.sub(b"", reopened), reopened
+
+            # Due 2026-11-08 -> 2026-11-09. Two exact signed postings:
+            # -4800 -> -4900 bank and +4800 -> +4900 wifi.
+            terminal.send(b"\x7f9")
+            terminal.send(b"\t")       # Due -> bank Locus
+            terminal.send(b"\r")       # Enter accepts exact bank and advances to amount
+            terminal.send(b"\x7f" * 3 + b"900")
+            terminal.send(b"\t" * 2)  # bank amount -> wifi Locus -> wifi amount
+            terminal.send(b"\x7f" * 3 + b"900")
+            entered = resize_with_rebuild(
+                terminal, 40, 112, b"Scheduled / Supersede / Edit replacement")
+            visible = ANSI.sub(b"", entered)
+            assert b"Replacement due: 2026-11-09" in visible, entered
+            assert b"jpy: -4900" in visible and b"jpy: 4900" in visible, entered
+            assert digest(root) == original, "local replacement draft published before Preview"
+
+            terminal.send(b"\t" * 3, b"[Preview]")
+            preview = terminal.send(b"\r", b"Scheduled / Supersede / Preview")
+            clean = ANSI.sub(b"", preview)
+            assert b"Source: first" in clean and b"Replacement due: 2026-11-09" in clean
+            assert b"bank  -4900 jpy" in clean and b"wifi  4900 jpy" in clean, preview
+            assert b"[Publish]" in clean, preview
+            assert digest(root) == original, "review alone published a replacement"
+
+            published = terminal.send(b"\r", b"Superseded first.")
+            assert b"Superseded first." in ANSI.sub(b"", published), published
+            terminal.send(b"q", b"LOAM Home")
+            after_sections = household_sections(root)
+            assert after_sections.keys() == before_sections.keys()
+            assert after_sections["Scheduled"] != before_sections["Scheduled"], (
+                "accepted replacement did not change Scheduled authority")
+            for name, body in before_sections.items():
+                if name != "Scheduled":
+                    assert after_sections[name] == body, (
+                        "accepted replacement changed unrelated section", name)
         finally:
             terminal.close()
-    print("Scheduled replacement modal PTY: two launchers, floating/compact resize, refusal, Locus, Esc and no-write passed.")
+        # Read the disk independently of the TUI process. Typed review checks
+        # source retention, exact successor/date/postings and unchanged routing.
+        subprocess.run(
+            ["lake", "env", "lean", "--run",
+             "Loam/Tests/ScheduledBatchReplacement.lean", "verify-pty", str(root)],
+            cwd=REPO, check=True,
+        )
+    print("Scheduled replacement PTY: two launchers, floating/compact, refusal, no-write and exact accepted publication passed.")
 
 
 if __name__ == "__main__":

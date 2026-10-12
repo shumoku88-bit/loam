@@ -57,13 +57,70 @@ private def successor
   let id ← requireSome (lifecycle.terminals.replacementFor? source) "replacement endpoint"
   requireSome (lifecycle.scheduled.findById? id) "successor occurrence"
 
+/-- Verify the accepted *interactive* PTY replacement from an independent,
+fresh canonical read; this mode never installs or writes fixture data. -/
+private def verifyPtyReplacement (root : System.FilePath) : IO Unit := do
+  let observed ← load root
+  expect (observed.lifecycle.scheduled.occurrences.length == 7)
+    "PTY replacement did not append exactly one Scheduled successor"
+  expect (observed.lifecycle.terminals.terminals.length == 3)
+    "PTY replacement did not retain both prior terminals and one replacement"
+  let sourceId : ScheduledId := ⟨"first"⟩
+  let source ← requireSome (observed.lifecycle.scheduled.findById? sourceId)
+    "PTY replacement discarded the original occurrence"
+  expect (source.scheduledOn == "2026-11-08" &&
+      source.movement.changes.map (fun change =>
+        (change.coordinate.token, change.quantity.quanta)) ==
+          [("bank", -4800), ("wifi", 4800)])
+    "PTY replacement mutated the original Scheduled occurrence"
+  let next ← successor observed.lifecycle sourceId
+  expect (next.id != sourceId && next.scheduledOn == "2026-11-09" &&
+      next.measure == ⟨"jpy"⟩ &&
+      next.movement.changes.map (fun change =>
+        (change.coordinate.token, change.quantity.quanta)) ==
+          [("bank", -4900), ("wifi", 4900)])
+    "PTY replacement lost the entered date, signed amounts, Measure or successor ID"
+  let second ← requireSome (observed.lifecycle.scheduled.findById? ⟨"second"⟩)
+    "PTY replacement lost the independent Scheduled occurrence"
+  expect (second.scheduledOn == "2026-12-08" &&
+      (second.quantityAt ⟨"wifi"⟩).quanta == 4800)
+    "PTY replacement modified the other Scheduled occurrence"
+  let evidence ← requireOk (← Loam.ScheduledReview.loadHouseholdEvidence root root)
+  let current ← requireOk (Loam.ScheduledReview.currentOpenRecords evidence)
+  let ids := current.map (·.id)
+  expect (!ids.contains sourceId && ids.contains next.id && ids.contains second.id)
+    "fresh review did not retire the source and expose exactly its successor"
+  let routingBody ← requireSome
+    (Loam.Persistence.HouseholdImage.body? observed.generation.image "ScheduledRouting")
+    "PTY replacement lost ScheduledRouting"
+  let routing ← requireSome
+    (Loam.Persistence.decodeScheduledRoutingHistory? routingBody)
+    "PTY replacement broke ScheduledRouting decoding"
+  -- Unlike batch replacement, the *single* HouseholdCommand.replaceScheduled
+  -- publishes Scheduled only. It must neither invent successor routing nor
+  -- alter historical assertions on the source or independent Scheduled.
+  let expectedRouting ← requireSome (RoutingHistory.ofEntries?
+    [{ subject := routingSubject sourceId, effectiveOn := "2026-01-01",
+       purpose := some ⟨"internet"⟩ },
+     { subject := routingSubject sourceId, effectiveOn := "2026-12-01",
+       purpose := none },
+     { subject := routingSubject ⟨"second"⟩, effectiveOn := "2026-01-01",
+       purpose := none }]) "expected synthetic Scheduled routing history"
+  expect (routing.entries == expectedRouting.entries)
+    "single PTY replacement unexpectedly changed canonical ScheduledRouting"
+  IO.println "Scheduled replacement PTY canonical verification: exact successor/date/postings, source retention, open review and unchanged routing passed."
+
 def main (args : List String) : IO Unit := do
-  let (path, setupOnly) ←
+  let (path, setupOnly, verifyOnly) ←
     match args with
-    | [path] => pure (path, false)
-    | ["setup", path] => pure (path, true)
-    | _ => throw (IO.userError "supply isolated test directory (optional setup prefix)")
+    | [path] => pure (path, false, false)
+    | ["setup", path] => pure (path, true, false)
+    | ["verify-pty", path] => pure (path, false, true)
+    | _ => throw (IO.userError "supply isolated test directory (optional setup or verify-pty prefix)")
   let root := System.FilePath.mk path
+  if verifyOnly then
+    verifyPtyReplacement root
+    return
   IO.FS.createDirAll root
   let _ ← requireOk (← Loam.HouseholdAuthority.installInitial? root {
     sections := [{ name := "CustomEvidence", body := "preserve these opaque bytes\n" }] })
