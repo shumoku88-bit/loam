@@ -92,6 +92,15 @@ If money flow evidence is unavailable, the calendar still shows dates and explic
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
 
+At narrow widths below 80 columns, Day Home prioritizes the selected date and
+its admitted per-Measure income/expense/net flow. It retains explicit unresolved,
+not-requested, unavailable, and failed states, shows Scheduled/Pending evidence,
+and places the focused week and complete scrollable month totals below. This
+is a presentation choice, not a balance or spendable Daily Pace calculation.
+The full date/income/expense money grid remains at 80 columns and above.
+Small date cells omit week markers when they cannot fit; the selected-day
+evidence and the scrollable period view are not converted into guessed zeros.
+
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine
 the current-cycle Budget observation date or silently manufacture a household cycle.
