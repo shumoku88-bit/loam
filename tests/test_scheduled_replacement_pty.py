@@ -18,7 +18,7 @@ from scheduled_pty_support import ANSI, REPO, Terminal, digest
 
 
 def household_sections(root: Path) -> dict[str, str]:
-    """Compare retained image sections; an accepted replacement may update routing."""
+    """Compare retained image sections including the untouched routing history."""
     header, rest = (root / "household.loam").read_text().split("\n", 1)
     assert header == "LOAM-HOUSEHOLD-IMAGE\t2", header
     sections = {}
@@ -181,13 +181,13 @@ def main():
             assert after_sections["Scheduled"] != before_sections["Scheduled"], (
                 "accepted replacement did not change Scheduled authority")
             for name, body in before_sections.items():
-                if name not in ("Scheduled", "ScheduledRouting"):
+                if name != "Scheduled":
                     assert after_sections[name] == body, (
                         "accepted replacement changed unrelated section", name)
         finally:
             terminal.close()
         # Read the disk independently of the TUI process. Typed review checks
-        # source retention, exact successor/date/postings and inherited routing.
+        # source retention, exact successor/date/postings and unchanged routing.
         subprocess.run(
             ["lake", "env", "lean", "--run",
              "Loam/Tests/ScheduledBatchReplacement.lean", "verify-pty", str(root)],
