@@ -1,4 +1,5 @@
 import Loam.HouseholdCommand
+import Loam.Tui.EditorSession
 import Loam.Tui.Kernel
 import Loam.Tui.Layout
 import Loam.Tui.ModalSurface
@@ -34,51 +35,11 @@ def viewForBounds (bounds : Bounds) (known : List String)
     "Scheduled / Supersede"
     (fun inner => Loam.Tui.ScheduledReplacement.viewForBounds inner known state)
 
-private def render (bounds : Bounds) (known : List String)
-    (state : Loam.Tui.ScheduledReplacement.State) : CompiledWidget :=
-  compileWidget (viewForBounds bounds known state)
-
 /--
-Unlike Scheduled cancellation, publication refusal returns to *this editable
-draft*. Do not absorb that policy into ModalSurface or the cancellation session.
--/
-private partial def runLoop
-    (bounds : Bounds) (root : System.FilePath) (known : List String)
-    (state : Loam.Tui.ScheduledReplacement.State) (frame : CompiledWidget)
-    (parent : Bounds → CompiledWidget) : IO String := do
-  let key ← Loam.Tui.Terminal.readKey
-  let active ← Loam.Tui.Terminal.currentBounds
-  let surface := floatingGeometry? active
-  let frame ←
-    if active == bounds then pure frame
-    else do
-      let next := render active known state
-      Loam.Tui.ModalSurface.repaintOverParent active surface (parent active) next
-      pure next
-  if key == .other then
-    return (← runLoop active root known state frame parent)
-  let step := Loam.Tui.ScheduledReplacement.updateForBounds
-    (editorBounds active) known state key
-  if step.cancel then
-    return "Scheduled supersede cancelled."
-  let outcome ←
-    match step.publish with
-    | none => pure (.ok step.state : Except String Loam.Tui.ScheduledReplacement.State)
-    | some draft =>
-        match ← Loam.HouseholdCommand.replaceScheduled root draft with
-        | .ok () => pure (.error ("Superseded " ++ draft.source.token ++ "."))
-        | .error message =>
-            pure (.ok (Loam.Tui.ScheduledReplacement.withPublishError step.state message))
-  match outcome with
-  | .error notice => return notice
-  | .ok nextState =>
-      let nextFrame := render active known nextState
-      Loam.Tui.ModalSurface.paint active surface .dirtyDiff frame nextFrame
-      runLoop active root known nextState nextFrame parent
-
-/--
-Open over the correct caller parent. After return, callers reload canonical
-evidence and redraw the parent using fresh bounds as before.
+Use the existing adaptive editor session for this ordinary editable replacement.
+A refused write returns to the exact same draft; cancellation and canonical
+reload stay caller-owned. Scheduled cancellation deliberately keeps its
+different refusal policy.
 -/
 def runAdaptive
     (bounds : Bounds) (root : System.FilePath) (known : List String)
@@ -86,8 +47,23 @@ def runAdaptive
     (parent : Bounds → CompiledWidget) : IO String := do
   let active ← Loam.Tui.Terminal.currentBounds
   let surface := floatingGeometry? active
-  let frame := render active known state
+  let frame := compileWidget (viewForBounds active known state)
   Loam.Tui.ModalSurface.paintEntrance bounds active surface parent frame
-  runLoop active root known state frame parent
+  Loam.Tui.EditorSession.runUntilPublishedAdaptive active
+    floatingGeometry?
+    parent
+    (fun current editor key =>
+      Loam.Tui.ScheduledReplacement.updateForBounds
+        (editorBounds current) known editor key)
+    (fun current editor => viewForBounds current known editor)
+    Loam.Tui.ScheduledReplacement.withPublishError
+    "Scheduled supersede cancelled."
+    (fun draft => do
+      match ← Loam.HouseholdCommand.replaceScheduled root draft with
+      | .ok () =>
+          return .ok ("Superseded " ++ draft.source.token ++ ".")
+      | .error message =>
+          return .error message)
+    state frame
 
 end Loam.Tui.ScheduledReplacementSession
