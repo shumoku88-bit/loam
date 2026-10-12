@@ -102,4 +102,15 @@ def repaintOverParent (bounds : Bounds) (rectangle : Option Rectangle)
       Loam.Tui.Terminal.redrawFromBlank bounds parent
       paint bounds (some region) .dirtyDiff (compileWidget (.row [])) content
 
+/-- Start a floating or compact editor using the pre-existing paint policy.
+    Same-sized entrants paint only their modal region; a resized entrance
+    restores the fresh parent before overlaying the editor. The parent callback
+    stays lazy, so no parent frame is compiled when it cannot be displayed. -/
+def paintEntrance (previous current : Bounds) (rectangle : Option Rectangle)
+    (parent : Bounds → CompiledWidget) (content : CompiledWidget) : IO Unit := do
+  if current == previous then
+    paint current rectangle .fromBlank (compileWidget (.row [])) content
+  else
+    repaintOverParent current rectangle (parent current) content
+
 end Loam.Tui.ModalSurface
