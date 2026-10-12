@@ -788,7 +788,7 @@ private def stackedDayHeights
   let available := widePanelRows bounds footerRows
   if bounds.width ≥ 80 && bounds.width < 120 &&
       state.zoomLevel == .day && available ≥ 10 then
-    let top := min 5 (available - 6)
+    let top := min 6 (available - 6)
     some (top, available - top)
   else none
 
