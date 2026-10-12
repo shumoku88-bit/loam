@@ -62,13 +62,17 @@ private def fixture : IO Snapshot := do
     moneyCalendar := .loaded {flow, presentation := []}
   }
 
-/-- Collect actual rendered viewports, not private summary strings. -/
+/-- Collect every reachable overview viewport, without re-rendering the
+    unchanged last page after the scroll position stops advancing. -/
 private def browseOverview (bounds : Bounds) (snapshot : Snapshot) (state : State) : IO String := do
   let mut state := state
   let mut frames : Array String := #[]
   for _ in List.range 30 do
     frames := frames.push ("\n" ++ text (Loam.Tui.Home.view bounds snapshot state))
-    state ← press bounds snapshot state (.ctrl 'd')
+    let next ← press bounds snapshot state (.ctrl 'd')
+    if next.overviewManualScroll && next.overviewScroll == state.overviewScroll then
+      return String.intercalate "" frames.toList
+    state := next
   pure (String.intercalate "" frames.toList)
 
 def main : IO Unit := do
