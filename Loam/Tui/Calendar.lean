@@ -142,6 +142,16 @@ def gridSlots (month : Month) : List DaySlot :=
           { date := dateForDay next (index + 1), isCurrentMonth := false }
       prevSlots ++ curSlots ++ nextSlots
 
+/-- The Monday-through-Sunday row containing an admitted ISO date. Reuse
+    the existing Gregorian month grid rather than calculating a second weekday
+    coordinate system. This is a UI projection, not a household cycle or ledger
+    period, and it carries no current/spendable-money authority. -/
+def weekSlotsForDate? (date : String) : Option (List DaySlot) := do
+  let month ← monthOf? date
+  let grid := gridSlots month
+  (grid.zipIdx.find? (fun (slot, _) => slot.date == date)).map fun (_, index) =>
+    (grid.drop ((index / 7) * 7)).take 7
+
 def monthLabel (month : Month) : String :=
   padded 4 month.year ++ "-" ++ padded 2 month.month
 
@@ -156,5 +166,20 @@ example : (gridSlots { year := 2026, month := 9 }).length = 42 := by rfl
 example : calendarMonthWindowForDate? "2026-09-07" = some ("2026-09-01", "2026-10-01") := by native_decide
 example : shiftCalendarMonthWindow? "2026-12-01" "2027-01-01" true =
     some ("2027-01-01", "2027-02-01") := by native_decide
+
+-- A week is a UI time coordinate and crosses month/year boundaries intact.
+example : (weekSlotsForDate? "2026-10-12").map (fun slots => slots.map (fun slot => slot.date)) =
+    some ["2026-10-12", "2026-10-13", "2026-10-14", "2026-10-15",
+          "2026-10-16", "2026-10-17", "2026-10-18"] := by native_decide
+example : (weekSlotsForDate? "2026-11-01").map (fun slots => slots.map (fun slot => slot.date)) =
+    some ["2026-10-26", "2026-10-27", "2026-10-28", "2026-10-29",
+          "2026-10-30", "2026-10-31", "2026-11-01"] := by native_decide
+example : (weekSlotsForDate? "2026-12-31").map (fun slots => slots.map (fun slot => slot.date)) =
+    some ["2026-12-28", "2026-12-29", "2026-12-30", "2026-12-31",
+          "2027-01-01", "2027-01-02", "2027-01-03"] := by native_decide
+example : (weekSlotsForDate? "2024-02-29").map (fun slots => slots.map (fun slot => slot.date)) =
+    some ["2024-02-26", "2024-02-27", "2024-02-28", "2024-02-29",
+          "2024-03-01", "2024-03-02", "2024-03-03"] := by native_decide
+example : weekSlotsForDate? "2026-02-30" = none := by native_decide
 
 end Loam.Tui.Calendar
