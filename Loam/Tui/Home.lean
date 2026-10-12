@@ -535,9 +535,11 @@ private def compactDayCalendarPane
   let m := selectedMonth state
   let grid := Loam.Tui.Calendar.gridSlots m
   let selectedWeek := ((selectedSlotPosition? state).map (·.1)).getD 0
+  let selectedSlots := if state.weekTrial then
+      (Loam.Tui.Calendar.weekSlotsForDate? state.selectedDate).getD []
+    else (grid.drop (selectedWeek * 7)).take 7
   let cellWidth := moneyCellWidth paneWidth
-  let weekCells := (List.range 7).map fun col =>
-    let slot := (grid[selectedWeek * 7 + col]?).getD { date := "", isCurrentMonth := false }
+  let weekCells := selectedSlots.map fun slot =>
     if slot.date.isEmpty then blankMoneyCell paneWidth
     else if cellWidth < 5 then
       span (Loam.Tui.Layout.padRight cellWidth (shortDay slot.date))
@@ -584,10 +586,24 @@ private def compactDayCalendarPane
           (if rest.isEmpty then [] else
             [mutedLine s!" +{rest.length} more; Tab for details"])
     else []
-  [ .row [span " Selected: " .muted, span state.selectedDate .selected]
-  , moneyCalendarHeader paneWidth
-  , moneyGridRow weekCells
-  ] ++
+  let weekSpan := match selectedSlots.head?, selectedSlots.reverse.head? with
+    | some first, some last => s!"Week {first.date} .. {last.date}"
+    | _, _ => "Week unavailable"
+  let header :=
+    if state.weekTrial then
+      [ .row [span " " .muted, span weekSpan .normal]
+      , moneyRule paneWidth '┌' '┬' '┐'
+      , moneyCalendarHeader paneWidth
+      , moneyGridRow weekCells
+      , moneyRule paneWidth '└' '┴' '┘'
+      , .row [span " Selected day: " .muted, span state.selectedDate .selected]
+      ]
+    else
+      [ .row [span " Selected: " .muted, span state.selectedDate .selected]
+      , moneyCalendarHeader paneWidth
+      , moneyGridRow weekCells
+      ]
+  header ++
   actualPreview ++
   dayFlow ++
   wrappedLines paneWidth s!"Scheduled: {scheduled}  Pending: {pending}" .muted ++
@@ -601,7 +617,7 @@ private def wideCalendarPane
     (compactDay showActualPreview : Bool) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      if compactDay then
+      if compactDay || state.weekTrial then
         compactDayCalendarPane paneWidth snapshot state pastOpenDates showActualPreview
       else
         moneyCalendarBlock paneWidth snapshot state pastOpenDates
@@ -646,6 +662,7 @@ structure DetailLayout where
   columns : Nat
   selectedDate : String
   zoomLevel : Loam.Tui.DateJump.ZoomLevel
+  weekTrial : Bool
   records : Array ReviewRecord
   starts : Array Nat
   counts : Array Nat
@@ -695,9 +712,11 @@ private def detailPanel
 
 private def homeContext (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
+  let viewName := if state.zoomLevel == .day && state.weekTrial then "Week trial"
+    else Loam.Tui.DateJump.zoomLabel state.zoomLevel
   [ Widget.row [span " LOAM Home" .normal, span (if width ≥ 80 then " / Calendar   known through " else "  known through ") .muted, span snapshot.actual.today]
   , Widget.row [span " Focus: " .muted, span state.selectedDate,
-      span "   View: " .muted, span (Loam.Tui.DateJump.zoomLabel state.zoomLevel)]
+      span "   View: " .muted, span viewName]
   ].map fun row => Loam.Tui.Layout.clipWidgetRow width row
 
 private def calendarRows
@@ -733,6 +752,7 @@ def prepareDetail (bounds : Bounds) (snapshot : Snapshot) (state : State) : Deta
     columns := bounds.width
     selectedDate := state.selectedDate
     zoomLevel := state.zoomLevel
+    weekTrial := state.weekTrial
     records := records
     starts := starts
     counts := counts
@@ -751,7 +771,8 @@ def detailLayoutFor (bounds : Bounds) (snapshot : Snapshot) (state : State)
   match cached with
   | some layout =>
       if layout.columns == bounds.width &&
-          layout.selectedDate == state.selectedDate && layout.zoomLevel == state.zoomLevel then layout
+          layout.selectedDate == state.selectedDate && layout.zoomLevel == state.zoomLevel &&
+          layout.weekTrial == state.weekTrial then layout
       else prepareDetail bounds snapshot state
   | none => prepareDetail bounds snapshot state
 
@@ -788,7 +809,7 @@ private def stackedDayHeights
   let available := widePanelRows bounds footerRows
   if bounds.width ≥ 80 && bounds.width < 120 &&
       state.zoomLevel == .day && available ≥ 10 then
-    let top := min 6 (available - 6)
+    let top := min (if state.weekTrial then 8 else 6) (available - 6)
     some (top, available - top)
   else none
 
@@ -870,13 +891,14 @@ private def navigationHelp (state : State) : String × List HelpItem :=
   else
     match state.zoomLevel with
     | .day =>
-        ("Day",
+        (if state.weekTrial then "Week trial" else "Day",
           [ { key := "[h/l]", label := "day" }
           , { key := "[k/j]", label := "week" }
           , { key := "[Enter]", label := "open" }
           , { key := "[t]", label := "today" }
           , { key := "[/]", label := "jump" }
           , { key := "[z]", label := "zoom" }
+          , { key := "[F]", label := if state.weekTrial then "month grid" else "week trial" }
           ])
     | .month =>
         ("Month",
@@ -1013,7 +1035,7 @@ private def helpLines (bounds : Bounds) (snapshot : Snapshot) (state : State) : 
     let navigation := if state.activePane == .detail then
         [("j/k", "select"), ("Enter", "open"), ("C-u/d", "page")]
       else match state.zoomLevel with
-        | .day => [("h/l", "day"), ("k/j", "week"), ("Enter", "open")]
+        | .day => [("h/l", "day"), ("k/j", "week"), ("Enter", "open"), ("F", "week/grid")]
         | .month => [("h/l", "month"), ("k/j", "quarter"), ("Enter", "days")]
         | .year => [("h/l/k/j", "year"), ("Enter", "months")]
     let view := if state.activePane == .detail then
@@ -1171,6 +1193,15 @@ def navigationKey
     match key with
     | .input '/' => handled (openJumpPrompt state)
     | .input 'z' | .input 'Z' => handled (cycleZoomLevel state)
+    | .input 'F' =>
+        if state.zoomLevel == .day then
+          handled { state with
+            weekTrial := !state.weekTrial
+            overviewScroll := 0
+            overviewManualScroll := false
+            notice := if state.weekTrial then "Month grid." else "Week ribbon trial."
+          }
+        else handled state
     | .tab | .input 'w' | .input 'W' => handled (toggleActivePane state)
     | .input 't' | .input 'T' =>
         handled { state with
