@@ -150,7 +150,7 @@ def runAdaptiveWithScheduledId
           return .ok (some scheduledId,
             "Scheduled " ++ scheduledId.token ++ " for " ++ draft.scheduledOn ++ ".")
       | .error message => return .error message)
-    state frame
+    state frame true
 
 /--
 Standalone create keeps the existing *post-publication* expected-pace setup.

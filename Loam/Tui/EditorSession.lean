@@ -94,6 +94,8 @@ Resize-aware floating editor session. Only geometry, parent repaint and frame
 diffs are shared; the caller retains local transitions, publication refusal,
 and its authoritative publisher callback. Rebuild the parent at current bounds
 on resize rather than retaining stale pixels or household evidence.
+Callers may opt into skipping .other only when their domain update is known
+to treat that key as inert. The default preserves generic update semantics.
 -/
 partial def runUntilPublishedAdaptive
     {State Draft ResultType : Type}
@@ -106,7 +108,8 @@ partial def runUntilPublishedAdaptive
     (cancelResult : ResultType)
     (publish : Draft → IO (Except String ResultType))
     (state : State)
-    (frame : CompiledWidget) : IO ResultType := do
+    (frame : CompiledWidget)
+    (skipInertOther : Bool := false) : IO ResultType := do
   let key ← Loam.Tui.Terminal.readKey
   let active ← Loam.Tui.Terminal.currentBounds
   let region := geometry active
@@ -116,6 +119,11 @@ partial def runUntilPublishedAdaptive
       let resized := compileWidget (view active state)
       Loam.Tui.ModalSurface.repaintOverParent active region (parent active) resized
       pure resized
+  -- An opted-in, unchanged frame needs neither state transition nor painting.
+  -- On live resize, still repaint and pass the key to the domain updater.
+  if skipInertOther && key == .other && active == bounds then
+    return (← runUntilPublishedAdaptive active geometry parent update view
+      withPublishError cancelResult publish state frame skipInertOther)
   let step := update active state key
   if step.cancel then return cancelResult
   match step.publish with
@@ -127,11 +135,11 @@ partial def runUntilPublishedAdaptive
           let nextFrame := compileWidget (view active next)
           Loam.Tui.ModalSurface.paint active region .dirtyDiff frame nextFrame
           runUntilPublishedAdaptive active geometry parent update view
-            withPublishError cancelResult publish next nextFrame
+            withPublishError cancelResult publish next nextFrame skipInertOther
   | none =>
       let nextFrame := compileWidget (view active step.state)
       Loam.Tui.ModalSurface.paint active region .dirtyDiff frame nextFrame
       runUntilPublishedAdaptive active geometry parent update view
-        withPublishError cancelResult publish step.state nextFrame
+        withPublishError cancelResult publish step.state nextFrame skipInertOther
 
 end Loam.Tui.EditorSession
