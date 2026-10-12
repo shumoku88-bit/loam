@@ -264,7 +264,7 @@ def main : IO Unit := do
       let mut cachedState := start
       let mut freshState := start
       for key in [Loam.Tui.Terminal.Key.down, .down, .up, .pageDown, .pageUp,
-          .home, .«end», .up, .escape, .tab] do
+          .home, .«end», .up, .escape, .ctrl 'd', .ctrl 'u', .tab] do
         cachedState ← requireSome (Loam.Tui.Home.navigationKey wide source cachedState key 1 cache)
           "cached navigation unhandled"
         freshState ← press wide source freshState key
@@ -281,6 +281,29 @@ def main : IO Unit := do
           {start with zoomLevel := .year}, {start with zoomLevel := .day}] do
         expect ((Loam.Tui.Home.view wide source changed cache).lines ==
           (Loam.Tui.Home.view wide source changed).lines) "period change retained stale rows"
+  -- An empty Actual pane must scroll its already prepared read diagnostics rather
+  -- than reconstructing the Scheduled failure content just to count its rows.
+  let unavailable : Snapshot := {
+    snapshot with
+    actual := {snapshot.actual with allRecords := []}
+    scheduled := .error (String.ofList (List.replicate 240 'X'))
+  }
+  let emptyBounds : Bounds := {width := 48, height := 14}
+  let emptyStart := {base with zoomLevel := .day, activePane := .detail}
+  let emptyCache := some (Loam.Tui.Home.prepareDetail emptyBounds unavailable emptyStart)
+  let mut cachedEmpty := emptyStart
+  let mut freshEmpty := emptyStart
+  for key in [Loam.Tui.Terminal.Key.ctrl 'd', .ctrl 'd', .ctrl 'u'] do
+    cachedEmpty ← requireSome
+      (Loam.Tui.Home.navigationKey emptyBounds unavailable cachedEmpty key 1 emptyCache)
+      "cached empty-detail scroll unhandled"
+    freshEmpty ← press emptyBounds unavailable freshEmpty key
+    expect (cachedEmpty.detailScroll == freshEmpty.detailScroll)
+      "prepared empty-detail row count changed scrolling"
+    expect ((Loam.Tui.Home.view emptyBounds unavailable cachedEmpty emptyCache).lines ==
+      (Loam.Tui.Home.view emptyBounds unavailable freshEmpty).lines)
+      "prepared empty-detail scroll changed read diagnostics"
+
   let longRecords := (List.range 2000).map fun i =>
     {longRecord with description := s!"LONG-{i}"}
   let longSnapshot := {snapshot with actual := {snapshot.actual with allRecords := longRecords}}
