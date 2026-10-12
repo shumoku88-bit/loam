@@ -93,7 +93,8 @@ unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
 
 At narrow widths below 80 columns, Day Home prioritizes the selected date and
-its admitted per-Measure income/expense/net flow. It retains explicit unresolved,
+a bounded first Actual description before its admitted per-Measure income/expense/net
+flow. This preview does not replace the exact scrollable details or their actions. It retains explicit unresolved,
 not-requested, unavailable, and failed states, shows Scheduled/Pending evidence,
 and places the focused week and complete scrollable month totals below. This
 is a presentation choice, not a balance or spendable Daily Pace calculation.
@@ -133,8 +134,13 @@ pace as household state or introduce a second calculation.
 The footer groups navigation by Day/Month/Year or Detail context,
 plus frequent actions and the Commands entrance. In Detail, j/k selects transactions, Enter opens the
 selected transaction in its day workspace, and Esc/Tab/w returns to the calendar.
-At widths below 120 columns, Detail takes the full body instead of selecting
-invisible rows below a stacked calendar. Selection follows the viewport at every
+At widths 80–119 with enough height, Day Home stacks a short selected-week
+Calendar above a focusable Actual/Scheduled Detail. The compact Day pane retains
+scroll access to complete month-flow answers, while the lower pane prioritizes
+Actual entries ahead of long pending/plan evidence. On shorter terminals and in
+Month/Year, the focused pane still takes the full body. Below 80 columns, the
+compact Calendar shows the first Actual description immediately, with Tab/w
+opening the full Detail view. Selection follows the available viewport at every
 width; oversized records keep their title visible. Descriptions wrap by terminal
 columns, including Japanese. Actual Effects and Scheduled changes align their signed,
 grouped **retained quanta** with the explicit Measure token; optional money-calendar

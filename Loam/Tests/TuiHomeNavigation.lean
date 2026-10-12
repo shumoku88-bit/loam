@@ -93,9 +93,29 @@ def main : IO Unit := do
                    "Scheduled:", "Pending:", "Month Flow (2026-10)"] do
       expect (contains marker rendered)
         s!"compact Day omitted admitted evidence at {width}: {marker}"
-  let regularDay := text (Loam.Tui.Home.view {width := 80, height := 24}
+  -- Medium terminals reflow into simultaneous calendar/detail frames.
+  for bounds in [{width := 80, height := 24}, {width := 100, height := 20},
+      {width := 119, height := 20}] do
+    let state : State := {base with zoomLevel := .day}
+    let rendered := text (Loam.Tui.Home.view bounds snapshot state)
+    expect (contains "Calendar [active]" rendered &&
+      contains "Day 2026-10-01 / Detail" rendered &&
+      contains "RECORD-9#" rendered)
+      s!"stacked Day lost calendar or Actual detail at {bounds.width}"
+    let focused ← press bounds snapshot state .tab
+    let detailView := text (Loam.Tui.Home.view bounds snapshot focused)
+    expect (contains "Detail [active]" detailView && contains "RECORD-9#" detailView)
+      s!"stacked Day lost visible focused detail at {bounds.width}"
+    let back ← press bounds snapshot focused .tab
+    expect (back.activePane == .calendar && back.selectedDate == state.selectedDate)
+      "stacked pane focus changed the date"
+  let tinyDay := text (Loam.Tui.Home.view {width := 48, height := 14}
     snapshot {base with zoomLevel := .day})
-  expect (contains "┬" regularDay) "regular-width Day unexpectedly lost its money grid"
+  expect (contains "Actual: RECORD-9#" tinyDay)
+    "tiny Day no longer exposes the selected date's first Actual"
+  let regularDay := text (Loam.Tui.Home.view {width := 120, height := 24}
+    snapshot {base with zoomLevel := .day})
+  expect (contains "┬" regularDay) "wide Day unexpectedly lost its money grid"
 
   -- Quiet frames and stable feedback: one-line notices cannot move borders/help.
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, wide] do

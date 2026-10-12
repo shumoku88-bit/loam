@@ -531,7 +531,7 @@ private def yearOverviewPane
     month overview. This is display-only: no balance or Daily Pace is inferred. -/
 private def compactDayCalendarPane
     (paneWidth : Nat) (snapshot : Snapshot) (state : State)
-    (pastOpenDates : List String) : List Widget :=
+    (pastOpenDates : List String) (showActualPreview : Bool) : List Widget :=
   let m := selectedMonth state
   let grid := Loam.Tui.Calendar.gridSlots m
   let selectedWeek := ((selectedSlotPosition? state).map (·.1)).getD 0
@@ -574,23 +574,35 @@ private def compactDayCalendarPane
     match pendingEvidence snapshot with
     | .error _ => "unavailable"
     | .ok records => toString records.length
-  [ moneyCalendarHeader paneWidth
-  , .row [span " Selected: " .muted, span state.selectedDate .selected]
+  let actualPreview :=
+    if showActualPreview then
+      match (homeActualRecords snapshot state).reverse with
+      | [] => [mutedLine " Actual: none recorded"]
+      | record :: rest =>
+          [ .row [span " Actual: " .muted,
+              span (Loam.Tui.Layout.ellipsize (paneWidth - 11) (displayDescription record))] ] ++
+          (if rest.isEmpty then [] else
+            [mutedLine s!" +{rest.length} more; Tab for details"])
+    else []
+  [ .row [span " Selected: " .muted, span state.selectedDate .selected]
+  , moneyCalendarHeader paneWidth
+  , moneyGridRow weekCells
   ] ++
+  actualPreview ++
   dayFlow ++
   wrappedLines paneWidth s!"Scheduled: {scheduled}  Pending: {pending}" .muted ++
-  [mutedLine " Focused week:", moneyGridRow weekCells, blankLine] ++
+  [blankLine] ++
   periodSummaryLines paneWidth snapshot state ++
   wrappedLines paneWidth "Week: ! open Scheduled; ? unresolved role; Tab details; Ctrl-d scroll" .muted
 
 private def wideCalendarPane
     (paneWidth : Nat)
     (snapshot : Snapshot) (state : State) (pastOpenDates : List String)
-    (compactDay : Bool) : List Widget :=
+    (compactDay showActualPreview : Bool) : List Widget :=
   match state.zoomLevel with
   | .day =>
       if compactDay then
-        compactDayCalendarPane paneWidth snapshot state pastOpenDates
+        compactDayCalendarPane paneWidth snapshot state pastOpenDates showActualPreview
       else
         moneyCalendarBlock paneWidth snapshot state pastOpenDates
   | .month =>
@@ -599,11 +611,17 @@ private def wideCalendarPane
       yearOverviewPane snapshot state ++ periodSummaryLines paneWidth snapshot state
 
 private def wideDetailLines
-    (width : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
+    (width : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence)
+    (prioritizeActual : Bool := false) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      pendingSection width pending ++ [mutedLine " Actual"] ++ actualLines width snapshot state ++
-      [blankLine, mutedLine " Scheduled"] ++ scheduledLines width snapshot state
+      if prioritizeActual then
+        [mutedLine " Actual"] ++ actualLines width snapshot state ++
+          [blankLine, mutedLine " Scheduled"] ++ scheduledLines width snapshot state ++
+          [blankLine] ++ pendingSection width pending
+      else
+        pendingSection width pending ++ [mutedLine " Actual"] ++ actualLines width snapshot state ++
+          [blankLine, mutedLine " Scheduled"] ++ scheduledLines width snapshot state
   | .month | .year =>
       [mutedLine " Actual Transactions"] ++ actualLines width snapshot state
 
@@ -661,14 +679,15 @@ private def viewportLabel (total visible offset : Nat) : String :=
 
 private def detailPanel
     (width height : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence)
-    (layout : DetailLayout) : Widget :=
-  let visible := wideDetailVisibleRows height
+    (layout : DetailLayout) (dense : Bool := false) : Widget :=
+  let visible := if dense then height - 3 else wideDetailVisibleRows height
   let offset := Loam.Tui.Scroll.clamp layout.rows.size visible state.detailScroll
   let focused := state.activePane == .detail
   let status := match state.zoomLevel with
     | .day => String.intercalate "  " (statusTokens snapshot state pending)
     | .month | .year => s!"Transactions: {layout.records.size}"
-  let content := [mutedLine (fitText (width - 2) (" " ++ status)), blankLine] ++
+  let content := [mutedLine (fitText (width - 2) (" " ++ status))] ++
+    (if dense then [] else [blankLine]) ++
     detailViewport layout state offset visible
   let title := selectedPeriod state ++ " / Detail" ++ (if focused then " [active]" else "")
   Loam.Tui.Layout.framedPanel width height title (.column content) focused
@@ -682,10 +701,12 @@ private def homeContext (bounds : Bounds) (snapshot : Snapshot) (state : State) 
   ].map fun row => Loam.Tui.Layout.clipWidgetRow width row
 
 private def calendarRows
-    (width : Nat) (snapshot : Snapshot) (state : State) (includeDetails : Bool) : List Widget :=
+    (width : Nat) (snapshot : Snapshot) (state : State)
+    (includeDetails : Bool) (compactDay : Bool := false) : List Widget :=
   let pending := pendingEvidence snapshot
+  let compact := compactDay || (includeDetails && width < 77)
   wideCalendarPane width snapshot state (pendingDates pending)
-    (includeDetails && width < 77) ++
+    compact (compact && includeDetails) ++
     (if includeDetails then
       [blankLine, mutedLine (" " ++ selectedPeriod state)] ++
       wrappedLines width (String.intercalate "  " (statusTokens snapshot state pending)) .muted ++
@@ -698,7 +719,7 @@ def prepareDetail (bounds : Bounds) (snapshot : Snapshot) (state : State) : Deta
   let records := (homeActualRecords snapshot state).reverse.toArray
   let pending := pendingEvidence snapshot
   let mut start := match state.zoomLevel with
-    | .day => (pendingSection width pending).length + 1
+    | .day => if bounds.width < 120 then 1 else (pendingSection width pending).length + 1
     | .month | .year => 1
   let mut starts := #[]
   let mut counts := #[]
@@ -716,7 +737,8 @@ def prepareDetail (bounds : Bounds) (snapshot : Snapshot) (state : State) : Deta
     starts := starts
     counts := counts
     pending := pending
-    rows := (wideDetailLines width snapshot {state with detailCursor := records.size} pending).toArray
+    rows := (wideDetailLines width snapshot {state with detailCursor := records.size} pending
+      (bounds.width < 120)).toArray
     overviewRows := if bounds.width ≥ 120 then
       calendarRows (Loam.Tui.Layout.contentWidth bounds - 1 - detailPaneWidth bounds state - 2)
         snapshot state false
@@ -747,8 +769,9 @@ private def overviewOffset (visible : Nat) (rows : List Widget) (state : State) 
 /-- Overflow is in the border rather than consuming or moving a content row. -/
 private def calendarPanel
     (width height : Nat) (snapshot : Snapshot) (state : State) (includeDetails : Bool)
-    (layout : DetailLayout) : Widget :=
-  let rows := if includeDetails then calendarRows (width - 2) snapshot state true
+    (layout : DetailLayout) (compactDay : Bool := false) : Widget :=
+  let rows := if includeDetails || compactDay then
+      calendarRows (width - 2) snapshot state includeDetails compactDay
     else layout.overviewRows
   let visible := height - 2
   let offset := overviewOffset visible rows state
@@ -757,6 +780,17 @@ private def calendarPanel
     ("Calendar" ++ (if focused then " [active]" else ""))
     (.column ((rows.drop offset).take visible)) focused
     (some (viewportLabel rows.length visible offset))
+
+/-- Preserve both panes on a narrow but tall-enough Day Home. Small terminals
+    keep the existing focused single-pane fallback rather than drawing tiny frames. -/
+private def stackedDayHeights
+    (bounds : Bounds) (footerRows : Nat) (state : State) : Option (Nat × Nat) :=
+  let available := widePanelRows bounds footerRows
+  if bounds.width ≥ 80 && bounds.width < 120 &&
+      state.zoomLevel == .day && available ≥ 10 then
+    let top := min 6 (available - 6)
+    some (top, available - top)
+  else none
 
 private def homeBody
     (bounds : Bounds) (footerRows : Nat) (snapshot : Snapshot) (state : State)
@@ -771,11 +805,16 @@ private def homeBody
     let right := detailPanel rightWidth height snapshot state layout.pending layout
     context ++ Loam.Tui.Layout.sideBySide height leftWidth rightWidth left right " "
   else
-    let panel := if state.activePane == .detail then
-        detailPanel width height snapshot state layout.pending layout
-      else calendarPanel width height snapshot state true layout
-    context ++ panel.lines.map fun cells =>
-      .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+    match stackedDayHeights bounds footerRows state with
+    | some (calendarHeight, detailHeight) =>
+        let calendar := calendarPanel width calendarHeight snapshot state false layout true
+        let detail := detailPanel width detailHeight snapshot state layout.pending layout true
+        context ++ Loam.Tui.Layout.widgetRows calendar ++ Loam.Tui.Layout.widgetRows detail
+    | none =>
+        let panel := if state.activePane == .detail then
+            detailPanel width height snapshot state layout.pending layout
+          else calendarPanel width height snapshot state true layout
+        context ++ Loam.Tui.Layout.widgetRows panel
 
 private structure HelpItem where
   key : String
@@ -1024,7 +1063,9 @@ private def scrollDetail
   let state := { state with notice := "" }
   let footerRows := (homeFooter bounds snapshot state).length
   let panelRows := widePanelRows bounds footerRows
-  let visible := wideDetailVisibleRows panelRows
+  let visible := match stackedDayHeights bounds footerRows state with
+    | some (_, detailHeight) => detailHeight - 3
+    | none => wideDetailVisibleRows panelRows
   let content := layout.rows.size
   let current := Loam.Tui.Scroll.clamp content visible state.detailScroll
   let next :=
@@ -1038,10 +1079,17 @@ private def scrollOverview
     (layout : DetailLayout) : State :=
   let state := { state with notice := "" }
   let footerRows := (homeFooter bounds snapshot state).length
+  let stacked := stackedDayHeights bounds footerRows state
   let rows :=
     if usesWideLayout bounds then layout.overviewRows
-    else calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state true
-  let visible := widePanelRows bounds footerRows - 2
+    else match stacked with
+      | some _ =>
+          calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state false true
+      | none =>
+          calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state true
+  let visible := match stacked with
+    | some (calendarHeight, _) => calendarHeight - 2
+    | none => widePanelRows bounds footerRows - 2
   let current := overviewOffset visible rows state
   -- Short viewports must not skip rows between successive overview pages.
   let step := min 5 (max 1 visible)
@@ -1062,7 +1110,9 @@ def moveDetailCursor
   else
     let footerRows := (homeFooter bounds snapshot nextState).length
     let panelRows := widePanelRows bounds footerRows
-    let visible := wideDetailVisibleRows panelRows
+    let visible := match stackedDayHeights bounds footerRows nextState with
+      | some (_, detailHeight) => detailHeight - 3
+      | none => wideDetailVisibleRows panelRows
     let idx := nextState.detailCursor
     match layout.starts[idx]?, layout.counts[idx]? with
     | some recStart, some count =>
