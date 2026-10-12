@@ -585,10 +585,11 @@ private def compactDayCalendarPane
 
 private def wideCalendarPane
     (paneWidth : Nat)
-    (snapshot : Snapshot) (state : State) (pastOpenDates : List String) : List Widget :=
+    (snapshot : Snapshot) (state : State) (pastOpenDates : List String)
+    (compactDay : Bool) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      if paneWidth < 78 then
+      if compactDay then
         compactDayCalendarPane paneWidth snapshot state pastOpenDates
       else
         moneyCalendarBlock paneWidth snapshot state pastOpenDates
@@ -683,7 +684,8 @@ private def homeContext (bounds : Bounds) (snapshot : Snapshot) (state : State) 
 private def calendarRows
     (width : Nat) (snapshot : Snapshot) (state : State) (includeDetails : Bool) : List Widget :=
   let pending := pendingEvidence snapshot
-  wideCalendarPane width snapshot state (pendingDates pending) ++
+  wideCalendarPane width snapshot state (pendingDates pending)
+    (includeDetails && width < 77) ++
     (if includeDetails then
       [blankLine, mutedLine (" " ++ selectedPeriod state)] ++
       wrappedLines width (String.intercalate "  " (statusTokens snapshot state pending)) .muted ++
