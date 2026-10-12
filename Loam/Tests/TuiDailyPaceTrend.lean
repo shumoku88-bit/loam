@@ -243,10 +243,10 @@ private def testWhatIf : IO Unit := do
     | .error message => throw (IO.userError message)
   expect (overdraw.availableAfter == -6000 && overdraw.projectedPerDay == -300)
     "overdrawn what-if was silently clamped to zero"
-  expect ((Loam.Tui.DailyPaceWhatIf.project? current "").isError &&
-      (Loam.Tui.DailyPaceWhatIf.project? current "-20").isError &&
-      (Loam.Tui.DailyPaceWhatIf.project? current "1.5").isError &&
-      (Loam.Tui.DailyPaceWhatIf.project? current "1234567890123456789").isError)
+  expect (!(Loam.Tui.DailyPaceWhatIf.project? current "").isOk &&
+      !(Loam.Tui.DailyPaceWhatIf.project? current "-20").isOk &&
+      !(Loam.Tui.DailyPaceWhatIf.project? current "1.5").isOk &&
+      !(Loam.Tui.DailyPaceWhatIf.project? current "1234567890123456789").isOk)
     "invalid, negative, decimal or unbounded hypothetical amounts were accepted"
   let editor ← match Loam.Tui.DailyPaceWhatIf.update {} (.paste "8000") with
     | .stay state => pure state
@@ -269,11 +269,11 @@ private def testWhatIf : IO Unit := do
       | .back => true | _ => false)
     "Esc did not close the what-if"
   let stale := {world with actual := {world.actual with today := "2026-10-31"}}
-  expect ((Loam.Tui.DailyPaceWhatIf.current? stale).isError &&
-      (Loam.Tui.DailyPaceWhatIf.current? (snapshot (.failed "refused"))).isError)
+  expect (!(Loam.Tui.DailyPaceWhatIf.current? stale).isOk &&
+      !(Loam.Tui.DailyPaceWhatIf.current? (snapshot (.failed "refused"))).isOk)
     "missing today or failed current projection was interpreted as available"
   let usd := snapshot (.loaded [point "2026-10-30" 1000 "usd"])
-  expect ((Loam.Tui.DailyPaceWhatIf.current? usd).isError)
+  expect (!(Loam.Tui.DailyPaceWhatIf.current? usd).isOk)
     "JPY what-if silently accepted foreign-currency input"
   for bounds in [{width := 120, height := 40},
       {width := 48, height := 14}, {width := 24, height := 8}] do
