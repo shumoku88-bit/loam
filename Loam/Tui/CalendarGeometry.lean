@@ -31,14 +31,14 @@ theorem margins_cover (available occupied : Nat)
     (hfit : occupied ≤ available) :
     leftMargin available occupied + occupied + rightMargin available occupied =
       available := by
-  unfold leftMargin rightMargin
+  unfold rightMargin leftMargin
   omega
 
 /-- The right/left margin difference is at most one terminal column. -/
 theorem margins_balanced (available occupied : Nat) :
     leftMargin available occupied ≤ rightMargin available occupied ∧
     rightMargin available occupied ≤ leftMargin available occupied + 1 := by
-  unfold leftMargin rightMargin
+  unfold rightMargin leftMargin
   omega
 
 /--
@@ -48,7 +48,8 @@ separately designed compact/stacked presentation.
 -/
 def maxFitCell? (available minimum maximum gap : Nat) : Option Nat :=
   if minimum ≤ maximum ∧ gridWidth minimum gap ≤ available then
-    some (min maximum ((available - 6 * gap) / 7))
+    let raw := (available - 6 * gap) / 7
+    some (if raw ≤ maximum then raw else maximum)
   else
     none
 
@@ -57,21 +58,17 @@ theorem maxFitCell_sound {available minimum maximum gap chosen : Nat}
     (h : maxFitCell? available minimum maximum gap = some chosen) :
     minimum ≤ chosen ∧ chosen ≤ maximum ∧ gridWidth chosen gap ≤ available := by
   by_cases hg : minimum ≤ maximum ∧ gridWidth minimum gap ≤ available
-  · simp [maxFitCell?, hg] at h
-    have hMax : minimum ≤ maximum := hg.1
-    have hAvail : gridWidth minimum gap ≤ available := hg.2
-    have hUpper : min maximum ((available - 6 * gap) / 7) ≤ maximum :=
-      min_le_left _ _
-    have hDiv : min maximum ((available - 6 * gap) / 7) ≤
-        (available - 6 * gap) / 7 :=
-      min_le_right _ _
-    have hLowerDiv : minimum ≤ (available - 6 * gap) / 7 := by
+  · have hAvail : gridWidth minimum gap ≤ available := hg.2
+    have hLower : minimum ≤ (available - 6 * gap) / 7 := by
       unfold gridWidth at hAvail
       omega
-    have hLower : minimum ≤ min maximum ((available - 6 * gap) / 7) :=
-      le_min hMax hLowerDiv
-    unfold gridWidth
-    omega
+    by_cases hc : (available - 6 * gap) / 7 ≤ maximum
+    · simp [maxFitCell?, hg, hc] at h
+      unfold gridWidth
+      omega
+    · simp [maxFitCell?, hg, hc] at h
+      unfold gridWidth
+      omega
   · simp [maxFitCell?, hg] at h
 
 /-- Accepted size is maximal among all feasible sizes under the cap. -/
@@ -81,16 +78,16 @@ theorem maxFitCell_maximal {available minimum maximum gap chosen : Nat}
     (hCap : candidate ≤ maximum)
     (hFits : gridWidth candidate gap ≤ available) :
     candidate ≤ chosen := by
-  have hg : minimum ≤ maximum ∧ gridWidth minimum gap ≤ available := by
-    by_contra hn
-    simp [maxFitCell?, hn] at h
-  simp [maxFitCell?, hg] at h
-  have hQuot : candidate ≤ (available - 6 * gap) / 7 := by
-    unfold gridWidth at hFits
-    omega
-  have hMin : candidate ≤ min maximum ((available - 6 * gap) / 7) :=
-    le_min hCap hQuot
-  omega
+  by_cases hg : minimum ≤ maximum ∧ gridWidth minimum gap ≤ available
+  · have hQuot : candidate ≤ (available - 6 * gap) / 7 := by
+      unfold gridWidth at hFits
+      omega
+    by_cases hc : (available - 6 * gap) / 7 ≤ maximum
+    · simp [maxFitCell?, hg, hc] at h
+      omega
+    · simp [maxFitCell?, hg, hc] at h
+      omega
+  · simp [maxFitCell?, hg] at h
 
 /-- Concrete integer geometry, kept separate from the renderer. -/
 structure CenteredSeven where
