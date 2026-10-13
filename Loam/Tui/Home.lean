@@ -527,7 +527,7 @@ private def yearOverviewPane
   , blankLine
   ]
 
-/-- One quiet 7-column Week strip. All three rows share their exact terminal
+/-- One quiet 7-column Week strip. All rows share their exact terminal
     column geometry. Calendar/Actual/Scheduled evidence is not modified. -/
 private def weekStripRow (paneWidth : Nat) (cells : List (String × Style)) : Widget :=
   let cellWidth := (paneWidth - 8) / 7
@@ -559,45 +559,66 @@ private def weekStripRows
     | .error message => .error message
     | .ok scheduled => Loam.ScheduledReview.orderedCurrentOpenRecords scheduled
   let weekdays := ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-  let dayLabels := slots.map fun slot =>
-    let day := shortDay slot.date
-    let label := if slot.date == state.selectedDate then
-      if cellWidth ≥ 4 then "[" ++ day ++ "]" else ">" ++ day
-      else day
-    (label, moneyCellStyle snapshot.actual.today state slot.date slot.isCurrentMonth)
-  let dayStatus := slots.map fun slot =>
-    let scheduled := weekScheduledMark openRecords slot.date cellWidth
-    let label :=
-      if scheduled.isEmpty && slot.date == snapshot.actual.today then
-        if cellWidth ≥ 5 then "Today" else "T"
-      else scheduled
-    (label, if slot.date == state.selectedDate then Style.selected
-       else if slot.date == snapshot.actual.today then Style.underlined
-       else Style.muted)
-  [ weekStripRow paneWidth (weekdays.map fun day => (day, Style.muted))
-  , weekStripRow paneWidth dayLabels
-  , weekStripRow paneWidth dayStatus
-  ]
+  if cellWidth ≥ 8 then
+    let dayLabels := (slots.zip weekdays).map fun (slot, weekday) =>
+      let day := shortDay slot.date
+      let title := weekday ++ " " ++ day
+      let isSelected := slot.date == state.selectedDate
+      let isToday := slot.date == snapshot.actual.today
+      let label := if isSelected then
+        if cellWidth ≥ title.length + 4 then "[ " ++ title ++ " ]"
+        else "[" ++ title ++ "]"
+        else title
+      let style :=
+        if isSelected then
+          if isToday then Style.selectedUnderlined else Style.selected
+        else
+          moneyCellStyle snapshot.actual.today state slot.date slot.isCurrentMonth
+      (label, style)
+    let dayStatus := slots.map fun slot =>
+      let scheduled := weekScheduledMark openRecords slot.date cellWidth
+      let isSelected := slot.date == state.selectedDate
+      let isToday := slot.date == snapshot.actual.today
+      let label :=
+        if scheduled.isEmpty && isToday then
+          if cellWidth ≥ 5 then "Today" else "T"
+        else scheduled
+      let style :=
+        if isSelected then
+          if isToday then Style.underlined else Style.normal
+        else if isToday then Style.underlined
+        else Style.muted
+      (label, style)
+    [ weekStripRow paneWidth dayLabels
+    , weekStripRow paneWidth dayStatus
+    ]
+  else
+    let dayLabels := slots.map fun slot =>
+      let day := shortDay slot.date
+      let label := if slot.date == state.selectedDate then
+        if cellWidth ≥ 4 then "[" ++ day ++ "]" else ">" ++ day
+        else day
+      (label, moneyCellStyle snapshot.actual.today state slot.date slot.isCurrentMonth)
+    let dayStatus := slots.map fun slot =>
+      let scheduled := weekScheduledMark openRecords slot.date cellWidth
+      let label :=
+        if scheduled.isEmpty && slot.date == snapshot.actual.today then
+          if cellWidth ≥ 5 then "Today" else "T"
+        else scheduled
+      (label, if slot.date == state.selectedDate then Style.selected
+         else if slot.date == snapshot.actual.today then Style.underlined
+         else Style.muted)
+    [ weekStripRow paneWidth (weekdays.map fun day => (day, Style.muted))
+    , weekStripRow paneWidth dayLabels
+    , weekStripRow paneWidth dayStatus
+    ]
 
 /-- Compact Day Home presents the selected date's admitted flow before the
     month overview. This is display-only: no balance or Daily Pace is inferred. -/
 private def compactDayCalendarPane
     (paneWidth : Nat) (snapshot : Snapshot) (state : State)
-    (pastOpenDates : List String) (showActualPreview : Bool) : List Widget :=
-  let m := selectedMonth state
-  let grid := Loam.Tui.Calendar.gridSlots m
-  let selectedWeek := ((selectedSlotPosition? state).map (·.1)).getD 0
-  let selectedSlots := if state.weekTrial then
-      (Loam.Tui.Calendar.weekSlotsForDate? state.selectedDate).getD []
-    else (grid.drop (selectedWeek * 7)).take 7
-  let cellWidth := moneyCellWidth paneWidth
-  let weekCells := selectedSlots.map fun slot =>
-    if slot.date.isEmpty then blankMoneyCell paneWidth
-    else if cellWidth < 5 then
-      span (Loam.Tui.Layout.padRight cellWidth (shortDay slot.date))
-        (moneyCellStyle snapshot.actual.today state slot.date slot.isCurrentMonth)
-    else
-      moneyDateSlotSpan paneWidth snapshot.actual.today pastOpenDates snapshot state slot
+    (showActualPreview : Bool) : List Widget :=
+  let selectedSlots := (Loam.Tui.Calendar.weekSlotsForDate? state.selectedDate).getD []
   let dayFlow :=
     match snapshot.moneyCalendar with
     | .notRequested => wrappedLines paneWidth "Flow not requested" .muted
@@ -642,24 +663,16 @@ private def compactDayCalendarPane
     | some first, some last => s!"Week {first.date} .. {last.date}"
     | _, _ => "Week unavailable"
   let header :=
-    if state.weekTrial then
-      if paneWidth < 77 then
-        -- The short-terminal preview keeps the first Actual row ahead of the
-        -- marker legend and full period flow in the scrollable viewport.
-        [ .row [span " Selected day: " .muted, span state.selectedDate .selected] ] ++
-        (weekStripRows paneWidth snapshot state selectedSlots).take 2
-      else
-        [ .row [span " " .muted, span weekSpan .normal] ] ++
-        weekStripRows paneWidth snapshot state selectedSlots ++
-        [ .row [span " Selected day: " .muted, span state.selectedDate .selected] ]
+    if paneWidth < 77 then
+      [ .row [span " Selected day: " .muted, span state.selectedDate .selected] ] ++
+      (weekStripRows paneWidth snapshot state selectedSlots).take 2
     else
-      [ .row [span " Selected: " .muted, span state.selectedDate .selected]
-      , moneyCalendarHeader paneWidth
-      , moneyGridRow weekCells
-      ]
+      [ .row [span " " .muted, span weekSpan .normal] ] ++
+      weekStripRows paneWidth snapshot state selectedSlots ++
+      [ .row [span " Selected day: " .muted, span state.selectedDate .selected] ]
   header ++
   actualPreview ++
-  (if state.weekTrial && paneWidth < 77 then
+  (if paneWidth < 77 then
     (weekStripRows paneWidth snapshot state selectedSlots).drop 2 ++
     wrappedLines paneWidth weekSpan .muted
    else []) ++
@@ -667,10 +680,7 @@ private def compactDayCalendarPane
   wrappedLines paneWidth s!"Scheduled: {scheduled}  Pending: {pending}" .muted ++
   [blankLine] ++
   periodSummaryLines paneWidth snapshot state ++
-  (if state.weekTrial then
-    wrappedLines paneWidth "[day] selected; underline today; S# open Scheduled; S? read unavailable; blank = no evidenced open plan" .muted
-   else
-    wrappedLines paneWidth "Week: ! open Scheduled; ? unresolved role; Tab details; Ctrl-d scroll" .muted)
+  wrappedLines paneWidth "[day] selected; underline today; S# open Scheduled; S? read unavailable; blank = no evidenced open plan" .muted
 
 private def wideCalendarPane
     (paneWidth : Nat)
@@ -678,8 +688,8 @@ private def wideCalendarPane
     (compactDay showActualPreview : Bool) : List Widget :=
   match state.zoomLevel with
   | .day =>
-      if compactDay || state.weekTrial then
-        compactDayCalendarPane paneWidth snapshot state pastOpenDates showActualPreview
+      if compactDay then
+        compactDayCalendarPane paneWidth snapshot state showActualPreview
       else
         moneyCalendarBlock paneWidth snapshot state pastOpenDates
   | .month =>
@@ -723,7 +733,6 @@ structure DetailLayout where
   columns : Nat
   selectedDate : String
   zoomLevel : Loam.Tui.DateJump.ZoomLevel
-  weekTrial : Bool
   records : Array ReviewRecord
   starts : Array Nat
   counts : Array Nat
@@ -773,8 +782,7 @@ private def detailPanel
 
 private def homeContext (bounds : Bounds) (snapshot : Snapshot) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let viewName := if state.zoomLevel == .day && state.weekTrial then "Week trial"
-    else Loam.Tui.DateJump.zoomLabel state.zoomLevel
+  let viewName := Loam.Tui.DateJump.zoomLabel state.zoomLevel
   [ Widget.row [span " LOAM Home" .normal, span (if width ≥ 80 then " / Calendar   known through " else "  known through ") .muted, span snapshot.actual.today]
   , Widget.row [span " Focus: " .muted, span state.selectedDate,
       span "   View: " .muted, span viewName]
@@ -813,7 +821,6 @@ def prepareDetail (bounds : Bounds) (snapshot : Snapshot) (state : State) : Deta
     columns := bounds.width
     selectedDate := state.selectedDate
     zoomLevel := state.zoomLevel
-    weekTrial := state.weekTrial
     records := records
     starts := starts
     counts := counts
@@ -832,17 +839,17 @@ def detailLayoutFor (bounds : Bounds) (snapshot : Snapshot) (state : State)
   match cached with
   | some layout =>
       if layout.columns == bounds.width &&
-          layout.selectedDate == state.selectedDate && layout.zoomLevel == state.zoomLevel &&
-          layout.weekTrial == state.weekTrial then layout
+          layout.selectedDate == state.selectedDate && layout.zoomLevel == state.zoomLevel then layout
       else prepareDetail bounds snapshot state
   | none => prepareDetail bounds snapshot state
 
 /-- Follow the selected calendar cell, but never undo explicit overview browsing. -/
-private def overviewOffset (visible : Nat) (rows : List Widget) (state : State) : Nat :=
+private def overviewOffset (visible : Nat) (rows : List Widget) (state : State)
+    (compactDay : Bool := false) : Nat :=
   -- The week ribbon fits its selected day within the first rows. Start at its
   -- title rather than scrolling the title out of sight to follow the selection.
   let offset := if state.overviewManualScroll then state.overviewScroll
-    else if state.weekTrial && state.zoomLevel == .day then 0
+    else if compactDay && state.zoomLevel == .day then 0
     else match rows.zipIdx.find? (fun (row, _) => row.lines.flatten.any fun cell =>
         cell.style == .selected || cell.style == .selectedUnderlined) with
     | none => state.overviewScroll
@@ -859,7 +866,7 @@ private def calendarPanel
       calendarRows (width - 2) snapshot state includeDetails compactDay
     else layout.overviewRows
   let visible := height - 2
-  let offset := overviewOffset visible rows state
+  let offset := overviewOffset visible rows state compactDay
   let focused := state.activePane == .calendar
   Loam.Tui.Layout.framedPanel width height
     ("Calendar" ++ (if focused then " [active]" else ""))
@@ -873,7 +880,7 @@ private def stackedDayHeights
   let available := widePanelRows bounds footerRows
   if bounds.width ≥ 80 && bounds.width < 120 &&
       state.zoomLevel == .day && available ≥ 10 then
-    let top := min (if state.weekTrial then 8 else 6) (available - 6)
+    let top := min 8 (available - 6)
     some (top, available - top)
   else none
 
@@ -886,7 +893,7 @@ private def homeBody
   if bounds.width ≥ 120 then
     let rightWidth := detailPaneWidth bounds state
     let leftWidth := width - 1 - rightWidth
-    let left := calendarPanel leftWidth height snapshot state false layout
+    let left := calendarPanel leftWidth height snapshot state false layout false
     let right := detailPanel rightWidth height snapshot state layout.pending layout
     context ++ Loam.Tui.Layout.sideBySide height leftWidth rightWidth left right " "
   else
@@ -898,7 +905,7 @@ private def homeBody
     | none =>
         let panel := if state.activePane == .detail then
             detailPanel width height snapshot state layout.pending layout
-          else calendarPanel width height snapshot state true layout
+          else calendarPanel width height snapshot state true layout true
         context ++ Loam.Tui.Layout.widgetRows panel
 
 private structure HelpItem where
@@ -955,14 +962,13 @@ private def navigationHelp (state : State) : String × List HelpItem :=
   else
     match state.zoomLevel with
     | .day =>
-        (if state.weekTrial then "Week trial" else "Day",
+        ("Day",
           [ { key := "[h/l]", label := "day" }
           , { key := "[k/j]", label := "week" }
           , { key := "[Enter]", label := "open" }
           , { key := "[t]", label := "today" }
           , { key := "[/]", label := "jump" }
           , { key := "[z]", label := "zoom" }
-          , { key := "[F]", label := if state.weekTrial then "Day layout" else "week trial" }
           ])
     | .month =>
         ("Month",
@@ -1099,7 +1105,7 @@ private def helpLines (bounds : Bounds) (snapshot : Snapshot) (state : State) : 
     let navigation := if state.activePane == .detail then
         [("j/k", "select"), ("Enter", "open"), ("C-u/d", "page")]
       else match state.zoomLevel with
-        | .day => [("h/l", "day"), ("k/j", "week"), ("Enter", "open"), ("F", "week/grid")]
+        | .day => [("h/l", "day"), ("k/j", "week"), ("Enter", "open")]
         | .month => [("h/l", "month"), ("k/j", "quarter"), ("Enter", "days")]
         | .year => [("h/l/k/j", "year"), ("Enter", "months")]
     let view := if state.activePane == .detail then
@@ -1166,17 +1172,18 @@ private def scrollOverview
   let state := { state with notice := "" }
   let footerRows := (homeFooter bounds snapshot state).length
   let stacked := stackedDayHeights bounds footerRows state
+  let compactDay := bounds.width < 120
   let rows :=
     if usesWideLayout bounds then layout.overviewRows
     else match stacked with
       | some _ =>
-          calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state false true
+          calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state false compactDay
       | none =>
-          calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state true
+          calendarRows (Loam.Tui.Layout.contentWidth bounds - 2) snapshot state true compactDay
   let visible := match stacked with
     | some (calendarHeight, _) => calendarHeight - 2
     | none => widePanelRows bounds footerRows - 2
-  let current := overviewOffset visible rows state
+  let current := overviewOffset visible rows state compactDay
   -- Short viewports must not skip rows between successive overview pages.
   let step := min 5 (max 1 visible)
   let next :=
@@ -1257,15 +1264,6 @@ def navigationKey
     match key with
     | .input '/' => handled (openJumpPrompt state)
     | .input 'z' | .input 'Z' => handled (cycleZoomLevel state)
-    | .input 'F' =>
-        if state.zoomLevel == .day then
-          handled { state with
-            weekTrial := !state.weekTrial
-            overviewScroll := 0
-            overviewManualScroll := false
-            notice := if state.weekTrial then "Original Day layout." else "Week ribbon trial."
-          }
-        else handled state
     | .tab | .input 'w' | .input 'W' => handled (toggleActivePane state)
     | .input 't' | .input 'T' =>
         handled { state with

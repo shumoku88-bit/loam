@@ -61,7 +61,6 @@ k/j        previous / next week, quarter, or year (current zoom)
 t          return calendar focus to today
 /          jump to a date, month, or year (Enter confirms; Esc cancels)
 z          cycle Day / Month / Year
-F          toggle experimental Week ribbon / existing month grid in Day mode
 Tab/w      switch calendar / transaction focus
 Ctrl-u/d   scroll calendar; page transaction selection in detail
 Enter      Year -> Month -> Day -> selected-day workspace
@@ -83,8 +82,8 @@ optional-budget operations remain palette-only. The old Home Reports shortcut
 Commands instead.
 Each workspace keeps its own local key grammar.
 
-The prior compact calendar was retired. The Calendar Home now always uses
-the larger role-aware money grid, with Today's underline on the date row only
+On wide terminals (120 columns and wider), Day Home presents the full
+role-aware money grid across six weeks, with Today's underline on the date row only
 (not the amount or blank rows), open-plan `!`, and
 unresolved-role `?` markers. A daily amount too wide for its cell shows `…`, with
 an explicit legend, never misleading partial digits. Monthly totals wrap below the
@@ -93,33 +92,23 @@ If money flow evidence is unavailable, the calendar still shows dates and explic
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
 
-The `F` design trial is a reversible, session-only **Week ribbon** variant of
-existing Day Home, not yet an independent zoom. Its quiet strip has three aligned
+On narrow terminals below 120 columns (stacked and single-pane Day Home), the
+calendar automatically adapts into the quiet **Week ribbon** strip rather than
+cramping a six-week monthly grid into limited space. Its quiet strip has three aligned
 rows: Monday-first weekday, date and small read-side status. Selected days have
 brackets (or a leading > at the narrowest widths) in addition to the selected
 style; Today stays underlined and can show a Today/T marker. `S6` denotes six
 explicitly **current-open** Scheduled occurrences retained for that date, `S+`
 denotes a positive count too wide for the cell (not a truncated numerical
 claim), and `S?` denotes a failed Scheduled read; no marker is not a
-closed-world NotDue verdict. At very narrow/short widths, status precedes the
+closed-world NotDue verdict. At very narrow/short widths (below 77 columns), status precedes the
 scrollable full-week date and period view only after the first Actual preview.
 The strip removes intra-week vertical rules and shares one consistent column
 geometry for weekday, date and status. It uses the admitted Monday-first
 seven-day projection, including month/year crossovers, and retains selected-day
-Actual/Scheduled details and separate month totals. Press `F` to restore the
-established Day layout (the full money grid on wide terminals and the compact
-Day layout on smaller ones). The `z` cycle, date jump, and household writes do not
-change. No guessed week sum or spendable balance is calculated.
-
-At narrow widths below 80 columns, Day Home prioritizes the selected date and
-a bounded first Actual description before its admitted per-Measure income/expense/net
-flow. This preview does not replace the exact scrollable details or their actions. It retains explicit unresolved,
-not-requested, unavailable, and failed states, shows Scheduled/Pending evidence,
-and places the focused week and complete scrollable month totals below. This
-is a presentation choice, not a balance or spendable Daily Pace calculation.
-The full date/income/expense money grid remains at 80 columns and above.
-Small date cells omit week markers when they cannot fit; the selected-day
-evidence and the scrollable period view are not converted into guessed zeros.
+Actual/Scheduled details and separate month totals below. The prior session-only `F`
+toggle is retired: the Week ribbon is the standard responsive representation for compact Day mode.
+The `z` cycle, date jump, and household writes do not change. No guessed week sum or spendable balance is calculated.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine

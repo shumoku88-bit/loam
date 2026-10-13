@@ -86,7 +86,7 @@ def main : IO Unit := do
     let bounds : Bounds := {width, height := 24}
     let state : State := {base with zoomLevel := .day}
     let first := text (Loam.Tui.Home.view bounds snapshot state)
-    expect (contains "Selected: 2026-10-01" first)
+    expect (contains "Selected day: 2026-10-01" first)
       s!"compact Day did not lead with the focused date at {width}"
     let rendered ← browseOverview bounds snapshot state
     for marker in ["jpy", "usd", "In:+", "Out:-", "Net:", "? 2 unresolved",
@@ -117,27 +117,26 @@ def main : IO Unit := do
     snapshot {base with zoomLevel := .day})
   expect (contains "┬" regularDay) "wide Day unexpectedly lost its money grid"
 
-  -- UI-only weekly ribbon trial; crossing dates, focus and old view remain.
-  for bounds in [{width := 48, height := 14}, {width := 80, height := 24},
-      {width := 119, height := 20}, {width := 150, height := 45}] do
+  -- Narrow Day mode automatically presents the quiet weekly ribbon; wide Day retains the full money grid.
+  for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, {width := 119, height := 20}] do
     let state : State := {base with zoomLevel := .day, selectedDate := "2026-10-01"}
-    let switched ← press bounds snapshot state (.input 'F')
-    expect (switched.weekTrial && switched.selectedDate == state.selectedDate)
-      "week trial toggle changed date or failed to enter"
-    let rendered ← browseOverview bounds snapshot switched
+    let rendered ← browseOverview bounds snapshot state
     expect (contains "Week 2026-09-28 .. 2026-10-04" rendered)
       s!"week ribbon lost month-boundary coordinates at {bounds.width}: {rendered}"
     expect (contains "Selected day: 2026-10-01" rendered)
       s!"week ribbon lost focused date at {bounds.width}: {rendered}"
     expect (contains "Month Flow (2026-10)" rendered)
       "week ribbon lost independent monthly-money overview"
-    let focused ← press bounds snapshot switched .tab
+    let focused ← press bounds snapshot state .tab
     expect (contains "▶ - " (text (Loam.Tui.Home.view bounds snapshot focused)))
-      s!"week trial hid exact Detail at {bounds.width}"
-    let returnState ← press bounds snapshot switched (.input 'F')
-    expect (!returnState.weekTrial && returnState.selectedDate == state.selectedDate)
-      "week trial could not return to original Day grid"
-  -- Day/week alignment and evidence-preserving status marks on all widths.
+      s!"compact Day hid exact Detail at {bounds.width}"
+  for bounds in [{width := 120, height := 24}, {width := 150, height := 45}] do
+    let state : State := {base with zoomLevel := .day, selectedDate := "2026-10-01"}
+    let rendered ← browseOverview bounds snapshot state
+    expect (contains "┬" rendered)
+      s!"wide Day unexpectedly lost its money grid at {bounds.width}"
+
+  -- Day/week alignment and evidence-preserving status marks on narrow Day bounds.
   let movement ← requireSome (BalancedMovement.ofChanges? ⟨"jpy"⟩
     [{coordinate := ⟨"wallet"⟩, quantity := Quantity.ofQuanta (-1)},
      {coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 1}]) "week Scheduled movement"
@@ -150,37 +149,35 @@ def main : IO Unit := do
   let withScheduled := {snapshot with
     actual := {snapshot.actual with today := "2026-10-12"}
     scheduled := .ok {originalScheduled with scheduled := openScheduled} }
-  let weekly : State := {
+  let narrowDay : State := {
     base with
     zoomLevel := .day
-    weekTrial := true
     selectedDate := "2026-10-15"
   }
   for bounds in [{width := 32, height := 20}, {width := 48, height := 14},
-      {width := 80, height := 24}, {width := 119, height := 20},
-      {width := 120, height := 30}, {width := 150, height := 45}] do
-    let shown ← browseOverview bounds withScheduled weekly
+      {width := 80, height := 24}, {width := 119, height := 20}] do
+    let shown ← browseOverview bounds withScheduled narrowDay
     expect (contains "15" shown && contains "S6" shown && contains "Selected day: 2026-10-15" shown)
       s!"week Scheduled marker or selected date hidden at {bounds.width}"
     expect (contains "Mon" shown && contains "Sun" shown)
       s!"week days did not fit at {bounds.width}"
     expect (!contains "Out/day:" shown && contains "Month Flow (2026-10)" shown)
       "week strip invented a pace-like sum or lost the monthly evidence"
-    let view := Loam.Tui.Home.view bounds withScheduled weekly
+    let view := Loam.Tui.Home.view bounds withScheduled narrowDay
     for row in view.lines do
       expect (Loam.Tui.Layout.displayWidth (String.ofList (row.map Cell.glyph)) ≤ bounds.width - 1)
         s!"week strip exceeds writable width at {bounds.width}"
     let badRead := {withScheduled with scheduled := .error "scheduled lifecycle read failed"}
-    let shownFailure ← browseOverview bounds badRead weekly
+    let shownFailure ← browseOverview bounds badRead narrowDay
     expect (contains "S?" shownFailure && contains "unavailable" shownFailure)
       s!"week strip hid Scheduled failure at {bounds.width}"
-  let yearBorder : State := {base with zoomLevel := .day, selectedDate := "2026-12-31", weekTrial := true}
+  let yearBorder : State := {base with zoomLevel := .day, selectedDate := "2026-12-31"}
   let yearView ← browseOverview {width := 80, height := 24} snapshot yearBorder
   expect (contains "Week 2026-12-28 .. 2027-01-03" yearView)
     "weekly ribbon lost December-to-January coordinates"
   let zoomed ← press wide snapshot yearBorder (.input 'z')
-  expect (!zoomed.weekTrial && zoomed.zoomLevel == .month)
-    "week trial leaked across existing z zoom"
+  expect (zoomed.zoomLevel == .month)
+    "zoom did not advance to month overview"
 
   -- Quiet frames and stable feedback: one-line notices cannot move borders/help.
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, wide] do

@@ -401,7 +401,7 @@ def main : IO Unit := do
   let narrowBounds : Bounds := { width := 80, height := 24 }
   let narrowView := Loam.Tui.Home.view narrowBounds snapshot state
   let narrowText := widgetText narrowView
-  expect (contains "Mon" narrowText && contains "Selected: 2026-09-10" narrowText &&
+  expect (contains "Mon" narrowText && contains "Selected day: 2026-09-10" narrowText &&
     contains "Day 2026-09-10 / Detail" narrowText)
     "80-column Day Home lost the focused week or its simultaneous Detail"
   expect (contains "Flow not requested" narrowText)
