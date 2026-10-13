@@ -1,6 +1,7 @@
 import Loam.Review.AttentionReview
 import Loam.Review.ScheduledReview
 import Loam.Tui.DateJump
+import Loam.Tui.CalendarGeometry
 import Loam.Tui.Layout
 import Loam.Tui.HomeLauncher
 import Loam.Tui.Main
@@ -67,11 +68,27 @@ private def centeredText (width : Nat) (text : String) : String :=
   let padding := if textWidth < width then (width - textWidth) / 2 else 0
   repeatChar padding ' ' ++ text
 
+/-!
+The 7 money cells and 8 border/intersection glyphs occupy exactly
+`8 + 7 * cellWidth`. A 14-column cap keeps a wide terminal from producing
+indefinitely stretched day rectangles. When the readable minimum cannot fit,
+retain the pre-existing compact rendering policy; never mistake it for a
+proof-qualified fit.
+-/
 private def moneyCellWidth (paneWidth : Nat) : Nat :=
-  (paneWidth - 8) / 7
+  match Loam.Tui.CalendarGeometry.maxFitCell? (paneWidth - 2) 10 14 1 with
+  | some width => width
+  | none => (paneWidth - 8) / 7
 
 private def moneyGridWidth (paneWidth : Nat) : Nat :=
   8 + 7 * moneyCellWidth paneWidth
+
+/-- Keep unoccupied width as intentional, nearly symmetric outer whitespace. -/
+private def moneyGridCentered (paneWidth : Nat) (row : Widget) : Widget :=
+  let inset := Loam.Tui.CalendarGeometry.leftMargin paneWidth (moneyGridWidth paneWidth)
+  match row with
+  | .row spans => .row (span (repeatChar inset ' ') :: spans)
+  | .column _ => row
 
 private def moneyRule
     (paneWidth : Nat) (left middle right : Char)
@@ -344,13 +361,14 @@ private def moneyCalendarBlock
     else Loam.Tui.Layout.clip (gridWidth - 1) title ++ "…"
   let selPos? := selectedSlotPosition? state
   let topRowHighlight := if selPos?.map (·.1) == some 0 then selPos?.map (·.2) else none
-  [ plainLine (centeredText gridWidth title)
-  , moneyRule paneWidth '┌' '┬' '┐'
-  , moneyCalendarHeader paneWidth
-  , moneyRule paneWidth '├' '┼' '┤' topRowHighlight true false
-  ] ++
-  moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state selPos? ++
-  [blankLine] ++ periodSummaryLines paneWidth snapshot state
+  let gridRows :=
+    [ plainLine (centeredText gridWidth title)
+    , moneyRule paneWidth '┌' '┬' '┐'
+    , moneyCalendarHeader paneWidth
+    , moneyRule paneWidth '├' '┼' '┤' topRowHighlight true false
+    ] ++ moneyCalendarRows paneWidth snapshot.actual.today pastOpenDates snapshot state selPos?
+  (gridRows.map (moneyGridCentered paneWidth)) ++
+    [blankLine] ++ periodSummaryLines paneWidth snapshot state
 
 
 private def displayDescription (record : ReviewRecord) : String :=
@@ -497,9 +515,16 @@ private def yearOverviewPane
 
 /-- One quiet 7-column Week strip. All rows share their exact terminal
     column geometry. Calendar/Actual/Scheduled evidence is not modified. -/
+private def weekCellWidth (paneWidth : Nat) : Nat :=
+  match Loam.Tui.CalendarGeometry.maxFitCell? (paneWidth - 2) 8 12 1 with
+  | some width => width
+  | none => (paneWidth - 8) / 7
+
 private def weekStripRow (paneWidth : Nat) (cells : List (String × Style)) : Widget :=
-  let cellWidth := (paneWidth - 8) / 7
-  .row <| [span " "] ++
+  let cellWidth := weekCellWidth paneWidth
+  let occupied := Loam.Tui.CalendarGeometry.gridWidth cellWidth 1
+  let inset := Loam.Tui.CalendarGeometry.leftMargin paneWidth occupied
+  .row <| [span (repeatChar inset ' ')] ++
     (cells.zipIdx).flatMap fun ((label, style), index) =>
       (if index == 0 then [] else [span " " .muted]) ++
       [span (centerPill cellWidth label) style]
@@ -521,7 +546,7 @@ private def weekScheduledMark
 private def weekStripRows
     (paneWidth : Nat) (snapshot : Snapshot) (state : State)
     (slots : List Loam.Tui.Calendar.DaySlot) : List Widget :=
-  let cellWidth := (paneWidth - 8) / 7
+  let cellWidth := weekCellWidth paneWidth
   let openRecords : Except String (List Loam.ScheduledReview.Record) :=
     match snapshot.scheduled with
     | .error message => .error message
@@ -790,7 +815,7 @@ private def calendarPanel
       let slots := (Loam.Tui.Calendar.weekSlotsForDate? state.selectedDate).getD []
       let strip := weekStripRows (width - 2) snapshot state slots
       -- At small widths the second strip row is the dates; at larger ones the first is.
-      .column ((strip.drop (if moneyCellWidth (width - 2) < 8 then 1 else 0)).take height)
+      .column ((strip.drop (if weekCellWidth (width - 2) < 8 then 1 else 0)).take height)
     else .column ((rows.drop offset).take visible)
   else
     let title := match state.zoomLevel with
@@ -809,7 +834,7 @@ private def stackedDayHeights
   if bounds.width < 120 && state.zoomLevel == .day then
     let innerWidth := Loam.Tui.Layout.contentWidth bounds - 2
     let weekRows := (wrappedLines innerWidth (weekTitle state)).length +
-      (if moneyCellWidth innerWidth ≥ 8 then 2 else 3)
+      (if weekCellWidth innerWidth ≥ 8 then 2 else 3)
     let fullOverview := layout.overviewRows.length + 2
     -- Do not hide month evidence above a mostly empty Detail when both fit.
     let top := if available ≥ fullOverview + layout.rows.size + 2 then fullOverview

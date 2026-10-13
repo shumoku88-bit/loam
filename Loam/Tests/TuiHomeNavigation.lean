@@ -170,6 +170,29 @@ def main : IO Unit := do
     snapshot {base with zoomLevel := .day})
   expect (contains "┬" regularDay) "wide Day unexpectedly lost its money grid"
 
+  -- Very wide terminals retain a bounded money grid with intentional whitespace,
+  -- rather than stretching all seven money cells to fill the left pane.
+  let roomy : Bounds := {width := 240, height := 45}
+  let roomyState : State := {base with zoomLevel := .day, selectedDate := "2026-10-13"}
+  let roomyView := Loam.Tui.Home.view roomy snapshot roomyState
+  let gridTop ← requireSome (roomyView.lines.find? fun row =>
+    row.any (fun cell => cell.glyph == '┬')) "centered money grid top was not visible"
+  let leftCorner ← requireSome (gridTop.zipIdx.find? fun (cell, _) =>
+    cell.glyph == '┌') "money grid left corner hidden"
+  let rightCorner ← requireSome (gridTop.zipIdx.find? fun (cell, _) =>
+    cell.glyph == '┐') "money grid right corner hidden"
+  expect (rightCorner.2 + 1 - leftCorner.2 == 106 && leftCorner.2 > 2)
+    "money grid exceeded its 14-column cell cap or failed to center"
+  expect (roomyState.selectedDate == "2026-10-13" &&
+    contains "2026-10-13" (text roomyView))
+    "sizing experiment disturbed selected-day context"
+  let weekGeometry ← requireSome
+    (Loam.Tui.CalendarGeometry.centeredSeven? 116 8 12 1)
+    "week geometry unexpectedly refused normal compact bounds"
+  expect (weekGeometry.cellColumns == 12 && weekGeometry.gridColumns == 90 &&
+    weekGeometry.leftColumns == 13 && weekGeometry.rightColumns == 13)
+    "week strip cap / centering geometry changed"
+
   -- Narrow Day mode automatically presents the quiet weekly ribbon; wide Day retains the full money grid.
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, {width := 119, height := 20}] do
     let state : State := {base with zoomLevel := .day, selectedDate := "2026-10-01"}
