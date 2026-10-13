@@ -2,6 +2,7 @@ import Loam.Review.AttentionReview
 import Loam.Review.ScheduledReview
 import Loam.Tui.DateJump
 import Loam.Tui.Layout
+import Loam.Tui.HomeLauncher
 import Loam.Tui.Main
 import Loam.Tui.Scroll
 import Loam.Tui.Terminal
@@ -1018,8 +1019,8 @@ private def actionHelp (width : Nat) (snapshot : Snapshot) (state : State) : Lis
   [ { key := "[r]", label := "record" }
   , { key := "[a]", label := "actual" }
   , { key := "[s]", label := s!"scheduled{schedBadge}" }
-  , { key := "[q]", label := if state.activePane == .detail then "back" else "quit" }
-  ]
+  , { key := "[q]", label := if state.activePane == .detail then "back" else if state.launcherEnabled then "home" else "quit" }
+  ] ++ (if state.launcherEnabled then [{key := "[g]", label := "launcher home"}] else [])
 
 private def commandHelp (width : Nat) (snapshot : Snapshot) : List HelpItem :=
   let attnBadge := attentionBadge width (attentionSummary snapshot)
@@ -1078,9 +1079,10 @@ private def helpLines (bounds : Bounds) (state : State) : List Widget :=
     else
       let stride := match state.zoomLevel with | .day => "week" | .month => "quarter" | .year => "year"
       [("h/l", unit), ("k/j", stride), ("Enter", enterLabel), ("Tab/w", "pane"), ("?", "help")]
+  let backLabel := if isDetail then "back" else if state.launcherEnabled then "home" else "quit"
   let actions :=
-    if width < 79 then [("r", "rec"), ("Space", "cmds"), ("q", if isDetail then "back" else "quit")]
-    else [("r", "record"), ("Space", "commands"), ("q", if isDetail then "back" else "quit"),
+    if width < 79 then [("r", "rec"), ("Space", "cmds"), ("q", backLabel)]
+    else [("r", "record"), ("Space", "commands"), ("q", backLabel),
       ("t", "today"), ("/", "jump"), ("z", "zoom")]
   [Loam.Tui.Layout.shortcutRow navigation " ", Loam.Tui.Layout.shortcutRow actions " "]
 
@@ -1190,7 +1192,7 @@ def moveDetailCursor
 /-- Reconcile reloads and geometry without changing any household evidence. -/
 def reconcileState (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (cached : Option DetailLayout := none) : State :=
-  if state.helpOpen then state
+  if state.helpOpen || state.launcherOpen then state
   else
     let layout := detailLayoutFor bounds snapshot state cached
     let state := {state with detailCursor := min state.detailCursor (layout.records.size - 1)}
@@ -1215,7 +1217,19 @@ def navigationKey
     (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1)
     (cached : Option DetailLayout := none) : Option State :=
-  if state.helpOpen then
+  if state.launcherEnabled && state.launcherOpen then
+    match key with
+    | .enter | .input 'g' | .input 'G' => some {state with launcherOpen := false, notice := ""}
+    | .input 'r' | .input 'R' | .input 's' | .input 'S'
+    | .input 'a' | .input 'A' | .input 'b' | .input 'B'
+    | .input 'd' | .input 'D' | .input 'i' | .input 'I'
+    | .input ' ' | .input 'q' | .input 'Q' => none
+    | _ => some state
+  else if state.launcherEnabled && !state.helpOpen && state.jumpPrompt.isNone &&
+      ((state.activePane == .calendar && (key == .escape || key == .input 'q' || key == .input 'Q')) ||
+        key == .input 'g' || key == .input 'G') then
+    some {state with launcherOpen := true, notice := ""}
+  else if state.helpOpen then
     let rows := helpEvidenceLines {bounds with width := bounds.width - 2} snapshot state
     let footerRows := (homeFooter bounds snapshot state).length
     let visible := detailVisibleRows (widePanelRows bounds footerRows)
@@ -1347,6 +1361,8 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State)
 /-- Production root rendering is Home-only; object workspaces run in their own sessions. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (cached : Option DetailLayout := none) : Widget :=
-  homeView bounds snapshot state cached
+  if state.launcherEnabled && state.launcherOpen then
+    Loam.Tui.HomeLauncher.view bounds state.selectedDate state.notice
+  else homeView bounds snapshot state cached
 
 end Loam.Tui.Home

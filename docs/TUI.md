@@ -35,6 +35,32 @@ standalone `actual.loam` diagnostic/migration file.
 
 ## Home grammar
 
+### Opt-in launcher experiment
+
+`LOAM_HOME=launcher ./tools/loam` starts a quiet, centered home with a fixed
+ASCII bonsai above a small `loam` name. The hand-drawn, asymmetric tree uses green
+leaf texture, a bent normal-contrast trunk and a muted pot; it adds no animation,
+random generation or external dependency. It keeps six entrances: `r` Record, `s` Scheduled, `g` Calendar, `a` Actual, `b` Balances,
+and `d` Daily Pace. `Enter` also opens Calendar; `i` opens Attention and `Space`
+keeps the full Commands palette. No totals or household completeness claims are
+added. The whole bonsai folds into a compact `loam` title before it would crowd
+the entrances; 80×24 fits the tree, and 32×9 retains all six entrances. Notice feedback and two operation rows stay at the bottom.
+
+Child workspaces return to their launching surface. In this experiment,
+Calendar `g` returns directly to the launcher, and Calendar-focused `Esc` / `q`
+returns there one level at a time (Detail and Help keep their own back behavior).
+Only launcher `q` exits. Calendar date, zoom and selection survive that round trip.
+The launcher shows that selected date (initially today), matching the date seeded
+into Record, Actual and Scheduled; it does not label an old Calendar focus as today.
+Without the environment variable, startup and existing Calendar grammar are unchanged.
+This is a visual trial, not yet the default Home; household reads and publishers
+are the same existing paths.
+
+Manual PTY qualification reuses `tests/test_tui_viewport_pty.py FIXTURE EXE --launcher`
+on the existing synthetic CycleBudgetReview fixture. No new CI lane is added.
+
+### Default Calendar home
+
 The production TUI opens **Home / Calendar**: the date navigator is the
 accounting workspace. The temporary Summary surface and its Home `g` / `G`
 shortcut are removed, along with the former `c` toggle. Daily Pace, Scheduled,
