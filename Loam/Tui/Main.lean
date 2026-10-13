@@ -57,6 +57,9 @@ inductive HomePane where
 /-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
+  /-- Opt-in launcher experiment; process-local only, never persisted. -/
+  launcherEnabled : Bool := false
+  launcherOpen : Bool := false
   notice : String := ""
   /-- Presentation-only viewport offset for the responsive Home detail pane. -/
   detailScroll : Nat := 0

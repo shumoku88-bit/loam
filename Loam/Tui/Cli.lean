@@ -537,14 +537,16 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
   let fromPalette := paletteChoice.isSome
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compiledFrameFor active snapshot state detailCache
-  let detail := some (Loam.Tui.Home.detailLayoutFor bounds snapshot state detailCache)
+  let detail := if state.launcherOpen then detailCache else
+    some (Loam.Tui.Home.detailLayoutFor bounds snapshot state detailCache)
   if key == .other && !fromPalette then
     return (← loop bounds dataDir root snapshot state frame none detail)
   let state := Loam.Tui.Home.reconcileState bounds snapshot state detail
   if let some home :=
       (if fromPalette then none
        else Loam.Tui.Home.navigationKey bounds snapshot state key repeatCount detail) then
-    let nextDetail := some (Loam.Tui.Home.detailLayoutFor bounds snapshot home detail)
+    let nextDetail := if home.launcherOpen then detail else
+      some (Loam.Tui.Home.detailLayoutFor bounds snapshot home detail)
     let nextFrame := compiledFrameFor bounds snapshot home nextDetail
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     loop bounds dataDir root snapshot home nextFrame none nextDetail
@@ -877,7 +879,9 @@ def run (args : List String) : IO UInt32 := do
   let bounds ← Loam.Tui.Terminal.currentBounds
   Loam.Tui.Terminal.enter
   try
-    let state := initialState snapshot.actual.today
+    let launcherEnabled := (← IO.getEnv "LOAM_HOME").getD "" == "launcher"
+    let state := { initialState snapshot.actual.today with
+      launcherEnabled := launcherEnabled, launcherOpen := launcherEnabled }
     let frame := compiledFrameFor bounds snapshot state
     Loam.Tui.Terminal.redrawFromBlank bounds frame
     loop bounds dataDir root snapshot state frame

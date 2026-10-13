@@ -23,6 +23,15 @@
 
 ## 画面別の進捗
 
+2026-10-13：UI-01 の別案として、`LOAM_HOME=launcher ./tools/loam` で
+中央の固定 ASCII 盆栽＋小さな `loam`＋6入口の仮 Home を試作。
+文字ロゴから、非対称な緑の葉・曲がった幹・控えめな鉢へ変更（生成・アニメーション・追加依存なし）。
+既定の Calendar は変更しない。80×24 では盆栽全体、32×9／48×14 では
+装飾を畳み、既存の画面・Publisher へ直接委譲する。
+既存 `TuiHomeNavigation` と Viewport PTY の `--launcher` モードで局所検証し、
+余白・盆栽の見た目はユーザーの実機確認・了承済み。`lake test` と通常／Launcher の
+Viewport PTY は通過。Calendar の完了範囲とは別の、opt-in の実験として保持する。
+
 | ID | 画面・範囲 | UI 改修の状態 | 残作業 / 完了の証跡 |
 | --- | --- | --- | --- |
 | UI-01 | Home / Calendar / Detail | 完了 | 2026-10-13：利用画像で見えた上枠の欠け／下枠の空白、狭幅での意味混在を再改修。広幅は月間 Calendar＋Detail、狭幅は連続した週ナビ＋日の内容、短い端末は1行の日付ナビ。両方収まる高さでは月集計も表示。日の収支・Actual・Scheduled・非空／Unavailable Pending は Detail に集約。固定2行ナビ＋`?` の全文ヘルプが旧4系統の常設案内・本文凡例を引き継ぐ。PgUp/Dn は選択 identity を保って全文を閲覧、j/k で選択追従に復帰。既存 `TuiHomeNavigation` / `TuiHelpFooter` と Viewport / Record PTY で独立した根拠・リサイズ・モーダル拒否・復帰を検証（新CIなし）。Day 表示はユーザーの実機確認済み。続いて z の月／年表示を整列：`Months / YYYY` の月名＋件数2行セル、`Years` の Year / Records 列、集計との控えめな区切り、凡例は `?`。選択・現在期間の下線・正確な件数と期間集計を維持し、狭幅・選択月の名前／件数の同時表示・年の範囲端を既存 Lean／Viewport PTY で検証。月／年表示もユーザーの実機確認・了承済み。Selected Day は UI-04 |

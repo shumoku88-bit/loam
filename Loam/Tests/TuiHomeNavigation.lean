@@ -90,6 +90,42 @@ private def browseDetail (bounds : Bounds) (snapshot : Snapshot) (state : State)
 
 def main : IO Unit := do
   let snapshot ← fixture
+  let launcher : State := {selectedDate := "2026-10-01", launcherEnabled := true, launcherOpen := true}
+  for bounds in [{width := 32, height := 9}, {width := 32, height := 11},
+      {width := 32, height := 13}, {width := 48, height := 14},
+      {width := 32, height := 23}, {width := 32, height := 24},
+      {width := 80, height := 24}, {width := 150, height := 45},
+      {width := 1, height := 1}] do
+    let view := Loam.Tui.Home.view bounds snapshot launcher
+    expect (view.height <= bounds.height - 1) "launcher overflowed writable rows"
+    expect (view.lines.all fun cells => Loam.Tui.Layout.displayWidth
+      (String.ofList (cells.map Cell.glyph)) <= Loam.Tui.Layout.contentWidth bounds)
+      "launcher overflowed terminal columns"
+    if bounds.height >= 9 then
+      let shown := text view
+      for label in ["Record", "Scheduled", "Calendar", "Actual", "Balances", "Daily Pace"] do
+        expect (contains label shown) s!"launcher lost {label} at {bounds.width}x{bounds.height}"
+      expect (contains "loam" shown && contains launcher.selectedDate shown)
+        "launcher hid its name or Record seed date"
+      let treeFits := bounds.height >= 24
+      expect (contains "\\___________/" shown == treeFits)
+        "bonsai was cropped instead of folded, or disappeared on a fitting screen"
+      expect ((view.lines.flatten.any fun cell => cell.style == .series4) == treeFits)
+        "bonsai leaf color escaped its decoration boundary"
+      expect (!contains "RECORD-" shown && !contains "Net:" shown)
+        "launcher became a second household dashboard"
+  let entered ← press {width := 80, height := 24} snapshot launcher .enter
+  expect (!entered.launcherOpen && entered.selectedDate == launcher.selectedDate)
+    "launcher Calendar entrance changed the selected date"
+  let returned ← press {width := 80, height := 24} snapshot entered .escape
+  expect (returned.launcherOpen && returned.selectedDate == launcher.selectedDate)
+    "Calendar did not return to the launcher"
+  for key in ['r', 's', 'a', 'b', 'd', 'i', ' ', 'q'] do
+    expect ((Loam.Tui.Home.navigationKey {width := 80, height := 24} snapshot launcher (.input key)).isNone)
+      s!"launcher swallowed workspace/quit key {key}"
+  let ignored ← press {width := 80, height := 24} snapshot launcher (.input 'l')
+  expect (ignored.selectedDate == launcher.selectedDate && ignored.launcherOpen)
+    "launcher leaked Calendar navigation"
   let base : State := {selectedDate := "2026-10-01", zoomLevel := .month}
   let wide : Bounds := {width := 150, height := 45}
 
