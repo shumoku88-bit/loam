@@ -328,4 +328,42 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
             hidden.rename(authority)
         terminal.close()
 
-print("Actual navigation and Record PTY: editing focus/IME/resize, Original amount, Correction before/replacement/resize/publication, unresolved enable/return, reload and cancellation passed.")
+    # Root bonsai growth follows accepted, dated Actual publication, not editor
+    # visits. This fixture starts with one known Actual date (paid Wi-Fi).
+    garden = Path(tmp) / "garden"
+    subprocess.run(["lake", "env", "lean", "--run", "Loam/Tests/ScheduledBatchReplacement.lean",
+                    "setup", str(garden)], cwd=REPO, check=True)
+    garden_authority = garden / "household.loam"
+    garden_before = household_sections(garden_authority)
+    terminal = Terminal(garden)
+    try:
+        seed = ANSI.sub(b"", terminal.send(b"g", b"[q] quit"))
+        assert b"'::|::'" in seed, "one recorded date did not show the young bonsai"
+        unchanged = garden_authority.read_bytes()
+        terminal.send(b"r", b"Record / Edit")
+        cancelled = ANSI.sub(b"", terminal.send(b"\x1b", b"Record cancelled."))
+        assert b"'::|::'" in cancelled and garden_authority.read_bytes() == unchanged
+        for i, date in enumerate((b"1980-01-02", b"1980-01-03", b"1980-01-03")):
+            terminal.send(b"r", b"Record / Edit")
+            preview = ANSI.sub(b"", terminal.send(
+                b"garden-" + str(i).encode() + b"\x1b[Z" + b"\x7f" * 10 + date +
+                b"\t\t\tbank\t-1\twifi\t1\r", b"Record / Preview"))
+            assert b"Date: " + date in preview and b"jpy" in preview, (
+                "growth specimen used the wrong Actual date/Measure", i, preview)
+            confirmed = ANSI.sub(b"", terminal.send(b"\r", b"Recorded "))
+            marker = b"'::|::'" if i == 0 else b".:;;:|::;:."
+            assert marker in confirmed, ("bonsai was stale after publish or rewarded same-day frequency", i, confirmed)
+        after = household_sections(garden_authority)
+        assert {k: v for k, v in after.items() if k != "Actual"} == {
+            k: v for k, v in garden_before.items() if k != "Actual"
+        }, "bonsai added an independent household family or changed other evidence"
+    finally:
+        terminal.close()
+    terminal = Terminal(garden)
+    try:
+        restored = ANSI.sub(b"", terminal.send(b"g", b"[q] quit"))
+        assert b".:;;:|::;:." in restored, "bonsai growth was not reconstructed on restart"
+    finally:
+        terminal.close()
+
+print("Actual navigation and Record PTY: input/correction/publication/reload/cancellation and bonsai distinct-day growth/restart passed.")

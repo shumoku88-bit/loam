@@ -37,10 +37,26 @@ standalone `actual.loam` diagnostic/migration file.
 
 ### Bonsai Home
 
-`./tools/loam` starts a quiet, centered Home with a fixed
-ASCII bonsai above a small `loam` name. The hand-drawn, asymmetric tree uses green
-leaf texture, a bent normal-contrast trunk and a muted pot; it adds no animation,
-random generation or external dependency. It keeps six entrances: `r` Record, `s` Scheduled, `g` Calendar, `a` Actual, `b` Balances,
+`./tools/loam` starts a quiet, centered Home with an
+ASCII bonsai above a small `loam` name. The hand-drawn tree uses green leaf
+texture, a normal-contrast trunk and a muted pot; it adds no animation, random
+generation or external dependency. Its foliage quietly grows with the distinct
+known occurrence dates of **current Actual records**, using the already-admitted
+Home snapshot, never extra household reads or saved game state.
+
+Six fixed silhouettes start at 0, 1, 3, 7, 14 and 30 recorded dates; 30 or more
+keeps the previously approved mature bonsai. Existing recorded dates count too,
+so a household with 30 or more already starts mature. These are visual steps, not accounting
+laws, a score or a completeness claim. Same-day entries, amounts, descriptions,
+Measures, Scheduled plans, Calendar focus and streaks do not change growth.
+The date means the Actual occurrence date, **not when the user typed the entry**;
+unknown/invalid dates are not guessed. Superseded Correction targets do not count;
+reversals do not erase still-current Actuals. Changes to current dates/frontiers
+reconstruct the tree, so a correction may change its silhouette. Time alone never
+shrinks it: no decay, missed-day penalty or retained high-water mark. Existing
+successful-publication reloads refresh growth; cancelling cannot grow it.
+
+Home keeps six entrances: `r` Record, `s` Scheduled, `g` Calendar, `a` Actual, `b` Balances,
 and `d` Daily Pace. `Enter` also opens Calendar; `i` opens Attention and `Space`
 keeps the full Commands palette. No totals or household completeness claims are
 added. The whole bonsai folds into a compact `loam` title before it would crowd
