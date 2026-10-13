@@ -65,15 +65,28 @@ private def fixture : IO Snapshot := do
 /-- Collect every reachable overview viewport, without re-rendering the
     unchanged last page after the scroll position stops advancing. -/
 private def browseOverview (bounds : Bounds) (snapshot : Snapshot) (state : State) : IO String := do
-  let mut state := state
+  let mut state := {state with overviewManualScroll := true, overviewScroll := 0}
   let mut frames : Array String := #[]
-  for _ in List.range 30 do
+  for _ in List.range 100 do
     frames := frames.push ("\n" ++ text (Loam.Tui.Home.view bounds snapshot state))
     let next ← press bounds snapshot state (.ctrl 'd')
     if next.overviewManualScroll && next.overviewScroll == state.overviewScroll then
       return String.intercalate "" frames.toList
     state := next
   pure (String.intercalate "" frames.toList)
+
+/-- Page through complete daily evidence without transaction selection undoing
+    explicit browsing. This also qualifies long non-selectable read diagnostics. -/
+private def browseDetail (bounds : Bounds) (snapshot : Snapshot) (state : State) : IO String := do
+  let mut state := {state with activePane := .detail, detailManualScroll := true, detailScroll := 0}
+  let mut frames : Array String := #[]
+  for _ in List.range 100 do
+    frames := frames.push ("\n" ++ text (Loam.Tui.Home.view bounds snapshot state))
+    let next ← press bounds snapshot state .pageDown
+    if next.detailScroll == state.detailScroll then
+      return String.intercalate "" frames.toList
+    state := next
+  throw (IO.userError "Detail browsing did not reach its last page")
 
 def main : IO Unit := do
   let snapshot ← fixture
@@ -86,11 +99,13 @@ def main : IO Unit := do
     let bounds : Bounds := {width, height := 24}
     let state : State := {base with zoomLevel := .day}
     let first := text (Loam.Tui.Home.view bounds snapshot state)
-    expect (contains "Selected: 2026-10-01" first)
-      s!"compact Day did not lead with the focused date at {width}"
-    let rendered ← browseOverview bounds snapshot state
+    expect (contains "Focus: 2026-10-01" first && contains "RECORD-9#" first)
+      s!"compact Day lost its date or selected-day Actual at {width}"
+    let overview ← browseOverview bounds snapshot state
+    let detail ← browseDetail bounds snapshot state
+    let rendered := overview ++ detail
     for marker in ["jpy", "usd", "In:+", "Out:-", "Net:", "? 2 unresolved",
-                   "Scheduled:", "Pending:", "Month Flow (2026-10)"] do
+                   "Scheduled", "Unknown; completeness", "Month Flow (2026-10)"] do
       expect (contains marker rendered)
         s!"compact Day omitted admitted evidence at {width}: {marker}"
   -- Medium terminals reflow into simultaneous calendar/detail frames.
@@ -98,46 +113,46 @@ def main : IO Unit := do
       {width := 119, height := 20}] do
     let state : State := {base with zoomLevel := .day}
     let rendered := text (Loam.Tui.Home.view bounds snapshot state)
-    expect (contains "Calendar [active]" rendered &&
+    expect (contains "Calendar / 2026-10" rendered &&
       contains "Day 2026-10-01 / Detail" rendered &&
       contains "RECORD-9#" rendered)
       s!"stacked Day lost calendar or Actual detail at {bounds.width}"
     let focused ← press bounds snapshot state .tab
     let detailView := text (Loam.Tui.Home.view bounds snapshot focused)
-    expect (contains "Detail [active]" detailView && contains "RECORD-9#" detailView)
+    expect (contains "Day 2026-10-01 / Detail" detailView && contains "RECORD-9#" detailView &&
+      (Loam.Tui.Home.view bounds snapshot focused).lines.flatten.any (fun cell => cell.style == .selected))
       s!"stacked Day lost visible focused detail at {bounds.width}"
     let back ← press bounds snapshot focused .tab
     expect (back.activePane == .calendar && back.selectedDate == state.selectedDate)
       "stacked pane focus changed the date"
   let tinyDay := text (Loam.Tui.Home.view {width := 48, height := 14}
     snapshot {base with zoomLevel := .day})
-  expect (contains "Actual: RECORD-9#" tinyDay)
+  expect (contains "▶ - RECORD-9#" tinyDay)
     "tiny Day no longer exposes the selected date's first Actual"
   let regularDay := text (Loam.Tui.Home.view {width := 120, height := 24}
     snapshot {base with zoomLevel := .day})
   expect (contains "┬" regularDay) "wide Day unexpectedly lost its money grid"
 
-  -- UI-only weekly ribbon trial; crossing dates, focus and old view remain.
-  for bounds in [{width := 48, height := 14}, {width := 80, height := 24},
-      {width := 119, height := 20}, {width := 150, height := 45}] do
+  -- Narrow Day mode automatically presents the quiet weekly ribbon; wide Day retains the full money grid.
+  for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, {width := 119, height := 20}] do
     let state : State := {base with zoomLevel := .day, selectedDate := "2026-10-01"}
-    let switched ← press bounds snapshot state (.input 'F')
-    expect (switched.weekTrial && switched.selectedDate == state.selectedDate)
-      "week trial toggle changed date or failed to enter"
-    let rendered ← browseOverview bounds snapshot switched
+    let rendered ← browseOverview bounds snapshot state
     expect (contains "Week 2026-09-28 .. 2026-10-04" rendered)
       s!"week ribbon lost month-boundary coordinates at {bounds.width}: {rendered}"
-    expect (contains "Selected day: 2026-10-01" rendered)
+    expect (contains "Focus: 2026-10-01" rendered)
       s!"week ribbon lost focused date at {bounds.width}: {rendered}"
     expect (contains "Month Flow (2026-10)" rendered)
       "week ribbon lost independent monthly-money overview"
-    let focused ← press bounds snapshot switched .tab
+    let focused ← press bounds snapshot state .tab
     expect (contains "▶ - " (text (Loam.Tui.Home.view bounds snapshot focused)))
-      s!"week trial hid exact Detail at {bounds.width}"
-    let returnState ← press bounds snapshot switched (.input 'F')
-    expect (!returnState.weekTrial && returnState.selectedDate == state.selectedDate)
-      "week trial could not return to original Day grid"
-  -- Day/week alignment and evidence-preserving status marks on all widths.
+      s!"compact Day hid exact Detail at {bounds.width}"
+  for bounds in [{width := 120, height := 24}, {width := 150, height := 45}] do
+    let state : State := {base with zoomLevel := .day, selectedDate := "2026-10-01"}
+    let rendered ← browseOverview bounds snapshot state
+    expect (contains "┬" rendered)
+      s!"wide Day unexpectedly lost its money grid at {bounds.width}"
+
+  -- Day/week alignment and evidence-preserving status marks on narrow Day bounds.
   let movement ← requireSome (BalancedMovement.ofChanges? ⟨"jpy"⟩
     [{coordinate := ⟨"wallet"⟩, quantity := Quantity.ofQuanta (-1)},
      {coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 1}]) "week Scheduled movement"
@@ -150,37 +165,61 @@ def main : IO Unit := do
   let withScheduled := {snapshot with
     actual := {snapshot.actual with today := "2026-10-12"}
     scheduled := .ok {originalScheduled with scheduled := openScheduled} }
-  let weekly : State := {
+  let narrowDay : State := {
     base with
     zoomLevel := .day
-    weekTrial := true
     selectedDate := "2026-10-15"
   }
   for bounds in [{width := 32, height := 20}, {width := 48, height := 14},
-      {width := 80, height := 24}, {width := 119, height := 20},
-      {width := 120, height := 30}, {width := 150, height := 45}] do
-    let shown ← browseOverview bounds withScheduled weekly
-    expect (contains "15" shown && contains "S6" shown && contains "Selected day: 2026-10-15" shown)
+      {width := 80, height := 24}, {width := 119, height := 20}] do
+    let shown ← browseOverview bounds withScheduled narrowDay
+    expect (contains "15" shown && contains "S6" shown && contains "Focus: 2026-10-15" shown)
       s!"week Scheduled marker or selected date hidden at {bounds.width}"
     expect (contains "Mon" shown && contains "Sun" shown)
       s!"week days did not fit at {bounds.width}"
     expect (!contains "Out/day:" shown && contains "Month Flow (2026-10)" shown)
       "week strip invented a pace-like sum or lost the monthly evidence"
-    let view := Loam.Tui.Home.view bounds withScheduled weekly
+    let view := Loam.Tui.Home.view bounds withScheduled narrowDay
     for row in view.lines do
       expect (Loam.Tui.Layout.displayWidth (String.ofList (row.map Cell.glyph)) ≤ bounds.width - 1)
         s!"week strip exceeds writable width at {bounds.width}"
     let badRead := {withScheduled with scheduled := .error "scheduled lifecycle read failed"}
-    let shownFailure ← browseOverview bounds badRead weekly
+    let shownFailure ← browseOverview bounds badRead narrowDay
     expect (contains "S?" shownFailure && contains "unavailable" shownFailure)
       s!"week strip hid Scheduled failure at {bounds.width}"
-  let yearBorder : State := {base with zoomLevel := .day, selectedDate := "2026-12-31", weekTrial := true}
+  -- The two roles never collapse into a Calendar containing transaction details.
+  -- Dates, weekday and status remain contiguous before the first Actual heading.
+  for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
+      {width := 64, height := 30}, {width := 79, height := 24},
+      {width := 80, height := 24}, {width := 119, height := 30}] do
+    let state := {base with zoomLevel := .day}
+    let view := Loam.Tui.Home.view bounds snapshot state
+    let actualRow ← requireSome (rowIndex? "RECORD-9#" view) "Actual hidden after compact resize"
+    let dateRow ← requireSome (rowIndex? "1" view) "compact date navigator hidden"
+    expect (dateRow < actualRow && !contains "Actual: RECORD" (text view))
+      "compact Day merged Actual preview into date navigation"
+    expect (view.lines.length == bounds.height - 1) "compact Day height changed"
+    for row in view.lines do
+      expect (Loam.Tui.Layout.displayWidth (String.ofList (row.map Cell.glyph)) ≤ bounds.width - 1)
+        "compact two-role layout exceeded terminal width"
+    let datesBefore := view.lines.take actualRow
+    expect (datesBefore.flatten.any (fun cell => cell.style == .selected || cell.style == .selectedUnderlined))
+      "compact date navigator lost its selected-day marker"
+  -- Spare height exposes the complete month projection rather than truncating
+  -- the upper frame above an empty lower frame (the supplied screenshot seam).
+  let sparse := {snapshot with actual := {snapshot.actual with allRecords := []}}
+  let sparseView := text (Loam.Tui.Home.view {width := 100, height := 40}
+    sparse {base with zoomLevel := .day})
+  expect (contains "Month Flow (2026-10)" sparseView && contains "Scheduled" sparseView)
+    "empty Detail still hid month evidence despite available height"
+
+  let yearBorder : State := {base with zoomLevel := .day, selectedDate := "2026-12-31"}
   let yearView ← browseOverview {width := 80, height := 24} snapshot yearBorder
   expect (contains "Week 2026-12-28 .. 2027-01-03" yearView)
     "weekly ribbon lost December-to-January coordinates"
   let zoomed ← press wide snapshot yearBorder (.input 'z')
-  expect (!zoomed.weekTrial && zoomed.zoomLevel == .month)
-    "week trial leaked across existing z zoom"
+  expect (zoomed.zoomLevel == .month)
+    "zoom did not advance to month overview"
 
   -- Quiet frames and stable feedback: one-line notices cannot move borders/help.
   for bounds in [{width := 48, height := 14}, {width := 80, height := 24}, wide] do
@@ -227,7 +266,8 @@ def main : IO Unit := do
       scrolled ← press bounds snapshot scrolled (.ctrl 'u')
     expect (scrolled.overviewManualScroll && scrolled.overviewScroll == 0 &&
       scrolled.selectedDate == state.selectedDate) "manual overview browsing changed date or snapped back"
-    expect (contains "Mon" (text (Loam.Tui.Home.view bounds snapshot scrolled)))
+    let header := text (Loam.Tui.Home.view bounds snapshot scrolled)
+    expect (contains "Mon" header || contains "Week 2026-10-26 .. 2026-11-01" header)
       "manual overview browsing could not reach the calendar header"
     let moved ← press bounds snapshot scrolled (.input 'h')
     expect (!moved.overviewManualScroll && moved.overviewScroll == 0)
@@ -445,7 +485,8 @@ def main : IO Unit := do
       selectedDate := "2026-01-01", overviewManualScroll := true}
     for label in monthLabels do
       expect (contains label rendered) s!"month label clipped at {bounds.width}: {label}"
-    expect (contains "10t" rendered && contains "2t" rendered) "month reflow lost exact counts"
+    expect (contains "10 records" rendered && contains "2 records" rendered && contains "0 records" rendered)
+      "month reflow lost exact labelled counts"
     for month in List.range 12 do
       let date := Loam.Tui.Calendar.dateForDay {year := 2026, month := month + 1} 1
       let state := {base with selectedDate := date}
@@ -459,6 +500,38 @@ def main : IO Unit := do
       if month == 9 then
         expect (contains "10 Oct" (String.ofList (today.map Cell.glyph)))
           "current month lost its underline"
+
+  -- Month names/counts occupy separate aligned rows, and zoom-specific frame
+  -- titles replace the ambiguous Calendar/date + inset Year/Years Overview labels.
+  for bounds in [{width := 32, height := 14}, {width := 48, height := 14},
+      {width := 64, height := 30}, {width := 116, height := 40}, wide] do
+    let month := Loam.Tui.Home.view bounds snapshot {base with zoomLevel := .month}
+    expect (contains "Months / 2026" (text month) && !contains "10t" (text month) &&
+      !contains "underline = current month" (text month)) "month retained obsolete headings or count shorthand"
+    let selected ← requireSome (rowIndex? "[10 Oct]" month) "selected month missing"
+    expect (contains "10 records" (String.ofList ((month.lines[selected + 1]?.getD []).map Cell.glyph)))
+      "selected month's count did not remain beside its name after resize"
+    let countRow := month.lines[selected + 1]?.getD []
+    expect (countRow.all fun cell => cell.style != .selected && cell.style != .selectedUnderlined &&
+      cell.style != .underlined) "month count borrowed selection or Today meaning"
+    let year := Loam.Tui.Home.view bounds snapshot {base with zoomLevel := .year}
+    expect (contains "Years" (text year) && contains "Records" (text year) &&
+      contains "[2026]" (text year) && !contains "Years Overview" (text year) &&
+      !contains "underline = current year" (text year)) "year retained ambiguous or duplicate headings"
+    let yearRendered ← browseOverview bounds snapshot {base with zoomLevel := .year}
+    expect (contains "Year Flow (2026)" yearRendered && contains "12 transactions recorded" yearRendered)
+      "year refinement lost the period count or financial summary"
+    for view in [month, year] do
+      for cells in view.lines do
+        expect (Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) ≤ bounds.width - 1)
+          "month/year refinement exceeded writable columns"
+  -- Year choices stay in the existing jump/navigation domain near its edges.
+  for (date, firstYear, lastYear) in [("1000-01-01", "1000", "1004"),
+      ("9999-12-31", "9995", "9999")] do
+    let view ← browseOverview {width := 48, height := 24} snapshot
+      {base with selectedDate := date, zoomLevel := .year}
+    expect (contains firstYear view && contains lastYear view && !contains "10000" view)
+      "neighboring-year choices escaped the admitted navigation range"
 
   -- Exact per-measure sums, explicit uncertainty, and no layout-dependent read semantics.
   for bounds in [wide, {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 20}] do
@@ -553,6 +626,48 @@ def main : IO Unit := do
     expect (paged.detailScroll > 0) "empty Actual blocked pending evidence scroll"
     expect ((Loam.Tui.Home.reconcileState bounds pendingOnly paged).detailScroll == paged.detailScroll)
       "reconciliation undid non-selectable evidence scroll"
+
+  -- Full help replaces only presentation, captures household entrances, and
+  -- survives resize without changing date, record identity or underlying scroll.
+  for bounds in [{width := 32, height := 9}, {width := 48, height := 14}, wide] do
+    let start := {base with zoomLevel := .day, activePane := .detail}
+    let help ← press bounds snapshot start (.input '?')
+    expect (help.helpOpen && contains "[?] close" (text (Loam.Tui.Home.view bounds snapshot help)))
+      "Home help did not open with a visible exit"
+    for key in [Loam.Tui.Terminal.Key.input 'r', .input 'a', .input 's', .input 'i',
+        .input 'd', .input 'b', .input ' ', .enter, .input '/', .input 'z'] do
+      let captured ← press bounds snapshot help key
+      expect (captured.helpOpen && captured.selectedDate == help.selectedDate &&
+        captured.detailCursor == help.detailCursor && captured.activePane == help.activePane)
+        "help delegated a household entrance or changed the workspace context"
+    let mut browsing := help
+    let mut collected := ""
+    for _ in List.range 100 do
+      let view := Loam.Tui.Home.view bounds snapshot browsing
+      let content := view.lines.drop 3 |>.take (bounds.height - 8)
+      collected := collected ++ String.ofList (content.flatten.map Cell.glyph)
+      browsing ← press bounds snapshot browsing (.ctrl 'd')
+    for marker in ["amount too wide", "completeness claim", "retained quanta", "[i]", "[b]"] do
+      expect (contains (marker.replace " " "") (collected.replace " " "" |>.replace "\n" "" |>.replace "│" "")) s!"full help lost {marker}"
+    for resized in [{width := 48, height := 14}, {width := 120, height := 24}] do
+      let rendered := Loam.Tui.Home.view resized snapshot browsing
+      expect (rendered.lines.length == resized.height - 1) "help resize exceeded terminal height"
+    let back ← press bounds snapshot browsing .escape
+    expect (!back.helpOpen && back.selectedDate == help.selectedDate &&
+      back.detailScroll == help.detailScroll && back.detailCursor == help.detailCursor)
+      "closing help lost the underlying Home context"
+  -- Manual evidence pages include daily flow and Scheduled even when Actual is
+  -- nonempty; moving the cursor resumes identity-based focus-following.
+  let detailPages ← browseDetail {width := 48, height := 14} failed {base with zoomLevel := .day}
+  expect (contains "-tail" detailPages && contains "RECORD-9#" detailPages &&
+    contains "Unknown; completeness" detailPages) "Detail paging omitted a diagnostic or Scheduled"
+  let browsing ← press {width := 48, height := 14} snapshot
+    {base with zoomLevel := .day, activePane := .detail} .pageDown
+  expect browsing.detailManualScroll "manual evidence page retained selection-following"
+  let selecting ← press {width := 48, height := 14} snapshot browsing .up
+  expect (!selecting.detailManualScroll && contains "▶ - RECORD" (text
+    (Loam.Tui.Home.view {width := 48, height := 14} snapshot selecting)))
+    "transaction selection did not resume after evidence browsing"
 
   -- Focus and jump are modal; invalid input does not escape into household commands.
   let prompt ← press wide snapshot base (.input '/')

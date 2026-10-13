@@ -52,12 +52,14 @@ def main():
         before = resources.digest(root)
         terminal = resources.Terminal(args.binary.resolve(), root)
         try:
-            terminal.send(b"zz\t", b"/ Detail [active]")
+            terminal.send(b"zz\t", b"[Esc/Tab/w] calendar")
             samples = {}
             selections = {}
             for name, keys in [("keys", b"j" * args.burst),
                                ("wheel", b"\x1b[<65;130;12M" * args.burst),
-                               ("pages", b"\x1b[6~" * args.burst),
+                               # Ctrl-D retains five-record selection paging;
+                               # PgDn now browses evidence without moving identity.
+                               ("selection_pages", b"\x04" * args.burst),
                                ("reverse", b"j" * args.burst + b"k" * args.burst),
                                ("wheel_reverse", b"\x1b[<65;130;12M" * args.burst +
                                 b"\x1b[<64;130;12M" * args.burst)]:

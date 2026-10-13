@@ -60,6 +60,8 @@ structure State where
   notice : String := ""
   /-- Presentation-only viewport offset for the responsive Home detail pane. -/
   detailScroll : Nat := 0
+  /-- Explicit evidence browsing releases transaction focus-following until selection changes. -/
+  detailManualScroll : Bool := false
   /-- Scroll of the calendar surface, independent of record selection. -/
   overviewScroll : Nat := 0
   /-- Manual calendar browsing temporarily releases focus-following until date/zoom changes. -/
@@ -68,10 +70,11 @@ structure State where
   detailCursor : Nat := 0
   /-- Calendar zoom level: Day, Month, or Year. -/
   zoomLevel : Loam.Tui.DateJump.ZoomLevel := .day
-  /-- Reversible, session-only seven-day ribbon design trial. -/
-  weekTrial : Bool := false
   /-- Active jump input buffer. When `some s`, Home is in jump-prompt mode. -/
   jumpPrompt : Option String := none
+  /-- Read-only Home help; never delegates keys to household workspaces. -/
+  helpOpen : Bool := false
+  helpScroll : Nat := 0
   /-- Currently active/focused pane on the Home surface. -/
   activePane : HomePane := .calendar
 
@@ -110,11 +113,11 @@ def focusDetail (state : State) : State :=
 def setZoomLevel (state : State) (zoom : Loam.Tui.DateJump.ZoomLevel) : State :=
   { state with
     zoomLevel := zoom
-    weekTrial := false
     overviewScroll := 0
     overviewManualScroll := false
     notice := s!"View: {Loam.Tui.DateJump.zoomLabel zoom}"
     detailScroll := 0
+    detailManualScroll := false
     detailCursor := 0
     activePane := .calendar
   }
@@ -154,10 +157,10 @@ def executeJump (state : State) : State :=
             overviewScroll := 0
             overviewManualScroll := false
             zoomLevel := target.zoom
-            weekTrial := false
             jumpPrompt := none
             notice := s!"Jumped to {target.date} ({Loam.Tui.DateJump.zoomLabel target.zoom})."
             detailScroll := 0
+            detailManualScroll := false
             detailCursor := 0
             activePane := .calendar
           }
@@ -194,7 +197,7 @@ def moveDate (state : State) (offset : Int) : State :=
   match Loam.ActualDate.shiftDays? state.selectedDate offset with
   | none => { state with notice := "Calendar boundary reached." }
   | some date => { state with
-      selectedDate := date, notice := "", detailScroll := 0, detailCursor := 0
+      selectedDate := date, notice := "", detailScroll := 0, detailManualScroll := false, detailCursor := 0
       overviewScroll := 0, overviewManualScroll := false }
 
 def moveMonth (state : State) (offset : Int) : State :=
@@ -215,7 +218,7 @@ def moveMonth (state : State) (offset : Int) : State :=
       let clampedDay := if day > maxDay then maxDay else if day == 0 then 1 else day
       let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := targetMonth } clampedDay
       { state with
-        selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0
+        selectedDate := newDate, notice := "", detailScroll := 0, detailManualScroll := false, detailCursor := 0
         overviewScroll := 0, overviewManualScroll := false }
 
 def moveYear (state : State) (offset : Int) : State :=
@@ -231,7 +234,7 @@ def moveYear (state : State) (offset : Int) : State :=
         let clampedDay := if d > maxDay then maxDay else d
         let newDate := Loam.Tui.Calendar.dateForDay { year := targetYear, month := m } clampedDay
         { state with
-          selectedDate := newDate, notice := "", detailScroll := 0, detailCursor := 0
+          selectedDate := newDate, notice := "", detailScroll := 0, detailManualScroll := false, detailCursor := 0
           overviewScroll := 0, overviewManualScroll := false }
 
 /-- Home-only root navigation. Household evidence is consumed by presentation, not this transition. -/

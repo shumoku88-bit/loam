@@ -61,9 +61,10 @@ k/j        previous / next week, quarter, or year (current zoom)
 t          return calendar focus to today
 /          jump to a date, month, or year (Enter confirms; Esc cancels)
 z          cycle Day / Month / Year
-F          toggle experimental Week ribbon / existing month grid in Day mode
 Tab/w      switch calendar / transaction focus
+?          open read-only Home help / complete key grammar and legends
 Ctrl-u/d   scroll calendar; page transaction selection in detail
+PgUp/Dn    scroll complete Detail evidence without changing transaction identity
 Enter      Year -> Month -> Day -> selected-day workspace
 (Day view) role-aware money calendar with income, expense, and open-plan markers
 r          Record (selected date prefilled)
@@ -83,43 +84,34 @@ optional-budget operations remain palette-only. The old Home Reports shortcut
 Commands instead.
 Each workspace keeps its own local key grammar.
 
-The prior compact calendar was retired. The Calendar Home now always uses
-the larger role-aware money grid, with Today's underline on the date row only
+On wide terminals (120 columns and wider), Day Home presents the full
+role-aware money grid across six weeks, with Today's underline on the date row only
 (not the amount or blank rows), open-plan `!`, and
 unresolved-role `?` markers. A daily amount too wide for its cell shows `…`, with
-an explicit legend, never misleading partial digits. Monthly totals wrap below the
+the `?` help legend, never misleading partial digits. Monthly totals wrap below the
 grid; a failed money read has a distinct label and a wrapped, scrollable diagnostic.
 If money flow evidence is unavailable, the calendar still shows dates and explicitly indicates that the financial projection is
 unavailable. The calendar does not duplicate Daily Pace or Attention answers;
 use `i` for Attention and `d` for Daily Pace.
 
-The `F` design trial is a reversible, session-only **Week ribbon** variant of
-existing Day Home, not yet an independent zoom. Its quiet strip has three aligned
-rows: Monday-first weekday, date and small read-side status. Selected days have
-brackets (or a leading > at the narrowest widths) in addition to the selected
-style; Today stays underlined and can show a Today/T marker. `S6` denotes six
-explicitly **current-open** Scheduled occurrences retained for that date, `S+`
-denotes a positive count too wide for the cell (not a truncated numerical
-claim), and `S?` denotes a failed Scheduled read; no marker is not a
-closed-world NotDue verdict. At very narrow/short widths, status precedes the
-scrollable full-week date and period view only after the first Actual preview.
-The strip removes intra-week vertical rules and shares one consistent column
-geometry for weekday, date and status. It uses the admitted Monday-first
-seven-day projection, including month/year crossovers, and retains selected-day
-Actual/Scheduled details and separate month totals. Press `F` to restore the
-established Day layout (the full money grid on wide terminals and the compact
-Day layout on smaller ones). The `z` cycle, date jump, and household writes do not
-change. No guessed week sum or spendable balance is calculated.
-
-At narrow widths below 80 columns, Day Home prioritizes the selected date and
-a bounded first Actual description before its admitted per-Measure income/expense/net
-flow. This preview does not replace the exact scrollable details or their actions. It retains explicit unresolved,
-not-requested, unavailable, and failed states, shows Scheduled/Pending evidence,
-and places the focused week and complete scrollable month totals below. This
-is a presentation choice, not a balance or spendable Daily Pace calculation.
-The full date/income/expense money grid remains at 80 columns and above.
-Small date cells omit week markers when they cannot fit; the selected-day
-evidence and the scrollable period view are not converted into guessed zeros.
+Below 120 columns, Day Home keeps two roles: the **Week ribbon** date navigator
+above, and selected-day evidence in Detail below. It never merges Actual previews,
+daily flow, month totals, legends and full records into one Calendar frame.
+The navigator has contiguous Monday-first weekday, date and read-side status rows
+(two rows when weekday/date fit together). Selected days have brackets, or a leading
+`>` at the narrowest widths; Today remains underlined. `S6` denotes six evidenced
+**current-open** Scheduled occurrences, `S+` a positive count too wide for its cell,
+and `S?` an unavailable read. A blank marker is not a closed-world NotDue verdict.
+All strip rows share column geometry, including month/year crossovers.
+Navigator height follows its content rather than a fixed eight-row allocation.
+When the complete month overview and Detail both fit, the upper frame also exposes
+month totals instead of hiding them above an empty lower frame. Otherwise the
+complete week fits first and month totals remain reachable with Calendar Ctrl-u/d.
+On short terminals the navigator becomes one unframed date strip, leaving the
+remaining rows to Detail; tiny Detail drops its borders rather than all its evidence.
+Explicit Calendar browsing may replace that strip with overview rows; date movement
+resumes the date strip. The prior session-only `F` toggle remains retired.
+The `z` cycle, date jump, and household writes do not change. No guessed week sum or spendable balance is calculated.
 
 Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine
@@ -131,42 +123,52 @@ surfaces do not carry a second application-quit command or a hidden `b` back ali
 Home keeps household evidence in the body and shortcut grammar in the stable footer.
 Calendar and Detail use thin rounded frames separated by one blank column in the
 wide layout. Only the focused frame uses the existing cyan border; inactive borders,
-section headings, selection markers, and help labels stay muted. Context occupies
+selection markers and help labels stay muted. Evidence and section headings use
+normal contrast rather than treating important body text as a faded annotation. Context occupies
 two quiet rows above the frames: known-through date, then navigated focus and zoom.
 There are no heavy `=` rules or extra accent colors. Detail's period belongs in its
 frame title, and each bottom border shows the visible line range and hidden-row
 arrows. Wide terminals give Detail a bounded share of the width while leaving the
 remaining space to the money grid.
 
-A feedback row is reserved above the footer even when empty. One-line notices do
-not move frames or operations; longer notices wrap, including Japanese and unbroken
-tokens. If feedback/help exceeds the entire available height, the last row explicitly
-asks for a larger terminal rather than silently claiming the text is complete.
-Below 80 columns, four abbreviated operation rows keep compact Home usable (`C-`
-means Ctrl); bindings are unchanged. Date-jump input uses the same footer area and
-retains its ordinary height when its prompt fits.
+Two operation rows stay at the bottom: frequent navigation/focus/help, then Record,
+Commands and back/quit (plus Today/jump/zoom when width permits). Other direct keys
+remain active and discoverable in `?`; no workspace entrance is retired.
+The reserved feedback area above them shows compact `s` / `i` read-side signals
+when needed and no notice is present. Notices and signals wrap without truncating
+counts or causes, including Japanese and unbroken tokens. One-line feedback does
+not move frames or operations. Over-height feedback explicitly asks for a larger
+terminal. Date-jump input temporarily replaces the operation rows.
+
+`?` opens a read-only framed Help surface with the full grammar and evidence legends.
+`j/k`, Up/Down, Ctrl-u/d and Page Up/Down browse; Home/End reach the ends; `?`, Esc or
+q closes it. Other keys, including Record, Commands and Enter, cannot escape to
+household operations while Help is open. Resize reflows only Help presentation and
+closing returns to the underlying date, pane and transaction identity.
 
 Home `d` or Commands > Reports and analysis > Daily Pace opens a small read-only
 trend over the already-derived retrospective
 current-truth series, including its latest point. The trend does not retain daily
 pace as household state or introduce a second calculation.
-The footer groups navigation by Day/Month/Year or Detail context,
-plus frequent actions and the Commands entrance. In Detail, j/k selects transactions, Enter opens the
-selected transaction in its day workspace, and Esc/Tab/w returns to the calendar.
-At widths 80–119 with enough height, Day Home stacks a short selected-week
-Calendar above a focusable Actual/Scheduled Detail. The compact Day pane retains
-scroll access to complete month-flow answers, while the lower pane prioritizes
-Actual entries ahead of long pending/plan evidence. On shorter terminals and in
-Month/Year, the focused pane still takes the full body. Below 80 columns, the
-compact Calendar shows the first Actual description immediately, with Tab/w
-opening the full Detail view. Selection follows the available viewport at every
-width; oversized records keep their title visible. Descriptions wrap by terminal
-columns, including Japanese. Actual Effects and Scheduled changes align their signed,
-grouped **retained quanta** with the explicit Measure token; optional money-calendar
-availability does not change this convention. Long Loci and oversized quantities
-wrap into labelled lines rather than losing digits. An inactive Detail retains its
-muted selected-record marker without a selected background. Enter still opens that
-exact record in Selected Day for object-local review and actions.
+Help groups navigation by Day/Month/Year or Detail context. In Detail, j/k selects
+transactions, Enter opens the selected transaction in its day workspace, and
+Esc/Tab/w returns focus to Calendar. The Detail order is daily directional flow,
+Actual, selected-day Scheduled, then nonempty/unavailable Pending evidence.
+Scheduled's heading retains the selected-date Due count (or Unknown/Unavailable);
+nonempty Pending's heading retains its exact count. These are distinct from the
+footer signals relative to Today and never infer completeness from a blank marker.
+The compact Calendar does not duplicate daily flow or selected-day lifecycle labels;
+the wide month grid still has its own daily amounts and period read-state labels. Explicit Page Up/Down
+scrolls all Detail evidence even when Actual is nonempty, retaining the selected
+identity. Transaction movement resumes selection-following. Month/Year retain their
+period transaction lists and compact focused-pane fallback.
+Selection follows the available viewport at every width; oversized records keep
+their title visible. Descriptions, long Loci and oversized quantities wrap by
+terminal columns, including Japanese. Actual Effects and Scheduled changes retain
+signed, grouped **quanta** and explicit Measure regardless of optional money-calendar
+availability. An inactive Detail retains a muted selection marker without a selected
+background. Focus is shown by the existing cyan frame, not an extra `[active]` label.
+Enter still opens that exact record in Selected Day for object-local actions.
 Shared field presentation: `Loam.Tui.Layout.inputTail` shows the insertion
 end of an active, overflowing single-line input with a leading ellipsis;
 `Loam.Tui.Layout.ellipsize` retains the beginning of a read-only or unfocused
@@ -193,9 +195,18 @@ override editor-specific actions.
 With no Actual rows, Ctrl-u/d scrolls the remaining Scheduled evidence. In calendar
 focus, Enter or Esc drills Year -> Month -> Day; Esc at Day does nothing.
 
-Month zoom labels include both the month number and English abbreviation (`01 Jan`
-through `12 Dec`). Quarter rows reflow on narrow terminals without clipping month
-labels or transaction counts; selection and the current-month underline are unchanged.
+Month zoom uses a `Months / YYYY` frame and a quiet twelve-month grid grouped by
+quarter. Each cell has a month name (`01 Jan` through `12 Dec`) above its explicit
+record count, replacing the ambiguous `51t` / dash shorthand. Columns reflow from
+three to two to one without truncating counts; a short automatic viewport starts
+at the selected month name if its name/count pair cannot fit from the top. Count
+rows never borrow the selection or current-month underline.
+Year zoom uses a `Years` frame with aligned Year / Records columns over five
+neighboring choices, bounded to the existing 1000–9999 jump/navigation domain.
+Both zooms retain brackets for selection and underline for the current period,
+with the legend in `?` rather than repeated body prose. A muted horizontal rule
+separates navigation from the unchanged per-Measure period flow, partial/read-state
+labels and full-period average. Footer Enter labels explicitly say days / months.
 
 Beneath the day calendar, `Month Flow (YYYY-MM)` names the selected month's recorded
 `In`, `Out`, and `Net`, with currency formatting and an explicit `Measure:` token.
@@ -213,25 +224,28 @@ part of this financial summary.
 
 Date/zoom changes reset selection and scrolling. In short terminals, Calendar's
 viewport follows the selected day (date and its two amount rows when they fit),
-month, or year. Explicit Ctrl-u/d browsing releases this follow behavior so summaries,
-legends, and evidence remain reachable; date navigation, zoom, a successful jump,
+month, or year. Explicit Ctrl-u/d browsing releases this follow behavior so summaries
+and evidence remain reachable; legends live in `?`. Date navigation, zoom, a successful jump,
 or Today resumes it. Resize derives the viewport from live bounds without changing
 the selected date. This manual-browsing flag is ephemeral presentation state only.
 Reloads after workspace edits
 clamp selection to current records; rendering and Enter use the same selection.
 These are ephemeral presentation states, not additional household authority.
-Home reuses wrapped transaction rows/positions, the wide calendar overview, and
-qualified Pending evidence within that immutable read snapshot. Selection renders
+Home reuses wrapped transaction rows/positions and the width-dependent calendar
+and period overview within that immutable read snapshot. Pending remains derived
+from the same qualified Scheduled evidence; there is no independent pending cache. Selection renders
 only its visible row window; width/date/zoom changes rebuild the projection, and
-workspace returns discard it before using refreshed evidence. Keyboard actions and
-wheel repeat counts remain unchanged—no input is dropped to hide latency.
+workspace returns discard it before using refreshed evidence. Transaction-selection
+keys and wheel repeat counts remain unchanged; Page Up/Down now owns explicit
+read-side browsing. No input is dropped to hide latency.
 Year-scroll reproduction and measurement limits:
 [`TUI_YEAR_SCROLL_2026-10-10.md`](research/TUI_YEAR_SCROLL_2026-10-10.md).
 Regression coverage is in `Loam/Tests/TuiHomeNavigation.lean` and
 `Loam/Tests/TuiHelpFooter.lean`, run by both TUI CI tiers.
 
-In Day view, an empty Pending set remains visible as `Pending: 0` but does not
-allocate a separate empty `Pending Scheduled` section.
+In Day view, an empty Pending set allocates no section or redundant zero-status row.
+Nonempty and unavailable Pending evidence remains explicit in Detail; empty
+Scheduled still says Unknown and never becomes a completeness claim.
 
 The Commands labels distinguish user-facing actions from narrower implementation
 modules. Purpose routing edits Actual-to-Purpose routing, Manage Loci admits new

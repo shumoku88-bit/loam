@@ -25,7 +25,7 @@
 
 | ID | 画面・範囲 | UI 改修の状態 | 残作業 / 完了の証跡 |
 | --- | --- | --- | --- |
-| UI-01 | Home / Calendar / Detail | 完了 | 控えめな丸角枠、2行の文脈、符号付き quanta の整列・折返し、フォーカス追従／手動スクロール、枠内の可視範囲、予約通知行と固定ナビ。`TuiHomeNavigation` / `TuiHelpFooter`、代表 TUI テスト、Home 世代・DateJump、Viewport / Record PTY、合成データでの resource check を検証。Selected Day は UI-04 として別作業 |
+| UI-01 | Home / Calendar / Detail | 完了 | 2026-10-13：利用画像で見えた上枠の欠け／下枠の空白、狭幅での意味混在を再改修。広幅は月間 Calendar＋Detail、狭幅は連続した週ナビ＋日の内容、短い端末は1行の日付ナビ。両方収まる高さでは月集計も表示。日の収支・Actual・Scheduled・非空／Unavailable Pending は Detail に集約。固定2行ナビ＋`?` の全文ヘルプが旧4系統の常設案内・本文凡例を引き継ぐ。PgUp/Dn は選択 identity を保って全文を閲覧、j/k で選択追従に復帰。既存 `TuiHomeNavigation` / `TuiHelpFooter` と Viewport / Record PTY で独立した根拠・リサイズ・モーダル拒否・復帰を検証（新CIなし）。Day 表示はユーザーの実機確認済み。続いて z の月／年表示を整列：`Months / YYYY` の月名＋件数2行セル、`Years` の Year / Records 列、集計との控えめな区切り、凡例は `?`。選択・現在期間の下線・正確な件数と期間集計を維持し、狭幅・選択月の名前／件数の同時表示・年の範囲端を既存 Lean／Viewport PTY で検証。月／年表示もユーザーの実機確認・了承済み。Selected Day は UI-04 |
 | UI-02 | Commands パレット | 一部完了 | 階層ナビは既存。ラベル・選択・余白を今回の方針で点検 |
 | UI-03 | Actual 一覧・詳細・検索・移動 | 完了 | `2b347e0e`〜`b753e6c1` |
 | UI-04 | Selected Day | 完了 | 控えめな丸角枠と整列、全幅のコンパクト一覧、i/Tab の折返し・スクロール可能な詳細、可視行に合った移動、固定2段ナビと予約通知行。子画面・親への復帰時にサイズ再取得。`TuiSelectedDay` を代表 TUI テストへ追加し、Unknown / Unavailable、巨大数量・複数 Measure、48×14 の通知と親への復帰、Record キャンセルの再読込なし／確定後の再読込を Lean / Viewport・Record PTY で検証。Scheduled 作成・完了／取消／置換、Merchant の共有処理と resource check も確認。子の編集・確認画面は別項目 |

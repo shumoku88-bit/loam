@@ -96,7 +96,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     terminal = Terminal(root)
     try:
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 10, 48, 0, 0))
-        terminal.capture(b"[a]")  # tiny Home displays its help rather than its heading
+        terminal.capture(b"[?] help")  # compact Home advertises the full grammar via help
         terminal.send(b"af", b"All Current")
         terminal.send(b"i", b"Details [active]")
         end = terminal.send(b"\x1b[Fj", b"End of Details.")
@@ -106,7 +106,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.send(b"\x1b[6~", b"4,800")
         terminal.send(b"\x1b[5~", b"Date:")
         terminal.send(b"q", b"Actuals [active]")
-        terminal.send(b"q", b"[a]")
+        terminal.send(b"q", b"[?] help")
     finally:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Actual navigation changed fixture evidence"

@@ -97,6 +97,20 @@ private def testBoundFeedbackFooter : IO Unit := do
       " … more feedback/help; enlarge terminal")
     "single writable footer row lost its overflow explanation"
 
+/-- Ordinary Home has two operation rows; full help succeeds the old persistent
+    four-group deck without retiring any shortcut or evidence legend. -/
+private def homeTextWithHelp (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot)
+    (state : Loam.Tui.Main.State) : IO String := do
+  let mut result := widgetText (Loam.Tui.Home.view bounds snapshot state)
+  let mut help := {state with helpOpen := true, helpScroll := 0}
+  for _ in List.range 50 do
+    result := result ++ "\n" ++ widgetText (Loam.Tui.Home.view bounds snapshot help)
+    let some next := Loam.Tui.Home.navigationKey bounds snapshot help (.ctrl 'd') |
+      throw (IO.userError "help page was delegated")
+    if next.helpScroll == help.helpScroll then return result
+    help := next
+  throw (IO.userError "help did not reach its final page")
+
 def main : IO Unit := do
   testBoundFeedbackFooter
   let snapshot ← buildSnapshot
@@ -198,10 +212,19 @@ def main : IO Unit := do
   -- 2a. Wide terminal
   let wideBounds : Bounds := { width := 190, height := 45 }
   let wideView := Loam.Tui.Home.view wideBounds snapshot state
-  let wideText := widgetText wideView
-  let _ ← requireSome
-    (firstLineContaining? "underline = today" wideView.lines 0)
-    "wide Home lost the calendar Today legend"
+  let wideText ← homeTextWithHelp wideBounds snapshot state
+  expect (contains "underline = today" wideText)
+    "Home help lost the calendar Today legend"
+  let mainText := widgetText wideView
+  expect (contains "[?] help" mainText && !contains "Commands   " mainText &&
+    !contains "underline = today" mainText)
+    "Home retained the full command deck or legend in the ordinary body"
+  let recordRow ← requireSome (firstLineContaining? "[r] record" wideView.lines 0)
+    "two-row footer lost Record"
+  let navigationRow ← requireSome (firstLineContaining? "[h/l] day" wideView.lines 0)
+    "two-row footer lost day navigation"
+  expect (recordRow == navigationRow + 1 && recordRow == wideBounds.height - 2)
+    "Home operation rows no longer occupy the fixed bottom two rows"
   expect (contains "± not requested" wideText)
     "wide Home did not use the unified money calendar when flow evidence is not requested"
   expect (!contains "[f] flow" wideText && !contains "[f] calendar" wideText)
@@ -221,8 +244,8 @@ def main : IO Unit := do
     (dayFooterCells.any (fun cell => cell.style == .normal) &&
       dayFooterCells.any (fun cell => cell.style == .muted))
     "Home command deck no longer distinguishes keys/categories from descriptions"
-  expect (contains "Pending: 0" wideText)
-    "empty Pending evidence disappeared from the calendar status"
+  expect (contains "Unknown; completeness not established." wideText)
+    "empty Scheduled evidence became a completeness claim"
   expect (!contains "Pending Scheduled:" wideText)
     "empty Pending evidence should not allocate a body section"
   expect (!contains "Household Shortcuts:" wideText)
@@ -234,14 +257,16 @@ def main : IO Unit := do
   let dividerCount := occurrences " │ " wideText
   expect (dividerCount > 12)
     "unified money calendar lost its stable wide side-by-side geometry"
-  for token in ["[i] attention", "[d] daily pace", "[b] balances", "[Space] commands"] do
+  expect (occurrences "[Space] commands" mainText == 1)
+    "ordinary Home duplicated Commands"
+  for token in ["[i] attention", "[d] daily pace", "[b] balances"] do
     expect (occurrences token wideText == 1)
       s!"Home should advertise {token} exactly once in the footer"
 
   -- 2b. Target dogfood terminal (150 cols, user environment)
   let mediumBounds : Bounds := { width := 150, height := 45 }
   let mediumView := Loam.Tui.Home.view mediumBounds snapshot state
-  let mediumText := widgetText mediumView
+  let mediumText ← homeTextWithHelp mediumBounds snapshot state
   for token in expectedTokens do
     expect (contains token mediumText)
       s!"150-column Home lost token {token}; must not be clipped"
@@ -264,14 +289,14 @@ def main : IO Unit := do
   let memWithUpcoming ← requireSome (ScheduledMemory.ofOccurrences? [scheduledItem]) "sched upcoming"
   let schedUpcoming : Loam.ScheduledReview.EvidenceSnapshot := { baseSched with scheduled := memWithUpcoming }
   let upcomingSnapshot : Loam.Tui.Main.Snapshot := { snapshot with scheduled := .ok schedUpcoming }
-  let upcomingWideText := widgetText (Loam.Tui.Home.view wideBounds upcomingSnapshot state)
+  let upcomingWideText ← homeTextWithHelp wideBounds upcomingSnapshot state
   expect (contains "[s] scheduled (next: 09-15)" upcomingWideText)
     s!"wide Home did not display upcoming schedule badge: {upcomingWideText}"
 
   let memWithOverdue ← requireSome (ScheduledMemory.ofOccurrences? [overdueItem, scheduledItem]) "sched overdue"
   let schedOverdue : Loam.ScheduledReview.EvidenceSnapshot := { baseSched with scheduled := memWithOverdue }
   let overdueSnapshot : Loam.Tui.Main.Snapshot := { snapshot with scheduled := .ok schedOverdue }
-  let overdueWideText := widgetText (Loam.Tui.Home.view wideBounds overdueSnapshot state)
+  let overdueWideText ← homeTextWithHelp wideBounds overdueSnapshot state
   expect (contains "[s] scheduled (! 1 overdue, 09-15)" overdueWideText)
     s!"wide Home did not display overdue schedule badge: {overdueWideText}"
 
@@ -293,21 +318,21 @@ def main : IO Unit := do
   let attnDueSnapshot : Loam.Tui.Main.Snapshot := {
     snapshot with attention := .available { openItems := [attnDueItem] }
   }
-  let attnDueWideText := widgetText (Loam.Tui.Home.view wideBounds attnDueSnapshot state)
+  let attnDueWideText ← homeTextWithHelp wideBounds attnDueSnapshot state
   expect (contains "[i] attention (due 09-12)" attnDueWideText)
     s!"wide Home did not display attention due badge: {attnDueWideText}"
 
   let attnOverdueSnapshot : Loam.Tui.Main.Snapshot := {
     snapshot with attention := .available { openItems := [attnOverdueItem, attnDueItem] }
   }
-  let attnOverdueWideText := widgetText (Loam.Tui.Home.view wideBounds attnOverdueSnapshot state)
+  let attnOverdueWideText ← homeTextWithHelp wideBounds attnOverdueSnapshot state
   expect (contains "[i] attention (! 1 overdue)" attnOverdueWideText)
     s!"wide Home did not display attention overdue badge: {attnOverdueWideText}"
 
   let attnPlainSnapshot : Loam.Tui.Main.Snapshot := {
     snapshot with attention := .available { openItems := [attnNoDueItem] }
   }
-  let attnPlainWideText := widgetText (Loam.Tui.Home.view wideBounds attnPlainSnapshot state)
+  let attnPlainWideText ← homeTextWithHelp wideBounds attnPlainSnapshot state
   expect (contains "[i] attention (1 open)" attnPlainWideText)
     s!"wide Home did not display open count badge: {attnPlainWideText}"
 
@@ -316,10 +341,13 @@ def main : IO Unit := do
   let narrowCombinedSnapshot : Loam.Tui.Main.Snapshot := {
     overdueSnapshot with attention := .available { openItems := [attnOverdueItem] }
   }
-  let narrowCombinedText := widgetText (Loam.Tui.Home.view narrowTestBounds narrowCombinedSnapshot state)
-  expect (contains "[s] plans (!1, 09-15)" narrowCombinedText)
+  let narrowCombinedText ← homeTextWithHelp narrowTestBounds narrowCombinedSnapshot state
+  let quietSignals := widgetText (Loam.Tui.Home.view narrowTestBounds narrowCombinedSnapshot state)
+  expect (contains "s (!1, 09-15)" quietSignals && contains "i (!1)" quietSignals)
+    "condensing the footer hid Scheduled or Attention signals"
+  expect (contains "[s] scheduled (!1, 09-15)" narrowCombinedText)
     s!"narrow Home did not display compact scheduled badge: {narrowCombinedText}"
-  expect (contains "[i] attn (!1)" narrowCombinedText)
+  expect (contains "[i] attention (!1)" narrowCombinedText)
     s!"narrow Home did not display compact attention badge: {narrowCombinedText}"
 
   let moneyFlow : Loam.CalendarMoneyReview.Snapshot := {
@@ -364,10 +392,10 @@ def main : IO Unit := do
     expect (contains " 10" (String.ofList (underlinedRows.flatten.map Cell.glyph)))
       "selected Today lost its date-row underline"
   for amountText in ["+¥12,000", "-¥2,470"] do
-    let amountRow ← requireSome (firstLineContaining? amountText moneyView.lines 0)
-      "selected Today lost its daily amount row"
-    let amountCells ← requireSome moneyView.lines[amountRow]?
-      "selected Today amount row was not addressable"
+    let amountCells ← requireSome (moneyView.lines.find? fun cells =>
+      contains amountText (String.ofList (cells.map Cell.glyph)) &&
+        cells.any (fun cell => cell.style == .selected))
+      "selected Today lost its highlighted calendar amount row"
     expect (amountCells.any (fun cell => cell.style == .selected) &&
       !amountCells.any (fun cell => cell.style == .selectedUnderlined))
       "selected Today amounts should retain selection background without underlines"
@@ -385,7 +413,7 @@ def main : IO Unit := do
     expect (scrolled.overviewScroll > 0)
       "Home overview did not scroll in a short terminal"
     let scrolledText := widgetText (Loam.Tui.Home.view b snapshot scrolled)
-    expect (contains "[Ctrl-u/d] scroll" scrolledText)
+    expect (contains "[?] help" scrolledText)
       "overflowing Home did not advertise its local scroll affordance"
     let resetStep := Loam.Tui.Main.update scrolled .right
     expect (resetStep.state.overviewScroll == 0 && resetStep.state.detailScroll == 0)
@@ -400,8 +428,8 @@ def main : IO Unit := do
   -- 2c. Standard terminal (80 cols)
   let narrowBounds : Bounds := { width := 80, height := 24 }
   let narrowView := Loam.Tui.Home.view narrowBounds snapshot state
-  let narrowText := widgetText narrowView
-  expect (contains "Mon" narrowText && contains "Selected: 2026-09-10" narrowText &&
+  let narrowText ← homeTextWithHelp narrowBounds snapshot state
+  expect (contains "Mon" narrowText && contains "Focus: 2026-09-10" narrowText &&
     contains "Day 2026-09-10 / Detail" narrowText)
     "80-column Day Home lost the focused week or its simultaneous Detail"
   expect (contains "Flow not requested" narrowText)
@@ -424,13 +452,13 @@ def main : IO Unit := do
     for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
       for pane in [Loam.Tui.Main.HomePane.calendar, .detail] do
         let home := { state with zoomLevel := zoom, activePane := pane }
-        let homeText := widgetText (Loam.Tui.Home.view bounds snapshot home)
+        let homeText ← homeTextWithHelp bounds snapshot home
         expect (!contains "[g]" homeText && !contains "LOAM / Summary" homeText &&
           !contains "Upcoming Scheduled" homeText && !contains "Recent recorded Actual" homeText)
           "retired Summary or its shortcut reappeared on Home"
         for token in ["[i] attention", "[d] daily pace", "[b] balances"] do
-          expect (occurrences token homeText == 1)
-            s!"Home lost or duplicated the direct shortcut {token} at a zoom/pane"
+          expect (occurrences token homeText ≥ 1 && !contains token (widgetText (Loam.Tui.Home.view bounds snapshot home)))
+            s!"Home help lost {token} or ordinary Home regained the full command deck"
         for key in [Loam.Tui.Terminal.Key.input 'i', .input 'I', .input 'd', .input 'D', .input 'b', .input 'B'] do
           expect (Loam.Tui.Home.navigationKey bounds snapshot home key).isNone
             "Home navigation intercepted a direct analysis workspace entrance"
