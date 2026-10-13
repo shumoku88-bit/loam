@@ -115,6 +115,17 @@ and `←` returns one level (closing the palette at its root). Returning from a
 group preserves that group's selection in Commands. `Enter` opens the selected
 group or workspace; `Esc` / `q` / Space also returns one level.
 Right on a leaf does nothing: opening a workspace requires `Enter`.
+
+Read-only navigation pilot: **Balances** and **Daily Pace / Trend** also accept `Space`
+to open the same Commands palette. `Esc` at the palette root cancels and restores
+the current workspace's selection, period, focus and scroll; choosing a leaf
+returns a navigation request to the root dispatcher and opens that workspace.
+An ordinary `q` / `Esc` back still follows the existing parent semantics.
+The Daily Pace What-if input modal and all canonical-write editors do **not**
+intercept `Space`: their local text input and cancellation rules remain unchanged.
+This is deliberately a two-screen trial, not global palette dispatch or a new
+navigation-history stack.
+
 The page heading shows the current path. Selecting a leaf delegates to the
 existing validated workspace, without changing canonical facts or publishers.
 
