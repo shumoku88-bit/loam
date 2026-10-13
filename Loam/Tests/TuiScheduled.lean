@@ -198,7 +198,8 @@ def main : IO Unit := do
   | .ok .unknown => pure ()
   | _ => throw (IO.userError "Home Scheduled evidence collapsed an unknown day")
   let unknownText := widgetText (Loam.Tui.Home.view bounds snapshot unknownHome)
-  expect (contains "unknown; no completeness horizon is claimed" unknownText)
+  expect (contains "Scheduled: Unknown" unknownText &&
+    contains "Unknown; completeness not established." unknownText)
     "Home collapsed Scheduled Unknown into an empty-day claim"
 
   let pendingActual : Loam.Tui.Main.ActualSnapshot := {
@@ -224,16 +225,26 @@ def main : IO Unit := do
 
   let pendingHome := Loam.Tui.Main.initialState "2026-09-08"
   let pendingText := widgetText (Loam.Tui.Home.view bounds pendingSnapshot pendingHome)
-  expect (contains "Pending: 12" pendingText)
+  expect (contains "Pending Scheduled: 12" pendingText)
     "Home status did not expose the past-date current-open Scheduled count"
   expect (contains "Pending Scheduled:" pendingText)
     "Home did not expose its pending Scheduled section"
+  -- A tall viewport qualifies both independent headings without confusing
+  -- scroll position with whether the evidence exists.
+  let selectedPastDue := widgetText (Loam.Tui.Home.view {bounds with height := 180} pendingSnapshot
+    {pendingHome with selectedDate := "2026-09-07"})
+  expect (contains "Scheduled: Due (12)" selectedPastDue &&
+    contains "Pending Scheduled: 12" selectedPastDue)
+    "Home conflated selected-date due evidence with today's overdue badge"
   expect (contains "2026-09-07  [Still open]" pendingText)
     "Home pending section lost the original expected date"
   expect (contains " 7!" pendingText)
     "Home calendar did not mark the original date of a past-date current-open Scheduled"
-  expect (contains "! = Scheduled still open" pendingText)
-    "Unified calendar marker lost its non-rescheduling explanation"
+  let pendingHelp := widgetText (Loam.Tui.Home.view bounds pendingSnapshot
+    {pendingHome with helpOpen := true})
+  expect (contains "! = past-date Scheduled still open" pendingHelp &&
+    !contains "! = past-date Scheduled still open" pendingText)
+    "Help lost the non-rescheduling legend or ordinary Home regained explanatory prose"
 
   let sameDayView := Loam.Tui.Home.view bounds pendingSnapshot pendingHome
   expect (hasStyledText sameDayView " 8 " .selectedUnderlined)

@@ -391,14 +391,17 @@ private def actualLines (width : Nat) (snapshot : Snapshot) (state : State) : Li
 
 private def scheduledLines (width : Nat) (snapshot : Snapshot) (state : State) : List Widget :=
   match homeScheduledEvidence snapshot state with
-  | .error message => wrappedLines width ("[Unavailable] " ++ message)
+  | .error message =>
+      wrappedLines width "Scheduled: Unavailable" ++ wrappedLines width message
   | .ok (.due first rest) =>
+      wrappedLines width s!"Scheduled: Due ({rest.length + 1})" ++
       (first :: rest).flatMap fun record =>
         wrappedLines width
           ("Scheduled: " ++ record.scheduledOn ++ "  [Open]  " ++ Loam.ScheduledReview.summary record) ++
         record.movement.changes.flatMap fun change =>
           effectLines width change.coordinate.token record.measure change.quantity.quanta
-  | .ok .unknown => wrappedLines width "Unknown; completeness not established."
+  | .ok .unknown => wrappedLines width "Scheduled: Unknown" ++
+      wrappedLines width "Unknown; completeness not established."
 
 private def pendingLines (width : Nat) : PendingEvidence → List Widget
   | .error message => wrappedLines width ("[Unavailable] " ++ message)
@@ -410,7 +413,10 @@ private def pendingLines (width : Nat) : PendingEvidence → List Widget
 private def pendingSection (width : Nat) (pending : PendingEvidence) : List Widget :=
   match pending with
   | .ok [] => []
-  | _ => [blankLine, plainLine " Pending Scheduled:"] ++ pendingLines width pending
+  | .ok records => [blankLine] ++ wrappedLines width s!"Pending Scheduled: {records.length}" ++
+      pendingLines width pending
+  | .error _ => [blankLine] ++ wrappedLines width "Pending Scheduled: Unavailable" ++
+      pendingLines width pending
 
 private def monthNames : List String :=
   ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -636,7 +642,7 @@ private def wideDetailLines
     (width : Nat) (snapshot : Snapshot) (state : State) (pending : PendingEvidence) : List Widget :=
   detailPrefix width snapshot state ++ actualLines width snapshot state ++
     (if state.zoomLevel == .day then
-      [blankLine, plainLine " Scheduled"] ++ scheduledLines width snapshot state ++ pendingSection width pending
+      [blankLine] ++ scheduledLines width snapshot state ++ pendingSection width pending
      else [])
 
 -- Tiny bodies keep readable evidence rather than spending every row on borders.

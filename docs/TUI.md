@@ -153,8 +153,11 @@ pace as household state or introduce a second calculation.
 Help groups navigation by Day/Month/Year or Detail context. In Detail, j/k selects
 transactions, Enter opens the selected transaction in its day workspace, and
 Esc/Tab/w returns focus to Calendar. The Detail order is daily directional flow,
-Actual, selected-day Scheduled, then nonempty/unavailable Pending evidence. The
-compact Calendar does not duplicate daily flow or selected-day lifecycle labels;
+Actual, selected-day Scheduled, then nonempty/unavailable Pending evidence.
+Scheduled's heading retains the selected-date Due count (or Unknown/Unavailable);
+nonempty Pending's heading retains its exact count. These are distinct from the
+footer signals relative to Today and never infer completeness from a blank marker.
+The compact Calendar does not duplicate daily flow or selected-day lifecycle labels;
 the wide month grid still has its own daily amounts and period read-state labels. Explicit Page Up/Down
 scrolls all Detail evidence even when Actual is nonempty, retaining the selected
 identity. Transaction movement resumes selection-following. Month/Year retain their
