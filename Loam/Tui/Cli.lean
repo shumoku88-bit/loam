@@ -357,11 +357,23 @@ partial def actualWorkspaceLoop (bounds : Bounds) (dataDir root : System.FilePat
 
 /-- Read-only balance-view session; q/Esc leaves Detail first, then returns to Home. -/
 partial def balancesLoop (bounds : Bounds)
-    (state : Loam.Tui.Balances.State) (frame : CompiledWidget) : IO Unit := do
+    (state : Loam.Tui.Balances.State) (frame : CompiledWidget) :
+    IO (Option Loam.Tui.HomeCommandPalette.Choice) := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.Balances.viewForBounds active state)
   if key == .other then return (← balancesLoop bounds state frame)
+  -- A read-only workspace may navigate without changing its local selection.
+  -- Cancel restores the same state; a chosen destination goes to the root dispatcher.
+  if key == .input ' ' then
+    let destination ← Loam.Tui.HomeCommandPalette.run bounds
+    match destination with
+    | some choice => return some choice
+    | none =>
+        let active ← Loam.Tui.Terminal.currentBounds
+        let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds active state)
+        Loam.Tui.Terminal.redrawFromBlank active nextFrame
+        return (← balancesLoop active state nextFrame)
   if key == .input 'p' || key == .input 'P' then
     match Loam.Tui.Balances.preparePrint state with
     | .error message =>
@@ -377,7 +389,7 @@ partial def balancesLoop (bounds : Bounds)
         balancesLoop active state nextFrame
   else
     match Loam.Tui.Balances.update bounds state key repeatCount with
-    | .back => return ()
+    | .back => return none
     | .stay next =>
         let nextFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds next)
         Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -487,13 +499,22 @@ partial def dailyPaceWhatIfLoop
 partial def dailyPaceTrendLoop
     (bounds : Bounds) (snapshot : Snapshot)
     (state : Loam.Tui.DailyPaceTrend.State)
-    (frame : CompiledWidget) : IO Bounds := do
+    (frame : CompiledWidget) : IO (Bounds × Option Loam.Tui.HomeCommandPalette.Choice) := do
   let (key, repeatCount) ← Loam.Tui.Terminal.readKeyWithRepeat
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compileWidget (Loam.Tui.DailyPaceTrend.view active snapshot state)
   -- Geometry still refreshes on idle ticks, but an unchanged chart needs no work.
   if key == .other then
     return (← dailyPaceTrendLoop bounds snapshot state frame)
+  if key == .input ' ' then
+    let destination ← Loam.Tui.HomeCommandPalette.run bounds
+    let active ← Loam.Tui.Terminal.currentBounds
+    match destination with
+    | some choice => return (active, some choice)
+    | none =>
+        let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view active snapshot state)
+        Loam.Tui.Terminal.redrawFromBlank active nextFrame
+        return (← dailyPaceTrendLoop active snapshot state nextFrame)
   if key == .input 'w' || key == .input 'W' then
     let editor : Loam.Tui.DailyPaceWhatIf.State := {}
     let modal := compileWidget
@@ -507,7 +528,7 @@ partial def dailyPaceTrendLoop
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     dailyPaceTrendLoop bounds snapshot state nextFrame
   else match Loam.Tui.DailyPaceTrend.update bounds snapshot state key repeatCount with
-  | .back => return bounds
+  | .back => return (bounds, none)
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds snapshot next)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
@@ -604,11 +625,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let paceState : Loam.Tui.DailyPaceTrend.State := {}
     let paceFrame := compileWidget (Loam.Tui.DailyPaceTrend.view bounds paceSnapshot paceState)
     Loam.Tui.Terminal.redrawFromBlank bounds paceFrame
-    let bounds ← dailyPaceTrendLoop bounds paceSnapshot paceState paceFrame
+    let (bounds, destination) ← dailyPaceTrendLoop bounds paceSnapshot paceState paceFrame
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    loop bounds dataDir root snapshot home nextFrame destination
   else if (key = .input 'a' || key = .input 'A') then
     let metadata ← currentLocusMetadata dataDir
     let measurePresentation ← currentMeasurePresentation dataDir
@@ -700,12 +721,12 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             let balances := Loam.Tui.Balances.initial balanceSnapshot selected
             let balancesFrame := compileWidget (Loam.Tui.Balances.viewForBounds bounds balances)
             Loam.Tui.Terminal.redrawFromBlank bounds balancesFrame
-            balancesLoop bounds balances balancesFrame
+            let destination ← balancesLoop bounds balances balancesFrame
             let bounds ← Loam.Tui.Terminal.currentBounds
             let home := { state with notice := "" }
             let nextFrame := compiledFrameFor bounds snapshot home
             Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-            loop bounds dataDir root snapshot home nextFrame
+            loop bounds dataDir root snapshot home nextFrame destination
   else if fromPalette && Loam.Tui.CycleBudget.isHomeEntrance key then
     match ← configuredMeasure with
     | .error message =>
