@@ -201,12 +201,12 @@ def main : IO Unit := do
     "stable footer fitting did not pad short body content above the footer"
 
   -- 2. Test Home help lines at various terminal widths
-  let state := Loam.Tui.Main.initialState "2026-09-10"
+  let state : Loam.Tui.Main.State := {selectedDate := "2026-09-10"}
 
   let expectedTokens := [
     "[h/l] day", "[k/j] week", "[Enter] open", "[r] record",
     "[a] actual", "[s] scheduled", "[i] attention", "[d] daily pace", "[b] balances",
-    "[Space] commands", "[q] quit"
+    "[Space] commands", "[q] home", "[g] home"
   ]
 
   -- 2a. Wide terminal
@@ -447,24 +447,30 @@ def main : IO Unit := do
       s!"80-column line exceeded contentWidth: {lineStr} (width {displayWidth lineStr} vs {narrowContentWidth})"
 
 
-  -- Home Summary and its shortcut are retired at every calendar zoom and pane.
+  -- Summary remains retired; g/G now returns to bonsai Home at every zoom/pane.
   for bounds in [narrowBounds, mediumBounds, wideBounds] do
     for zoom in [Loam.Tui.DateJump.ZoomLevel.day, .month, .year] do
       for pane in [Loam.Tui.Main.HomePane.calendar, .detail] do
         let home := { state with zoomLevel := zoom, activePane := pane }
         let homeText ← homeTextWithHelp bounds snapshot home
-        expect (!contains "[g]" homeText && !contains "LOAM / Summary" homeText &&
-          !contains "Upcoming Scheduled" homeText && !contains "Recent recorded Actual" homeText)
-          "retired Summary or its shortcut reappeared on Home"
+        expect (contains "[g] home" homeText && !contains "[g] summary" homeText &&
+          !contains "LOAM / Summary" homeText && !contains "Upcoming Scheduled" homeText &&
+          !contains "Recent recorded Actual" homeText)
+          "Calendar Home entrance was lost or retired Summary reappeared"
         for token in ["[i] attention", "[d] daily pace", "[b] balances"] do
           expect (occurrences token homeText ≥ 1 && !contains token (widgetText (Loam.Tui.Home.view bounds snapshot home)))
             s!"Home help lost {token} or ordinary Home regained the full command deck"
         for key in [Loam.Tui.Terminal.Key.input 'i', .input 'I', .input 'd', .input 'D', .input 'b', .input 'B'] do
           expect (Loam.Tui.Home.navigationKey bounds snapshot home key).isNone
             "Home navigation intercepted a direct analysis workspace entrance"
-        for key in [Loam.Tui.Terminal.Key.input 'g', .input 'G', .input 'c'] do
-          expect (Loam.Tui.Home.navigationKey bounds snapshot home key).isNone
-            "retired Home mode shortcut is still active"
+        for key in [Loam.Tui.Terminal.Key.input 'g', .input 'G'] do
+          let returned ← requireSome (Loam.Tui.Home.navigationKey bounds snapshot home key)
+            "Calendar Home return was not handled"
+          expect (returned.launcherOpen && returned.selectedDate == home.selectedDate &&
+            returned.zoomLevel == home.zoomLevel && returned.activePane == home.activePane)
+            "Calendar Home return changed its context"
+        expect (Loam.Tui.Home.navigationKey bounds snapshot home (.input 'c')).isNone
+          "retired Calendar mode toggle is still active"
   expect (!contains "[e] capacity" narrowText && !contains "[p] purpose routing" narrowText)
     "optional budget shortcuts leaked back to the Home footer"
   -- The Home footer lists only habitual actions; rare workspaces are in Commands.

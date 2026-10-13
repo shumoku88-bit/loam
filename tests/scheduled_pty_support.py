@@ -52,7 +52,8 @@ class Terminal:
             )
         finally:
             os.close(slave)
-        self.capture(b"LOAM Home")
+        self.capture(b"[q] quit")
+        self.send(b"g", b"LOAM Home")  # Modal tests retain their Calendar parent context.
 
     def capture(self, expected: bytes | None = None) -> bytes:
         output = b""

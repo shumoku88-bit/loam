@@ -5,7 +5,7 @@ namespace Loam.Tui.HomeLauncher
 open Loam.Tui.Kernel
 set_option autoImplicit false
 
-/-! Opt-in, presentation-only start page. No household reads or derived totals. -/
+/-! Production Home start page. Presentation only; no household reads or derived totals. -/
 
 private def spaces (n : Nat) : String := String.ofList (List.replicate n ' ')
 

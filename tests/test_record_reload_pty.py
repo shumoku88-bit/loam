@@ -50,7 +50,8 @@ class Terminal:
                                         stderr=slave, preexec_fn=setup,
                                         env=dict(os.environ, TERM="xterm-256color"))
         os.close(slave)
-        self.capture(b"LOAM Home")
+        self.capture(b"[q] quit")
+        self.send(b"g", b"LOAM Home")  # Retain the dated Calendar context of these tests.
 
     def capture(self, expected):
         output = b""

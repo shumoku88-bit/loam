@@ -35,9 +35,9 @@ standalone `actual.loam` diagnostic/migration file.
 
 ## Home grammar
 
-### Opt-in launcher experiment
+### Bonsai Home
 
-`LOAM_HOME=launcher ./tools/loam` starts a quiet, centered home with a fixed
+`./tools/loam` starts a quiet, centered Home with a fixed
 ASCII bonsai above a small `loam` name. The hand-drawn, asymmetric tree uses green
 leaf texture, a bent normal-contrast trunk and a muted pot; it adds no animation,
 random generation or external dependency. It keeps six entrances: `r` Record, `s` Scheduled, `g` Calendar, `a` Actual, `b` Balances,
@@ -46,24 +46,24 @@ keeps the full Commands palette. No totals or household completeness claims are
 added. The whole bonsai folds into a compact `loam` title before it would crowd
 the entrances; 80×24 fits the tree, and 32×9 retains all six entrances. Notice feedback and two operation rows stay at the bottom.
 
-Child workspaces return to their launching surface. In this experiment,
-Calendar `g` returns directly to the launcher, and Calendar-focused `Esc` / `q`
-returns there one level at a time (Detail and Help keep their own back behavior).
-Only launcher `q` exits. Calendar date, zoom and selection survive that round trip.
-The launcher shows that selected date (initially today), matching the date seeded
-into Record, Actual and Scheduled; it does not label an old Calendar focus as today.
-Without the environment variable, startup and existing Calendar grammar are unchanged.
-This is a visual trial, not yet the default Home; household reads and publishers
-are the same existing paths.
+Child workspaces return to their launching surface. Calendar `g` / `G` returns
+directly to Home, and Calendar-focused `Esc` / `q` returns there one level at a
+time (Detail and Help keep their own back behavior). Only Home `q` exits.
+Calendar date, zoom and selection survive that round trip. Home shows that
+selected date (initially today), matching the date seeded into Record, Actual and
+Scheduled; it does not label an old Calendar focus as today. Household reads and
+publishers are the same existing paths; there is no data migration.
 
-Manual PTY qualification reuses `tests/test_tui_viewport_pty.py FIXTURE EXE --launcher`
-on the existing synthetic CycleBudgetReview fixture. No new CI lane is added.
+The former `LOAM_HOME` opt-in and its enable flag are retired, not retained as a
+second startup mode. The existing `tests/test_tui_viewport_pty.py FIXTURE EXE`
+now qualifies Home and Calendar in one default-startup session, succeeding the
+separate manual `--launcher` invocation without adding a CI lane or duplicate run.
 
-### Default Calendar home
+### Calendar workspace
 
-The production TUI opens **Home / Calendar**: the date navigator is the
-accounting workspace. The temporary Summary surface and its Home `g` / `G`
-shortcut are removed, along with the former `c` toggle. Daily Pace, Scheduled,
+Home `g` / `G` or Enter opens **Calendar**: the date navigator remains the
+accounting workspace. The former Summary surface and `c` toggle remain removed;
+`g` now means a Home/Calendar round trip, not Summary. Daily Pace, Scheduled,
 Actual, and Attention remain available through their individual workspaces.
 
 `Space` opens a short-lived, hierarchical Commands palette with five groups:
@@ -78,7 +78,7 @@ Right on a leaf does nothing: opening a workspace requires `Enter`.
 The page heading shows the current path. Selecting a leaf delegates to the
 existing validated workspace, without changing canonical facts or publishers.
 
-The Calendar Home keeps these direct shortcuts:
+Calendar keeps these direct shortcuts:
 
 ```text
 Space      Open Commands palette (five groups)
@@ -99,7 +99,8 @@ s          Scheduled workspace
 i          Attention administration (I also accepted)
 d          Daily Pace trend (D also accepted)
 b          Current Balances (B also accepted)
-q          quit
+g/G        return directly to bonsai Home
+q/Esc      back (Detail -> Calendar -> Home; Help closes first)
 ```
 
 Attention (`i`), Daily Pace (`d`), and Balances (`b`) are direct Home shortcuts
@@ -143,7 +144,7 @@ Home's selected date is presentation/navigation state. It seeds selected-day,
 Actual, Scheduled, Record, Exchange and Reports interactions. It does not redefine
 the current-cycle Budget observation date or silently manufacture a household cycle.
 
-Outside Home, `q` and `Esc` mean one-level back. Only Home `q` exits LOAM; child
+Outside Home, `q` and `Esc` mean one-level back. Only bonsai Home `q` exits LOAM; Calendar and child
 surfaces do not carry a second application-quit command or a hidden `b` back alias.
 
 Home keeps household evidence in the body and shortcut grammar in the stable footer.
@@ -158,7 +159,7 @@ arrows. Wide terminals give Detail a bounded share of the width while leaving th
 remaining space to the money grid.
 
 Two operation rows stay at the bottom: frequent navigation/focus/help, then Record,
-Commands and back/quit (plus Today/jump/zoom when width permits). Other direct keys
+Commands and back/Home (plus Today/jump/zoom when width permits). Other direct keys
 remain active and discoverable in `?`; no workspace entrance is retired.
 The reserved feedback area above them shows compact `s` / `i` read-side signals
 when needed and no notice is present. Notices and signals wrap without truncating
