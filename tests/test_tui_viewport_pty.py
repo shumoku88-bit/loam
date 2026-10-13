@@ -78,7 +78,26 @@ try:
         "Home retained heavy rules or lost quiet rounded panels", clean_initial
     )
     assert b"[y] copy screen" not in clean_initial and b"Shift+drag" not in clean_initial
-    assert b"[a] actual" in clean_initial and b"[s] scheduled" in clean_initial
+    assert b"[r] record" in clean_initial and b"[?] help" in clean_initial
+    assert b"[a] actual" not in clean_initial, "Home retained the full persistent command deck"
+    # Full help succeeds the command deck and legends. Its modal boundary must
+    # not leak Record, analysis, Enter or Commands while resizing to a tiny tty.
+    os.write(master, b"?")
+    help_view = ansi.sub(b"", capture(b"Home / Help"))
+    assert b"[a] actual" in help_view and b"[s] scheduled" in help_view
+    assert b"amount too wide" in help_view and b"completeness claim" in help_view
+    resize(9, 32)
+    bounded(capture(b"LOAM Home"), 9, 32)
+    os.write(master, b"rasidb \rj")
+    captured = capture()
+    bounded(captured, 9, 32)
+    assert b"Record /" not in ansi.sub(b"", captured) and b"Household Day Workspace" not in captured
+    os.write(master, b"q")
+    closed = capture(b"[?] help")
+    bounded(closed, 9, 32)
+    resize(40, 120)
+    restored = capture(b"LOAM Home")
+    bounded(restored, 40, 120)
     # Retired g/G must be ignored; the following key still navigates Calendar.
     focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", clean_initial).group(1)
     expected = str(datetime.date.fromisoformat(focus.decode()) + datetime.timedelta(days=1)).encode()
@@ -108,7 +127,7 @@ try:
             restored = ansi.sub(b"", capture(b"LOAM Home"))
             assert b"Focus: " + expected in restored, "analysis shortcut changed Calendar focus"
             assert (b"[Esc/Tab/w]" in restored) == detail, "analysis shortcut changed Home pane"
-            assert b"[i] attention" in restored and b"[d] daily pace" in restored and b"[b] balances" in restored
+            assert b"[?] help" in restored and b"[Space] commands" in restored
     os.write(master, b"\t")
     capture(b"[h/l] day")
     # The grouped entrances still reach the same existing workspaces.
@@ -135,7 +154,8 @@ try:
     resize(14, 48)
     compact = capture(b"LOAM Home")
     bounded(compact, 14, 48)
-    assert b"Calendar [active]" in ansi.sub(b"", compact)
+    assert b"Day " in ansi.sub(b"", compact) and b"/ Detail" in ansi.sub(b"", compact)
+    assert b"Actual: " not in ansi.sub(b"", compact), "compact Day merged an Actual preview into Calendar"
     os.write(master, b"/")
     bounded(capture(b"Jump to date"), 14, 48)
     os.write(master, b"2026-10-31\r")
@@ -143,9 +163,9 @@ try:
     bounded(jumped, 14, 48)
     assert b"Jumped to 2026-10-31" in ansi.sub(b"", jumped), "compact Home hid jump feedback"
     os.write(master, b"\t")
-    bounded(capture(b"Detail [active]"), 14, 48)
+    bounded(capture(b"[j/k] select"), 14, 48)
     os.write(master, b"\x1b")
-    bounded(capture(b"Calendar [active]"), 14, 48)
+    bounded(capture(b"[h/l] day"), 14, 48)
     # Compact Day begins with the selected date already in view. Paging up
     # at the top is intentionally a no-op and may emit no terminal bytes.
     # First browse down, then back up, to verify actual viewport movement.
@@ -155,13 +175,21 @@ try:
     bounded(capture(), 14, 48)
     os.write(master, b"h")
     bounded(capture(b"Focus: 2026-10-30"), 14, 48)
-    resize(22, 80)
-    bounded(capture(b"LOAM Home"), 22, 80)
+    # Both sides of the wide breakpoint and tiny/short layouts preserve the
+    # date and expose separate selected-day content on idle resize.
+    for rows, cols in ((30, 119), (30, 120), (30, 64), (9, 32), (22, 80)):
+        resize(rows, cols)
+        frame = capture(b"LOAM Home")
+        bounded(frame, rows, cols)
+        assert b"Focus: 2026-10-30" in ansi.sub(b"", frame)
+        if cols >= 120:
+            assert "┬".encode() in frame, "wide Home lost the month grid"
     # Numeric month labels reflow without hiding the selected month. Live resize
     # must not change the date, zoom, current-month styling or transaction counts.
     os.write(master, b"z")
     month = capture(b"View: Month")
     assert b"[10 Oct]" in ansi.sub(b"", month), "month zoom lost its numeric selected label"
+    assert b"Months / 2026" in ansi.sub(b"", month) and b"[Enter] days" in ansi.sub(b"", month)
     for rows, cols in ((14, 48), (14, 32), (24, 80), (20, 120), (48, 160)):
         resize(rows, cols)
         month = capture(b"LOAM Home")
@@ -171,7 +199,21 @@ try:
     for label in (b"01 Jan", b"02 Feb", b"03 Mar", b"04 Apr", b"05 May", b"06 Jun",
                   b"07 Jul", b"08 Aug", b"09 Sep", b"10 Oct", b"11 Nov", b"12 Dec"):
         assert label in clean, ("month label clipped on wide resize", label)
-    os.write(master, b"zz")
+    assert b"0 records" in clean and b"underline = current month" not in clean
+    # Year zoom uses the same restrained hierarchy: aligned year/count columns,
+    # no repeated inset title/legend, and unchanged selection across live resize.
+    os.write(master, b"z")
+    year = capture(b"View: Year")
+    clean_year = ansi.sub(b"", year)
+    assert b"Years" in clean_year and b"Records" in clean_year and b"[2026]" in clean_year
+    assert b"[Enter] months" in clean_year and b"Years Overview" not in clean_year
+    for rows, cols in ((24, 80), (14, 48), (9, 32), (32, 116), (48, 160)):
+        resize(rows, cols)
+        year = capture(b"LOAM Home")
+        bounded(year, rows, cols)
+        clean_year = ansi.sub(b"", year)
+        assert b"Focus: 2026-10-30" in clean_year and b"[2026]" in clean_year
+    os.write(master, b"z")
     day_flow = capture(b"Month Flow (2026-10)")
     bounded(day_flow, 48, 160)
     assert b"No recorded income/expense flow." in ansi.sub(b"", day_flow), (
@@ -338,7 +380,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Selected Day/Reports/Scheduled/Actuals: quiet frames, compact feedback, details and idle resize; evidence unchanged.")
+    print("Home/Selected Day/Reports/Scheduled/Actuals: two-role Home, modal help, compact feedback, details and idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)
