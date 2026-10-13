@@ -1,64 +1,56 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 cd "$root"
 
-target_needs_build() {
-  local target="$1"
-  local bin="$root/.lake/build/bin/$target"
+hash_files() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$@"
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$@"
+  else
+    return 1
+  fi
+}
 
-  if [[ ! -x "$bin" ]]; then
-    return 0
-  fi
-  if [[ "${LOAM_FORCE_BUILD:-0}" == "1" ]]; then
-    return 0
-  fi
-  if [[ -f "$root/lakefile.lean" && "$root/lakefile.lean" -nt "$bin" ]]; then
-    return 0
-  fi
-  if [[ -f "$root/lean-toolchain" && "$root/lean-toolchain" -nt "$bin" ]]; then
-    return 0
-  fi
-  if [[ -f "$root/lake-manifest.json" && "$root/lake-manifest.json" -nt "$bin" ]]; then
-    return 0
-  fi
-
-  # Lake's linker response file inventories this executable's transitive modules.
-  # Unrelated tests must not trigger a build on every launch. Missing inventory
-  # or a deleted source fails closed to Lake; changed imports are caught by the
-  # importing source itself becoming newer.
+target_input_fingerprint() {
+  local bin="$root/.lake/build/bin/$1"
   local rsp="$bin.rsp" object source
-  local seen_source=0
-  if [[ ! -f "$rsp" ]]; then
-    return 0
-  fi
+  local sources=()
+  [[ -f "$rsp" ]] || return 1
+
+  # Lake's linker inventory bounds the input set. Missing/deleted sources refuse
+  # the shortcut; changed imports change the importing source's content hash.
   while IFS= read -r object || [[ -n "$object" ]]; do
     object="${object#\"}"
     object="${object%\"}"
     case "$object" in
       "$root/.lake/build/ir/"*.c.o.export)
         source="$root/${object#"$root/.lake/build/ir/"}"
-        source="${source%.c.o.export}.lean"
         ;;
       .lake/build/ir/*.c.o.export)
         source="$root/${object#.lake/build/ir/}"
-        source="${source%.c.o.export}.lean"
         ;;
       *) continue ;;
     esac
-    seen_source=1
-    if [[ ! -f "$source" || "$source" -nt "$bin" ]]; then
-      return 0
-    fi
+    sources+=("${source%.c.o.export}.lean")
   done < "$rsp"
-  if [[ "$seen_source" == "0" ]]; then
-    return 0
+  [[ "${#sources[@]}" != "0" ]] || return 1
+  hash_files "$root/tools/loam" "$root/lakefile.lean" "$root/lean-toolchain" \
+    "$root/lake-manifest.json" "$root/Loam/Tui/terminal_native.c" \
+    "$rsp" "${sources[@]}" | hash_files
+}
+
+binary_identity() {
+  [[ -x "$1" ]] || return 1
+  # Bind the check to this artifact without hashing the large executable on each
+  # launch. Include nanosecond change time so restoring mtime does not hide edits.
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    stat -f '%d:%i:%z:%Fm:%Fc' "$1"
+  else
+    stat -c '%d:%i:%s:%y:%z' "$1"
   fi
-  if [[ -f "$root/Loam/Tui/terminal_native.c" && "$root/Loam/Tui/terminal_native.c" -nt "$bin" ]]; then
-    return 0
-  fi
-  return 1
 }
 
 run_target() {
@@ -66,14 +58,30 @@ run_target() {
   shift
 
   local bin="$root/.lake/build/bin/$target"
-  if ! target_needs_build "$target"; then
+  local receipt="$bin.launcher-check" before after identity checked
+  before="$(target_input_fingerprint "$target" 2>/dev/null)" || before=""
+  identity="$(binary_identity "$bin" 2>/dev/null)" || identity=""
+  checked="$(printf '%s\n%s\n' "$before" "$identity")"
+  if [[ "${LOAM_FORCE_BUILD:-0}" != "1" && -n "$before" && -n "$identity" &&
+        -f "$receipt" && "$(<"$receipt")" == "$checked" ]]; then
     exec "$bin" "$@"
   fi
 
-  local build_log
+  # A failed check must not leave a previously accepted receipt available.
+  rm -f "$receipt"
+  local build_log temporary
   build_log="$(mktemp -t loam-build.XXXXXX)"
   if lake build "$target" >"$build_log" 2>&1; then
     rm -f "$build_log"
+    after="$(target_input_fingerprint "$target" 2>/dev/null)" || after=""
+    identity="$(binary_identity "$bin" 2>/dev/null)" || identity=""
+    # No-op Lake success is enough: the executable need not get a new mtime.
+    # Changing inputs/inventory during the check never earns a reusable receipt.
+    if [[ -n "$before" && "$before" == "$after" && -n "$identity" ]]; then
+      temporary="$(mktemp "$receipt.XXXXXX")"
+      printf '%s\n%s\n' "$after" "$identity" >"$temporary"
+      mv -f "$temporary" "$receipt"
+    fi
     exec "$bin" "$@"
   else
     cat "$build_log" >&2

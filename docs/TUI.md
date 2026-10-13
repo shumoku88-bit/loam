@@ -19,9 +19,33 @@ Run from the repository root:
 ./tools/loam
 ```
 
-This launcher builds `loam` when its linked sources or build inputs are newer
-than the executable. Unrelated test changes do not trigger a startup build. Pass an optional data
-directory via `./tools/loam tui LOAM_DATA_DIR`.
+This launcher asks Lake to check `loam`, then skips Lake while the successfully
+checked linked-source/build-input contents and executable identity are unchanged. The
+disposable receipt lives at `.lake/build/bin/loam.launcher-check`; deleting it
+just requests another check. Timestamp-only saves/checkouts and unrelated test
+changes do not request a build. A successful no-op Lake check also settles the
+launcher: it does not require a newer executable timestamp.
+
+The receipt uses SHA-256 input hashes and filesystem executable identity
+(device/inode/size and high-resolution modification/change times), not a hash of
+the large binary on every launch. Missing inputs/inventory, a corrupt receipt,
+changed executable metadata, or a failed check cannot reuse it. A missing or
+changing linked-input inventory during a build earns no receipt; a later stable
+check establishes one. Startup still delegates the build itself to Lake, not a
+concurrent-source-edit safety guarantee. If SHA-256 or filesystem
+identity inspection is unavailable, the launcher falls back to Lake each time.
+Use `LOAM_FORCE_BUILD=1 ./tools/loam` to force a check, including after changing
+the installed compiler/build environment without changing repository inputs.
+
+`tests/test_launcher_build_check.py` covers repeated no-op startup, real Lake
+content changes (including restored mtimes), receipt invalidation and refusal.
+On macOS x86_64, four alternating synthetic PTY runs per method measured warm
+median startup of 1,240 → 197ms with 100 Actuals and 1,441 → 402ms with 10,000
+Actuals; the previous launcher called Lake on every run, the revised launcher
+only on its first unconfirmed run. These are local startup observations, not a
+universal speed budget or real-household-data measurement.
+
+Pass an optional data directory via `./tools/loam tui LOAM_DATA_DIR`.
 
 For debugging, `lake build loamTui` followed by `./.lake/build/bin/loamTui`
 also works. Do not run the binary directly after changing sources without
