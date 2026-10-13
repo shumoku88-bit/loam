@@ -1,4 +1,5 @@
 import Loam.Tui.Layout
+import Loam.Review.ActualReview
 
 namespace Loam.Tui.HomeLauncher
 
@@ -9,7 +10,7 @@ set_option autoImplicit false
 
 private def spaces (n : Nat) : String := String.ofList (List.replicate n ' ')
 
-/-- Hand-drawn, fixed bonsai: no generator, animation or runtime dependency. -/
+/-- The approved mature silhouette. Stages share its pot, footprint and root. -/
 private def bonsai : List String :=
   [ "               .:;;;:."
   , "          .:;;;;;::;;;;:."
@@ -21,6 +22,34 @@ private def bonsai : List String :=
   , "      .----/---\\----."
   , "       \\___________/"
   ]
+
+/-- Quiet presentation steps, not a household score or a retained growth level. -/
+def stageForDays (days : Nat) : Nat :=
+  if days >= 30 then 5 else if days >= 14 then 4 else if days >= 7 then 3
+  else if days >= 3 then 2 else if days >= 1 then 1 else 0
+
+/-- Distinct known occurrence dates on the admitted current Correction frontier.
+    Not entry timestamps, streaks, amounts, or Scheduled dates. The set saturates
+    at 30: no exact activity total is claimed, and no separate cache is retained. -/
+def growthStage (records : List Loam.ActualReview.Record) : Nat := Id.run do
+  let mut dates : Std.HashSet String := {}
+  for record in records do
+    if record.isCurrent then
+      if let some date := record.date then
+        if Loam.ActualDate.validIsoDate date then
+          dates := dates.insert date
+          if dates.size >= 30 then return 5
+  return stageForDays dates.size
+
+private def crown : Nat → List String
+  | 0 => ["", "", "", "", "            ::", "            ||", "            / \\"]
+  | 1 => ["", "", "", "           .:;:.", "          '::|::'", "            ||", "            / \\"]
+  | 2 => ["", "", "            .:;:.", "        .:;;:|::;:.", "         '::\\|/::'", "            ||", "            / \\"]
+  | 3 => ["", "            .:;;;:.", "        .:;;;::;;;:.", "        '::'\\|/ '::'", "           \\ /", "            \\_/", "            / \\"]
+  | 4 => ["               .:;;;:.", "          .:;;;;;::;;;:.", "          '::'\\|/'::;'", "      .:;;;:.  |", "       '::'\\   /", "            \\_/", "            / \\"]
+  | _ => bonsai.take 7
+
+private def tree (stage : Nat) : List String := crown stage ++ bonsai.drop 7
 
 /-- Only the leaf texture is green; branches stay normal and the pot muted. -/
 private def bonsaiRow (width index : Nat) (line : String) : Widget :=
@@ -43,7 +72,7 @@ private def centered (width : Nat) (row : Widget) : Widget :=
 
 /-- Fixed footer and a bounded, optically raised central composition. Decoration
     disappears before entrances; no figures imply household completeness. -/
-def view (bounds : Bounds) (focusDate notice : String) : Widget :=
+def view (bounds : Bounds) (focusDate notice : String) (stage : Nat) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let operations :=
     [ mutedLine (if width >= 48 then " [Enter] calendar   [i] attention" else " [Enter] calendar  [i] attention")
@@ -57,7 +86,7 @@ def view (bounds : Bounds) (focusDate notice : String) : Widget :=
   let art := width >= treeWidth && capacity >= bonsai.length + 11
   let roomy := capacity >= 13
   let heading := if art then
-      bonsai.zipIdx.map (fun (line, index) => bonsaiRow treeWidth index line) ++
+      (tree stage).zipIdx.map (fun (line, index) => bonsaiRow treeWidth index line) ++
         [blankLine, plainLine "loam"]
     else [plainLine "loam"]
   let date := if roomy then [blankLine, mutedLine focusDate, blankLine] else [mutedLine focusDate]

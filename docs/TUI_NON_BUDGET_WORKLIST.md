@@ -34,6 +34,14 @@
 ビルド・`lake test`、Viewport／Record／Scheduled 操作／Cycle Budget／Reports／
 Balances／Daily Pace／Attention／Actual PTY、既存 resource／Home scroll check で確認済み。
 
+追加の成長表示は **実機確認待ち**：6段階の固定樹形を、現在の Actual の既知の日付数
+0／1／3／7／14／30日から再構成する（過去の記録も含む）。同日件数・金額・連続日数には
+依存せず、休止だけでは枯れない。置換対象を数えず、日付訂正は反映する。
+保存状態・入力日時・達成度は作らない。既存 `TuiHomeNavigation` で閾値・訂正・Unknown・
+数量非依存・全段階の狭小レイアウト、既存 Record PTY で確定後の成長・同日重複・取消・
+再起動・他 Household セクション不変を確認。ビルド、`lake test`、Home generation、
+Viewport PTY、resource check も成功（新CIなし）。残りは小さい樹形の見た目の実機確認。
+
 | ID | 画面・範囲 | UI 改修の状態 | 残作業 / 完了の証跡 |
 | --- | --- | --- | --- |
 | UI-01 | Home / Calendar / Detail | 完了 | 2026-10-13：利用画像で見えた上枠の欠け／下枠の空白、狭幅での意味混在を再改修。広幅は月間 Calendar＋Detail、狭幅は連続した週ナビ＋日の内容、短い端末は1行の日付ナビ。両方収まる高さでは月集計も表示。日の収支・Actual・Scheduled・非空／Unavailable Pending は Detail に集約。固定2行ナビ＋`?` の全文ヘルプが旧4系統の常設案内・本文凡例を引き継ぐ。PgUp/Dn は選択 identity を保って全文を閲覧、j/k で選択追従に復帰。既存 `TuiHomeNavigation` / `TuiHelpFooter` と Viewport / Record PTY で独立した根拠・リサイズ・モーダル拒否・復帰を検証（新CIなし）。Day 表示はユーザーの実機確認済み。続いて z の月／年表示を整列：`Months / YYYY` の月名＋件数2行セル、`Years` の Year / Records 列、集計との控えめな区切り、凡例は `?`。選択・現在期間の下線・正確な件数と期間集計を維持し、狭幅・選択月の名前／件数の同時表示・年の範囲端を既存 Lean／Viewport PTY で検証。月／年表示もユーザーの実機確認・了承済み。Selected Day は UI-04 |

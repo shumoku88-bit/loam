@@ -88,8 +88,72 @@ private def browseDetail (bounds : Bounds) (snapshot : Snapshot) (state : State)
     state := next
   throw (IO.userError "Detail browsing did not reach its last page")
 
+/-- Growth decorates current, known occurrence dates; it never scores money or
+    input frequency, claims recording timestamps, or retains a second history. -/
+private def testBonsaiGrowth (snapshot : Snapshot) : IO Unit := do
+  let source ← requireSome snapshot.actual.allRecords.head? "growth fixture record"
+  let recordsForDays := fun days => (List.range days).map fun i =>
+    { source with
+      event := {source.event with id := ⟨s!"growth-{i}"⟩}
+      date := Loam.ActualDate.shiftDays? "2026-01-01" (Int.ofNat i)
+    }
+  let growth := Loam.Tui.HomeLauncher.growthStage
+  for (days, expected) in [(0, 0), (1, 1), (2, 1), (3, 2), (6, 2), (7, 3),
+      (13, 3), (14, 4), (29, 4), (30, 5), (100, 5)] do
+    let records := recordsForDays days
+    expect (growth records == expected) s!"bonsai growth threshold changed at {days}"
+    expect (growth records.reverse == expected && growth (records ++ records) == expected)
+      "bonsai rewarded order or duplicate/same-day entries"
+  let records := recordsForDays 3
+  let first ← requireSome records.head? "growth first date"
+  expect (growth [{first with date := none}, {first with date := some "2026-02-29"}] == 0)
+    "bonsai guessed an unknown or malformed date"
+  let corrected := {first with replacement := some ⟨"growth-1"⟩} :: records.tail
+  expect (growth corrected == 1) "bonsai counted a superseded Correction target"
+  let dateCorrected := {first with date := (records[1]?).bind (·.date)} :: records.tail
+  expect (growth dateCorrected == 1) "bonsai counted an old validity date after correction"
+  let reversed := {first with reversedBy := some ⟨"growth-1"⟩} :: records.tail
+  expect (growth reversed == 2) "bonsai erased a still-current reversed Actual date"
+  for multiplier in [-1, 1, 1000000000000000000000000000000000000000000] do
+    let changed ← records.mapM fun record => do
+      let event ← requireSome (Event.ofEffects? record.event.id
+        (record.event.effects.map fun effect => Effect.ofAnonymousQuantity effect.locus effect.measure
+          (Quantity.ofQuanta (effect.quantity.quanta * multiplier)))) "growth amount fixture"
+      pure {record with event, description := "different amount/description"}
+    expect (growth changed == 2) "bonsai growth depended on money or description"
+  let root := initialState "2026-10-01"
+  let observed := {snapshot with actual := {snapshot.actual with allRecords := records}}
+  let before := Loam.Tui.Home.view {width := 80, height := 24} observed root
+  let idle := { observed with
+    actual := {observed.actual with today := "2027-10-01"}
+    scheduled := .error "unavailable"
+    attention := .unavailable
+  }
+  expect (before.lines == (Loam.Tui.Home.view {width := 80, height := 24} idle root).lines)
+    "bonsai decayed with elapsed time or depended on Scheduled/Attention"
+  let grown := {observed with actual := {observed.actual with allRecords := recordsForDays 7}}
+  expect (!(before.lines == (Loam.Tui.Home.view {width := 80, height := 24} grown root).lines))
+    "new admitted dates did not change Home's bonsai"
+  let mut previousLeaves := 0
+  for stage in List.range 6 do
+    let roomy := Loam.Tui.HomeLauncher.view {width := 80, height := 24} "2026-10-01" "" stage
+    let leaves := roomy.lines.flatten.countP (fun cell => cell.style == .series4)
+    expect (leaves > previousLeaves) "later bonsai stage did not add foliage"
+    previousLeaves := leaves
+    for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
+        {width := 80, height := 24}, {width := 150, height := 45}] do
+      let view := Loam.Tui.HomeLauncher.view bounds "2026-10-01" "" stage
+      expect (view.height <= bounds.height - 1 && view.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= Loam.Tui.Layout.contentWidth bounds)
+        "growth stage escaped terminal geometry"
+      for label in ["Record", "Scheduled", "Calendar", "Actual", "Balances", "Daily Pace"] do
+        expect (contains label (text view)) "growth decoration displaced an entrance"
+      expect (contains "\\___________/" (text view) == (bounds.height >= 24))
+        "growth stage changed its stable fold/restore footprint"
+
 def main : IO Unit := do
   let snapshot ← fixture
+  testBonsaiGrowth snapshot
   let launcher := initialState "2026-10-01"
   expect launcher.launcherOpen "production startup did not open the bonsai Home"
   for bounds in [{width := 32, height := 9}, {width := 32, height := 11},

@@ -1389,6 +1389,7 @@ def view (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (cached : Option DetailLayout := none) : Widget :=
   if state.launcherOpen then
     Loam.Tui.HomeLauncher.view bounds state.selectedDate state.notice
+      (Loam.Tui.HomeLauncher.growthStage snapshot.actual.allRecords)
   else homeView bounds snapshot state cached
 
 end Loam.Tui.Home
