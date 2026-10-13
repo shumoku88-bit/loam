@@ -58,9 +58,9 @@ theorem maxFitCell_sound {available minimum maximum gap chosen : Nat}
     (h : maxFitCell? available minimum maximum gap = some chosen) :
     minimum ≤ chosen ∧ chosen ≤ maximum ∧ gridWidth chosen gap ≤ available := by
   by_cases hg : minimum ≤ maximum ∧ gridWidth minimum gap ≤ available
-  · have hAvail : gridWidth minimum gap ≤ available := hg.2
+  · have hAvail : 7 * minimum + 6 * gap ≤ available := by
+      simpa only [gridWidth] using hg.2
     have hLower : minimum ≤ (available - 6 * gap) / 7 := by
-      unfold gridWidth at hAvail
       omega
     by_cases hc : (available - 6 * gap) / 7 ≤ maximum
     · simp [maxFitCell?, hg, hc] at h
