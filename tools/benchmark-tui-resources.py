@@ -119,9 +119,11 @@ class Terminal:
                                         env=dict(os.environ, TERM="xterm-256color"))
         os.close(slave)
         try:
-            _, output = self.capture(b"LOAM Home")
+            _, output = self.capture(b"[q] quit")
             self.startup_ms = (time.monotonic() - start) * 1000
             assert b"\x1b[?1049h" in output
+            # Existing workloads are Calendar-context tests, entered through Home.
+            self.send(b"g", b"LOAM Home")
         except BaseException:
             self.close()
             raise
@@ -161,6 +163,8 @@ class Terminal:
         return count
 
     def quit(self) -> bytes:
+        # Callers have returned to Calendar (possibly its Detail pane).
+        self.send(b"g", b"[q] quit")
         os.write(self.fd, b"q")
         output = b""
         deadline = time.monotonic() + 5

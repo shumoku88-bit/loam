@@ -57,8 +57,7 @@ inductive HomePane where
 /-- Production root state owns only Home presentation/navigation state. -/
 structure State where
   selectedDate : String
-  /-- Opt-in launcher experiment; process-local only, never persisted. -/
-  launcherEnabled : Bool := false
+  /-- Home versus Calendar navigation; process-local only, never persisted. -/
   launcherOpen : Bool := false
   notice : String := ""
   /-- Presentation-only viewport offset for the responsive Home detail pane. -/
@@ -96,7 +95,7 @@ structure Step where
 
 
 def initialState (selectedDate : String) : State :=
-  { selectedDate := selectedDate }
+  { selectedDate := selectedDate, launcherOpen := true }
 
 /-- Toggle focus between calendar and detail pane. -/
 def toggleActivePane (state : State) : State :=

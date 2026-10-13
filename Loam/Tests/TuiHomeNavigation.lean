@@ -90,7 +90,8 @@ private def browseDetail (bounds : Bounds) (snapshot : Snapshot) (state : State)
 
 def main : IO Unit := do
   let snapshot ← fixture
-  let launcher : State := {selectedDate := "2026-10-01", launcherEnabled := true, launcherOpen := true}
+  let launcher := initialState "2026-10-01"
+  expect launcher.launcherOpen "production startup did not open the bonsai Home"
   for bounds in [{width := 32, height := 9}, {width := 32, height := 11},
       {width := 32, height := 13}, {width := 48, height := 14},
       {width := 32, height := 23}, {width := 32, height := 24},
@@ -335,14 +336,18 @@ def main : IO Unit := do
       (fun cells => cells.any fun cell => cell.style == .selected) |>.flatten.map Cell.glyph)))
       "date navigation left calendar focus outside its viewport"
 
-  -- All entrances use the same reset, including shrinking the record set via Enter/Esc.
-  for key in [Loam.Tui.Terminal.Key.enter, .escape, .input 'z'] do
-    let stale : State := {base with
-      zoomLevel := .year
-      detailCursor := 11
-      detailScroll := 100
-      overviewScroll := 5
-    }
+  -- Enter/z reset changed-period geometry. Esc now returns Home, preserving it.
+  let stale : State := {base with
+    zoomLevel := .year
+    detailCursor := 11
+    detailScroll := 100
+    overviewScroll := 5
+  }
+  let home ← press wide snapshot stale .escape
+  expect (home.launcherOpen && home.zoomLevel == stale.zoomLevel &&
+    home.detailCursor == stale.detailCursor && home.detailScroll == stale.detailScroll &&
+    home.overviewScroll == stale.overviewScroll) "Home return reset Calendar context"
+  for key in [Loam.Tui.Terminal.Key.enter, .input 'z'] do
     let next ← press wide snapshot stale key
     expect (next.detailCursor == 0 && next.detailScroll == 0 && next.overviewScroll == 0)
       "zoom retained stale selection/scroll"
@@ -390,8 +395,11 @@ def main : IO Unit := do
         expect (qBack.activePane == .calendar) "q did not leave detail"
         let capQBack ← press bounds snapshot last (.input 'Q')
         expect (capQBack.activePane == .calendar) "Q did not leave detail"
-        expect (Loam.Tui.Home.navigationKey bounds snapshot base (.input 'q') |>.isNone)
-          "calendar q was intercepted by local navigation"
+        for key in [Loam.Tui.Terminal.Key.input 'q', .input 'Q', .escape, .input 'g', .input 'G'] do
+          let home ← press bounds snapshot base key
+          expect (home.launcherOpen && home.selectedDate == base.selectedDate &&
+            home.zoomLevel == base.zoomLevel)
+            "Calendar return lost Home, date or zoom"
 
   -- An oversized record must not scroll its own selected title out of view.
   let effects := (List.range 40).map fun i =>

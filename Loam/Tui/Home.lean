@@ -1044,8 +1044,9 @@ private def actionHelp (width : Nat) (snapshot : Snapshot) (state : State) : Lis
   [ { key := "[r]", label := "record" }
   , { key := "[a]", label := "actual" }
   , { key := "[s]", label := s!"scheduled{schedBadge}" }
-  , { key := "[q]", label := if state.activePane == .detail then "back" else if state.launcherEnabled then "home" else "quit" }
-  ] ++ (if state.launcherEnabled then [{key := "[g]", label := "launcher home"}] else [])
+  , { key := "[q]", label := if state.activePane == .detail then "back" else "home" }
+  , { key := "[g]", label := "home" }
+  ]
 
 private def commandHelp (width : Nat) (snapshot : Snapshot) : List HelpItem :=
   let attnBadge := attentionBadge width (attentionSummary snapshot)
@@ -1104,7 +1105,7 @@ private def helpLines (bounds : Bounds) (state : State) : List Widget :=
     else
       let stride := match state.zoomLevel with | .day => "week" | .month => "quarter" | .year => "year"
       [("h/l", unit), ("k/j", stride), ("Enter", enterLabel), ("Tab/w", "pane"), ("?", "help")]
-  let backLabel := if isDetail then "back" else if state.launcherEnabled then "home" else "quit"
+  let backLabel := if isDetail then "back" else "home"
   let actions :=
     if width < 79 then [("r", "rec"), ("Space", "cmds"), ("q", backLabel)]
     else [("r", "record"), ("Space", "commands"), ("q", backLabel),
@@ -1242,7 +1243,7 @@ def navigationKey
     (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1)
     (cached : Option DetailLayout := none) : Option State :=
-  if state.launcherEnabled && state.launcherOpen then
+  if state.launcherOpen then
     match key with
     | .enter | .input 'g' | .input 'G' => some {state with launcherOpen := false, notice := ""}
     | .input 'r' | .input 'R' | .input 's' | .input 'S'
@@ -1250,7 +1251,7 @@ def navigationKey
     | .input 'd' | .input 'D' | .input 'i' | .input 'I'
     | .input ' ' | .input 'q' | .input 'Q' => none
     | _ => some state
-  else if state.launcherEnabled && !state.helpOpen && state.jumpPrompt.isNone &&
+  else if !state.helpOpen && state.jumpPrompt.isNone &&
       ((state.activePane == .calendar && (key == .escape || key == .input 'q' || key == .input 'Q')) ||
         key == .input 'g' || key == .input 'G') then
     some {state with launcherOpen := true, notice := ""}
@@ -1386,7 +1387,7 @@ def homeView (bounds : Bounds) (snapshot : Snapshot) (state : State)
 /-- Production root rendering is Home-only; object workspaces run in their own sessions. -/
 def view (bounds : Bounds) (snapshot : Snapshot) (state : State)
     (cached : Option DetailLayout := none) : Widget :=
-  if state.launcherEnabled && state.launcherOpen then
+  if state.launcherOpen then
     Loam.Tui.HomeLauncher.view bounds state.selectedDate state.notice
   else homeView bounds snapshot state cached
 

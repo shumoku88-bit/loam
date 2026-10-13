@@ -80,7 +80,8 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         return send(b"\r", b"Preview: 2 replacements")
 
     try:
-        capture(b"LOAM Home")
+        capture(b"[q] quit")
+        send(b"g", b"LOAM Home")
         send(b"s", b"Series Calendar")
         feedback = send(b"j", b"No next recurring plan.")
         changed_rows = {int(r) for r, _ in re.findall(rb"\x1b\[(\d+);(\d+)H", feedback)}
@@ -176,6 +177,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         assert "exception" in after["Scheduled"] and "6000" in after["Scheduled"]
         assert "first" in after["Scheduled"] and "4800" in after["Scheduled"]
         send(b"q", b"LOAM Home")
+        send(b"q", b"[q] quit")
         os.write(master, b"q")
         while select.select([master], [], [], 0.2)[0]:
             try:

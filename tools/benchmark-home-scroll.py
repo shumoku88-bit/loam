@@ -97,8 +97,8 @@ def main():
                 assert return_home(terminal) == initial_title, "resize/pages changed final selection"
             assert terminal.idle(.3) == 0, "post-sentinel movement/output"
             # Home transaction detail uses q to return to Calendar (#1905).
-            # The shared Terminal.quit() sends a second q to exit the app.
-            terminal.send(b"q", b"[q] quit")
+            # The shared Terminal.quit() returns from Calendar to Home before exiting.
+            terminal.send(b"q", b"[q] home")
             terminal.quit()
             assert before == resources.digest(root), "read-only probe changed fixture"
             print(json.dumps({"events": args.events, "days": args.days, "burst": args.burst,

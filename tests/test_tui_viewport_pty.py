@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Home/Reports/Actuals live-resize regression on an isolated fixture.
 
-Arguments: synthetic fixture directory, loamTui executable, optional --launcher.
-Never use loam-data. The opt-in mode qualifies the visual launcher separately.
+Arguments: synthetic fixture directory, loamTui executable. Never use loam-data.
+One session qualifies default bonsai Home, then Calendar and its nested workspaces.
 """
 import datetime
 import fcntl
@@ -20,7 +20,6 @@ import time
 
 root = Path(sys.argv[1]).resolve()
 exe = Path(sys.argv[2]).resolve()
-launcher_mode = sys.argv[3:] == ["--launcher"]
 
 
 def digest():
@@ -45,8 +44,7 @@ def controlling_terminal():
 
 
 process = subprocess.Popen([str(exe), str(root)], stdin=slave, stdout=slave, stderr=slave,
-                           env=dict(os.environ, TERM="xterm-256color", LOAM_DATA_DIR=str(root),
-                                    LOAM_HOME="launcher" if launcher_mode else ""),
+                           env=dict(os.environ, TERM="xterm-256color", LOAM_DATA_DIR=str(root)),
                            preexec_fn=controlling_terminal)
 os.close(slave)
 ansi = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -71,73 +69,58 @@ def bounded(output, rows, cols):
 
 
 try:
-    if launcher_mode:
-        initial = capture(b"Calendar")
-        bounded(initial, 40, 120)
+    startup = capture(b"Calendar")
+    bounded(startup, 40, 120)
+    assert b"\x1b[?7l" in startup, "application left terminal auto-wrap armed"
+    for marker in (b"Record", b"Scheduled", b"Actual", b"Balances", b"Daily Pace"):
+        assert marker in ansi.sub(b"", startup), (marker, startup)
+    assert "╭".encode() not in startup and b"Net:" not in startup
+    assert b"\\___________/" in ansi.sub(b"", startup) and b"loam" in startup
+    for rows, cols in ((9, 32), (14, 48), (23, 32), (24, 32), (45, 150), (40, 120)):
+        resize(rows, cols)
+        frame = capture(b"Calendar")
+        bounded(frame, rows, cols)
+        clean = ansi.sub(b"", frame)
+        assert (b"\\___________/" in clean) == (rows >= 24), "bonsai resize did not fold/restore the whole tree"
         for marker in (b"Record", b"Scheduled", b"Actual", b"Balances", b"Daily Pace"):
-            assert marker in ansi.sub(b"", initial), (marker, initial)
-        assert "╭".encode() not in initial and b"Net:" not in initial
-        assert b"\\___________/" in ansi.sub(b"", initial) and b"loam" in initial
-        for rows, cols in ((9, 32), (14, 48), (23, 32), (24, 32), (45, 150), (40, 120)):
-            resize(rows, cols)
-            frame = capture(b"Calendar")
-            bounded(frame, rows, cols)
-            clean = ansi.sub(b"", frame)
-            assert (b"\\___________/" in clean) == (rows >= 24), "bonsai resize did not fold/restore the whole tree"
-            for marker in (b"Record", b"Scheduled", b"Actual", b"Balances", b"Daily Pace"):
-                assert marker in clean, (rows, cols, marker)
-        # Same publishers/workspaces, with safe cancellation and launcher return.
-        for key, marker, back in (
-            (b"r", b"Record / Edit", b"\x1b"),
-            (b"s", b"Scheduled Series Calendar", b"q"),
-            (b"a", b"Household Actuals Workspace", b"q"),
-            (b"b", b"Balances / Current", b"q"),
-            (b"d", b"Daily Pace / Trend", b"q"),
-            (b"i", b"Attention / Manage", b"q"),
-        ):
-            os.write(master, key)
-            bounded(capture(marker), 40, 120)
-            os.write(master, back)
-            bounded(capture(b"[Space] commands"), 40, 120)
-        # Calendar context survives the root round trip, including tiny resize.
-        os.write(master, b"g")
-        calendar = ansi.sub(b"", capture(b"LOAM Home"))
-        focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", calendar).group(1)
-        expected = str(datetime.date.fromisoformat(focus.decode()) + datetime.timedelta(days=1)).encode()
-        os.write(master, b"l")
-        capture(b"Focus: " + expected)
-        os.write(master, b"q")
-        capture(b"[Space] commands")
-        resize(9, 32)
-        bounded(capture(b"Calendar"), 9, 32)
-        os.write(master, b"\r")
-        bounded(capture(b"LOAM Home"), 9, 32)
-        resize(40, 120)
-        restored = ansi.sub(b"", capture(b"LOAM Home"))
-        assert b"Focus: " + expected in restored, "launcher lost navigated Calendar date"
-        os.write(master, b"g")
-        capture(b"[Space] commands")
-        os.write(master, b" \x1b")
-        capture(b"Calendar")
-        os.write(master, b"q")
-        cleanup = b""
-        while select.select([master], [], [], 0.2)[0]:
-            try:
-                chunk = os.read(master, 65536)
-                if not chunk:
-                    break
-                cleanup += chunk
-            except OSError:
-                break
-        os.close(master)
-        master = -1
-        assert process.wait(timeout=5) == 0
-        assert b"\x1b[?7h" in cleanup
-        assert digest() == before, "launcher navigation/cancellation changed household evidence"
-        print("Home launcher: six entrances, live resize, Calendar return and cancellation; evidence unchanged.")
-        sys.exit(0)
+            assert marker in clean, (rows, cols, marker)
+    # Same publishers/workspaces, with safe cancellation and Home return.
+    for key, marker, back in (
+        (b"r", b"Record / Edit", b"\x1b"),
+        (b"s", b"Scheduled Series Calendar", b"q"),
+        (b"a", b"Household Actuals Workspace", b"q"),
+        (b"b", b"Balances / Current", b"q"),
+        (b"d", b"Daily Pace / Trend", b"q"),
+        (b"i", b"Attention / Manage", b"q"),
+    ):
+        os.write(master, key)
+        bounded(capture(marker), 40, 120)
+        os.write(master, back)
+        bounded(capture(b"[q] quit"), 40, 120)
+    # Calendar context survives the root round trip, including tiny resize.
+    os.write(master, b"g")
+    calendar = ansi.sub(b"", capture(b"LOAM Home"))
+    focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", calendar).group(1)
+    expected = str(datetime.date.fromisoformat(focus.decode()) + datetime.timedelta(days=1)).encode()
+    os.write(master, b"l")
+    capture(b"Focus: " + expected)
+    os.write(master, b"q")
+    home = ansi.sub(b"", capture(b"[q] quit"))
+    assert expected in home, "Home did not show its Record seed date"
+    resize(9, 32)
+    bounded(capture(b"Calendar"), 9, 32)
+    os.write(master, b"\r")
+    bounded(capture(b"LOAM Home"), 9, 32)
+    resize(40, 120)
+    restored = ansi.sub(b"", capture(b"LOAM Home"))
+    assert b"Focus: " + expected in restored, "Home lost navigated Calendar date"
+    os.write(master, b"g")
+    capture(b"[q] quit")
+    os.write(master, b" \x1b")
+    capture(b"Calendar")
+    assert digest() == before, "Home navigation/cancellation changed household evidence"
+    os.write(master, b"g")
     initial = capture(b"LOAM Home")
-    assert b"\x1b[?7l" in initial, "application left terminal auto-wrap armed"
     clean_initial = ansi.sub(b"", initial)
     assert b"[g]" not in clean_initial and b"[Space] commands" in clean_initial, (
         "Home retained Summary or lost the command hub entrance"
@@ -166,13 +149,13 @@ try:
     resize(40, 120)
     restored = capture(b"LOAM Home")
     bounded(restored, 40, 120)
-    # Retired g/G must be ignored; the following key still navigates Calendar.
+    # g/G round-trips through Home without swallowing following Calendar navigation.
     focus = re.search(rb"Focus: (\d{4}-\d{2}-\d{2})", clean_initial).group(1)
     expected = str(datetime.date.fromisoformat(focus.decode()) + datetime.timedelta(days=1)).encode()
     os.write(master, b"gGl")
     moved = ansi.sub(b"", capture(b"Focus:"))
     assert b"LOAM / Summary" not in moved and b"Focus: " + expected in moved, (
-        "retired g/G changed Home or swallowed subsequent Calendar navigation"
+        "Home round trip changed date or swallowed subsequent Calendar navigation"
     )
     # Only i/d/b are restored from the palette-only analysis shortcuts. Both cases
     # work from Calendar and transaction focus without changing the selected date.
@@ -207,7 +190,7 @@ try:
         capture(marker)
         os.write(master, b"q")
         capture(b"LOAM Home")
-    # Other formerly direct keys remain ignored, including retired Summary.
+    # Other formerly direct keys remain ignored; g/G round-trips through Home.
     os.write(master, b"xuvmocepgGl")
     moved = ansi.sub(b"", capture(b"Focus:"))
     expected = str(datetime.date.fromisoformat(expected.decode()) + datetime.timedelta(days=1)).encode()
@@ -432,6 +415,8 @@ try:
     os.write(master, b"q")
     capture(b"LOAM Home")
     os.write(master, b"q")
+    capture(b"[q] quit")
+    os.write(master, b"q")
     # Drain cleanup bytes before waiting: a macOS tty can hold an exiting child
     # until its pending output is consumed or the master is closed.
     cleanup = b""
@@ -448,7 +433,7 @@ try:
     assert process.wait(timeout=5) == 0
     assert b"\x1b[?7h" in cleanup, "application did not restore terminal auto-wrap"
     assert digest() == before, "read-only viewport navigation changed fixture evidence"
-    print("Home/Selected Day/Reports/Scheduled/Actuals: two-role Home, modal help, compact feedback, details and idle resize; evidence unchanged.")
+    print("Home/Calendar/Selected Day/Reports/Scheduled/Actuals: default bonsai, root return, modal help, compact feedback, details and idle resize; evidence unchanged.")
 finally:
     if master >= 0:
         os.close(master)

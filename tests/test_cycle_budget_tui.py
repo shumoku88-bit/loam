@@ -121,6 +121,8 @@ def expect_local_unavailability(key, subject):
 
 
 try:
+    wait_for("[q] quit")
+    os.write(master, b"g")
     wait_for("LOAM Home")
     # Move beyond the next boundary in Calendar mode.
     # The current Budget must ignore this historical focus.
@@ -301,6 +303,8 @@ try:
     household_path.write_bytes(household)
 
     os.write(master, b"q")
+    wait_for("[q] quit")
+    os.write(master, b"q")
     drain_fd(master)
     assert process.wait(timeout=10) == 0
     after_navigation = digest()
@@ -331,8 +335,10 @@ try:
                                 stderr=slave2, env=env, preexec_fn=controlling_terminal2)
     os.close(slave2)
     try:
-        startup = wait_for_fd(master2, "LOAM Home")
-        assert "[g] summary" not in startup, "retired Summary shortcut returned at startup"
+        startup = wait_for_fd(master2, "[q] quit")
+        assert "loam" in startup and "Calendar" in startup, "bonsai Home lost its Calendar entrance"
+        os.write(master2, b"g")
+        wait_for_fd(master2, "LOAM Home")
         assert process2.poll() is None, "TUI exited after ignoring malformed legacy Scheduled"
 
         os.write(master2, b"s")
@@ -349,6 +355,8 @@ try:
         os.write(master2, b"q")
         wait_for_fd(master2, "LOAM Home")
 
+        os.write(master2, b"q")
+        wait_for_fd(master2, "[q] quit")
         os.write(master2, b"q")
         drain_fd(master2)
         assert process2.wait(timeout=10) == 0

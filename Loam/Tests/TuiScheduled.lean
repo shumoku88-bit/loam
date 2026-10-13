@@ -96,7 +96,7 @@ private def fixtureSnapshot : IO Loam.Tui.Main.Snapshot := do
 
 def main : IO Unit := do
   let snapshot ← fixtureSnapshot
-  let home := Loam.Tui.Main.initialState "2026-09-07"
+  let home : Loam.Tui.Main.State := {selectedDate := "2026-09-07"}
   let bounds : Bounds := { width := 140, height := 42 }
 
   match Loam.Tui.Main.homeScheduledEvidence snapshot home with
@@ -193,7 +193,7 @@ def main : IO Unit := do
         expect (contains "no reconstructed Daily Pace points" trendText)
           "Daily Pace trend collapsed a loaded empty series"
 
-  let unknownHome := Loam.Tui.Main.initialState "2026-09-08"
+  let unknownHome : Loam.Tui.Main.State := {selectedDate := "2026-09-08"}
   match Loam.Tui.Main.homeScheduledEvidence snapshot unknownHome with
   | .ok .unknown => pure ()
   | _ => throw (IO.userError "Home Scheduled evidence collapsed an unknown day")
@@ -223,7 +223,7 @@ def main : IO Unit := do
       expect pending.isEmpty
         "Scheduled due on the boundary was incorrectly classified as past-date pending"
 
-  let pendingHome := Loam.Tui.Main.initialState "2026-09-08"
+  let pendingHome : Loam.Tui.Main.State := {selectedDate := "2026-09-08"}
   let pendingText := widgetText (Loam.Tui.Home.view bounds pendingSnapshot pendingHome)
   expect (contains "Pending Scheduled: 12" pendingText)
     "Home status did not expose the past-date current-open Scheduled count"

@@ -879,9 +879,7 @@ def run (args : List String) : IO UInt32 := do
   let bounds ← Loam.Tui.Terminal.currentBounds
   Loam.Tui.Terminal.enter
   try
-    let launcherEnabled := (← IO.getEnv "LOAM_HOME").getD "" == "launcher"
-    let state := { initialState snapshot.actual.today with
-      launcherEnabled := launcherEnabled, launcherOpen := launcherEnabled }
+    let state := initialState snapshot.actual.today
     let frame := compiledFrameFor bounds snapshot state
     Loam.Tui.Terminal.redrawFromBlank bounds frame
     loop bounds dataDir root snapshot state frame

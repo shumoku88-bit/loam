@@ -23,14 +23,16 @@
 
 ## 画面別の進捗
 
-2026-10-13：UI-01 の別案として、`LOAM_HOME=launcher ./tools/loam` で
-中央の固定 ASCII 盆栽＋小さな `loam`＋6入口の仮 Home を試作。
-文字ロゴから、非対称な緑の葉・曲がった幹・控えめな鉢へ変更（生成・アニメーション・追加依存なし）。
-既定の Calendar は変更しない。80×24 では盆栽全体、32×9／48×14 では
-装飾を畳み、既存の画面・Publisher へ直接委譲する。
-既存 `TuiHomeNavigation` と Viewport PTY の `--launcher` モードで局所検証し、
-余白・盆栽の見た目はユーザーの実機確認・了承済み。`lake test` と通常／Launcher の
-Viewport PTY は通過。Calendar の完了範囲とは別の、opt-in の実験として保持する。
+2026-10-13：UI-01 の盆栽 Home を **正式化・完了**。
+#1958 の opt-in 試作はユーザーの実機確認・了承後、通常起動の Home へ昇格した。
+固定 ASCII 盆栽＋小さな `loam`＋6入口を維持（生成・アニメーション・追加依存なし）。
+80×24 では盆栽全体、32×9／48×14 では装飾を畳み、既存の画面・Publisher へ委譲する。
+`g`／Enter で Calendar、Calendar の `g`／フォーカス済み `q`／Esc で Home、Home の `q` だけが終了。
+実験用の環境変数・enable フラグを廃止。既存 `TuiHomeNavigation` と Viewport PTY の
+通常呼出しが起動・Home／Calendar・各入口・拒否／取消／復帰を引き継ぎ、
+別の `--launcher` テスト実行は不要。Calendar の根拠表示・記帳の意味は維持する。
+ビルド・`lake test`、Viewport／Record／Scheduled 操作／Cycle Budget／Reports／
+Balances／Daily Pace／Attention／Actual PTY、既存 resource／Home scroll check で確認済み。
 
 | ID | 画面・範囲 | UI 改修の状態 | 残作業 / 完了の証跡 |
 | --- | --- | --- | --- |
