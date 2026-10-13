@@ -1,4 +1,5 @@
 import Loam.ActualDate
+import Loam.Tui.CalendarGeometry
 
 namespace Loam.Tui.Calendar
 
