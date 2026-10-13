@@ -201,6 +201,18 @@ Until such pressure exists, this verification sequence is closed. The qualified
 research checkpoints, fixtures, successful historical CI, and Git history retain the
 evidence without requiring every experimental verifier lane to remain live forever.
 
+## Version-specific tooling follow-up
+
+[Issue 1963's built-in Lean checking spike](lean-435-checking-spike.md) records
+formal 4.35 build/checker results, coverage/policy differences, costs and bounded
+Linux bubblewrap integration. Its original KEEP CURRENT conclusion is superseded
+by the [independent re-audit](lean-435-independent-reaudit.md): version adoption,
+replay scope, declaration policy and statement comparison are separate decisions.
+In particular, the existing umbrella-only replay does not recheck its imported
+proofs, and explicit official export roots can recover the omitted private proofs.
+Linux marker tests are not a general hostile-proof security audit. Observations
+237–238 and their production-correspondence stop condition remain unchanged.
+
 ## Working-tree graduation
 
 After the durable proof surface and evidence ledger were established, the
