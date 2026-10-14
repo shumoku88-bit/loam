@@ -1,5 +1,6 @@
 import Loam.HouseholdCommand
 import Loam.Tui.ActualRoutingAdministration
+import Loam.Tui.EditorSession
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -16,25 +17,30 @@ set_option autoImplicit false
 # Actual routing administration terminal session
 
 The session drives presentation-only administration state and delegates the one
-authoritative write to the shared household command boundary. The caller reloads
-the shared review after publication.
+authoritative write to the shared household command boundary. Every publish
+attempt returns to Home. A later administration entrance loads a fresh review,
+rather than retrying against the editor's old snapshot.
 -/
 
 private def effectiveText : RoutingEffective String → String
   | .initial => "initial"
   | .dated date => date
 
-partial def run
+/--
+Publish-once route administration: a refused write may mean a stale routing
+snapshot and must leave this editor. The caller can reopen it from fresh
+review evidence instead of continuing with a now-outdated proposal.
+-/
+def run
     (bounds : Bounds)
     (root : System.FilePath)
     (state : Loam.Tui.ActualRoutingAdministration.State)
-    (frame : CompiledWidget) : IO String := do
-  let key ← Loam.Tui.Terminal.readKey
-  let step := Loam.Tui.ActualRoutingAdministration.update state key
-  if step.cancel then
-    return "Actual routing administration cancelled."
-  match step.publish with
-  | some draft =>
+    (frame : CompiledWidget) : IO String :=
+  Loam.Tui.EditorSession.runUntilAttemptResizing bounds
+    Loam.Tui.ActualRoutingAdministration.update
+    (fun current editor => Loam.Tui.ActualRoutingAdministration.view current editor)
+    (fun _ => "Actual routing administration cancelled.")
+    (fun draft => do
       match ← Loam.HouseholdCommand.routeActual root draft with
       | .ok () =>
           let target :=
@@ -43,10 +49,7 @@ partial def run
             | .unmanaged => "unmanaged"
           return "Routed " ++ draft.locus.token ++ " -> " ++ target ++
             ". Effective: " ++ effectiveText draft.effectiveOn ++ "."
-      | .error message => return "Actual routing refused: " ++ message
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.ActualRoutingAdministration.view bounds step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      run bounds root step.state nextFrame
+      | .error message => return "Actual routing refused: " ++ message)
+    state frame
 
 end Loam.Tui.ActualRoutingAdministrationSession
