@@ -1,11 +1,12 @@
 # Issue 1963 — independent Lean 4.35 re-audit
 
-Status: **AUDIT RECORD; no production switch; Issue #1963 stays OPEN**
+Status: **historical re-audit plus production adoption record (§10)**
 
-Date: 2026-10-13 UTC (2026-10-14 JST). This is the current decision owner for
-[#1963](https://github.com/shumoku88-bit/loam/issues/1963), succeeding the
-[original spike](lean-435-checking-spike.md). Observations 165–168 and 237–238
-remain qualified; their semantic correspondence question is not reopened.
+Sections 1–9 retain the 2026-10-13 UTC (2026-10-14 JST) audit, succeeding the
+[original spike](lean-435-checking-spike.md). Its recommendations and open items
+are historical, not instructions to undo the adoption recorded in §10.
+Observations 165–168 and 237–238 remain qualified; their semantic correspondence
+question is not reopened.
 
 ## Summary
 
@@ -467,3 +468,97 @@ Authoritative version-specific sources inspected:
 
 The evidence manifest names all retained files and their hashes. Successful
 measurement collection is never substituted for individual checker verdicts.
+
+## 10. Production adoption and research closure — 2026-10-14
+
+**Adopted:** official `leanprover/lean4:v4.35.0`, compiler
+`eb6cafb7290e8bd5f2937522d8d804f58f02bafc`.
+[PR #1967](https://github.com/shumoku88-bit/loam/pull/1967) was squash-merged as
+`70df8b450c78bd711411799c2c79804e4061b675` after final six-file review, current-head
+CI, scope/name comparison and Ready-for-review transition. Only pin/stock manifest,
+quoted Memory identifiers, two explicit Settlement fixture build prerequisites and
+short README guidance changed. Quotation preserves names/behavior; prerequisites
+add required cold-cache imports without dropping tests. No operational data,
+revision pin, persisted representation or household facts were changed/converted.
+
+### Decision succession and retained assurance
+
+- The original broad **KEEP CURRENT** was corrected by [PR #1964](https://github.com/shumoku88-bit/loam/pull/1964)
+  (`bf89a60bb1e7248349ac80e4a508e11200fe43a0`): default private-root omissions were
+  recoverable; axiom declaration policy and kernel checking were distinct; the
+  import-only umbrella was replaying zero owned declarations.
+- [PR #1965](https://github.com/shumoku88-bit/loam/pull/1965)
+  (`c90511268eba2511c38158d35647b35d10cac8c4`) corrected the 4.33.1 scope using
+  dynamic owner closure/private-data reconciliation and stock replay. That driver
+  and its sentinels remain unchanged in production; product/durable/observations
+  partitions and path selection also remain unchanged.
+- 4.35 replay covers **22 imported LOAM owners, 1,138 eligible logical declarations,
+  all 415 theorem entries**. The full theorem-owner/name set equals the 4.33.1
+  baseline, including private correspondence proofs. Twelve partial runtime
+  helpers are ineligible, not omitted proofs; unsafe skips are zero. The missing
+  generated `ForkNode.toCtorIdx` definition accounts for the one-count difference.
+- Pinned axiom-audit v0.1.2 (`46024e005996495c65ef609368e11ab39c4222e3`) remains,
+  with `propext,Classical.choice,Quot.sound`. It audits **1,150 candidates**, a
+  different population from replay. Ordinary official check permits a dormant
+  forbidden axiom that this declaration policy rejects; removing the audit would
+  weaken the retained policy. It is not an independent kernel or human-intent proof.
+- Current-head PR qualification passed normal and negative cases: private/new
+  owner, cache independence, empty/theorem-free/omitted scope refusal, and kernel
+  rejection of an intentionally invalid compiled theorem. Full product tests,
+  deterministic/persistence/recovery, TUI/PTY, importer/interchange and four-platform
+  binary smoke were qualified on the same source in #1966/#1967.
+
+### Bounded performance result and deferred alternatives
+
+[Same-runner ABBA run 38497274820](https://github.com/shumoku88-bit/loam/actions/runs/38497274820)
+uses identical source, separate toolchain/build worktrees, separately recorded
+setup/fresh builds and primed test caches. Warm actual full `lake test` samples:
+4.33.1 **264.849 / 264.222 s**, 4.35 **257.983 / 257.986 s**; means
+**264.536 / 257.985 s** (candidate 2.48% shorter). All six prime/measured rounds
+pass the same 92 intercepted invocations/88 distinct test modules. Largest
+individual increase is Home Navigation **+0.508 s / +0.59%**, next **+0.029 s**.
+The earlier large separate-runner slowdown does not reproduce. This is one host,
+two warm samples/version, not long-term or universal performance equivalence.
+No product optimization, flag tuning or new permanent performance gate was added.
+
+Production adopts **B: 4.35 + corrected defining-module replay + retained audit**.
+Explicit-root official export/replay is a qualified logical candidate, not the
+adopted replacement. A future smaller selector must first carry private-data/scope
+reconciliation and all scope sentinels before retiring the current driver. There
+was no measured recurring-cost saving requiring that replacement now. No all-PR
+paranoid or full-standard-library `--fresh` gate was added.
+
+Ubuntu 24 bwrap loopback/uid-map failures remain environment/integration failures;
+trusted `--inadvisably-no-sandbox` results are only logical evidence, **not
+hostile-input security acceptance**. Broad sandbox security, whole-project
+paranoid, long-term performance, full runtime/PTY on every platform and real-data
+replay remain unqualified. Reopen only a concrete independently needed question;
+these are not unfinished requirements hidden by migration closure. Human intent
+and proof-to-production correspondence limits (237–238) remain unchanged.
+
+### Evidence preservation without shipping the experiment
+
+PR #1966 is **not merged**. Its complete source/logs/inventories/reproducers and
+SHA-256 manifests are retained at commit
+`7c16ad4eef308a567990e870e8486f521f6417d8`, under the annotated remote Git tag
+[`research/lean-4.35-qualification-1966`](https://github.com/shumoku88-bit/loam/tree/research/lean-4.35-qualification-1966/docs/experiments/lean435-qualification).
+**Keep this archive tag; do not move/delete it.** It is not a release, production
+build input or CI workflow source. Retention does not depend on an unmerged branch,
+Actions artifact expiry or local `/tmp`; the branch is also retained.
+`evidence/manifest.json` covers four paired raw ZIPs/runtime logs;
+`evidence/same-runner-performance-manifest.json` covers the ABBA evidence ZIP
+(SHA-256 `ba82fa45cacae7a3e39b4bc1c247e9a578eb8cf7cf1812edcf6ef61dd9676d95`).
+All archive hashes/ZIP integrity were rechecked before recording this pointer.
+No experimental workflow/helper or duplicate raw archive is added to main here.
+The archived README and scripts give commands/versions, exact scope, individual
+wall/CPU/RSS/exit results and diagnostic corrections needed for reproduction.
+
+### Rollback
+
+Restore `lean-toolchain` and `lake-manifest.json` from pre-adoption `c9051126`,
+remove **only generated `.lake` artifacts**, and rebuild under 4.33.1. Keep the
+corrected replay/audit, harmless quoted identifiers and fixture prerequisites;
+Memory rollback syntax builds under 4.33.1. Never delete/regenerate household data
+or revision pins: no household conversion is needed. Main post-merge verification
+and Issue #1963 completion are recorded in its final report, not inferred from
+this archival tag or from optional checker research succeeding.

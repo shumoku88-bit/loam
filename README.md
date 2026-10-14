@@ -81,7 +81,7 @@ A system C compiler (`cc`; Xcode command-line tools on macOS) builds the small
 POSIX terminal adapter. Distributed binaries do not require a compiler.
 
 The checkout pins official Lean 4.35.0. Migration qualification and the bounded
-same-runner performance comparison are retained in [PR #1966](https://github.com/shumoku88-bit/loam/pull/1966), not in production CI.
+same-runner comparison are summarized in the [adoption record](docs/experiments/lean-435-independent-reaudit.md#10-production-adoption-and-research-closure--2026-10-14), with a durable archive tag for PR #1966's evidence, not experiment code in production CI.
 Durable replay/sentinels, the pinned three-axiom audit and the three proof surfaces
 are unchanged. To roll back to 4.33.1, restore its `lean-toolchain` and
 `lake-manifest.json`, remove only generated `.lake` artifacts, and rebuild.
