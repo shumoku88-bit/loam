@@ -875,6 +875,14 @@ for cadence once and continues the same flow. Every generated occurrence remains
 ordinary explicit Scheduled occurrence and is individually reviewable before
 publication. The read-side cadence never becomes Scheduled authority.
 
+The horizon and cadence choices and the final edited-occurrence review now use bounded
+lists and a stable action/notice footer. On short terminals their rounded frames
+collapse before hiding the active choice. During final review, `j/k` or Up/Down
+move the selected occurrence, and Home/End jump to the first/last draft without
+changing the chosen Publish all / Cancel action. Tab or Left/Right still chooses
+that final action; Enter confirms it. Resizing reflows the same process-local
+review state, without creating extra plans or changing publisher authority.
+
 `p` opens the existing plan-monitoring editor and changes the replaceable expected
 cadence. The monitoring chooser now uses a focus-following **Expected pace**
 panel with five explicit cadence options, bounded notice/help rows, and the
