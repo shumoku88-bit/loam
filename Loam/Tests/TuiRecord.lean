@@ -74,9 +74,10 @@ private def checkTextCaret : IO Unit := do
         let text := String.ofList (cells.toList.map Cell.glyph)
         let leadingText := Loam.Tui.Layout.clip (col - left) text
         let trailingText := String.ofList (text.toList.drop leadingText.length)
+        -- Full-row output clears the unframed suffix; framed rows pad it explicitly.
         expect (row < bounds.height && col < Loam.Tui.Layout.contentWidth bounds &&
-          trailingText.startsWith " ")
-          "text insertion caret overlapped a frame edge or escaped the pane"
+          (trailingText.isEmpty || trailingText.startsWith " "))
+          s!"text caret overlapped a frame at {bounds.width}x{bounds.height}/{focus}: {row},{col}"
         expect ((Loam.Tui.ModalSurface.textCaretPosition?
           { width := col, height := row + 1 } rectangle true frame).isNone)
           "stale text caret survived a shrink past its field"
