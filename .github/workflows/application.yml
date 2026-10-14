@@ -120,7 +120,7 @@ jobs:
           assert_hobs1_line "$output" "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tjpy\t100')"
           assert_hobs1_line "$output" "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100')"
           assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tjpy\t100\t0\t0\t100\t100')"
-          assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-10')"
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-09')"
           # scheduled-cell includes BOTH explicit occurrence days and completion days.
           # Even when absent, each independently emits '-'.
           assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-\t-')"
