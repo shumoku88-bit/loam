@@ -1216,6 +1216,15 @@ Start or End instead shows the editable dates. Compact contributor detail puts
 the selected coordinate and exact quantities ahead of verbose explanation.
 Esc or q returns to the selected summary row, not Home, and the single-period
 query and sparse contribution evidence remain unchanged.
+Accounting Balances remains a read-only immediate RoleBalance projection. At
+14 rows or fewer, duplicate explanatory header rows collapse so the current
+per-Measure answer appears first. Under 80 terminal columns, individual
+accounting evidence lines wrap without discarding UNKNOWN, unsupported, or
+unresolved details. Arrows/j/k scroll a physical row; PageUp/PageDown advance
+one visible page, Home/End jump to its boundaries. Enter still refreshes the
+shared answer, q/Esc returns Home, and p keeps the existing bounded full-text
+Print contract. Neither totals nor answerability are inferred by wrapping.
+
 The ordered entries are:
 
 1. Daily Pace

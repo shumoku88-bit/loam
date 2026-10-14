@@ -1016,6 +1016,61 @@ def main : IO Unit := do
   expect (contains "liability-unsupported" balancesText && contains "balance unsupported" balancesText)
     "Balances surface hid the unsupported liability witness"
   testReportsBalancesPrint balancesReport
+  -- UI-25: on a 32x9 terminal the accounting answer appears before lengthy
+  -- explanation. Every exact and UNKNOWN evidence row stays reachable by
+  -- paging, with source and bounded Print content unchanged.
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    let opening := widgetText (Loam.Tui.Reports.viewForBounds bounds balancesReport)
+    expect (contains "Reports / Balances" opening && contains "Measure: jpy" opening &&
+        contains "p print  q / Esc Home" opening)
+      "compact accounting Balances hid its first answer or fixed help"
+    let limit := Loam.Tui.Reports.scrollLimit bounds balancesReport
+    expect (limit > 0)
+      "accounting Balances fixture no longer exercises long-report scrolling"
+    let allFrames :=
+      (List.range (limit + 1)).flatMap fun offset =>
+        widgetLineTexts (Loam.Tui.Reports.viewForBounds
+          bounds { balancesReport with scroll := offset })
+    let recovered := String.intercalate "" allFrames
+    expect (contains "Qualified Net Worth: UNKNOWN" recovered &&
+        contains "liability-unsupported" recovered &&
+        contains "balance unsupported" recovered &&
+        contains "Answerability Map" recovered &&
+        contains "All current balance support" recovered)
+      "compact Balances scrolling omitted role support or UNKNOWN evidence"
+    let pageDown := Loam.Tui.Reports.updateForBounds bounds balancesReport .pageDown
+    expect (pageDown.state.scroll == min limit (bounds.height - 5) &&
+        pageDown.query.isNone && pageDown.state.roleBalanceSnapshot.isSome)
+      "accounting Balances PageDown changed evidence or moved by the wrong page"
+    let pageUp := Loam.Tui.Reports.updateForBounds bounds pageDown.state .pageUp
+    expect (pageUp.state.scroll == 0)
+      "accounting Balances PageUp failed to restore the first answer"
+    let last := Loam.Tui.Reports.updateForBounds bounds balancesReport .end
+    expect (last.state.scroll == limit &&
+        contains "Home/End" (widgetText (Loam.Tui.Reports.viewForBounds bounds last.state)))
+      "accounting Balances End failed to expose the final evidence"
+    let first := Loam.Tui.Reports.updateForBounds bounds last.state .home
+    expect (first.state.scroll == 0 &&
+        contains "Measure: jpy"
+          (widgetText (Loam.Tui.Reports.viewForBounds bounds first.state)))
+      "accounting Balances Home failed to restore first answer"
+    match Loam.Tui.Reports.prepareBalancesPrint last.state,
+          Loam.Tui.Reports.prepareBalancesPrint balancesReport with
+    | .ok scrolledPrint, .ok originalPrint =>
+        expect (scrolledPrint.lines == originalPrint.lines &&
+            scrolledPrint.byteCount == originalPrint.byteCount)
+          "accounting Balances paging changed exact bounded Print evidence"
+    | _, _ => throw (IO.userError "accounting Balances print unexpectedly refused fixture")
+    match (Loam.Tui.Reports.updateForBounds bounds balancesReport .enter).query with
+    | some .roleBalances => pure ()
+    | _ => throw (IO.userError
+        "accounting Balances Enter no longer requests RoleBalance refresh")
+    expect ((Loam.Tui.Reports.updateForBounds bounds balancesReport .escape).back)
+      "accounting Balances Escape no longer returns Home"
+  let noBalanceEvidence := widgetText (Loam.Tui.Reports.viewForBounds
+    { width := 32, height := 9 } balancesStep.state)
+  expect (contains "RoleBalance answer" noBalanceEvidence)
+    "compact accounting Balances hid the unavailable current evidence"
   expectRefusal (Loam.Tui.Reports.prepareBalancesPrint balancesStep.state)
     "Reports/Balances printed without a current RoleBalance answer"
 

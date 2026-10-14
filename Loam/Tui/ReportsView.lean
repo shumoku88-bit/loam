@@ -1229,19 +1229,59 @@ def prepareBalancesPrint (state : State) : Except String Loam.Tui.PlainTextPrint
     , blank
     ] ++ Loam.Tui.RoleBalances.lines snapshot
 
-private def balancesView (state : State) : Widget :=
-  .column <|
-    [ line "Reports / Balances"
-    , muted "Current evidence-aware accounting projections from shared RoleBalance."
-    , muted "Balance Sheet / Net Worth / Trial Balance are presentations, not separate engines."
-    , blank
-    ] ++
-    balancesResultLines state ++
-    [ blank
-    , muted "Enter refresh   ↑/↓ or j/k scroll   [p] print view"
-    , muted "q / Esc Home"
-    , line state.notice
-    ]
+/-- RoleBalances currently emits one plain or muted span per row. Keep the
+    complete evidence readable on narrow terminals without changing that source
+    presentation, its quantities, or the separate bounded Print contract. -/
+private def wrappedBalanceRow (columns : Nat) (widget : Widget) : List Widget :=
+  match widget with
+  | .row [part] =>
+      if part.text.isEmpty then [widget]
+      else
+        (Loam.Tui.Layout.wrapColumns columns part.text).map fun text =>
+          .row [span text part.style]
+  | other => [other]
+
+private def balancesView (state : State) (bounds : Option Bounds) : Widget :=
+  let compact :=
+    match bounds with
+    | some terminal => decide (terminal.height <= 14)
+    | none => false
+  let header :=
+    if compact then
+      [line "Reports / Balances"]
+    else
+      [ line "Reports / Balances"
+      , muted "Current evidence-aware accounting projections from shared RoleBalance."
+      , muted "Balance Sheet / Net Worth / Trial Balance are presentations, not separate engines."
+      , blank
+      ]
+  let answers := balancesResultLines state
+  -- The RoleBalances read answer starts with its own three-line title block.
+  -- At tiny heights the one-line report title replaces only that duplicate,
+  -- never the per-Measure, UNKNOWN, or answerability evidence.
+  let answers :=
+    if compact && state.roleBalanceSnapshot.isSome then answers.drop 3 else answers
+  let answers :=
+    match bounds with
+    | some terminal =>
+        if terminal.width < 80 then
+          answers.flatMap (wrappedBalanceRow (Loam.Tui.Layout.contentWidth terminal))
+        else answers
+    | none => answers
+  let footer :=
+    if compact then
+      [ muted "j/k scroll  PgUp/Dn page"
+      , muted "Home/End  Enter refresh"
+      , muted "p print  q / Esc Home"
+      , line state.notice
+      ]
+    else
+      [ blank
+      , muted "Enter refresh  j/k scroll  PgUp/Dn page"
+      , muted "Home/End jump  [p] print view  q/Esc Home"
+      , line state.notice
+      ]
+  .column <| header ++ answers ++ footer
 
 private def liquidityPointLine
     (measure : Loam.Core.MeasureId)
@@ -1368,7 +1408,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .incomeExpense => incomeExpenseView state bounds
   | .incomeExpenseCompare => incomeExpenseCompareView state bounds
   | .multimeasureSpend => multimeasureSpendView state bounds
-  | .balances => balancesView state
+  | .balances => balancesView state bounds
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
   | .locusTrendCompare =>
@@ -1564,10 +1604,25 @@ def updateForBounds
           state
     | _, _ => state
   let step : Step :=
-    match key with
-    | .pointer _ _ | .pointerDrag _ _ | .pointerMotion _ _ =>
+    match pointerAdjusted.mode, key with
+    | .balances, .pageUp =>
+        let parts := viewParts pointerAdjusted (some bounds)
+        let page := max 1 (bodyPageSize bounds parts.footer)
+        { state := { pointerAdjusted with scroll := pointerAdjusted.scroll - page } }
+    | .balances, .pageDown =>
+        let parts := viewParts pointerAdjusted (some bounds)
+        let page := max 1 (bodyPageSize bounds parts.footer)
+        { state := { pointerAdjusted with scroll := pointerAdjusted.scroll + page } }
+    | .balances, .home =>
+        { state := { pointerAdjusted with scroll := 0 } }
+    | .balances, .end =>
+        let parts := viewParts pointerAdjusted (some bounds)
+        let page := bodyPageSize bounds parts.footer
+        { state := { pointerAdjusted with
+            scroll := Loam.Tui.Scroll.maxOffset parts.body.extent page } }
+    | _, .pointer _ _ | _, .pointerDrag _ _ | _, .pointerMotion _ _ =>
         { state := pointerAdjusted }
-    | _ => update pointerAdjusted key
+    | _, _ => update pointerAdjusted key
   if step.state.mode = .locusTrendCompare then
     { step with state := { step.state with scroll := 0 } }
   else
