@@ -1209,7 +1209,13 @@ retain the full original header. This affects neither the end-exclusive query
 coordinates nor the report result. Multicurrency Spend now reuses the same
 compact Start / End / Run presentation at short heights, while its read-only
 ordinary/original/exchange evidence distinction and typed query remain unchanged.
-Transactions Flow and Liquidity retain their independent screen contracts.
+Liquidity retains its independent screen contract. Transactions Flow now
+reuses the same compact Start / End / Run header. Its report results still
+prioritize the selected sparse coordinate when navigating the table; focusing
+Start or End instead shows the editable dates. Compact contributor detail puts
+the selected coordinate and exact quantities ahead of verbose explanation.
+Esc or q returns to the selected summary row, not Home, and the single-period
+query and sparse contribution evidence remain unchanged.
 The ordered entries are:
 
 1. Daily Pace

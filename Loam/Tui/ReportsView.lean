@@ -272,36 +272,48 @@ private def stockFlowCompareView (state : State) (bounds : Option Bounds) : Widg
   | none => standard
 
 
-private def transactionWindowLines (state : State) : List Widget :=
-  [ line "Reports / Transactions Flow"
-  , muted "Which exact coordinates moved in this window?"
-  , muted "Zero-net circulation visible via gross activity."
-  , line ("Window: " ++ windowSourceLabel state)
-  , muted "Presets only resolve explicit [start, end) dates."
-  , blank
-  , field state 0 "Start" state.window.form.start
-  , field state 1 "End (exclusive)" state.window.form.endExclusive
-  , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-  , blank
-  ]
+private def transactionWindowLines (state : State) (bounds : Option Bounds) : List Widget :=
+  let standard :=
+    [ line "Reports / Transactions Flow"
+    , muted "Which exact coordinates moved in this window?"
+    , muted "Zero-net circulation visible via gross activity."
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "Presets only resolve explicit [start, end) dates."
+    , blank
+    , field state 0 "Start" state.window.form.start
+    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
+    , blank
+    ]
+  match bounds with
+  | some terminal =>
+      if terminal.height <= 14 then
+        compactWindowHeader terminal state "Reports / Transactions Flow"
+      else standard
+  | none => standard
 
 private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widget :=
   if state.transactions.detail then
     .column <|
-      [ line "Reports / Transactions Flow"
-      , muted "Focused nonzero Event witnesses for coordinate."
-      , blank
-      ] ++
+      (if (match bounds with
+           | some terminal => decide (terminal.height <= 14)
+           | none => false) then
+        [line "Reports / Transactions Flow"]
+      else
+        [ line "Reports / Transactions Flow"
+        , muted "Focused nonzero Event witnesses for coordinate."
+        , blank
+        ]) ++
       Loam.Tui.TransactionsFlowPane.detailLines state.transactions ++
       [ blank
       , muted "↑/↓ or j/k scroll contributors"
-      , muted "b / Esc summary   q quit"
+      , muted "q / Esc summary"
       , muted "No pairwise flow edge inferred from signed Effects."
       , line state.notice
       ]
   else
     .column <|
-      transactionWindowLines state ++
+      transactionWindowLines state bounds ++
       Loam.Tui.TransactionsFlowPane.summaryLines state.transactions bounds ++
       [ blank
       , muted "[ / ] source   ← / → Month   m sel-day month"
@@ -1461,16 +1473,19 @@ private def scrollPositionLine
   muted ("Lines " ++ toString first ++ "–" ++ toString last ++ "/" ++ toString total ++
     "   ↑/↓ or j/k " ++ action)
 
-private def requestedOffset (state : State) (page : Nat) : Nat :=
+private def requestedOffset (bounds : Bounds) (state : State) (page : Nat) : Nat :=
   match state.mode with
   | .transactionsFlow =>
-    if state.transactions.detail then
+    if state.transactions.detail || state.window.form.focus.val < 2 then
       state.scroll
     else
       match Loam.Tui.TransactionsFlowPane.selectedSummaryLine? state.transactions with
       | none => state.scroll
       | some selectedBodyLine =>
-          let selectedLine := (transactionWindowLines state).length + selectedBodyLine
+          -- Selection indices belong to the result-local pane. The parent
+          -- owns the responsive window header length and visible page.
+          let selectedLine :=
+            (transactionWindowLines state (some bounds)).length + selectedBodyLine
           (selectedLine + 1) - page
   | _ => state.scroll
 
@@ -1516,7 +1531,7 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
   else
     let parts := viewParts state (some bounds)
     let page := bodyPageSize bounds parts.footer
-    let offset := Loam.Tui.Scroll.clamp parts.body.extent page (requestedOffset state page)
+    let offset := Loam.Tui.Scroll.clamp parts.body.extent page (requestedOffset bounds state page)
     let position := scrollPositionLine state.mode offset page parts.body.extent
     if bounds.height < parts.footer.length + 1 then
       -- In a tiny terminal, retain as much navigation as possible. Existing views
