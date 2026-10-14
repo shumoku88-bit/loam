@@ -170,6 +170,36 @@ def main : IO Unit := do
     "lazy viewport source did not preserve cross-source slicing"
 
   let initial := Loam.Tui.Reports.initialForDate "2026-09-07"
+  -- A short terminal must show the focused comparison coordinate or Run;
+  -- pure query selection remains owned by the unchanged Reports model.
+  for destination in
+      [Loam.Tui.Reports.Destination.stockFlow, .incomeExpense] do
+    let base := (Loam.Tui.Reports.openReport destination initial).state
+    let compare := (Loam.Tui.Reports.update base (.input 'c')).state
+    for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+      let shown := widgetText (Loam.Tui.Reports.viewForBounds bounds compare)
+      expect (contains "Run comparison" shown && contains "Compare by:" shown &&
+          contains "Tab focus" shown)
+        "short Reports comparison did not expose its Run action and source"
+    let editing := (Loam.Tui.Reports.update compare (.input 'e')).state
+    expect (editing.comparison.focus.val == 0)
+      "Reports comparison custom editing did not focus the first coordinate"
+    let longDate := "2026-01-01" ++ String.ofList (List.replicate 80 '8')
+    let longEditing := { editing with
+      comparison := { editing.comparison with leftStart := longDate } }
+    let tinyText := widgetText (Loam.Tui.Reports.viewForBounds
+      { width := 32, height := 9 } longEditing)
+    expect (contains "Left start:" tinyText && contains "…8888" tinyText)
+      "short Reports comparison hid the focused input tail"
+    let next1 := (Loam.Tui.Reports.update editing .tab).state
+    let next2 := (Loam.Tui.Reports.update next1 .tab).state
+    let nextText := widgetText (Loam.Tui.Reports.viewForBounds
+      { width := 32, height := 9 } next2)
+    expect (contains "Right start:" nextText)
+      "short Reports comparison did not follow the active coordinate"
+    let run := Loam.Tui.Reports.update compare .enter
+    expect run.query.isSome
+      "Reports comparison compact layout changed explicit Run query"
   -- Entrances preserve the explicit seed, independent query policies and Home return.
   let usdBase := Loam.Tui.Reports.initialForDateWithPresetsForMeasure
     ⟨"usd"⟩ "2026-09-07" []

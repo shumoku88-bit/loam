@@ -1194,6 +1194,12 @@ older observation or derive reconciliation semantics locally.
 
 Home → `Space` → **Reports and analysis** → **specific report** opens that
 report directly. There is no intermediate Reports chooser or extra subcategory.
+For Stock–Flow and Income & Expense, `c` enters the existing two-window comparison.
+At 14 terminal rows or fewer, the comparison editor shows the active coordinate
+(or the Run action) first, following `Tab`/`Shift-Tab` with a bounded choice window.
+A long custom date keeps its insertion tail visible rather than wrapping the
+terminal row. At ordinary heights the original comparison layout remains intact.
+This changes neither automatic source adjacency nor explicit comparison queries.
 The ordered entries are:
 
 1. Daily Pace

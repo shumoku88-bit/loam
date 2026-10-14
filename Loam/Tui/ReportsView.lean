@@ -91,6 +91,55 @@ private def comparisonPanels
         left ++ [blank] ++ right
   | none => left ++ [blank] ++ right
 
+/-- Compact two-period form at short terminal heights.
+    The same five field/focus coordinates are retained by ReportComparison;
+    only the two nearest visible rows follow the focused field. -/
+private def compactComparisonFormLines (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let selected := state.comparison.focus.val
+  let columns : List (String × String) :=
+    [ ("Left start", state.comparison.leftStart)
+    , ("Left end", state.comparison.leftEndExclusive)
+    , ("Right start", state.comparison.rightStart)
+    , ("Right end", state.comparison.rightEndExclusive) ]
+  let inputRows := columns.zipIdx.map fun ((label, value), index) =>
+    let lead := if selected == index then "> " else "  "
+    let caption := lead ++ label ++ ": "
+    let displayed := if value.isEmpty then "_" else value
+    .row
+      [ span caption .muted
+      , span (Loam.Tui.Layout.inputTail
+          (width - Loam.Tui.Layout.displayWidth caption) displayed)
+          (if selected == index then .selected else .normal)
+      ]
+  let action : Widget :=
+    .row [span (if selected == 4 then "> [Run comparison]" else "  [Run comparison]")
+      (if selected == 4 then .selected else .normal)]
+  let rows := inputRows ++ [action]
+  let capacity := if bounds.height <= 10 then 2 else 5
+  (Loam.Tui.Layout.centeredListWindow rows selected capacity).map Prod.snd
+
+/-- Reports comparison reuses the existing model and result lines; a compact
+    viewport prioritizes the focused coordinate over lengthy introductory text. -/
+private def compactComparisonView (bounds : Bounds) (state : State)
+    (title : String) (results : List Widget) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let intro :=
+    [line (Loam.Tui.Layout.ellipsize width title),
+     line (Loam.Tui.Layout.ellipsize width
+       ("Compare by: " ++ comparisonSourceLabel state))] ++
+    (if bounds.height >= 12 then
+      [muted "Automatic sources use adjacent windows; edits use Custom."] else [])
+  let footer :=
+    [ muted (if bounds.width < 50 then "Tab focus  e edit  [/] source"
+             else "[ / ] source  ←/→ pair  e edit dates  Tab focus")
+    , muted (if bounds.width < 50 then "Enter next/run  q back"
+             else "Enter next/run  Backspace delete  q/Esc back")
+    , line state.notice
+    ]
+  .column <| intro ++ compactComparisonFormLines bounds state ++
+    [blank] ++ results ++ footer
+
 private def liquidityField (state : State) : Widget :=
   .row
     [ span "Assume Scheduled complete through: "
@@ -162,7 +211,7 @@ private def stockFlowComparisonLines
       comparisonPanels bounds left right
 
 private def stockFlowCompareView (state : State) (bounds : Option Bounds) : Widget :=
-  .column <|
+  let standard : Widget := .column <|
     [ line "Reports / Stock–Flow / Compare"
     , muted "Same qualified Stock–Flow question, two independent explicit windows."
     , muted "Wide terminals show Left and Right side by side; narrow terminals stack them."
@@ -176,6 +225,13 @@ private def stockFlowCompareView (state : State) (bounds : Option Bounds) : Widg
     , muted "Tab / Shift-Tab focus   Backspace delete   q / Esc single-period"
     , line state.notice
     ]
+  match bounds with
+  | some terminal =>
+      if terminal.height <= 14 then
+        compactComparisonView terminal state "Reports / Stock–Flow / Compare"
+          (stockFlowComparisonLines state bounds)
+      else standard
+  | none => standard
 
 
 private def transactionWindowLines (state : State) : List Widget :=
@@ -919,7 +975,7 @@ private def incomeExpenseComparisonLines
       comparisonPanels bounds left right
 
 private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : Widget :=
-  .column <|
+  let standard : Widget := .column <|
     [ line "Reports / Income & Expense / Compare"
     , muted "Same occurrence-time role-flow question, two independent explicit windows."
     , muted "No delta, percentage, equal-duration, or baseline meaning is inferred."
@@ -933,6 +989,13 @@ private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : 
     , muted "Tab / Shift-Tab focus   Backspace delete   q / Esc single-period"
     , line state.notice
     ]
+  match bounds with
+  | some terminal =>
+      if terminal.height <= 14 then
+        compactComparisonView terminal state "Reports / Income & Expense / Compare"
+          (incomeExpenseComparisonLines state bounds)
+      else standard
+  | none => standard
 
 
 private def formattedMeasureQuantity
