@@ -109,9 +109,15 @@ def main : IO Unit := do
     Loam.Tui.ScheduledContinuationSession.updatePrompt tiny review.state .«end»
   expect (reviewBottom.state.reviewRow > 0 && reviewBottom.action.isNone)
     "continuation review did not scroll to its final evidence row"
-  let lastEvidence :=
-    widgetText (Loam.Tui.ScheduledContinuationSession.promptView tiny reviewBottom.state)
-  expect (contains "same-series claim." lastEvidence &&
+  let lastWidget :=
+    Loam.Tui.ScheduledContinuationSession.promptView tiny reviewBottom.state
+  let lastEvidence := widgetText lastWidget
+  -- Layout.wrapColumns is a character-bounded physical wrap: even a
+  -- hyphenated word may span rows. Rejoin visible rows before asserting that
+  -- the final retained evidence survives the narrow review viewport.
+  let joinedEvidence := String.intercalate "" <| lastWidget.lines.map fun cells =>
+    String.ofList (cells.map Cell.glyph)
+  expect (contains "same-series claim." joinedEvidence &&
       contains "Esc back" lastEvidence)
     "continuation review lost its final evidence or Esc on a 32x9 terminal"
   let reviewUp :=
