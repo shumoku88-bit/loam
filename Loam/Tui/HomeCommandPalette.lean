@@ -170,8 +170,8 @@ private def updateSearch (state : State) (query : String)
   | .input _ | .backspace | .paste _ =>
       match Loam.Tui.InputEdit.apply? key query with
       | some edited =>
-          let clipped := String.ofList <| edited.toList.filter
-            (fun c => c.toNat >= 32 && c.toNat != 127) |>.take 64
+          let clipped := String.ofList <| (edited.toList.filter
+            (fun c => c.toNat >= 32 && c.toNat != 127)).take 64
           .stay { state with search := some clipped, searchSelected := 0 }
       | none => .stay state
   | _ => .stay state
