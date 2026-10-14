@@ -1,4 +1,5 @@
 import Loam.Tui.Home
+import Loam.Tui.HomeCommandPalette
 import Loam.Tui.SelectedDay
 
 open Loam.Core Loam.Tui.Kernel Loam.Tui.Main
@@ -151,9 +152,83 @@ private def testBonsaiGrowth (snapshot : Snapshot) : IO Unit := do
       expect (contains "\\___________/" (text view) == (bounds.height >= 24))
         "growth stage changed its stable fold/restore footprint"
 
+private def paletteStay
+    (state : Loam.Tui.HomeCommandPalette.State)
+    (key : Loam.Tui.Terminal.Key) : IO Loam.Tui.HomeCommandPalette.State :=
+  match Loam.Tui.HomeCommandPalette.update state key with
+  | .stay state => pure state
+  | _ => throw (IO.userError "Commands unexpectedly opened or closed")
+
+private def testCommandsSearch : IO Unit := do
+  let initial : Loam.Tui.HomeCommandPalette.State := {}
+  let selected ← paletteStay initial .down
+  let nested ← paletteStay selected .enter
+  expect (nested.page == .planning && nested.selected == 0)
+    "Commands hierarchy group entrance changed"
+  let nested ← paletteStay nested .down
+  let searching ← paletteStay nested (.input '/')
+  expect (searching.search == some "" && searching.page == .planning &&
+    searching.selected == 1) "opening search lost the browse context"
+  let matching ← "balance".toList.foldlM
+    (fun state char => paletteStay state (.input char)) searching
+  expect ((Loam.Tui.HomeCommandPalette.searchResults "balance").length >= 2 &&
+    (Loam.Tui.HomeCommandPalette.searchResults "blnc").length >= 2 &&
+    (Loam.Tui.HomeCommandPalette.searchResults "BALANCE") == (Loam.Tui.HomeCommandPalette.searchResults "balance"))
+    "case-folded fuzzy search or shared report destinations missing"
+  let opened := Loam.Tui.HomeCommandPalette.update matching .enter
+  expect (opened == .open .balances)
+    "search did not dispatch the existing Balances choice"
+  let fuzzy ← "blnc".toList.foldlM
+    (fun state char => paletteStay state (.input char)) searching
+  expect (Loam.Tui.HomeCommandPalette.update fuzzy .enter == .open .balances)
+    "fuzzy search did not resolve an ordered subsequence"
+  let noMatches ← "qzznotfound".toList.foldlM
+    (fun state char => paletteStay state (.input char)) searching
+  expect (noMatches.search == some "qzznotfound" &&
+    (Loam.Tui.HomeCommandPalette.searchResults "qzznotfound").isEmpty &&
+    Loam.Tui.HomeCommandPalette.update noMatches .enter == .stay noMatches)
+    "search swallowed letter q or opened a nonexistent command"
+  let deleted ← paletteStay noMatches .backspace
+  expect (deleted.search == some "qzznotfoun")
+    "search Backspace failed"
+  let pasted ← paletteStay searching (.paste "balances\nshould-not-join")
+  expect (pasted.search == some "balances" &&
+    Loam.Tui.HomeCommandPalette.update pasted .enter == .open .balances)
+    "search paste crossed its single-line boundary"
+  let restored ← paletteStay noMatches .escape
+  expect (restored.search.isNone && restored.page == .planning &&
+    restored.selected == nested.selected)
+    "Esc left search but lost prior hierarchical selection"
+  let parent ← paletteStay restored .escape
+  expect (parent.page == .commands && parent.selected == 1)
+    "Esc did not resume the original Commands navigation"
+  expect (Loam.Tui.HomeCommandPalette.update parent .escape == .close)
+    "Commands root Esc no longer closes the palette"
+  -- The all-candidate view must remain bounded on narrow terminals. Selection
+  -- follows its own cursor and must not modify the saved hierarchy cursor.
+  let many ← paletteStay searching .down
+  expect (many.searchSelected == 1 && many.selected == searching.selected)
+    "search selection unexpectedly changed browse selection"
+  for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] do
+    for state in [searching, many, matching, noMatches, restored] do
+      let v := Loam.Tui.HomeCommandPalette.view bounds state
+      expect (v.height <= bounds.height &&
+        v.lines.all fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            Loam.Tui.Layout.contentWidth bounds)
+        s!"Commands search overflowed {bounds.width}x{bounds.height}"
+    let missing := text (Loam.Tui.HomeCommandPalette.view bounds noMatches)
+    expect (contains "No matches" missing || bounds.height < 9)
+      "empty search failed to show its safe browsing escape"
+    let inputView := text (Loam.Tui.HomeCommandPalette.view bounds matching)
+    expect (contains "balance" inputView)
+      "compact Commands search hid its actively edited query"
+
 def main : IO Unit := do
   let snapshot ← fixture
   testBonsaiGrowth snapshot
+  testCommandsSearch
   let launcher := initialState "2026-10-01"
   expect launcher.launcherOpen "production startup did not open the bonsai Home"
   for bounds in [{width := 32, height := 9}, {width := 32, height := 11},
