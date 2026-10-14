@@ -151,6 +151,7 @@ practical_slice_a2_tests=(
 
 tui_representative_tests=(
   TuiRecord
+  TuiExchange
   TuiActual
   TuiSelectedDay
   TuiBalances
