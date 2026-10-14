@@ -115,7 +115,7 @@ private def remember
       IO.println idToken
       return 0
 
-private def recall
+private def «recall»
     (path : System.FilePath)
     (idToken : String) : IO UInt32 := do
   let memory ←
@@ -124,7 +124,7 @@ private def recall
         IO.eprintln message
         return 2
     | .ok memory => pure memory
-  match Loam.Examples.PersonalSemanticMemory.recall? memory ⟨idToken⟩ with
+  match Loam.Examples.PersonalSemanticMemory.«recall?» memory ⟨idToken⟩ with
   | none =>
       IO.eprintln ("loamMemory: no retained fact for EventId: " ++ idToken)
       return 2
@@ -170,9 +170,9 @@ def run (args : List String) : IO UInt32 := do
   | ["remember", memoryPath, eventId, text] =>
       withMemoryPath (some memoryPath) (fun path => remember path eventId text)
   | ["recall", eventId] =>
-      withMemoryPath none (fun path => recall path eventId)
+      withMemoryPath none (fun path => «recall» path eventId)
   | ["recall", memoryPath, eventId] =>
-      withMemoryPath (some memoryPath) (fun path => recall path eventId)
+      withMemoryPath (some memoryPath) (fun path => «recall» path eventId)
   | ["correct", targetId, replacementId, text] =>
       withMemoryPath none (fun path => correct path targetId replacementId text)
   | ["correct", memoryPath, targetId, replacementId, text] =>

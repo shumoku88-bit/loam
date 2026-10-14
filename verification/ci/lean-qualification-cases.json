@@ -201,7 +201,7 @@
         "main",
         "test/settlement-actual-authority-preservation"
       ],
-      "buildArgs": "Loam.Authority.ActualAuthority Loam.Publisher.EventMerchantPublisher Loam.Publisher.ActualValidityPublisher",
+      "buildArgs": "Loam.Authority.ActualAuthority Loam.Publisher.EventMerchantPublisher Loam.Publisher.ActualValidityPublisher Loam.Tests.ActualWorldFixture",
       "paths": [
         "Loam/Authority/ActualAuthority.lean",
         "Loam/Publisher/ActualValidityPublisher.lean",
@@ -223,7 +223,7 @@
         "main",
         "feat/settlement-explicit-publisher"
       ],
-      "buildArgs": "Loam.Publisher.SettlementPublisher Loam.HouseholdCommand",
+      "buildArgs": "Loam.Publisher.SettlementPublisher Loam.HouseholdCommand Loam.Tests.ActualWorldFixture",
       "paths": [
         "Loam/Publisher/SettlementPublisher.lean",
         "Loam/HouseholdCommand.lean",
