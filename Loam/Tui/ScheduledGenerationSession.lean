@@ -255,8 +255,10 @@ partial def reviewAndPublish
     (root : System.FilePath)
     (state : Loam.Tui.ScheduledGeneration.State)
     (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.ScheduledGeneration.update state
-    (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.ScheduledGeneration.view active state)
+  let step := Loam.Tui.ScheduledGeneration.update state key
   if step.cancel then return "Scheduled generation cancelled."
   if step.publish then
     match step.state.mode with
@@ -285,7 +287,7 @@ partial def reviewAndPublish
     | .horizon _ | .customDate _ | .cadence _ =>
         pure "Scheduled generation reached an invalid preview state."
   else
-    let nextFrame := compileWidget (Loam.Tui.ScheduledGeneration.view step.state)
+    let nextFrame := compileWidget (Loam.Tui.ScheduledGeneration.view bounds step.state)
     Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
     reviewAndPublish bounds root step.state nextFrame
 
@@ -296,12 +298,14 @@ partial def chooseCadence
     (catalog : Loam.LocusCatalog.Catalog)
     (state : Loam.Tui.ScheduledGeneration.State)
     (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.ScheduledGeneration.update state
-    (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.ScheduledGeneration.view active state)
+  let step := Loam.Tui.ScheduledGeneration.update state key
   if step.cancel then return "Scheduled generation cancelled."
   match step.cadence with
   | none =>
-      let nextFrame := compileWidget (Loam.Tui.ScheduledGeneration.view step.state)
+      let nextFrame := compileWidget (Loam.Tui.ScheduledGeneration.view bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       chooseCadence bounds root known catalog step.state nextFrame
   | some cadence =>
@@ -319,7 +323,7 @@ partial def chooseCadence
           | .ok none => pure "Scheduled generation cancelled before publication."
           | .ok (some drafts) =>
               let preview := Loam.Tui.ScheduledGeneration.withDrafts state cadence drafts
-              let previewFrame := compileWidget (Loam.Tui.ScheduledGeneration.view preview)
+              let previewFrame := compileWidget (Loam.Tui.ScheduledGeneration.view bounds preview)
               Loam.Tui.Terminal.redrawFromBlank bounds previewFrame
               reviewAndPublish bounds root preview previewFrame
 
@@ -360,7 +364,8 @@ def run
     Loam.Tui.ScheduledGeneration.initial source suggestions observedAt
       |> fun state => if notice.isEmpty then state else
         Loam.Tui.ScheduledGeneration.withNotice state notice
-  let frame := compileWidget (Loam.Tui.ScheduledGeneration.view state)
+  let bounds ← Loam.Tui.Terminal.currentBounds
+  let frame := compileWidget (Loam.Tui.ScheduledGeneration.view bounds state)
   Loam.Tui.Terminal.redrawFromBlank bounds frame
   chooseCadence bounds root known catalog state frame
 
@@ -383,7 +388,8 @@ def runWithCadence
         source suggestions observedAt cadence
       |> fun state => if notice.isEmpty then state else
         Loam.Tui.ScheduledGeneration.withNotice state notice
-  let frame := compileWidget (Loam.Tui.ScheduledGeneration.view state)
+  let bounds ← Loam.Tui.Terminal.currentBounds
+  let frame := compileWidget (Loam.Tui.ScheduledGeneration.view bounds state)
   Loam.Tui.Terminal.redrawFromBlank bounds frame
   chooseCadence bounds root known catalog state frame
 
