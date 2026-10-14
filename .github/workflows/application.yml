@@ -109,7 +109,9 @@ jobs:
           grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100')" "$output"
           grep -Fqx "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tjpy\t100\t0\t0\t100\t100')" "$output"
           grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-10')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-')" "$output"
+          # scheduled-cell includes BOTH explicit occurrence days and completion days.
+          # Even when absent, each independently emits '-'.
+          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-\t-')" "$output"
           grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$output")
           printf 'cash\tusd\n' > "$fixture/config/cycle-funding.tsv"
           usd_output="$fixture/current-usd.hobs1"
