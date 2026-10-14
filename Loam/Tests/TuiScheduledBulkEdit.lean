@@ -158,10 +158,10 @@ def main : IO Unit := do
   let tiny : Bounds := { width := 32, height := 9 }
   let tinySheet := widgetText (Loam.Tui.ScheduledBulkEdit.view tiny longSheet)
   let tinyPreview := widgetText (Loam.Tui.ScheduledBulkEdit.view tiny longPreview)
-  expect (contains "candidate-29" tinySheet && contains "29" tinySheet)
+  expect (contains "candidate-29" tinySheet && contains "4,829" tinySheet)
     "tiny candidate checklist lost the focused final row"
-  expect (contains "candidate-29" tinyPreview && contains "Publish all" tinyPreview &&
-      contains "30 replacements" tinyPreview)
+  expect (contains "candidate-29" tinyPreview && contains "4,829 -> 5,200" tinyPreview &&
+      contains "Publish all" tinyPreview && contains "30 replacements" tinyPreview)
     "tiny preview hid the selected target or the explicit publish action"
   let input := { longState with amount := String.ofList (List.replicate 70 '8') }
   expect (contains "…888" (widgetText (Loam.Tui.ScheduledBulkEdit.view tiny input)))
