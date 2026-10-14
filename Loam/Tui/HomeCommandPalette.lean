@@ -242,7 +242,11 @@ def view (bounds : Bounds) (state : State) : Widget :=
   let header : List Widget :=
     if bodyHeight >= 9 then
       [.row [span path], .row [span (Loam.Tui.Layout.clip (panelWidth - 3) description)], .row []]
-    else if bodyHeight >= 3 then [.row [span path]] else []
+    else if bodyHeight >= 3 then
+      [.row [span (if searching then
+        Loam.Tui.Layout.clip (panelWidth - 2) (" / " ++ query ++ "▏")
+        else path)]]
+    else []
   let footer : List Widget :=
     if bodyHeight >= 9 then
       if searching then
