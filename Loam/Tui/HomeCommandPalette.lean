@@ -162,10 +162,10 @@ private def updateSearch (state : State) (query : String)
       .stay { state with searchSelected := state.searchSelected - 1 }
   | .down =>
       .stay { state with searchSelected :=
-        min rows.length.pred (state.searchSelected + 1) }
+        (min (rows.length - 1) (state.searchSelected + 1)) }
   | .enter =>
       match rows[state.searchSelected]? with
-      | some item => .open item.choice
+      | some item => .open (item.choice)
       | none => .stay state
   | .input _ | .backspace | .paste _ =>
       match Loam.Tui.InputEdit.apply? key query with
@@ -200,7 +200,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Transition :=
           .stay { state with selected := state.selected - 1 }
       | .down | .input 'j' | .input 'J' =>
           .stay { state with selected :=
-            min (entries state.page).length.pred (state.selected + 1) }
+            (min ((entries state.page).length - 1) (state.selected + 1)) }
       | _ => .stay state
 
 private def canFloat (bounds : Bounds) : Bool :=
