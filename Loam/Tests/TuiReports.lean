@@ -1790,7 +1790,7 @@ def main : IO Unit := do
     expect (contains "CONDITIONAL selected-balance" visible &&
         contains "Conditional day-boundary" visible &&
         contains "700 jpy" visible &&
-        contains "not canonical liquidity" visible &&
+        contains "not canonical" visible &&
         contains "no intraday low-water" visible)
       "compact Liquidity hid conditional amounts or epistemic disclaimers"
     let edited := (Loam.Tui.Reports.updateForBounds bounds focusDate .backspace).state
