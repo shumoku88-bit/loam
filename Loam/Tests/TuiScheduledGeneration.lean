@@ -42,7 +42,7 @@ def main : IO Unit := do
     ]
 
   let state := Loam.Tui.ScheduledGeneration.initial source suggestions "2026-09-18"
-  let horizonText := widgetText (Loam.Tui.ScheduledGeneration.view state)
+  let horizonText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } state)
   expect (contains "through 2026-10-15" horizonText &&
       contains "through 2026-12-15" horizonText &&
       contains "through 2027-02-15" horizonText &&
@@ -57,7 +57,7 @@ def main : IO Unit := do
   expect (selectedSuggestion.state.limit.endExclusive == "2027-02-15")
     "Scheduled generation did not adapt the far boundary suggestion to a fill limit"
 
-  let cadenceText := widgetText (Loam.Tui.ScheduledGeneration.view selectedSuggestion.state)
+  let cadenceText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } selectedSuggestion.state)
   expect (contains "Monthly" cadenceText &&
       contains "Every 2 months" cadenceText &&
       contains "Every 3 months" cadenceText &&
@@ -84,7 +84,7 @@ def main : IO Unit := do
     "Scheduled generation did not retain an arbitrary custom fill limit"
   expect (acceptedCustom.state.limitLabel == "custom 2027-01-20")
     "Scheduled generation did not distinguish custom fill-limit provenance for presentation"
-  let customCadenceText := widgetText (Loam.Tui.ScheduledGeneration.view acceptedCustom.state)
+  let customCadenceText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } acceptedCustom.state)
   expect (contains "Fill through: 2027-01-20" customCadenceText)
     "Scheduled generation did not present the accepted custom fill limit"
 
@@ -96,7 +96,7 @@ def main : IO Unit := do
   let preset :=
     Loam.Tui.ScheduledGeneration.initialWithCadence
       source extensionSuggestions "2026-09-18" .everyTwoMonths
-  let presetText := widgetText (Loam.Tui.ScheduledGeneration.view preset)
+  let presetText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } preset)
   expect (contains "Scheduled / Extend Plan" presetText &&
     contains "Pattern: Every 2 months" presetText &&
     contains "Next occurrence" presetText &&
@@ -109,7 +109,7 @@ def main : IO Unit := do
     "Scheduled simple extension asked for cadence again instead of reusing monitoring"
 
   let noSuggestions := Loam.Tui.ScheduledGeneration.initial source [] "2026-09-18"
-  let noSuggestionText := widgetText (Loam.Tui.ScheduledGeneration.view noSuggestions)
+  let noSuggestionText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } noSuggestions)
   expect (contains "Custom date" noSuggestionText)
     "Scheduled generation became unavailable when boundary suggestions were absent"
   let noSuggestionCustom := Loam.Tui.ScheduledGeneration.update noSuggestions .enter
@@ -133,7 +133,7 @@ def main : IO Unit := do
   let preview :=
     Loam.Tui.ScheduledGeneration.withDrafts
       selectedSuggestion.state .monthly [draft1, draft2]
-  let previewText := widgetText (Loam.Tui.ScheduledGeneration.view preview)
+  let previewText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } preview)
   expect (contains "2026-10-15" previewText && contains "2026-11-15" previewText)
     "Scheduled generation final review did not show individually edited dates"
   let some usdMovement := BalancedMovement.ofChanges? ⟨"usd"⟩
@@ -147,9 +147,44 @@ def main : IO Unit := do
   let usdPreview :=
     Loam.Tui.ScheduledGeneration.withDrafts
       selectedSuggestion.state .monthly [usdDraft]
-  let usdPreviewText := widgetText (Loam.Tui.ScheduledGeneration.view usdPreview)
+  let usdPreviewText := widgetText (Loam.Tui.ScheduledGeneration.view { width := 100, height := 30 } usdPreview)
   expect (contains "3000 usd" usdPreviewText && !(contains "3000 jpy" usdPreviewText))
     "Scheduled generation final review rewrote a non-JPY draft as JPY"
+
+  -- A long review stays bounded and the last edited occurrence is reachable
+  -- without changing the default explicit Publish all choice.
+  let longDrafts := (List.range 30).map fun index =>
+    { scheduledOn := "2026-12-15", movement := source.movement } :
+      List Loam.ScheduledCreationPublisher.Draft
+  let longPreview :=
+    Loam.Tui.ScheduledGeneration.withDrafts selectedSuggestion.state .monthly longDrafts
+  let lastPreview := (Loam.Tui.ScheduledGeneration.update longPreview .«end»).state
+  expect (lastPreview.reviewRow == 29)
+    "generation review could not reach the last explicit draft"
+  let backOne := (Loam.Tui.ScheduledGeneration.update lastPreview (.input 'k')).state
+  expect (backOne.reviewRow == 28)
+    "generation review did not move independently of final actions"
+  expect ((Loam.Tui.ScheduledGeneration.update lastPreview .enter).publish)
+    "review cursor movement modified the explicit publish action"
+  for bounds in ([{ width := 100, height := 30 }, { width := 48, height := 14 },
+      { width := 32, height := 9 }] : List Bounds) do
+    for candidate in [state, selectedSuggestion.state, customStart.state,
+        longPreview, lastPreview] do
+      let widget := Loam.Tui.ScheduledGeneration.view bounds candidate
+      expect (widget.lines.length == bounds.height - 1)
+        "generation viewport exceeded or failed to fill the reserved terminal rows"
+      for cells in widget.lines do
+        expect (Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+            bounds.width - 1)
+          "generation wrote past the safe terminal width"
+    let reviewed := widgetText (Loam.Tui.ScheduledGeneration.view bounds lastPreview)
+    expect (contains "30. 2026-12-15" reviewed &&
+        contains "Publish all" reviewed && contains "Cancel" reviewed)
+      "generation final row or explicit confirmation became invisible"
+    let horizon := widgetText
+      (Loam.Tui.ScheduledGeneration.view bounds customStart.state)
+    expect (contains "Fill through" horizon && contains "Enter" horizon)
+      "generation custom date or its action was lost at narrow bounds"
 
   let publish := Loam.Tui.ScheduledGeneration.update preview .enter
   expect publish.publish
