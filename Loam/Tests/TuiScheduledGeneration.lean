@@ -153,9 +153,9 @@ def main : IO Unit := do
 
   -- A long review stays bounded and the last edited occurrence is reachable
   -- without changing the default explicit Publish all choice.
-  let longDrafts := (List.range 30).map fun index =>
-    { scheduledOn := "2026-12-15", movement := source.movement } :
-      List Loam.ScheduledCreationPublisher.Draft
+  let longDrafts : List Loam.ScheduledCreationPublisher.Draft :=
+    (List.range 30).map fun _ =>
+      { scheduledOn := "2026-12-15", movement := source.movement }
   let longPreview :=
     Loam.Tui.ScheduledGeneration.withDrafts selectedSuggestion.state .monthly longDrafts
   let lastPreview := (Loam.Tui.ScheduledGeneration.update longPreview .«end»).state
