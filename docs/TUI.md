@@ -1225,6 +1225,16 @@ one visible page, Home/End jump to its boundaries. Enter still refreshes the
 shared answer, q/Esc returns Home, and p keeps the existing bounded full-text
 Print contract. Neither totals nor answerability are inferred by wrapping.
 
+Liquidity retains two separate propositions: an unconditional future forecast and
+low-water mark remain UNKNOWN; a manually supplied Scheduled-completeness horizon
+can only produce a read-only CONDITIONAL selected-balance outlook. At 14 rows
+or fewer the screen shows both UNKNOWN answers, the selected assumption date,
+and [Run conditional] before longer provenance details. Narrow report result
+lines wrap instead of disappearing past the right edge, and the existing j/k
+scroll and fixed footer reach the full conditional explanations. Long assumption
+input keeps its insertion tail visible; changing it still invalidates stale
+results, never upgrades a hypothesis to household evidence.
+
 The ordered entries are:
 
 1. Daily Pace
