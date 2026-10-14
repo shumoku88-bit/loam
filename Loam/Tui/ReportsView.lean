@@ -295,7 +295,9 @@ private def transactionWindowLines (state : State) (bounds : Option Bounds) : Li
 private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widget :=
   if state.transactions.detail then
     .column <|
-      (if bounds.any (fun terminal => terminal.height <= 14) then
+      (if (match bounds with
+           | some terminal => terminal.height <= 14
+           | none => false) then
         [line "Reports / Transactions Flow"]
       else
         [ line "Reports / Transactions Flow"
