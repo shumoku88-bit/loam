@@ -2,6 +2,7 @@ import Loam.HouseholdCommand
 import Loam.Presentation.LocusCatalog
 import Loam.Review.ScheduledReview
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Main
 import Loam.Tui.Runtime
 import Loam.Tui.ScheduledCreation
@@ -62,6 +63,7 @@ structure PromptState where
   additionalCount : Nat := 0
   mode : PromptMode := .choice
   choice : Nat := 0
+  reviewRow : Nat := 0
 
 structure PromptStep where
   state : PromptState
@@ -82,12 +84,50 @@ private def moveChoice (state : PromptState) (back : Bool) : PromptState :=
     else (state.choice + 1) % count
   { state with choice := next }
 
-def updatePrompt (state : PromptState) (key : Loam.Tui.Terminal.Key) : PromptStep :=
+/-- The full existing evidence remains navigable rather than truncated in the review.
+    Width controls physical wrapping; it never changes the retained Scheduled record. -/
+private def reviewLines (bounds : Bounds)
+    (candidate : Loam.ScheduledReview.Record) : List String :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let bodyCapacity := Loam.Tui.Layout.footerBodyCapacity bounds 2 - 2
+  let innerWidth := if width >= 24 && bodyCapacity >= 5 then width - 2 else width
+  let content := [
+      "Identity: " ++ candidate.id.token,
+      "Due: " ++ candidate.scheduledOn,
+      "Summary: " ++ Loam.ScheduledReview.summary candidate
+    ] ++
+    (candidate.movement.changes.map fun change =>
+      "  " ++ change.coordinate.token ++ "  " ++
+        toString change.quantity.quanta ++ " " ++ candidate.measure.token) ++
+    ["This is an explicit existing Scheduled occurrence, not a same-series claim."]
+  content.flatMap (Loam.Tui.Layout.wrapColumns innerWidth)
+
+/-- Key handling is pure but bound-aware so long reviews never accumulate an
+    unreachable scroll index when the terminal is resized. -/
+def updatePrompt (bounds : Bounds) (state : PromptState)
+    (key : Loam.Tui.Terminal.Key) : PromptStep :=
+
   match state.mode with
   | .review =>
+      let count := match state.candidate with
+        | some candidate => (reviewLines bounds candidate).length
+        | none => 0
+      let visible := Loam.Tui.Layout.footerBodyCapacity bounds 2 - 2
       match key with
       | .escape =>
-          { state := { state with mode := .choice } }
+          { state := { state with mode := .choice, reviewRow := 0 } }
+      | .up | .input 'k' =>
+          { state := { state with reviewRow := state.reviewRow - 1 } }
+      | .down | .input 'j' =>
+          { state := { state with reviewRow := min (count - 1) (state.reviewRow + 1) } }
+      | .pageUp =>
+          { state := { state with reviewRow := state.reviewRow - visible } }
+      | .pageDown =>
+          { state := { state with reviewRow := min (count - 1) (state.reviewRow + visible) } }
+      | .home =>
+          { state := { state with reviewRow := 0 } }
+      | .«end» =>
+          { state := { state with reviewRow := count - 1 } }
       | _ => { state }
   | .choice =>
       match key with
@@ -112,79 +152,116 @@ def updatePrompt (state : PromptState) (key : Loam.Tui.Terminal.Key) : PromptSte
               | _ => { state, action := some .add }
       | _ => { state }
 
-private def line (text : String) : Widget := .row [span text]
+private def clipped (bounds : Bounds) (message : String)
+    (style : Style := .normal) : Widget :=
+  .row [span (Loam.Tui.Layout.ellipsize
+    (Loam.Tui.Layout.contentWidth bounds) message) style]
 
-private def choiceSpan (selected : Bool) (text : String) : Span :=
-  span ("[" ++ text ++ "] ") (if selected then .selected else .normal)
+private def footer (bounds : Bounds) (help : String) : List Widget :=
+  [clipped bounds "" .muted, clipped bounds help .muted]
 
-private def candidateChoiceView
+private def finish (bounds : Bounds) (body bottom : List Widget) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  .column <| Loam.Tui.Layout.fitWithFooter bounds
+    (body.map (Loam.Tui.Layout.clipWidgetRow width))
+    (bottom.map (Loam.Tui.Layout.clipWidgetRow width))
+
+/-- Preserve all explicit decisions at 32×9; a frame is only added if it fits
+    around all three actions. Review data is never confused with those actions. -/
+private def actionRows (bounds : Bounds) (selected : Nat) (labels : List String)
+    (available : Nat) : List Widget :=
+  let rows := labels.zipIdx.map fun (label, index) =>
+    .row [span ((if selected % labels.length == index then "> " else "  ") ++ label)
+      (if selected % labels.length == index then .selected else .normal)]
+  let width := Loam.Tui.Layout.contentWidth bounds
+  if width >= 24 && available >= rows.length + 2 then
+    Loam.Tui.Layout.widgetRows <|
+      Loam.Tui.Layout.framedPanel width (rows.length + 2) "Choose next step"
+        (.column rows) true
+  else rows
+
+private def candidateChoiceView (bounds : Bounds)
     (state : PromptState) (candidate : Loam.ScheduledReview.Record) : Widget :=
-  .column <|
-    [ line "Scheduled / Completion / Existing Plan"
-    , line ("Later Scheduled: " ++ candidate.id.token)
-    , line ("Due: " ++ candidate.scheduledOn)
-    , line ("Expected: " ++ Loam.ScheduledReview.summary candidate)
-    ] ++
-    (if state.additionalCount = 0 then [] else
-      [line ("Also found " ++ toString state.additionalCount ++
-        " more similar later Scheduled occurrence(s).")]) ++
-    [ line ""
-    , line "Match basis: same positive Locus set and a later explicit date."
-    , line "LOAM does not claim this is the same series or contract."
-    , line "Keep the existing plan, add another independent Scheduled, or review it."
-    , .row
-        [ choiceSpan (state.choice % 3 = 0) "Keep as is"
-        , choiceSpan (state.choice % 3 = 1) "Add another"
-        , choiceSpan (state.choice % 3 = 2) "Review"
-        ]
-    , line "Tab / arrows select   Enter confirm   Esc keep as is"
-    ]
+  let foot := footer bounds
+    (if bounds.width < 50 then "Up/Dn choose  Enter  Esc keep"
+     else "Tab/Arrows choose  Enter confirm  Esc keep as is")
+  let head := [
+    clipped bounds "Scheduled / Completion / Existing Plan",
+    clipped bounds ("Later: " ++ candidate.id.token),
+    clipped bounds ("Due: " ++ candidate.scheduledOn)]
+  let extra :=
+    (if bounds.height >= 14 then
+      [clipped bounds ("Expected: " ++ Loam.ScheduledReview.summary candidate)] else []) ++
+    (if bounds.height >= 18 then
+      [clipped bounds ("Also found " ++ toString state.additionalCount ++
+          " more similar later Scheduled occurrence(s).") .muted,
+       clipped bounds "Match basis: same positive Locus set and a later explicit date." .muted,
+       clipped bounds "LOAM does not claim this is the same series or contract." .muted,
+       clipped bounds "Only Add another creates a new explicit Scheduled." .muted]
+     else [])
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds foot.length -
+    head.length - extra.length
+  let actions := actionRows bounds state.choice
+    ["Keep as is", "Add another", "Review"] available
+  finish bounds (head ++ extra ++ actions) foot
 
-private def noCandidateView (state : PromptState) : Widget :=
-  .column
-    [ line "Scheduled / Completion / Next Plan"
-    , line "No similar later current-open Scheduled was found."
-    , line "Nothing will be inferred or created automatically."
-    , line "If you want to decide later, Defer keeps that unfinished intent in Attention."
-    , .row
-        [ choiceSpan (state.choice % 3 = 0) "Done"
-        , choiceSpan (state.choice % 3 = 1) "Defer"
-        , choiceSpan (state.choice % 3 = 2) "Add next"
-        ]
-    , line "Tab / arrows select   Enter confirm   Esc done"
-    ]
+private def noCandidateView (bounds : Bounds) (state : PromptState) : Widget :=
+  let foot := footer bounds
+    (if bounds.width < 50 then "Up/Dn choose  Enter  Esc done"
+     else "Tab/Arrows choose  Enter confirm  Esc done")
+  let head := [
+    clipped bounds "Scheduled / Completion / Next Plan",
+    clipped bounds "No similar later current-open Scheduled was found.",
+    clipped bounds "Nothing will be inferred or created automatically."]
+  let extra := if bounds.height >= 14 then
+    [clipped bounds "Defer keeps an unfinished intent in Attention." .muted]
+    else []
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds foot.length -
+    head.length - extra.length
+  let actions := actionRows bounds state.choice ["Done", "Defer", "Add next"] available
+  finish bounds (head ++ extra ++ actions) foot
 
-private def candidateReviewView (candidate : Loam.ScheduledReview.Record) : Widget :=
-  .column <|
-    [ line "Scheduled / Completion / Existing Plan / Review"
-    , line ("Identity: " ++ candidate.id.token)
-    , line ("Due: " ++ candidate.scheduledOn)
-    , line ("Summary: " ++ Loam.ScheduledReview.summary candidate)
-    , line "Expected effects:"
-    ] ++
-    (candidate.movement.changes.map fun change =>
-      line ("  " ++ change.coordinate.token ++ "  " ++
-        toString change.quantity.quanta ++ " " ++ candidate.measure.token)) ++
-    [ line ""
-    , line "This is an explicit existing Scheduled occurrence, not a same-series claim."
-    , line "Esc back"
-    ]
+private def candidateReviewView (bounds : Bounds) (state : PromptState)
+    (candidate : Loam.ScheduledReview.Record) : Widget :=
+  let lines := reviewLines bounds candidate
+  let selected := min state.reviewRow (lines.length - 1)
+  let foot := footer bounds
+    (if bounds.width < 50 then "j/k scroll  Home/End  Esc back"
+     else "j/k or Up/Down scroll  Home/End  Esc back")
+  let head := [clipped bounds "Scheduled / Completion / Existing Plan / Review",
+    clipped bounds "Expected effects:"]
+  let available := Loam.Tui.Layout.footerBodyCapacity bounds foot.length - head.length
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let framed := width >= 24 && available >= 5
+  let capacity := if framed then available - 2 else available
+  let rows := (Loam.Tui.Layout.centeredListWindow lines selected capacity).map
+    fun (index, content) =>
+      .row [span content (if index == selected then .selected else .normal)]
+  let body :=
+    if framed then Loam.Tui.Layout.widgetRows <|
+      Loam.Tui.Layout.framedPanel width (min available (rows.length + 2))
+        "Retained Scheduled evidence" (.column rows) true
+    else rows
+  finish bounds (head ++ body) foot
 
-def promptView (state : PromptState) : Widget :=
+def promptView (bounds : Bounds) (state : PromptState) : Widget :=
   match state.mode, state.candidate with
-  | .review, some candidate => candidateReviewView candidate
-  | .review, none => noCandidateView { state with mode := .choice }
-  | .choice, some candidate => candidateChoiceView state candidate
-  | .choice, none => noCandidateView state
+  | .review, some candidate => candidateReviewView bounds state candidate
+  | .review, none => noCandidateView bounds { state with mode := .choice }
+  | .choice, some candidate => candidateChoiceView bounds state candidate
+  | .choice, none => noCandidateView bounds state
 
 partial def runPrompt
     (bounds : Bounds) (state : PromptState) (frame : CompiledWidget) :
     IO PromptAction := do
-  let step := updatePrompt state (← Loam.Tui.Terminal.readKey)
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (promptView active state)
+  let step := updatePrompt bounds state key
   match step.action with
   | some action => return action
   | none =>
-      let nextFrame := compileWidget (promptView step.state)
+      let nextFrame := compileWidget (promptView bounds step.state)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       runPrompt bounds step.state nextFrame
 
@@ -257,9 +334,10 @@ def runAfterCompletion
             " No additional Scheduled created."
       | .ok candidates =>
           let prompt := initialPrompt candidates
-          let frame := compileWidget (promptView prompt)
-          Loam.Tui.Terminal.redrawFromBlank bounds frame
-          match ← runPrompt bounds prompt frame with
+          let active ← Loam.Tui.Terminal.currentBounds
+          let frame := compileWidget (promptView active prompt)
+          Loam.Tui.Terminal.redrawFromBlank active frame
+          match ← runPrompt active prompt frame with
           | .keep =>
               match candidates.head? with
               | some candidate =>
@@ -281,7 +359,8 @@ def runAfterCompletion
                     " Deferred continuation could not be retained: " ++ message ++
                     " No additional Scheduled created."
           | .add =>
-              let notice ← addNext bounds root known record effectiveOn loadCatalog
+              let active ← Loam.Tui.Terminal.currentBounds
+              let notice ← addNext active root known record effectiveOn loadCatalog
               return completed ++ " " ++ notice
 
 end Loam.Tui.ScheduledContinuationSession
