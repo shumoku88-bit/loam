@@ -219,11 +219,19 @@ def main : IO Unit := do
         expect (contains title shown && contains "Window: Calendar Month" shown &&
             contains "[Run]" shown)
           "compact single-window report lost its title, source or Run action"
+        -- The initial focus is Run (index 2). Tab traverses Start, End,
+        -- then returns to Run; the report query fires only from that position.
         let start := (Loam.Tui.Reports.updateForBounds bounds opened .tab).state
         let endDate := (Loam.Tui.Reports.updateForBounds bounds start .tab).state
-        expect (contains "> [Run]" (widgetText (Loam.Tui.Reports.viewForBounds bounds endDate)))
+        expect (endDate.window.form.focus.val == 1 &&
+            contains "End (exclusive):"
+              (widgetText (Loam.Tui.Reports.viewForBounds bounds endDate)))
+          "compact single-window did not follow End focus"
+        let runFocused := (Loam.Tui.Reports.updateForBounds bounds endDate .tab).state
+        expect (runFocused.window.form.focus.val == 2 &&
+            contains "> [Run]" (widgetText (Loam.Tui.Reports.viewForBounds bounds runFocused)))
           "compact single-window did not retain a focus-visible Run action"
-        let edit := (Loam.Tui.Reports.updateForBounds bounds endDate .tab).state
+        let edit := (Loam.Tui.Reports.updateForBounds bounds runFocused .tab).state
         expect (edit.window.form.focus.val == 0 &&
             contains "Start:" (widgetText (Loam.Tui.Reports.viewForBounds bounds edit)))
           "compact single-window Tab failed to wrap to the first coordinate"
@@ -234,7 +242,7 @@ def main : IO Unit := do
         let text := widgetText (Loam.Tui.Reports.viewForBounds bounds edited)
         expect (contains "…8888" text && contains "Start:" text)
           "compact single-window truncated the editable end of a long date"
-        let run := Loam.Tui.Reports.updateForBounds bounds endDate .enter
+        let run := Loam.Tui.Reports.updateForBounds bounds runFocused .enter
         expect run.query.isSome
           "compact single-window changed the existing explicit Run query"
   -- Entrances preserve the explicit seed, independent query policies and Home return.
