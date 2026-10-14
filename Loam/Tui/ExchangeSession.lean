@@ -1,27 +1,55 @@
 import Loam.HouseholdCommand
 import Loam.Tui.EditorSession
 import Loam.Tui.Exchange
+import Loam.Tui.Kernel
+import Loam.Tui.ModalSurface
+import Loam.Tui.Runtime
+import Loam.Tui.Terminal
 
 namespace Loam.Tui.ExchangeSession
+
+open Loam.Tui.Kernel Loam.Tui.Runtime
 
 set_option autoImplicit false
 
 /-!
 # Exchange terminal session
 
-The pure Exchange editor owns local presentation state. This shell owns terminal
-I/O and delegates one durable publication intent to HouseholdCommand.recordExchange.
+Keep all local edits, review, refusal, and exact-quantity semantics in Exchange.
+Use the established modal geometry and adaptive terminal loop for both a bounded
+floating panel and a small-terminal full-screen fallback. Only
+HouseholdCommand.recordExchange publishes household authority.
 -/
 
-def run
-    (bounds : Loam.Tui.Kernel.Bounds)
+/-- Float only when the entire exchange editor and review fit. -/
+def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
+  Loam.Tui.ModalSurface.centered? bounds 72 28 84 25
+
+/-- The very same editor content is used in both presentation modes. -/
+def viewForBounds (bounds : Bounds) (state : Loam.Tui.Exchange.State) : Widget :=
+  Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
+    "Exchange / Record"
+    (fun _ => Loam.Tui.Exchange.view state)
+
+/--
+The parent is caller-owned and repainted at fresh geometry on resize.
+Cancellation, explicit preview, and publication-refusal retry remain unchanged.
+-/
+def runAdaptive
+    (bounds : Bounds)
     (root : System.FilePath)
     (world : Loam.ExchangeAdmission.World)
     (state : Loam.Tui.Exchange.State)
-    (frame : Loam.Tui.Runtime.CompiledWidget) : IO String :=
-  Loam.Tui.EditorSession.runUntilPublished bounds
-    (Loam.Tui.Exchange.update world)
-    Loam.Tui.Exchange.view
+    (parent : Bounds → CompiledWidget) : IO String := do
+  let active ← Loam.Tui.Terminal.currentBounds
+  let surface := floatingGeometry? active
+  let frame := compileWidget (viewForBounds active state)
+  Loam.Tui.ModalSurface.paintEntrance bounds active surface parent frame
+  Loam.Tui.EditorSession.runUntilPublishedAdaptive active
+    floatingGeometry?
+    parent
+    (fun _ editor key => Loam.Tui.Exchange.update world editor key)
+    (fun current editor => viewForBounds current editor)
     Loam.Tui.Exchange.withPublishError
     "Exchange cancelled."
     (fun draft => do

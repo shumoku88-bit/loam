@@ -845,14 +845,14 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let editor := Loam.Tui.Exchange.withMeasurePresentation
       (Loam.Tui.Exchange.initialWithMeasure (← requireConfiguredMeasure) state.selectedDate)
       measurePresentation
-    let editorFrame := compileWidget (Loam.Tui.Exchange.view editor)
-    Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
-    let notice ← Loam.Tui.ExchangeSession.run bounds root world editor editorFrame
+    let notice ← Loam.Tui.ExchangeSession.runAdaptive
+      bounds root world editor (fun active => compiledFrameFor active snapshot state)
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
     let fresh ← requireReload notice (loadSnapshot dataDir)
     let destination := { state with notice := notice }
-    let nextFrame := compiledFrameFor bounds fresh destination
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root fresh destination nextFrame
+    let nextFrame := compiledFrameFor activeBounds fresh destination
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    loop activeBounds dataDir root fresh destination nextFrame
   else if (key = .input 'r' || key = .input 'R') then
     let world ←
       match ← Loam.MovementWorldLoader.loadSelectedWorld? root with
