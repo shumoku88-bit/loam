@@ -899,7 +899,7 @@ private def compactSeriesPickerView
   ]
   let navigation := [
     muted (Loam.Tui.Layout.clip width "↑/↓ Locus   1-5 slot"),
-    muted (Loam.Tui.Layout.clip width "Enter apply   x remove   Esc cancel")
+    muted (Loam.Tui.Layout.clip width "Enter apply x remove Esc cancel")
   ]
   let rawFeedback :=
     if notice.isEmpty then [] else
