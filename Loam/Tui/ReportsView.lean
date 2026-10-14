@@ -53,6 +53,36 @@ private def field (state : State) (index : Nat) (label text : String) : Widget :
         (if state.window.form.focus.val = index then .selected else .normal)
     ]
 
+/-- A selected Start / End / Run row stays visible in the compact
+    single-window Reports header. This is presentation-only: ReportWindow still
+    owns the three focus positions and all query coordinates. -/
+private def compactWindowHeader
+    (bounds : Bounds) (state : State) (title : String) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let selected := state.window.form.focus.val
+  let values : List (String × String) :=
+    [("Start", state.window.form.start),
+     ("End (exclusive)", state.window.form.endExclusive)]
+  let inputRows := values.zipIdx.map fun ((label, value), index) =>
+    let lead := if selected == index then "> " else "  "
+    let caption := lead ++ label ++ ": "
+    let displayed := if value.isEmpty then "_" else value
+    .row
+      [ span caption .muted
+      , span (Loam.Tui.Layout.inputTail
+          (width - Loam.Tui.Layout.displayWidth caption) displayed)
+          (if selected == index then .selected else .normal)
+      ]
+  let runRow : Widget :=
+    .row [span (if selected == 2 then "> [Run]" else "  [Run]")
+      (if selected == 2 then .selected else .normal)]
+  let rows := inputRows ++ [runRow]
+  let capacity := if bounds.height <= 10 then 2 else 3
+  [line (Loam.Tui.Layout.ellipsize width title),
+   line (Loam.Tui.Layout.ellipsize width
+     ("Window: " ++ windowSourceLabel state))] ++
+    (Loam.Tui.Layout.centeredListWindow rows selected capacity).map Prod.snd
+
 private def comparisonField
     (state : State) (index : Nat) (label text : String) : Widget :=
   .row
@@ -176,8 +206,8 @@ private def stockFlowResultLines (state : State) : List Widget :=
       , muted "Increase/decrease is tracked-balance motion, not income/spending."
       ]
 
-private def stockFlowView (state : State) : Widget :=
-  .column <|
+private def stockFlowView (state : State) (bounds : Option Bounds) : Widget :=
+  let standard :=
     [ line "Reports / Stock–Flow"
     , muted "Why did the tracked balance change between two boundaries?"
     , muted "Calendar month is only a coordinate convenience, not a household cycle."
@@ -188,7 +218,15 @@ private def stockFlowView (state : State) : Widget :=
     , field state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , blank
-    ] ++
+    ]
+  let header :=
+    match bounds with
+    | some terminal =>
+        if terminal.height <= 14 then
+          compactWindowHeader terminal state "Reports / Stock–Flow"
+        else standard
+    | none => standard
+  .column <| header ++
     stockFlowResultLines state ++
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
@@ -929,18 +967,26 @@ private def dailyFlowSource
           ]
       Loam.Tui.Viewport.concat [intro, body, tail]
 
-private def incomeExpenseHeaderLines (state : State) : List Widget :=
-  [ line "Reports / Income & Expense"
-  , muted "What Income / Expense role flow occurred inside this explicit window?"
-  , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
-  , line ("Window: " ++ windowSourceLabel state)
-  , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
-  , blank
-  , field state 0 "Start" state.window.form.start
-  , field state 1 "End (exclusive)" state.window.form.endExclusive
-  , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-  , blank
-  ]
+private def incomeExpenseHeaderLines
+    (state : State) (bounds : Option Bounds := none) : List Widget :=
+  let standard :=
+    [ line "Reports / Income & Expense"
+    , muted "What Income / Expense role flow occurred inside this explicit window?"
+    , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
+    , blank
+    , field state 0 "Start" state.window.form.start
+    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
+    , blank
+    ]
+  match bounds with
+  | some terminal =>
+      if terminal.height <= 14 then
+        compactWindowHeader terminal state "Reports / Income & Expense"
+      else standard
+  | none => standard
 
 private def incomeExpenseFooterLines (state : State) : List Widget :=
   [ muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
@@ -952,7 +998,7 @@ private def incomeExpenseFooterLines (state : State) : List Widget :=
 private def incomeExpenseView
     (state : State) (bounds : Option Bounds) : Widget :=
   .column <|
-    incomeExpenseHeaderLines state ++
+    incomeExpenseHeaderLines state bounds ++
     (match state.incomeExpenseDisplay with
      | .summary => incomeExpenseResultLines state
      | .monthly => monthlyAccountsResultLines state bounds
@@ -1295,7 +1341,7 @@ private def budgetView (state : State) : Widget :=
 
 private def fullView (state : State) (bounds : Option Bounds := none) : Widget :=
   match state.mode with
-  | .stockFlow => stockFlowView state
+  | .stockFlow => stockFlowView state bounds
   | .stockFlowCompare => stockFlowCompareView state bounds
   | .transactionsFlow => transactionsFlowView state bounds
   | .incomeExpense => incomeExpenseView state bounds
@@ -1343,7 +1389,7 @@ private def dailyIncomeExpenseViewParts
   {
     body :=
       Loam.Tui.Viewport.concat
-        [ Loam.Tui.Viewport.ofList (incomeExpenseHeaderLines state)
+        [ Loam.Tui.Viewport.ofList (incomeExpenseHeaderLines state bounds)
         , dailyFlowSource state bounds
         , Loam.Tui.Viewport.ofList [blank]
         ]
