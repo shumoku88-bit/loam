@@ -744,10 +744,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         let budgetFrame := compileWidget (Loam.Tui.CycleBudget.view bounds budget)
         Loam.Tui.Terminal.redrawFromBlank bounds budgetFrame
         Loam.Tui.CycleBudgetSession.run bounds dataDir root budget budgetFrame
+        let activeBounds ← Loam.Tui.Terminal.currentBounds
         let home := { state with notice := "" }
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-        loop bounds dataDir root snapshot home nextFrame
+        let nextFrame := compiledFrameFor activeBounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+        loop activeBounds dataDir root snapshot home nextFrame
   else if fromPalette && (key = .input 'p' || key = .input 'P') then
     match ← Loam.ActualRoutingReview.loadSnapshot dataDir root snapshot.actual.today with
     | .error message =>
@@ -787,10 +788,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
               (Loam.Tui.Capacity.initial capacitySnapshot)
             Loam.Tui.CapacitySession.run
               bounds dataDir root snapshot.actual.today baseCapacity frame
+            let activeBounds ← Loam.Tui.Terminal.currentBounds
             let home := { state with notice := "" }
-            let nextFrame := compiledFrameFor bounds snapshot home
-            Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-            loop bounds dataDir root snapshot home nextFrame
+            let nextFrame := compiledFrameFor activeBounds snapshot home
+            Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+            loop activeBounds dataDir root snapshot home nextFrame
   else if fromPalette && (key = .input 'o' || key = .input 'O') then
     let editor := Loam.Tui.CurrentQuantityAnchor.initialWithMeasure (← requireConfiguredMeasure)
     let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
