@@ -55,12 +55,13 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityRebalanceSession.run
           bounds root editor editorFrame
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAtForMeasure
       state.snapshot.measure dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
-    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    run bounds dataDir root next nextFrame
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view activeBounds next)
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    run activeBounds dataDir root next nextFrame
   | .unresolved =>
     let notice ←
       match state.snapshot.coverage with
@@ -70,12 +71,13 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
         let routingFrame := compileWidget (Loam.Tui.ScheduledRouting.view bounds routingState)
         Loam.Tui.Terminal.redrawFromBlank bounds routingFrame
         Loam.Tui.ScheduledRoutingSession.run bounds root routingState routingFrame
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAtForMeasure
       state.snapshot.measure dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
-    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    run bounds dataDir root next nextFrame
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view activeBounds next)
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    run activeBounds dataDir root next nextFrame
   | .grant row =>
     let notice ←
       match ← Loam.CapacityReview.loadSnapshotFromHouseholdRootForMeasure
@@ -92,12 +94,13 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityTransferSession.run
           bounds root editor editorFrame
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
     let fresh ← Loam.CycleBudgetReview.loadSnapshotAtForMeasure
       state.snapshot.measure dataDir root state.snapshot.observedAt
     let next := Loam.Tui.CycleBudget.refreshed fresh notice state
-    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view bounds next)
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    run bounds dataDir root next nextFrame
+    let nextFrame := compileWidget (Loam.Tui.CycleBudget.view activeBounds next)
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    run activeBounds dataDir root next nextFrame
 
 
 end Loam.Tui.CycleBudgetSession
