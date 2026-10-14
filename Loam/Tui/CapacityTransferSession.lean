@@ -39,8 +39,7 @@ def run
     (fun draft => do
       match ← Loam.HouseholdCommand.moveCapacity root draft with
       | .ok _ =>
-          return
-            ("Moved " ++ toString draft.quanta ++ " " ++ draft.measure.token ++ " Capacity: " ++
+          return ("Moved " ++ toString draft.quanta ++ " " ++ draft.measure.token ++ " Capacity: " ++
               Loam.CapacityPublisher.coordinateToken draft.source ++ " -> " ++
               Loam.CapacityPublisher.coordinateToken draft.destination ++
               ". Effective: " ++ draft.effectiveOn ++ ".")
