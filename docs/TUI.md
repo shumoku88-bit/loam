@@ -1267,7 +1267,12 @@ shared focus-following list window keeps the selected admitted Locus visible;
 slot (1–5), Enter/apply, x/remove, and Esc/cancel remain available. Closing the
 picker restores the same Trend chart and selected period. Ordinary terminal
 heights retain the existing chart and picker layout, with no change to exact
-Locus/Measure identities or series queries.
+Locus/Measure identities or series queries. The session-only Day overlay editor
+also uses a focused form at 14 rows or fewer: the selected month, Name and Days
+fields (including the active input tail), validation feedback, Tab/Enter, and
+Esc stay on screen instead of following the full chart header. Applying and
+cancelling continue to use the original unsaved overlay state; ordinary-height
+chart and editor geometry are unchanged.
 
 `q/Esc` exits a report's internal detail/comparison/series picker one level
 at a time, then returns directly to Home from the report root. The existing Trend
