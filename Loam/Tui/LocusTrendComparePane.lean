@@ -753,7 +753,7 @@ selected-series rows fit. Exact series values remain in the snapshot; oversized
 values are explicitly deferred to a wider view, never clipped into partial digits.
 -/
 private def compactGraph (bounds : Bounds) (state : State) : Bool :=
-  decide (9 <= bounds.height && bounds.height <= 14) &&
+  decide (9 ≤ bounds.height ∧ bounds.height ≤ 14) &&
     !state.pickerOpen && !isOverlayEditing state
 
 private def compactSeriesRow
