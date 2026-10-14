@@ -1342,6 +1342,23 @@ private def compactLiquidityField (bounds : Bounds) (state : State) : Widget :=
     ]
 
 private def liquidityView (state : State) (bounds : Option Bounds) : Widget :=
+  let standard :=
+    [ line "Reports / Liquidity"
+    , muted "What can LOAM safely say about the future selected-balance path?"
+    , blank
+    , line "Forecast path: UNKNOWN"
+    , line "Known low-water mark: UNKNOWN"
+    , muted "Production still has no retained complete-future evidence for this report."
+    , muted "Known Scheduled items are not silently treated as all future flows."
+    , blank
+    , line "Read-only conditional query"
+    , liquidityField state
+    , .row
+        [ span "[Run conditional]"
+            (if state.liquidityForm.focus.val = 1 then .selected else .normal) ]
+    , muted "Running this does not write or upgrade the assumption into evidence."
+    , blank
+    ]
   let header :=
     match bounds with
     | some terminal =>
@@ -1357,40 +1374,8 @@ private def liquidityView (state : State) (bounds : Option Bounds) : Widget :=
           , muted "Read-only assumption, not complete-future evidence."
           , muted "Scheduled items are not all future flows."
           ]
-        else
-          [ line "Reports / Liquidity"
-          , muted "What can LOAM safely say about the future selected-balance path?"
-          , blank
-          , line "Forecast path: UNKNOWN"
-          , line "Known low-water mark: UNKNOWN"
-          , muted "Production still has no retained complete-future evidence for this report."
-          , muted "Known Scheduled items are not silently treated as all future flows."
-          , blank
-          , line "Read-only conditional query"
-          , liquidityField state
-          , .row
-              [ span "[Run conditional]"
-                  (if state.liquidityForm.focus.val = 1 then .selected else .normal) ]
-          , muted "Running this does not write or upgrade the assumption into evidence."
-          , blank
-          ]
-    | none =>
-        [ line "Reports / Liquidity"
-        , muted "What can LOAM safely say about the future selected-balance path?"
-        , blank
-        , line "Forecast path: UNKNOWN"
-        , line "Known low-water mark: UNKNOWN"
-        , muted "Production still has no retained complete-future evidence for this report."
-        , muted "Known Scheduled items are not silently treated as all future flows."
-        , blank
-        , line "Read-only conditional query"
-        , liquidityField state
-        , .row
-            [ span "[Run conditional]"
-                (if state.liquidityForm.focus.val = 1 then .selected else .normal) ]
-        , muted "Running this does not write or upgrade the assumption into evidence."
-        , blank
-        ]
+        else standard
+    | none => standard
   let results :=
     match bounds with
     | some terminal =>
