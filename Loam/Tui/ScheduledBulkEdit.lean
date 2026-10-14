@@ -146,8 +146,9 @@ private def listPane {α : Type} (bounds : Bounds) (title : String)
     else (Loam.Tui.Layout.centeredListWindow items selected visible).map
       fun (index, item) => render index item
   if framed then
-    [Loam.Tui.Layout.framedPanel width (min capacity (rows.length + 2))
-      title (.column rows) true]
+    Loam.Tui.Layout.widgetRows <|
+      Loam.Tui.Layout.framedPanel width (min capacity (rows.length + 2))
+        title (.column rows) true
   else
     rows.take capacity
 
