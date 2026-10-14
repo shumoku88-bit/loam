@@ -1751,6 +1751,56 @@ def main : IO Unit := do
   expect (contains "no intraday low-water is claimed" liquidityReportText)
     "conditional result lost the intraday-order non-claim"
 
+  -- UI-25: compact Liquidity must show both unconditional UNKNOWN answers
+  -- and the conditional action before its long results. Report queries and
+  -- complete-future knowledge remain distinct, even after scroll or editing.
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    let opening := widgetText (Loam.Tui.Reports.viewForBounds bounds liquidity)
+    expect (contains "Reports / Liquidity" opening &&
+        contains "Forecast path: UNKNOWN" opening &&
+        contains "Known low-water mark: UNKNOWN" opening &&
+        contains "Assume Scheduled: 2026-09-30" opening &&
+        contains "> [Run conditional]" opening)
+      "compact Liquidity lost UNKNOWN, the assumption date or selected Run"
+    let focusDate := (Loam.Tui.Reports.updateForBounds bounds liquidity .tab).state
+    expect (focusDate.liquidityForm.focus.val == 0 &&
+        contains "> Assume Scheduled:" (widgetText (Loam.Tui.Reports.viewForBounds bounds focusDate)))
+      "compact Liquidity Tab failed to expose the active assumption"
+    let longDate := "2026-09-30" ++ String.ofList (List.replicate 75 '8')
+    let longFocus := { focusDate with
+      liquidityForm := { focusDate.liquidityForm with
+        assumedCompleteThrough := longDate } }
+    let longText := widgetText (Loam.Tui.Reports.viewForBounds bounds longFocus)
+    expect (contains "…8888" longText && contains "> Assume Scheduled:" longText)
+      "compact Liquidity clipped the editable assumption tail"
+    let runFocus := (Loam.Tui.Reports.updateForBounds bounds focusDate .tab).state
+    match (Loam.Tui.Reports.updateForBounds bounds runFocus .enter).query with
+    | some (.conditionalLiquidity through) =>
+        expect (through == "2026-09-30")
+          "compact Liquidity changed the typed conditional horizon"
+    | _ => throw (IO.userError "compact Liquidity Run no longer emits its query")
+    let limit := Loam.Tui.Reports.scrollLimit bounds liquidityReport
+    expect (limit > 0)
+      "compact Liquidity lost scrollable conditional evidence"
+    let pages :=
+      (List.range (limit + 1)).map fun offset =>
+        widgetText (Loam.Tui.Reports.viewForBounds
+          bounds { liquidityReport with scroll := offset })
+    let visible := String.intercalate "\n" pages
+    expect (contains "CONDITIONAL selected-balance" visible &&
+        contains "Conditional day-boundary" visible &&
+        contains "700 jpy" visible &&
+        contains "not canonical" visible &&
+        contains "intraday" visible && contains "claimed." visible)
+      "compact Liquidity hid conditional amounts or epistemic disclaimers"
+    let edited := (Loam.Tui.Reports.updateForBounds bounds focusDate .backspace).state
+    expect (edited.liquiditySnapshot.isNone &&
+        contains "Forecast path: UNKNOWN"
+          (widgetText (Loam.Tui.Reports.viewForBounds bounds edited)))
+      "editing the compact assumption retained stale liquidity evidence"
+    expect (Loam.Tui.Reports.updateForBounds bounds liquidity .escape).back
+      "compact Liquidity Escape failed to return Home"
+
   let liquidityEditing : Loam.Tui.Reports.State := {
     liquidityReport with
       liquidityForm := { liquidityReport.liquidityForm with focus := ⟨0, by decide⟩ }

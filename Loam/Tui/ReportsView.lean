@@ -1229,10 +1229,9 @@ def prepareBalancesPrint (state : State) : Except String Loam.Tui.PlainTextPrint
     , blank
     ] ++ Loam.Tui.RoleBalances.lines snapshot
 
-/-- RoleBalances currently emits one plain or muted span per row. Keep the
-    complete evidence readable on narrow terminals without changing that source
-    presentation, its quantities, or the separate bounded Print contract. -/
-private def wrappedBalanceRow (columns : Nat) (widget : Widget) : List Widget :=
+/-- Read-only report rows with one styled span can wrap on narrow terminals
+    without changing the answer. No query or Print representation is rewritten. -/
+private def wrappedReportRow (columns : Nat) (widget : Widget) : List Widget :=
   match widget with
   | .row [part] =>
       if part.text.isEmpty then [widget]
@@ -1265,7 +1264,7 @@ private def balancesView (state : State) (bounds : Option Bounds) : Widget :=
     match bounds with
     | some terminal =>
         if terminal.width < 80 then
-          answers.flatMap (wrappedBalanceRow (Loam.Tui.Layout.contentWidth terminal))
+          answers.flatMap (wrappedReportRow (Loam.Tui.Layout.contentWidth terminal))
         else answers
     | none => answers
   let footer :=
@@ -1326,8 +1325,24 @@ private def liquidityResultLines (state : State) : List Widget :=
       , muted "Same-day effects are netted; no intraday low-water is claimed."
       ]
 
-private def liquidityView (state : State) : Widget :=
-  .column <|
+/-- Compact conditional horizon input is presentation only: the two-step
+    focus, the exact date, and the no-write assumption remain ReportsModel-owned. -/
+private def compactLiquidityField (bounds : Bounds) (state : State) : Widget :=
+  let caption :=
+    (if state.liquidityForm.focus.val == 0 then "> " else "  ") ++
+      "Assume Scheduled: "
+  let text := state.liquidityForm.assumedCompleteThrough
+  let displayed := if text.isEmpty then "_" else text
+  .row
+    [ span caption .muted
+    , span (Loam.Tui.Layout.inputTail
+        (Loam.Tui.Layout.contentWidth bounds -
+          Loam.Tui.Layout.displayWidth caption) displayed)
+        (if state.liquidityForm.focus.val == 0 then .selected else .normal)
+    ]
+
+private def liquidityView (state : State) (bounds : Option Bounds) : Widget :=
+  let standard :=
     [ line "Reports / Liquidity"
     , muted "What can LOAM safely say about the future selected-balance path?"
     , blank
@@ -1343,8 +1358,34 @@ private def liquidityView (state : State) : Widget :=
             (if state.liquidityForm.focus.val = 1 then .selected else .normal) ]
     , muted "Running this does not write or upgrade the assumption into evidence."
     , blank
-    ] ++
-    liquidityResultLines state ++
+    ]
+  let header :=
+    match bounds with
+    | some terminal =>
+        if terminal.height <= 14 then
+          [ line "Reports / Liquidity"
+          , line "Forecast path: UNKNOWN"
+          , line "Known low-water mark: UNKNOWN"
+          , compactLiquidityField terminal state
+          , .row [span
+              (if state.liquidityForm.focus.val == 1 then "> [Run conditional]"
+               else "  [Run conditional]")
+              (if state.liquidityForm.focus.val == 1 then .selected else .normal)]
+          , muted "Read-only assumption, not complete-future evidence."
+          , muted "Scheduled items are not all future flows."
+          ]
+        else standard
+    | none => standard
+  let results :=
+    match bounds with
+    | some terminal =>
+        if terminal.width < 80 then
+          (liquidityResultLines state).flatMap
+            (wrappedReportRow (Loam.Tui.Layout.contentWidth terminal))
+        else liquidityResultLines state
+    | none => liquidityResultLines state
+  .column <|
+    header ++ results ++
     [ blank
     , muted "m selected-day month end   Tab / Shift-Tab focus"
     , muted "Enter next/run   Backspace delete   q / Esc Home"
@@ -1409,7 +1450,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .incomeExpenseCompare => incomeExpenseCompareView state bounds
   | .multimeasureSpend => multimeasureSpendView state bounds
   | .balances => balancesView state bounds
-  | .liquidity => liquidityView state
+  | .liquidity => liquidityView state bounds
   | .budgetWindow => budgetView state
   | .locusTrendCompare =>
       Loam.Tui.LocusTrendComparePane.viewFullScreen
