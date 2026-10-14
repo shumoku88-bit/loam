@@ -1206,8 +1206,10 @@ Income & Expense (Summary, Monthly and Daily) follows the same compact rule
 at 14 rows or fewer. A small terminal places the current source and selected
 input/Run first, keeping the entered date's tail visible. Larger terminals
 retain the full original header. This affects neither the end-exclusive query
-coordinates nor the report result, and does not change the independent
-Transactions Flow, Multicurrency Spend or Liquidity forms.
+coordinates nor the report result. Multicurrency Spend now reuses the same
+compact Start / End / Run presentation at short heights, while its read-only
+ordinary/original/exchange evidence distinction and typed query remain unchanged.
+Transactions Flow and Liquidity retain their independent screen contracts.
 The ordered entries are:
 
 1. Daily Pace
