@@ -70,31 +70,12 @@ LOAM の TUI はすでに強固な基礎を持っています。機能追加や�
 * **再利用の実益とコスト**: Chen, Usman, Badampudi (2024) の産業事例の系統的レビューを参考に、共通部品の利用実績・テスト容易性・保守コストを評価する。行数・ファイル数だけで合否を決めない。
 * **誤った抽象化からの撤退**: Sandi Metz (2016) の実務記事 *The Wrong Abstraction* を警告として扱う。これは実証研究ではない。共通部品に Actual/Scheduled/Attention 固有の分岐やフラグが増えたら、強引に一般化せず分割・局所化を検討する。
 
-**点検のタイミング**: 新しい共通部品に2つ目の独立した利用先ができたとき、Actual/Scheduled/Attention の領域をまたぐ前、約3画面の移行ごと、あるいは共通 API に専用例外を追加する前。
-
-**点検の記録**: 利用元、変更した共通 API、増えた専用分岐、独立テスト、他画面への影響、ドメイン意味の維持を短く示し、**KEEP / SPLIT / INLINE / DEFER** を判断する。再利用を目的化しない。必要になった部品だけを作る。
-
 参考文献：
 
 * Parnas (1972), *On the Criteria To Be Used in Decomposing Systems into Modules*. https://doi.org/10.1145/361598.361623
 * Garlan, Allen, Ockerbloom (1995), *Architectural Mismatch: Why Reuse Is So Hard*. https://doi.org/10.1109/52.469757
 * Chen, Usman, Badampudi (2024), *Understanding and evaluating software reuse costs and benefits from industrial cases*. https://doi.org/10.1016/j.infsof.2024.107451
 * Sandi Metz (2016), *The Wrong Abstraction*（実務記事）. https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction
-
----
-
-## 3. 各 AI アシスタント・作業者への共通指針
-
-TUI の改修コードを書く際は、以下のルールを遵守してください。
-
-1. **引き算のデザインを維持する**:
-   * 見た目を「派手」にするための過剰な枠やステータスバー、原色を追加しない。
-   * 「表示する情報を減らし、必要な時に掘り下げられる」設計を最優先する。
-2. **1 画面・1 課題ずつ確実に進める**:
-   * 複数の画面や大きな機能を一度に変更せず、小さく区切って完了させる。
-3. **極小画面リサイズテスト・PTY テストを必須とする**:
-   * 変更を行った画面は、通常表示だけでなく 32×9 や 48×14 などの極小画面でもテストが通ることを確認する。
-   * `lake test`（代表 TUI テストおよび合成 PTY テスト）がすべて通過することを確認する。
 
 ---
 
