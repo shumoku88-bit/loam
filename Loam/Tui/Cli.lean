@@ -427,10 +427,10 @@ partial def settlementLoop
           settlementLoop bounds root today next nextFrame
       | some row =>
           let action := Loam.Tui.SettlementAction.initial today row
-          let actionFrame := compileWidget (Loam.Tui.SettlementAction.view action)
-          Loam.Tui.Terminal.redrawFromBlank bounds actionFrame
-          let notice ← Loam.Tui.SettlementActionSession.run
-            bounds root action actionFrame
+          let notice ← Loam.Tui.SettlementActionSession.runAdaptive
+            bounds root action
+            (fun active => compileWidget (Loam.Tui.SettlementWorkspace.view active step.state))
+          let activeBounds ← Loam.Tui.Terminal.currentBounds
           let refreshedSnapshot ←
             match ← Loam.SettlementReview.loadSnapshot root with
             | .ok snapshot => pure snapshot
@@ -440,9 +440,9 @@ partial def settlementLoop
             Loam.Tui.SettlementWorkspace.refreshed
               refreshedSnapshot step.state notice
           let nextFrame :=
-            compileWidget (Loam.Tui.SettlementWorkspace.view bounds next)
-          Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-          settlementLoop bounds root today next nextFrame
+            compileWidget (Loam.Tui.SettlementWorkspace.view activeBounds next)
+          Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+          settlementLoop activeBounds root today next nextFrame
   | .stay =>
       let nextFrame :=
         compileWidget (Loam.Tui.SettlementWorkspace.view bounds step.state)
