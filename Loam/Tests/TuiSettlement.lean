@@ -1,5 +1,6 @@
 import Loam.Tui.SettlementWorkspace
 import Loam.Tui.SettlementAction
+import Loam.Tui.SettlementActionSession
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -143,6 +144,32 @@ def main : IO Unit := do
   match Loam.Tui.SettlementWorkspace.update initial .action with
   | { command := .action, .. } => pure ()
   | _ => throw (IO.userError "Settlement workspace action intent missing")
+
+  -- A bounded familiar action floats; narrow terminals and excessive
+  -- reduction histories must retain the untruncated full-screen editor.
+  let small : Bounds := { width := 80, height := 24 }
+  let large : Bounds := { width := 110, height := 42 }
+  expect ((Loam.Tui.SettlementActionSession.floatingGeometry? small 1).isNone)
+    "Settlement action lost compact fallback"
+  let some panel := Loam.Tui.SettlementActionSession.floatingGeometry? large 1
+    | throw (IO.userError "Settlement action failed to float when bounded")
+  expect (panel.height == 23 && panel.width == 90)
+    "Settlement action floating geometry changed"
+  expect ((Loam.Tui.SettlementActionSession.floatingGeometry? large 13).isNone)
+    "Unbounded historical reduction list was clipped into floating modal"
+  let some reduction := rowOpen.extinguishments.head?
+    | throw (IO.userError "synthetic settlement reduction missing")
+  let denseRow := { rowOpen with extinguishments := List.replicate 12 reduction }
+  let denseState : Loam.Tui.SettlementAction.State := {
+    row := denseRow
+    today := "2026-09-28"
+    mode := .reductionList 11
+    notice := "visible refusal notice"
+  }
+  let denseText := widgetText (Loam.Tui.SettlementActionSession.viewForBounds
+    large 12 denseState)
+  expect (contains "12. 100" denseText && contains "visible refusal notice" denseText)
+    "Bounded floating Settlement list truncated final row or refusal notice"
 
   let action := Loam.Tui.SettlementAction.initial "2026-09-28" rowOpen
   let actionText := widgetText (Loam.Tui.SettlementAction.view action)
