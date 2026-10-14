@@ -29,7 +29,8 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: loamTui loam
+          # Synthetic fixture runner imports this test module; compile it explicitly.
+          build-args: loamTui loam Loam.Tests.ActualWorldFixture
           test: false
           lint: false
           use-mathlib-cache: false
