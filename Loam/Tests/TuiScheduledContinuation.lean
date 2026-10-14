@@ -68,58 +68,102 @@ def main : IO Unit := do
   expect (!(candidates.any fun row => row.id.token == "earlier-same"))
     "earlier same-Locus Scheduled leaked into later awareness"
 
+  let wide : Bounds := { width := 100, height := 42 }
+  let tiny : Bounds := { width := 32, height := 9 }
   let prompt := Loam.Tui.ScheduledContinuationSession.initialPrompt candidates
-  let promptText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView prompt)
+  let promptText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView wide prompt)
   expect (contains "next-raised" promptText && contains "2026-10-15" promptText)
     "continuation prompt did not show the earliest similar later Scheduled"
   expect (contains "does not claim this is the same series or contract" promptText)
     "continuation prompt did not preserve non-series semantics"
 
-  let keep := Loam.Tui.ScheduledContinuationSession.updatePrompt prompt .enter
+  let keep := Loam.Tui.ScheduledContinuationSession.updatePrompt wide prompt .enter
   expect (keep.action == some .keep)
     "existing-plan prompt did not default to Keep as is"
 
-  let addState := (Loam.Tui.ScheduledContinuationSession.updatePrompt prompt .right).state
-  let add := Loam.Tui.ScheduledContinuationSession.updatePrompt addState .enter
+  let addState := (Loam.Tui.ScheduledContinuationSession.updatePrompt wide prompt .right).state
+  let add := Loam.Tui.ScheduledContinuationSession.updatePrompt wide addState .enter
   expect (add.action == some .add)
     "existing-plan prompt could not explicitly choose Add another"
 
   let reviewState :=
-    (Loam.Tui.ScheduledContinuationSession.updatePrompt addState .right).state
-  let review := Loam.Tui.ScheduledContinuationSession.updatePrompt reviewState .enter
+    (Loam.Tui.ScheduledContinuationSession.updatePrompt wide addState .right).state
+  let review := Loam.Tui.ScheduledContinuationSession.updatePrompt wide reviewState .enter
   expect (review.action.isNone && review.state.mode == .review)
     "existing-plan prompt did not enter read-only Review"
-  let reviewText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView review.state)
+  let reviewText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView wide review.state)
   expect (contains "Expected effects:" reviewText && contains "6000 jpy" reviewText)
     "existing-plan Review did not show explicit retained movement"
   expect (contains "Esc back" reviewText && !(contains "Enter / Esc back" reviewText))
     "existing-plan Review still advertised Enter as back"
-  let reviewEnter := Loam.Tui.ScheduledContinuationSession.updatePrompt review.state .enter
+  let reviewEnter := Loam.Tui.ScheduledContinuationSession.updatePrompt wide review.state .enter
   expect (reviewEnter.state.mode == .review)
     "Enter unexpectedly left read-only Review"
-  let reviewEsc := Loam.Tui.ScheduledContinuationSession.updatePrompt review.state .escape
+  let reviewEsc := Loam.Tui.ScheduledContinuationSession.updatePrompt wide review.state .escape
   expect (reviewEsc.state.mode == .choice)
     "Esc did not return from read-only Review"
 
+  -- Bounded continuation review is always read-only, including narrow/resized
+  -- terminals. The final evidence remains reachable without changing actions.
+  let reviewBottom :=
+    Loam.Tui.ScheduledContinuationSession.updatePrompt tiny review.state .«end»
+  expect (reviewBottom.state.reviewRow > 0 && reviewBottom.action.isNone)
+    "continuation review did not scroll to its final evidence row"
+  let lastEvidence :=
+    widgetText (Loam.Tui.ScheduledContinuationSession.promptView tiny reviewBottom.state)
+  expect (contains "same-series claim." lastEvidence &&
+      contains "Esc back" lastEvidence)
+    "continuation review lost its final evidence or Esc on a 32x9 terminal"
+  let reviewUp :=
+    Loam.Tui.ScheduledContinuationSession.updatePrompt tiny reviewBottom.state (.input 'k')
+  expect (reviewUp.state.reviewRow < reviewBottom.state.reviewRow &&
+      reviewUp.action.isNone)
+    "continuation review scroll changed a Scheduled action"
+  let reviewEnter :=
+    Loam.Tui.ScheduledContinuationSession.updatePrompt tiny reviewBottom.state .enter
+  expect (reviewEnter.action.isNone && reviewEnter.state.mode == .review)
+    "continuation review Enter unexpectedly published or left read-only mode"
+  for bounds in ([wide, { width := 48, height := 14 }, tiny] : List Bounds) do
+    for promptState in [prompt, review.state, reviewBottom.state] do
+      let rendered := Loam.Tui.ScheduledContinuationSession.promptView bounds promptState
+      expect (rendered.lines.length == bounds.height - 1)
+        "continuation viewport exceeded or failed to fill the safe terminal height"
+      for cells in rendered.lines do
+        expect (Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+          bounds.width - 1)
+          "continuation viewport wrote beyond the safe terminal width"
+    let options := widgetText
+      (Loam.Tui.ScheduledContinuationSession.promptView bounds prompt)
+    expect (contains "Keep as is" options && contains "Add another" options &&
+      contains "Review" options)
+      "continuation choices were hidden at narrow terminal dimensions"
+
   let nonePrompt := Loam.Tui.ScheduledContinuationSession.initialPrompt []
-  let noneText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView nonePrompt)
+  let noneText := widgetText (Loam.Tui.ScheduledContinuationSession.promptView wide nonePrompt)
   expect (contains "No similar later current-open Scheduled was found" noneText)
     "no-candidate prompt did not state absence explicitly"
   expect (contains "Done" noneText && contains "Defer" noneText && contains "Add next" noneText)
     "no-candidate prompt did not expose Done / Defer / Add next choices"
-  let done := Loam.Tui.ScheduledContinuationSession.updatePrompt nonePrompt .enter
+  for bounds in ([wide, { width := 48, height := 14 }, tiny] : List Bounds) do
+    let rendered := Loam.Tui.ScheduledContinuationSession.promptView bounds nonePrompt
+    let message := widgetText rendered
+    expect (rendered.lines.length == bounds.height - 1 &&
+      contains "Done" message && contains "Defer" message && contains "Add next" message)
+      "no-candidate continuation choices were cropped on a compact terminal"
+
+  let done := Loam.Tui.ScheduledContinuationSession.updatePrompt wide nonePrompt .enter
   expect (done.action == some .done)
     "no-candidate prompt did not default to Done"
 
   let noneDeferState :=
-    (Loam.Tui.ScheduledContinuationSession.updatePrompt nonePrompt .right).state
-  let noneDefer := Loam.Tui.ScheduledContinuationSession.updatePrompt noneDeferState .enter
+    (Loam.Tui.ScheduledContinuationSession.updatePrompt wide nonePrompt .right).state
+  let noneDefer := Loam.Tui.ScheduledContinuationSession.updatePrompt wide noneDeferState .enter
   expect (noneDefer.action == some .defer)
     "no-candidate prompt could not explicitly choose Defer"
 
   let noneAddState :=
-    (Loam.Tui.ScheduledContinuationSession.updatePrompt noneDeferState .right).state
-  let noneAdd := Loam.Tui.ScheduledContinuationSession.updatePrompt noneAddState .enter
+    (Loam.Tui.ScheduledContinuationSession.updatePrompt wide noneDeferState .right).state
+  let noneAdd := Loam.Tui.ScheduledContinuationSession.updatePrompt wide noneAddState .enter
   expect (noneAdd.action == some .add)
     "no-candidate prompt could not explicitly choose Add next"
 
