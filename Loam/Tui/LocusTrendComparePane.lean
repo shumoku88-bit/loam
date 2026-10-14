@@ -762,17 +762,17 @@ private def compactSeriesRow
     (series : Loam.LocusTrendCompareReview.Series)
     (index more : Nat) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let prefix := toString (index + 1) ++ " " ++
+  let markerPrefix := toString (index + 1) ++ " " ++
     String.ofList [seriesMarker index] ++ " "
   let amount := amountText state snapshot.measure (series.valueAt? state.selected |>.getD 0) ++
     (if snapshot.granularity == .day then "" else "/day")
   let moreText := if more == 0 then "" else " (+" ++ toString more ++ ")"
-  let reserved := Loam.Tui.Layout.displayWidth (prefix ++ amount ++ moreText ++ " ")
+  let reserved := Loam.Tui.Layout.displayWidth (markerPrefix ++ amount ++ moreText ++ " ")
   let fullText :=
     if reserved > width then
-      prefix ++ "exact value: enlarge terminal" ++ moreText
+      markerPrefix ++ "exact value: enlarge terminal" ++ moreText
     else
-      prefix ++
+      markerPrefix ++
         Loam.Tui.Layout.ellipsize (min 14 (width - reserved)) series.spec.label ++
         " " ++ amount ++ moreText
   .row [span (Loam.Tui.Layout.ellipsize width fullText) (seriesStyle index)]
