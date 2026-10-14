@@ -544,7 +544,8 @@ SHA-256 manifests are retained at commit
 [`research/lean-4.35-qualification-1966`](https://github.com/shumoku88-bit/loam/tree/research/lean-4.35-qualification-1966/docs/experiments/lean435-qualification).
 **Keep this archive tag; do not move/delete it.** It is not a release, production
 build input or CI workflow source. Retention does not depend on an unmerged branch,
-Actions artifact expiry or local `/tmp`; the branch is also retained.
+Actions artifact expiry or local `/tmp`. The temporary qualification branch was
+retired after archive verification; PR #1966 was closed without merging.
 `evidence/manifest.json` covers four paired raw ZIPs/runtime logs;
 `evidence/same-runner-performance-manifest.json` covers the ABBA evidence ZIP
 (SHA-256 `ba82fa45cacae7a3e39b4bc1c247e9a578eb8cf7cf1812edcf6ef61dd9676d95`).
