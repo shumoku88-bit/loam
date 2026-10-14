@@ -103,25 +103,39 @@ jobs:
           output="$fixture/current.hobs1"
           .lake/build/bin/loam household-observation \
             "$fixture" 2026-08-14 2026-10-15 2026-09-08 > "$output"
-          grep -Fqx "$(printf 'HOBS1\tmeta\tfunding_observed_at\t2026-09-08')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy\t0')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tjpy\t100')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tjpy\t100\t0\t0\t100\t100')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-10')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-')" "$output"
-          grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$output")
+          # Synthetic fixture only: expose the exact HOBS1 rows on assertion
+          # failure, not just grep's silent exit status.
+          assert_hobs1_line() {
+            local file="$1" expected="$2"
+            if ! grep -Fqx "$expected" "$file"; then
+              echo "::error::HOBS1 missing exact expected line: $(printf %q "$expected")" >&2
+              echo "::group::Synthetic HOBS1 actual rows" >&2
+              cat "$file" >&2
+              echo "::endgroup::" >&2
+              return 1
+            fi
+          }
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tmeta\tfunding_observed_at\t2026-09-08')"
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy\t0')"
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tjpy\t100')"
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tjpy\t-100')"
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tjpy\t100\t0\t0\t100\t100')"
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tscheduled-plan\tfood-plan\t2026-08-15\t1\t2026-09')"
+          # scheduled-cell includes BOTH explicit occurrence days and completion days.
+          # Even when absent, each independently emits '-'.
+          assert_hobs1_line "$output" "$(printf 'HOBS1\tdiagnostic\tscheduled-cell\tfood-plan\t2026-10\texpected\t0\t-\t-')"
+          assert_hobs1_line <(tail -n 1 "$output") "$(printf 'HOBS1\tmeta\tstatus\tcomplete')"
           printf 'cash\tusd\n' > "$fixture/config/cycle-funding.tsv"
           usd_output="$fixture/current-usd.hobs1"
           LOAM_MEASURE=usd .lake/build/bin/loam household-observation \
             "$fixture" 2026-08-14 2026-10-15 2026-09-08 > "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tbudget\tfood\tusd\t40\t0\t40')" "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tcapacity\tpurpose\tfood\tusd\t40')" "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tusd\t250')" "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tusd\t40')" "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tusd\t210')" "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tusd\t40\t0\t0\t40\t40')" "$usd_output"
+          assert_hobs1_line "$usd_output" "$(printf 'HOBS1\tbudget\tfood\tusd\t40\t0\t40')"
+          assert_hobs1_line "$usd_output" "$(printf 'HOBS1\tcapacity\tpurpose\tfood\tusd\t40')"
+          assert_hobs1_line "$usd_output" "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tusd\t250')"
+          assert_hobs1_line "$usd_output" "$(printf 'HOBS1\tscalar\tfunding\tremaining_assigned\tusd\t40')"
+          assert_hobs1_line "$usd_output" "$(printf 'HOBS1\tscalar\tfunding\tresidual_before_unresolved\tusd\t210')"
+          assert_hobs1_line "$usd_output" "$(printf 'HOBS1\tdiagnostic\tcurrent-coverage\tfood\tusd\t40\t0\t0\t40\t40')"
           ! grep -F "$(printf 'HOBS1\tbudget\tfood\tjpy')" "$usd_output"
           ! grep -F "$(printf 'HOBS1\tcapacity\tpurpose\tfood\tjpy')" "$usd_output"
           ! grep -F "$(printf 'HOBS1\tscalar\tfunding\tbudgetable_backing\tjpy')" "$usd_output"
-          grep -Fqx "$(printf 'HOBS1\tmeta\tstatus\tcomplete')" <(tail -n 1 "$usd_output")
+          assert_hobs1_line <(tail -n 1 "$usd_output") "$(printf 'HOBS1\tmeta\tstatus\tcomplete')"
