@@ -128,6 +128,34 @@ unchanged.
   `observation-274-global-done-correspondence.yml`, and
   `stateless-shadow-identity-observation.yml`.
 
+### Durable replay scope (#1963)
+
+The durable job builds `Loam.DurableProofs`, then runs:
+
+```sh
+lake env lean tools/ReplayDurableProofs.lean
+```
+
+The driver derives the defining-module import closure from compiled data, compares
+its eligible declaration names with the most-private module parts, and calls the
+pinned toolchain's stock `replayFromImports` from `LeanChecker` for each module.
+It does not use an umbrella-only prefix invocation, `--fresh`, a new kernel, or a
+stored owner manifest. Newly imported LOAM owners are selected automatically;
+unimported cached descendants are not. Empty/theorem-free or mismatched scopes
+fail closed. Logs name every replayed logical declaration and each owner, with
+per-module and total timings. Unsafe/partial runtime helpers are counted as skipped,
+not replayed proofs. The axiom audit still covers all module-owned candidates under
+its unchanged pin and three-axiom declaration policy; its count is distinct.
+
+`tests/test_durable_replay.py` uses disposable compiled fixtures to qualify private
+proofs, a newly imported owner, cache independence, omitted/empty scopes, and a
+kernel-invalid compiled proof that the old umbrella-only invocation accepts.
+These sentinels run only on driver/test/toolchain/workflow changes or manual runs;
+normal durable changes still run the real closure replay. Product/research surfaces
+and the existing presentation-local skips retain their separate obligations.
+Rollback is a revert of this scope correction; restoring the old umbrella command
+would restore its known missing replay, not equivalent verification.
+
 ### External formal-method research
 
 - `alloy-research-witnesses.yml`: 24 Alloy obligations.
