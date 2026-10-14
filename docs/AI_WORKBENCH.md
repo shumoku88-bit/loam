@@ -421,62 +421,6 @@ Use the narrowest owner that can answer the historical question:
 Do not repeat an old investigation before checking whether its finding already
 has a current owner or an explicit closure/reopening rule.
 
-## Suggested decision tree for AI agents
-
-```text
-1. Is this only a small local/presentation change?
-      yes -> inspect the direct owner and nearby semantic neighbors
-      no  -> continue
-
-2. Could repository meaning drift?
-      -> read Semantic Blueprint
-
-3. Is the question broad or cross-boundary?
-      -> build/read an Obligation Scaffold
-
-4. What kind of uncertainty remains?
-      control flow / refusal / retry
-          -> DRAKON
-
-      topology / ownership / dependency
-          -> D2 or module dependency DAG
-
-      "is this code actually live?"
-          -> production reachability audit
-
-      duplication / unnecessary mechanism
-          -> mechanics patterns + source inspection
-
-      vocabulary / retained semantic surface
-          -> semantic candidates + Evidence/Observation maps
-
-      current model may be too small
-          -> Falsification Atlas + smallest bounded probe
-
-      structural counterexample
-          -> Alloy
-
-      temporal/interleaving question
-          -> TLA+ / Apalache / SPIN
-
-      finite projection / geometry
-          -> J
-
-      backwards/relational search
-          -> miniKanren
-
-      reusable general law
-          -> Lean
-
-      performance/usability
-          -> measurement
-
-5. After a production change:
-      -> ordinary build/tests/qualification
-      -> review against Semantic Blueprint
-      -> record only the smallest evidence worth keeping
-```
-
 ## Authority rule
 
 No item in this workbench is automatically production authority.

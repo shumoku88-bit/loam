@@ -6,7 +6,7 @@ Before non-trivial analysis, auditing, or implementation, read `docs/AI_WORKBENC
 
 For changes to significant Lean 4 algorithms, representations, load paths, caches, or TUI event/render loops, consult `docs/LANGUAGE_AWARE_DESIGN_REVIEW.md` (#1946). Its bounded review is evidence-driven, not a mandate to optimize, profile, or create CI work.
 
-Before modifying TUI screens, layouts, keymaps, or interaction details, read `docs/TUI_REFINEMENT_ROADMAP.md` for shared quality standards and quiet-design principles, and consult `docs/TUI_NON_BUDGET_WORKLIST.md` for screen progress.
+For TUI changes, consult `docs/TUI_REFINEMENT_ROADMAP.md` for relevant display and interaction conventions; use `docs/TUI_NON_BUDGET_WORKLIST.md` when updating screen-by-screen polish progress.
 
 LOAM is the current day-to-day household system and is still under active development. It has no external compatibility obligation, but its operational household data must be preserved through explicit, qualified transitions when representations change.
 
@@ -25,7 +25,7 @@ LOAM is the current day-to-day household system and is still under active develo
 - **Keep projections as projections.** Reports, labels, statuses, summaries, and convenience views should not become canonical state unless upstream evidence is insufficient.
 - **Formal tools are instruments, not goals.** Alloy, TLA+, Lean, and other tools should clarify information boundaries and laws. Do not promote a hypothesis into production vocabulary merely because it is mathematically attractive.
 - **The repository is project memory.** Standing policy belongs in policy or philosophy docs, qualified findings belong in observation records, and executable expectations belong in tests or CI.
-- **Check semantic neighbors after practical changes.** Follow a changed capability through the nearest relevant correction, temporal, routing, persistence, or projection boundaries rather than qualifying one function in isolation.
+- **Qualify affected paths.** Check the users and semantic boundaries of a changed capability; shared mechanisms require coverage of their affected callers, regardless of PR size.
 - **Delete when evidence supports deletion.** Code volume, old effort, and earlier implementation shape are not reasons to keep an unused or weaker mechanism. Current operational data is a separate concern and must be migrated rather than casually discarded.
 
 ## Test, CI, and documentation lifecycle
@@ -91,25 +91,3 @@ A structural change should be explainable by a concrete need, a qualified observ
 For claims about real household history or HRA parity, qualify the specific observable being claimed. A narrow parity result does not imply full-system equivalence.
 
 If LOAM later gains external users or a stable public data contract, compatibility becomes an explicit product requirement. Until then, distinguish internal API freedom from operational-data continuity.
-
-## Local composition discipline
-
-For each practical change:
-
-1. name the household answer or evidence boundary that changed;
-2. trace one or two meaningful hops through whichever adjacent concerns actually apply, such as correction or lifecycle, temporal evidence, routing or classification, persistence and recovery, or downstream projections;
-3. ask whether the new path bypasses an existing correction frontier, creates a second source of semantic authority, turns a projection into stored state, or leaves writer and recovery behavior inconsistent with the derived answer;
-4. when a concrete seam appears, record it and qualify it with the smallest appropriate observation, test, or CI specimen;
-5. stop when no concrete ambiguity remains.
-
-The intended rhythm is:
-
-```text
-small practical change
-    -> nearby composition check
-    -> concrete seam, if any
-    -> focused observation or executable test
-    -> small correction
-```
-
-This keeps qualification local enough to stay practical while still checking the nearest semantic consequences.
