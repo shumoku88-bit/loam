@@ -200,6 +200,43 @@ def main : IO Unit := do
     let run := Loam.Tui.Reports.update compare .enter
     expect run.query.isSome
       "Reports comparison compact layout changed explicit Run query"
+  -- UI-25 single-window form: keep the selected Start / End / Run coordinate
+  -- visible on a short terminal, including Daily's prepared scrolling surface.
+  for destination in
+      [Loam.Tui.Reports.Destination.stockFlow, .incomeExpense] do
+    let launched := (Loam.Tui.Reports.openReport destination initial).state
+    let modes :=
+      if destination == .incomeExpense then
+        [Loam.Tui.Reports.IncomeExpenseDisplay.summary,
+         .monthly, .daily]
+      else [.summary]
+    for display in modes do
+      let opened := { launched with incomeExpenseDisplay := display }
+      for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+        let title := if destination == .stockFlow then
+          "Reports / Stock–Flow" else "Reports / Income & Expense"
+        let shown := widgetText (Loam.Tui.Reports.viewForBounds bounds opened)
+        expect (contains title shown && contains "Window: Calendar Month" shown &&
+            contains "[Run]" shown)
+          "compact single-window report lost its title, source or Run action"
+        let start := (Loam.Tui.Reports.updateForBounds bounds opened .tab).state
+        let endDate := (Loam.Tui.Reports.updateForBounds bounds start .tab).state
+        expect (contains "> [Run]" (widgetText (Loam.Tui.Reports.viewForBounds bounds endDate)))
+          "compact single-window did not retain a focus-visible Run action"
+        let edit := (Loam.Tui.Reports.updateForBounds bounds endDate .tab).state
+        expect (edit.window.form.focus.val == 0 &&
+            contains "Start:" (widgetText (Loam.Tui.Reports.viewForBounds bounds edit)))
+          "compact single-window Tab failed to wrap to the first coordinate"
+        let longDate := "2026-01-01" ++ String.ofList (List.replicate 80 '8')
+        let edited := { edit with
+          window := { edit.window with
+            form := { edit.window.form with start := longDate } } }
+        let text := widgetText (Loam.Tui.Reports.viewForBounds bounds edited)
+        expect (contains "…8888" text && contains "Start:" text)
+          "compact single-window truncated the editable end of a long date"
+        let run := Loam.Tui.Reports.updateForBounds bounds endDate .enter
+        expect run.query.isSome
+          "compact single-window changed the existing explicit Run query"
   -- Entrances preserve the explicit seed, independent query policies and Home return.
   let usdBase := Loam.Tui.Reports.initialForDateWithPresetsForMeasure
     ⟨"usd"⟩ "2026-09-07" []
