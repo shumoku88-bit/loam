@@ -13,14 +13,6 @@ open Loam.Tui.Kernel Loam.Tui.Runtime
 set_option autoImplicit false
 
 /--
-Run one friendly settlement action editor.
-
-The session owns terminal effects only. The editor emits a small human-intent
-draft; HouseholdCommand delegates identity allocation, canonical re-read,
-append-only translation, admission, and atomic publication to the shared
-SettlementActionPublisher.
--/
-/--
 The earlier-reduction list is unbounded. It must never be squeezed into a
 fixed-height floating panel if the list could exceed the panel. The count is
 retained row evidence captured at session entrance; no publication changes it
