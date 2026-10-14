@@ -2,7 +2,7 @@ import Loam.Tests.ActualWorldFixture
 import Loam.Authority.ActualAuthority
 import Loam.MovementWorldLoader
 import Loam.Tui.Correction
-import Loam.Tui.RecordSession
+import Loam.Tui.ModalSurface
 import Loam.Publisher.MovementPublisher
 import Loam.Review.ActualReview
 import Lean.Elab.Tactic.Omega
@@ -72,13 +72,13 @@ private def checkBoundedSurface (world : Loam.MovementAdmission.World)
     "Correction shared input lost its fixed-date or Original suppression labels"
   let japanese := { editor with editor := { editor.editor with form :=
     { editor.editor.form with description := "修正" } } }
-  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+  expect (Loam.Tui.ModalSurface.focusedCursorPosition? 0 0
     (Loam.Tui.Runtime.compileWidget (Loam.Tui.Correction.view bounds [] japanese)) == some (3, 18))
     "Correction did not place its CJK Description caret at the active field"
   let six : Loam.Tui.Record.Form := { editor.editor.form with
     rows := Array.replicate 6 {}, focus := ⟨1, by simp⟩ }
-  for width in [48, 80, 120] do
-    for height in [14, 24, 40] do
+  for width in [32, 48, 80, 120] do
+    for height in [9, 14, 24, 40] do
       let active : Bounds := { width, height }
       for index in (List.range (3 + six.rows.size * 2 + 4)).drop 1 do
         have count : 0 < 3 + six.rows.size * 2 + 4 := by omega
@@ -88,10 +88,16 @@ private def checkBoundedSurface (world : Loam.MovementAdmission.World)
         expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
           Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
           "Correction input escaped terminal bounds"
-        let some (row, col) := Loam.Tui.RecordSession.focusedCursorPosition? 0 0
-            (Loam.Tui.Runtime.compileWidget widget)
-          | throw (IO.userError "Correction hid its active field/action")
-        expect (row < height - 1 && col < width - 1) "Correction caret escaped terminal bounds"
+        let editing := Loam.Tui.Record.isTextEditing state.editor
+        let caret := Loam.Tui.ModalSurface.textCaretPosition? active none editing
+          (Loam.Tui.Runtime.compileWidget widget)
+        if editing then
+          let some (row, col) := caret
+            | throw (IO.userError "Correction hid its active text field")
+          expect (row < height - 1 && col < width - 1)
+            "Correction text caret escaped terminal bounds"
+        else
+          expect caret.isNone "Correction action enabled a text caret"
   let form : Loam.Tui.Record.Form := { editor.editor.form with
     description := "after", rows := #[{ locus := "paypay", amount := "-650" },
                                      { locus := "coffee", amount := "650" }], focus := ⟨1, by omega⟩ }

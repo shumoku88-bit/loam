@@ -42,6 +42,16 @@ Balances／Daily Pace／Attention／Actual PTY、既存 resource／Home scroll c
 再起動・他 Household セクション不変を確認。ビルド、`lake test`、Home generation、
 Viewport PTY、resource check も成功（新CIなし）。残りは小さい樹形の見た目の実機確認。
 
+2026-10-15：#1992 の UI-05／07／09 入力不具合を別途修正。
+Record／Correction が `ModalSurface` の opt-in テキストカーソルを共有し、
+入力中だけ表示、確認・取消・例外終了では非表示へ戻す。長文末尾に挿入位置を確保し、
+32×9 では枠を畳んで選択中の入力を残す。端末縮小後の画面外領域描画・最終カーソルも抑止。
+既存 Record／Correction／入力幾何・編集／native TerminalProbe と合成PTYで境界を検証。
+**macOS の実IME変換中表示は実機確認待ち**であり、確定UTF-8入力の成功と同一視しない。
+他の編集画面へ未検証の適用はしない。制約・合成世帯での実機手順は `docs/TUI.md` の
+「Text caret and Japanese IME boundary」を参照。過去の完了欄は実IME受理の証跡ではない。
+
+
 | ID | 画面・範囲 | UI 改修の状態 | 残作業 / 完了の証跡 |
 | --- | --- | --- | --- |
 | UI-01 | Home / Calendar / Detail | 完了 | 2026-10-13：利用画像で見えた上枠の欠け／下枠の空白、狭幅での意味混在を再改修。広幅は月間 Calendar＋Detail、狭幅は連続した週ナビ＋日の内容、短い端末は1行の日付ナビ。両方収まる高さでは月集計も表示。日の収支・Actual・Scheduled・非空／Unavailable Pending は Detail に集約。固定2行ナビ＋`?` の全文ヘルプが旧4系統の常設案内・本文凡例を引き継ぐ。PgUp/Dn は選択 identity を保って全文を閲覧、j/k で選択追従に復帰。既存 `TuiHomeNavigation` / `TuiHelpFooter` と Viewport / Record PTY で独立した根拠・リサイズ・モーダル拒否・復帰を検証（新CIなし）。Day 表示はユーザーの実機確認済み。続いて z の月／年表示を整列：`Months / YYYY` の月名＋件数2行セル、`Years` の Year / Records 列、集計との控えめな区切り、凡例は `?`。選択・現在期間の下線・正確な件数と期間集計を維持し、狭幅・選択月の名前／件数の同時表示・年の範囲端を既存 Lean／Viewport PTY で検証。月／年表示もユーザーの実機確認・了承済み。Selected Day は UI-04 |

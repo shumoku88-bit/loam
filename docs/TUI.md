@@ -1353,6 +1353,63 @@ CJK text, without changing the stored value. Actions, two operation rows, and a
 reserved feedback row remain below the panes. `C-` denotes Ctrl in the compact
 footer; row limits, exact candidate acceptance, and publication rules are unchanged.
 
+#### Text caret and Japanese IME boundary (#1992)
+
+Record and Actual Correction explicitly opt into `ModalSurface`'s shared text
+caret contract. After entry, editing, focus changes, Original amount return and
+resize, the cursor is positioned at the painted selected text's insertion end
+and shown. Actions, Preview, vocabulary confirmation and session exit hide it;
+exception cleanup also restores the browsing policy. Idle timeouts do not repaint
+or emit cursor moves. Input-tail display reserves an insertion cell before a
+field's border; at 32×9 the field frame is folded away to retain the active input.
+Stored strings, validation and publication semantics are unchanged.
+
+Final cursor moves recheck the live tty; stale offscreen text anchors are hidden
+until the next resize repaint. Dirty output emits nothing for zero-width or
+entirely offscreen rectangles and clips partial rectangles without clearing
+unrelated parent cells. A resize immediately after the final ioctl cannot be
+excluded atomically by this terminal protocol.
+
+Synthetic `TuiRecord`, `TuiCorrection`, `TuiInputEdit`, `TuiTextFieldGeometry`,
+Record PTY and native TerminalProbe coverage distinguish committed UTF-8/CJK
+input from **uncommitted OS IME preedit**. The Record PTY covers 32×9, 48×14,
+80×24 and 120×40, focus, long tails, nested mode return, cancellation and idle
+output; the terminal probe stages shrink between paint and final cursor movement.
+Correction already shares Record's actual field geometry, so it adopts the same
+contract instead of retaining its own cursor logic. Scheduled replacement was
+also inspected: its adaptive EditorSession paints without an opted-in text caret.
+It, Attention and other editors are not covered by this IME remedy.
+
+**Real macOS Japanese IME acceptance remains unverified.** LOAM supplies a visible
+insertion anchor, not an IME preedit renderer or candidate-window clipping policy.
+A PTY injecting Japanese bytes cannot prove OS/terminal composition behavior.
+Manual check, using only an isolated synthetic household:
+
+```sh
+lake build loamTui
+fixture="$(mktemp -d)/household"
+lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
+./.lake/build/bin/loamTui "$fixture"
+```
+
+1. At 120×40, press `r`. Compose Japanese in Description **before pressing Enter**;
+   inspect the preedit/candidate anchor relative to the floating field.
+2. Confirm the composition, try Backspace and Tab/Shift-Tab, enter a long value,
+   open/return from Ctrl-O, then resize through 80×24, 48×14 and 32×9.
+3. Cancel with Esc. Also check `a` → Enter → `c` (Correction) and cancel.
+   Repeat directly and under tmux when applicable; report terminal/version,
+   tmux/version, field, size and preedit-versus-confirmed behavior.
+
+Separate Unicode limitation, not an IME fix: width and Backspace remain
+scalar-based. The #1992 specimens measured decomposed `か` + U+3099 as four
+columns, `e` + U+0301 as one, ZWJ `👩‍💻` and skin-tone `👍🏽` as four, and flag
+`🇯🇵` as two. Clip/wrap can split these sequences; Backspace removes one scalar,
+not one grapheme. CJK/ASCII replacement remains column-bounded under this
+approximation. No normalization, segmentation dependency, Cell rewrite or
+synchronized-output mode was introduced; atomic/synchronized painting is deferred
+without a demonstrated connection to this failure.
+
+
 Record's Ctrl-O Original amount editor uses the same aligned muted labels,
 active-field tail display and caret geometry, with a quiet input frame and a
 separate meaning panel. Feedback has a reserved row and wraps completely;

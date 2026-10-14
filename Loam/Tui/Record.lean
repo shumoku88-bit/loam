@@ -73,6 +73,13 @@ structure State where
   -/
   originalAmount : Option OriginalAmountValue := none
 
+/-- Only actual text fields opt into the terminal caret, never selected actions. -/
+def isTextEditing (state : State) : Bool :=
+  match state.mode with
+  | .editing => state.form.focus.val < 3 + state.form.rows.size * 2
+  | .originalAmount _ => true
+  | .enableUnresolved | .preview .. => false
+
 structure Step where
   state : State
   cancel : Bool := false
@@ -699,7 +706,7 @@ private def boundedField (width : Nat) (active : Bool) (label text : String) : W
   let labelWidth := min 13 (width / 2)
   let value := if text.isEmpty then "_" else text
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (if active then Loam.Tui.Layout.inputTail (width - labelWidth) value
+    span (if active then Loam.Tui.Layout.inputTail (width - labelWidth - 1) value
           else Loam.Tui.Layout.ellipsize (width - labelWidth) value)
       (if active then .selected else .normal)]
 
@@ -840,18 +847,20 @@ def editingView (bounds : Bounds) (state : State)
     .column [line heading, metadata, panes]
   else
     let height := available - 1
-    let capacity := height - 3
+    let capacity := max 1 (height - 3)
     let fields := editingFields (width - 2) state.form dateKept
     let focus := min state.form.focus.val (fields.length - 1)
     let start := min (fields.length - capacity)
       (Loam.Tui.Layout.trailingWindowStart focus capacity)
     let more := (if start > 0 then " ▲" else "") ++
       (if start + capacity < fields.length then " ▼" else "")
+    let content := Widget.column
+      ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state])
     .column [line heading,
-      Loam.Tui.Layout.framedPanel width height "Fields"
-        (.column ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state]))
-        (state.form.focus.val < fields.length)
-        (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))]
+      if height < 3 then content else
+        Loam.Tui.Layout.framedPanel width height "Fields" content
+          (state.form.focus.val < fields.length)
+          (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))]
   boundedWithFooter bounds body footer
 
 /-- Bounds-aware standalone Record surfaces; embedded editors retain their contract. -/

@@ -90,9 +90,11 @@ def ansiStyle : Style → String
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"
 
-/-- Move the terminal's logical cursor without changing any rendered cells. -/
+/-- Move the cursor inside freshly queried tty bounds, retaining the auto-wrap margin. -/
 def placeCursor (row col : Nat) : IO Unit := do
-  IO.print (cursorTo row col)
+  let bounds ← currentBounds
+  IO.print (cursorTo (min row (bounds.height - 1))
+    (min col (Loam.Tui.Layout.contentWidth bounds - 1)))
   (← IO.getStdout).flush
 
 private def sameStyleRun
@@ -168,6 +170,7 @@ shape used for the Reports renderer experiment.
 def directFrameAnsi (bounds : Bounds) (widget : Widget) : String :=
   let rows := widgetSpanLines widget
   let available := Loam.Tui.Layout.contentWidth bounds
+  if available == 0 then "" else
   String.intercalate "" <|
     (List.range bounds.height).map fun row =>
       let content :=
@@ -186,6 +189,7 @@ private def dirtyRowAnsi
     (bounds : Bounds) (top left : Nat)
     (new : CompiledWidget) (row : Fin bounds.height) : String :=
   let available := Loam.Tui.Layout.contentWidth bounds - left
+  if available == 0 then "" else
   let content :=
     match new.rowAt top row.val with
     | none => ""
@@ -208,6 +212,7 @@ def dirtyRegionAnsi
     (bounds : Bounds) (top left width : Nat)
     (old new : CompiledWidget) : String :=
   let available := min width (Loam.Tui.Layout.contentWidth bounds - left)
+  if available == 0 then "" else
   String.intercalate "" <|
     (dirtyRows bounds top old new).map fun row =>
       let clipped :=
