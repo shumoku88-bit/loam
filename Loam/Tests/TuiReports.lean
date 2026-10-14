@@ -245,6 +245,50 @@ def main : IO Unit := do
         let run := Loam.Tui.Reports.updateForBounds bounds runFocused .enter
         expect run.query.isSome
           "compact single-window changed the existing explicit Run query"
+  -- UI-25 Multicurrency Spend uses the same compact date form as the other
+  -- read-only single-window Reports. Its Run query remains an explicit window;
+  -- no exchange quantity is inferred or changed by presentation.
+  let multicurrency := (Loam.Tui.Reports.openReport
+    .multimeasureSpend initial).state
+  expect (contains "This is a read lens"
+      (widgetText (Loam.Tui.Reports.view multicurrency)))
+    "unbounded Multicurrency Spend lost its original explanatory header"
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    let opening := widgetText (Loam.Tui.Reports.viewForBounds bounds multicurrency)
+    expect (contains "Reports / Multicurrency Spend" opening &&
+        contains "Window: Calendar Month" opening &&
+        contains "> [Run]" opening)
+      "compact Multicurrency Spend omitted the source or initial Run focus"
+    -- ReportWindow begins on Run (2): Tab goes to Start (0), End (1),
+    -- and Run again. Check both focus-following and the final explicit query.
+    let startFocused := (Loam.Tui.Reports.updateForBounds bounds multicurrency .tab).state
+    let startText := widgetText (Loam.Tui.Reports.viewForBounds bounds startFocused)
+    expect (startFocused.window.form.focus.val == 0 && contains "Start:" startText)
+      "compact Multicurrency Spend omitted the selected Start date"
+    let longDate := "2026-01-01" ++ String.ofList (List.replicate 80 '8')
+    let longStart := { startFocused with
+      window := { startFocused.window with
+        form := { startFocused.window.form with start := longDate } } }
+    let longText := widgetText (Loam.Tui.Reports.viewForBounds bounds longStart)
+    expect (contains "Start:" longText && contains "…8888" longText)
+      "compact Multicurrency Spend lost the editable tail of a long date"
+    let endFocused := (Loam.Tui.Reports.updateForBounds bounds startFocused .tab).state
+    let endText := widgetText (Loam.Tui.Reports.viewForBounds bounds endFocused)
+    expect (endFocused.window.form.focus.val == 1 &&
+        contains "End (exclusive):" endText)
+      "compact Multicurrency Spend omitted the selected End date"
+    let runFocused := (Loam.Tui.Reports.updateForBounds bounds endFocused .tab).state
+    expect (runFocused.window.form.focus.val == 2 &&
+        contains "> [Run]"
+          (widgetText (Loam.Tui.Reports.viewForBounds bounds runFocused)))
+      "compact Multicurrency Spend omitted Run after cycling Tab"
+    let run := Loam.Tui.Reports.updateForBounds bounds runFocused .enter
+    match run.query with
+    | some (.multimeasureSpend startDate endExclusive) =>
+        expect (startDate == multicurrency.window.form.start &&
+            endExclusive == multicurrency.window.form.endExclusive)
+          "compact Multicurrency Spend changed explicit query coordinates"
+    | _ => throw (IO.userError "compact Multicurrency Spend lost typed Run query")
   -- Entrances preserve the explicit seed, independent query policies and Home return.
   let usdBase := Loam.Tui.Reports.initialForDateWithPresetsForMeasure
     ⟨"usd"⟩ "2026-09-07" []
