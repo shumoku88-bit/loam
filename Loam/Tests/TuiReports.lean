@@ -114,6 +114,64 @@ private def testReportsBalancesPrint (state : Loam.Tui.Reports.State) : IO Unit 
         contains "liability-unsupported" printed && contains "balance unsupported" printed)
         "Reports/Balances print omitted evidence qualifiers or unknown amounts"
 
+/--
+Short-terminal overlay editor coverage stays separate from the already large
+Reports smoke body, keeping Lean elaboration of that body bounded.
+-/
+private def testCompactTrendOverlay
+    (overlayStarted : Loam.Tui.Reports.State) (selected : Nat) : IO Unit := do
+  let typeChars := fun (state : Loam.Tui.Reports.State) (text : String) =>
+    text.toList.foldl
+      (fun current char => (Loam.Tui.Reports.update current (.input char)).state)
+      state
+  -- UI-25: overlay fields must be usable even where the full chart header
+  -- would push the session-only editor and its cancellation help off-screen.
+  let longOverlayName := "abcdefghijklmnopqrstuvwxyz123456"
+  let compactNamed := typeChars overlayStarted longOverlayName
+  let compactDays := (Loam.Tui.Reports.update compactNamed .enter).state
+  let longOverlayDays := "3 4 6 8 9 12 15 20 22 26 27 28"
+  let compactTyped := typeChars compactDays longOverlayDays
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    let opened := Loam.Tui.Reports.viewForBounds bounds overlayStarted
+    let openedText := widgetText opened
+    expect (contains "Trend / Overlay" openedText &&
+        contains "Sep 2026" openedText &&
+        contains "not saved" openedText &&
+        contains "Name" openedText && contains "Days" openedText &&
+        contains "Tab field" openedText && contains "Esc cancel" openedText &&
+        !contains "Trend   daily amount" openedText &&
+        opened.lines.length <= bounds.height)
+      "compact Trend overlay obscured the active fields or session-only boundary"
+    let namedText := widgetText
+      (Loam.Tui.Reports.viewForBounds bounds compactNamed)
+    let nameTail :=
+      Loam.Tui.Layout.inputTail
+        (Loam.Tui.Layout.contentWidth bounds - 8) longOverlayName
+    expect (contains nameTail namedText &&
+        compactNamed.trendCompare.overlayDraft.any
+          (fun draft => draft.name == longOverlayName && !draft.editingDays))
+      "compact Trend overlay lost the edited Name tail or retained draft"
+    let daysWidget := Loam.Tui.Reports.viewForBounds bounds compactTyped
+    let daysText := widgetText daysWidget
+    let daysTail :=
+      Loam.Tui.Layout.inputTail
+        (Loam.Tui.Layout.contentWidth bounds - 8) longOverlayDays
+    expect (contains daysTail daysText &&
+        contains "Enter next/apply" daysText &&
+        compactTyped.trendCompare.overlayDraft.any
+          (fun draft => draft.daysText == longOverlayDays && draft.editingDays) &&
+        daysWidget.lines.length <= bounds.height)
+      "compact Trend overlay lost the edited Days tail or confirmation help"
+    expect (widgetLineTexts daysWidget |>.all fun text =>
+        Loam.Tui.Layout.displayWidth text <= Loam.Tui.Layout.contentWidth bounds)
+      "compact Trend overlay emitted rows wider than terminal content bounds"
+  let compactCancelled := Loam.Tui.Reports.update compactTyped .escape
+  expect (!compactCancelled.back && compactCancelled.query.isNone &&
+      !Loam.Tui.LocusTrendComparePane.isOverlayEditing
+        compactCancelled.state.trendCompare &&
+      compactCancelled.state.trendCompare.selected == selected)
+    "compact Trend overlay cancellation changed the series selection or query"
+
 def main : IO Unit := do
   expect (Loam.Tui.Terminal.plainTerminalText "a\n\r\x1b\tb" == "ab")
     "presentation text retained terminal control characters"
@@ -840,6 +898,8 @@ def main : IO Unit := do
     text.toList.foldl
       (fun current char => (Loam.Tui.Reports.update current (.input char)).state)
       state
+  testCompactTrendOverlay overlayStarted viewportState.selected
+
   let overlayNamed := typeChars overlayStarted "Mother off"
   let overlayDaysFocus := (Loam.Tui.Reports.update overlayNamed .enter).state
   let overlayDaysTyped := typeChars overlayDaysFocus "3 4 6 8 9"
