@@ -247,9 +247,10 @@ not CI inputs. Inspect with Python zipfile on case-insensitive macOS: artifact
 
 ## 8. Same-runner performance follow-up (production preparation)
 
-Pending measured results. The existing experimental manual input now runs one
-Linux job, with identical source in separate toolchain worktrees and fresh `.lake`
-directories. Setup and initial builds are timed separately. Both full test-module
+[Run 38497274820](https://github.com/shumoku88-bit/loam/actions/runs/38497274820)
+**PASS**, measured source `0fe56ba0d8bdab03e63448f7396f58bdf15dd4cc`.
+One Ubuntu 24 runner (AMD EPYC 7763, four visible logical CPUs), identical source
+in separate toolchain worktrees and fresh `.lake` directories. Setup and initial builds are timed separately. Both full test-module
 caches are primed, then the **actual unchanged `lake test` driver** runs in ABBA
 order. A PATH logger restored at the Bash-driver boundary records each child
 Lake invocation's wall/CPU/RSS/exit without rewriting any test or production
@@ -266,4 +267,55 @@ python3 docs/experiments/lean435-qualification/performance.py
 The future production migration PR must exclude this input, scripts, inventory
 helpers and archives. Only pin/manifest, quoted Memory identifiers, explicit
 Settlement fixture prerequisites and minimal migration/rollback guidance belong
-there. A large unexplained within-runner slowdown blocks that adoption decision.
+there. A large unexplained within-runner slowdown would block that adoption decision.
+
+| Operation (seconds) | 4.33.1 | 4.35.0 |
+| --- | ---: | ---: |
+| Toolchain install in script | 12.090 | 0.008 (already bootstrapped by action) |
+| Stock manifest update | 0.866 | 0.816 |
+| Fresh combined libraries/CLI/TUI/test-driver build | 164.668 | 156.496 |
+| Prime full test | 302.288 | 293.847 |
+| Explicit inner builds during prime | 38.605 | 36.893 |
+| Warm full test, first sample | 264.849 (A1) | 257.983 (B1) |
+| Warm full test, reverse-order sample | 264.222 (A2) | 257.986 (B2) |
+| Warm full test mean | **264.536** | **257.985** |
+
+All six complete full-driver rounds pass, with the same **92 intercepted test
+invocations / 88 distinct test modules**, including the background first-use
+race that is absent from the driver's 91 printed invocations. Warm inner build
+invocations are only 0.885–0.892 s per round, not silently counted as test work.
+The top-level full wall includes Lake startup, the tiny warm driver build,
+logging-process overhead, test execution and the real concurrent race; summing
+per-test times is not a second wall-time estimate.
+
+Within this host/workload, candidate mean is **2.48% shorter**. Largest positive
+individual deltas (two-sample mean, duplicate invocations combined):
+`TuiHomeNavigation` 86.277→86.785 s (**+0.508 s / +0.59%**),
+`TuiPurposeLabels` 0.842→0.871 s (**+0.029 s**), and
+`NormalizedCapacityPersistence` 0.733→0.745 s (**+0.012 s**).
+The previous material separate-runner slowdown does not reproduce. There is
+**no measured major per-test regression requiring optimization or adoption hold**.
+No attempt was made to optimize the dominant Home test or tune compiler flags.
+This is bounded release preparation, not universal performance parity or a
+long-run statistical result; an observed improvement is not guaranteed on other
+hardware. Source/compiler versions and all child exits were checked explicitly.
+
+Tested-source SHA-256 (tracked Loam, tests, test-product, lakefile):
+`2d892ee7d2ca1712f98aeb17fcb63f00a43d046b6392606d0b38479d452909b3`
+is identical for both versions **and the minimal production PR #1967**. Its
+six changed files contain only the permitted pin/manifest, syntax/fixture repairs
+and seven lines of README guidance. Production `.github`, replay driver,
+sentinels, audit policy and surface ownership are byte-identical to main.
+The rollback quotation compatibility also builds `loamMemory` on 4.33.1.
+
+Raw Actions artifact and host/setup/command metadata are in
+`evidence/same-runner-performance.zip` and its separate hash manifest. They stay
+on this experimental Draft; they are not imported into #1967/main. The local
+logger capture/exit-1 self-check is retained alongside them. Review the raw
+`performance-summary.json`, `rounds.json` and six per-invocation JSONL files for
+all individual deltas/CPU/RSS rather than extrapolating from just the largest case.
+
+**Decision:** the bounded performance concern is resolved sufficiently to submit
+[Draft production PR #1967](https://github.com/shumoku88-bit/loam/pull/1967) for
+review. Neither PR is merged; #1963 stays open. No official export replacement,
+new maintained test/CI infrastructure or operational data migration is involved.
