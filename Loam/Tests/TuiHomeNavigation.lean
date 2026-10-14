@@ -221,6 +221,9 @@ private def testCommandsSearch : IO Unit := do
     let missing := text (Loam.Tui.HomeCommandPalette.view bounds noMatches)
     expect (contains "No matches" missing || bounds.height < 9)
       "empty search failed to show its safe browsing escape"
+    let inputView := text (Loam.Tui.HomeCommandPalette.view bounds matching)
+    expect (contains "balance" inputView)
+      "compact Commands search hid its actively edited query"
 
 def main : IO Unit := do
   let snapshot ← fixture
