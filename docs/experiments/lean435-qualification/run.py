@@ -130,8 +130,9 @@ def main():
         shutil.copyfile(REPO / "lean-toolchain", cwd / "lean-toolchain")
         run(module + "-build", ["lake", "build", module], cwd=cwd)
         path = OUT / (module + ".ndjson")
-        run(module + "-export", ["lake", "env", "leanexport", module], cwd=cwd, output=path)
-        official_check(module + "-check", path, expected, "not permitted" if expected else None)
+        fixture_roots = ["unused_fact"] if module == "Dormant" else ["bad", "claim"]
+        run(module + "-export", ["lake", "env", "leanexport", module, "--", *fixture_roots], cwd=cwd, output=path)
+        official_check(module + "-check", path, expected, "Axiom 'bad' is not permitted" if expected else None)
         text = run(module + "-audit", ["lake", "env", audit_bin, "--root", module, "--modules", module, *policy], cwd=cwd, expected=1)
         assert ("unused_fact" if module == "Dormant" else "bad") in text, text
     # The same compiled-invalid specimen used by the corrected driver, now via official export.

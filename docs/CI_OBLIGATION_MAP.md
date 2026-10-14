@@ -113,6 +113,19 @@ push lanes were retired from live workflow triggers. Research `experiment/...`
 branch contracts and branch names used by the Lean qualification selector remain
 unchanged.
 
+## Candidate Lean 4.35 qualification (Issue #1963)
+
+The Draft migration branch adds a manual-only `qualify_435` input to
+`selected-lean-observations.yml`. Default manual runs and ordinary path-selected
+PR/push obligations are unchanged. This input runs a paired 4.33.1/4.35.0
+migration experiment instead of the ordinary proof jobs, not another merge gate.
+Commands, raw evidence, scope comparison, security limits and rollback belong to
+[the qualification record](experiments/lean435-qualification/README.md). Retire
+this one-shot input/script after the migration decision; the record retains its
+distinct compiler/runtime/replay comparison obligation. Two Settlement cases now
+explicitly build their imported ActualWorldFixture on cold caches; no test or
+publisher/authority partition was removed.
+
 ## Live obligation families
 
 ### Product, durable proof, and live Lean research surfaces
