@@ -50,6 +50,7 @@ import Loam.Tui.HomeCommandPalette
 import Loam.Tui.DailyPaceTrend
 import Loam.Tui.DailyPaceWhatIf
 import Loam.Tui.ModalSurface
+import Loam.Tui.EditorSession
 import Loam.Tui.ActualWorkspace
 import Loam.Tui.ScheduledWorkspace
 import Loam.Tui.ScheduledWorkspaceSession
@@ -449,27 +450,27 @@ partial def settlementLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       settlementLoop bounds root today step.state nextFrame
 
-/-- Current quantity observations stay presentation-local until one new reconciliation group is published. -/
-partial def currentQuantityAnchorLoop
+/--
+Keep multi-row Current Quantity observations in their full-screen collector:
+the list grows without a fixed bound, so a fixed-size floating pane could hide
+entries and publisher refusals. Only the terminal loop is shared here; the
+original domain state, local preview and publisher remain unchanged.
+-/
+def currentQuantityAnchorLoop
     (bounds : Bounds) (root : System.FilePath)
-    (state : Loam.Tui.CurrentQuantityAnchor.State) (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.CurrentQuantityAnchor.update state (← Loam.Tui.Terminal.readKey)
-  if step.cancel then return "Current quantity observation cancelled."
-  match step.publish with
-  | some assertions =>
+    (state : Loam.Tui.CurrentQuantityAnchor.State) (frame : CompiledWidget) : IO String :=
+  Loam.Tui.EditorSession.runUntilPublishedResizing bounds
+    (fun _ editor key => Loam.Tui.CurrentQuantityAnchor.update editor key)
+    (fun _ editor => Loam.Tui.CurrentQuantityAnchor.view editor)
+    Loam.Tui.CurrentQuantityAnchor.withPublishError
+    "Current quantity observation cancelled."
+    (fun assertions => do
       match ← Loam.HouseholdCommand.observeCurrentQuantities root assertions with
       | .ok () =>
-          return "Published current quantity anchor for " ++
-            toString assertions.length ++ " observed coordinate(s)."
-      | .error message =>
-          let next := Loam.Tui.CurrentQuantityAnchor.withPublishError step.state message
-          let nextFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view next)
-          Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-          currentQuantityAnchorLoop bounds root next nextFrame
-  | none =>
-      let nextFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view step.state)
-      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-      currentQuantityAnchorLoop bounds root step.state nextFrame
+          return .ok ("Published current quantity anchor for " ++
+            toString assertions.length ++ " observed coordinate(s).")
+      | .error message => return .error message)
+    state frame
 
 /-- A local, read-only modal over the already-loaded current Daily Pace answer. -/
 partial def dailyPaceWhatIfLoop
@@ -795,10 +796,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
     Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
     let notice ← currentQuantityAnchorLoop bounds root editor editorFrame
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
     let home := { state with notice := notice }
-    let nextFrame := compiledFrameFor bounds snapshot home
-    Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-    loop bounds dataDir root snapshot home nextFrame
+    let nextFrame := compiledFrameFor activeBounds snapshot home
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    loop activeBounds dataDir root snapshot home nextFrame
   else if let some (.report destination) := paletteChoice then
     match ← configuredMeasure with
     | .error message =>
