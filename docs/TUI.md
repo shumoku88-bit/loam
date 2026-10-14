@@ -116,20 +116,6 @@ group preserves that group's selection in Commands. `Enter` opens the selected
 group or workspace; `Esc` / `q` / Space also returns one level.
 Right on a leaf does nothing: opening a workspace requires `Enter`.
 
-**Optional Commands search (trial):** press `/` on any category page to search
-**all existing command leaves**, not just the current group. The query matches
-labels and their visible category names, ignoring case; prefixes rank before
-substrings and ordered fuzzy subsequences. `↑` / `↓` chooses a matching
-command; `Enter` opens its **unchanged existing** dispatcher destination.
-All ordinary letters, including `j`, `k` and `q`, plus spaces, edit the
-search query rather than moving or quitting. Backspace erases a character,
-single-line paste is accepted, and `Esc` returns to the exact former group
-and selection (then the ordinary `Esc` hierarchy applies).
-An empty query lists every existing leaf; zero matches cannot publish or
-open a command. The original browse menu remains the default and requires
-no memorized command names. This is a search **view**, not a new action
-registry, new navigation history, or direct access to editor-internal verbs.
-
 Read-only navigation pilot: **Balances** and **Daily Pace / Trend** also accept `Space`
 to open the same Commands palette. `Esc` at the palette root cancels and restores
 the current workspace's selection, period, focus and scroll; choosing a leaf
