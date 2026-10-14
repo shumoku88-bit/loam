@@ -160,7 +160,6 @@ private def paletteStay
   | _ => throw (IO.userError "Commands unexpectedly opened or closed")
 
 private def testCommandsSearch : IO Unit := do
-  let open Loam.Tui.HomeCommandPalette
   let initial : Loam.Tui.HomeCommandPalette.State := {}
   let selected ← paletteStay initial .down
   let nested ← paletteStay selected .enter
