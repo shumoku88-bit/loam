@@ -207,10 +207,18 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
         let capacity := max 1 (Loam.Tui.Layout.footerBodyCapacity bounds help.length - fixed.length - notice.length)
         let rows := listPane bounds "Candidates" records state.row capacity
           (fun index record =>
+            let amount :=
+              match Loam.ScheduledBulkEdit.simpleAmount? record with
+              | some value => amountText state value
+              | none => "split"
+            let summary :=
+              if compact then record.id.token ++ "  " ++ amount ++
+                "  " ++ record.scheduledOn
+              else recordText state record
             Widget.row [span (Loam.Tui.Layout.clip width
               ((if index == state.row then "> " else "  ") ++
                (if state.selected.contains record.id then "[x] " else "[ ] ") ++
-               recordText state record))
+               summary))
               (if index == state.row then .selected else .normal)])
           (muted "No current-open candidates in this period.")
         (fixed ++ rows ++ notice, help)
@@ -235,10 +243,14 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
             let before := (original.bind Loam.ScheduledBulkEdit.simpleAmount?).map (amountText state) |>.getD "?"
             let after := replacement.movement.changes.foldl
               (fun total change => if change.quantity.quanta > 0 then total + change.quantity.quanta else total) 0
+            let summary :=
+              if compact then replacement.source.token ++ "  " ++ before ++
+                " -> " ++ amountText state after
+              else replacement.scheduledOn ++ "  " ++ before ++ " -> " ++
+                amountText state after ++ " " ++ state.source.measure.token ++
+                "  " ++ replacement.source.token
             Widget.row [span (Loam.Tui.Layout.clip width
-              ((if index == state.row then "> " else "  ") ++ replacement.scheduledOn ++ "  " ++
-                before ++ " -> " ++ amountText state after ++ " " ++ state.source.measure.token ++
-                "  " ++ replacement.source.token))
+              ((if index == state.row then "> " else "  ") ++ summary))
                 (if index == state.row then .selected else .normal)])
           (muted "No changed amounts in this preview.")
         (fixed ++ rows ++ notice, actions :: help)
