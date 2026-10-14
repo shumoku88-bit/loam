@@ -151,7 +151,25 @@ def main() -> None:
             days = period_days(today, years)
             events = days * args.events_per_day
             root = Path(scratch) / f"synthetic-{years}y"
-            probe.fixture(root, events, days)
+            try:
+                probe.fixture(root, events, days)
+            except subprocess.CalledProcessError as exc:
+                # The shared fixture helper deliberately hides Lean stdout.
+                # Reproduce on a *fresh* temporary path and expose both streams;
+                # do not interpret a failed fixture as a storage performance result.
+                diagnostic_root = Path(scratch) / f"fixture-diagnostic-{years}y"
+                diagnostic = subprocess.run(
+                    ["lake", "env", "lean", "--run",
+                     "Loam/Tests/ScheduledBatchReplacement.lean",
+                     "setup", str(diagnostic_root)],
+                    cwd=ROOT, text=True, capture_output=True,
+                    check=False, timeout=args.timeout,
+                )
+                raise RuntimeError(
+                    f"Synthetic fixture setup failed (original exit={exc.returncode}, "
+                    f"diagnostic exit={diagnostic.returncode}):\n"
+                    f"STDOUT:\n{diagnostic.stdout}\nSTDERR:\n{diagnostic.stderr}"
+                ) from exc
             before = probe.digest(root)
             authority_bytes = (root / "household.loam").stat().st_size
             _ = inspect_profile(profile, root, args.timeout)  # exclude warm-up
