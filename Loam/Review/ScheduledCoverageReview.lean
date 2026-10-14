@@ -3,6 +3,7 @@ import Loam.HouseholdPaths
 import Loam.Config.ScheduledCoverageConfig
 import Loam.Review.ScheduledCoverageSelector
 import Loam.Review.ScheduledReview
+import Std.Data.HashSet
 
 namespace Loam.ScheduledCoverageReview
 
@@ -11,14 +12,14 @@ open Loam.Core
 set_option autoImplicit false
 
 /-!
-# Scheduled future coverage projection
+# Scheduled month coverage projection
 
-This read-only projection compares explicit current-open Scheduled evidence with
-replaceable monitoring rules. Rule identity is the exact signed Locus shape, with
-amounts deliberately ignored. A missing cell means only "the configured coverage
-expectation has no matching explicit current-open Scheduled occurrence in this
-month". It is not a canonical NotDue/Due claim and it does not infer recurrence
-from finite Scheduled evidence.
+This read-only projection compares explicit current-open and completed Scheduled
+evidence with replaceable monitoring rules, starting at the observation month.
+Rule identity is the exact signed Locus shape, with amounts deliberately ignored.
+A missing cell means only "the configured coverage expectation has no matching
+open or completed Scheduled occurrence in this month". It is not a canonical
+NotDue/Due claim and it does not infer recurrence from finite Scheduled evidence.
 -/
 
 abbrev Record := Loam.ScheduledReview.Record
@@ -29,7 +30,12 @@ structure MonthCell where
   expected : Bool
   explicitCount : Nat
   explicitDays : List String
+  completedDays : List String
   deriving Repr, DecidableEq
+
+/-- Completion covers a monitored month; cancellation and replaced sources do not. -/
+def MonthCell.isMissing (cell : MonthCell) : Bool :=
+  cell.expected && cell.explicitCount == 0 && cell.completedDays.isEmpty
 
 structure Row where
   rule : Rule
@@ -96,7 +102,7 @@ private def explicitDaysAt
     left <= right
 
 private def rowFor
-    (records : List Record) (indices : List Nat) (rule : Rule) : Row :=
+    (records completedRecords : List Record) (indices : List Nat) (rule : Rule) : Row :=
   let cells := indices.map fun index =>
     let explicitDays := explicitDaysAt rule records index
     {
@@ -104,36 +110,50 @@ private def rowFor
       expected := expectedAt rule index
       explicitCount := explicitDays.length
       explicitDays := explicitDays
+      completedDays := explicitDaysAt rule completedRecords index
     }
-  let firstMissing :=
-    (cells.find? fun cell => cell.expected && cell.explicitCount == 0).map (·.month)
+  let firstMissing := (cells.find? MonthCell.isMissing).map (·.month)
   { rule, cells, firstMissing }
 
 /--
-Project a finite future month grid from already-selected Scheduled records.
-
-The first displayed month is the month after `observedAt`; this avoids treating a
-current-month occurrence that has already reached terminal evidence as a future
-coverage gap.
+Project a finite month grid from already-selected open and completed records.
+Days remain retained Scheduled dates, not inferred deadlines or Actual dates.
 -/
 def projectRecords
-    (rules : List Rule) (records : List Record)
+    (rules : List Rule) (records completedRecords : List Record)
     (observedAt : String) (monthCount : Nat := 8) : Except String Snapshot := do
   if !Loam.ActualDate.validIsoDate observedAt then
     throw "loam: Scheduled coverage observation must be a real YYYY-MM-DD calendar date"
-  if !(records.all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
+  if !((records ++ completedRecords).all fun record => Loam.ActualDate.validIsoDate record.scheduledOn) then
     throw "loam: Scheduled coverage received an invalid retained Scheduled date"
   let some observedMonth := monthIndex? observedAt
     | throw "loam: Scheduled coverage could not resolve the observation month"
-  let indices := (List.range monthCount).map fun offset => observedMonth + 1 + offset
+  let indices := (List.range monthCount).map fun offset => observedMonth + offset
   return {
     observedAt := observedAt
     months := indices.map monthText
-    rows := rules.map (rowFor records indices)
+    rows := rules.map (rowFor records completedRecords indices)
   }
 
+/-- Qualify the complete lifecycle before selecting open or completed evidence. -/
+def projectEvidence
+    (rules : List Rule) (evidence : Loam.ScheduledReview.EvidenceSnapshot)
+    (observedAt : String) (monthCount : Nat := 8) : Except String Snapshot := do
+  let records ← Loam.ScheduledReview.currentOpenRecords evidence
+  let eventIds : Std.HashSet String := evidence.events.events.foldl
+    (fun ids event => ids.insert event.id.token) {}
+  let completedIds : Std.HashSet String := evidence.terminals.terminals.foldl
+    (fun ids terminal =>
+      match terminal.target with
+      | some (.actual event) =>
+          if eventIds.contains event.token then ids.insert terminal.source.token else ids
+      | _ => ids) {}
+  let completedRecords := evidence.scheduled.occurrences.filter fun record =>
+    completedIds.contains record.id.token
+  projectRecords rules records completedRecords observedAt monthCount
+
 /--
-Load canonical current-open Scheduled evidence and compare it with replaceable
+Load canonical Scheduled lifecycle evidence and compare it with replaceable
 coverage-monitor configuration. The config does not become Scheduled authority.
 -/
 def loadSnapshot
@@ -152,10 +172,6 @@ def loadSnapshot
     match ← Loam.ScheduledReview.loadHouseholdEvidence dataDir actualRoot with
     | .error message => return .error message
     | .ok snapshot => pure snapshot
-  let records ←
-    match Loam.ScheduledReview.currentOpenRecords evidence with
-    | .error message => return .error message
-    | .ok records => pure records
-  return projectRecords rules records observedAt monthCount
+  return projectEvidence rules evidence observedAt monthCount
 
 end Loam.ScheduledCoverageReview

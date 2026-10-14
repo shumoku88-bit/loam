@@ -55,7 +55,7 @@ Viewport PTY、resource check も成功（新CIなし）。残りは小さい樹
 | UI-09 | Actual Correction 入力・確認 | 完了 | Record 共通の入力・候補・IME、固定日付と対象、選択時／置換後の符号付き Effects、固定ナビと確認スクロール・リサイズ。`TuiCorrection` / Record PTY で履歴保持・再読込・他セクション不変を検証 |
 | UI-10 | Actual 日付修正 入力・確認 | 検証待ち | 元の日付・新しい日付・対象の枠内階層、編集中の強調、確認とPublishの明示、固定ナビ・通知。TuiActualDateCorrectionと関連CIで検証 |
 | UI-11 | Actual reversal 入力・確認 | 検証待ち | 元のActualを保持する逆仕訳の意味、符号付き逆Posting全文とスクロール、別日付、明示的な確定・固定ナビ。TuiActualReversalとActual detail PTYで検証 |
-| UI-12 | Scheduled / Series Calendar | 完了 | `e91c62a3`、`61c21874` |
+| UI-12 | Scheduled / Series Calendar | 完了 | 既存整列は `e91c62a3`、`61c21874`。2026-10-14：当月始まりへ変更し、予定日＋`✓` で完了を区別。未完了／完了の月内存在を共有 Review で再構成し、取消・置換元・未成立の完了参照を混同しない。Plan Detail の偽の不足行を除き、補充・操作対象は current-open のまま。ビルド・`lake test`・既存 Lean／Scheduled・Viewport PTY が成功、実機もユーザー確認・了承済み |
 | UI-13 | Scheduled / Plan Detail | 完了 | `eb1cfa91`、`61c21874` |
 | UI-14 | Scheduled / Months | 完了 | `8d0f0582` |
 | UI-15 | Scheduled / List | 完了 | `33f8ef59` |

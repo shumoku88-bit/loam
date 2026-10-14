@@ -249,14 +249,15 @@ private def printScheduledCoverage
       row.firstMissing.getD "-"
     ]
     for cell in row.cells do
-      if cell.expected || !(cell.explicitCount == 0) then
+      if cell.expected || !(cell.explicitCount == 0) || !cell.completedDays.isEmpty then
         emitDiagnostic [
           "scheduled-cell",
           row.rule.name,
           cell.month,
           if cell.expected then "expected" else "not-expected",
           toString cell.explicitCount,
-          scheduledDaysText cell.explicitDays
+          scheduledDaysText cell.explicitDays,
+          scheduledDaysText cell.completedDays
         ]
 
 /--

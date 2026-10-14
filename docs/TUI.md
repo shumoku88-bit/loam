@@ -747,8 +747,9 @@ Enter in the input opens Preview, not publication. Esc cancels Correction.
 ## Scheduled workspace
 
 Home `s` opens the Scheduled workspace (`Loam.Tui.ScheduledWorkspace`). Its
-default surface is the **Series Calendar** over the current-open Scheduled frontier
-and replaceable `config/scheduled-coverage.tsv` read-side rows.
+default surface is the **Series Calendar** over the admitted open/completed
+Scheduled evidence and replaceable `config/scheduled-coverage.tsv` read-side rows.
+Its first column is the current observation month, not the following month.
 
 Series Calendar uses the same restrained rounded frame as Actual: muted context
 and help, the existing focus accent, and a selected-row background only. The
@@ -759,25 +760,33 @@ visible ellipsis) before cutting a month column; very narrow tables omit Pace.
 Narrow screens abbreviate operation hints; short screens omit the column heading
 before sacrificing the only plan row. The day/gap legend sits immediately below
 the frame, separate from the operation bar. Publisher refusal feedback keeps its
-complete wrapped text. This changes presentation only:
-monitoring selectors, missing-month meaning, and Scheduled publishers are unchanged.
+complete wrapped text. Completed evidence now covers a monitored month without
+remaining actionable; monitoring selectors and Scheduled publishers are unchanged.
 
 The ordinary question is visible directly across calendar months:
 
 ```text
 Plan                        Pace       Oct     Nov     Dec     Jan     Feb
-wifi                        monthly    08      08      08      08      !
+wifi                        monthly    08✓     08      08      08      !
 pension                     every 2m   15              15              !
 gpt-plus                    undecided  15
 ```
 
-A number is the real day of an explicit current-open Scheduled occurrence. Multiple
-matching occurrences in one month remain visible, for example `08,18`; larger
-multiplicities are shown explicitly as a plan count. `!` means the current
-replaceable pace expects an occurrence in that month but no matching explicit
-Scheduled occurrence exists. A month that is not expected is rendered as a genuinely
-empty cell, not a dot or synthetic `NotDue` fact. Amounts are deliberately absent
-from series identity; matching uses the exact negative- and positive-Locus sets.
+A number is the retained day of an explicit current-open Scheduled occurrence.
+`08✓` means that occurrence is completed; the day is its Scheduled date, not the
+Actual payment date. Completed-only cells are muted except on the selected row.
+Multiple dates remain visible, for example `08✓,18`; when they do not fit, `2p/1✓`
+shows open and completed counts. `!` means the replaceable pace expects an occurrence
+in that month but neither matching open nor completed evidence exists. Cancellation
+and replaced sources do not cover a month. A completion reference without its Actual
+Event remains open, as in the existing lifecycle reader.
+
+This is a month-level presence check, not a claim that every obligation in a month
+is covered. Expected days are never inferred from the monitoring anchor. Overdue
+open dates remain visible; passing a date does not complete it. A month without
+expectation or retained open/completed evidence is genuinely empty, not synthetic
+`NotDue`. Amounts are deliberately absent from series identity; matching uses the
+exact negative- and positive-Locus sets.
 
 `h/l` moves the finite month window without terminal-content scrolling. The TUI
 loads a wider finite coverage horizon and redraws only the visible columns, so this
@@ -851,8 +860,10 @@ tokens: preserving the complete cause takes priority over fixed table height in
 that case. No Scheduled publication or selection semantics change.
 
 `e` automatically chooses the latest current-open occurrence matching the selected
-plan shape as its construction template and reuses the plan's current monitoring
-cadence. Its normal horizon choices are **Next occurrence**, **Next 3 occurrences**,
+plan shape and monitored cadence before the first missing month as its construction
+template (or the latest matching open occurrence when there is no gap) and reuses
+the monitoring cadence. If there is no open template before a gap, use `n` to create that explicit
+occurrence; the monitoring anchor is not enough evidence to invent its date or movement. Its normal horizon choices are **Next occurrence**, **Next 3 occurrences**,
 **Next 6 occurrences**, and **Custom date**. These extension horizons are derived
 from the selected cadence itself rather than household/report boundary presets, so
 the shortest choice always contains one later cadence slot. If extension starts
@@ -893,7 +904,9 @@ coverage evidence shows Unavailable, never a fabricated empty plan or gap list.
 
 Completion (`c` / `Enter`), replacement (`r`), and cancellation (`x`) operate on
 exact explicit occurrences; a MISSING row is not a Scheduled occurrence and cannot
-be completed, replaced, or cancelled. `q` returns to the Series Calendar.
+be completed, replaced, or cancelled. Completed dates shown in the Series Calendar
+are read-only context; Plan Detail continues to list actionable current-open dates
+and genuine monitored gaps, not completed history. `q` returns to the Series Calendar.
 
 The Scheduled completion editor now distinguishes the immutable **Plan reference**
 (ID and expected due date) from the editable **Actual draft** (new Actual date,

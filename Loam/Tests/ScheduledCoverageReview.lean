@@ -1,5 +1,6 @@
 import Loam.Review.ScheduledCoverageReview
 import Loam.Tui.ScheduledCoveragePane
+import Loam.Tui.ScheduledWorkspace
 
 open Loam.Core Loam.Tui.Kernel
 
@@ -20,7 +21,7 @@ private def occurrence?
     , { coordinate := ⟨positive⟩, quantity := Quantity.ofQuanta 1000 } ]
   pure { id := ⟨id⟩, scheduledOn := date, movement := movement }
 
-def main : IO Unit := do
+private def checkBasics : IO Unit := do
   let monthly : Loam.ScheduledCoverageConfig.Rule := {
     name := "gpt-plus"
     anchor := "2026-08-15"
@@ -63,12 +64,12 @@ def main : IO Unit := do
     match Loam.ScheduledCoverageReview.projectRecords
         [monthly, bimonthly, emptyMonthly]
         [octGpt, octGptLater, novGpt, novPension, decPension]
-        "2026-09-18" 4 with
+        [] "2026-10-14" 4 with
     | .error message => throw (IO.userError message)
     | .ok snapshot => pure snapshot
 
   expect (snapshot.months == ["2026-10", "2026-11", "2026-12", "2027-01"])
-    "Scheduled coverage month grid did not advance from the observation month"
+    "Scheduled coverage month grid did not start at the observation month"
 
   let some gpt := snapshot.rows[0]? | throw (IO.userError "missing monthly row")
   expect (gpt.firstMissing == some "2026-12")
@@ -83,7 +84,7 @@ def main : IO Unit := do
   let undecided := { monthly with everyMonths := 0 }
   let undecidedSnapshot ←
     match Loam.ScheduledCoverageReview.projectRecords
-        [undecided] [octGpt, octGptLater] "2026-09-18" 4 with
+        [undecided] [octGpt, octGptLater] [] "2026-10-14" 4 with
     | .error message => throw (IO.userError message)
     | .ok snapshot => pure snapshot
   let some undecidedRow := undecidedSnapshot.rows[0]?
@@ -180,4 +181,145 @@ def main : IO Unit := do
   | .ok _ => throw (IO.userError
       "Scheduled coverage upsert silently reused a display name for a different plan shape")
 
-  IO.println "Scheduled coverage: explicit-day Series Calendar, undecided rows, config updates, and TUI rendering passed."
+private def checkCompletedCoverage : IO Unit := do
+  let monthly : Loam.ScheduledCoverageConfig.Rule := {
+    name := "gpt-plus"
+    anchor := "2026-08-15"
+    everyMonths := 1
+    negativeLoci := ["cash"]
+    positiveLoci := ["gpt-plus"] }
+  let some octGpt := occurrence? "scheduled-1" "2026-10-15" "cash" "gpt-plus"
+    | throw (IO.userError "fixture completed October")
+  let some octGptLater := occurrence? "scheduled-1b" "2026-10-18" "cash" "gpt-plus"
+    | throw (IO.userError "fixture open October")
+  let some novGpt := occurrence? "scheduled-2" "2026-11-15" "cash" "gpt-plus"
+    | throw (IO.userError "fixture open November")
+  -- Lifecycle evidence, not disappearance from the open frontier, covers a completed month.
+  let some scheduled := ScheduledMemory.ofOccurrences? [octGpt, octGptLater, novGpt]
+    | throw (IO.userError "fixture Scheduled memory")
+  let some event := Event.ofEffects? ⟨"paid"⟩ []
+    | throw (IO.userError "fixture completion Event")
+  let some events := EventMemory.ofEvents? [event]
+    | throw (IO.userError "fixture Event memory")
+  let some terminals := ScheduledTerminalMemory.ofTerminals?
+      [{ source := octGpt.id, target := some (.actual event.id) }]
+    | throw (IO.userError "fixture completed terminal")
+  let evidence : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled, terminals, events }
+  let completed ← match Loam.ScheduledCoverageReview.projectEvidence
+      [monthly] evidence "2026-10-14" 4 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let some completedRow := completed.rows[0]?
+    | throw (IO.userError "missing completed row")
+  let some mixed := completedRow.cells[0]?
+    | throw (IO.userError "missing current-month cell")
+  expect (mixed.explicitDays == ["18"] && mixed.completedDays == ["15"] &&
+      !mixed.isMissing && completedRow.firstMissing == some "2026-12")
+    "Completed current-month evidence hid an open date or created a false gap"
+  let text := widgetText (Loam.Tui.ScheduledCoveragePane.lines completed)
+  expect (contains "15✓,18" text)
+    "Series Calendar did not distinguish completed and open Scheduled dates"
+  let mainSnapshot : Loam.Tui.Main.Snapshot := {
+    actual := { today := "2026-10-14", allRecords := [] }
+    scheduled := .ok evidence }
+  let detail := Loam.Tui.ScheduledWorkspace.planDetailEntries mainSnapshot completedRow
+  expect (detail.length == 4)
+    "Plan Detail reintroduced a false missing row for a completed month"
+  let source := Loam.Tui.ScheduledWorkspace.replenishmentSourceForRow? mainSnapshot completedRow
+  expect (source.map (·.id) == some novGpt.id)
+    "Coverage replenishment selected completed evidence as an actionable source"
+  for bounds in [{ width := 32, height := 9 }, { width := 48, height := 9 },
+      { width := 48, height := 14 }, { width := 80, height := 24 },
+      { width := 120, height := 30 }] do
+    let rendered := Loam.Tui.ScheduledWorkspace.viewWithCoverage bounds mainSnapshot
+      (Loam.Tui.ScheduledWorkspace.initial "2026-10-14") (.ok completed)
+    expect (rendered.lines.length <= bounds.height - 1 && rendered.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+          Loam.Tui.Layout.contentWidth bounds)
+      "Completed-month Series Calendar exceeded terminal bounds"
+    if bounds.width >= 48 then
+      expect (contains "Scheduled Series Calendar" (widgetText [rendered]))
+        "Completion legend hid the compact Series Calendar heading"
+
+  let onlyCompleted := { evidence with
+    scheduled := (← match ScheduledMemory.ofOccurrences? [octGpt] with
+      | none => throw (IO.userError "fixture completed-only memory")
+      | some memory => pure memory) }
+  let doneOnly ← match Loam.ScheduledCoverageReview.projectEvidence
+      [monthly] onlyCompleted "2026-10-14" 2 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  expect (doneOnly.rows.head?.bind (·.firstMissing) == some "2026-11")
+    "Completed-only current month was still marked missing"
+  let dimmed := Loam.Tui.ScheduledCoveragePane.tableWindow doneOnly 0 0 2 77 10
+  -- An unselected completed-only cell stays quiet.
+  let unselected := Loam.Tui.ScheduledCoveragePane.tableWindow
+    { doneOnly with rows := completedRow :: doneOnly.rows } 0 0 2 77 10
+  expect (contains "15✓" (widgetText dimmed) && unselected.any fun widget =>
+      widget.lines.any fun cells => cells.any fun cell => cell.glyph == '✓' && cell.style == .muted)
+    "Completed-only month lost its day/check mark or quiet style"
+  let packed := { mixed with
+    explicitDays := ["01", "02", "03"]
+    explicitCount := 3
+    completedDays := ["04", "05"] }
+  let crowded := { completed with rows := [{ completedRow with cells := [packed] }] }
+  let crowdedTable := Loam.Tui.ScheduledCoveragePane.tableWindow crowded 0 0 1 45 10
+  expect (contains "3p/2✓" (widgetText crowdedTable) && crowdedTable.all fun widget =>
+      widget.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= 45)
+    "Mixed occurrence counts overflowed or erased completion status"
+
+  for terminal in [
+      { source := octGpt.id, target := none },
+      { source := octGpt.id, target := some (.scheduled octGptLater.id) }] do
+    let some memory := ScheduledTerminalMemory.ofTerminals? [terminal]
+      | throw (IO.userError "fixture cancellation/replacement terminal")
+    let closed ← match Loam.ScheduledCoverageReview.projectEvidence
+        [monthly] { evidence with terminals := memory } "2026-10-14" 2 with
+      | .error message => throw (IO.userError message)
+      | .ok result => pure result
+    let some cell := closed.rows.head?.bind (·.cells.head?)
+      | throw (IO.userError "missing cancelled/replaced month")
+    expect (cell.explicitDays == ["18"] && cell.completedDays.isEmpty)
+      "Cancellation or a replaced source masqueraded as completion"
+  let some cancelled := ScheduledTerminalMemory.ofTerminals?
+      [{ source := octGpt.id, target := none }]
+    | throw (IO.userError "fixture cancelled-only terminal")
+  let cancelledOnly ← match Loam.ScheduledCoverageReview.projectEvidence
+      [monthly] { onlyCompleted with terminals := cancelled } "2026-10-14" 2 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  expect (cancelledOnly.rows.head?.bind (·.firstMissing) == some "2026-10")
+    "Cancelled-only current month hid a real monitored gap"
+  let some noEvents := EventMemory.ofEvents? []
+    | throw (IO.userError "fixture empty Event memory")
+  let inert ← match Loam.ScheduledCoverageReview.projectEvidence
+      [monthly] { evidence with events := noEvents } "2026-10-14" 2 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  let some inertCell := inert.rows.head?.bind (·.cells.head?)
+    | throw (IO.userError "missing inert-completion month")
+  expect (inertCell.explicitDays == ["15", "18"] && inertCell.completedDays.isEmpty)
+    "Coverage activated an inert completion with no retained Actual Event"
+  let some conflicting := ScheduledTerminalMemory.ofTerminals?
+      [{ source := octGpt.id, target := none },
+       { source := octGpt.id, target := some (.actual event.id) }]
+    | throw (IO.userError "fixture competing terminals")
+  expect (!(Loam.ScheduledCoverageReview.projectEvidence
+      [monthly] { evidence with terminals := conflicting } "2026-10-14" 2).isOk)
+    "Coverage bypassed conflicting lifecycle evidence"
+  expect (!(Loam.ScheduledCoverageReview.projectRecords [monthly] []
+      [{ octGpt with scheduledOn := "2026-02-30" }] "2026-10-14" 2).isOk)
+    "Coverage admitted an invalid completed Scheduled date"
+  let yearEnd ← match Loam.ScheduledCoverageReview.projectRecords
+      [monthly] [] [] "2026-12-31" 2 with
+    | .error message => throw (IO.userError message)
+    | .ok result => pure result
+  expect (yearEnd.months == ["2026-12", "2027-01"])
+    "Inclusive current-month window lost the year boundary"
+
+def main : IO Unit := do
+  checkBasics
+  checkCompletedCoverage
+  IO.println "Scheduled coverage: current-month open/completed/gap evidence, lifecycle refusal, config updates, and bounded TUI passed."

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Checked Scheduled editing through the real terminal; only temporary synthetic data."""
+from datetime import date
 import fcntl
 import os
 from pathlib import Path
@@ -82,7 +83,19 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
     try:
         capture(b"[q] quit")
         send(b"g", b"LOAM Home")
-        send(b"s", b"Series Calendar")
+        calendar = ansi.sub(b"", send(b"s", b"Series Calendar"))
+        assert f"Month window: {date.today():%Y-%m}".encode() in calendar
+        assert "✓ = completed".encode() in calendar
+        # Fixed fixture completion is visible whenever its month is in the loaded window.
+        if date.today().strftime("%Y-%m") == "2026-10":
+            assert "08✓".encode() in calendar
+        for rows, columns in ((9, 32), (14, 48), (24, 100)):
+            fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
+            output = capture()
+            positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+            assert positions and all(1 <= int(r) <= rows and 1 <= int(c) <= columns
+                                     for r, c in positions)
+        assert authority.read_text() == before, "Series Calendar resize changed evidence"
         feedback = send(b"j", b"No next recurring plan.")
         changed_rows = {int(r) for r, _ in re.findall(rb"\x1b\[(\d+);(\d+)H", feedback)}
         assert changed_rows == {rows - 3}, "Calendar boundary feedback moved the table/footer"

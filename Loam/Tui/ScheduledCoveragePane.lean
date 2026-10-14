@@ -53,15 +53,16 @@ private def monthLabel (month : String) : String :=
   | _ => month
 
 private def monthCellText (cell : Loam.ScheduledCoverageReview.MonthCell) : String :=
-  if !cell.explicitDays.isEmpty then
-    if cell.explicitDays.length <= 3 then
-      String.intercalate "," cell.explicitDays
-    else
-      toString cell.explicitDays.length ++ " plans"
-  else if cell.expected then
-    "!"
+  let days := (cell.explicitDays ++ cell.completedDays.map (· ++ "✓")).mergeSort (· <= ·)
+  let text := String.intercalate "," days
+  if days.isEmpty then
+    if cell.isMissing then "!" else ""
+  else if Loam.Tui.Layout.displayWidth text <= 8 then
+    text
   else
-    ""
+    String.intercalate "/" <|
+      (if cell.explicitDays.isEmpty then [] else [toString cell.explicitCount ++ "p"]) ++
+      (if cell.completedDays.isEmpty then [] else [toString cell.completedDays.length ++ "✓"])
 
 private def monthColumnWidth : Nat := 8
 
@@ -91,13 +92,15 @@ private def tableRow
     (row : Loam.ScheduledCoverageReview.Row) : Widget :=
   let marker := if selected then "> " else "  "
   let cells := (row.cells.drop monthOffset).take monthCount
-  let text :=
-    marker ++
+  let style := if selected then Style.selected else .normal
+  let heading := marker ++
     fitName (planWidth width - 2) row.rule.name ++
-    Loam.Tui.Layout.padRight (paceWidth width) (cadenceLabel row.rule.everyMonths) ++
-    String.intercalate "" (cells.map fun cell =>
-      Loam.Tui.Layout.padRight monthColumnWidth (monthCellText cell))
-  .row [span (Loam.Tui.Layout.padRight width text) (if selected then .selected else .normal)]
+    Loam.Tui.Layout.padRight (paceWidth width) (cadenceLabel row.rule.everyMonths)
+  let monthSpans := cells.map fun cell =>
+    span (fitName monthColumnWidth (monthCellText cell))
+      (if !selected && cell.explicitDays.isEmpty && !cell.completedDays.isEmpty then .muted else style)
+  let padding := width - Loam.Tui.Layout.displayWidth heading - cells.length * monthColumnWidth
+  .row (span heading style :: monthSpans ++ [span (Loam.Tui.Layout.padRight padding "") style])
 
 /-- Bounded table projection; row indices remain those of `orderedRows`. -/
 def tableWindow
@@ -119,9 +122,9 @@ def tableWindow
 Series Calendar for recurring-plan management.
 
 Rows are replaceable read-side plan selectors and columns are calendar months.
-An explicit Scheduled occurrence shows its real day. A monitored expected month
-with no matching explicit occurrence shows !. Months not expected by the current
-pace remain completely blank.
+An open Scheduled occurrence shows its real day; a completed one adds ✓.
+A monitored expected month without open or completed evidence shows !.
+Off-pace months without either kind of evidence remain completely blank.
 -/
 def linesSelectedWindow
     (snapshot : Loam.ScheduledCoverageReview.Snapshot)
@@ -146,8 +149,8 @@ def linesSelectedWindow
     (rows.zipIdx.map fun (row, index) =>
       tableRow (39 + monthColumnWidth * max 1 monthCount) (index = selected) monthOffset monthCount row) ++
     [ line ""
-    , muted "08 / 15 / 08,18 = explicit Scheduled day(s); ! = expected month with no explicit plan."
-    , muted "Empty cell = no occurrence expected at the current pace; undecided expects no future months."
+    , muted "08 / 08,18 = open Scheduled day(s); 08✓ = completed (Scheduled date); p = open count."
+    , muted "! = expected month without open/completed evidence; Empty cell = no occurrence expected and none retained."
     , muted "Monitoring guides extension; it does not create recurrence authority."
     ]
 

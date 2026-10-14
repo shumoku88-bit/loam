@@ -255,7 +255,7 @@ def planDetailEntries
           row.rule record.scheduledOn)
   let missing :=
     row.cells.filterMap fun cell =>
-      if cell.expected && cell.explicitCount == 0 then some (.missing cell.month) else none
+      if cell.isMissing then some (.missing cell.month) else none
   (explicit ++ missing).mergeSort planDetailEntryBefore
 
 def selectedPlanDetailEntry?
@@ -1016,8 +1016,9 @@ private def workspaceLegend (bounds : Bounds) (planDetail : Bool) : List Widget 
       if compact then ["MISSING = gap only;", "quantities are quanta"]
       else ["Explicit dates;", "pace = guidance;", "MISSING is not an occurrence;", "exact quanta."]
     else
-      if compact then ["days = plan;", "! = gap;", "blank = not expected"]
-      else ["days = explicit;", "! = expected gap;", "blank = not expected;", "pace = guidance only"]
+      if compact then ["days=open;", "✓=done;", "!=gap;", "blank=not expected"]
+      else ["days = open;", "✓ = completed;", "p = open count;",
+        "! = expected gap;", "blank = not expected;", "pace = guidance only"]
   (Loam.Tui.Layout.flowTokens (Loam.Tui.Layout.contentWidth bounds) " " tokens).map mutedLine
 
 /-- Reserve ordinary one-line feedback; longer refusals still keep their complete text. -/

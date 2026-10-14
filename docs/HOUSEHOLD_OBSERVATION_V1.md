@@ -116,15 +116,19 @@ and Scheduled Series diagnostics:
 
 ```text
 HOBS1  diagnostic  scheduled-plan  NAME  ANCHOR  EVERY_MONTHS  FIRST_MISSING_OR_DASH
-HOBS1  diagnostic  scheduled-cell  NAME  YYYY-MM  EXPECTED_STATUS  EXPLICIT_COUNT  DAYS_OR_DASH
+HOBS1  diagnostic  scheduled-cell  NAME  YYYY-MM  EXPECTED_STATUS  OPEN_COUNT  OPEN_DAYS_OR_DASH  COMPLETED_DAYS_OR_DASH
 ```
 
 `EVERY_MONTHS=0` is LOAM's replaceable read-side `undecided` state and
 therefore creates no expected future month. Scheduled cells are emitted only
 when a month is expected by the current monitoring cadence or contains an
-explicit current-open Scheduled occurrence. The Scheduled diagnostics come
-directly from `ScheduledCoverageReview`; they do not retain recurrence or
-promote monitoring configuration into Scheduled authority.
+explicit open or completed Scheduled occurrence. The window starts at the
+observation month. Completion covers a monitored month; cancellation and replaced
+sources do not. All days are retained Scheduled dates, not Actual dates or inferred
+deadlines. The separate completed-days field preserves the open-count meaning.
+These are month-level presence diagnostics, not a guarantee that every obligation
+is covered. The Scheduled diagnostics come directly from `ScheduledCoverageReview`;
+they do not retain recurrence or promote monitoring configuration into Scheduled authority.
 
 LOAM optionally emits current-cycle funding diagnostics when the caller supplies
 an explicit `OBSERVED_AT` argument:

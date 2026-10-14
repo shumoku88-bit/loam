@@ -435,7 +435,7 @@ def main : IO Unit := do
   let coverageSnapshot ←
     match Loam.ScheduledCoverageReview.projectRecords
         [foodRule, paypayRule] (Loam.Tui.ScheduledWorkspace.recordsForScope snapshot coverage)
-        "2026-09-07" 4 with
+        [] "2026-09-07" 4 with
     | .error message => throw (IO.userError message)
     | .ok result => pure result
   let coverageText := widgetText
@@ -443,7 +443,7 @@ def main : IO Unit := do
       { width := 120, height := 30 } snapshot coverage (.ok coverageSnapshot))
   expect (contains "Scheduled" coverageText &&
     contains "food" coverageText && contains "paypay-transfer" coverageText &&
-    contains "Pace" coverageText && contains "Oct" coverageText)
+    contains "Pace" coverageText && contains "Sep" coverageText && contains "Oct" coverageText)
     "Scheduled overview did not render the recurring-plan Series Calendar"
   expect (contains "> food" coverageText &&
     contains "[j/k] plan" coverageText &&
@@ -465,7 +465,7 @@ def main : IO Unit := do
       name := "プラン-" ++ toString index
       positiveLoci := ["target-" ++ toString index] }
   let manyCoverage ←
-    match Loam.ScheduledCoverageReview.projectRecords manyRules [] "2026-09-07" 18 with
+    match Loam.ScheduledCoverageReview.projectRecords manyRules [] [] "2026-09-07" 18 with
     | .error message => throw (IO.userError message)
     | .ok result => pure result
   let manyState := { coverage with coverageRow := 35 }
@@ -502,7 +502,7 @@ def main : IO Unit := do
   let shiftedCalendar := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
     { width := 120, height := 30 } snapshot { coverage with coverageMonthOffset := 2 }
     (.ok coverageSnapshot))
-  expect (contains "2026-12 .. 2027-01" shiftedCalendar && contains "Dec" shiftedCalendar)
+  expect (contains "2026-11 .. 2026-12" shiftedCalendar && contains "Nov" shiftedCalendar)
     "Framed Series Calendar changed the selected finite month window"
   let emptyCalendar := widgetText (Loam.Tui.ScheduledWorkspace.viewWithCoverage
     { width := 120, height := 30 } snapshot coverage (.ok { coverageSnapshot with rows := [] }))
@@ -602,7 +602,7 @@ def main : IO Unit := do
   }
   let supportCoverageSnapshot ←
     match Loam.ScheduledCoverageReview.projectRecords
-        [supportRule] supportRecords "2026-09-30" 8 with
+        [supportRule] supportRecords [] "2026-09-30" 8 with
     | .error message => throw (IO.userError message)
     | .ok result => pure result
   let some supportRow := supportCoverageSnapshot.rows[0]?
@@ -635,7 +635,7 @@ def main : IO Unit := do
   }
   let supportFilledCoverage ←
     match Loam.ScheduledCoverageReview.projectRecords
-        [supportRule] supportFilledRecords "2026-09-30" 8 with
+        [supportRule] supportFilledRecords [] "2026-09-30" 8 with
     | .error message => throw (IO.userError message)
     | .ok result => pure result
   let some supportFilledRow := supportFilledCoverage.rows[0]?
@@ -690,7 +690,7 @@ def main : IO Unit := do
     negativeLoci := ["wallet"]
     everyMonths := 0 }
   let manyPlanCoverage ← match Loam.ScheduledCoverageReview.projectRecords
-      [manyPlanRule] manyPlanRecords "2026-09-07" 18 with
+      [manyPlanRule] manyPlanRecords [] "2026-09-07" 18 with
     | .error message => throw (IO.userError message)
     | .ok result => pure result
   let manyPlanState := { coverage with viewMode := .planDetail, planRow := 35 }
@@ -762,7 +762,7 @@ def main : IO Unit := do
       "special-quantity Plan Detail memory was not admitted"
     let rule := { manyPlanRule with positiveLoci := loci }
     let specialCoverage ← match Loam.ScheduledCoverageReview.projectRecords
-        [rule] [record] "2026-09-07" 18 with
+        [rule] [record] [] "2026-09-07" 18 with
       | .error message => throw (IO.userError message)
       | .ok result => pure result
     let specialSnapshot := { supportFilledSnapshot with
