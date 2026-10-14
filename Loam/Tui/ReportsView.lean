@@ -1162,8 +1162,8 @@ private def multimeasureSpendResultLines (state : State) : List Widget :=
       , muted "Original presented amounts remain observations; they are not converted into accounting Measure."
       ]
 
-private def multimeasureSpendView (state : State) : Widget :=
-  .column <|
+private def multimeasureSpendView (state : State) (bounds : Option Bounds) : Widget :=
+  let standard :=
     [ line "Reports / Multicurrency Spend"
     , muted "What was spent, what was originally presented, and what was exchanged in this window?"
     , line ("Window: " ++ windowSourceLabel state)
@@ -1173,7 +1173,16 @@ private def multimeasureSpendView (state : State) : Widget :=
     , field state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , blank
-    ] ++
+    ]
+  let header :=
+    match bounds with
+    | some terminal =>
+        if terminal.height <= 14 then
+          compactWindowHeader terminal state "Reports / Multicurrency Spend"
+        else standard
+    | none => standard
+  .column <|
+    header ++
     multimeasureSpendResultLines state ++
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
@@ -1346,7 +1355,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .transactionsFlow => transactionsFlowView state bounds
   | .incomeExpense => incomeExpenseView state bounds
   | .incomeExpenseCompare => incomeExpenseCompareView state bounds
-  | .multimeasureSpend => multimeasureSpendView state
+  | .multimeasureSpend => multimeasureSpendView state bounds
   | .balances => balancesView state
   | .liquidity => liquidityView state
   | .budgetWindow => budgetView state
