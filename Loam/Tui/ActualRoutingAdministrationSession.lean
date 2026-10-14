@@ -17,8 +17,9 @@ set_option autoImplicit false
 # Actual routing administration terminal session
 
 The session drives presentation-only administration state and delegates the one
-authoritative write to the shared household command boundary. The caller reloads
-the shared review after publication.
+authoritative write to the shared household command boundary. Every publish
+attempt returns to Home. A later administration entrance loads a fresh review,
+rather than retrying against the editor's old snapshot.
 -/
 
 private def effectiveText : RoutingEffective String → String
