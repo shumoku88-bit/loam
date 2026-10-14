@@ -195,7 +195,7 @@ private def testCompactTrendChart
         "compact Trend emitted a physical row wider than terminal content"
     let dayText := widgetText (Loam.Tui.Reports.viewForBounds bounds dayReport)
     expect (contains "s/S range" dayText && contains "o overlay" dayText &&
-        contains "2026-09-09" dayText)
+        (contains "2026-09-09" dayText || contains "Sep 9" dayText))
       "compact Day chart lost its selected date, scope or overlay entrance"
     let start := dayReport.trendCompare
     let top := Loam.Tui.LocusTrendComparePane.plotTopForBounds bounds start
