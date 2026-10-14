@@ -171,9 +171,9 @@ private def testCommandsSearch : IO Unit := do
     searching.selected == 1) "opening search lost the browse context"
   let matching ← "balance".toList.foldlM
     (fun state char => paletteStay state (.input char)) searching
-  expect ((searchResults "balance").length >= 2 &&
-    (searchResults "blnc").length >= 2 &&
-    (searchResults "BALANCE") == (searchResults "balance"))
+  expect ((Loam.Tui.HomeCommandPalette.searchResults "balance").length >= 2 &&
+    (Loam.Tui.HomeCommandPalette.searchResults "blnc").length >= 2 &&
+    (Loam.Tui.HomeCommandPalette.searchResults "BALANCE") == (Loam.Tui.HomeCommandPalette.searchResults "balance"))
     "case-folded fuzzy search or shared report destinations missing"
   let opened := Loam.Tui.HomeCommandPalette.update matching .enter
   expect (opened == .open .balances)
@@ -185,7 +185,7 @@ private def testCommandsSearch : IO Unit := do
   let noMatches ← "qzznotfound".toList.foldlM
     (fun state char => paletteStay state (.input char)) searching
   expect (noMatches.search == some "qzznotfound" &&
-    (searchResults "qzznotfound").isEmpty &&
+    (Loam.Tui.HomeCommandPalette.searchResults "qzznotfound").isEmpty &&
     Loam.Tui.HomeCommandPalette.update noMatches .enter == .stay noMatches)
     "search swallowed letter q or opened a nonexistent command"
   let deleted ← paletteStay noMatches .backspace
