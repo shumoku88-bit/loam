@@ -296,7 +296,7 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
   if state.transactions.detail then
     .column <|
       (if (match bounds with
-           | some terminal => terminal.height <= 14
+           | some terminal => decide (terminal.height <= 14)
            | none => false) then
         [line "Reports / Transactions Flow"]
       else
