@@ -98,7 +98,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     try:
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 10, 48, 0, 0))
         terminal.capture(b"[?] help")  # compact Home advertises the full grammar via help
-        terminal.send(b"af", b"All Current")
+        terminal.send(b"a", b"All Current")
         terminal.send(b"i", b"Details [active]")
         end = terminal.send(b"\x1b[Fj", b"End of Details.")
         assert b"ID:" in ANSI.sub(b"", end), ("Details End missed the identity tail", end)
@@ -193,7 +193,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     # Correction owns fixed-date input and a scrollable before/replacement review.
     terminal = Terminal(root)
     try:
-        terminal.send(b"af", b"paid Wi-Fi")
+        terminal.send(b"a", b"paid Wi-Fi")
         terminal.send(b"\r", b"Actual / Transaction detail")
         terminal.send(b"c", b"Correction / Edit")
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
@@ -226,7 +226,7 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
                 terminal.send(b"a", b"Actual")
                 terminal.send(b"n", b"Description")
             elif route == "actual-detail":
-                terminal.send(b"af", b"paid Wi-Fi")
+                terminal.send(b"a", b"paid Wi-Fi")
                 terminal.send(b"\r", b"Actual / Transaction detail")
                 terminal.send(b"n", b"Description")
             elif route == "selected-day":

@@ -82,8 +82,15 @@ def main : IO Unit := do
   let navigationBounds : Bounds := { width := 100, height := 30 }
   let update := Loam.Tui.ActualWorkspace.update navigationBounds
   let actualStart := Loam.Tui.ActualWorkspace.initial "2026-09-07"
-  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).length == 2)
-    "Actual workspace Focus Day did not use the shared selected-day Actual answer"
+  expect (actualStart.scope == .allCurrent && actualStart.order == .desc &&
+      (Loam.Tui.ActualWorkspace.visibleRecords snapshot actualStart).map (·.description) ==
+        ["alpha", "beta", "gamma"])
+    "Actual workspace did not open all current records newest-first"
+  let emptyDay := Loam.Tui.ActualWorkspace.initial "2026-09-08"
+  expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot emptyDay).length == 3 &&
+      (Loam.Tui.ActualWorkspace.visibleRecords snapshot
+        (update snapshot emptyDay .cycleFilter).state).isEmpty)
+    "Actual entry on an empty focus day hid history or lost its exact-day filter"
   let right := (update snapshot { actualStart with pane := .loci } .focusRight).state
   let second := (update snapshot right .next).state
   match Loam.Tui.ActualWorkspace.selectedRecord? snapshot second with
@@ -162,9 +169,14 @@ def main : IO Unit := do
   expect (!contains "▲" stationaryDetails)
     "Details advertised an upward scroll when the complete content already fit"
 
-  let allCurrent := (update snapshot second .cycleFilter).state
+  let focusDay := (update snapshot second .cycleFilter).state
+  expect (focusDay.scope == .focusDay && focusDay.focusDate == "2026-09-07" &&
+      (Loam.Tui.ActualWorkspace.visibleRecords snapshot focusDay).map (·.description) ==
+        ["alpha", "beta"])
+    "Actual workspace f did not narrow to the shared selected-day Actual answer"
+  let allCurrent := (update snapshot focusDay .cycleFilter).state
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot allCurrent).length == 3)
-    "Actual workspace filter did not expand from Focus Day to all current Actual evidence"
+    "Actual workspace second f did not restore all current Actual evidence"
   expect (allCurrent.order == .desc)
     "Actual workspace initial order was not newest-first"
 
@@ -176,7 +188,7 @@ def main : IO Unit := do
        "books\t書籍\t本・学習用の書籍\n")
     | throw (IO.userError "Actual workspace search metadata fixture")
   let searchStart := Loam.Tui.ActualWorkspace.withMetadata
-    (Loam.Tui.ActualWorkspace.initial "2026-09-07") searchMetadata
+    focusDay searchMetadata
   let searching := (update snapshot searchStart .beginSearch).state
   expect (searching.scope == .allCurrent && searching.pane == .transactions &&
       searching.searchEditing)
@@ -277,12 +289,12 @@ def main : IO Unit := do
   expect (tableLines.any fun line =>
       contains "Date" line && contains "Description" line && contains "Amount" line)
     "Actual table lost its column headings"
-  for (description, amount) in [("alpha", "100 jpy"), ("beta", "200 jpy")] do
+  for (description, amount) in [("alpha", "100 jpy"), ("beta", "200 jpy"), ("gamma", "300 jpy")] do
     expect (tableLines.any fun line => contains description line && line.endsWith (amount ++ "│"))
       "Actual table did not right-align complete amounts against the panel edge"
   expect (contains "known through 2026-09-07" (widgetText table) &&
-      contains "Focus Day (2026-09-07)" (widgetText table) &&
-      contains "1/2" (widgetText table))
+      contains "All Current" (widgetText table) &&
+      contains "1/3" (widgetText table))
     "Actual table lost known-through, scope, or selection position"
   expect ((tableLines[2]?.getD "").startsWith "╭")
     "Actual context still occupied more than two rows"
@@ -365,7 +377,7 @@ def main : IO Unit := do
   let unknownSnapshot : Loam.Tui.Main.Snapshot := { snapshot with actual := {
     today := "2026-09-07", allRecords := [{ decimalRecord with date := none }] } }
   let unknownText := widgetText (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 }
-    unknownSnapshot { presentationState with scope := .allCurrent })
+    unknownSnapshot presentationState)
   expect (contains "unknown" unknownText && !contains " > 2026-09-07" unknownText)
     "Actual table manufactured an occurrence date for an undated record"
 

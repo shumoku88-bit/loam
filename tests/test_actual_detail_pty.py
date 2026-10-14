@@ -64,10 +64,15 @@ def main():
         original = sections(root)
         terminal = probe.Terminal(ROOT / ".lake/build/bin/loamTui", root)
         try:
+            # Entry includes history before today without first toggling f.
+            _, overview = send(terminal, b"a", ACTUAL)
+            assert b"All Current" in overview and b"newest first" in overview
+            # The fixture also retains one seeded paid Actual.
+            assert f"1/{args.events + 1}".encode() in overview, overview
             # A unique description query selects the last synthetic Event even in a large history.
             index = args.events - 1
             query = f"synthetic resource {index}".encode()
-            send(terminal, b"a/" + query + b"\r", b"Search: /" + query)
+            send(terminal, b"/" + query + b"\r", b"Search: /" + query)
             elapsed, opened = send(terminal, b"\r", DETAIL)
             identity = f"resource-{index}".encode()
             assert identity in opened and query in opened and b"Status: Current" in opened

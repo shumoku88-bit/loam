@@ -28,7 +28,7 @@ inductive Pane where
 
 structure State where
   focusDate : String
-  scope : Scope := .focusDay
+  scope : Scope := .allCurrent
   order : SortOrder := .desc
   pane : Pane := .transactions
   locusRow : Nat := 0

@@ -609,9 +609,11 @@ editor refinements are separate UI work items.
 ## Actual workspace
 
 Home `a` opens the Actual workspace (`Loam.Tui.ActualWorkspace`). It projects current
-Actual records over neutral Loci coordinates, supporting Focus Day and All Current
-scopes (`f`), as well as ascending and descending chronology toggling (`s`) so
-records can be inspected starting from the newest transaction.
+Actual records over neutral Loci coordinates, initially showing **All Current,
+newest first**, even when the selected Calendar day has no records. `f` narrows to
+that selected day (Focus Day); another `f` restores All Current. Corrected/replaced
+old records remain excluded from the current list. `s` toggles ascending/descending
+chronology; Calendar / Selected Day retains its independent date-focused entrance.
 
 The workspace uses thin rounded panels: Loci and selected details on the left,
 with a full-height Actual list on the right when the terminal is wide enough.
@@ -660,7 +662,8 @@ scrollable rather than silently clipped. Oversized Effect amounts use explicitly
 labelled wrapped lines instead of partial numbers. Date, Effect count, and identity
 use muted text; there is no duplicate internal heading or redundant Current status.
 Panel sizes stay fixed across records, and content and overflow arrows share one
-clamped viewport. No filtering, selection identity, or household authority changes.
+clamped viewport. The initial scope is presentation-only; filter meanings, selection
+identity, and household authority are unchanged.
 
 Like the selected-day Actual pane, recording new Movements (`n`) opens the shared
 Movement editor and delegates execution to `MovementPublisher`, reloading canonical
