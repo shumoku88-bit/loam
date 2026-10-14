@@ -113,17 +113,18 @@ def updatePrompt (bounds : Bounds) (state : PromptState)
         | some candidate => (reviewLines bounds candidate).length
         | none => 0
       let visible := Loam.Tui.Layout.footerBodyCapacity bounds 2 - 2
+      let current := min state.reviewRow (count - 1)
       match key with
       | .escape =>
           { state := { state with mode := .choice, reviewRow := 0 } }
       | .up | .input 'k' =>
-          { state := { state with reviewRow := state.reviewRow - 1 } }
+          { state := { state with reviewRow := current - 1 } }
       | .down | .input 'j' =>
-          { state := { state with reviewRow := min (count - 1) (state.reviewRow + 1) } }
+          { state := { state with reviewRow := min (count - 1) (current + 1) } }
       | .pageUp =>
-          { state := { state with reviewRow := state.reviewRow - visible } }
+          { state := { state with reviewRow := current - visible } }
       | .pageDown =>
-          { state := { state with reviewRow := min (count - 1) (state.reviewRow + visible) } }
+          { state := { state with reviewRow := min (count - 1) (current + visible) } }
       | .home =>
           { state := { state with reviewRow := 0 } }
       | .«end» =>
