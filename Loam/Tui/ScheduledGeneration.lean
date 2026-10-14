@@ -233,7 +233,9 @@ private def finish (bounds : Bounds) (body foot : List Widget) : Widget :=
 
 private def horizonView (bounds : Bounds) (state : State) (choice : Nat) : Widget := Id.run do
   let selected := choice % choiceCount state
-  let foot := footer bounds state "Arrows/Tab select  Enter continue  Esc cancel"
+  let foot := footer bounds state
+    (if bounds.width < 50 then "Up/Dn select  Enter next  Esc" else
+      "Arrows/Tab select  Enter continue  Esc cancel")
   let short := bounds.height < 16
   let header := [clippedLine bounds (actionTitle state),
     clippedLine bounds ("Source: " ++ state.source.id.token ++ "  " ++ state.source.scheduledOn)] ++
@@ -262,7 +264,9 @@ private def horizonView (bounds : Bounds) (state : State) (choice : Nat) : Widge
     (header ++ optionRows bounds "Fill horizon" entries selected available ++ notes) foot
 
 private def customDateView (bounds : Bounds) (state : State) (value : String) : Widget :=
-  let foot := footer bounds state "Enter continue  Backspace edit  Esc back"
+  let foot := footer bounds state
+    (if bounds.width < 50 then "Enter next  Backspace  Esc" else
+      "Enter continue  Backspace edit  Esc back")
   let label := "Fill through (exclusive): "
   let width := Loam.Tui.Layout.contentWidth bounds
   let shown := if value.isEmpty then "_" else value
@@ -279,7 +283,9 @@ private def customDateView (bounds : Bounds) (state : State) (value : String) : 
     foot
 
 private def cadenceView (bounds : Bounds) (state : State) (choice : Nat) : Widget := Id.run do
-  let foot := footer bounds state "Arrows/Tab select  Enter continue  Esc back"
+  let foot := footer bounds state
+    (if bounds.width < 50 then "Up/Dn select  Enter next  Esc" else
+      "Arrows/Tab select  Enter continue  Esc back")
   let header := [clippedLine bounds (actionTitle state),
     clippedLine bounds ("Fill through: " ++ state.limit.endExclusive)] ++
     (if bounds.height >= 16 then
@@ -309,7 +315,9 @@ private def draftSummary (index : Nat) (draft : Draft) (selected : Bool) : Widge
 private def previewView (bounds : Bounds) (state : State)
     (cadence : Loam.ScheduledGeneration.GenerationCadence)
     (drafts : List Draft) (choice : Nat) : Widget := Id.run do
-  let foot := footer bounds state "j/k review  Tab/Arrows action  Enter confirm  Esc cancel"
+  let foot := footer bounds state
+    (if bounds.width < 50 then "j/k rows  Tab action  Enter" else
+      "j/k review  Tab/Arrows action  Enter confirm  Esc cancel")
   let header := [clippedLine bounds (actionTitle state ++ " / Final Review"),
     clippedLine bounds ("Explicit Scheduled drafts: " ++ toString drafts.length)] ++
     (if bounds.height >= 16 then
