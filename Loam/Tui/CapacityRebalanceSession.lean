@@ -34,8 +34,7 @@ def run
     (fun draft => do
       match ← Loam.HouseholdCommand.rebalanceCapacity root draft with
       | .ok movementId =>
-          return
-            ("Rebalanced Capacity across " ++ toString draft.changes.length ++
+          return ("Rebalanced Capacity across " ++ toString draft.changes.length ++
              " purposes (" ++ movementId.token ++ "). Effective: " ++ draft.effectiveOn ++ ".")
       | .error message =>
           -- Refusal ends the session: the caller obtains a fresh Capacity snapshot.
