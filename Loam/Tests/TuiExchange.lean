@@ -1,5 +1,6 @@
 import Loam.Tui.Exchange
 import Loam.Tui.ExchangeSession
+import Loam.Tui.Layout
 
 open Loam.Core
 
@@ -45,8 +46,13 @@ def main : IO Unit := do
   let large : Loam.Tui.Kernel.Bounds := { width := 100, height := 40 }
   let some panel := Loam.Tui.ExchangeSession.floatingGeometry? large
     | throw (IO.userError "Exchange floating geometry missing at 100x40")
-  expect (panel.top == 7 && panel.left == 8 &&
-      panel.width == 84 && panel.height == 25)
+  -- The final terminal column is reserved to avoid autowrap. Centering
+  -- therefore uses Layout.contentWidth, not the raw 100-column width.
+  expect (Loam.Tui.Layout.contentWidth large == 99)
+    "Exchange test assumes a reserved terminal autowrap column"
+  expect (panel.width == 84 && panel.height == 25 &&
+      panel.top == (large.height - panel.height) / 2 &&
+      panel.left == (Loam.Tui.Layout.contentWidth large - panel.width) / 2)
     "Exchange floating geometry changed"
 
   let w ← world
