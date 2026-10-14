@@ -1278,7 +1278,7 @@ private def balancesView (state : State) (bounds : Option Bounds) : Widget :=
     else
       [ blank
       , muted "Enter refresh  j/k scroll  PgUp/Dn page"
-      , muted "Home/End jump  [p] print  q/Esc Home"
+      , muted "Home/End jump  [p] print view  q/Esc Home"
       , line state.notice
       ]
   .column <| header ++ answers ++ footer
