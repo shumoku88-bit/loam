@@ -875,6 +875,15 @@ for cadence once and continues the same flow. Every generated occurrence remains
 ordinary explicit Scheduled occurrence and is individually reviewable before
 publication. The read-side cadence never becomes Scheduled authority.
 
+After a successful Scheduled completion, continuation guidance is a separate
+bounded step. When similar later current-open Scheduled evidence exists, Keep as
+is / Add another / Review remain explicit. Review keeps the full wrapped
+read-only evidence navigable with j/k, PageUp/PageDown and Home/End, with Esc
+returning to those choices. When no candidate exists, Done / Defer / Add next
+remain distinct; Defer still records unfinished intent in Attention with unknown
+due timing. Narrow terminals keep all three choices visible with a fixed
+navigation footer. A resize reflows presentation only and never creates a plan.
+
 The horizon and cadence choices and the final edited-occurrence review now use bounded
 lists and a stable action/notice footer. On short terminals their rounded frames
 collapse before hiding the active choice. During final review, `j/k` or Up/Down
