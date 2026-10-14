@@ -93,6 +93,62 @@ def main : IO Unit := do
   expect (!contains "0-cell matrix" summaryText)
     "Transactions Flow rendered the rejected dense matrix language"
 
+  -- UI-25 compact query form: date focus and the selected result row are
+  -- separate presentation priorities, not new query or selection authority.
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    let opening := widgetText (Loam.Tui.Reports.viewForBounds bounds direct)
+    expect (contains "Reports / Transactions Flow" opening &&
+        contains "Window: Calendar Month" opening &&
+        contains "> [Run]" opening)
+      "Transactions Flow compact entry lost its source or Run focus"
+    let startFocused := (Loam.Tui.Reports.updateForBounds bounds direct .tab).state
+    expect (startFocused.window.form.focus.val == 0 &&
+        contains "Start:" (widgetText (Loam.Tui.Reports.viewForBounds bounds startFocused)))
+      "Transactions Flow compact entry lost its focused Start date"
+    let longDate := "2026-01-01" ++ String.ofList (List.replicate 80 '8')
+    let longState := { startFocused with
+      window := { startFocused.window with
+        form := { startFocused.window.form with start := longDate } } }
+    expect (contains "…8888" (widgetText (Loam.Tui.Reports.viewForBounds bounds longState)))
+      "Transactions Flow compact input lost the edited date tail"
+    let endFocused := (Loam.Tui.Reports.updateForBounds bounds startFocused .tab).state
+    expect (endFocused.window.form.focus.val == 1 &&
+        contains "End (exclusive):"
+          (widgetText (Loam.Tui.Reports.viewForBounds bounds endFocused)))
+      "Transactions Flow compact entry lost its focused End date"
+    let runFocused := (Loam.Tui.Reports.updateForBounds bounds endFocused .tab).state
+    expect (runFocused.window.form.focus.val == 2 &&
+        contains "> [Run]" (widgetText (Loam.Tui.Reports.viewForBounds bounds runFocused)))
+      "Transactions Flow compact Run disappeared after Tab cycle"
+    match (Loam.Tui.Reports.updateForBounds bounds runFocused .enter).query with
+    | some (.transactionsFlow startDate endExclusive) =>
+        expect (startDate == "2026-09-01" && endExclusive == "2026-10-01")
+          "Transactions Flow compact Run changed window semantics"
+    | _ => throw (IO.userError "Transactions Flow compact Run did not emit its query")
+
+    let firstSummary := widgetText (Loam.Tui.Reports.viewForBounds bounds report)
+    expect (contains "> cash/jpy" firstSummary)
+      "Transactions Flow compact table did not follow its selected first coordinate"
+    let next := (Loam.Tui.Reports.updateForBounds bounds report .down).state
+    let nextSummary := widgetText (Loam.Tui.Reports.viewForBounds bounds next)
+    expect (contains "> smbc/jpy" nextSummary)
+      "Transactions Flow compact table did not follow the second coordinate"
+    let detail := (Loam.Tui.Reports.updateForBounds bounds next .enter).state
+    let detailVisible := widgetText (Loam.Tui.Reports.viewForBounds bounds detail)
+    expect (detail.transactions.detail &&
+        contains "Focused coordinate: smbc/jpy" detailVisible &&
+        contains "Net " detailVisible && contains "q / Esc summary" detailVisible)
+      "Transactions Flow compact detail lost coordinate, quantities or correct exit key"
+    let restored := (Loam.Tui.Reports.updateForBounds bounds detail .escape).state
+    expect (!restored.transactions.detail &&
+        restored.transactions.selectedIndex == next.transactions.selectedIndex &&
+        contains "> smbc/jpy"
+          (widgetText (Loam.Tui.Reports.viewForBounds bounds restored)))
+      "Transactions Flow compact detail did not restore the selected summary row"
+    let dateEditor := (Loam.Tui.Reports.updateForBounds bounds restored .tab).state
+    expect (dateEditor.window.form.focus.val == 0 &&
+        contains "Start:" (widgetText (Loam.Tui.Reports.viewForBounds bounds dateEditor)))
+      "Transactions Flow compact row-following obscured active date editing"
   let narrowBounds : Bounds := ⟨54, 24⟩
   let narrowSummaryWidget := Loam.Tui.Reports.viewForBounds narrowBounds report
   let narrowSummaryLines := narrowSummaryWidget.lines.map fun cells =>
