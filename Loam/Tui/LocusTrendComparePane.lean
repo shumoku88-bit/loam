@@ -777,7 +777,8 @@ private def compactSeriesRow
         " " ++ amount ++ moreText
   .row [span (Loam.Tui.Layout.ellipsize width fullText) (seriesStyle index)]
 
-private def compactGraphHeader (bounds : Bounds) (state : State) : List Widget :=
+private def compactGraphHeader
+    (bounds : Bounds) (state : State) (notice : String := "") : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   match state.snapshot, selectedWindow? state with
   | some snapshot, some point =>
@@ -799,11 +800,17 @@ private def compactGraphHeader (bounds : Bounds) (state : State) : List Widget :
         else
           snapshot.series.zipIdx.map fun (series, index) =>
             compactSeriesRow bounds state snapshot series index 0
+      let shownRows :=
+        if notice.isEmpty then selectedRows
+        else if bounds.height <= 9 then
+          [muted (Loam.Tui.Layout.ellipsize width ("Notice " ++ notice))]
+        else selectedRows
       [line (Loam.Tui.Layout.ellipsize width title)] ++
         (if bounds.height <= 9 then []
-         else [muted (Loam.Tui.Layout.ellipsize width ("Source " ++ snapshot.source))]) ++
+         else [muted (Loam.Tui.Layout.ellipsize width
+           (if notice.isEmpty then "Source " ++ snapshot.source else "Notice " ++ notice))]) ++
         [line (Loam.Tui.Layout.ellipsize width selected)] ++
-        selectedRows
+        shownRows
   | _, _ =>
       [line (Loam.Tui.Layout.ellipsize width ("Trend " ++ state.granularity.label))
       , muted (Loam.Tui.Layout.ellipsize width "Multi-series history unavailable.")]
@@ -1070,7 +1077,7 @@ def viewFullScreen
     compactOverlayEditorView bounds state notice
   else if compactGraph bounds state then
     let rows :=
-      compactGraphHeader bounds state ++ chartRows bounds state ++ [axisRow bounds state] ++
+      compactGraphHeader bounds state notice ++ chartRows bounds state ++ [axisRow bounds state] ++
         graphOverlayRows bounds state ++ compactGraphFooter bounds state
     .column (rows.take bounds.height)
   else
