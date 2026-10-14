@@ -207,35 +207,25 @@ private def stockFlowResultLines (state : State) : List Widget :=
       ]
 
 private def stockFlowView (state : State) (bounds : Option Bounds) : Widget :=
+  let standard :=
+    [ line "Reports / Stock–Flow"
+    , muted "Why did the tracked balance change between two boundaries?"
+    , muted "Calendar month is only a coordinate convenience, not a household cycle."
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
+    , blank
+    , field state 0 "Start" state.window.form.start
+    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
+    , blank
+    ]
   let header :=
     match bounds with
     | some terminal =>
         if terminal.height <= 14 then
           compactWindowHeader terminal state "Reports / Stock–Flow"
-        else
-          [ line "Reports / Stock–Flow"
-          , muted "Why did the tracked balance change between two boundaries?"
-          , muted "Calendar month is only a coordinate convenience, not a household cycle."
-          , line ("Window: " ++ windowSourceLabel state)
-          , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
-          , blank
-          , field state 0 "Start" state.window.form.start
-          , field state 1 "End (exclusive)" state.window.form.endExclusive
-          , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-          , blank
-          ]
-    | none =>
-        [ line "Reports / Stock–Flow"
-        , muted "Why did the tracked balance change between two boundaries?"
-        , muted "Calendar month is only a coordinate convenience, not a household cycle."
-        , line ("Window: " ++ windowSourceLabel state)
-        , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
-        , blank
-        , field state 0 "Start" state.window.form.start
-        , field state 1 "End (exclusive)" state.window.form.endExclusive
-        , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-        , blank
-        ]
+        else standard
+    | none => standard
   .column <| header ++
     stockFlowResultLines state ++
     [ blank
@@ -979,34 +969,24 @@ private def dailyFlowSource
 
 private def incomeExpenseHeaderLines
     (state : State) (bounds : Option Bounds := none) : List Widget :=
+  let standard :=
+    [ line "Reports / Income & Expense"
+    , muted "What Income / Expense role flow occurred inside this explicit window?"
+    , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
+    , line ("Window: " ++ windowSourceLabel state)
+    , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
+    , blank
+    , field state 0 "Start" state.window.form.start
+    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
+    , blank
+    ]
   match bounds with
   | some terminal =>
       if terminal.height <= 14 then
         compactWindowHeader terminal state "Reports / Income & Expense"
-      else
-        [ line "Reports / Income & Expense"
-  , muted "What Income / Expense role flow occurred inside this explicit window?"
-  , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
-  , line ("Window: " ++ windowSourceLabel state)
-  , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
-  , blank
-  , field state 0 "Start" state.window.form.start
-  , field state 1 "End (exclusive)" state.window.form.endExclusive
-  , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-  , blank
-  ]
-  | none =>
-      [ line "Reports / Income & Expense"
-      , muted "What Income / Expense role flow occurred inside this explicit window?"
-      , line ("View: " ++ state.incomeExpenseDisplay.label ++ "   g toggle")
-      , line ("Window: " ++ windowSourceLabel state)
-      , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
-      , blank
-      , field state 0 "Start" state.window.form.start
-      , field state 1 "End (exclusive)" state.window.form.endExclusive
-      , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
-      , blank
-      ]
+      else standard
+  | none => standard
 
 private def incomeExpenseFooterLines (state : State) : List Widget :=
   [ muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
