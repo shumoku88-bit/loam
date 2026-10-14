@@ -457,6 +457,30 @@ def main : IO Unit := do
   expect (Loam.Tui.LocusTrendComparePane.isPickerOpen addFourthOpen.trendCompare &&
       addFourthOpen.trendCompare.pickerSlot == 3)
     "Trend series picker did not target slot 4 after the default three series"
+  -- UI-25: on short terminals the Series picker replaces the chart rather
+  -- than dropping every Locus candidate below a full-size chart header.
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    let pickerWidget := Loam.Tui.Reports.viewForBounds bounds addFourthOpen
+    let pickerText := widgetText pickerWidget
+    expect (contains "Series slot 4/5" pickerText &&
+        contains "Tobacco" pickerText &&
+        contains "Enter apply" pickerText &&
+        contains "Esc cancel" pickerText &&
+        !contains "Trend   cycle average" pickerText &&
+        pickerWidget.lines.length <= bounds.height)
+      "compact Trend picker buried its selected Locus or modal navigation"
+    let nearEnd :=
+      (List.range 5).foldl
+        (fun state _ => (Loam.Tui.Reports.update state .down).state)
+        addFourthOpen
+    let endText := widgetText (Loam.Tui.Reports.viewForBounds bounds nearEnd)
+    expect (contains "Medical" endText && contains "Enter apply" endText)
+      "compact Trend picker failed to follow the selected Locus near the end"
+    let cancelled := Loam.Tui.Reports.update nearEnd .escape
+    expect (!cancelled.back && !cancelled.state.trendCompare.pickerOpen &&
+        cancelled.query.isNone)
+      "compact Trend picker cancellation changed the query or left the workspace"
+
   let pickerAtBooks :=
     (List.range 3).foldl
       (fun state _ => (Loam.Tui.Reports.update state .down).state)

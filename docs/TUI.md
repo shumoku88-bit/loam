@@ -1261,6 +1261,14 @@ The bounded item viewport follows selection when the list cannot fit, including
 after idle resize. Compact terminals retain the selected row and abbreviated help; extremely
 short terminals prioritize the selected row over headings/borders/help.
 
+At 14 terminal rows or fewer, Trend / Locus comparison gives its active Series
+picker the short screen instead of leaving candidate rows below the chart. The
+shared focus-following list window keeps the selected admitted Locus visible;
+slot (1–5), Enter/apply, x/remove, and Esc/cancel remain available. Closing the
+picker restores the same Trend chart and selected period. Ordinary terminal
+heights retain the existing chart and picker layout, with no change to exact
+Locus/Measure identities or series queries.
+
 `q/Esc` exits a report's internal detail/comparison/series picker one level
 at a time, then returns directly to Home from the report root. The existing Trend
 overlay free-text form keeps `q` as text input and uses `Esc` to cancel back to

@@ -880,13 +880,60 @@ private def axisRow
                 .row ([span (spaces plotLeft)] ++ labels.map fun text => span text .muted)
           | _, _ => muted ""
 
+/--
+A Series picker owns the short terminal while active. The original full chart
+header plus seven candidate rows could hide even the selected candidate at 9/14
+rows. Reuse the shared focus-following list window instead of adding a second
+Locus-selection model. The underlying chart, selection, and query stay intact.
+-/
+private def compactSeriesPickerView
+    (bounds : Bounds) (state : State) (notice : String) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let count := state.candidateCatalog.length
+  let selected := if count == 0 then 0 else state.pickerIndex % count
+  let heading := [
+    line (Loam.Tui.Layout.clip width
+      ("Trend / Series slot " ++ toString (state.pickerSlot + 1) ++
+        "/" ++ toString maxSeries)),
+    muted (Loam.Tui.Layout.clip width "Exact Locus · inherited Measure")
+  ]
+  let navigation := [
+    muted (Loam.Tui.Layout.clip width "↑/↓ Locus   1-5 slot"),
+    muted (Loam.Tui.Layout.clip width "Enter apply x remove Esc cancel")
+  ]
+  let rawFeedback :=
+    if notice.isEmpty then [] else
+      (Loam.Tui.Layout.wrapColumns width notice).map line
+  let feedbackCapacity := min 2 (bounds.height - heading.length - navigation.length - 1)
+  let feedback :=
+    if rawFeedback.length > feedbackCapacity then
+      (rawFeedback.take (feedbackCapacity - 1)) ++
+        [muted (Loam.Tui.Layout.clip width "… enlarge terminal for full notice")]
+    else rawFeedback
+  let capacity :=
+    bounds.height - heading.length - navigation.length - feedback.length
+  let candidates :=
+    if count == 0 then
+      [muted (Loam.Tui.Layout.clip width "No admitted Locus available.")]
+    else
+      (Loam.Tui.Layout.centeredListWindow
+          state.candidateCatalog selected capacity).map fun (index, entry) =>
+        let marker := if index == selected then "› " else "  "
+        .row [span (Loam.Tui.Layout.clip width
+          (marker ++ Loam.Tui.LocusPicker.display entry))
+          (if index == selected then .selected else .normal)]
+  .column ((heading ++ candidates ++ feedback ++ navigation).take bounds.height)
+
 /-- Render Trend as a dedicated full-screen chart. -/
 def viewFullScreen
     (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
-  let rows :=
-    header state ++ chartRows bounds state ++ [axisRow bounds state] ++
-      overlayRows bounds state ++ footer bounds state ++
-      (if notice.isEmpty then [] else [line notice])
-  .column (rows.take bounds.height)
+  if bounds.height <= 14 && state.pickerOpen then
+    compactSeriesPickerView bounds state notice
+  else
+    let rows :=
+      header state ++ chartRows bounds state ++ [axisRow bounds state] ++
+        overlayRows bounds state ++ footer bounds state ++
+        (if notice.isEmpty then [] else [line notice])
+    .column (rows.take bounds.height)
 
 end Loam.Tui.LocusTrendComparePane
