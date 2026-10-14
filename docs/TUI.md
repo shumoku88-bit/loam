@@ -1274,6 +1274,18 @@ Esc stay on screen instead of following the full chart header. Applying and
 cancelling continue to use the original unsaved overlay state; ordinary-height
 chart and editor geometry are unchanged.
 
+For ordinary Trend chart browsing at 9–14 rows (not within those editors),
+the selected date, current grain/Measure, a compact selected-series summary, a
+Braille plot and its axis, and short navigation help have reserved screen
+space. At 9 rows one series and the count of additional series appear; at
+10–14 rows the existing selected-series values are listed individually,
+without clipping oversized amounts into misleading partial digits. A
+presentation-only overlay uses a compact marker row and a separate session-only
+guide/clear hint; the corresponding full legend remains available on larger
+terminals. Compact pointer hit testing follows the actual compressed header
+instead of the old full-size chart origin. No historical query, exact
+Locus/Measure coordinate, overlay state or chart value is rewritten.
+
 `q/Esc` exits a report's internal detail/comparison/series picker one level
 at a time, then returns directly to Home from the report root. The existing Trend
 overlay free-text form keeps `q` as text input and uses `Esc` to cancel back to
