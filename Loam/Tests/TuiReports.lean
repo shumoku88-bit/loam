@@ -1061,9 +1061,10 @@ def main : IO Unit := do
             scrolledPrint.byteCount == originalPrint.byteCount)
           "accounting Balances paging changed exact bounded Print evidence"
     | _, _ => throw (IO.userError "accounting Balances print unexpectedly refused fixture")
-    expect ((Loam.Tui.Reports.updateForBounds bounds balancesReport .enter).query ==
-        some Loam.Tui.Reports.Query.roleBalances)
-      "accounting Balances Enter no longer requests RoleBalance refresh"
+    match (Loam.Tui.Reports.updateForBounds bounds balancesReport .enter).query with
+    | some .roleBalances => pure ()
+    | _ => throw (IO.userError
+        "accounting Balances Enter no longer requests RoleBalance refresh")
     expect ((Loam.Tui.Reports.updateForBounds bounds balancesReport .escape).back)
       "accounting Balances Escape no longer returns Home"
   let noBalanceEvidence := widgetText (Loam.Tui.Reports.viewForBounds
