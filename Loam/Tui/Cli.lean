@@ -763,10 +763,11 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
         Loam.Tui.Terminal.redrawFromBlank bounds administrationFrame
         let notice ← Loam.Tui.ActualRoutingAdministrationSession.run
           bounds root administration administrationFrame
+        let activeBounds ← Loam.Tui.Terminal.currentBounds
         let home := { state with notice := notice }
-        let nextFrame := compiledFrameFor bounds snapshot home
-        Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-        loop bounds dataDir root snapshot home nextFrame
+        let nextFrame := compiledFrameFor activeBounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+        loop activeBounds dataDir root snapshot home nextFrame
   else if fromPalette && (key = .input 'e' || key = .input 'E') then
     match ← configuredMeasure with
     | .error message =>
