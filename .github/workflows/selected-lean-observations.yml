@@ -2,7 +2,7 @@ name: Lean Proof Surfaces
 
 # Three deliberately different Lean build surfaces:
 # - product: ordinary product/runtime library aggregation, excluding research witnesses
-# - durable: small long-lived theorem surface, checked with lean4checker + axiom audit
+# - durable: compiled owner modules replayed by bundled LeanChecker + separate axiom audit
 # - observations: broader research-regression witnesses, which may use native_decide
 #
 # Do not add a per-observation workflow when its only independent action would
@@ -11,6 +11,8 @@ name: Lean Proof Surfaces
 on:
   pull_request:
     paths:
+      - 'tools/ReplayDurableProofs.lean'
+      - 'tests/test_durable_replay.py'
       - 'Loam/**'
       - 'Loam.lean'
       - 'tools/audit-production-reachability'
@@ -22,6 +24,8 @@ on:
     branches:
       - main
     paths:
+      - 'tools/ReplayDurableProofs.lean'
+      - 'tests/test_durable_replay.py'
       - 'Loam/**'
       - 'Loam.lean'
       - 'tools/audit-production-reachability'
@@ -45,6 +49,7 @@ jobs:
     outputs:
       full: ${{ steps.scope.outputs.full }}
       pta: ${{ steps.scope.outputs.pta }}
+      replay_tests: ${{ steps.scope.outputs.replay_tests }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -59,6 +64,7 @@ jobs:
           changed="$RUNNER_TEMP/changed-paths.txt"
           full=false
           pta=false
+          replay_tests=false
 
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             git diff --name-only \
@@ -67,6 +73,7 @@ jobs:
           elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             full=true
             pta=true
+            replay_tests=true
             : > "$changed"
           else
             full=true
@@ -80,11 +87,17 @@ jobs:
                 ;;
             esac
 
+            case "$path" in
+              tools/ReplayDurableProofs.lean|tests/test_durable_replay.py|lean-toolchain|.github/workflows/selected-lean-observations.yml)
+                replay_tests=true
+                ;;
+            esac
+
             if [[ "$full" != "true" ]]; then
               case "$path" in
                 Loam/Tui/*|Loam/Tests/*|Loam/Presentation/*)
                   ;;
-                Loam/*|Loam.lean|tools/audit-production-reachability|lakefile.lean|lake-manifest.json|lean-toolchain|.github/workflows/selected-lean-observations.yml)
+                Loam/*|Loam.lean|tools/audit-production-reachability|tools/ReplayDurableProofs.lean|tests/test_durable_replay.py|lakefile.lean|lake-manifest.json|lean-toolchain|.github/workflows/selected-lean-observations.yml)
                   full=true
                   ;;
               esac
@@ -93,6 +106,7 @@ jobs:
 
           echo "full=$full" >> "$GITHUB_OUTPUT"
           echo "pta=$pta" >> "$GITHUB_OUTPUT"
+          echo "replay_tests=$replay_tests" >> "$GITHUB_OUTPUT"
 
   product:
     name: Build product Lean surface
@@ -163,7 +177,7 @@ jobs:
           restore-keys: |
             lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
 
-      - name: Build and independently check durable proofs
+      - name: Build durable proofs
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
@@ -172,10 +186,16 @@ jobs:
           test: false
           lint: false
           use-mathlib-cache: false
-          leanchecker: true
-          leanchecker-args: "Loam.DurableProofs"
+          leanchecker: false
           axiom-audit: false
           use-github-cache: false
+
+      - name: Replay durable defining modules
+        run: /usr/bin/time -p lake env lean tools/ReplayDurableProofs.lean
+
+      - name: Qualify durable replay scope sentinels
+        if: needs.scope.outputs.replay_tests == 'true'
+        run: python3 tests/test_durable_replay.py
 
       - name: Audit durable proof axioms only
         shell: bash
