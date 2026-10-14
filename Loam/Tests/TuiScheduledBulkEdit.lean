@@ -135,7 +135,8 @@ def main : IO Unit := do
     ("candidate-" ++ toString index) "2026-11-08" (4800 + Int.ofNat index)
   let longState := Loam.Tui.ScheduledBulkEdit.initial "long-wire" first longCandidates "2026-11-01"
   let longSheet := press (press { longState with amount := "5200" } .enter) .«end»
-  for bounds in ([{ width := 80, height := 18 }, { width := 40, height := 18 }] : List Bounds) do
+  for bounds in ([{ width := 80, height := 18 }, { width := 40, height := 18 },
+      { width := 48, height := 14 }, { width := 32, height := 9 }] : List Bounds) do
     let sheetWidget := Loam.Tui.ScheduledBulkEdit.view bounds longSheet
     expect (sheetWidget.lines.length == bounds.height - 1) "candidate footer escaped finite viewport"
     for cells in sheetWidget.lines do
@@ -151,5 +152,19 @@ def main : IO Unit := do
   let text := widgetText (Loam.Tui.ScheduledBulkEdit.view bounds longPreview)
   expect (contains "candidate-29" text && contains "Publish all" text && contains "30 replacements" text)
     "preview truncated targets or lost its final action"
+
+  -- The final checked candidate, preview action and edited field tail remain
+  -- visible at minimum supported size, without manufacturing a new draft.
+  let tiny : Bounds := { width := 32, height := 9 }
+  let tinySheet := widgetText (Loam.Tui.ScheduledBulkEdit.view tiny longSheet)
+  let tinyPreview := widgetText (Loam.Tui.ScheduledBulkEdit.view tiny longPreview)
+  expect (contains "candidate-29" tinySheet && contains "4,829" tinySheet)
+    "tiny candidate checklist lost the focused final row"
+  expect (contains "candidate-29" tinyPreview && contains "4,829 -> 5,200" tinyPreview &&
+      contains "Publish all" tinyPreview && contains "30 replacements" tinyPreview)
+    "tiny preview hid the selected target or the explicit publish action"
+  let input := { longState with amount := String.ofList (List.replicate 70 '8') }
+  expect (contains "…888" (widgetText (Loam.Tui.ScheduledBulkEdit.view tiny input)))
+    "narrow parameter input clipped the insertion end instead of keeping it visible"
 
   IO.println "Scheduled bulk edit TUI: advisory candidates, explicit checks/range, safe preview, exception/no-op/split behavior, exact decimal amounts and bounded viewports passed."

@@ -1026,6 +1026,11 @@ Completed, cancelled, and replaced sources are not candidates.
    the batch. **Back** is the initial action; choose **Publish all** explicitly
    with Tab or Left/Right, then Enter. Esc returns to the checklist.
 
+The checklist and replacement preview share bounded, cursor-following rounded
+panels where space allows. At 32×9 the frame collapses to visible rows while
+the checked count, selected target and explicit review actions remain accessible.
+Amount/date entry keeps the input tail visible without changing the typed value.
+
 Uniform amount editing supports exactly one FROM and one TO posting. Split
 postings require explicit individual editing; LOAM refuses rather than guessing
 allocation. Dates, Loci, and Measure remain unchanged.

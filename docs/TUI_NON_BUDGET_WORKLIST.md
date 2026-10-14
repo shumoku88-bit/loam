@@ -63,7 +63,7 @@ Viewport PTY、resource check も成功（新CIなし）。残りは小さい樹
 | UI-17 | Scheduled 完了 入力・確認 | 検証待ち | PR #1926マージ済み：Scheduled List／Selected Dayの完了Actual入力・確認を共通フローティング枠へ。元Plan ID・予定期日を保持し、Actual日付・説明・Postingは独立して編集。狭小端末のPublish拒否、ライブリサイズ、Esc時の正データ不変をLean／実PTYで確認しCI成功。完了後の次予定・Attention処理は別のまま。残りは実機での見た目・操作感の確認 |
 | UI-18 | Scheduled 取消確認 | 検証待ち | PR #1914マージ済み：共通フローティング枠と狭小端末フォールバック、対象ID・日付／期待Posting、Keep／Cancel、確定拒否、ライブリサイズに対応。`TuiScheduledTerminal`と専用実PTYで取消／Esc不変を検証しCI成功。残りは実機での見た目・操作感の確認 |
 | UI-19 | Scheduled 置換 入力・確認 | 一部完了 | PR #1920で置換入力・確認のLocus／端末サイズ対応を改修、PR #1922で共通フローティング枠へ移行（Scheduled List／Selected Day）。元予定・置換内容、Preview／Esc／リサイズを専用実PTY・Leanで確認しCI成功。置換発行の独立した意味を保持。残りは実機での見た目・細部の仕上げと受理済み書込の専用PTY確認（#1902） |
-| UI-20 | Scheduled 一括金額編集・チェックリスト・確認 | 未着手 | 一覧の整列、選択追従、変更対象と結果、ナビ |
+| UI-20 | Scheduled 一括金額編集・チェックリスト・確認 | 検証待ち | 2026-10-14：候補と置換確認を既存 Layout の丸角パネルと選択追従に統一。狭小端末では枠を畳み、入力末尾・対象・明示的な確定操作を残す。`TuiScheduledBulkEdit` に32×9／48×14検証追加。CIと実機での見た目・操作感の確認待ち。Publisher・バッチ原子性は変更なし |
 | UI-21 | Scheduled 生成 入力・確認 | 未着手 | 入力と生成対象、確認一覧、ナビ |
 | UI-22 | Scheduled 継続の操作画面 | 未着手 | 対象・次の内容、確認、ナビ |
 | UI-23 | Scheduled coverage 設定 | 検証待ち | 既存 Plan Monitoring の5段階ペース選択を、作成後 Expected pace と同じスクロール・丸角パネルに整列。選択追従、短い端末とライブリサイズ、予約通知欄、Esc／保存の既存意味を維持。`TuiScheduledCreate` で画面幅・高さ・選択の検証を追加。CI／実機の見た目は確認待ち |
