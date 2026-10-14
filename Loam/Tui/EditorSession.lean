@@ -142,4 +142,37 @@ partial def runUntilPublishedAdaptive
       runUntilPublishedAdaptive active geometry parent update view
         withPublishError cancelResult publish step.state nextFrame skipInertOther
 
+
+/--
+Resize-aware shell for editors that must **leave on any publication attempt**,
+including a publisher refusal. For Capacity, a refusal may mean that shared
+evidence changed while the draft was open. The caller must reload an authoritative
+snapshot before permitting a retry, never continue in a stale editor.
+
+Unlike `runUntilPublishedResizing`, `publish` here returns a terminal result
+rather than an `Except` to retry locally. Both acceptance and refusal end the
+session. Domain validation and keyboard meanings stay caller-owned.
+-/
+partial def runUntilAttemptResizing
+    {State Draft ResultType : Type}
+    (bounds : Bounds)
+    (update : State → Loam.Tui.Terminal.Key → Step State Draft)
+    (view : Bounds → State → Widget)
+    (cancel : State → ResultType)
+    (publish : Draft → IO ResultType)
+    (state : State)
+    (frame : CompiledWidget) : IO ResultType := do
+  let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (view active state)
+  let step := update state key
+  if step.cancel then
+    return cancel step.state
+  match step.publish with
+  | some draft => publish draft
+  | none =>
+      let nextFrame := compileWidget (view bounds step.state)
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+      runUntilAttemptResizing bounds update view cancel publish step.state nextFrame
+
 end Loam.Tui.EditorSession

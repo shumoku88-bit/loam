@@ -77,9 +77,10 @@ partial def loop
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
+      let activeBounds ← Loam.Tui.Terminal.currentBounds
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-      loop bounds dataDir root observedAt next nextFrame
+      Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+      loop activeBounds dataDir root observedAt next nextFrame
   | .rebalance current =>
       let editor := Loam.Tui.CapacityRebalance.initial
         current.snapshot current.coverage observedAt (Loam.Tui.Capacity.selectedPurpose? current)
@@ -93,9 +94,10 @@ partial def loop
       let refreshed := Loam.Tui.Capacity.refreshed fresh current
       let covered ← attachCurrentCoverage dataDir root observedAt refreshed
       let next := { covered with notice := notice }
+      let activeBounds ← Loam.Tui.Terminal.currentBounds
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
-      Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
-      loop bounds dataDir root observedAt next nextFrame
+      Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+      loop activeBounds dataDir root observedAt next nextFrame
   | .stay next =>
       let nextFrame := compileWidget (Loam.Tui.Capacity.view next)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
