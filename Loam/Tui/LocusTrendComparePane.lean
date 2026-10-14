@@ -747,6 +747,90 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
   (Loam.Tui.Layout.flowTokens
       (Loam.Tui.Layout.contentWidth bounds) "   " (footerTokens state)).map muted
 
+/--
+On short terminals, reserve the graph and actions before deciding how many
+selected-series rows fit. Exact series values remain in the snapshot; oversized
+values are explicitly deferred to a wider view, never clipped into partial digits.
+-/
+private def compactGraph (bounds : Bounds) (state : State) : Bool :=
+  decide (9 ≤ bounds.height ∧ bounds.height ≤ 14) &&
+    !state.pickerOpen && !isOverlayEditing state
+
+private def compactSeriesRow
+    (bounds : Bounds) (state : State)
+    (snapshot : Loam.LocusTrendCompareReview.Snapshot)
+    (series : Loam.LocusTrendCompareReview.Series)
+    (index more : Nat) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let markerPrefix := toString (index + 1) ++ " " ++
+    String.ofList [seriesMarker index] ++ " "
+  let amount := amountText state snapshot.measure (series.valueAt? state.selected |>.getD 0) ++
+    (if snapshot.granularity == .day then "" else "/day")
+  let moreText := if more == 0 then "" else " (+" ++ toString more ++ ")"
+  let reserved := Loam.Tui.Layout.displayWidth (markerPrefix ++ amount ++ moreText ++ " ")
+  let fullText :=
+    if reserved > width then
+      markerPrefix ++ "exact value: enlarge terminal" ++ moreText
+    else
+      markerPrefix ++
+        Loam.Tui.Layout.ellipsize (min 14 (width - reserved)) series.spec.label ++
+        " " ++ amount ++ moreText
+  .row [span (Loam.Tui.Layout.ellipsize width fullText) (seriesStyle index)]
+
+private def compactGraphHeader
+    (bounds : Bounds) (state : State) (notice : String := "") : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  match state.snapshot, selectedWindow? state with
+  | some snapshot, some point =>
+      let title :=
+        "Trend " ++ snapshot.granularity.label ++
+          (if snapshot.granularity == .day then "/" ++ snapshot.scope.label else "") ++
+          " · " ++ snapshot.measure.token
+      let selected :=
+        if bounds.height <= 9 then
+          "Selected " ++ point.start
+        else
+          selectedLine snapshot point
+      let selectedRows :=
+        if bounds.height <= 9 then
+          match snapshot.series.head? with
+          | some series =>
+              [compactSeriesRow bounds state snapshot series 0 (snapshot.series.length - 1)]
+          | none => [muted "No series."]
+        else
+          snapshot.series.zipIdx.map fun (series, index) =>
+            compactSeriesRow bounds state snapshot series index 0
+      let shownRows :=
+        if notice.isEmpty then selectedRows
+        else if bounds.height <= 9 then
+          [muted (Loam.Tui.Layout.ellipsize width ("Notice " ++ notice))]
+        else selectedRows
+      [line (Loam.Tui.Layout.ellipsize width title)] ++
+        (if bounds.height <= 9 then []
+         else [muted (Loam.Tui.Layout.ellipsize width
+           (if notice.isEmpty then "Source " ++ snapshot.source else "Notice " ++ notice))]) ++
+        [line (Loam.Tui.Layout.ellipsize width selected)] ++
+        shownRows
+  | _, _ =>
+      [line (Loam.Tui.Layout.ellipsize width ("Trend " ++ state.granularity.label))
+      , muted (Loam.Tui.Layout.ellipsize width "Multi-series history unavailable.")]
+
+private def compactGraphFooter (bounds : Bounds) (state : State) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let tokens :=
+    if state.granularity == .day then
+      ["←/→ day [/] grain s/S range",
+       "a series o overlay q/Esc Home"] ++
+        (if state.overlays.isEmpty then []
+         else ["v guides O clear · session only"])
+    else
+      ["←/→ period [/] grain", "a series q/Esc Home"]
+  tokens.map fun token => muted (Loam.Tui.Layout.ellipsize width token)
+
+private def graphOverlayRows (bounds : Bounds) (state : State) : List Widget :=
+  let rows := overlayRows bounds state
+  if compactGraph bounds state then rows.take 1 else rows
+
 private def headerLineCount (state : State) : Nat :=
   (header state).length
 
@@ -755,15 +839,25 @@ private def axisLineCount : Nat := 1
 def plotTop (state : State) : Nat :=
   headerLineCount state
 
+def plotTopForBounds (bounds : Bounds) (state : State) : Nat :=
+  if compactGraph bounds state then
+    (compactGraphHeader bounds state).length
+  else
+    plotTop state
+
 def plotHeight (bounds : Bounds) (state : State) : Nat :=
   let fixedRows :=
-    headerLineCount state + axisLineCount +
-      (overlayRows bounds state).length + (footer bounds state).length
+    plotTopForBounds bounds state + axisLineCount +
+      (graphOverlayRows bounds state).length +
+      (if compactGraph bounds state then
+        (compactGraphFooter bounds state).length
+       else (footer bounds state).length)
   if bounds.height > fixedRows then bounds.height - fixedRows else 1
 
 def pointerInPlot (bounds : Bounds) (state : State) (row : Nat) : Bool :=
-  !isOverlayEditing state &&
-    decide (plotTop state <= row && row < plotTop state + plotHeight bounds state)
+  !isOverlayEditing state && !state.pickerOpen &&
+    decide (plotTopForBounds bounds state <= row &&
+      row < plotTopForBounds bounds state + plotHeight bounds state)
 
 private def chartRows (bounds : Bounds) (state : State) : List Widget :=
   match state.snapshot with
@@ -981,6 +1075,11 @@ def viewFullScreen
     compactSeriesPickerView bounds state notice
   else if bounds.height <= 14 && isOverlayEditing state then
     compactOverlayEditorView bounds state notice
+  else if compactGraph bounds state then
+    let rows :=
+      compactGraphHeader bounds state notice ++ chartRows bounds state ++ [axisRow bounds state] ++
+        graphOverlayRows bounds state ++ compactGraphFooter bounds state
+    .column (rows.take bounds.height)
   else
     let rows :=
       header state ++ chartRows bounds state ++ [axisRow bounds state] ++
