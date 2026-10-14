@@ -172,6 +172,58 @@ private def testCompactTrendOverlay
       compactCancelled.state.trendCompare.selected == selected)
     "compact Trend overlay cancellation changed the series selection or query"
 
+/--
+UI-25 short-terminal graph coverage is separate from the large Reports test
+body to avoid increasing Lean elaboration depth for unrelated report queries.
+-/
+private def testCompactTrendChart
+    (dayReport cycleReport : Loam.Tui.Reports.State) : IO Unit := do
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+    for report in [dayReport, cycleReport] do
+      let state := report.trendCompare
+      let view := Loam.Tui.Reports.viewForBounds bounds report
+      let shown := widgetText view
+      expect (contains "Trend" shown && contains "Selected" shown &&
+          contains "a series" shown && contains "q/Esc Home" shown &&
+          contains "grain" shown && view.lines.length <= bounds.height)
+        "compact Trend chart lost selected period, commands, or terminal bounds"
+      expect (Loam.Tui.LocusTrendComparePane.plotHeight bounds state >= 2 &&
+          Loam.Tui.LocusTrendComparePane.plotTopForBounds bounds state < bounds.height)
+        "compact Trend chart did not reserve meaningful plot rows"
+      expect (widgetLineTexts view |>.all fun text =>
+          Loam.Tui.Layout.displayWidth text <= Loam.Tui.Layout.contentWidth bounds)
+        "compact Trend emitted a physical row wider than terminal content"
+    let dayText := widgetText (Loam.Tui.Reports.viewForBounds bounds dayReport)
+    expect (contains "s/S range" dayText && contains "o overlay" dayText &&
+        contains "2026-09-09" dayText)
+      "compact Day chart lost its selected date, scope or overlay entrance"
+    let start := dayReport.trendCompare
+    let top := Loam.Tui.LocusTrendComparePane.plotTopForBounds bounds start
+    let press := Loam.Tui.Reports.updateForBounds bounds dayReport
+      (.pointer Loam.Tui.LocusTrendComparePane.plotLeft (top + 1))
+    expect (press.state.trendCompare.selected ==
+        Loam.Tui.LocusTrendComparePane.visibleStart start &&
+        press.query.isNone)
+      "compact Trend plot pointer did not select the visible first date"
+    let above := Loam.Tui.Reports.updateForBounds bounds dayReport
+      (.pointer Loam.Tui.LocusTrendComparePane.plotLeft (top - 1))
+    expect (above.state.trendCompare.selected == start.selected)
+      "compact Trend pointer treated its heading as graph data"
+    let withOverlay := { dayReport with
+      trendCompare := { start with
+        overlays := [{ name := "Marker", month := "2026-09", days := [3, 4] }]
+        overlayGuides := true } }
+    let overlayText := widgetText (Loam.Tui.Reports.viewForBounds bounds withOverlay)
+    expect (contains "session only" overlayText &&
+        contains "v guides" overlayText && contains "O clear" overlayText &&
+        contains "q/Esc Home" overlayText &&
+        Loam.Tui.LocusTrendComparePane.plotHeight bounds withOverlay.trendCompare >= 1)
+      "compact Trend overlay hid marker/guide controls or the graph"
+    let noticeText := widgetText (Loam.Tui.Reports.viewForBounds bounds
+      { dayReport with notice := "Overlay requires Day grain." })
+    expect (contains "Notice" noticeText && contains "q/Esc Home" noticeText)
+      "compact Trend hid a report feedback notice or navigation"
+
 def main : IO Unit := do
   expect (Loam.Tui.Terminal.plainTerminalText "a\n\r\x1b\tb" == "ab")
     "presentation text retained terminal control characters"
@@ -844,6 +896,8 @@ def main : IO Unit := do
   let viewportReport : Loam.Tui.Reports.State := {
     compareReport with trendCompare := viewportState
   }
+  testCompactTrendChart viewportReport compareReport
+
   let viewportPress :=
     (Loam.Tui.Reports.updateForBounds compareBounds viewportReport
       (.pointer Loam.Tui.LocusTrendComparePane.plotLeft
