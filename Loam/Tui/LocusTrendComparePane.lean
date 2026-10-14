@@ -924,11 +924,63 @@ private def compactSeriesPickerView
           (if index == selected then .selected else .normal)]
   .column ((heading ++ candidates ++ feedback ++ navigation).take bounds.height)
 
+/--
+Keep the active session-only overlay editor visible when the complete Trend header
+would push both fields below a short terminal. Field geometry reuses the same
+input-tail and read-only ellipsis rules as other household editors.
+-/
+private def compactOverlayField
+    (width : Nat) (label value : String) (focused : Bool) : Widget :=
+  let labelWidth := 8
+  let visible :=
+    if value.isEmpty then "_"
+    else if focused then Loam.Tui.Layout.inputTail (width - labelWidth) value
+    else Loam.Tui.Layout.ellipsize (width - labelWidth) value
+  .row
+    [ span (Loam.Tui.Layout.padRight labelWidth label) .muted
+    , span visible (if focused then .selected else .normal)
+    ]
+
+private def compactOverlayEditorView
+    (bounds : Bounds) (state : State) (notice : String) : Widget :=
+  match state.overlayDraft with
+  | none => .column []
+  | some draft =>
+      let width := Loam.Tui.Layout.contentWidth bounds
+      let heading :=
+        [ line (Loam.Tui.Layout.clip width "Trend / Overlay · session only")
+        , muted (Loam.Tui.Layout.clip width
+            ("Month " ++ overlayMonthLabel draft.month ++ " · not saved"))
+        ]
+      let fields :=
+        [ compactOverlayField width "Name" draft.name (!draft.editingDays)
+        , compactOverlayField width "Days" draft.daysText draft.editingDays
+        ]
+      let hint :=
+        [ muted (Loam.Tui.Layout.clip width "Days: 3 4 6 8 9 (space/comma/dot)") ]
+      let navigation :=
+        [ muted (Loam.Tui.Layout.clip width "Tab field   Enter next/apply")
+        , muted (Loam.Tui.Layout.clip width "Esc cancel")
+        ]
+      let remaining :=
+        bounds.height - (heading.length + fields.length + hint.length + navigation.length)
+      let feedbackLines :=
+        if notice.isEmpty then [] else Loam.Tui.Layout.wrapColumns width notice
+      let feedback :=
+        if remaining == 0 then []
+        else if feedbackLines.length > remaining then
+          (feedbackLines.take (remaining - 1)).map line ++
+            [muted (Loam.Tui.Layout.clip width "… enlarge terminal for full notice")]
+        else feedbackLines.map line
+      .column ((heading ++ fields ++ feedback ++ hint ++ navigation).take bounds.height)
+
 /-- Render Trend as a dedicated full-screen chart. -/
 def viewFullScreen
     (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
   if bounds.height <= 14 && state.pickerOpen then
     compactSeriesPickerView bounds state notice
+  else if bounds.height <= 14 && isOverlayEditing state then
+    compactOverlayEditorView bounds state notice
   else
     let rows :=
       header state ++ chartRows bounds state ++ [axisRow bounds state] ++
