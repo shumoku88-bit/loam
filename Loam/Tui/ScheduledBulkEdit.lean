@@ -133,6 +133,24 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
 private def amountText (state : State) (amount : Int) : String :=
   Loam.MeasurePresentation.formatGroupedQuanta state.presentation state.source.measure amount
 
+/-- Keep a checked-candidate or preview cursor visible in a bounded panel.
+    Only view geometry is shared; selection and publication remain caller-owned. -/
+private def listPane {α : Type} (bounds : Bounds) (title : String)
+    (items : List α) (selected capacity : Nat)
+    (render : Nat → α → Widget) (empty : Widget) : List Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let framed := width >= 24 && capacity >= 4
+  let visible := if framed then capacity - 2 else capacity
+  let rows :=
+    if items.isEmpty then [empty]
+    else (Loam.Tui.Layout.centeredListWindow items selected visible).map
+      fun (index, item) => render index item
+  if framed then
+    [Loam.Tui.Layout.framedPanel width (min capacity (rows.length + 2))
+      title (.column rows) true]
+  else
+    rows.take capacity
+
 private def recordText (state : State) (record : Loam.ScheduledBulkEdit.Record) : String :=
   let amount :=
     match Loam.ScheduledBulkEdit.simpleAmount? record with
@@ -150,59 +168,79 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
   let muted := fun (text : String) => Widget.row [span (Loam.Tui.Layout.clip width text) .muted]
   let helpLines := fun (tokens : List String) =>
     (Loam.Tui.Layout.flowTokens width "  " tokens).map muted
-  let header := [line "Scheduled / Batch amount edit",
-    muted "Similarity is a suggestion, not proof of the same contract. You choose the targets."]
+  let compact := bounds.height < 16
+  let header := [line "Scheduled / Batch amount edit"] ++
+    (if compact then [] else
+      [muted "Similarity is a suggestion, not proof of the same contract. You choose the targets."])
   let notice := if state.notice.isEmpty then [] else [line state.notice]
   let (body, help) := match state.mode with
     | .parameters =>
-        let fields := ["New amount (" ++ state.source.measure.token ++ "): " ++ state.amount,
-          "From (inclusive): " ++ state.fromDate,
-          "Through (inclusive): " ++ state.throughDate]
-        let rows := fields.zipIdx.map fun (text, index) =>
+        let fields := [("New amount (" ++ state.source.measure.token ++ "): ", state.amount),
+          ("From (inclusive): ", state.fromDate),
+          ("Through (inclusive): ", state.throughDate)]
+        let rows := fields.zipIdx.map fun ((label, value), index) =>
+          let prefix := (if index == state.focus then "> " else "  ") ++ label
           Widget.row [span (Loam.Tui.Layout.clip width
-            ((if index == state.focus then "> " else "  ") ++ text))
+            (prefix ++ Loam.Tui.Layout.inputTail
+              (width - Loam.Tui.Layout.displayWidth prefix) value))
             (if index == state.focus then .selected else .normal)]
-        (header ++ [muted ("Reference: " ++ recordText state state.source)] ++ rows ++
-          [muted "Empty Through = all retained later dates.",
-           muted "Dates/Loci/Measure unchanged; no guessed split allocations."] ++ notice,
+        (header ++
+          (if compact then [] else [muted ("Reference: " ++ recordText state state.source)]) ++
+          rows ++
+          (if compact then [] else
+            [muted "Empty Through = all retained later dates.",
+             muted "Dates/Loci/Measure unchanged; no guessed split allocations."]) ++ notice,
           helpLines ["[Tab/Shift-Tab] field", "[Enter] candidates", "[Esc] cancel"])
     | .selection =>
         let records := visibleCandidates state
-        let fixed := header ++
-          [line ("New amount: " ++ state.amount ++ " " ++ state.source.measure.token),
-           line ("Period: " ++ state.fromDate ++ " .. " ++
-            (if state.throughDate.isEmpty then "all later dates" else state.throughDate)),
-           line (toString state.selected.length ++ " checked / " ++ toString records.length ++ " candidates")]
+        let count := line (toString state.selected.length ++ " checked / " ++
+          toString records.length ++ " candidates")
+        let fixed :=
+          if compact then header ++ [count]
+          else header ++
+            [line ("New amount: " ++ state.amount ++ " " ++ state.source.measure.token),
+             line ("Period: " ++ state.fromDate ++ " .. " ++
+              (if state.throughDate.isEmpty then "all later dates" else state.throughDate)),
+             count]
         let help := helpLines ["[j/k] row", "[Space] check", "[a] all", "[d] clear",
           "[e] amount/period", "[Enter] preview", "[Esc] cancel"]
         let capacity := max 1 (Loam.Tui.Layout.footerBodyCapacity bounds help.length - fixed.length - notice.length)
-        let rows := (Loam.Tui.Layout.centeredListWindow records state.row capacity).map fun (index, record) =>
-          Widget.row [span (Loam.Tui.Layout.clip width
-            ((if index == state.row then "> " else "  ") ++
-             (if state.selected.contains record.id then "[x] " else "[ ] ") ++ recordText state record))
-            (if index == state.row then .selected else .normal)]
-        (fixed ++ (if records.isEmpty then [muted "No current-open candidates in this period."] else rows) ++ notice, help)
+        let rows := listPane bounds "Candidates" records state.row capacity
+          (fun index record =>
+            Widget.row [span (Loam.Tui.Layout.clip width
+              ((if index == state.row then "> " else "  ") ++
+               (if state.selected.contains record.id then "[x] " else "[ ] ") ++
+               recordText state record))
+              (if index == state.row then .selected else .normal)])
+          (muted "No current-open candidates in this period.")
+        (fixed ++ rows ++ notice, help)
     | .preview draft =>
         let unchanged := state.selected.length - draft.drafts.length
-        let fixed := header ++
-          [line ("Preview: " ++ toString draft.drafts.length ++ " replacements"),
-           line ("Checked unchanged: " ++ toString unchanged ++ "  Unchecked: " ++
-            toString ((visibleCandidates state).length - state.selected.length)),
-           muted "Dates/Loci/Measure/routing retained.",
-           muted "Paid Actual is untouched."]
+        let summary := line ("Preview: " ++ toString draft.drafts.length ++ " replacements")
+        let fixed :=
+          if compact then header ++ [summary]
+          else header ++
+            [summary,
+             line ("Checked unchanged: " ++ toString unchanged ++ "  Unchecked: " ++
+              toString ((visibleCandidates state).length - state.selected.length)),
+             muted "Dates/Loci/Measure/routing retained.",
+             muted "Paid Actual is untouched."]
         let help := helpLines ["[j/k] review rows", "[Tab/Left/Right] action", "[Enter] choose", "[Esc] back"]
         let actions := Widget.row <| (["Back", "Publish all", "Cancel"].zipIdx.map fun (label, index) =>
           span ("[" ++ label ++ "] ") (if index == state.choice then .selected else .normal))
         let capacity := max 1 (Loam.Tui.Layout.footerBodyCapacity bounds (help.length + 1) - fixed.length - notice.length)
-        let rows := (Loam.Tui.Layout.centeredListWindow draft.drafts state.row capacity).map fun (index, replacement) =>
-          let original := state.candidates.find? (fun record => record.id == replacement.source)
-          let before := (original.bind Loam.ScheduledBulkEdit.simpleAmount?).map (amountText state) |>.getD "?"
-          let after := replacement.movement.changes.foldl
-            (fun total change => if change.quantity.quanta > 0 then total + change.quantity.quanta else total) 0
-          Widget.row [span (Loam.Tui.Layout.clip width
-            ((if index == state.row then "> " else "  ") ++ replacement.scheduledOn ++ "  " ++
-              before ++ " -> " ++ amountText state after ++ " " ++ state.source.measure.token ++
-              "  " ++ replacement.source.token)) (if index == state.row then .selected else .normal)]
+        let rows := listPane bounds "Replacement review" draft.drafts state.row capacity
+          (fun index replacement =>
+            let original := state.candidates.find? (fun record => record.id == replacement.source)
+            let before := (original.bind Loam.ScheduledBulkEdit.simpleAmount?).map (amountText state) |>.getD "?"
+            let after := replacement.movement.changes.foldl
+              (fun total change => if change.quantity.quanta > 0 then total + change.quantity.quanta else total) 0
+            Widget.row [span (Loam.Tui.Layout.clip width
+              ((if index == state.row then "> " else "  ") ++ replacement.scheduledOn ++ "  " ++
+                before ++ " -> " ++ amountText state after ++ " " ++ state.source.measure.token ++
+                "  " ++ replacement.source.token))
+                (if index == state.row then .selected else .normal)])
+          (muted "No changed amounts in this preview.")
         (fixed ++ rows ++ notice, actions :: help)
   return .column (Loam.Tui.Layout.fitWithFooter bounds body help)
 
