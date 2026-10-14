@@ -40,8 +40,11 @@ proposal. Retire this one-shot input/script after review; this record retains it
 comparison obligation. The existing replay driver/tests and frozen re-audit
 specimens supply the mechanics and positive/negative cases.
 
+The archived runs below used the original per-version manual job. The input now
+runs the bounded same-runner performance follow-up (§8); the qualification script
+remains reproducible directly:
+
 ```sh
-gh workflow run selected-lean-observations.yml --ref qualify/lean-4.35.0 -f qualify_435=true
 # Same source in disposable Linux checkouts, pin each version separately:
 python3 docs/experiments/lean435-qualification/run.py
 python3 docs/experiments/lean435-qualification/compare.py baseline.zip candidate.zip
@@ -241,3 +244,26 @@ binary, real household data or 44 MB export is committed; export is reproducible
 from explicit roots and its hash/membership is retained. ZIPs are frozen evidence,
 not CI inputs. Inspect with Python zipfile on case-insensitive macOS: artifact
 `first-Loam.log` and `first-loam.log` are intentionally distinct Linux names.
+
+## 8. Same-runner performance follow-up (production preparation)
+
+Pending measured results. The existing experimental manual input now runs one
+Linux job, with identical source in separate toolchain worktrees and fresh `.lake`
+directories. Setup and initial builds are timed separately. Both full test-module
+caches are primed, then the **actual unchanged `lake test` driver** runs in ABBA
+order. A PATH logger restored at the Bash-driver boundary records each child
+Lake invocation's wall/CPU/RSS/exit without rewriting any test or production
+source; builds are labelled separately from test execution. Its capture and
+failure-exit propagation were self-checked before the run. No shared cross-version
+artifact/cache, sandbox changes, production optimization, or permanent gate.
+
+```sh
+gh workflow run selected-lean-observations.yml --ref qualify/lean-4.35.0 -f qualify_435=true
+# Disposable Linux checkout, no existing paired-source/workspace directories:
+python3 docs/experiments/lean435-qualification/performance.py
+```
+
+The future production migration PR must exclude this input, scripts, inventory
+helpers and archives. Only pin/manifest, quoted Memory identifiers, explicit
+Settlement fixture prerequisites and minimal migration/rollback guidance belong
+there. A large unexplained within-runner slowdown blocks that adoption decision.

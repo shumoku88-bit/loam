@@ -36,7 +36,7 @@ on:
   workflow_dispatch:
     inputs:
       qualify_435:
-        description: 'One-shot Issue 1963 baseline/candidate migration qualification (not a gate)'
+        description: 'One-shot Issue 1963 same-runner ABBA performance follow-up (not a gate)'
         type: boolean
         default: false
 
@@ -50,25 +50,12 @@ concurrency:
 jobs:
   migration-qualification:
     if: github.event_name == 'workflow_dispatch' && inputs.qualify_435
-    name: Qualify migration (${{ matrix.version }})
+    name: Same-runner compiler performance (ABBA)
     runs-on: ubuntu-latest
     timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        version: ['4.33.1', '4.35.0']
     steps:
       - uses: actions/checkout@v6
-      - name: Select isolated compiler
-        run: printf 'leanprover/lean4:v%s\n' '${{ matrix.version }}' > lean-toolchain
-      - name: Restore version-specific shared cache
-        uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: ./.lake
-          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-${{ github.sha }}
-          restore-keys: |
-            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}
-      - name: Set up compiler (setup separate from measurements)
+      - name: Bootstrap compiler (setup separate from measurements)
         uses: leanprover/lean-action@v1
         with:
           auto-config: false
@@ -79,18 +66,15 @@ jobs:
           axiom-audit: false
           use-mathlib-cache: false
           use-github-cache: false
-      - name: Install stock sandbox dependency (no host policy relaxation)
-        if: matrix.version == '4.35.0'
-        run: sudo apt-get update && sudo apt-get install -y bubblewrap
-      - name: Measure builds, actual test driver and proof routes
+      - name: Measure isolated builds and full tests on the same runner
         env:
           QUALIFICATION_OUT: ${{ runner.temp }}/qualification
-        run: python3 docs/experiments/lean435-qualification/run.py
-      - name: Save raw qualification evidence, including failures
+        run: python3 docs/experiments/lean435-qualification/performance.py
+      - name: Save raw performance evidence, including failures
         if: always()
         uses: actions/upload-artifact@v6
         with:
-          name: lean-migration-${{ matrix.version }}
+          name: lean-same-runner-performance
           path: |
             ${{ runner.temp }}/qualification/*.log
             ${{ runner.temp }}/qualification/*.json
