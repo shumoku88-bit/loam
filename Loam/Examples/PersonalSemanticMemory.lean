@@ -75,7 +75,7 @@ Recall text only when the corresponding Event identity is also retained.
 This prevents an orphan description from being treated as a remembered fact.
 No correction or "latest" semantics are applied here.
 -/
-def recall?
+def «recall?»
     (memory : PersonalSemanticMemory)
     (id : EventId) : Option String := do
   let _ ← EventMemory.findById? memory.events id
@@ -116,8 +116,8 @@ def recallCorrection?
     (correction : EventCorrection) : Option (String × String) := do
   if correction ∈ memory.corrections.corrections then
     let closed ← EventCorrection.project? memory.events correction
-    let originalText ← recall? memory closed.original.id
-    let replacementText ← recall? memory closed.effective.id
+    let originalText ← «recall?» memory closed.original.id
+    let replacementText ← «recall?» memory closed.effective.id
     return (originalText, replacementText)
   else
     none
@@ -160,8 +160,8 @@ def correctedMemory : PersonalSemanticMemory :=
 
 /-- A retained text fact is recalled by stable identity. -/
 theorem recall_retained_fact :
-    recall? rememberedMemory note1 = some "editor preference: nvim" := by
-  simp [recall?, rememberedMemory, note1, textEvent,
+    «recall?» rememberedMemory note1 = some "editor preference: nvim" := by
+  simp [«recall?», rememberedMemory, note1, textEvent,
     EventMemory.findById?, EventDescriptionMemory.findText?,
     FiniteKeyed.findBy?]
 
@@ -180,7 +180,7 @@ theorem correction_is_explicit_and_non_destructive :
       some
         ("editor preference: nvim",
          "editor preference: nvim; configuration may evolve") := by
-  simp [recallCorrection?, correctedMemory, noteCorrection, recall?,
+  simp [recallCorrection?, correctedMemory, noteCorrection, «recall?»,
     note1, note2, textEvent, EventCorrection.project?,
     EventMemory.findById?, EventDescriptionMemory.findText?,
     FiniteKeyed.findBy?]
