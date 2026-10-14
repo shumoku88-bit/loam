@@ -1272,7 +1272,7 @@ private def balancesView (state : State) (bounds : Option Bounds) : Widget :=
     if compact then
       [ muted "j/k scroll  PgUp/Dn page"
       , muted "Home/End  Enter refresh"
-      , muted "p print  q/Esc Home"
+      , muted "p print  q / Esc Home"
       , line state.notice
       ]
     else
