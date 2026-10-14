@@ -251,7 +251,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
         [.row [], .row [span " ↑/↓ select  Backspace edit" .muted],
          .row [span " Enter open  Esc browse" .muted]]
       else
-        [.row [], .row [span " ↑/↓ select  → group  / search" .muted],
+        [.row [], .row [span " ↑/↓ select  → group  ← back" .muted],
          .row [span (" Enter open  " ++ backLabel) .muted]]
     else if bodyHeight >= 2 then
       [.row [span
