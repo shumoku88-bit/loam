@@ -1022,7 +1022,7 @@ def main : IO Unit := do
   for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
     let opening := widgetText (Loam.Tui.Reports.viewForBounds bounds balancesReport)
     expect (contains "Reports / Balances" opening && contains "Measure: jpy" opening &&
-        contains "p print  q/Esc Home" opening)
+        contains "p print  q / Esc Home" opening)
       "compact accounting Balances hid its first answer or fixed help"
     let limit := Loam.Tui.Reports.scrollLimit bounds balancesReport
     expect (limit > 0)
