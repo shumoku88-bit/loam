@@ -1,5 +1,6 @@
 import Loam.Publisher.CapacityPublisher
 import Loam.HouseholdCommand
+import Loam.Tui.EditorSession
 import Loam.Tui.CapacityTransfer
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
@@ -24,30 +25,28 @@ Capacity snapshot; the caller reloads shared Capacity review before rendering th
 workspace again.
 -/
 
-partial def run
+def run
     (bounds : Bounds)
     (root : System.FilePath)
     (state : Loam.Tui.CapacityTransfer.State)
-    (frame : CompiledWidget) : IO String := do
-  let step := Loam.Tui.CapacityTransfer.update state
-    (← Loam.Tui.Terminal.readKey)
-  if step.cancel then
-    pure (if state.grantContext.isSome then "Cycle grant cancelled." else "Capacity transfer cancelled.")
-  else
-    match step.publish with
-    | some draft =>
-        match ← Loam.HouseholdCommand.moveCapacity root draft with
-        | .ok _ =>
-            pure
-              ("Moved " ++ toString draft.quanta ++ " " ++ draft.measure.token ++ " Capacity: " ++
-                Loam.CapacityPublisher.coordinateToken draft.source ++ " -> " ++
-                Loam.CapacityPublisher.coordinateToken draft.destination ++
-                ". Effective: " ++ draft.effectiveOn ++ ".")
-        | .error message =>
-            pure ("Capacity transfer refused: " ++ message)
-    | none =>
-        let nextFrame := compileWidget (Loam.Tui.CapacityTransfer.view step.state)
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
-        run bounds root step.state nextFrame
+    (frame : CompiledWidget) : IO String :=
+  Loam.Tui.EditorSession.runUntilAttemptResizing bounds
+    Loam.Tui.CapacityTransfer.update
+    (fun _ editor => Loam.Tui.CapacityTransfer.view editor)
+    (fun editor =>
+      if editor.grantContext.isSome then "Cycle grant cancelled."
+      else "Capacity transfer cancelled.")
+    (fun draft => do
+      match ← Loam.HouseholdCommand.moveCapacity root draft with
+      | .ok _ =>
+          return
+            ("Moved " ++ toString draft.quanta ++ " " ++ draft.measure.token ++ " Capacity: " ++
+              Loam.CapacityPublisher.coordinateToken draft.source ++ " -> " ++
+              Loam.CapacityPublisher.coordinateToken draft.destination ++
+              ". Effective: " ++ draft.effectiveOn ++ ".")
+      | .error message =>
+          -- Publication refusal is terminal: the caller reloads fresh Capacity.
+          return "Capacity transfer refused: " ++ message)
+    state frame
 
 end Loam.Tui.CapacityTransferSession
