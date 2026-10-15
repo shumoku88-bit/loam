@@ -90,14 +90,14 @@ cut, subject to writer-coverage and lifecycle qualifications.
 def paceFromQualifiedEffects
     (eligiblePool : Int) (remainingDays : Nat) (effects : List Nat) :
     Option Int :=
-  let protected : Int := Int.ofNat effects.sum
+  let protection : Int := Int.ofNat effects.sum
   let snapshot : Loam.CycleSpendingPaceReview.Snapshot := {
     observedAt := "2026-10-15"
     endExclusive := "2026-12-15"
     remainingDays := remainingDays
     eligiblePool := Quantity.ofQuanta eligiblePool
-    automaticDeductions := Quantity.ofQuanta protected
-    availableThroughEnd := Quantity.ofQuanta (eligiblePool - protected)
+    automaticDeductions := Quantity.ofQuanta protection
+    availableThroughEnd := Quantity.ofQuanta (eligiblePool - protection)
   }
   snapshot.dailyPaceQuanta?
 
