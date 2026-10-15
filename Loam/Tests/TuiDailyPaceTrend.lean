@@ -306,6 +306,51 @@ private def testPeriods : IO Unit := do
   expect (cursor.selected == some 25) "rapid reversal left scroll tail or lost events"
 
 /-- Cycle rollover may invalidate every history period while today's money remains known. -/
+private def testDayWiseUnknownGaps : IO Unit := do
+  let today := point "2026-10-15" 123
+  let entries : List Loam.DailyPacePeriods.DaySample := [
+    {day := "2026-10-13", answer := .ok (point "2026-10-13" 100)},
+    {day := "2026-10-14", answer :=
+      .error "2026-10-14: Scheduled was replaced without a learned-time coordinate"},
+    {day := "2026-10-15", answer := .ok today, source := .current}
+  ]
+  let world : Loam.Tui.Main.Snapshot := {
+    actual := {today := "2026-10-15", allRecords := []}
+    paceCurrent := .loaded today
+    pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
+      {preset
+       range := .ok {start := "2026-10-13", through := "2026-10-15"}
+       history := .failed "2026-10-14: Scheduled replacement has unknown time"
+       samples := entries})
+  }
+  for bounds in [({width := 48, height := 14} : Bounds),
+      {width := 80, height := 24}, {width := 120, height := 40}] do
+    let drawn := text (Loam.Tui.DailyPaceTrend.view bounds world)
+    expect (contains "123 jpy/day" drawn && contains "2/3 supported days" drawn)
+      "a missing past day erased a qualified present-day Daily Pace point"
+    expect (!contains "0 jpy/day" drawn && contains "points only" drawn)
+      "sparse history interpolated or invented zero for missing calendar day"
+    let initial : Loam.Tui.DailyPaceTrend.State := {}
+    let prior ← press bounds world initial .left
+    expect (prior.selected == some 1 && prior.selectedDay == some "2026-10-14")
+      "unknown day did not remain independently selectable"
+    let refused ← readDetails bounds world prior
+    expect (contains "unavailable,notzero" refused &&
+      contains "learned-timecoordinate" refused)
+      "missing day lost its exact refusal cause"
+    let first ← press bounds world prior .home
+    expect (first.selectedDay == some "2026-10-13")
+      "partial History Home compressed away qualified earlier days"
+    let back ← press bounds world first .«end»
+    expect (back.selectedDay == some "2026-10-15")
+      "partial History End did not reach today's admitted point"
+    let status ← readDetails bounds world back
+    expect (contains "currentadmittedtruth" status)
+      "current day was mislabeled as an as-known historical observation"
+    expect (match Loam.Tui.DailyPaceTrend.update bounds world back (.input 'q') with
+      | .back => true | _ => false)
+      "partial History lost q-return navigation"
+
 private def testIndependentCurrent : IO Unit := do
   let basePoint := point "2026-10-15" 24000
   let point1 : Loam.CycleSpendingPaceReview.Snapshot :=
@@ -440,6 +485,7 @@ private def testWhatIf : IO Unit := do
     "what-if modal lost projection, safeguard or nonpublication disclosure"
 
  def main : IO Unit := do
+  testDayWiseUnknownGaps
   testChangeDecomposition
   testIndependentCurrent
   testWhatIf
