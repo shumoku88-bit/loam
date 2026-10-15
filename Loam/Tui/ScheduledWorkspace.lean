@@ -781,7 +781,7 @@ def updateWithCoverageWithRepeat
                 { state := { state with planRow := target, notice := "" } }
         | .futureBoard => { state := followFutureBoardSelection snapshot (movePageDown snapshot state repeatCount) }
         | .list => { state := movePageDown snapshot state repeatCount }
-    | other => updateWithCoverage snapshot coverage rawState other
+    | ev => updateWithCoverage snapshot coverage rawState ev
 
 def updateWithRepeat (snapshot : Snapshot) (state : State) (event : Event) (repeatCount : Nat := 1) : Step :=
   updateWithCoverageWithRepeat snapshot (.error "coverage unavailable") state event repeatCount

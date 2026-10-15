@@ -312,7 +312,7 @@ Compose the existing Actual-backed Actual reader with this pure projection.
 No canonical interpretation is duplicated here.
 -/
 def loadSnapshot
-    (dataDir actualRoot : System.FilePath)
+    (_dataDir actualRoot : System.FilePath)
     (start endExclusive : String) : IO (Except String Snapshot) := do
   let records ←
     match ← Loam.ActualReview.loadRecordsFromActual actualRoot with

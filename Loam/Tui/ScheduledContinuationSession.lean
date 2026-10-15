@@ -318,7 +318,7 @@ Attention item with unknown due timing. Adding still uses the ordinary creation
 publisher and routing inheritance.
 -/
 def runAfterCompletion
-    (bounds : Bounds) (root : System.FilePath)
+    (_bounds : Bounds) (root : System.FilePath)
     (known : List String) (record : Loam.Tui.Main.ScheduledRecord)
     (effectiveOn : String) (loadCatalog : IO Loam.LocusCatalog.Catalog) : IO String := do
   let completed := completedNotice record

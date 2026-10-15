@@ -185,7 +185,7 @@ def editActive (form : Form) (edit : String → String) : Form :=
         else { row with amount := edit row.amount }
       { form with
         rows := form.rows.set index row,
-        focus := ⟨form.focus.val, by simpa using form.focus.isLt⟩ }
+        focus := ⟨form.focus.val, by simp [form.focus.isLt]⟩ }
     else form
 
 def activeLocus? (form : Form) : Option String := do

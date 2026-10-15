@@ -140,7 +140,7 @@ def updateWithRepeat (state : State) (event : Event) (repeatCount : Nat := 1) : 
         let count := (visibleRows state).length
         let newRow := if count == 0 then 0 else min (count - 1) (state.row + repeatCount)
         { state := { state with row := newRow, notice := "" } }
-    | other => update state other
+    | ev => update state ev
 
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]

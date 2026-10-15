@@ -353,7 +353,7 @@ private def extensionSuggestions
     }
 
 def run
-    (bounds : Bounds)
+    (_bounds : Bounds)
     (dataDir root : System.FilePath)
     (known : List String)
     (catalog : Loam.LocusCatalog.Catalog)
@@ -370,8 +370,8 @@ def run
   chooseCadence bounds root known catalog state frame
 
 def runWithCadence
-    (bounds : Bounds)
-    (dataDir root : System.FilePath)
+    (_bounds : Bounds)
+    (_dataDir root : System.FilePath)
     (known : List String)
     (catalog : Loam.LocusCatalog.Catalog)
     (source : Loam.Tui.Main.ScheduledRecord)

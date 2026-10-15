@@ -143,7 +143,7 @@ private def clampState (snapshot : Snapshot) (state : State) : State :=
 def refreshed (snapshot : Snapshot) (state : State) : State :=
   clampState snapshot { state with notice := "", detailScroll := 0 }
 
-private def movePrevious (snapshot : Snapshot) (state : State) : State :=
+private def movePrevious (_snapshot : Snapshot) (state : State) : State :=
   match state.pane with
   | .actual =>
       if state.actualRow = 0 then { state with notice := "No previous Actual row on this day." }
@@ -167,7 +167,7 @@ private def moveNext (snapshot : Snapshot) (state : State) : State :=
       else
         { state with notice := "No next Scheduled row on this day." }
 
-private def movePageUp (snapshot : Snapshot) (state : State) (pageSize : Nat := 8) : State :=
+private def movePageUp (_snapshot : Snapshot) (state : State) (pageSize : Nat := 8) : State :=
   match state.pane with
   | .actual =>
       if state.actualRow == 0 then { state with notice := "Top of Actual list." }
@@ -187,7 +187,7 @@ private def movePageDown (snapshot : Snapshot) (state : State) (pageSize : Nat :
       if count == 0 || state.scheduledRow + 1 >= count then { state with notice := "End of Scheduled list." }
       else { state with scheduledRow := min (count - 1) (state.scheduledRow + pageSize), notice := "" }
 
-private def moveHome (snapshot : Snapshot) (state : State) : State :=
+private def moveHome (_snapshot : Snapshot) (state : State) : State :=
   match state.pane with
   | .actual => { state with actualRow := 0, notice := "" }
   | .scheduled => { state with scheduledRow := 0, notice := "" }

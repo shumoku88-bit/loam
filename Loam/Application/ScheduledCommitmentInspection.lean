@@ -346,6 +346,7 @@ def actionableRows
 
 end ScheduledPressurePartition
 
+omit [DecidableEq Time] [LE Time] [DecidableRel (· ≤ · : Time → Time → Prop)] [Std.IsLinearOrder Time] in
 private theorem actionableRows_sum_eq
     (partition : ScheduledPressurePartition Time) :
     ((ScheduledPressurePartition.actionableRows partition).map
@@ -409,6 +410,7 @@ def currentScheduledCommitment?
         unresolvedEligibility := ScheduledPressurePartition.unresolvedEligibility partition
       }
 
+omit [Std.IsLinearOrder Time] in
 /--
 The query-global unmanaged frontier of the compatibility Commitment view is
 independent of the queried Purpose. The partition itself has no Purpose input.
@@ -470,6 +472,7 @@ def currentUnresolvedScheduledPressure?
       scheduled terminals events roles routing measure observedAt endExclusive).map
     ScheduledPressurePartition.unresolvedRows
 
+omit [Std.IsLinearOrder Time] in
 /--
 The retained invariant tying both granularities to the same semantics: the
 unresolved subject rows and aggregate unresolved eligibility frontier fail
@@ -531,6 +534,7 @@ def currentActionableScheduledPressure?
       scheduled terminals events roles routing measure observedAt endExclusive).map
     ScheduledPressurePartition.actionableRows
 
+omit [Std.IsLinearOrder Time] in
 /--
 The retained invariant tying actionable routing subjects to the unrouted and
 unresolved frontier. Both sides are projections of one classified partition.

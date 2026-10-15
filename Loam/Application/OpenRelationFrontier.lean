@@ -295,11 +295,7 @@ private theorem buildCoverageIndex_getD_eq_currentCoverageFor
       by_cases hSame :
           relation.sourceEvent = sourceRelation.sourceEvent ∧
             relation.sourceEffect = sourceRelation.sourceEffect
-      · have hKey :
-            ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) =
-              { event := sourceRelation.sourceEvent, effect := sourceRelation.sourceEffect } := by
-          simp [hSame.1, hSame.2]
-        simp [hKey, hSame]
+      · simp [hSame]
         exact ih
       · have hKey :
             ({ event := relation.sourceEvent, effect := relation.sourceEffect } : SourceKey) ≠
