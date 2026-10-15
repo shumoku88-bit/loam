@@ -140,16 +140,20 @@ private def contentRows (width : Nat) (state : State) : List Widget :=
         [ "Event Merchant / Edit"
         , "Target: " ++ state.target.token
         , "Description: " ++ descriptionText state
-        , "Disposition: " ++ choiceText state.choice
-        , match state.choice with
-          | .merchant => "Party id: " ++ state.partyInput
-          | .nonmerchant => "Party id: (not applicable)" ]
+        , "Disposition: " ++ choiceText state.choice ]
     | .preview =>
         [ "Event Merchant / Preview"
         , "Target remains: " ++ state.target.token
         , "Description: " ++ descriptionText state
         , "Proposed: " ++ proposalText state ]
-  labels.flatMap (wrappedRows width)
+  let details := labels.flatMap (wrappedRows width)
+  if state.mode == .editing then
+    (match state.choice with
+     | .merchant =>
+         [.row [span "Party id: " .muted,
+           Loam.Tui.Layout.inputSpan (width - 10) true state.partyInput]]
+     | .nonmerchant => [line "Party id: (not applicable)"]) ++ details
+  else details
 
 private def footerRows (bounds : Bounds) (state : State) : List Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds

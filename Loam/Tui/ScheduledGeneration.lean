@@ -267,11 +267,10 @@ private def customDateView (bounds : Bounds) (state : State) (value : String) : 
   let foot := footer bounds state
     (if bounds.width < 50 then "Enter next  Backspace  Esc" else
       "Enter continue  Backspace edit  Esc back")
-  let label := "Fill through (exclusive): "
+  let label := if bounds.width < 50 then "Fill through: " else "Fill through (exclusive): "
   let width := Loam.Tui.Layout.contentWidth bounds
-  let shown := if value.isEmpty then "_" else value
   let input := .row [span label .muted,
-    span (Loam.Tui.Layout.inputTail (width - Loam.Tui.Layout.displayWidth label) shown) .selected]
+    Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth label) true value]
   finish bounds
     ([clippedLine bounds (actionTitle state ++ " / Custom Fill Date"),
       clippedLine bounds ("Source: " ++ state.source.id.token ++ "  " ++ state.source.scheduledOn),

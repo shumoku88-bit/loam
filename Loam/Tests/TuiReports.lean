@@ -114,6 +114,82 @@ private def testReportsBalancesPrint (state : Loam.Tui.Reports.State) : IO Unit 
         contains "liability-unsupported" printed && contains "balance unsupported" printed)
         "Reports/Balances print omitted evidence qualifiers or unknown amounts"
 
+private def expectTextCaret (bounds : Bounds) (widget : Widget) (label : String) : IO Unit := do
+  let markers := widget.lines.flatten.filter Cell.caret
+  expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))
+    "report text mode lost its unique blank insertion cell"
+  let some (row, col) := Loam.Tui.Terminal.textCaretPosition? bounds 0 0
+      (Loam.Tui.Layout.contentWidth bounds) (Loam.Tui.Runtime.compileWidget widget)
+    | throw (IO.userError "report input caret was clipped out of live bounds")
+  let cells := widget.lines[row]?.getD []
+  expect (row < bounds.height && col < Loam.Tui.Layout.contentWidth bounds &&
+      contains label (String.ofList (cells.map Cell.glyph)))
+    "report caret escaped the focused field row"
+
+private def testReportTextCarets : IO Unit := do
+  let initial : Loam.Tui.Reports.State := Loam.Tui.Reports.initialForDate "2026-09-07"
+  let longText := "2026-09-07" ++ String.ofList (List.replicate 60 '8')
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 },
+      { width := 80, height := 24 }, { width := 120, height := 40 }] : List Bounds) do
+    for mode in ([.stockFlow, .transactionsFlow, .incomeExpense,
+        .budgetWindow, .multimeasureSpend] : List Loam.Tui.Reports.Mode) do
+      for focus in ([⟨0, by decide⟩, ⟨1, by decide⟩] : List (Fin 3)) do
+        let form : Loam.Tui.ReportWindow.Form := {
+          start := longText, endExclusive := longText, focus := focus }
+        let windowState : Loam.Tui.ReportWindow.State := { initial.window with form := form }
+        let state : Loam.Tui.Reports.State := { initial with mode := mode, window := windowState }
+        expectTextCaret bounds (Loam.Tui.Reports.viewForBounds bounds state)
+          (if focus.val == 0 then "Start:" else "End (exclusive):")
+        let edited := (Loam.Tui.Reports.update state .backspace).state
+        let retained := if focus.val == 0 then edited.window.form.start else edited.window.form.endExclusive
+        expect (retained == Loam.Tui.Terminal.backspaceText longText)
+          "report date Backspace changed or truncated the retained draft"
+        let pasted := (Loam.Tui.Reports.update edited (.paste "2026-10-31")).state
+        expect (pasted.window.form == edited.window.form)
+          "report caret migration changed historical unsupported paste semantics"
+        for display in ([.summary, .monthly, .daily] : List Loam.Tui.Reports.IncomeExpenseDisplay) do
+          if mode == .incomeExpense then
+            let daily : Loam.Tui.Reports.State := { state with incomeExpenseDisplay := display }
+            expectTextCaret bounds (Loam.Tui.Reports.viewForBounds bounds daily)
+              (if focus.val == 0 then "Start:" else "End (exclusive):")
+            if let some prepared := Loam.Tui.Reports.prepareScrollView? bounds daily then
+              expectTextCaret bounds (Loam.Tui.Reports.viewPreparedScroll bounds daily prepared)
+                (if focus.val == 0 then "Start:" else "End (exclusive):")
+        let actionForm : Loam.Tui.ReportWindow.Form := { state.window.form with focus := ⟨2, by decide⟩ }
+        let actionWindow : Loam.Tui.ReportWindow.State := { state.window with form := actionForm }
+        let action : Loam.Tui.Reports.State := { state with window := actionWindow }
+        expect (!(Loam.Tui.Reports.viewForBounds bounds action).lines.flatten.any Cell.caret)
+          "Run action incorrectly advertised report text entry"
+    for mode in ([.stockFlowCompare, .incomeExpenseCompare] : List Loam.Tui.Reports.Mode) do
+      for (focus, label) in
+          ([(⟨0, by decide⟩, "Left start"), (⟨1, by decide⟩, "Left end"),
+            (⟨2, by decide⟩, "Right start"), (⟨3, by decide⟩, "Right end")] :
+              List (Fin 5 × String)) do
+        let comp : Loam.Tui.ReportComparison.State := { initial.comparison with
+          leftStart := longText,
+          leftEndExclusive := longText,
+          rightStart := longText,
+          rightEndExclusive := longText,
+          focus := focus }
+        let state : Loam.Tui.Reports.State := { initial with mode := mode, comparison := comp }
+        expectTextCaret bounds (Loam.Tui.Reports.viewForBounds bounds state) label
+        let actionComp : Loam.Tui.ReportComparison.State := { state.comparison with focus := ⟨4, by decide⟩ }
+        let action : Loam.Tui.Reports.State := { state with comparison := actionComp }
+        expect (!(Loam.Tui.Reports.viewForBounds bounds action).lines.flatten.any Cell.caret)
+          "Run comparison action incorrectly advertised text entry"
+    let liqForm : Loam.Tui.Reports.LiquidityForm := {
+      assumedCompleteThrough := longText, focus := ⟨0, by decide⟩ }
+    let liquidity : Loam.Tui.Reports.State := { initial with mode := .liquidity, liquidityForm := liqForm }
+    expectTextCaret bounds (Loam.Tui.Reports.viewForBounds bounds liquidity) "Assume Scheduled"
+    let runLiqForm : Loam.Tui.Reports.LiquidityForm := { liquidity.liquidityForm with focus := ⟨1, by decide⟩ }
+    let run : Loam.Tui.Reports.State := { liquidity with liquidityForm := runLiqForm }
+    expect (!(Loam.Tui.Reports.viewForBounds bounds run).lines.flatten.any Cell.caret)
+      "conditional Run action incorrectly advertised date entry"
+    for mode in ([.balances, .locusTrendCompare] : List Loam.Tui.Reports.Mode) do
+      let modeState : Loam.Tui.Reports.State := { initial with mode := mode }
+      expect (!(Loam.Tui.Reports.viewForBounds bounds modeState).lines.flatten.any Cell.caret)
+        "read-only report advertised text entry"
+
 /--
 Short-terminal overlay editor coverage stays separate from the already large
 Reports smoke body, keeping Lean elaboration of that body bounded.
@@ -126,12 +202,13 @@ private def testCompactTrendOverlay
       state
   -- UI-25: overlay fields must be usable even where the full chart header
   -- would push the session-only editor and its cancellation help off-screen.
-  let longOverlayName := "abcdefghijklmnopqrstuvwxyz123456"
+  let longOverlayName := "日本語の長い入力をそのまま保持する日本語の長い入力"
   let compactNamed := typeChars overlayStarted longOverlayName
   let compactDays := (Loam.Tui.Reports.update compactNamed .enter).state
   let longOverlayDays := "3 4 6 8 9 12 15 20 22 26 27 28"
   let compactTyped := typeChars compactDays longOverlayDays
-  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 }] : List Bounds) do
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 },
+      { width := 80, height := 24 }, { width := 120, height := 40 }] : List Bounds) do
     let opened := Loam.Tui.Reports.viewForBounds bounds overlayStarted
     let openedText := widgetText opened
     expect (contains "Trend / Overlay" openedText &&
@@ -142,26 +219,17 @@ private def testCompactTrendOverlay
         !contains "Trend   daily amount" openedText &&
         opened.lines.length <= bounds.height)
       "compact Trend overlay obscured the active fields or session-only boundary"
-    let namedText := widgetText
-      (Loam.Tui.Reports.viewForBounds bounds compactNamed)
-    let nameTail :=
-      Loam.Tui.Layout.inputTail
-        (Loam.Tui.Layout.contentWidth bounds - 8) longOverlayName
-    expect (contains nameTail namedText &&
-        compactNamed.trendCompare.overlayDraft.any
-          (fun draft => draft.name == longOverlayName && !draft.editingDays))
-      "compact Trend overlay lost the edited Name tail or retained draft"
+    let namedWidget := Loam.Tui.Reports.viewForBounds bounds compactNamed
+    expectTextCaret bounds namedWidget "Name"
+    expect (compactNamed.trendCompare.overlayDraft.any
+        (fun draft => draft.name == longOverlayName && !draft.editingDays))
+      "Trend overlay presentation changed the retained CJK draft"
     let daysWidget := Loam.Tui.Reports.viewForBounds bounds compactTyped
-    let daysText := widgetText daysWidget
-    let daysTail :=
-      Loam.Tui.Layout.inputTail
-        (Loam.Tui.Layout.contentWidth bounds - 8) longOverlayDays
-    expect (contains daysTail daysText &&
-        contains "Enter next/apply" daysText &&
-        compactTyped.trendCompare.overlayDraft.any
-          (fun draft => draft.daysText == longOverlayDays && draft.editingDays) &&
+    expectTextCaret bounds daysWidget "Days"
+    expect (compactTyped.trendCompare.overlayDraft.any
+        (fun draft => draft.daysText == longOverlayDays && draft.editingDays) &&
         daysWidget.lines.length <= bounds.height)
-      "compact Trend overlay lost the edited Days tail or confirmation help"
+      "Trend overlay presentation changed the retained Days draft"
     expect (widgetLineTexts daysWidget |>.all fun text =>
         Loam.Tui.Layout.displayWidth text <= Loam.Tui.Layout.contentWidth bounds)
       "compact Trend overlay emitted rows wider than terminal content bounds"
@@ -171,6 +239,9 @@ private def testCompactTrendOverlay
         compactCancelled.state.trendCompare &&
       compactCancelled.state.trendCompare.selected == selected)
     "compact Trend overlay cancellation changed the series selection or query"
+  expect (!(Loam.Tui.Reports.viewForBounds { width := 80, height := 24 }
+    compactCancelled.state).lines.flatten.any Cell.caret)
+    "Trend overlay cancellation retained a stale input caret"
 
 /--
 UI-25 short-terminal graph coverage is separate from the large Reports test
@@ -233,6 +304,7 @@ def main : IO Unit := do
     "Reports retained the retired screen-copy or terminal-selection hint"
 
   testBoundedPrint
+  testReportTextCarets
 
   let styledCells : List Cell :=
     [ { glyph := 'a', style := .normal }
@@ -941,11 +1013,8 @@ def main : IO Unit := do
     "Trend Day did not expose the session-overlay entrance"
 
   let overlayStarted := (Loam.Tui.Reports.update viewportReport (.input 'o')).state
-  let overlayStartText := widgetText
-    (Loam.Tui.Reports.viewForBounds compareBounds overlayStarted)
   expect (Loam.Tui.LocusTrendComparePane.isOverlayEditing overlayStarted.trendCompare &&
-      contains "Overlay   session only" overlayStartText &&
-      contains "Sep 2026" overlayStartText)
+      overlayStarted.trendCompare.overlayDraft.any (fun draft => draft.month == "2026-09"))
     "Trend overlay did not open on the selected Day month as session-only presentation"
 
   let typeChars := fun (state : Loam.Tui.Reports.State) (text : String) =>

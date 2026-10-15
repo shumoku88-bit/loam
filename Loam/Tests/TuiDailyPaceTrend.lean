@@ -284,6 +284,22 @@ private def testWhatIf : IO Unit := do
       "what-if floating/compact view escaped visible terminal geometry"
     expect (contains "Daily Pace / What if" (text view))
       "what-if lost its screen title on resize"
+  for bounds in [({width := 32, height := 9} : Bounds), {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] do
+    for amount in ["", "123456789012345678"] do
+      let input := {editor with amount}
+      let widget := Loam.Tui.DailyPaceWhatIf.viewForBounds bounds world input
+      let markers := widget.lines.flatten.filter (·.caret)
+      expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))
+        "What-if amount lost its safe insertion blank during resize"
+      expect (widget.lines.any fun cells => cells.any (·.caret) &&
+        contains "Purchase (JPY):" (String.ofList (cells.map Cell.glyph)))
+        "What-if caret escaped its amount field"
+      expect (match Loam.Tui.DailyPaceWhatIf.update input .enter with
+        | .stay retained => retained.amount == amount | .back => false)
+        "What-if resized field changed bytes on Enter"
+    expect (!(Loam.Tui.DailyPaceTrend.view bounds world {}).lines.flatten.any (·.caret))
+      "Daily Pace navigation displayed a text caret"
   let visible := text (Loam.Tui.DailyPaceWhatIf.viewForBounds
     {width := 120, height := 40} world editor)
   expect (contains "800 jpy/day" visible &&

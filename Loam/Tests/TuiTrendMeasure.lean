@@ -61,5 +61,37 @@ def main : IO Unit := do
     "Trend did not apply USD Measure identity, symbol, and decimal presentation"
   expect (!(contains "¥" text) && !(contains " jpy" text))
     "USD Trend leaked the historical JPY presentation"
+  let draft : Loam.Tui.LocusTrendComparePane.OverlayDraft := {
+    month := "2026-09",
+    name := "日本語の観測",
+    daysText := "3 4 6 8 9",
+    editingDays := false
+  }
+  let overlay := { report with trendCompare := { report.trendCompare with
+    overlayDraft := some draft } }
+  let days := (Loam.Tui.Reports.update overlay .tab).state
+  let backspaced := (Loam.Tui.Reports.update days .backspace).state
+  let pasted := (Loam.Tui.Reports.update backspaced (.paste "12")).state
+  expect (pasted.trendCompare.overlayDraft == backspaced.trendCompare.overlayDraft &&
+      backspaced.trendCompare.overlayDraft.any (fun draft => draft.daysText == "3 4 6 8 "))
+    "Trend caret migration changed historical paste/Backspace input semantics"
+  let cancelled := (Loam.Tui.Reports.update backspaced .escape).state
+  expect (cancelled.measure == usd && cancelled.trendCompare.snapshot == report.trendCompare.snapshot &&
+      cancelled.trendCompare.selected == report.trendCompare.selected &&
+      cancelled.trendCompare.overlayDraft.isNone)
+    "Trend overlay return changed the read-only configured Measure context"
+  for terminal in ([{ width := 32, height := 9 }, { width := 48, height := 14 },
+      { width := 80, height := 24 }, { width := 120, height := 40 }] : List Bounds) do
+    for editing in [overlay, days, backspaced] do
+      let frame := Loam.Tui.Reports.viewForBounds terminal editing
+      expect ((frame.lines.flatten.filter Cell.caret).length == 1 &&
+          (Loam.Tui.Terminal.textCaretPosition? terminal 0 0
+            (Loam.Tui.Layout.contentWidth terminal) (Loam.Tui.Runtime.compileWidget frame)).isSome)
+        "configured-Measure Trend overlay lost its live insertion anchor"
+    expect (!(Loam.Tui.Reports.viewForBounds terminal cancelled).lines.flatten.any Cell.caret)
+      "Trend chart retained a stale overlay insertion anchor"
+    let picker := { report with trendCompare := { report.trendCompare with pickerOpen := true } }
+    expect (!(Loam.Tui.Reports.viewForBounds terminal picker).lines.flatten.any Cell.caret)
+      "navigation-only Trend series picker advertised text entry"
 
   IO.println "TUI Trend Measure: configured USD identity and decimal presentation passed."

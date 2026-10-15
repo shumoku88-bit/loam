@@ -166,5 +166,20 @@ def main : IO Unit := do
   let input := { longState with amount := String.ofList (List.replicate 70 '8') }
   expect (contains "…888" (widgetText (Loam.Tui.ScheduledBulkEdit.view tiny input)))
     "narrow parameter input clipped the insertion end instead of keeping it visible"
+  for bounds in ([{width := 32, height := 9}, {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] : List Bounds) do
+    for focus in List.range 3 do
+      let focused := {input with focus := focus}
+      let widget := Loam.Tui.ScheduledBulkEdit.view bounds focused
+      let rows := widget.lines.filter (fun row => row.any (·.caret))
+      expect (rows.length == 1 && (widget.lines.flatten.filter (·.caret)).length == 1)
+        "bulk edit parameter focus did not retain exactly one insertion anchor"
+      expect ((rows.head!).any fun cell => cell.caret && cell.glyph == ' ')
+        "bulk edit insertion anchor was not a blank field cell"
+    for hidden in [selection, preview] do
+      expect (!(Loam.Tui.ScheduledBulkEdit.view bounds hidden).lines.flatten.any (·.caret))
+        "bulk selection/review incorrectly exposed a text caret"
+    expect ((Loam.Tui.ScheduledBulkEdit.view bounds parameters).lines.flatten.any (·.caret))
+      "bulk review-to-parameters return lost the input anchor"
 
   IO.println "Scheduled bulk edit TUI: advisory candidates, explicit checks/range, safe preview, exception/no-op/split behavior, exact decimal amounts and bounded viewports passed."

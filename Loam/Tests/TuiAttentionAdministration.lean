@@ -236,6 +236,27 @@ private def testBoundedPresentation : IO Unit := do
 def main : IO Unit := do
   testBoundedPresentation
   let admin0 := Loam.Tui.AttentionAdministration.initial .unavailable "2026-09-16"
+  let longInput := String.ofList (List.replicate 100 '界') ++ "-tail"
+  for bounds in [({width := 32, height := 9} : Bounds), {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] do
+    for (mode, label, active) in [
+        (Loam.Tui.AttentionAdministration.Mode.newContext longInput, "Context", true),
+        (.newDate longInput "2026-10-01", "Due date", true),
+        (.newDue longInput, "", false), (.browse, "", false),
+        (.confirmClose due.id .resolved, "", false)] do
+      let state := {admin0 with mode}
+      let widget := Loam.Tui.AttentionAdministrationSession.modalViewForBounds bounds state
+      let markers := widget.lines.flatten.filter (·.caret)
+      expect (markers.length == (if active then 1 else 0) &&
+          markers.all (fun cell => cell.glyph == ' '))
+        "Attention text mode lost its insertion blank or navigation acquired a caret"
+      if active then
+        expect (widget.lines.any fun cells => cells.any (·.caret) &&
+          contains label (String.ofList (cells.map Cell.glyph)))
+          "Attention caret escaped its labeled field"
+      let cancel := Loam.Tui.AttentionAdministration.updateForBounds bounds state .escape
+      expect (cancel.add.isNone && cancel.close.isNone)
+        "Attention marker/layout emitted a publication on cancel"
   let adminText := widgetText (Loam.Tui.AttentionAdministration.view admin0)
   expect (contains "No canonical Attention stream yet" adminText && !contains "0 open" adminText)
     "administration hid the unavailable bootstrap state or relabelled it as zero open"

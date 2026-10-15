@@ -46,15 +46,6 @@ private inductive Surface where
   | floating (geometry : FloatingGeometry)
 
 
-private def placeFocusCursor
-    (bounds : Bounds) (surface : Surface) (state : Loam.Tui.Record.State)
-    (frame : CompiledWidget) : IO Unit := do
-  let rectangle := match surface with
-    | .full => none
-    | .floating geometry => some geometry
-  Loam.Tui.ModalSurface.placeTextCaret bounds rectangle
-    (Loam.Tui.Record.isTextEditing state) frame
-
 private def surfaceBounds (bounds : Bounds) (surface : Surface) : Bounds :=
   match surface with
   | .full => bounds
@@ -78,14 +69,12 @@ private def frameFor
       compileWidget (floatingRecordView geometry known state)
 
 private def redraw
-    (bounds : Bounds) (surface : Surface) (state : Loam.Tui.Record.State)
+    (bounds : Bounds) (surface : Surface)
     (old new : CompiledWidget) : IO Unit := do
   let geometry? := match surface with
     | .full => none
     | .floating geometry => some geometry
-  Loam.Tui.ModalSurface.hideTextCaret
   Loam.Tui.ModalSurface.paint bounds geometry? .dirtyDiff old new
-  placeFocusCursor bounds surface state new
 
 private partial def runWithSurface
     (bounds : Bounds) (surface : Surface)
@@ -108,10 +97,8 @@ private partial def runWithSurface
           List.replicate geometry.top (.row []) ++
           next.lines.toList.map fun cells =>
             Widget.row ([span (Loam.Tui.Layout.padRight geometry.left "")] ++
-              cells.toList.map (fun cell => span (String.singleton cell.glyph) cell.style))))
-    Loam.Tui.ModalSurface.hideTextCaret
+              cells.toList.map Cell.toSpan)))
     Loam.Tui.Terminal.redrawFromBlank active screen
-    placeFocusCursor active nextSurface state next
     pure (active, nextSurface, next)
   -- A short-read timeout carries no editing intent. Keep the compiled frame and
   -- caret instead of rebuilding the editor and emitting a cursor move every tick.
@@ -128,12 +115,12 @@ private partial def runWithSurface
     | .error message =>
         let next := Loam.Tui.UnresolvedActivation.withEnableError step.state message
         let nextFrame := frameFor bounds surface known next
-        redraw bounds surface next frame nextFrame
+        redraw bounds surface frame nextFrame
         -- Activation can publish policy before its subsequent reload fails.
         runWithSurface bounds surface root world known next nextFrame true
     | .ok enabled =>
         let nextFrame := frameFor bounds surface enabled.known enabled.editor
-        redraw bounds surface enabled.editor frame nextFrame
+        redraw bounds surface frame nextFrame
         runWithSurface bounds surface root enabled.world enabled.known enabled.editor nextFrame true
   else
     match step.publish with
@@ -159,12 +146,12 @@ private partial def runWithSurface
               notice := message
             }
             let nextFrame := frameFor bounds surface known next
-            redraw bounds surface next frame nextFrame
+            redraw bounds surface frame nextFrame
             -- Keep the conservative reload after any attempted publication.
             runWithSurface bounds surface root world known next nextFrame true
     | none =>
         let nextFrame := frameFor bounds surface known step.state
-        redraw bounds surface step.state frame nextFrame
+        redraw bounds surface frame nextFrame
         runWithSurface bounds surface root world known step.state nextFrame requiresReload
 
 /-- Run one Record editor session and return its human-facing completion notice. -/
@@ -172,9 +159,7 @@ partial def run
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.Record.State) (frame : CompiledWidget) : IO Result :=
-  Loam.Tui.ModalSurface.withTextCaret do
-    placeFocusCursor bounds .full state frame
-    runWithSurface bounds .full root world known state frame
+  runWithSurface bounds .full root world known state frame
 
 /--
 Open Record over the currently visible surface when the terminal is large enough.
@@ -184,20 +169,17 @@ fresh destination after Record completes.
 def runAdaptive
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.Record.State) (background : CompiledWidget) : IO Result :=
-  Loam.Tui.ModalSurface.withTextCaret do
-    match floatingGeometry? bounds with
-    | none =>
-        let frame := frameFor bounds .full known state
-        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 background frame
-        placeFocusCursor bounds .full state frame
-        runWithSurface bounds .full root world known state frame
-    | some geometry =>
-        let surface := Surface.floating geometry
-        let frame := frameFor bounds surface known state
-        let blank := compileWidget (.row [])
-        Loam.Tui.ModalSurface.paint bounds (some geometry) .dirtyDiff blank frame
-        placeFocusCursor bounds surface state frame
-        runWithSurface bounds surface root world known state frame
+    (state : Loam.Tui.Record.State) (background : CompiledWidget) : IO Result := do
+  match floatingGeometry? bounds with
+  | none =>
+      let frame := frameFor bounds .full known state
+      Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 background frame
+      runWithSurface bounds .full root world known state frame
+  | some geometry =>
+      let surface := Surface.floating geometry
+      let frame := frameFor bounds surface known state
+      let blank := compileWidget (.row [])
+      Loam.Tui.ModalSurface.paint bounds (some geometry) .dirtyDiff blank frame
+      runWithSurface bounds surface root world known state frame
 
 end Loam.Tui.RecordSession

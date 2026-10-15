@@ -78,6 +78,29 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "reversal editor rejected practical Actual")
   expect (editor.target == recorded && editor.inputDate == "2026-09-08")
     "reversal editor did not keep selected target and today as independent coordinates"
+  for bounds in [({width := 32, height := 9} : Loam.Tui.Kernel.Bounds),
+      {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 40}] do
+    let widget := Loam.Tui.ActualReversal.viewForBounds bounds editor
+    let markers := widget.lines.flatten.filter (·.caret)
+    expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))
+      "Reversal date editing lost its insertion blank during resize"
+    expect (widget.lines.any fun cells => cells.any (·.caret) &&
+      contains "Reversal date:" (String.ofList (cells.map (·.glyph))))
+      "Reversal caret escaped its date field"
+    let preview := Loam.Tui.ActualReversal.update editor .enter
+    expect (preview.publish.isNone &&
+      !(Loam.Tui.ActualReversal.viewForBounds bounds preview.state).lines.flatten.any (·.caret))
+      "Reversal preview published early or retained a caret"
+    let returned := Loam.Tui.ActualReversal.update preview.state .escape
+    let refused := Loam.Tui.ActualReversal.withPublishError preview.state "Refused"
+    for editing in [returned.state, refused] do
+      expect (editing.inputDate == editor.inputDate &&
+        ((Loam.Tui.ActualReversal.viewForBounds bounds editing).lines.flatten.filter (·.caret)).length == 1)
+        "Reversal return/refusal lost draft or focused input"
+    expect ((Loam.Tui.ActualReversal.update editor (.paste "ignored")).state.inputDate == editor.inputDate)
+      "Reversal changed historically unsupported paste"
+    let cancel := Loam.Tui.ActualReversal.update editor .escape
+    expect (cancel.cancel && cancel.publish.isNone) "Reversal cancellation emitted a write"
   for bounds in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
       { width := 80, height := 24 }, { width := 120, height := 40 }] do
     let widget := Loam.Tui.ActualReversal.view bounds editor

@@ -90,11 +90,56 @@ def ansiStyle : Style → String
 def cursorTo (row col : Nat) : String :=
   "\x1b[" ++ toString (row + 1) ++ ";" ++ toString (col + 1) ++ "H"
 
-/-- Move the cursor inside freshly queried tty bounds, retaining the auto-wrap margin. -/
-def placeCursor (row col : Nat) : IO Unit := do
-  let bounds ← currentBounds
-  IO.print (cursorTo (min row (bounds.height - 1))
-    (min col (Loam.Tui.Layout.contentWidth bounds - 1)))
+/--
+Resolve the unique semantic insertion cell that survives the actual output
+rectangle. A clipped/ambiguous marker is hidden, never clamped onto other cells.
+-/
+def textCaretPosition? (bounds : Bounds) (top left width : Nat)
+    (frame : CompiledWidget) : Option (Nat × Nat) := Id.run do
+  let available := min width (Loam.Tui.Layout.contentWidth bounds - left)
+  if available == 0 then return none
+  let mut found : Option (Nat × Nat) := none
+  for row in [0:frame.lines.size] do
+    if top + row >= bounds.height then break
+    let mut col := 0
+    for cell in frame.lines[row]! do
+      let advance := Loam.Tui.Layout.charWidth cell.glyph
+      if col + advance > available then break
+      if cell.caret then
+        if cell.glyph != ' ' || found.isSome then return none
+        found := some (top + row, left + col)
+      col := col + advance
+  return found
+
+initialize textCaretRef : IO.Ref (Option (Nat × Nat)) ← IO.mkRef none
+
+private def hideTextCaret : IO Unit := do
+  if (← textCaretRef.get).isSome then
+    IO.print "\x1b[?25l"
+    textCaretRef.set none
+
+private def restoreTextCaret (position : Option (Nat × Nat)) : IO Unit := do
+  if position == (← textCaretRef.get) then return
+  match position with
+  | none => hideTextCaret
+  | some (row, col) =>
+      IO.print (cursorTo row col)
+      IO.print "\x1b[?25h"
+      textCaretRef.set position
+
+/-- All frame output, not individual sessions, owns the terminal caret lifecycle. -/
+private def emitPaint (bounds : Bounds) (anchor : Option (Nat × Nat))
+    (output : String) (clear : Bool := false) : IO Unit := do
+  let painting := clear || !output.isEmpty
+  if !painting && anchor == (← textCaretRef.get) then return
+  if painting then hideTextCaret
+  if clear then IO.print "\x1b[2J\x1b[H"
+  if !output.isEmpty then IO.print output
+  -- Rendering and final cursor placement can straddle a physical tty shrink.
+  let live ← if painting then visibleBounds bounds else pure bounds
+  let anchor := anchor.filter fun (row, col) =>
+    row < live.height && col < Loam.Tui.Layout.contentWidth live
+  restoreTextCaret anchor
   (← IO.getStdout).flush
 
 private def sameStyleRun
@@ -146,7 +191,7 @@ private def clipSpanLine : List Span → Nat → List Span
       let fullWidth := Loam.Tui.Layout.displayWidth run.text
       let current :=
         if clipped.isEmpty then []
-        else [{ run with text := clipped }]
+        else [{ run with text := clipped, caret := run.caret && clipped == run.text }]
       if clippedWidth < fullWidth then
         current
       else
@@ -167,8 +212,7 @@ construction, previous-frame comparison, or dirty-row discovery. Every physical
 row is overwritten and cleared, matching the deliberately simple full-redraw
 shape used for the Reports renderer experiment.
 -/
-def directFrameAnsi (bounds : Bounds) (widget : Widget) : String :=
-  let rows := widgetSpanLines widget
+private def directRowsAnsi (bounds : Bounds) (rows : List (List Span)) : String :=
   let available := Loam.Tui.Layout.contentWidth bounds
   if available == 0 then "" else
   String.intercalate "" <|
@@ -179,11 +223,33 @@ def directFrameAnsi (bounds : Bounds) (widget : Widget) : String :=
         | some spans => renderSpansAnsi available spans
       cursorTo row 0 ++ content ++ "\x1b[0m\x1b[K"
 
-/-- Overwrite the complete visible terminal from semantic Widget spans. -/
+def directFrameAnsi (bounds : Bounds) (widget : Widget) : String :=
+  directRowsAnsi bounds (widgetSpanLines widget)
+
+/-- Direct span rendering retains the same marker contract without Cell expansion. -/
+private def directCaretPosition? (bounds : Bounds)
+    (rows : List (List Span)) : Option (Nat × Nat) := Id.run do
+  let available := Loam.Tui.Layout.contentWidth bounds
+  let mut found : Option (Nat × Nat) := none
+  let mut row := 0
+  for runs in rows do
+    if row >= bounds.height then break
+    let mut col := 0
+    for run in runs do
+      let advance := Loam.Tui.Layout.displayWidth run.text
+      if col + advance > available then break
+      if run.caret then
+        if !run.text.endsWith " " || advance == 0 || found.isSome then return none
+        found := some (row, col + advance - 1)
+      col := col + advance
+    row := row + 1
+  return found
+
+/-- Overwrite the visible tty from spans, using the same physical caret owner. -/
 def redrawWidgetDirect (bounds : Bounds) (widget : Widget) : IO Unit := do
   let bounds ← visibleBounds bounds
-  IO.print (directFrameAnsi bounds widget)
-  (← IO.getStdout).flush
+  let rows := widgetSpanLines widget
+  emitPaint bounds (directCaretPosition? bounds rows) (directRowsAnsi bounds rows)
 
 private def dirtyRowAnsi
     (bounds : Bounds) (top left : Nat)
@@ -231,8 +297,8 @@ def emitDirtyRegion
     (bounds : Bounds) (top left width : Nat)
     (old new : CompiledWidget) : IO Unit := do
   let bounds ← visibleBounds bounds
-  IO.print (dirtyRegionAnsi bounds top left width old new)
-  (← IO.getStdout).flush
+  emitPaint bounds (textCaretPosition? bounds top left width new)
+    (dirtyRegionAnsi bounds top left width old new)
 
 /--
 Emit only structurally changed rows. The semantic reconstruction theorem remains
@@ -240,20 +306,25 @@ in `Loam.Tui.Runtime`; ANSI and terminal glyph advance are the physical boundary
 Rows are clipped by physical terminal columns before emission so a long surface
 line can never arm terminal auto-wrap and spill into the following TUI row.
 -/
-def emitDirtyDiff (bounds : Bounds) (top left : Nat)
-    (old new : CompiledWidget) : IO Unit := do
+private def emitDiff (bounds : Bounds) (top left : Nat)
+    (old new : CompiledWidget) (clear : Bool) : IO Unit := do
   let bounds ← visibleBounds bounds
   let output :=
     String.intercalate "" <|
       (dirtyRows bounds top old new).map fun row =>
         dirtyRowAnsi bounds top left new row
-  IO.print output
-  (← IO.getStdout).flush
+  emitPaint bounds
+    (textCaretPosition? bounds top left (Loam.Tui.Layout.contentWidth bounds - left) new)
+    output clear
+
+/-- Emit a clipped diff and resolve its semantic input marker, even on a clean frame. -/
+def emitDirtyDiff (bounds : Bounds) (top left : Nat)
+    (old new : CompiledWidget) : IO Unit :=
+  emitDiff bounds top left old new false
 
 /-- Clear the physical screen and redraw one compiled frame from an empty structural baseline. -/
-def redrawFromBlank (bounds : Bounds) (frame : CompiledWidget) : IO Unit := do
-  IO.print "\x1b[2J\x1b[H"
-  emitDirtyDiff bounds 0 0 (compileWidget (.row [])) frame
+def redrawFromBlank (bounds : Bounds) (frame : CompiledWidget) : IO Unit :=
+  emitDiff bounds 0 0 (compileWidget (.row [])) frame true
 
 /-- Refresh presentation geometry and its diff baseline without reloading household evidence. -/
 def refreshFrame (bounds : Bounds) (frame : CompiledWidget)
@@ -607,6 +678,7 @@ def setButtonMotion (enabled : Bool) : IO Unit := do
 
 def enter : IO Unit := do
   resetInputBuffer
+  textCaretRef.set none
   -- Extended tty editing can consume Ctrl-O (VDISCARD on macOS) before readKey.
   -- The TUI, not the line discipline, owns editor control-key interpretation.
   setTerminalMode "-echo -icanon -iexten min 0 time 1"
@@ -617,6 +689,7 @@ def enter : IO Unit := do
 
 def leave : IO Unit := do
   resetInputBuffer
+  textCaretRef.set none
   IO.print "\x1b[0m\x1b[?2004l\x1b[?1003l\x1b[?1002l\x1b[?1006l\x1b[?1000l\x1b[?25h\x1b[?7h\x1b[?1049l"
   (← IO.getStdout).flush
   setTerminalMode "sane"

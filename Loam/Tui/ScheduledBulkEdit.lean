@@ -181,10 +181,9 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
           ("Through (inclusive): ", state.throughDate)]
         let rows := fields.zipIdx.map fun ((label, value), index) =>
           let fieldPrefix := (if index == state.focus then "> " else "  ") ++ label
-          Widget.row [span (Loam.Tui.Layout.clip width
-            (fieldPrefix ++ Loam.Tui.Layout.inputTail
-              (width - Loam.Tui.Layout.displayWidth fieldPrefix) value))
-            (if index == state.focus then .selected else .normal)]
+          let labelWidth := min (Loam.Tui.Layout.displayWidth fieldPrefix) (width / 2)
+          Widget.row [span (Loam.Tui.Layout.padRight labelWidth fieldPrefix) .muted,
+            Loam.Tui.Layout.inputSpan (width - labelWidth) (index == state.focus) value]
         (header ++
           (if compact then [] else [muted ("Reference: " ++ recordText state state.source)]) ++
           rows ++

@@ -1355,30 +1355,48 @@ footer; row limits, exact candidate acceptance, and publication rules are unchan
 
 #### Text caret and Japanese IME boundary (#1992)
 
-Record and Actual Correction explicitly opt into `ModalSurface`'s shared text
-caret contract. After entry, editing, focus changes, Original amount return and
-resize, the cursor is positioned at the painted selected text's insertion end
-and shown. Actions, Preview, vocabulary confirmation and session exit hide it;
-exception cleanup also restores the browsing policy. Idle timeouts do not repaint
-or emit cursor moves. Input-tail display reserves an insertion cell before a
-field's border; at 32×9 the field frame is folded away to retain the active input.
-Stored strings, validation and publication semantics are unchanged.
+Terminal output, not individual sessions, owns the caret lifecycle across all
+production editors. `Layout.inputSpan` constructs semantic input fields with
+dedicated insertion cells, preserving caret metadata through clipping, framing,
+and side-by-side assembly. When a field is focused and active, `Terminal.lean`
+emits `\x1b[?25h` at the painted insertion point; during repaints, menu browsing,
+confirmation dialogues, and idle intervals, the caret is hidden with `\x1b[?25l`.
+Zero-width, offscreen, and clipped regions suppress stale caret markers without
+emitting unnecessary escape churn.
 
-Final cursor moves recheck the live tty; stale offscreen text anchors are hidden
-until the next resize repaint. Dirty output emits nothing for zero-width or
-entirely offscreen rectangles and clips partial rectangles without clearing
-unrelated parent cells. A resize immediately after the final ioctl cannot be
-excluded atomically by this terminal protocol.
+#### Production text-input inventory
 
-Synthetic `TuiRecord`, `TuiCorrection`, `TuiInputEdit`, `TuiTextFieldGeometry`,
-Record PTY and native TerminalProbe coverage distinguish committed UTF-8/CJK
-input from **uncommitted OS IME preedit**. The Record PTY covers 32×9, 48×14,
-80×24 and 120×40, focus, long tails, nested mode return, cancellation and idle
-output; the terminal probe stages shrink between paint and final cursor movement.
-Correction already shares Record's actual field geometry, so it adopts the same
-contract instead of retaining its own cursor logic. Scheduled replacement was
-also inspected: its adaptive EditorSession paints without an opted-in text caret.
-It, Attention and other editors are not covered by this IME remedy.
+| Owner | Class | Audited Renderers | Entrance / Purpose | Regression Test |
+| :--- | :--- | :--- | :--- | :--- |
+| `Record` | text | `Record` | Home `r`, Actual `r`, Scheduled `c` | `tests/test_actual_detail_pty.py` |
+| `ScheduledCompletion` | text | `ScheduledCompletion` | Scheduled `c` | `tests/test_scheduled_completion_modal_pty.py` |
+| `ScheduledCreation` | text | `ScheduledCreation` | Scheduled `n` | `Loam/Tests/TuiScheduledCreate.lean` |
+| `ScheduledReplacement` | text | `ScheduledReplacement` | Scheduled `e` | `tests/test_scheduled_replacement_pty.py` |
+| `ScheduledBulkEdit` | text | `ScheduledBulkEdit` | Scheduled `b` | `tests/test_scheduled_bulk_edit_pty.py` |
+| `ScheduledGeneration` | conditional | `ScheduledGeneration` | Scheduled `g` | `Loam/Tests/TuiScheduledGeneration.lean` |
+| `AttentionAdministration` | text | `AttentionAdministration` | Home `i`, Commands `i` | `tests/test_attention_pty.py` |
+| `Exchange` | text | `Exchange` | Commands `e` | `Loam/Tests/TuiExchange.lean` |
+| `LocusAdmissionAdministration` | text | `LocusAdmissionAdministration` | Commands `l` | `Loam/Tests/TuiLocusAdmissionAdministration.lean` |
+| `BoundedHistorySupportAdministration` | text | `BoundedHistorySupportAdministration` | Commands `b` | `Loam/Tests/TuiBoundedHistorySupportAdministration.lean` |
+| `ActualRoutingAdministration` | conditional | `ActualRoutingAdministration` | Commands `r` | `Loam/Tests/TuiActualRoutingAdministration.lean` |
+| `ActualDateCorrection` | conditional | `ActualDateCorrection` | Actual `d` | `Loam/Tests/TuiActualDateCorrection.lean` |
+| `ActualReversal` | conditional | `ActualReversal` | Actual `u` | `Loam/Tests/TuiActualReversal.lean` |
+| `EventMerchant` | conditional | `EventMerchant` | Actual `m` | `Loam/Tests/TuiEventMerchant.lean` |
+| `CurrentQuantityAnchor` | text | `CurrentQuantityAnchor` | Commands `a` | `Loam/Tests/TuiHelpFooter.lean` |
+| `CapacityTransfer` | text | `CapacityTransfer` | Capacity `t` | `Loam/Tests/TuiCapacityTransfer.lean` |
+| `CapacityRebalance` | conditional | `CapacityRebalance` | Capacity `r` | `Loam/Tests/TuiCapacityRebalance.lean` |
+| `DailyPaceWhatIf` | text | `DailyPaceWhatIf` | Daily pace `w` | `tests/test_daily_pace_pty.py` |
+| `SettlementAction` | text | `SettlementAction` | Settlement `s` | `Loam/Tests/TuiSettlement.lean` |
+| `ReportsModel` | text | `ReportsView` | Reports window, comparison, liquidity | `tests/test_reports_navigation_pty.py` |
+| `LocusTrendComparePane` | text | `LocusTrendComparePane` | Reports trend compare | `Loam/Tests/TuiReports.lean` |
+| `Home` | conditional | `Home` | Date jump buffer | `Loam/Tests/TuiHomeNavigation.lean` |
+| `ActualWorkspace` | conditional | `ActualWorkspace` | Search query `/` | `Loam/Tests/TuiActual.lean` |
+| `AccountingRoleAdministration` | navigation | - | Role selection | `Loam/Tests/TuiHomeNavigation.lean` |
+| `Main` | dispatch | - | Top-level loop | `Loam/Tests/TuiHomeNavigation.lean` |
+| `InputEdit` | dispatch | - | Shared single-line editor | `Loam/Tests/TuiTextFieldGeometry.lean` |
+| `Cli` | transport | - | Terminal harness | `tests/test_terminal_mechanics_pty.py` |
+| `Terminal` | transport | - | Low-level IO | `tests/test_terminal_mechanics_pty.py` |
+| `PlainTextPrint` | line-mode | - | Direct prompt | `tests/test_terminal_mechanics_pty.py` |
 
 **Real macOS Japanese IME acceptance remains unverified.** LOAM supplies a visible
 insertion anchor, not an IME preedit renderer or candidate-window clipping policy.

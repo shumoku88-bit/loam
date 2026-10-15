@@ -499,25 +499,6 @@ private def overlayMonthLabel (month : String) : String :=
   | [year, monthNumber] => monthLabel monthNumber ++ " " ++ year
   | _ => month
 
-private def overlayEditorRows (state : State) : List Widget :=
-  match state.overlayDraft with
-  | none => []
-  | some draft =>
-      [ line "Overlay   session only · not saved"
-      , muted ("Month   " ++ overlayMonthLabel draft.month ++ "   ·   selected Day month")
-      , .row
-          [ span "Name    " .muted
-          , span (if draft.name.isEmpty then "_" else draft.name)
-              (if draft.editingDays then .normal else .selected)
-          ]
-      , .row
-          [ span "Days    " .muted
-          , span (if draft.daysText.isEmpty then "_" else draft.daysText)
-              (if draft.editingDays then .selected else .normal)
-          ]
-      , muted "Enter day numbers such as: 3 4 6 8 9   (spaces, commas, or periods)"
-      , muted "Tab field   Enter next/apply   Esc cancel"
-      ]
 
 private def pickerRows (state : State) : List Widget :=
   if !state.pickerOpen then []
@@ -619,11 +600,11 @@ private def header (state : State) : List Widget :=
       , line (selectedLine snapshot point)
       ] ++ selectedSeriesRows state ++
       [ muted "Exact Locus series; no alias, description, or historical reclassification is inferred." ] ++
-      pickerRows state ++ overlayEditorRows state
+      pickerRows state
   | _, _ =>
       [ line ("Trend   " ++ state.granularity.label)
       , muted "Multi-series history unavailable."
-      ] ++ pickerRows state ++ overlayEditorRows state
+      ] ++ pickerRows state
 
 private def allValues (state : State) : List Int :=
   match state.snapshot with
@@ -1018,24 +999,16 @@ private def compactSeriesPickerView
           (if index == selected then .selected else .normal)]
   .column ((heading ++ candidates ++ feedback ++ navigation).take bounds.height)
 
-/--
-Keep the active session-only overlay editor visible when the complete Trend header
-would push both fields below a short terminal. Field geometry reuses the same
-input-tail and read-only ellipsis rules as other household editors.
--/
-private def compactOverlayField
+/-- A bounded overlay field preserves the retained draft and reserves its insertion cell. -/
+private def overlayField
     (width : Nat) (label value : String) (focused : Bool) : Widget :=
   let labelWidth := 8
-  let visible :=
-    if value.isEmpty then "_"
-    else if focused then Loam.Tui.Layout.inputTail (width - labelWidth) value
-    else Loam.Tui.Layout.ellipsize (width - labelWidth) value
   .row
     [ span (Loam.Tui.Layout.padRight labelWidth label) .muted
-    , span visible (if focused then .selected else .normal)
+    , Loam.Tui.Layout.inputSpan (width - labelWidth) focused value
     ]
 
-private def compactOverlayEditorView
+private def overlayEditorView
     (bounds : Bounds) (state : State) (notice : String) : Widget :=
   match state.overlayDraft with
   | none => .column []
@@ -1047,8 +1020,8 @@ private def compactOverlayEditorView
             ("Month " ++ overlayMonthLabel draft.month ++ " · not saved"))
         ]
       let fields :=
-        [ compactOverlayField width "Name" draft.name (!draft.editingDays)
-        , compactOverlayField width "Days" draft.daysText draft.editingDays
+        [ overlayField width "Name" draft.name (!draft.editingDays)
+        , overlayField width "Days" draft.daysText draft.editingDays
         ]
       let hint :=
         [ muted (Loam.Tui.Layout.clip width "Days: 3 4 6 8 9 (space/comma/dot)") ]
@@ -1073,8 +1046,8 @@ def viewFullScreen
     (bounds : Bounds) (state : State) (notice : String := "") : Widget :=
   if bounds.height <= 14 && state.pickerOpen then
     compactSeriesPickerView bounds state notice
-  else if bounds.height <= 14 && isOverlayEditing state then
-    compactOverlayEditorView bounds state notice
+  else if isOverlayEditing state then
+    overlayEditorView bounds state notice
   else if compactGraph bounds state then
     let rows :=
       compactGraphHeader bounds state notice ++ chartRows bounds state ++ [axisRow bounds state] ++

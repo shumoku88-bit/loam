@@ -225,10 +225,8 @@ private def boundedField (width : Nat) (form : Form) (index : Nat)
   let labelWidth := min 15 (width / 2)
   let valueWidth := width - labelWidth
   let active := form.focus == index
-  let value := if text.isEmpty then "_" else text
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (if active then Loam.Tui.Layout.inputTail valueWidth value else Loam.Tui.Layout.ellipsize valueWidth value)
-      (if active then .selected else .normal)]
+    Loam.Tui.Layout.inputSpan valueWidth active text]
 
 private def editingRows (width : Nat) (state : State) : List Widget :=
   let form := state.form
@@ -301,25 +299,29 @@ private def editingFooter (bounds : Bounds) (state : State) : List Widget :=
     even when the selected Posting, query, or notice changes. -/
 private def editingView (bounds : Bounds) (state : State) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let footer := editingFooter bounds state
+  let footer := editingFooter {bounds with height := bounds.height - 1} state
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let showCandidates := available >= 15
   let candidateHeight := if showCandidates then 7 else 0
-  let fieldHeight := available - 1 - candidateHeight
-  let capacity := fieldHeight - 2
-  let fields := editingRows (width - 2) state
+  let header := if available > 1 then [line "Scheduled / New / Edit"] else []
+  let fieldHeight := available - header.length - candidateHeight
+  let framed := fieldHeight >= 3
+  let capacity := if framed then fieldHeight - 2 else fieldHeight
+  let fields := editingRows (if framed then width - 2 else width) state
   let active := state.form.focus < fields.length
   let focus := if active then state.form.focus else fields.length - 1
   let start := min (fields.length - capacity)
     (Loam.Tui.Layout.trailingWindowStart focus capacity)
   let more := (if start > 0 then " ▲" else "") ++
     (if start + capacity < fields.length then " ▼" else "")
-  let fieldPanel := Loam.Tui.Layout.framedPanel width fieldHeight
-    "Due / Signed postings"
-    (.column ((fields.drop start).take capacity)) active
-    (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))
+  let visible := .column ((fields.drop start).take capacity)
+  let fieldPanel := if framed then
+    Loam.Tui.Layout.framedPanel width fieldHeight "Due / Signed postings"
+      visible active
+      (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))
+    else visible
   let body : Widget := .column <|
-    [line "Scheduled / New / Edit", fieldPanel] ++
+    header ++ [fieldPanel] ++
       (if showCandidates then [candidatesPanel width candidateHeight state] else [])
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows body) footer).map fun row =>

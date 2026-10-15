@@ -126,21 +126,17 @@ private def catalogRows (bounds : Bounds) (state : State) : List Widget :=
 def view (bounds : Bounds) (state : State) : Widget :=
   match state.phase with
   | .editing =>
-      .column <|
-        [ line "Locus Administration / Admit New Identity"
-        , muted "New-write permission only"
-        , blank
-        , muted ("Currently admitted: " ++ toString state.catalog.length)
-        , muted "Review the existing vocabulary before creating another identity."
-        , blank
-        , muted ("   " ++ padRight 28 "Stable token" ++ "Display label")
-        ] ++ catalogRows bounds state ++
-        [ blank
-        , line ("New stable token: " ++ state.entered ++ "_")
+      let width := contentWidth bounds
+      let label := ellipsize (width - 1) "New stable token: "
+      .column <| fitWithFooter bounds
+        ([ line "Locus Administration / Admit New Identity"
+         , muted ("Currently admitted: " ++ toString state.catalog.length)
+         ] ++ catalogRows bounds state ++
+         [ muted "Admission creates no label, role, route, rename, or alias." ])
+        [ .row [span label, inputSpan (width - displayWidth label) true state.entered]
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "Enter preview   Backspace edit   ↑/↓ inspect existing"
-        , muted "Tab initial roles   Shift-Tab history support   Esc cancel"
-        , muted "Admission itself does not create a label, AccountingRole, Purpose route, rename, or alias."
+        , muted "Enter preview  ↑/↓ inspect  Esc cancel"
+        , muted "Tab roles  Shift-Tab history support"
         ]
   | .preview =>
       .column

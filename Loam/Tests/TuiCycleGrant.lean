@@ -195,7 +195,7 @@ def main (args : List String) : IO Unit := do
 
   -- Test Preview view contents
   let bounds : Bounds := { width := 100, height := 30 }
-  let previewText := text (Loam.Tui.CapacityTransfer.view grantEditor)
+  let previewText := text (Loam.Tui.CapacityTransfer.view bounds grantEditor)
   expect (contains "Capacity / Cycle Grant / Preview" previewText) "Preview header"
   expect (contains "Purpose:       固定費予定" previewText) "Preview purpose"
   expect (contains "Current Now:   17108 jpy" previewText) "Preview current now"
@@ -214,7 +214,7 @@ def main (args : List String) : IO Unit := do
   | .editing =>
       expect (stepEdit.state.form.focus == 3) "edit focuses on amount"
   | .preview _ _ => throw (IO.userError "e must enter editing mode")
-  let editText := text (Loam.Tui.CapacityTransfer.view stepEdit.state)
+  let editText := text (Loam.Tui.CapacityTransfer.view bounds stepEdit.state)
   expect (contains "Capacity / Cycle Grant / Edit" editText) "Edit header"
   expect (contains "Purpose: 固定費予定" editText) "Edit purpose context"
   expect (contains "Current Now: 17108 jpy" editText) "Edit current now context"
@@ -229,6 +229,15 @@ def main (args : List String) : IO Unit := do
     "Edit funding residual context"
   expect (contains "Funding residual is advisory current evidence, not an allocation ceiling." editText)
     "Edit residual semantics"
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let live : Bounds := { width, height }
+    expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+      (compileWidget (Loam.Tui.CapacityTransfer.view live grantEditor))).isNone)
+      "Cycle grant preview exposed an input caret"
+    let position := Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+      (compileWidget (Loam.Tui.CapacityTransfer.view live stepEdit.state))
+    expect (position == some (4, 16))
+      "Cycle grant edit did not anchor to the Amount insertion cell at live bounds"
 
   -- Edit amount: backspace 4 times, type 4000
   let mut editState := stepEdit.state
@@ -245,7 +254,7 @@ def main (args : List String) : IO Unit := do
   | .preview draft _ =>
       expect (draft.quanta == 4000) "edited draft quanta 4000"
   | .editing => throw (IO.userError "enter on amount must return to preview")
-  let editedPreviewText := text (Loam.Tui.CapacityTransfer.view stepEditedPreview.state)
+  let editedPreviewText := text (Loam.Tui.CapacityTransfer.view bounds stepEditedPreview.state)
   expect (contains "Amount:        4000 jpy" editedPreviewText) "edited amount in preview"
 
   -- Test 14: Cancel preserves evidence

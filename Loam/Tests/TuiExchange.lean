@@ -76,6 +76,41 @@ def main : IO Unit := do
   let largeLines := (Loam.Tui.ExchangeSession.viewForBounds large state).lines
   expect (!compactLines.isEmpty && !largeLines.isEmpty)
     "Exchange modal lost the editing form in compact or floating geometry"
+  let longText := String.ofList (List.replicate 100 '界') ++ "-tail"
+  for bounds in [({width := 32, height := 9} : Loam.Tui.Kernel.Bounds),
+      {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 40}] do
+    for focus in List.range 10 do
+      let longValue := String.ofList (List.replicate 100 '1') ++ "-tail"
+      let form : Loam.Tui.Exchange.Form := {
+        date := longValue,
+        description := longText,
+        sourceLocus := longValue,
+        sourceMeasure := longValue,
+        sourceAmount := longValue,
+        destinationLocus := longValue,
+        destinationMeasure := longValue,
+        destinationAmount := longValue,
+        focus := focus
+      }
+      let editing := { state with form := form }
+      let widget := Loam.Tui.ExchangeSession.viewForBounds bounds editing
+      let markers := widget.lines.flatten.filter (·.caret)
+      expect (markers.length == (if focus < 8 then 1 else 0) &&
+          markers.all (fun cell => cell.glyph == ' '))
+        "Exchange focus lost its insertion cell or put a caret on an action"
+      expect (widget.lines.all fun cells =>
+        Loam.Tui.Layout.displayWidth (String.ofList (cells.map (·.glyph))) ≤ bounds.width - 1)
+        "Exchange field escaped live columns"
+      if focus == 1 then
+        expect (widget.lines.any fun cells => cells.any (·.caret) &&
+          ((String.ofList (cells.map (·.glyph))).splitOn "-tail").length > 1)
+          "Exchange long CJK description did not keep the tail and insertion cell together"
+      let pasted := Loam.Tui.Exchange.update w editing (.paste "ignored")
+      expect (pasted.state.form.description == longText && pasted.state.form.focus == focus && pasted.publish.isNone)
+        "Exchange changed historically unsupported paste or published from text"
+      let cancel := Loam.Tui.Exchange.update w editing .escape
+      expect (cancel.cancel && cancel.publish.isNone && cancel.state.form.description == longText)
+        "Exchange cancellation changed input bytes or emitted a write"
 
   let .ok draft := Loam.Tui.Exchange.draft? state
     | throw (IO.userError "valid JPY -> USD exchange form did not parse")
@@ -106,6 +141,13 @@ def main : IO Unit := do
           previewDestination.quantity.quanta == 10000)
         "exchange preview changed the parsed Effects"
   | _ => throw (IO.userError "destination amount Enter did not open Exchange preview")
+  expect (!(Loam.Tui.Exchange.view preview.state).lines.flatten.any (·.caret))
+    "Exchange preview displayed a text caret"
+  let returned := Loam.Tui.Exchange.update w preview.state (.input 'e')
+  let refusedEdit := Loam.Tui.Exchange.withPublishError preview.state "Publication refused"
+  for editing in [returned.state, refusedEdit] do
+    expect (((Loam.Tui.Exchange.view editing).lines.flatten.filter (·.caret)).length == 1)
+      "Exchange review return or refusal did not restore the text field"
 
   let published := Loam.Tui.Exchange.update w preview.state .enter
   expect published.publish.isSome

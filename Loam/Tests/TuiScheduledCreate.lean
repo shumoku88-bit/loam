@@ -112,10 +112,10 @@ def main (args : List String) : IO Unit := do
   let manyEditor : Loam.Tui.ScheduledCreation.State := {
     editor with form := { editor.form with rows := many, focus := 12 } }
   for bounds in
-      ([ { width := 32, height := 10 },
+      ([ { width := 32, height := 9 },
          { width := 48, height := 14 },
          { width := 80, height := 24 },
-         { width := 140, height := 40 } ] : List Loam.Tui.Kernel.Bounds) do
+         { width := 120, height := 40 } ] : List Loam.Tui.Kernel.Bounds) do
     let image := Loam.Tui.ScheduledCreation.view bounds [] manyEditor
     let glyphs := String.ofList (image.lines.flatten.map Loam.Tui.Kernel.Cell.glyph)
     expect (image.lines.length <= bounds.height - 1)
@@ -129,6 +129,19 @@ def main (args : List String) : IO Unit := do
       "Scheduled input did not keep the last focused posting amount visible"
     expect (contains "[Preview]" glyphs && contains "[Cancel]" glyphs)
       "Scheduled input clipped its fixed action choices"
+    for focus in List.range (Loam.Tui.ScheduledPostingForm.firstAction manyEditor.form + 4) do
+      let focused := {manyEditor with form := {manyEditor.form with focus := focus}}
+      let widget := Loam.Tui.ScheduledCreation.view bounds [] focused
+      expect ((widget.lines.flatten.filter (·.caret)).length ==
+        if focus < Loam.Tui.ScheduledPostingForm.firstAction focused.form then 1 else 0)
+        "Scheduled creation lost focused input or marked an action/candidate"
+    let unicode := {manyEditor with form := {manyEditor.form with focus := 11,
+      rows := many.set 5 {locus := String.ofList (List.replicate 35 '語') ++ "末尾", amount := "1"}}}
+    let unicodeView := Loam.Tui.ScheduledCreation.view bounds [] unicode
+    let marked := unicodeView.lines.filter (fun row => row.any (·.caret))
+    expect (marked.length == 1 && marked.any (fun row =>
+      contains "末尾 " (String.ofList (row.map Loam.Tui.Kernel.Cell.glyph))))
+      "creation anchor did not follow the long CJK Locus tail"
 
   let catalog : Loam.LocusCatalog.Catalog :=
     [ { locus := ⟨"paypay"⟩, label := "電子マネー", help := "支払元" },
@@ -211,6 +224,16 @@ def main (args : List String) : IO Unit := do
 
   let previewState : Loam.Tui.ScheduledCreation.State := {
     edited with mode := .preview draft ⟨0, by omega⟩ }
+  for bounds in
+      ([{width := 32, height := 9}, {width := 48, height := 14},
+        {width := 80, height := 24}, {width := 120, height := 40}]
+       : List Loam.Tui.Kernel.Bounds) do
+    expect (!(Loam.Tui.ScheduledCreation.view bounds [] previewState).lines.flatten.any (·.caret))
+      "creation preview exposed a text insertion anchor"
+    let editChoice := (Loam.Tui.ScheduledCreation.update [] previewState .tab).state
+    let returned := (Loam.Tui.ScheduledCreation.update [] editChoice .enter).state
+    expect ((Loam.Tui.ScheduledCreation.view bounds [] returned).lines.flatten.any (·.caret))
+      "creation preview return did not restore focused input"
   -- UI-16: a compact confirmation must retain the signed meaning, due date,
   -- selected publication action and enough room to inspect its postings.
   let compact : Loam.Tui.Kernel.Bounds := { width := 48, height := 14 }

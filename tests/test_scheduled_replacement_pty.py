@@ -14,7 +14,7 @@ import subprocess
 import tempfile
 import time
 
-from scheduled_pty_support import ANSI, REPO, Terminal, digest
+from scheduled_pty_support import ANSI, REPO, Terminal, digest, text_caret, no_text_caret
 
 
 def household_sections(root: Path) -> dict[str, str]:
@@ -61,6 +61,19 @@ def main():
             terminal.send(b"s", b"Scheduled Series Calendar")
             terminal.send(b"v", b"Scheduled / Months")
             terminal.send(b"v", b"Scheduled / List")
+            # New Scheduled uses the same live List parent, but has its own
+            # neutral posting form and cancellation authority.
+            creation = terminal.send(b"n", b"Scheduled / New / Edit")
+            text_caret(creation, terminal.rows, terminal.columns)
+            text_caret(terminal.send(b"\t"), terminal.rows, terminal.columns, "_")
+            created_locus = terminal.send(("語" * 35 + "末尾").encode(), "末尾".encode())
+            text_caret(created_locus, terminal.rows, terminal.columns, "末尾")
+            for rows, columns in ((9, 32), (14, 48), (24, 80), (40, 120)):
+                resized = terminal.resize(rows, columns, "末尾".encode())
+                text_caret(resized, rows, columns, "末尾")
+                assert not select.select([terminal.master], [], [], .35)[0], "idle creation emitted output"
+            no_text_caret(terminal.send(b"\x1b", b"Scheduled / List"))
+            assert digest(root) == original, "List creation/cancellation modified authority"
             editor = terminal.send(b"r", b"Scheduled / Supersede / Edit replacement")
             assert b"Scheduled / Supersede" in ANSI.sub(b"", editor)
             assert b"\x1b[2J" not in editor, "floating editor unexpectedly cleared its parent"
@@ -68,6 +81,7 @@ def main():
             assert b"Posting 1: bank" in ANSI.sub(b"", editor)
             assert b"Replacement due" in ANSI.sub(b"", editor)
             assert digest(root) == original, "opening replacement mutated authority"
+            text_caret(editor, terminal.rows, terminal.columns, "2026-11-08")
 
             # Observe idle child CPU on the CI runner, excluding Python/PTY
             # overhead. Quiet state must not paint, mutate authority or exit.
@@ -85,8 +99,18 @@ def main():
                       f"child_cpu_seconds={cpu_end - cpu_start:.3f}", flush=True)
 
             # Tab selects the first Locus. A partial token displays a candidate.
-            terminal.send(b"\t", b"Posting 1")
-            terminal.send(b"\x7f" * 4 + b"wi", b"Candidate: wifi")
+            locus = terminal.send(b"\t", b"Posting 1")
+            text_caret(locus, terminal.rows, terminal.columns, "bank")
+            long_locus = "語" * 35 + "末尾"
+            pasted = terminal.send(b"\x1b[200~" + long_locus.encode() + b"\x1b[201~", "末尾".encode())
+            text_caret(pasted, terminal.rows, terminal.columns, "末尾")
+            amended_locus = terminal.send(b"\x7f" + "端".encode(), "末端".encode())
+            text_caret(amended_locus, terminal.rows, terminal.columns, "末端")
+            for rows, columns in ((9, 32), (14, 48), (24, 80), (40, 120)):
+                resized = terminal.resize(rows, columns, "末端".encode())
+                text_caret(resized, rows, columns, "末端")
+                assert not select.select([terminal.master], [], [], .35)[0], "idle replacement emitted output"
+            terminal.send(b"\x7f" * (4 + len(long_locus)) + b"wi", b"Candidate: wifi")
             changed = terminal.send(b"\x1b[C", b"Posting 1: wifi")
             assert b"Posting 1: wifi" in ANSI.sub(b"", changed), (
                 "Right accepted the candidate internally but not in the visible field",
@@ -107,6 +131,7 @@ def main():
             preview = terminal.send(b"\r", b"Scheduled / Supersede / Preview")
             assert b"Source: first" in ANSI.sub(b"", preview)
             assert b"4800 jpy" in ANSI.sub(b"", preview)
+            no_text_caret(preview)
 
             # Preview reflows at current terminal bounds. Short evidence
             # prevents Publish until the same editor is enlarged.
@@ -123,6 +148,9 @@ def main():
             terminal.send(b"\t", b"[Edit]")
             editing = terminal.send(b"\r", b"Scheduled / Supersede / Edit replacement")
             assert b"Posting 1: wifi" in ANSI.sub(b"", editing), editing
+            no_text_caret(editing)  # Retained Preview action is not text.
+            focused_again = terminal.send(b"\x1b[Z" * 6, b"Posting 1")
+            text_caret(focused_again, terminal.rows, terminal.columns, "wifi")
             assert digest(root) == original, "preview/edit return published"
 
             terminal.send(b"\x1b", b"Scheduled / List")
@@ -137,6 +165,7 @@ def main():
             selected = terminal.send(b"r", b"Scheduled / Supersede / Edit replacement")
             assert b"Source: second" in ANSI.sub(b"", selected), selected
             assert b"\x1b[2J" not in selected, "Selected Day modal cleared its parent"
+            text_caret(selected, terminal.rows, terminal.columns, "2026-12-08")
             terminal.send(b"\x1b", b"Household Day Workspace")
             assert digest(root) == original, "Selected Day replacement cancellation wrote"
             terminal.send(b"q", b"LOAM Home")

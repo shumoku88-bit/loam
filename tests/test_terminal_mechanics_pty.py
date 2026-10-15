@@ -77,8 +77,16 @@ assert run("regions", b"g") == b"regions-ok"
 print("Pure region boundaries: offscreen/zero/partial, CJK clipping and rectangular padding.")
 
 output = run("text-caret", b"g")
-assert output == b"\x1b[3;8H\x1b[?25h\x1b[?25lcaught\x1b[?25l", output
-print("Text caret: floating CJK anchor, exception cleanup and stale-pane hiding.")
+entered, rest = output.split(b"stable", 1)
+idle, rest = rest.split(b"review", 1)
+review, rest = rest.split(b"direct", 1)
+direct, stale = rest.split(b"stale", 1)
+assert entered.endswith(b"\x1b[3;8H\x1b[?25h"), entered
+assert idle == b"", ("unchanged input frame emitted cursor churn", idle)
+assert b"\x1b[?25l" in review and b"\x1b[?25h" not in review, review
+assert direct.endswith(b"\x1b[1;5H\x1b[?25h"), direct
+assert stale == b"\x1b[?25l", ("offscreen field addressed unrelated cells", stale)
+print("Shared text caret: semantic floating/direct CJK anchors, idle, review and clipped-pane hiding.")
 
 for geometry in [(9, 32), (14, 48), (24, 80), (36, 120), (55, 160), (1, 10)]:
     output = run("resize", b"g", geometry)
@@ -125,6 +133,6 @@ for painted_geometry, live_geometry in [
     assert all(1 <= int(row) <= rows and 1 <= int(col) <= cols
                for row, col in addresses), addresses
     rows, cols = live_geometry
-    # The last column remains reserved except on a one-column tty.
-    assert cursor == f"\x1b[{rows};{max(1, cols - 1)}H".encode(), cursor
-    print(f"Cursor shrink to {cols}x{rows}: final move uses fresh tty bounds, not painted geometry.")
+    assert b"\x1b[?25h" in painted, "painted field never acquired its insertion anchor"
+    assert cursor == b"\x1b[?25l", ("stale field was clamped instead of hidden", cursor)
+    print(f"Caret shrink to {cols}x{rows}: stale field hides without addressing unrelated cells.")

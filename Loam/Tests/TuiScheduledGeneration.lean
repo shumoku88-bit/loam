@@ -185,6 +185,19 @@ def main : IO Unit := do
       (Loam.Tui.ScheduledGeneration.view bounds customStart.state)
     expect (contains "Fill through" horizon && contains "Enter" horizon)
       "generation custom date or its action was lost at narrow bounds"
+  for bounds in ([{width := 32, height := 9}, {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] : List Bounds) do
+    for text in ["", "2027-01-20", String.ofList (List.replicate 60 '8') ++ "20"] do
+      let custom := {customStart.state with mode := .customDate text}
+      let widget := Loam.Tui.ScheduledGeneration.view bounds custom
+      let rows := widget.lines.filter (fun row => row.any (·.caret))
+      expect ((widget.lines.flatten.filter (·.caret)).length == 1)
+        "generation custom-date input lost its insertion anchor"
+      expect (rows.any fun row => row.any (fun cell => cell.caret && cell.glyph == ' '))
+        "generation insertion anchor was not a blank date cell"
+    for hidden in [state, selectedSuggestion.state, preview] do
+      expect (!(Loam.Tui.ScheduledGeneration.view bounds hidden).lines.flatten.any (·.caret))
+        "generation horizon/cadence/review incorrectly marked navigation as text"
 
   let publish := Loam.Tui.ScheduledGeneration.update preview .enter
   expect publish.publish

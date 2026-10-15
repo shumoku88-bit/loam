@@ -200,14 +200,9 @@ private def line (text : String) : Widget := .row [span text]
 
 private def boundedField (width : Nat) (form : Form) (index : Nat)
     (label value : String) : Widget :=
-  let labelText := label ++ ": "
-  let available := width - Loam.Tui.Layout.displayWidth labelText
-  let active := form.focus == index
-  let content := if value.isEmpty then "_" else value
-  .row [span labelText .muted,
-        span (if active then Loam.Tui.Layout.inputTail available content
-              else Loam.Tui.Layout.ellipsize available content)
-          (if active then .selected else .normal)]
+  let labelWidth := min (Loam.Tui.Layout.displayWidth (label ++ ": ")) (width / 2)
+  .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
+    Loam.Tui.Layout.inputSpan (width - labelWidth) (form.focus == index) value]
 
 private def editingFields (width : Nat) (state : State) : List Widget :=
   let form := state.form
@@ -242,10 +237,10 @@ private def editingFooter (bounds : Bounds) (known : List String)
 /-- Keep the focused Due, Posting, or action reachable in a height-bounded editor. -/
 private def editingView (bounds : Bounds) (known : List String) (state : State) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
-  let footer := editingFooter bounds known state
+  let footer := editingFooter {bounds with height := bounds.height - 1} known state
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let fields := editingFields width state
-  let contextHeight := if available >= 3 then 2 else if available > 0 then 1 else 0
+  let contextHeight := if available >= 3 then 2 else if available > 1 then 1 else 0
   let capacity := available - contextHeight
   let focus := min state.form.focus (fields.length - 1)
   let start := min (fields.length - capacity)

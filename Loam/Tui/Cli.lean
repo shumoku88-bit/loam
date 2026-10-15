@@ -461,7 +461,7 @@ def currentQuantityAnchorLoop
     (state : Loam.Tui.CurrentQuantityAnchor.State) (frame : CompiledWidget) : IO String :=
   Loam.Tui.EditorSession.runUntilPublishedResizing bounds
     (fun _ editor key => Loam.Tui.CurrentQuantityAnchor.update editor key)
-    (fun _ editor => Loam.Tui.CurrentQuantityAnchor.view editor)
+    (fun current editor => Loam.Tui.CurrentQuantityAnchor.view current editor)
     Loam.Tui.CurrentQuantityAnchor.withPublishError
     "Current quantity observation cancelled."
     (fun assertions => do
@@ -796,7 +796,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
             loop activeBounds dataDir root snapshot home nextFrame
   else if fromPalette && (key = .input 'o' || key = .input 'O') then
     let editor := Loam.Tui.CurrentQuantityAnchor.initialWithMeasure (← requireConfiguredMeasure)
-    let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view editor)
+    let editorFrame := compileWidget (Loam.Tui.CurrentQuantityAnchor.view bounds editor)
     Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
     let notice ← currentQuantityAnchorLoop bounds root editor editorFrame
     let activeBounds ← Loam.Tui.Terminal.currentBounds

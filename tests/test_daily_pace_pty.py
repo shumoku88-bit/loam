@@ -13,11 +13,17 @@ import subprocess
 import tempfile
 import termios
 import time
+from scheduled_pty_support import text_caret, no_text_caret
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("loam_resource_probe", ROOT / "tools/benchmark-tui-resources.py")
 probe = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(probe)
+
+
+def send_raw(terminal, keys, expected):
+    os.write(terminal.fd, keys)
+    return terminal.capture(expected)[1]
 
 
 def send(terminal, keys, expected):
@@ -70,13 +76,17 @@ def check_loaded(root):
         opened = send(terminal, b"w", b"Daily Pace / What if")
         assert b"Purchase (JPY):" in opened, opened
         assert b"Not already Scheduled" in opened and b"No writes" in opened
-        entered = send(terminal, b"8000", b"Purchase (JPY): 8000")
+        entered_raw = send_raw(terminal, b"8000", b"8000")
+        text_caret(entered_raw, 48, 160, "8000")
+        entered = probe.ANSI.sub(b"", entered_raw)
         assert b"After purchase:" in entered and b"Daily change:" in entered, entered
-        compact_modal = resize(terminal, 14, 48, b"Daily Pace / What if")
-        assert b"Purchase (JPY): 8000" in compact_modal and b"After purchase:" in compact_modal
-        restored_modal = resize(terminal, 40, 120, b"Daily Pace / What if")
-        assert b"Purchase (JPY): 8000" in restored_modal, "modal lost draft on resize"
-        send(terminal, b"q", b"Daily Pace / Trend")
+        for rows, cols in ((9, 32), (14, 48), (24, 80), (40, 120)):
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+            _, resized = terminal.capture(b"8000")
+            text_caret(resized, rows, cols, "8000")
+            assert terminal.idle(.3) == 0, "idle what-if emitted output"
+            assert probe.digest(root) == before, "what-if resize wrote data"
+        no_text_caret(send_raw(terminal, b"q", b"Daily Pace / Trend"))
         assert probe.digest(root) == before, "what-if amount input wrote canonical data"
         # Every preset remains daily and endpoint selection uses inclusive ranges.
         choices = [(b"2", b"30d", latest - datetime.timedelta(days=29), latest),

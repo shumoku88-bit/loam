@@ -46,11 +46,14 @@ private def padNum (columns : Nat) (text : String) : String :=
   else Loam.Tui.Layout.padLeft columns text
 
 
-private def field (state : State) (index : Nat) (label text : String) : Widget :=
+private def field
+    (bounds : Option Bounds) (state : State) (index : Nat) (label text : String) : Widget :=
+  let caption := label ++ ": "
+  let width := Loam.Tui.Layout.contentWidth (bounds.getD { width := 80, height := 24 })
   .row
-    [ span (label ++ ": ")
-    , span (if text.isEmpty then "_" else text)
-        (if state.window.form.focus.val = index then .selected else .normal)
+    [ span caption
+    , Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption)
+        (state.window.form.focus.val == index) text
     ]
 
 /-- A selected Start / End / Run row stays visible in the compact
@@ -66,12 +69,10 @@ private def compactWindowHeader
   let inputRows := values.zipIdx.map fun ((label, value), index) =>
     let lead := if selected == index then "> " else "  "
     let caption := lead ++ label ++ ": "
-    let displayed := if value.isEmpty then "_" else value
     .row
       [ span caption .muted
-      , span (Loam.Tui.Layout.inputTail
-          (width - Loam.Tui.Layout.displayWidth caption) displayed)
-          (if selected == index then .selected else .normal)
+      , Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption)
+          (selected == index) value
       ]
   let runRow : Widget :=
     .row [span (if selected == 2 then "> [Run]" else "  [Run]")
@@ -84,21 +85,23 @@ private def compactWindowHeader
     (Loam.Tui.Layout.centeredListWindow rows selected capacity).map Prod.snd
 
 private def comparisonField
-    (state : State) (index : Nat) (label text : String) : Widget :=
+    (bounds : Option Bounds) (state : State) (index : Nat) (label text : String) : Widget :=
+  let caption := label ++ ": "
+  let width := Loam.Tui.Layout.contentWidth (bounds.getD { width := 80, height := 24 })
   .row
-    [ span (label ++ ": ")
-    , span (if text.isEmpty then "_" else text)
-        (if state.comparison.focus.val = index then .selected else .normal)
+    [ span caption
+    , Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption)
+        (state.comparison.focus.val == index) text
     ]
 
-private def comparisonFormLines (state : State) : List Widget :=
+private def comparisonFormLines (bounds : Option Bounds) (state : State) : List Widget :=
   [ line ("Compare by: " ++ comparisonSourceLabel state)
   , muted "Automatic sources keep two adjacent explicit windows; editing switches to Custom."
   , blank
-  , comparisonField state 0 "Left start" state.comparison.leftStart
-  , comparisonField state 1 "Left end (exclusive)" state.comparison.leftEndExclusive
-  , comparisonField state 2 "Right start" state.comparison.rightStart
-  , comparisonField state 3 "Right end (exclusive)" state.comparison.rightEndExclusive
+  , comparisonField bounds state 0 "Left start" state.comparison.leftStart
+  , comparisonField bounds state 1 "Left end (exclusive)" state.comparison.leftEndExclusive
+  , comparisonField bounds state 2 "Right start" state.comparison.rightStart
+  , comparisonField bounds state 3 "Right end (exclusive)" state.comparison.rightEndExclusive
   , .row [span "[Run comparison]"
       (if state.comparison.focus.val = 4 then .selected else .normal)]
   ]
@@ -135,12 +138,10 @@ private def compactComparisonFormLines (bounds : Bounds) (state : State) : List 
   let inputRows := columns.zipIdx.map fun ((label, value), index) =>
     let lead := if selected == index then "> " else "  "
     let caption := lead ++ label ++ ": "
-    let displayed := if value.isEmpty then "_" else value
     .row
       [ span caption .muted
-      , span (Loam.Tui.Layout.inputTail
-          (width - Loam.Tui.Layout.displayWidth caption) displayed)
-          (if selected == index then .selected else .normal)
+      , Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption)
+          (selected == index) value
       ]
   let action : Widget :=
     .row [span (if selected == 4 then "> [Run comparison]" else "  [Run comparison]")
@@ -170,15 +171,13 @@ private def compactComparisonView (bounds : Bounds) (state : State)
   .column <| intro ++ compactComparisonFormLines bounds state ++
     [blank] ++ results ++ footer
 
-private def liquidityField (state : State) : Widget :=
+private def liquidityField (bounds : Option Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth (bounds.getD { width := 80, height := 24 })
+  let caption := if width < 50 then "Assume Scheduled: " else "Assume Scheduled complete through: "
   .row
-    [ span "Assume Scheduled complete through: "
-    , span
-        (if state.liquidityForm.assumedCompleteThrough.isEmpty then
-          "_"
-        else
-          state.liquidityForm.assumedCompleteThrough)
-        (if state.liquidityForm.focus.val = 0 then .selected else .normal)
+    [ span caption
+    , Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption)
+        (state.liquidityForm.focus.val == 0) state.liquidityForm.assumedCompleteThrough
     ]
 
 private def stockFlowMeasureSuffix (measure : Option Loam.Core.MeasureId) : String :=
@@ -214,8 +213,8 @@ private def stockFlowView (state : State) (bounds : Option Bounds) : Widget :=
     , line ("Window: " ++ windowSourceLabel state)
     , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
     , blank
-    , field state 0 "Start" state.window.form.start
-    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , field bounds state 0 "Start" state.window.form.start
+    , field bounds state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , blank
     ]
@@ -255,7 +254,7 @@ private def stockFlowCompareView (state : State) (bounds : Option Bounds) : Widg
     , muted "Wide terminals show Left and Right side by side; narrow terminals stack them."
     , blank
     ] ++
-    comparisonFormLines state ++
+    comparisonFormLines bounds state ++
     [ blank ] ++
     stockFlowComparisonLines state bounds ++
     [ blank
@@ -280,8 +279,8 @@ private def transactionWindowLines (state : State) (bounds : Option Bounds) : Li
     , line ("Window: " ++ windowSourceLabel state)
     , muted "Presets only resolve explicit [start, end) dates."
     , blank
-    , field state 0 "Start" state.window.form.start
-    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , field bounds state 0 "Start" state.window.form.start
+    , field bounds state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , blank
     ]
@@ -988,8 +987,8 @@ private def incomeExpenseHeaderLines
     , line ("Window: " ++ windowSourceLabel state)
     , muted "AccountingRole is explicit authority; no role is inferred from spelling or sign."
     , blank
-    , field state 0 "Start" state.window.form.start
-    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , field bounds state 0 "Start" state.window.form.start
+    , field bounds state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , blank
     ]
@@ -1039,7 +1038,7 @@ private def incomeExpenseCompareView (state : State) (bounds : Option Bounds) : 
     , muted "No delta, percentage, equal-duration, or baseline meaning is inferred."
     , blank
     ] ++
-    comparisonFormLines state ++
+    comparisonFormLines bounds state ++
     [ blank ] ++
     incomeExpenseComparisonLines state bounds ++
     [ blank
@@ -1181,8 +1180,8 @@ private def multimeasureSpendView (state : State) (bounds : Option Bounds) : Wid
     , line ("Window: " ++ windowSourceLabel state)
     , muted "This is a read lens over existing evidence, not a Trip transaction type."
     , blank
-    , field state 0 "Start" state.window.form.start
-    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , field bounds state 0 "Start" state.window.form.start
+    , field bounds state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , blank
     ]
@@ -1332,13 +1331,11 @@ private def compactLiquidityField (bounds : Bounds) (state : State) : Widget :=
     (if state.liquidityForm.focus.val == 0 then "> " else "  ") ++
       "Assume Scheduled: "
   let text := state.liquidityForm.assumedCompleteThrough
-  let displayed := if text.isEmpty then "_" else text
   .row
     [ span caption .muted
-    , span (Loam.Tui.Layout.inputTail
-        (Loam.Tui.Layout.contentWidth bounds -
-          Loam.Tui.Layout.displayWidth caption) displayed)
-        (if state.liquidityForm.focus.val == 0 then .selected else .normal)
+    , Loam.Tui.Layout.inputSpan
+        (Loam.Tui.Layout.contentWidth bounds - Loam.Tui.Layout.displayWidth caption)
+        (state.liquidityForm.focus.val == 0) text
     ]
 
 private def liquidityView (state : State) (bounds : Option Bounds) : Widget :=
@@ -1352,7 +1349,7 @@ private def liquidityView (state : State) (bounds : Option Bounds) : Widget :=
     , muted "Known Scheduled items are not silently treated as all future flows."
     , blank
     , line "Read-only conditional query"
-    , liquidityField state
+    , liquidityField bounds state
     , .row
         [ span "[Run conditional]"
             (if state.liquidityForm.focus.val = 1 then .selected else .normal) ]
@@ -1419,19 +1416,26 @@ private def budgetResultLines (state : State) : List Widget :=
       (snapshot.rows.take 10).map (budgetRowLine snapshot.measure) ++
       [ muted "Remaining is derived exactly as Entitlement - Consumption." ]
 
-private def budgetView (state : State) : Widget :=
-  .column <|
+private def budgetView (state : State) (bounds : Option Bounds) : Widget :=
+  let standard :=
     [ line "Reports / Budget Window"
     , muted "Calendar month is only a coordinate convenience, not a household cycle."
     , line ("Window: " ++ windowSourceLabel state)
     , muted "Named presets are replaceable query config; reports still receive explicit coordinates only."
     , blank
-    , field state 0 "Start" state.window.form.start
-    , field state 1 "End (exclusive)" state.window.form.endExclusive
+    , field bounds state 0 "Start" state.window.form.start
+    , field bounds state 1 "End (exclusive)" state.window.form.endExclusive
     , .row [span "[Run]" (if state.window.form.focus.val = 2 then .selected else .normal)]
     , muted "Coordinates stay explicit [start, end); no cycle or budget period is inferred."
     , blank
-    ] ++
+    ]
+  let header := match bounds with
+    | some terminal =>
+        if terminal.height <= 14 then
+          compactWindowHeader terminal state "Reports / Budget Window"
+        else standard
+    | none => standard
+  .column <| header ++
     budgetResultLines state ++
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
@@ -1451,7 +1455,7 @@ private def fullView (state : State) (bounds : Option Bounds := none) : Widget :
   | .multimeasureSpend => multimeasureSpendView state bounds
   | .balances => balancesView state bounds
   | .liquidity => liquidityView state bounds
-  | .budgetWindow => budgetView state
+  | .budgetWindow => budgetView state bounds
   | .locusTrendCompare =>
       Loam.Tui.LocusTrendComparePane.viewFullScreen
         (bounds.getD { width := 80, height := 24 }) state.trendCompare state.notice
@@ -1554,6 +1558,39 @@ private def scrollPositionLine
   muted ("Lines " ++ toString first ++ "–" ++ toString last ++ "/" ++ toString total ++
     "   ↑/↓ or j/k " ++ action)
 
+private def focusedInputLine? (bounds : Bounds) (state : State) : Option Nat :=
+  let compact := bounds.height <= 14
+  match state.mode with
+  | .stockFlow | .incomeExpense | .transactionsFlow | .multimeasureSpend | .budgetWindow =>
+      let selected := state.window.form.focus.val
+      if selected >= 2 || (state.mode == .transactionsFlow && state.transactions.detail) then none
+      else if compact then
+        let capacity := if bounds.height <= 10 then 2 else 3
+        let rows := Loam.Tui.Layout.centeredListWindow (List.range 3) selected capacity
+        (rows.findIdx? fun row => row.1 == selected).map (· + 2)
+      else
+        some (selected + (if state.mode == .multimeasureSpend || state.mode == .budgetWindow then 5 else 6))
+  | .stockFlowCompare | .incomeExpenseCompare =>
+      let selected := state.comparison.focus.val
+      if selected >= 4 then none
+      else if compact then
+        let capacity := if bounds.height <= 10 then 2 else 5
+        let rows := Loam.Tui.Layout.centeredListWindow (List.range 5) selected capacity
+        (rows.findIdx? fun row => row.1 == selected).map
+          (· + (if bounds.height >= 12 then 3 else 2))
+      else some (7 + selected)
+  | .liquidity =>
+      if state.liquidityForm.focus.val == 0 then some (if compact then 3 else 9) else none
+  | _ => none
+
+private def inputFollowingOffset (bounds : Bounds) (state : State) (page requested : Nat) : Nat :=
+  match focusedInputLine? bounds state with
+  | none => requested
+  | some row =>
+      if row < requested then row
+      else if row >= requested + page then row + 1 - page
+      else requested
+
 private def requestedOffset (bounds : Bounds) (state : State) (page : Nat) : Nat :=
   match state.mode with
   | .transactionsFlow =>
@@ -1579,7 +1616,8 @@ The visible result follows the same footer and position-line geometry as
 def viewPreparedScroll
     (bounds : Bounds) (state : State) (prepared : PreparedScrollView) : Widget :=
   let offset :=
-    Loam.Tui.Scroll.clamp prepared.extent prepared.page state.scroll
+    Loam.Tui.Scroll.clamp prepared.extent prepared.page
+      (inputFollowingOffset bounds state prepared.page state.scroll)
   let position :=
     scrollPositionLine state.mode offset prepared.page prepared.extent
   if bounds.height < prepared.footer.length + 1 then
@@ -1612,7 +1650,8 @@ def viewForBounds (bounds : Bounds) (state : State) : Widget :=
   else
     let parts := viewParts state (some bounds)
     let page := bodyPageSize bounds parts.footer
-    let offset := Loam.Tui.Scroll.clamp parts.body.extent page (requestedOffset bounds state page)
+    let offset := Loam.Tui.Scroll.clamp parts.body.extent page
+      (inputFollowingOffset bounds state page (requestedOffset bounds state page))
     let position := scrollPositionLine state.mode offset page parts.body.extent
     if bounds.height < parts.footer.length + 1 then
       -- In a tiny terminal, retain as much navigation as possible. Existing views

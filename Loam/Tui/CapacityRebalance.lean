@@ -223,30 +223,18 @@ private def rowLine
     match state.coverage.bind (fun coverage => coverage.rowFor? row.purpose) with
     | some cov => (padLeft 9 (toString cov.remaining.quanta), padLeft 13 (toString cov.headroom.quanta))
     | none => (padLeft 9 "-", padLeft 13 "-")
-  let (deltaStr, isEditingThis) :=
-    match state.mode with
-    | .editingDelta buf =>
-        if isSelected then
-          (padLeft 9 ("[" ++ buf ++ "_]"), true)
-        else
-          let d := state.proposal.delta row.purpose
-          (padLeft 9 (if d > 0 then "+" ++ toString d else toString d), false)
-    | _ =>
-        let d := state.proposal.delta row.purpose
-        (padLeft 9 (if d > 0 then "+" ++ toString d else toString d), false)
+  let d := state.proposal.delta row.purpose
+  let deltaStr := padLeft 9 (if d > 0 then "+" ++ toString d else toString d)
   let propEnt := row.entitlement.quanta + state.proposal.delta row.purpose
   let proposedStr := padLeft 10 (toString propEnt)
   let text := marker ++ purpose ++ cap ++ now ++ afterKnown ++ deltaStr ++ proposedStr
-  let style : Style :=
-    if isEditingThis then .selectedUnderlined
-    else if isSelected then .selected
-    else .normal
+  let style : Style := if isSelected then .selected else .normal
   .row [span text style]
 
 private def summaryLine (label text : String) : Widget :=
   .row [span (padRight 38 (label ++ ":")), span text]
 
-def view (_bounds : Bounds) (state : State) : Widget :=
+def view (bounds : Bounds) (state : State) : Widget :=
   match state.mode with
   | .preview draft choice =>
       .column <|
@@ -270,6 +258,20 @@ def view (_bounds : Bounds) (state : State) : Widget :=
               (if choice.val = idx then .selected else .normal))
         , blank
         , muted "Left/Right/Tab select   Enter confirm   Esc/q back"
+        , line state.notice
+        ]
+  | .editingDelta buffer =>
+      let width := contentWidth bounds
+      let label := ellipsize (width - 1) "Signed delta: "
+      let purpose := (selectedPurpose? state).map (·.token) |>.getD "(none)"
+      .column <| fitWithFooter bounds
+        [ line "Capacity / Rebalance / Edit delta"
+        , line ("Purpose: " ++ purpose)
+        , muted ("Effective: " ++ state.effectiveOn)
+        , .row [span label, inputSpan (width - displayWidth label) true buffer]
+        , muted "The proposal changes only after Enter."
+        ]
+        [ muted "digits/sign edit  Enter apply  Esc back"
         , line state.notice
         ]
   | _ =>
@@ -319,11 +321,7 @@ def view (_bounds : Bounds) (state : State) : Widget :=
                 else String.intercalate " | " parts
 
       let helpLine :=
-        match state.mode with
-        | .editingDelta _ =>
-            "Editing Δ: digits/sign, Enter confirm, Esc cancel"
-        | _ =>
-            "j/k or arrows select   e edit signed Δ   0 clear selected Δ   c clear proposal   Enter preview/publish   q cancel/back"
+        "j/k or arrows select   e edit signed Δ   0 clear selected Δ   c clear proposal   Enter preview/publish   q cancel/back"
 
       .column <|
         [ line "Capacity / Rebalance"

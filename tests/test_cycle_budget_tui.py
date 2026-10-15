@@ -77,6 +77,7 @@ process = subprocess.Popen([str(executable), str(root)], stdin=slave, stdout=sla
                            stderr=slave, env=env, preexec_fn=controlling_terminal)
 os.close(slave)
 ansi = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+transcript = bytearray()
 
 
 def wait_for_fd(fd, expected, timeout=15):
@@ -85,7 +86,10 @@ def wait_for_fd(fd, expected, timeout=15):
     while time.monotonic() < deadline:
         if select.select([fd], [], [], 0.1)[0]:
             try:
-                data += os.read(fd, 65536)
+                chunk = os.read(fd, 65536)
+                data += chunk
+                if fd == master:
+                    transcript.extend(chunk)
             except OSError:
                 break
             clean = ansi.sub("", data.decode("utf-8", errors="replace"))
@@ -96,6 +100,24 @@ def wait_for_fd(fd, expected, timeout=15):
 
 def wait_for(expected, timeout=15):
     return wait_for_fd(master, expected, timeout)
+
+def expect_caret(mark, position=None, timeout=10):
+    """Observe the renderer's physical insertion anchor, not selected styling."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        output = bytes(transcript[mark:])
+        if position is None:
+            if b"\x1b[?25l" in output and not output.endswith(b"\x1b[?25h"):
+                return
+        else:
+            anchors = re.findall(rb"\x1b\[(\d+);(\d+)H\x1b\[\?25h", output)
+            if anchors:
+                actual = tuple(map(int, anchors[-1]))
+                if actual[0] == position[0] and (position[1] is None or actual[1] == position[1]):
+                    return
+        if select.select([master], [], [], 0.1)[0]:
+            transcript.extend(os.read(master, 65536))
+    raise AssertionError(f"Missing caret {position}: {bytes(transcript[mark:])!r}")
 
 
 def drain_fd(fd):
@@ -153,6 +175,26 @@ try:
     assert "[Publish]" in preview
     assert "[Edit]" in preview
     assert "[Cancel]" in preview
+    mark = len(transcript)
+    os.write(master, b"e")
+    wait_for("Amount jpy:")
+    expect_caret(mark, (5, 16))  # 150 ends after the real Amount label.
+    for width, height in [(32, 9), (48, 14), (80, 24), (120, 40)]:
+        mark = len(transcript)
+        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", height, width, 0, 0))
+        os.kill(process.pid, signal.SIGWINCH)
+        os.write(master, b"\x00")  # ignored input wakes the same retained draft
+        expect_caret(mark, (5, 16))
+    mark = len(transcript)
+    os.write(master, b"\t")
+    expect_caret(mark)  # Preview action is not text.
+    mark = len(transcript)
+    os.write(master, b"\x1b[Z")
+    expect_caret(mark, (5, 16))
+    mark = len(transcript)
+    os.write(master, b"\r")
+    wait_for("Capacity / Cycle Grant / Preview")
+    expect_caret(mark)
     os.write(master, b"\x1b")
     budget = wait_for("Cycle grant cancelled.")
     assert "Budget / Pension Cycle" in budget
@@ -168,14 +210,18 @@ try:
     assert "food" in rebalance and "stock" in rebalance
 
     # Build a balanced preview: food -10, stock +10. Do not publish.
+    mark = len(transcript)
     os.write(master, b"e")
-    wait_for("Editing Δ")
+    wait_for("Signed delta:")
+    expect_caret(mark, (4, 16))
     for key in [b"-", b"1", b"0", b"\r"]:
         os.write(master, key)
     wait_for("-10")
     os.write(master, b"j")
+    mark = len(transcript)
     os.write(master, b"e")
-    wait_for("Editing Δ")
+    wait_for("Signed delta:")
+    expect_caret(mark, (4, 16))
     for key in [b"1", b"0", b"\r"]:
         os.write(master, key)
     wait_for("0  ")
@@ -198,6 +244,51 @@ try:
     os.write(master, b"e")
     os.write(master, b"q")
     wait_for(f"Focus: {today + datetime.timedelta(days=42)}")
+    # Manage Loci retains the same token across its nested navigation-only role
+    # picker and date-editing history surface, including live bounds changes.
+    before_administration = digest()
+    os.write(master, b" ")
+    wait_for("Home / Commands")
+    os.write(master, b"jjjj\x1b[C")
+    wait_for("Commands / Household setup")
+    mark = len(transcript)
+    os.write(master, b"\r")
+    wait_for("New stable token:")
+    os.write(master, b"caret-draft")
+    expect_caret(mark, (36, 30))
+    mark = len(transcript)
+    os.write(master, b"\t")
+    wait_for("AccountingRole Administration")
+    expect_caret(mark)
+    for width, height in [(32, 9), (48, 14), (80, 24), (120, 40)]:
+        mark = len(transcript)
+        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", height, width, 0, 0))
+        os.kill(process.pid, signal.SIGWINCH)
+        os.write(master, b"\x00")
+        wait_for("AccountingRole Administration")
+        assert b"\x1b[?25h" not in transcript[mark:], "Role picker became text input"
+    mark = len(transcript)
+    os.write(master, b"\x1b")
+    wait_for("New stable token:")
+    expect_caret(mark, (36, 30))
+    mark = len(transcript)
+    os.write(master, b"\x1b[Z")
+    wait_for("Start day:")
+    expect_caret(mark, (36, None))
+    for width, height in [(32, 9), (48, 14), (80, 24), (120, 40)]:
+        mark = len(transcript)
+        fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", height, width, 0, 0))
+        os.kill(process.pid, signal.SIGWINCH)
+        os.write(master, b"\x00")
+        wait_for("Start day:")
+        expect_caret(mark, (height - 4, None))
+    mark = len(transcript)
+    os.write(master, b"\x1b")
+    wait_for("New stable token:")
+    expect_caret(mark, (36, 30))
+    os.write(master, b"\x1b")
+    wait_for("Locus admission cancelled.")
+    assert digest() == before_administration, "Nested administration changed household/config"
     # General Capacity is still accessible from Home's optional command palette.
     open_envelope_commands()
     os.write(master, b"j\r")

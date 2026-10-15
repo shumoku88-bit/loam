@@ -144,6 +144,22 @@ def main (args : List String) : IO Unit := do
   let ignoredB := Loam.Tui.ActualRoutingAdministration.update s0 (.input 'b')
   expect (!ignoredB.cancel && ignoredB.state.phase == .selectLocus)
     "retired b cancel alias survived"
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let live : Bounds := { width, height }
+    for editor in [effective.state, datedState] do
+      let position := Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+        (compileWidget (Loam.Tui.ActualRoutingAdministration.view live editor))
+      let length := if editor.phase == .editEffective "" then 1 else 10
+      expect (position == some (4, 16 + length))
+        "Routing effective-date caret did not remain inside its actual field"
+    for editor in [s0, target.state, purpose.state, preview.state, initialPreview.state] do
+      expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+        (compileWidget (Loam.Tui.ActualRoutingAdministration.view live editor))).isNone)
+        "Routing navigation or preview exposed a text caret"
+  let refusedDate := typeText effective.state "2026-02-30"
+  let refusal := Loam.Tui.ActualRoutingAdministration.update refusedDate .enter
+  expect (refusal.publish.isNone && refusal.state.phase == .editEffective "2026-02-30")
+    "Routing date refusal lost the exact input buffer"
 
   if args.length >= 1 then
     let root := System.FilePath.mk args.head!

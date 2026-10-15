@@ -27,7 +27,7 @@ def viewForBounds (bounds : Bounds) (reductionCount : Nat)
     (state : Loam.Tui.SettlementAction.State) : Widget :=
   Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds reductionCount)
     "Settlement / Action"
-    (fun _ => Loam.Tui.SettlementAction.view state)
+    (fun inner => Loam.Tui.SettlementAction.viewForContentBounds inner state)
 
 /--
 Use the same domain-owned editor and publish/refusal logic for a floating or

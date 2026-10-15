@@ -724,10 +724,41 @@ def main : IO Unit := do
   expect (!badStep.state.notice.isEmpty)
     "noninteger quantity did not produce local representation feedback"
 
-  let previewText := widgetText (Loam.Tui.CurrentQuantityAnchor.view previewState)
+  let previewText := widgetText (Loam.Tui.CurrentQuantityAnchor.view
+    { width := 120, height := 40 } previewState)
   expect (contains "Unmentioned prior observations are preserved" previewText)
     "preview no longer explains incremental observation semantics"
   expect (contains "shared publisher derives the Event root cut" previewText)
     "preview no longer exposes the publisher-owned cut boundary"
+  let long := String.ofList (List.replicate 160 '7')
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let bounds : Bounds := { width, height }
+    for focus in List.range 6 do
+      let editor : Loam.Tui.CurrentQuantityAnchor.State := {
+        assertions := List.replicate 40 duplicate
+        form := { locus := long, measure := long, quantity := long, focus }
+      }
+      let position := Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+        (Loam.Tui.Runtime.compileWidget (Loam.Tui.CurrentQuantityAnchor.view bounds editor))
+      expect (position == if focus < 3 then some (focus + 1, width - 2) else none)
+        "Observe quantities lost the focused field behind accumulated rows or marked an action"
+      let edited := (Loam.Tui.CurrentQuantityAnchor.update editor .backspace).state
+      let value :=
+        if focus == 0 then edited.form.locus
+        else if focus == 1 then edited.form.measure
+        else edited.form.quantity
+      expect (value.length == if focus < 3 then 159 else 160)
+        "Observe quantities Backspace edited only its display tail or an action's input"
+      expect (decide (edited.assertions = editor.assertions))
+        "Observe quantities editing changed already collected observations"
+    expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CurrentQuantityAnchor.view bounds previewState))).isNone)
+      "Observe quantities preview exposed an input caret"
+    expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CurrentQuantityAnchor.view bounds badStep.state))).isSome)
+      "Observe quantities invalid quantity refusal lost its input caret"
+  let pasted := (Loam.Tui.CurrentQuantityAnchor.update quantityFocus (.paste "-12345")).state
+  expect (pasted.form.quantity == "-12345")
+    "Observe quantities caret integration changed supported paste bytes"
 
   IO.println "TUI help/footer and current quantity observation boundary checks passed."

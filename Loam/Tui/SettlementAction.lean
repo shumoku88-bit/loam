@@ -606,6 +606,11 @@ def withPublishError (state : State) (message : String) : State :=
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 
+private def field (width : Nat) (label text : String) : Widget :=
+  let caption := Loam.Tui.Layout.ellipsize (width / 2 - 2) label ++ ": "
+  .row [span caption .muted,
+    Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption) true text]
+
 private def choiceLine (selected : Bool) (number label : String) : Widget :=
   line ((if selected then "> " else "  ") ++ number ++ ". " ++ label)
 
@@ -637,7 +642,8 @@ private def reductionListLines
       line ((if index = selectedIndex then "> " else "  ") ++
         reductionLabel index allocation)
 
-def view (state : State) : Widget :=
+def viewForContentBounds (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
   let common := header state
   match state.mode with
   | .menu choice =>
@@ -652,11 +658,10 @@ def view (state : State) : Widget :=
         ] ++ noticeLines state
 
   | .editAmount input =>
-      .column <| common ++
+      .column <| [field width "Correct amount" input] ++ common ++
         [ line ""
         , line ("Current amount: " ++ toString state.row.committed.quanta ++
             " " ++ state.row.measure.token)
-        , line ("Correct amount: " ++ if input.isEmpty then "_" else input)
         , muted "This corrects the original amount; earlier evidence stays in history."
         , muted "Digits only   Backspace edit   Enter preview   Esc back"
         ] ++ noticeLines state
@@ -717,10 +722,8 @@ def view (state : State) : Widget :=
             ] ++ noticeLines state
 
   | .reduceAmount input =>
-      .column <| common ++
+      .column <| [field width "Decrease amount" input] ++ common ++
         [ line ""
-        , line ("Amount no longer due without payment: " ++
-            if input.isEmpty then "_" else input)
         , muted ("Maximum: " ++ toString state.row.outstanding.quanta ++
             " " ++ state.row.measure.token)
         , muted "Digits only   Backspace edit   Enter next   Esc back"
@@ -738,9 +741,8 @@ def view (state : State) : Widget :=
         ] ++ noticeLines state
 
   | .reduceDate _ input =>
-      .column <| common ++
+      .column <| [field width "Date" input] ++ common ++
         [ line ""
-        , line ("Date: " ++ if input.isEmpty then "_" else input)
         , muted "YYYY-MM-DD   Backspace edit   Enter preview   Esc back"
         ] ++ noticeLines state
 
@@ -762,11 +764,10 @@ def view (state : State) : Widget :=
       match reductionAt? state index with
       | none => .column <| common ++ [line "", line "That earlier decrease is no longer available."]
       | some current =>
-          .column <| common ++
+          .column <| [field width "Correct decrease" input] ++ common ++
             [ line ""
             , line ("Current decrease: " ++ toString current.quantity.quanta ++
                 " " ++ state.row.measure.token)
-            , line ("Correct decrease: " ++ if input.isEmpty then "_" else input)
             , muted ("Maximum while keeping the item consistent: " ++
                 toString (state.row.outstanding.quanta + current.quantity.quanta) ++
                 " " ++ state.row.measure.token)
@@ -789,9 +790,8 @@ def view (state : State) : Widget :=
             ] ++ noticeLines state
 
   | .repairDate _ _ input =>
-      .column <| common ++
+      .column <| [field width "Correct date" input] ++ common ++
         [ line ""
-        , line ("Correct date: " ++ if input.isEmpty then "_" else input)
         , muted "YYYY-MM-DD   Backspace edit   Enter preview   Esc back"
         ] ++ noticeLines state
 
@@ -826,5 +826,8 @@ def view (state : State) : Widget :=
             , muted "This removes only this decrease from the current view; the obligation stays."
             , muted "Enter confirm   Esc back   q cancel"
             ] ++ noticeLines state
+
+def view (state : State) : Widget :=
+  viewForContentBounds {width := 80, height := 24} state
 
 end Loam.Tui.SettlementAction

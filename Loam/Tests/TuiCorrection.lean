@@ -72,7 +72,7 @@ private def checkBoundedSurface (world : Loam.MovementAdmission.World)
     "Correction shared input lost its fixed-date or Original suppression labels"
   let japanese := { editor with editor := { editor.editor with form :=
     { editor.editor.form with description := "修正" } } }
-  expect (Loam.Tui.ModalSurface.focusedCursorPosition? 0 0
+  expect (Loam.Tui.Terminal.textCaretPosition? bounds 0 0 bounds.width
     (Loam.Tui.Runtime.compileWidget (Loam.Tui.Correction.view bounds [] japanese)) == some (3, 18))
     "Correction did not place its CJK Description caret at the active field"
   let six : Loam.Tui.Record.Form := { editor.editor.form with
@@ -88,8 +88,8 @@ private def checkBoundedSurface (world : Loam.MovementAdmission.World)
         expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
           Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
           "Correction input escaped terminal bounds"
-        let editing := Loam.Tui.Record.isTextEditing state.editor
-        let caret := Loam.Tui.ModalSurface.textCaretPosition? active none editing
+        let editing := index < 3 + six.rows.size * 2
+        let caret := Loam.Tui.Terminal.textCaretPosition? active 0 0 active.width
           (Loam.Tui.Runtime.compileWidget widget)
         if editing then
           let some (row, col) := caret

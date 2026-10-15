@@ -332,13 +332,14 @@ def view (bounds : Bounds) (state : State) : Widget :=
         ]
 
   | .editEffective buffer =>
-      let shown := if buffer.isEmpty then "(blank = observed date)" else buffer
+      let width := contentWidth bounds
+      let label := ellipsize (width - 1) "Effective from: "
       .column
         [ line "Purpose Administration / Effective Coordinate"
         , muted "Capacity > Purpose Administration > Actual Routing"
         , blank
         , line ("Observed date: " ++ state.snapshot.observedAt)
-        , line ("Effective from: " ++ shown)
+        , .row [span label, inputSpan (width - displayWidth label) true buffer]
         , blank
         , muted "Type YYYY-MM-DD and press Enter, or press Enter blank to use observed date."
         , muted "Press i for initial only when the routing policy truly applies from the retained origin."

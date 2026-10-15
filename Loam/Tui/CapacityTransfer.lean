@@ -4,12 +4,13 @@ import Loam.Review.CapacityReview
 import Loam.Review.CurrentCoverageReview
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Terminal
 import Lean.Elab.Tactic.Omega
 
 namespace Loam.Tui.CapacityTransfer
 
-open Loam.Core Loam.Tui.Kernel
+open Loam.Core Loam.Tui.Kernel Loam.Tui.Layout
 
 set_option autoImplicit false
 
@@ -225,9 +226,9 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
           | _ => { state }
 
 private def line (text : String) : Widget := .row [span text]
-private def field (form : Form) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if form.focus = index then .selected else .normal)]
+private def field (width : Nat) (form : Form) (index : Nat) (label text : String) : Widget :=
+  let pfx := ellipsize (width - 1) (label ++ ": ")
+  .row [span pfx, inputSpan (width - displayWidth pfx) (form.focus = index) text]
 
 private def impactLine
     (snapshot : Loam.CapacityReview.Snapshot)
@@ -244,7 +245,7 @@ private def impactLine
         " " ++ snapshot.measure.token
 
 /-- Render one Capacity transfer without importing Envelope identity or backing semantics. -/
-def view (state : State) : Widget :=
+def view (bounds : Bounds) (state : State) : Widget :=
   match state.mode with
   | .editing =>
       let form := state.form
@@ -272,22 +273,22 @@ def view (state : State) : Widget :=
             , line "Funding residual is advisory current evidence, not an allocation ceiling."
             ]
         | none => []
-      .column <|
-        [ line header
-        , field form 0 "From" form.source
-        , field form 1 "To" form.destination
-        , field form 2 "Effective" form.effectiveOn
-        , field form 3 ("Amount " ++ state.snapshot.measure.token) form.amount
-        , .row
+      .column <| fitWithFooter bounds
+        ([ line header
+         , field (contentWidth bounds) form 0 "From" form.source
+         , field (contentWidth bounds) form 1 "To" form.destination
+         , field (contentWidth bounds) form 2 "Effective" form.effectiveOn
+         , field (contentWidth bounds) form 3 ("Amount " ++ state.snapshot.measure.token) form.amount
+         ] ++ grantWidgets ++
+         [ line ("Candidate: " ++ (candidate? state).getD "")
+         , line "Endpoints are unallocated or Purpose tokens; new Purpose tokens need no registry."
+         , line "unallocated is an allocation boundary, not money available to allocate."
+         ])
+        [ .row
             [ span "[Preview] " (if form.focus = 4 then .selected else .normal)
             , span "[Cancel]" (if form.focus = 5 then .selected else .normal)
             ]
-        ] ++ grantWidgets ++
-        [ line ("Candidate: " ++ (candidate? state).getD "")
-        , line "Endpoints are unallocated or Purpose tokens; new Purpose tokens need no registry."
-        , line "unallocated is an allocation boundary, not money available to allocate."
-        , line "Tab / Shift-Tab focus   Enter next/preview/action   Right accept candidate"
-        , line "Esc cancel   Backspace delete"
+        , line "Tab focus  Enter next/action  Esc cancel"
         , line state.notice
         ]
   | .preview draft choice =>

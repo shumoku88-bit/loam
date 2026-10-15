@@ -190,9 +190,10 @@ def view (bounds : Bounds) (state : State) : Widget :=
       [summary, postings]
     else
       let content : List Widget :=
-        [ .row [span " Target: " .muted, span state.target.token],
-          .row [span " Target date: " .muted, span (targetDateText state)],
-          .row [span " Reversal date: " .muted, span state.inputDate .selected]
+        [ .row [span " Reversal date: " .muted,
+            Loam.Tui.Layout.inputSpan (width - 2 - 16) true state.inputDate],
+          .row [span " Target: " .muted, span state.target.token],
+          .row [span " Target date: " .muted, span (targetDateText state)]
         ] ++ wrapped (width - 2) (" Description: " ++ descriptionText state) .muted
       [Loam.Tui.Layout.framedPanel width (min 9 capacity)
         "Actual / Reverse / Date" (.column content) true]

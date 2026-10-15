@@ -284,7 +284,7 @@ private def historyRows (width capacity : Nat) (snapshot : Loam.Tui.Main.Snapsho
 
 private def withoutSelection (widget : Widget) : Widget :=
   .column (widget.lines.map fun cells => .row (cells.map fun cell =>
-    span (String.singleton cell.glyph) (if cell.style == .selected then .normal else cell.style)))
+    Cell.toSpan { cell with style := if cell.style == .selected then .normal else cell.style }))
 
 private def trendPanel (bounds : Bounds) (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Widget :=
   let history := historyFor snapshot state
@@ -380,7 +380,7 @@ def update (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : Sta
   | _ => .stay state
 
 private def widgetRows (widget : Widget) : List Widget :=
-  widget.lines.map fun cells => .row (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+  widget.lines.map fun cells => .row (cells.map Cell.toSpan)
 
 /-- Quiet bounded panes over the existing retrospective current-truth snapshot. -/
 def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : State := {}) : Widget :=
@@ -398,6 +398,6 @@ def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : State
   let panels := if g.detailOnly then widgetRows (detailPanel g snapshot state)
     else widgetRows (trendPanel bounds g snapshot state) ++ lower
   .column ((Loam.Tui.Layout.fitWithFooter bounds (context.take g.contextRows ++ panels) (footer bounds snapshot state)).map fun row =>
-    .row ((Loam.Tui.Layout.clipCells g.width row.lines.flatten).map fun cell => span (String.singleton cell.glyph) cell.style))
+    .row ((Loam.Tui.Layout.clipCells g.width row.lines.flatten).map Cell.toSpan))
 
 end Loam.Tui.DailyPaceTrend

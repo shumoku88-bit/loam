@@ -67,7 +67,7 @@ partial def loop
   | .transfer current =>
       let editor := Loam.Tui.CapacityTransfer.initial
         current.snapshot observedAt (Loam.Tui.Capacity.selectedPurpose? current)
-      let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
+      let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view bounds editor)
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame editorFrame
       let notice ← Loam.Tui.CapacityTransferSession.run
         bounds root editor editorFrame

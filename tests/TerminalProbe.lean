@@ -1,5 +1,4 @@
 import Loam.Tui.Terminal
-import Loam.Tui.ModalSurface
 
 open Loam.Tui.Kernel Loam.Tui.Runtime Loam.Tui.Terminal
 
@@ -101,23 +100,29 @@ def main (args : List String) : IO Unit := do
         blankFrame regionFrame
   | "cursor" =>
       let _ ← readKey
-      emitDirtyDiff bounds 0 0 blankFrame (frameFor bounds)
+      let painted ← currentBounds
+      let field := compileWidget (.column (
+        List.replicate (painted.height - 1) (.row []) ++
+        [.row [span (Loam.Tui.Layout.padRight (Loam.Tui.Layout.contentWidth painted - 1) ""),
+               Loam.Tui.Layout.inputSpan 1 true ""]]))
+      emitDirtyDiff painted 0 0 blankFrame field
       IO.print "painted"
       (← IO.getStdout).flush
-      -- The PTY driver shrinks the tty only after observing the completed paint.
+      -- Shrink after completed paint; unchanged stale frames must hide, not clamp.
       let _ ← readKey
-      placeCursor (bounds.height - 1) (bounds.width - 1)
+      emitDirtyDiff painted 0 0 field field
   | "text-caret" =>
       let _ ← readKey
-      let selected := compileWidget (.row [span "日本" .selected, span " "])
-      let region : Loam.Tui.ModalSurface.Rectangle :=
-        { top := 2, left := 3, width := 20, height := 4 }
-      try
-        Loam.Tui.ModalSurface.withTextCaret do
-          Loam.Tui.ModalSurface.placeTextCaret bounds (some region) true selected
-          throw (IO.userError "synthetic editor failure")
-      catch _ => IO.print "caught"
-      -- The pane moved outside the live tty: hide instead of snapping to parent.
-      Loam.Tui.ModalSurface.placeTextCaret bounds
-        (some { region with left := bounds.width + 4 }) true selected
+      let fieldWidget := Widget.row [Loam.Tui.Layout.inputSpan 20 true "日本"]
+      let field := compileWidget fieldWidget
+      let menu := compileWidget (.row [span "[Preview]" .selected])
+      emitDirtyRegion bounds 2 3 20 blankFrame field
+      IO.print "stable"
+      emitDirtyRegion bounds 2 3 20 field field
+      IO.print "review"
+      emitDirtyRegion bounds 2 3 20 field menu
+      IO.print "direct"
+      redrawWidgetDirect bounds fieldWidget
+      IO.print "stale"
+      emitDirtyRegion bounds 0 (bounds.width + 4) 20 field field
   | _ => throw (IO.userError "unknown terminal probe mode")
