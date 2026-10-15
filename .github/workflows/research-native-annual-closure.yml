@@ -1,0 +1,45 @@
+name: Research - Native Annual Read Closure
+
+on:
+  pull_request:
+    paths:
+      - 'tools/NativeAnnualReadProbe.lean'
+      - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
+      - '.github/workflows/research-native-annual-closure.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  native-source-closure:
+    name: Actual and Scheduled native dependency closure
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Build real fixture and Actual publisher imports
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ScheduledReview Loam.Tests.Support
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: false
+      - name: Make disposable qualified real Actual and Scheduled source
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)/native-annual"
+          echo "NATIVE_ANNUAL_ROOT=$root" >> "$GITHUB_ENV"
+          lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$root"
+      - name: Verify real correction / completion dependency closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          lake env lean --run tools/NativeAnnualReadProbe.lean "$NATIVE_ANNUAL_ROOT"
