@@ -6,8 +6,10 @@ on:
       - 'tools/NativeAnnualReadProbe.lean'
       - 'tools/NativeHouseholdSectionBridge.lean'
       - 'tools/research-native-annual-section-bridge.py'
+      - 'tools/research-native-actual-publication-delta.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
       - 'docs/research/NATIVE_HOUSEHOLD_SECTION_BRIDGE_2026-10-15.md'
+      - 'docs/research/NATIVE_ACTUAL_PUBLICATION_DELTA_2026-10-15.md'
       - '.github/workflows/research-native-annual-closure.yml'
 
 permissions:
@@ -51,3 +53,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-native-annual-section-bridge.py --check
+      - name: Verify real normalized Actual TX publication deltas
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-native-actual-publication-delta.py --check
