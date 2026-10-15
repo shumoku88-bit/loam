@@ -243,13 +243,18 @@ private def brailleGlyph
   let mask :=
     (List.range 2).foldl
       (fun current dx =>
+        let subX := cellX * 2 + dx
+        let currY := rowForValue subHeight range (sample subWidth subX)
+        let yA := if subX == 0 then currY
+          else (rowForValue subHeight range (sample subWidth (subX - 1)) + currY) / 2
+        let yB := if subX + 1 >= subWidth then currY
+          else (currY + rowForValue subHeight range (sample subWidth (subX + 1))) / 2
+        let minY := min currY (min yA yB)
+        let maxY := max currY (max yA yB)
         (List.range 4).foldl
           (fun inner dy =>
-            let subX := cellX * 2 + dx
             let subY := cellY * 4 + dy
-            let value := sample subWidth subX
-            let lineY := rowForValue subHeight range value
-            if lineY = subY then inner + dotValue dx dy else inner)
+            if minY <= subY && subY <= maxY then inner + dotValue dx dy else inner)
           current)
       0
   if mask = 0 then ' ' else Char.ofNat (0x2800 + mask)
@@ -437,15 +442,26 @@ private def qualifiedBrailleGlyph (sample : Nat → Nat → Option Int)
   let subWidth := max 1 (width * 2)
   let subHeight := max 1 (height * 4)
   let mask := (List.range 2).foldl (fun current dx =>
-    (List.range 4).foldl (fun inner dy =>
-      let subX := cellX * 2 + dx
-      let subY := cellY * 4 + dy
-      match sample subWidth subX with
-      | some value =>
-          if rowForValue subHeight range value == subY then
+    let subX := cellX * 2 + dx
+    match sample subWidth subX with
+    | none => current
+    | some currVal =>
+        let currY := rowForValue subHeight range currVal
+        let yA := if subX == 0 then currY else
+          match sample subWidth (subX - 1) with
+          | some prevVal => (rowForValue subHeight range prevVal + currY) / 2
+          | none => currY
+        let yB := if subX + 1 >= subWidth then currY else
+          match sample subWidth (subX + 1) with
+          | some nextVal => (currY + rowForValue subHeight range nextVal) / 2
+          | none => currY
+        let minY := min currY (min yA yB)
+        let maxY := max currY (max yA yB)
+        (List.range 4).foldl (fun inner dy =>
+          let subY := cellY * 4 + dy
+          if minY <= subY && subY <= maxY then
             inner + dotValue dx dy
-          else inner
-      | none => inner) current) 0
+          else inner) current) 0
   if mask == 0 then ' ' else Char.ofNat (0x2800 + mask)
 
 private def qualifiedCellGlyph (renderer : Renderer)

@@ -382,6 +382,14 @@ private def testQualifiedGraphGeometry : IO Unit := do
     expect (((text row).toList.drop 12 |>.take 7).all (· == ' '))
       "Braille segment crossed a cycle reset"
 
+  let steepDrop : List (Option Int) := [some 2000, some (-1000)]
+  let steepRows := Loam.Tui.Chart.renderQualifiedInRange .braille 15 7
+    steepDrop [true] 0 {low := -1000, high := 2000} true
+  for (row, idx) in steepRows.zipIdx do
+    let rowText := text row
+    expect (rowText.toList.any fun ch => ch == '◆' || ch == '●' || (0x2800 < ch.toNat && ch.toNat <= 0x28ff))
+      s!"steep drop Braille line left empty row at index {idx}"
+
 private def testGraphStyleNavigation : IO Unit := do
   let configured : List Loam.BoundaryPresetConfig.Preset := [{name := "explicit", boundaries :=
     ["2026-08-21", "2026-09-21", "2026-10-21", "2026-11-21"]}]

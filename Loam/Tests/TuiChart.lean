@@ -150,4 +150,10 @@ def main : IO Unit := do
   expect (wide.length == 12 && wide.all fun row => row.width == 48)
     "portable chart did not reflow to a larger terminal geometry"
 
+  let steep := Loam.Tui.Chart.render .braille 6 8 [0, 100] 0
+  let steepLines := steep.flatMap Widget.lines
+  expect (steepLines.all fun cells =>
+      cells.any fun c => c.glyph == '◆' || (0x2800 < c.glyph.toNat && c.glyph.toNat <= 0x28ff))
+    "steep Braille line rasterization left unpopulated rows in plot geometry"
+
   IO.println "portable TUI chart geometry and renderer fallbacks passed."
