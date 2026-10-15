@@ -1,3 +1,4 @@
+import Loam.Review.DailyPaceChangeReview
 import Loam.Tui.Chart
 import Loam.Tui.Layout
 import Loam.Tui.Main
@@ -110,6 +111,31 @@ private def fitText (width : Nat) (text : String) : String :=
 private def wrapped (width : Nat) (text : String) (style : Style := .normal) : List Widget :=
   (Loam.Tui.Layout.wrapColumns (width - 1) text).map fun part => .row [span " ", span part style]
 
+/-- Explanation uses the Review algebra, not a TUI-specific financial formula. -/
+private def movementDetail (width : Nat)
+    (history : List Loam.CycleSpendingPaceReview.Snapshot) (state : State) :
+    List Widget :=
+  let index := selectedIndex history state
+  if index == 0 then [] else
+    match history[index - 1]?, history[index]? with
+    | some previous, some current =>
+        match Loam.DailyPaceChangeReview.compare previous current with
+        | .error _ =>
+            wrapped width "Day-to-day breakdown unavailable (not adjacent within one cycle)." .muted
+        | .ok explanation =>
+            let signed (n : Int) := (if n > 0 then "+" else "") ++ grouped n
+            wrapped width ("Time passage: " ++ signed explanation.timePassageEffect ++
+              " " ++ current.measure.token ++ "/day") .muted ++
+            wrapped width ("Free money effect: " ++ signed explanation.freeMoneyEffect ++
+              " " ++ current.measure.token ++ "/day") .muted ++
+            wrapped width ("Pool balance delta: " ++ signed explanation.poolBalanceChange ++
+              " " ++ current.measure.token) .muted ++
+            wrapped width ("Scheduled protection release: " ++ signed explanation.protectionRelease ++
+              " " ++ current.measure.token) .muted ++
+            wrapped width ("Free-through-end delta: " ++ signed explanation.freeThroughEndChange ++
+              " " ++ current.measure.token) .muted
+    | _, _ => []
+
 private def disclosure (width : Nat) : List Widget :=
   wrapped width "Reconstructed current truth." .muted ++
   wrapped width "no separate daily snapshot is kept." .muted
@@ -166,6 +192,7 @@ private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state
       wrapped width ("Pace: " ++ paceText point ++
         (if point.observedAt == snapshot.actual.today then "  current" else "")) ++
       wrapped width (changeText history state) .muted ++
+      movementDetail width history state ++
       wrapped width ("Cycle end (exclusive): " ++ point.endExclusive) .muted ++
       wrapped width ("Remaining days: " ++ toString point.remainingDays) .muted ++
       wrapped width ("Pool: " ++ grouped point.eligiblePool.quanta ++ " " ++ point.measure.token) .muted ++
