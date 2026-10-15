@@ -192,7 +192,6 @@ private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state
       wrapped width ("Pace: " ++ paceText point ++
         (if point.observedAt == snapshot.actual.today then "  current" else "")) ++
       wrapped width (changeText history state) .muted ++
-      movementDetail width history state ++
       wrapped width ("Cycle end (exclusive): " ++ point.endExclusive) .muted ++
       wrapped width ("Remaining days: " ++ toString point.remainingDays) .muted ++
       wrapped width ("Pool: " ++ grouped point.eligiblePool.quanta ++ " " ++ point.measure.token) .muted ++
@@ -205,7 +204,8 @@ private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state
        | _, _ => []) ++
       (match chartValues history with
        | .error message => wrapped width message .muted
-       | .ok _ => []) ++ disclosure width
+       | .ok _ => []) ++ disclosure width ++
+      movementDetail width history state
 
 private def footer (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   let feedback := match historyState snapshot state with
