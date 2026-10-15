@@ -19,6 +19,19 @@ still owns interpolation and plotting. Period/day/focus/scroll state is local,
 not a saved observation, query setting, or household publication.
 -/
 
+inductive GraphStyle where
+  | connected
+  | points
+  deriving Repr, DecidableEq
+
+def GraphStyle.next : GraphStyle → GraphStyle
+  | .connected => .points
+  | .points => .connected
+
+def GraphStyle.label : GraphStyle → String
+  | .connected => "line"
+  | .points => "dots"
+
 structure State where
   /-- `none` follows the most recent reconstructed day on first entry. -/
   selected : Option Nat := none
@@ -27,6 +40,8 @@ structure State where
   selectedDay : Option String := none
   detailFocused : Bool := false
   detailScroll : Nat := 0
+  /-- Display preference only; independent of preset, accounting and provenance. -/
+  graphStyle : GraphStyle := .connected
   deriving Repr, DecidableEq
 
 inductive Step where
@@ -66,6 +81,23 @@ private def partialSamples (snapshot : Loam.Tui.Main.Snapshot) (state : State) :
           match period.history with
           | .loaded _ => []
           | _ => period.samples
+      | none => []
+  | _ => []
+
+
+/-- Keep one calendar-aligned plot source regardless of historical completeness.
+Older fully supported fixtures still provide only the legacy history list. -/
+private def graphSamples (snapshot : Loam.Tui.Main.Snapshot) (state : State) :
+    List Loam.DailyPacePeriods.DaySample :=
+  match snapshot.pacePeriods with
+  | .loaded periods =>
+      match periods.find? (fun period => period.preset == state.period) with
+      | some period =>
+          if !period.samples.isEmpty then period.samples else
+            match period.history with
+            | .loaded history => history.map fun point =>
+                {day := point.observedAt, answer := .ok point}
+            | _ => []
       | none => []
   | _ => []
 
@@ -279,10 +311,10 @@ private def footer (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state 
         else muted " History partial; unknown dates kept as gaps."
     | _ => blank
   let navigation := if state.detailFocused then
-      [("j/k", "scroll"), ("i/q", "trend"), ("h/l", "day")]
+      [("j/k", "scroll"), ("v", "view"), ("i/q", "trend"), ("h/l", "day")]
     else if Loam.Tui.Layout.contentWidth bounds ≥ 79 then
-      [("h/l", "day"), ("i/Enter", "details"), ("q", "back")]
-    else [("h/l", "day"), ("i/Enter", "info"), ("q", "back")]
+      [("h/l", "day"), ("v", "view"), ("i/Enter", "details"), ("q", "back")]
+    else [("h/l", "day"), ("v", "view"), ("i", "info"), ("q", "back")]
   let rows := [feedback, Loam.Tui.Layout.shortcutRow navigation " ",
     Loam.Tui.Layout.shortcutRow [("1-5", "period"), ("C-u/d", "page"), ("Home/End", "ends")] " "]
   let capacity := bounds.height - 1
@@ -343,29 +375,62 @@ def normalizedForBounds (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (s
 def historyCapacityForBounds (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Nat :=
   (geometry bounds snapshot state).historyHeight - 4
 
-private def axisWidth (width : Nat) (history : List Loam.CycleSpendingPaceReview.Snapshot) : Nat :=
-  let desired := match chartValues history with
-    | .error _ => 3
-    | .ok values => (Loam.Tui.Chart.scaleFor values 4).ticks.foldl
-        (fun n tick => max n (Loam.Tui.Layout.displayWidth (grouped tick))) 3
+/-- Qualify a common axis without treating missing days as numerical zero. -/
+private def qualifiedChartValues (samples : List Loam.DailyPacePeriods.DaySample) :
+    Except String (List (Option Int) × List Int) := do
+  let known := samples.filterMap fun sample =>
+    match sample.answer with
+    | .ok point => point.dailyPaceQuanta?.map fun value => (value, point.measure)
+    | .error _ => none
+  if known.isEmpty then throw "No qualified points in this range"
+  let measure := (known.head?).map Prod.snd
+  if !(known.all fun entry => some entry.2 == measure) then
+    throw "Chart unavailable: different Measures; review each day separately"
+  let numbers := known.map Prod.fst
+  if !(numbers.all fun value => value.natAbs ≤ 10 ^ 24) then
+    throw "Chart unavailable: values exceed bounded axis; full values in details"
+  let values := samples.map fun sample =>
+    match sample.answer with
+    | .ok point => point.dailyPaceQuanta?
+    | .error _ => none
+  return (values, numbers)
+
+/-- Adjacent valid days may connect only within the same cycle, never over an
+unknown day, calendar hole or reset. Neither source changes financial facts. -/
+private def qualifiedJoins (samples : List Loam.DailyPacePeriods.DaySample) : List Bool :=
+  (samples.zip (samples.drop 1)).map fun (before, after) =>
+    match before.answer, after.answer with
+    | .ok left, .ok right =>
+        left.dailyPaceQuanta?.isSome && right.dailyPaceQuanta?.isSome &&
+        left.measure == right.measure &&
+        left.endExclusive == right.endExclusive &&
+        Loam.ActualDate.shiftDays? before.day 1 == some after.day
+    | _, _ => false
+
+private def qualifiedAxisWidth (width : Nat) (numbers : List Int) : Nat :=
+  let desired := (Loam.Tui.Chart.scaleFor numbers 4).ticks.foldl
+    (fun n tick => max n (Loam.Tui.Layout.displayWidth (grouped tick))) 3
   min desired (max 3 (width / 4))
 
-private def chartRows (width height : Nat) (history : List Loam.CycleSpendingPaceReview.Snapshot)
-    (state : State) : List Widget :=
+private def qualifiedChartRows (width height : Nat)
+    (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : List Widget :=
   if height == 0 || width < 8 then [] else
-    match chartValues history with
+    match qualifiedChartValues samples with
     | .error message =>
         let rows := (wrapped width message .muted).take height
         rows ++ List.replicate (height - rows.length) blank
-    | .ok values =>
-        let scale := Loam.Tui.Chart.scaleFor values 4
-        let axis := axisWidth width history
+    | .ok (values, numbers) =>
+        let scale := Loam.Tui.Chart.scaleFor numbers 4
+        let axis := qualifiedAxisWidth width numbers
         let plotWidth := max 1 (width - axis - 3)
-        let gridRows := scale.ticks.map fun tick => Loam.Tui.Chart.rowForValue height scale.range tick
-        let rendered := Loam.Tui.Chart.renderInRange .braille plotWidth height values
-          (selectedIndex history state) scale.range [] gridRows
+        let gridRows := scale.ticks.map fun tick =>
+          Loam.Tui.Chart.rowForValue height scale.range tick
+        let rendered := Loam.Tui.Chart.renderQualifiedInRange .braille
+          plotWidth height values (qualifiedJoins samples) (sampleIndex samples state)
+          scale.range (state.graphStyle == .connected) gridRows
         (List.range height).map fun row =>
-          let label := match scale.ticks.find? (fun tick => Loam.Tui.Chart.rowForValue height scale.range tick == row) with
+          let label := match scale.ticks.find? (fun tick =>
+              Loam.Tui.Chart.rowForValue height scale.range tick == row) with
             | some tick => Loam.Tui.Layout.padLeft axis
                 (if Loam.Tui.Layout.displayWidth (grouped tick) ≤ axis then grouped tick else "…") ++ " ┤ "
             | none => Loam.Tui.Layout.padRight axis "" ++ " │ "
@@ -374,63 +439,18 @@ private def chartRows (width height : Nat) (history : List Loam.CycleSpendingPac
             | some (.row spans) => spans
             | _ => [])
 
-private def dateAxis (width : Nat) (history : List Loam.CycleSpendingPaceReview.Snapshot) : Widget :=
-  match history.head?, history.getLast? with
-  | some first, some last =>
-      let left := axisWidth width history + 3
-      let plotWidth := width - left
-      if plotWidth ≥ 21 then muted (Loam.Tui.Layout.padRight left "" ++
-        Loam.Tui.Layout.padRight (plotWidth - 10) first.observedAt ++ last.observedAt)
-      else muted (fitText width "range in details")
-  | _, _ => blank
-
-/--
-Sparse day-aligned markers; unknown days are empty locations, not 0 and not
-a line interpolated across unsupported calendar dates.
--/
-private def partialChartRows (width height : Nat)
-    (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : List Widget :=
-  if height == 0 || width < 8 then [] else
-    let known := (samples.zipIdx).filterMap fun (sample, index) =>
-      match sample.answer with
-      | .ok point => point.dailyPaceQuanta?.map fun value => (index, value)
-      | .error _ => none
-    let values := known.map Prod.snd
-    if known.isEmpty then
-      let content := wrapped width "No qualified points in this range" .muted
-      content.take height ++ List.replicate (height - min height content.length) blank
-    else if !(values.all fun value => value.natAbs ≤ 10 ^ 24) then
-      let content := wrapped width "Chart unavailable: values exceed bounded axis" .muted
-      content.take height ++ List.replicate (height - min height content.length) blank
-    else
-      let scale := Loam.Tui.Chart.scaleFor values 4
-      let axis := min 10 (max 3 (width / 4))
-      let plotWidth := max 1 (width - axis - 3)
-      let selected := sampleIndex samples state
-      let points := known.map fun (index, value) =>
-        (Loam.Tui.Chart.xForIndex plotWidth samples.length index,
-         Loam.Tui.Chart.rowForValue height scale.range value, index == selected)
-      let gridRows := scale.ticks.map fun tick =>
-        Loam.Tui.Chart.rowForValue height scale.range tick
-      (List.range height).map fun row =>
-        let tick := scale.ticks.find? fun n =>
-          Loam.Tui.Chart.rowForValue height scale.range n == row
-        let label := match tick with
-          | some n => Loam.Tui.Layout.padLeft axis
-              (if Loam.Tui.Layout.displayWidth (grouped n) ≤ axis then grouped n else "…") ++ " ┤ "
-          | none => Loam.Tui.Layout.padRight axis "" ++ " │ "
-        .row ([span label .muted] ++ (List.range plotWidth).map fun col =>
-          match points.find? (fun (x, y, _) => x == col && y == row) with
-          | some (_, _, true) => span "◆" .selected
-          | some (_, _, false) => span "●" .series1
-          | none =>
-              if row ∈ gridRows then span "┄" .muted else span " ")
-
-private def partialDateAxis (width : Nat)
+private def qualifiedDateAxis (width : Nat)
     (samples : List Loam.DailyPacePeriods.DaySample) : Widget :=
   match samples.head?, samples.getLast? with
   | some first, some last =>
-      muted (fitText width (first.day ++ " ... " ++ last.day ++ "  (gaps omitted)"))
+      let axis := match qualifiedChartValues samples with
+        | .ok (_, numbers) => qualifiedAxisWidth width numbers
+        | .error _ => 3
+      let left := axis + 3
+      let plotWidth := width - left
+      if plotWidth ≥ 21 then muted (Loam.Tui.Layout.padRight left "" ++
+        Loam.Tui.Layout.padRight (plotWidth - 10) first.day ++ last.day)
+      else muted (fitText width (first.day ++ " ... " ++ last.day))
   | _, _ => blank
 
 private def partialSummary (width : Nat)
@@ -442,7 +462,7 @@ private def partialSummary (width : Nat)
     | some (.error _) => "unavailable (not zero)"
     | none => "unavailable"
   [line (" Selected " ++ date ++ "   " ++ fitValue (width - min width 24) status),
-   muted s!" {known}/{samples.length} supported days • points only; gaps have no line"]
+   muted s!" {known}/{samples.length} supported days • {state.graphStyle.label}; unknown days stay gaps"]
 
 private def summaryRows (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   let history := historyFor snapshot state
@@ -499,19 +519,20 @@ private def withoutSelection (widget : Widget) : Widget :=
 private def trendPanel (bounds : Bounds) (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Widget :=
   let history := historyFor snapshot state
   let daySamples := partialSamples snapshot state
+  let plotted := graphSamples snapshot state
   let width := g.trendWidth - 2
   let inner := g.trendHeight - 2
   let height := if inner ≥ 6 then inner - 3 else 0
   let capacity := historyCapacityForBounds bounds snapshot state
-  let body := if !daySamples.isEmpty then
-      partialSummary width daySamples state ++ partialChartRows width height daySamples state ++
-        (if height > 0 then [partialDateAxis width daySamples] else [])
-    else if history.isEmpty then
+  let body := if !plotted.isEmpty then
+      (if !daySamples.isEmpty then partialSummary width daySamples state
+        else summaryRows width snapshot state) ++
+      qualifiedChartRows width height plotted state ++
+      (if height > 0 then [qualifiedDateAxis width plotted] else [])
+    else
       let raw := statusLines width snapshot state ++
         [line (" Today: " ++ currentText snapshot)] ++ disclosure width
       if raw.length ≤ inner then raw else raw.take (inner - 1) ++ [muted " more in details (i)"]
-    else summaryRows width snapshot state ++ chartRows width height history state ++
-      (if height > 0 then [dateAxis width history] else [])
   let index := if daySamples.isEmpty then selectedIndex history state else sampleIndex daySamples state
   let count := if daySamples.isEmpty then history.length else daySamples.length
   let start := Loam.Tui.Layout.trailingWindowStart index (max 1 capacity)
@@ -519,7 +540,8 @@ private def trendPanel (bounds : Bounds) (g : Geometry) (snapshot : Loam.Tui.Mai
     (if capacity == 0 then " • list hidden" else
       (if start > 0 then " ↑" else "") ++ (if start + capacity < count then " ↓" else ""))
   Loam.Tui.Layout.framedPanel g.trendWidth g.trendHeight
-    ("Trend" ++ (if state.detailFocused then "" else " [active]"))
+    ("Trend" ++ (if state.detailFocused then "" else " [active]") ++
+      (if g.trendWidth ≥ 38 then " • " ++ state.graphStyle.label else ""))
     (if state.detailFocused then withoutSelection (.column body) else .column body)
     (!state.detailFocused) (some position)
 
@@ -566,6 +588,8 @@ def update (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : Sta
   let state := normalizedForBounds bounds snapshot rawState
   let g := geometry bounds snapshot state
   match key with
+  | .input 'v' | .input 'V' =>
+      .stay {state with graphStyle := state.graphStyle.next}
   | .input '1' | .input '2' | .input '3' | .input '4' | .input '5' =>
       let period := if key == .input '1' then Loam.DailyPacePeriods.Preset.tenDays
         else if key == .input '2' then .thirtyDays else if key == .input '3' then .month
