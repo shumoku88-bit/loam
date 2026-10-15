@@ -4,7 +4,10 @@ on:
   pull_request:
     paths:
       - 'tools/NativeAnnualReadProbe.lean'
+      - 'tools/NativeHouseholdSectionBridge.lean'
+      - 'tools/research-native-annual-section-bridge.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
+      - 'docs/research/NATIVE_HOUSEHOLD_SECTION_BRIDGE_2026-10-15.md'
       - '.github/workflows/research-native-annual-closure.yml'
 
 permissions:
@@ -43,3 +46,8 @@ jobs:
         run: |
           set -euo pipefail
           lake env lean --run tools/NativeAnnualReadProbe.lean "$NATIVE_ANNUAL_ROOT"
+      - name: Verify native HouseholdImage COW sections against admitted snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-native-annual-section-bridge.py --check
