@@ -41,7 +41,7 @@ private def closureStep
   records.foldl (fun collected row =>
     let sourceToken := row.event.id.token
     match row.replacement with
-    | none => have
+    | none => collected
     | some to =>
         if collected.contains sourceToken || collected.contains to.token then
           (sourceToken :: to.token :: collected).eraseDups
