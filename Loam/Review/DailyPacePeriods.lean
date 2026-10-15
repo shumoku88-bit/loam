@@ -69,9 +69,14 @@ structure Period where
   range : Except String Range
   history : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot)
 
+/-- Current truth is independent of the availability of historical display periods. -/
+structure Prepared where
+  current : Except String Loam.CycleSpendingPaceReview.Snapshot
+  periods : List Period
+
 /-- Reuse each day's reconstruction across overlapping presets in one read image.
 A refused window is not truncated to the known part and no missing day becomes zero. -/
-def project
+def projectPrepared
     (measure : Loam.Core.MeasureId)
     (image : Loam.ActualAuthority.Image)
     (evidence : Loam.HistoricalBalanceReview.Evidence)
@@ -79,7 +84,7 @@ def project
     (balances : Loam.BalanceReview.Snapshot)
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
     (configured : List Loam.BoundaryPresetConfig.Preset)
-    (today : String) : List Period := Id.run do
+    (today : String) : Prepared := Id.run do
   let source := cyclePreset configured today
   let current := do
     let window ← Loam.BoundaryPresetConfig.currentWindowFor? configured today
@@ -106,18 +111,31 @@ def project
         if point != current then throw "Daily Pace history latest point disagrees with the current Daily Pace answer"
       return point
     cache := cache.insert day (result.mapError fun message => day ++ ": " ++ message)
-  return ranges.map fun (preset, range) =>
+  let periods := ranges.map fun (preset, range) =>
     let history := do
       let days ← range.bind Range.dates
       days.mapM fun day => (cache[day]?).getD (.error "Daily Pace: reconstructed day missing")
     {preset, range, history := match history with
       | .ok points => .loaded points
       | .error message => .failed message}
+  return {current := current, periods := periods}
+
+/-- Compatibility projection for existing independent historical-period consumers. -/
+def project
+    (measure : Loam.Core.MeasureId)
+    (image : Loam.ActualAuthority.Image)
+    (evidence : Loam.HistoricalBalanceReview.Evidence)
+    (selection : List Loam.Core.EffectCoordinate)
+    (balances : Loam.BalanceReview.Snapshot)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
+    (configured : List Loam.BoundaryPresetConfig.Preset)
+    (today : String) : List Period :=
+  (projectPrepared measure image evidence selection balances scheduled configured today).periods
 
 /-- Load support/config once; callers supply the same admitted Actual/Scheduled generation. -/
 def load (dataDir : System.FilePath) (today : String)
     (image : Loam.ActualAuthority.Image) (generation : Loam.HouseholdAuthority.Generation)
-    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) : IO (Except String (List Period)) := do
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) : IO (Except String Prepared) := do
   try
     let configured ← Loam.BoundaryPresetConfig.load? (Loam.HouseholdPaths.boundaryPresets dataDir)
     let some configured := configured | return .error "boundary preset config is malformed"
@@ -129,7 +147,7 @@ def load (dataDir : System.FilePath) (today : String)
       let current ← Loam.CurrentBalanceReview.projectFromGeneration generation image
       let balances ← Loam.CurrentBalanceReview.selectExact current selection
       let evidence ← Loam.HistoricalBalanceReview.evidenceFromGeneration generation
-      return project ⟨"jpy"⟩ image evidence selection balances scheduled configured today
+      return projectPrepared ⟨"jpy"⟩ image evidence selection balances scheduled configured today
   catch error => return .error ("Daily Pace configuration unreadable: " ++ error.toString)
 
 end Loam.DailyPacePeriods
