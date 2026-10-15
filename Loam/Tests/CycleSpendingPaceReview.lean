@@ -641,6 +641,28 @@ def main : IO Unit := do
     | .failed message => (message.splitOn "replaced without a learned-time coordinate").length > 1
     | _ => false)
     "rollover failed to preserve the historical ambiguity independently from today"
+  expect (ten.samples.length == 10 &&
+    (ten.samples.getLast?.map (·.source)) == some .current)
+    "rollover erased the ten calendar slots or mislabeled today"
+  let lastSample ← requireSome ten.samples.getLast? "rollover today sample missing"
+  expect (match lastSample.answer with
+    | .ok point => point == current
+    | .error _ => false)
+    "a refused retrospective series erased today's independently admitted point"
+  let priorSample ← requireSome (ten.samples.find? fun s => s.day == "2026-10-14")
+    "rollover old-day slot missing"
+  expect (match priorSample.answer with
+    | .ok point => point.observedAt == "2026-10-14" &&
+        point.endExclusive == "2026-10-15"
+    | .error _ => false)
+    "a November-only replacement invalidated an independent earlier-cycle day"
+  let previousPeriod ← requireSome
+    (rollover.periods.find? fun p => p.preset == .previousCycle)
+    "rollover previous-cycle period missing"
+  expect (previousPeriod.samples.all fun s => s.source == .reconstructed)
+    "previous cycle incorrectly acquired an as-known today sample"
+  expect ((noHistoryTen.samples.getLast?.map (·.answer.isOk)) == some true)
+    "missing historical balance support blocked independent today in daily samples"
 
   IO.println
     "Cycle Spending Pace: explicit pool, per-Scheduled deduction, boundary and earliest-open checks passed."

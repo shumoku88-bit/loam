@@ -64,10 +64,25 @@ def Range.dates (range : Range) : Except String (List String) := do
     | some day => .ok day
     | none => .error "Daily Pace: day outside calendar bounds"
 
+/-- A value reconstructed from today's truth is not an as-known-at-day record. -/
+inductive DaySource where
+  | reconstructed
+  | current
+  deriving Repr, DecidableEq
+
+/-- Every calendar day is retained in the display, even if its value is unknown. -/
+structure DaySample where
+  day : String
+  answer : Except String Loam.CycleSpendingPaceReview.Snapshot
+  source : DaySource := .reconstructed
+  deriving Repr
+
 structure Period where
   preset : Preset
   range : Except String Range
   history : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot)
+  /-- Day-wise, fail-closed evidence. Legacy period consumers can still use history. -/
+  samples : List DaySample := []
 
 /-- Current truth is independent of the availability of historical display periods. -/
 structure Prepared where
@@ -116,12 +131,19 @@ def projectPrepared
       return point
     cache := cache.insert day (result.mapError fun message => day ++ ": " ++ message)
   let periods := ranges.map fun (preset, range) =>
-    let history := do
-      let days ← range.bind Range.dates
-      days.mapM fun day => (cache[day]?).getD (.error "Daily Pace: reconstructed day missing")
-    {preset, range, history := match history with
-      | .ok points => .loaded points
-      | .error message => .failed message}
+    let days := ((range.bind Range.dates).toOption).getD []
+    let history := days.mapM fun day =>
+      (cache[day]?).getD (.error "Daily Pace: reconstructed day missing")
+    let samples := days.map fun day =>
+      if day == today then
+        {day, answer := current, source := .current}
+      else
+        {day, answer := (cache[day]?).getD (.error "Daily Pace: reconstructed day missing")}
+    {preset, range, samples, history := match range with
+      | .error message => .failed message
+      | .ok _ => match history with
+        | .ok points => .loaded points
+        | .error message => .failed message}
   return {current := current, periods := periods}
 
 /-- Compatibility projection for existing independent historical-period consumers. -/
