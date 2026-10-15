@@ -39,10 +39,15 @@ The native probe:
    `ScheduledReview.fromGenerationForEvents`.
 2. Confirms a completed 2026 Scheduled is not open while 2027-due
    obligations remain open.
-3. Intentionally passes an empty Actual Event memory to that same
-   Scheduled reader and requires an error: a planner which omitted
-   the completion Actual must not silently claim the obligation is open
-   or settled.
+3. Intentionally passes an empty Actual Event memory to the low-level
+   Scheduled reader. The **real Scheduled core accepts that projection**
+   and reopens the paid occurrence, because completion activation requires
+   the referenced Actual to be present. This is a **real counterexample to
+   naive year-only pruning**, not a claim of a production bug in LOAM's
+   complete-Household reader. A future selective reader **must include**
+   the completion's Actual identity from a qualified dependency index
+   or refuse as incomplete **before** asking ScheduledReview for a
+   household-level result.
 4. Publishes a dated 2025 Actual using the **real**
    `MovementPublisher.publishDraft`, corrects its amount using the
    real `CorrectionPublisher.publishCorrection`, and moves the
@@ -69,6 +74,11 @@ The native probe:
   publication-time source** for these synthetic operations today.
   Treating a validOn date as a learned date would be a serious
   correctness error.
+- The negative control does NOT show that ScheduledReview itself currently
+  refuses when passed incomplete caller-supplied Events; it **does not**.
+  The partition planner must enforce completeness of its selected Event
+  subset at a higher boundary. The current complete Household reader
+  does not make that intentional truncation.
 - It does not qualify a cross-segment atomic commit protocol,
   an index/manifest, a restore path, or durable checkpoints for
   CurrentBalance/DailyPace.
