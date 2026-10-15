@@ -316,6 +316,7 @@ private def testDayWiseUnknownGaps : IO Unit := do
   ]
   let world : Loam.Tui.Main.Snapshot := {
     actual := {today := "2026-10-15", allRecords := []}
+    scheduled := .error "synthetic lifecycle"
     paceCurrent := .loaded today
     pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
       {preset
