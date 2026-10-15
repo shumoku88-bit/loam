@@ -76,6 +76,16 @@ private def paceText (point : Loam.CycleSpendingPaceReview.Snapshot) : String :=
   | some quanta => grouped quanta ++ " " ++ point.measure.token ++ "/day"
   | none => "unavailable"
 
+/-- The headline is independent of any historical display-window refusal. -/
+private def currentText (snapshot : Loam.Tui.Main.Snapshot) : String :=
+  match snapshot.paceCurrent with
+  | .loaded point =>
+      if point.observedAt == snapshot.actual.today then paceText point
+      else "unavailable (stale)"
+  | .failed _ => "unavailable (i: cause)"
+  | .unavailable => "unavailable"
+  | .notRequested => "not requested"
+
 private def changeText (history : List Loam.CycleSpendingPaceReview.Snapshot) (state : State) : String :=
   let index := selectedIndex history state
   if index == 0 then "first point" else
@@ -103,6 +113,24 @@ private def wrapped (width : Nat) (text : String) (style : Style := .normal) : L
 private def disclosure (width : Nat) : List Widget :=
   wrapped width "Reconstructed current truth." .muted ++
   wrapped width "no separate daily snapshot is kept." .muted
+
+private def currentDetailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) : List Widget :=
+  match snapshot.paceCurrent with
+  | .loaded point =>
+      if point.observedAt != snapshot.actual.today then
+        wrapped width "Today unavailable: stale current observation" .muted
+      else
+        wrapped width ("Today: " ++ paceText point) ++
+        wrapped width ("Free through cycle end: " ++ grouped point.availableThroughEnd.quanta ++
+          " " ++ point.measure.token) ++
+        wrapped width ("Protected Scheduled: " ++ grouped point.automaticDeductions.quanta) .muted ++
+        wrapped width ("Selected pool: " ++ grouped point.eligiblePool.quanta) .muted ++
+        wrapped width ("Remaining days: " ++ toString point.remainingDays) .muted ++
+        wrapped width ("Cycle end (exclusive): " ++ point.endExclusive) .muted
+  | .failed message =>
+      wrapped width "Today unavailable (not zero):" .muted ++ wrapped width message .muted
+  | .unavailable => wrapped width "Today unavailable (not zero)" .muted
+  | .notRequested => wrapped width "Today not requested" .muted
 
 private def statusLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   match historyState snapshot state with
@@ -132,7 +160,7 @@ private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state
       | none => []
     | _ => []
   rangeLines ++ match history[selectedIndex history state]? with
-  | none => statusLines width snapshot state ++ disclosure width
+  | none => currentDetailLines width snapshot ++ statusLines width snapshot state ++ disclosure width
   | some point =>
       wrapped width ("Selected " ++ point.observedAt) ++
       wrapped width ("Pace: " ++ paceText point ++
@@ -293,7 +321,7 @@ private def trendPanel (bounds : Bounds) (g : Geometry) (snapshot : Loam.Tui.Mai
   let height := if inner ≥ 6 then inner - 3 else 0
   let capacity := historyCapacityForBounds bounds snapshot state
   let body := if history.isEmpty then
-      let raw := statusLines width snapshot state ++ disclosure width
+      let raw := currentDetailLines width snapshot ++ statusLines width snapshot state ++ disclosure width
       if raw.length ≤ inner then raw else raw.take (inner - 1) ++ [muted " more in details (i)"]
     else summaryRows width snapshot state ++ chartRows width height history state ++
       (if height > 0 then [dateAxis width history] else [])
@@ -389,8 +417,12 @@ def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : State
   let choices := Loam.DailyPacePeriods.presets.zipIdx |>.map fun (period, index) =>
     let label := if g.width < 70 && period == .previousCycle then "Prev" else period.label
     toString (index + 1) ++ ":" ++ label ++ (if period == state.period then "*" else "")
-  let context := [line (" Daily Pace / Trend • " ++ state.period.label ++ "   [w] what-if"),
-    muted (" " ++ String.intercalate " " choices)]
+  let context := if g.contextRows == 1 then
+      [line (" Today: " ++ currentText snapshot)]
+    else
+      [line (" Daily Pace / Trend • " ++ state.period.label ++ "   [w] what-if"),
+       muted (" Today: " ++ currentText snapshot ++
+         (if g.width ≥ 85 then "   " ++ String.intercalate " " choices else "   [1-5] period"))]
   let lower := if g.wide then Loam.Tui.Layout.sideBySide g.historyHeight g.historyWidth g.detailWidth
       (historyPanel g snapshot state) (detailPanel g snapshot state) " "
     else widgetRows (historyPanel g snapshot state) ++
