@@ -516,8 +516,10 @@ def main : IO Unit := do
   let noHistory := Loam.DailyPacePeriods.projectPrepared yen image
     (.error "historical balance support unavailable") selection historyBalances
     rolloverScheduled rolloverBoundaries "2026-10-15"
-  expect (noHistory.current == rollover.current)
-    "historical support admission failure blocked today's valid spendable amount"
+  let .ok noHistoryToday := noHistory.current
+    | throw (IO.userError "historical support refusal blocked the current point")
+  expect (noHistoryToday == current)
+    "historical support admission failure changed today's valid spendable amount"
   let noHistoryTen ← requireSome
     (noHistory.periods.find? fun p => p.preset == .tenDays)
     "missing range when history evidence unavailable"
