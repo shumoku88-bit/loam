@@ -652,9 +652,10 @@ def main : IO Unit := do
   let priorSample ← requireSome (ten.samples.find? fun s => s.day == "2026-10-14")
     "rollover old-day slot missing"
   expect (match priorSample.answer with
-    | .error message => (message.splitOn "learned-time coordinate").length > 1
-    | .ok _ => false)
-    "undated replacement was backfilled as fake old-day truth"
+    | .ok point => point.observedAt == "2026-10-14" &&
+        point.endExclusive == "2026-10-15"
+    | .error _ => false)
+    "a November-only replacement invalidated an independent earlier-cycle day"
   let previousPeriod ← requireSome
     (rollover.periods.find? fun p => p.preset == .previousCycle)
     "rollover previous-cycle period missing"
