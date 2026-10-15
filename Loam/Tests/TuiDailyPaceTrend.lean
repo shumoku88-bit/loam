@@ -390,8 +390,8 @@ private def testGraphStyleNavigation : IO Unit := do
       | .ok range => pure range | .error message => throw (IO.userError message)
     let days ← match range.dates with
       | .ok days => pure days | .error message => throw (IO.userError message)
-    pure ({preset, range := .ok range, history := .loaded
-      (days.map fun day => point day 123)} : Loam.DailyPacePeriods.Period)
+    let history := days.map fun day => point day 123
+    pure ({preset, range := .ok range, history := .loaded history} : Loam.DailyPacePeriods.Period)
   let world := {snapshot .notRequested with pacePeriods := .loaded periods}
   for bounds in [({width := 24, height := 8} : Bounds), {width := 32, height := 9},
       {width := 48, height := 14}, {width := 80, height := 24},
