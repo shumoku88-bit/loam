@@ -17,6 +17,7 @@ on:
       - 'docs/research/NATIVE_ACTUAL_PUBLICATION_DELTA_2026-10-15.md'
       - 'docs/research/TACKLER_SOURCE_YEAR_GIT_REPLAY_2026-10-15.md'
       - 'docs/research/CROSS_FAMILY_SOURCE_YEAR_PUBLICATION_2026-10-15.md'
+      - 'docs/research/ANNUAL_SOURCE_PUBLISHER_GIT_COORDINATION_2026-10-15.md'
       - 'docs/research/TACKLER_GIT_CALENDAR_JOURNALS_2026-10-15.md'
       - '.github/workflows/research-native-annual-closure.yml'
 
