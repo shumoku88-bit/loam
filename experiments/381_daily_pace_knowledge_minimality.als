@@ -50,13 +50,13 @@ fact QualifiedFixtures {
 -- An explicitly retained replacement relation, Original -> Revised,
 -- makes the current successor depend on learned days, not row order.
 fun withExplicitReplacementAtD0[w: World]: one Policy {
-  if Revised.(w.learned) = D0 then Revised else Original
+  (Revised.(w.learned) = D0) => Revised else Original
 }
 
 -- A mutable last-write-wins policy without an identified replacement edge
 -- needs additional order/winner evidence when both writes fall on one day.
 fun lastWriteWinsAtD0[w: World]: one Policy {
-  if Revised.(w.learned) = D0 then
+  (Revised.(w.learned) = D0) =>
     { p: Policy | p.(w.position) = Late }
   else Original
 }
