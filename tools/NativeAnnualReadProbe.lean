@@ -93,13 +93,18 @@ def run (args : List String) : IO Unit := do
   expect (!openBefore.contains "paid") "completed 2026 Scheduled falsely open"
   expect (!openBefore.contains "cancelled") "cancelled 2026 Scheduled falsely open"
 
-  -- Selecting a 2027-only Actual subset cannot justify the paid 2026
-  -- Scheduled without its completion Actual. Do not map this to not-due.
+  -- IMPORTANT negative control: the existing Scheduled core intentionally
+  -- treats completion as active only if the linked Actual is present.
+  -- A naive year-only reader may therefore REOPEN a genuinely completed
+  -- Scheduled. The future planner must include the linked Actual endpoint
+  -- rather than assuming this low-level projection will refuse.
   let emptyEvents ← requireSome (EventMemory.ofEvents? []) "empty test Event memory"
-  match Loam.ScheduledReview.fromGenerationForEvents before.generation emptyEvents with
-  | .error _ => pure ()
-  | .ok _ => throw (IO.userError
-      "Scheduled read accepted a trimmed Actual set missing completion evidence")
+  let trimmed ← requireOk
+    (Loam.ScheduledReview.fromGenerationForEvents before.generation emptyEvents)
+    "trimmed Scheduled witness"
+  let falselyOpened ← requireOk (dueIds trimmed) "trimmed Scheduled open projection"
+  expect (falselyOpened.contains "paid")
+    "trimmed Actual witness failed to exhibit reopened completed Scheduled"
 
   let original ← requireOk
     (← Loam.MovementPublisher.publishDraft root.toString {
