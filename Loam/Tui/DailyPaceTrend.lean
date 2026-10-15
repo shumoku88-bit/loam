@@ -55,9 +55,43 @@ private def historyFor (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Lis
 private def selectedIndex (history : List Loam.CycleSpendingPaceReview.Snapshot) (state : State) : Nat :=
   min (history.length - 1) (state.selected.getD (history.length - 1))
 
+
+/-- An unavailable date remains a calendar slot; do not compress x-axis gaps. -/
+private def partialSamples (snapshot : Loam.Tui.Main.Snapshot) (state : State) :
+    List Loam.DailyPacePeriods.DaySample :=
+  match snapshot.pacePeriods with
+  | .loaded periods =>
+      match periods.find? (fun period => period.preset == state.period) with
+      | some period =>
+          match period.history with
+          | .loaded _ => []
+          | _ => period.samples
+      | none => []
+  | _ => []
+
+private def sampleIndex (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : Nat :=
+  min (samples.length - 1) (state.selected.getD (samples.length - 1))
+
+private def sampleDate (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Option String :=
+  let history := historyFor snapshot state
+  if !history.isEmpty then
+    (history[selectedIndex history state]?).map (·.observedAt)
+  else
+    let samples := partialSamples snapshot state
+    (samples[sampleIndex samples state]?).map (·.day)
+
 private def moveBy (state : State) (snapshot : Loam.Tui.Main.Snapshot) (back : Bool) (amount : Nat) : State :=
   let history := historyFor snapshot state
-  if history.isEmpty then state else
+  if history.isEmpty then
+    let samples := partialSamples snapshot state
+    if samples.isEmpty then state else
+      let current := sampleIndex samples state
+      let next := if back then current - amount else min (samples.length - 1) (current + amount)
+      {state with
+        selected := some next
+        selectedDay := (samples[next]?).map (·.day)
+        detailScroll := if next == current then state.detailScroll else 0}
+  else
     let current := selectedIndex history state
     let next := if back then current - amount else min (history.length - 1) (current + amount)
     {state with
@@ -175,7 +209,32 @@ private def chartValues (history : List Loam.CycleSpendingPaceReview.Snapshot) :
     throw "Chart unavailable: values exceed bounded axis; full values in details"
   return values
 
-private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
+/-- Partial history has truthful day slots and precise failure causes. -/
+private def partialDetailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot)
+    (state : State) (samples : List Loam.DailyPacePeriods.DaySample) : List Widget :=
+  let selected := samples[sampleIndex samples state]?
+  let known := (samples.filter fun day => day.answer.isOk).length
+  let header := wrapped width s!"Supported: {known}/{samples.length} days" .muted
+  match selected with
+  | none => currentDetailLines width snapshot ++ statusLines width snapshot state ++ disclosure width
+  | some sample =>
+      let origin := if sample.source == .current then "current admitted truth"
+        else "reconstructed from current knowledge, not as-known history"
+      let body := match sample.answer with
+        | .error message =>
+            wrapped width ("Selected " ++ sample.day ++ ": unavailable, not zero") ++
+            wrapped width message .muted
+        | .ok point =>
+            wrapped width ("Selected " ++ sample.day ++ ": " ++ paceText point) ++
+            wrapped width ("Origin: " ++ origin) .muted ++
+            wrapped width ("Cycle end (exclusive): " ++ point.endExclusive) .muted ++
+            wrapped width ("Remaining days: " ++ toString point.remainingDays) .muted ++
+            wrapped width ("Pool: " ++ grouped point.eligiblePool.quanta ++ " " ++ point.measure.token) .muted ++
+            wrapped width ("Scheduled deductions: " ++ grouped point.automaticDeductions.quanta) .muted ++
+            wrapped width ("Available: " ++ grouped point.availableThroughEnd.quanta) .muted
+      header ++ body ++ disclosure width
+
+private def fullDetailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   let history := historyFor snapshot state
   let rangeLines := match snapshot.pacePeriods with
     | .loaded periods => match periods.find? (fun period => period.preset == state.period) with
@@ -206,6 +265,11 @@ private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state
        | .error message => wrapped width message .muted
        | .ok _ => []) ++ disclosure width ++
       movementDetail width history state
+
+private def detailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
+  let samples := partialSamples snapshot state
+  if samples.isEmpty then fullDetailLines width snapshot state
+  else partialDetailLines width snapshot state samples
 
 private def footer (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   let feedback := match historyState snapshot state with
@@ -259,10 +323,17 @@ private def detailLimit (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (stat
 /-- Clamp ephemeral cursor/offsets to this snapshot and live tty, not household facts. -/
 def normalizedForBounds (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : State :=
   let history := historyFor snapshot state
-  let state := if history.isEmpty then state else
-    {state with
-      selected := state.selected.map fun index => min index (history.length - 1)
-      selectedDay := (history[selectedIndex history state]?).map (·.observedAt)}
+  let samples := partialSamples snapshot state
+  let state :=
+    if !history.isEmpty then
+      {state with
+        selected := state.selected.map fun index => min index (history.length - 1)
+        selectedDay := (history[selectedIndex history state]?).map (·.observedAt)}
+    else if !samples.isEmpty then
+      {state with
+        selected := state.selected.map fun index => min index (samples.length - 1)
+        selectedDay := (samples[sampleIndex samples state]?).map (·.day)}
+    else state
   {state with detailScroll := min state.detailScroll (detailLimit (geometry bounds snapshot state) snapshot state)}
 
 /-- Visible data rows only: summary, plot, date axis, gap and heading are not page rows. -/
@@ -384,15 +455,18 @@ private def historyPanel (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (sta
 Refused periods keep the anchor for a later successful choice. -/
 def selectPeriod (snapshot : Loam.Tui.Main.Snapshot) (state : State)
     (period : Loam.DailyPacePeriods.Preset) : State :=
-  let old := historyFor snapshot state
-  let date := ((old[selectedIndex old state]?).map (·.observedAt)).or state.selectedDay
+  let date := (sampleDate snapshot state).or state.selectedDay
   let next := {state with period}
   let history := historyFor snapshot next
+  let samples := partialSamples snapshot next
   let index := match date with
     | none => none
     | some day =>
-        if history.isEmpty then state.selected else
+        if !history.isEmpty then
           some (min (history.length - 1) (history.takeWhile fun point => decide (point.observedAt < day)).length)
+        else if !samples.isEmpty then
+          some (min (samples.length - 1) (samples.takeWhile fun sample => decide (sample.day < day)).length)
+        else state.selected
   {next with selected := index, selectedDay := date, detailScroll := 0}
 
 /-- Read-only navigation; no reload, setting change or second pace calculation. -/
@@ -428,7 +502,12 @@ def update (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : Sta
           let history := historyFor snapshot state
           let amount := if page then max 1 (historyCapacityForBounds bounds snapshot state) else max 1 repeatCount
           if key == .home || key == .«end» then
-            if history.isEmpty then state else
+            if history.isEmpty then
+              let samples := partialSamples snapshot state
+              if samples.isEmpty then state else
+                let index := if key == .home then 0 else samples.length - 1
+                {state with selected := some index, selectedDay := (samples[index]?).map (·.day), detailScroll := 0}
+            else
               let index := if key == .home then 0 else history.length - 1
               {state with selected := some index, selectedDay := (history[index]?).map (·.observedAt), detailScroll := 0}
           else moveBy state snapshot (!forward) amount
