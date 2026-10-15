@@ -336,9 +336,10 @@ private def testDayWiseUnknownGaps : IO Unit := do
     expect (prior.selected == some 1 && prior.selectedDay == some "2026-10-14")
       "unknown day did not remain independently selectable"
     let refused ← readDetails bounds world prior
-    expect (contains "unavailable,notzero" refused &&
+    expect (contains "Selected2026-10-14:" refused &&
+      contains "notzero" refused &&
       contains "learned-timecoordinate" refused)
-      ("missing day lost its exact refusal cause: " ++ refused)
+      "missing day lost its nonzero-status or its precise learned-time refusal"
     let first ← press bounds world prior .home
     expect (first.selectedDay == some "2026-10-13")
       "partial History Home compressed away qualified earlier days"
