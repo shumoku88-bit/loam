@@ -41,7 +41,26 @@ private def changedSections
       some part.name
     else none
 
+private def verifyReassembled (root : System.FilePath) : IO Unit := do
+  let openRecords ← openIds root
+  expect (!openRecords.contains "first" && !openRecords.contains "paid" &&
+          openRecords.contains "second")
+    "restored Scheduled completion frontier does not match native accepted source"
+  let observed ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? root)
+    "restored Actual source qualification"
+  let records := Loam.ActualReview.recordsFromActualImage observed.image
+  let completion ← requireSome
+    (records.find? (fun row => row.event.id.token == "scheduled-completion:first"))
+    "restored Actual is missing first Scheduled completion"
+  expect completion.isCurrent "restored completion Actual was superseded"
+  IO.println "NATIVE_CROSS_FAMILY_REPLAY_VERIFY_PASS paired Scheduled and Actual"
+
 def run (args : List String) : IO Unit := do
+  match args with
+  | ["verify", rootText] =>
+      verifyReassembled (System.FilePath.mk rootText)
+      return
+  | _ => pure ()
   let [rootText, outText] := args
     | throw (IO.userError "usage: NativeCrossFamilyYearSource ROOT OUTPUT")
   let root := System.FilePath.mk rootText
