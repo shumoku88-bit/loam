@@ -329,8 +329,8 @@ private def testDayWiseUnknownGaps : IO Unit := do
     let drawn := text (Loam.Tui.DailyPaceTrend.view bounds world)
     expect (contains "123 jpy/day" drawn && contains "2/3 supported days" drawn)
       "a missing past day erased a qualified present-day Daily Pace point"
-    expect (contains "points only" drawn)
-      "sparse history connected unknown days instead of using isolated points"
+    expect (contains "supported days" drawn && contains "line" drawn)
+      "sparse history lost its supported-day or graph-style disclosure"
     let initial : Loam.Tui.DailyPaceTrend.State := {}
     let prior ← press bounds world initial .left
     expect (prior.selected == some 1 && prior.selectedDay == some "2026-10-14")
@@ -353,6 +353,107 @@ private def testDayWiseUnknownGaps : IO Unit := do
     expect (match Loam.Tui.DailyPaceTrend.update bounds world back (.input 'q') with
       | .back => true | _ => false)
       "partial History lost q-return navigation"
+
+
+/-- Chart pixels cannot connect two observations across unknown or cycle-reset days. -/
+private def testQualifiedGraphGeometry : IO Unit := do
+  let bounds : Loam.Tui.Chart.Range := {low := 0, high := 500}
+  let values : List (Option Int) := [some 100, some 200, none, some 400]
+  let edges := [true, false, false]
+  let connected := Loam.Tui.Chart.renderQualifiedInRange .ascii 31 7
+    values edges 3 bounds true
+  let isolated := Loam.Tui.Chart.renderQualifiedInRange .braille 31 7
+    values edges 3 bounds false
+  let allText := String.intercalate "\n" (connected.map text)
+  expect (contains "●" allText && contains "◆" allText && contains "*" allText)
+    "qualified line did not retain the contiguous segment and selected isolated marker"
+  for row in connected do
+    let glyphs := (text row).toList
+    expect ((glyphs.drop 12 |>.take 16).all (· == ' '))
+      "line or marker bridged unknown calendar days"
+  let isolatedText := String.intercalate "\n" (isolated.map text)
+  expect (contains "●" isolatedText && contains "◆" isolatedText &&
+      !contains "⠁" isolatedText)
+    "dots mode lost markers or interpolated a line"
+  let afterReset : List (Option Int) := [some 100, some 200, some 300, some 400]
+  let resetRows := Loam.Tui.Chart.renderQualifiedInRange .ascii 31 7
+    afterReset [true, false, true] 3 bounds true
+  for row in resetRows do
+    expect (((text row).toList.drop 12 |>.take 7).all (· == ' '))
+      "Braille segment crossed a cycle reset"
+
+private def testGraphStyleNavigation : IO Unit := do
+  let configured : List Loam.BoundaryPresetConfig.Preset := [{name := "explicit", boundaries :=
+    ["2026-08-21", "2026-09-21", "2026-10-21", "2026-11-21"]}]
+  let periods ← Loam.DailyPacePeriods.presets.mapM fun preset => do
+    let range ← match Loam.DailyPacePeriods.resolve preset "2026-10-30" configured with
+      | .ok range => pure range | .error message => throw (IO.userError message)
+    let days ← match range.dates with
+      | .ok days => pure days | .error message => throw (IO.userError message)
+    pure ({preset, range := .ok range, history := .loaded
+      (days.map fun day => point day 123)} : Loam.DailyPacePeriods.Period)
+  let world := {snapshot .notRequested with pacePeriods := .loaded periods}
+  for bounds in [({width := 24, height := 8} : Bounds), {width := 32, height := 9},
+      {width := 48, height := 14}, {width := 80, height := 24},
+      {width := 120, height := 40}] do
+    let mut state : Loam.Tui.DailyPaceTrend.State := {}
+    for key in [.input '1', .input '2', .input '3', .input '4', .input '5'] do
+      state ← press bounds world state key
+      let before := state
+      let dots ← press bounds world state (.input 'v')
+      expect (dots.graphStyle == .points && dots.selected == before.selected &&
+        dots.selectedDay == before.selectedDay && dots.period == before.period &&
+        dots.detailFocused == before.detailFocused && dots.detailScroll == before.detailScroll)
+        "v changed period/date/scroll instead of only graph style"
+      let rendered := Loam.Tui.DailyPaceTrend.view bounds world dots
+      expect (rendered.lines.length ≤ bounds.height - 1 &&
+        rendered.lines.all fun cells =>
+          Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) ≤ bounds.width - 1)
+        "dots style escaped terminal bounds"
+      let line ← press bounds world dots (.input 'V')
+      expect (line == before) "V did not restore connected mode and full navigation state"
+      state := line
+    let dots ← press bounds world state (.input 'v')
+    let switched ← press bounds world dots (.input '3')
+    expect (switched.graphStyle == .points) "period change reset style"
+    let focus ← press bounds world switched .enter
+    let toggle ← press bounds world focus (.input 'v')
+    expect (toggle.detailFocused && toggle.selectedDay == focus.selectedDay &&
+      toggle.detailScroll == focus.detailScroll) "focused detail lost state after v"
+    let resized := Loam.Tui.DailyPaceTrend.normalizedForBounds bounds world toggle
+    expect (resized.graphStyle == toggle.graphStyle &&
+      resized.selectedDay == toggle.selectedDay) "resize reset graph style or day"
+
+/-- Gap-aware rendering and reasons are independent of how the points are drawn. -/
+private def testBothStylesKeepRefusals : IO Unit := do
+  let entries : List Loam.DailyPacePeriods.DaySample := [
+    {day := "2026-10-13", answer := .ok (point "2026-10-13" 100)},
+    {day := "2026-10-14", answer := .error "learned-time coordinate is unknown"},
+    {day := "2026-10-15", answer := .ok (point "2026-10-15" 125),
+      source := .current}]
+  let world : Loam.Tui.Main.Snapshot := {
+    actual := {today := "2026-10-15", allRecords := []}
+    scheduled := .error "synthetic"
+    paceCurrent := .loaded (point "2026-10-15" 125)
+    pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
+      {preset, range := .ok {start := "2026-10-13", through := "2026-10-15"},
+       history := .failed "partial", samples := entries})
+  }
+  let bounds : Bounds := {width := 120, height := 40}
+  for styleKey in [none, some (Loam.Tui.Terminal.Key.input 'v')] do
+    let initial ← match styleKey with
+      | some key => press bounds world {} key
+      | none => pure ({} : Loam.Tui.DailyPaceTrend.State)
+    let unknown ← press bounds world initial .left
+    let reason ← readDetails bounds world unknown
+    expect (unknown.selectedDay == some "2026-10-14" &&
+      contains "learned-timecoordinateisunknown" reason &&
+      contains "notzero" reason)
+      "style discarded calendar gap or typed refusal"
+    let latest ← press bounds world unknown .right
+    expect (latest.selectedDay == some "2026-10-15" &&
+      contains "125 jpy/day" (text (Loam.Tui.DailyPaceTrend.view bounds world latest)))
+      "style lost independent current point"
 
 private def testIndependentCurrent : IO Unit := do
   let basePoint := point "2026-10-15" 24000
@@ -488,6 +589,9 @@ private def testWhatIf : IO Unit := do
     "what-if modal lost projection, safeguard or nonpublication disclosure"
 
  def main : IO Unit := do
+  testQualifiedGraphGeometry
+  testGraphStyleNavigation
+  testBothStylesKeepRefusals
   testDayWiseUnknownGaps
   testChangeDecomposition
   testIndependentCurrent
