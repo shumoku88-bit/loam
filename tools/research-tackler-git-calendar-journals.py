@@ -129,7 +129,7 @@ def recorded_file(repo: Path, rev: str, path: str) -> str:
 
 def tackler_config(repo: Path) -> Path:
     """Minimal exact Tackler config, no external chart or price authority."""
-    config = repo / "tackler-research.toml"
+    config = repo.parent / "tackler-research.toml"
     # Both backends share the same configuration and source files.
     config.write_text(
         '[kernel]\n'
