@@ -92,8 +92,9 @@ def main (args : List String) : IO Unit := do
   let longParty := String.ofList (List.replicate 75 'a') ++ "-tail"
   for bounds in [({width := 32, height := 9} : Loam.Tui.Kernel.Bounds),
       {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 40}] do
-    let longEditor := {typed with partyInput := longParty,
-      description := String.ofList (List.replicate 100 '界')}
+    let typedParty : Loam.Tui.EventMerchant.State := { typed with partyInput := longParty }
+    let longEditor : Loam.Tui.EventMerchant.State :=
+      { typedParty with description := String.ofList (List.replicate 100 '界') }
     let widget := Loam.Tui.EventMerchant.viewForBounds bounds longEditor
     let markers := widget.lines.flatten.filter (·.caret)
     expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))

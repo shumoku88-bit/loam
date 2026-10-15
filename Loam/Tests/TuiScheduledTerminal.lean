@@ -653,9 +653,11 @@ def main (args : List String) : IO Unit := do
       expect ((widget.lines.flatten.filter (·.caret)).length ==
         if focus < Loam.Tui.ScheduledPostingForm.firstAction focused.form then 1 else 0)
         "replacement lost focused input or marked an action"
-    let unicode := {replacementEditor with form := {replacementEditor.form with focus := 1,
-      rows := replacementEditor.form.rows.set 0
-        {locus := String.ofList (List.replicate 35 '語') ++ "末尾", amount := "-300"}}}
+    let repRows := replacementEditor.form.rows.set! 0
+      {locus := String.ofList (List.replicate 35 '語') ++ "末尾", amount := "-300"}
+    let repForm1 : Loam.Tui.ScheduledPostingForm.Form := { replacementEditor.form with focus := 1 }
+    let repForm2 : Loam.Tui.ScheduledPostingForm.Form := { repForm1 with rows := repRows }
+    let unicode : Loam.Tui.ScheduledReplacement.State := { replacementEditor with form := repForm2 }
     let markedRows := (Loam.Tui.ScheduledReplacementSession.viewForBounds bounds [] unicode).lines.filter
       (fun row => row.any (·.caret))
     expect (markedRows.length == 1 && markedRows.any (fun row =>

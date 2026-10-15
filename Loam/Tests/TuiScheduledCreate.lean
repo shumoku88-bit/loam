@@ -135,8 +135,10 @@ def main (args : List String) : IO Unit := do
       expect ((widget.lines.flatten.filter (·.caret)).length ==
         if focus < Loam.Tui.ScheduledPostingForm.firstAction focused.form then 1 else 0)
         "Scheduled creation lost focused input or marked an action/candidate"
-    let unicode := {manyEditor with form := {manyEditor.form with focus := 11,
-      rows := many.set 5 {locus := String.ofList (List.replicate 35 '語') ++ "末尾", amount := "1"}}}
+    let unicodeRows := many.set 5 {locus := String.ofList (List.replicate 35 '語') ++ "末尾", amount := "1"}
+    let unicodeForm1 : Loam.Tui.ScheduledPostingForm.Form := { manyEditor.form with focus := 11 }
+    let unicodeForm2 : Loam.Tui.ScheduledPostingForm.Form := { unicodeForm1 with rows := unicodeRows }
+    let unicode : Loam.Tui.ScheduledCreation.State := { manyEditor with form := unicodeForm2 }
     let unicodeView := Loam.Tui.ScheduledCreation.view bounds [] unicode
     let marked := unicodeView.lines.filter (fun row => row.any (·.caret))
     expect (marked.length == 1 && marked.any (fun row =>
