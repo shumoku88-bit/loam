@@ -276,7 +276,7 @@ private def footer (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state 
     | .failed _ =>
         if (partialSamples snapshot state).isEmpty then
           muted " History unavailable; i for full cause."
-        else muted " History partial; unknown dates kept as gaps."
+        else muted " History daySamples; unknown dates kept as gaps."
     | _ => blank
   let navigation := if state.detailFocused then
       [("j/k", "scroll"), ("i/q", "trend"), ("h/l", "day")]
@@ -474,8 +474,8 @@ private def partialHistoryRows (width capacity : Nat)
         (if selected then .selected else .normal)]
 
 private def historyRows (width capacity : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
-  let partial := partialSamples snapshot state
-  if !partial.isEmpty then partialHistoryRows width capacity partial state
+  let daySamples := partialSamples snapshot state
+  if !daySamples.isEmpty then partialHistoryRows width capacity daySamples state
   else if capacity == 0 then [] else
     let history := historyFor snapshot state
     let index := selectedIndex history state
@@ -498,22 +498,22 @@ private def withoutSelection (widget : Widget) : Widget :=
 
 private def trendPanel (bounds : Bounds) (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Widget :=
   let history := historyFor snapshot state
-  let partial := partialSamples snapshot state
+  let daySamples := partialSamples snapshot state
   let width := g.trendWidth - 2
   let inner := g.trendHeight - 2
   let height := if inner ≥ 6 then inner - 3 else 0
   let capacity := historyCapacityForBounds bounds snapshot state
-  let body := if !partial.isEmpty then
-      partialSummary width partial state ++ partialChartRows width height partial state ++
-        (if height > 0 then [partialDateAxis width partial] else [])
+  let body := if !daySamples.isEmpty then
+      partialSummary width daySamples state ++ partialChartRows width height daySamples state ++
+        (if height > 0 then [partialDateAxis width daySamples] else [])
     else if history.isEmpty then
       let raw := statusLines width snapshot state ++
         [line (" Today: " ++ currentText snapshot)] ++ disclosure width
       if raw.length ≤ inner then raw else raw.take (inner - 1) ++ [muted " more in details (i)"]
     else summaryRows width snapshot state ++ chartRows width height history state ++
       (if height > 0 then [dateAxis width history] else [])
-  let index := if partial.isEmpty then selectedIndex history state else sampleIndex partial state
-  let count := if partial.isEmpty then history.length else partial.length
+  let index := if daySamples.isEmpty then selectedIndex history state else sampleIndex daySamples state
+  let count := if daySamples.isEmpty then history.length else daySamples.length
   let start := Loam.Tui.Layout.trailingWindowStart index (max 1 capacity)
   let position := if count == 0 then "i for details" else s!"{index + 1}/{count}" ++
     (if capacity == 0 then " • list hidden" else
@@ -535,9 +535,9 @@ private def detailPanel (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (stat
 
 private def historyPanel (g : Geometry) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : Widget :=
   let history := historyFor snapshot state
-  let partial := partialSamples snapshot state
-  let index := if partial.isEmpty then selectedIndex history state else sampleIndex partial state
-  let count := if partial.isEmpty then history.length else partial.length
+  let daySamples := partialSamples snapshot state
+  let index := if daySamples.isEmpty then selectedIndex history state else sampleIndex daySamples state
+  let count := if daySamples.isEmpty then history.length else daySamples.length
   Loam.Tui.Layout.framedPanel g.historyWidth g.historyHeight "History"
     (.column (historyRows (g.historyWidth - 2) (g.historyHeight - 4) snapshot state))
     (!state.detailFocused) (some s!"{if count == 0 then 0 else index + 1}/{count}")
