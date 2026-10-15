@@ -38,14 +38,14 @@ private def currentYearIds (records : List Loam.ActualReview.Record)
 
 private def closureStep
     (records : List Loam.ActualReview.Record) (ids : List String) : List String :=
-  records.foldl (fun have row =>
+  records.foldl (fun collected row =>
     let from := row.event.id.token
     match row.replacement with
     | none => have
     | some to =>
-        if have.contains from || have.contains to.token then
-          (from :: to.token :: have).eraseDups
-        else have) ids
+        if collected.contains from || collected.contains to.token then
+          (from :: to.token :: collected).eraseDups
+        else collected) ids
 
 /-- Close both ends of real retained correction edges. -/
 private def correctionClosure
