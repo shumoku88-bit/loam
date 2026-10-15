@@ -419,7 +419,7 @@ def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : State
     let label := if g.width < 70 && period == .previousCycle then "Prev" else period.label
     toString (index + 1) ++ ":" ++ label ++ (if period == state.period then "*" else "")
   let context := if g.contextRows == 1 then
-      [line (" Today: " ++ currentText snapshot)]
+      [line (" Daily: " ++ currentText snapshot)]
     else
       [line (" Daily Pace / Trend • " ++ state.period.label ++ "   [w] what-if"),
        muted (" Today: " ++ currentText snapshot ++
