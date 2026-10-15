@@ -275,6 +275,10 @@ private def testIndependentCurrent : IO Unit := do
       "rollover detail lost independent free-to-spend explanation"
     expect (contains "replacedwithoutalearned-timecoordinate" full)
       "rollover details hid the precise historical refusal"
+  let compactView := text (Loam.Tui.DailyPaceTrend.view
+    {width := 24, height := 8} world)
+  expect (contains "Daily:" compactView && contains "393 jpy/day" compactView)
+    "compact Daily Pace lost its recognizable title or independent today allowance"
   let refused := {world with paceCurrent := .failed "current balance is not admitted"}
   expect (!(Loam.Tui.DailyPaceWhatIf.current? refused).isOk)
     "what-if fabricated a current point when only the past is available"
