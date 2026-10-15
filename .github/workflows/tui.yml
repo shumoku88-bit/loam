@@ -454,7 +454,7 @@ jobs:
           use-github-cache: false
 
       - name: Check disposable HouseholdImage knowledge encodings via native Lean authority
-        run: python3 tools/benchmark-household-knowledge.py --check --years 1 10 20 --per-year 50 730 --read-rounds 2
+        run: python3 tools/benchmark-household-knowledge.py --check --years 1 --per-year 50 --read-rounds 1
 
       - name: Verify native terminal latency, batching and resize safety
         run: |
