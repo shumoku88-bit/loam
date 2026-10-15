@@ -100,7 +100,12 @@ def main():
                         "lake", "env", "lean", "--run",
                         "tools/BenchHouseholdKnowledge.lean", str(destination),
                         str(seed), str(new_body), str(args.read_rounds)
-                    ], cwd=ROOT, text=True, capture_output=True, check=True)
+                    ], cwd=ROOT, text=True, capture_output=True)
+                    if run.returncode != 0:
+                        raise AssertionError(
+                            f"native HouseholdImage probe failed for {years=} {yearly=} {mode=}:\n"
+                            f"stdout:\n{run.stdout[-4000:]}\nstderr:\n{run.stderr[-4000:]}"
+                        )
                     parsed = parse_lean(run.stdout)
                     assert parsed["initial_bytes"] == len(image.encode("utf-8"))
                     assert parsed["previous_bytes"] == parsed["initial_bytes"]
