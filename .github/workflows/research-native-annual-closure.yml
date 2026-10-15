@@ -8,10 +8,12 @@ on:
       - 'tools/NativeTacklerProjection.lean'
       - 'tools/research-native-annual-section-bridge.py'
       - 'tools/research-native-actual-publication-delta.py'
+      - 'tools/research-tackler-git-source-year.py'
       - 'tools/research-tackler-git-calendar-journals.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
       - 'docs/research/NATIVE_HOUSEHOLD_SECTION_BRIDGE_2026-10-15.md'
       - 'docs/research/NATIVE_ACTUAL_PUBLICATION_DELTA_2026-10-15.md'
+      - 'docs/research/TACKLER_SOURCE_YEAR_GIT_REPLAY_2026-10-15.md'
       - 'docs/research/TACKLER_GIT_CALENDAR_JOURNALS_2026-10-15.md'
       - '.github/workflows/research-native-annual-closure.yml'
 
@@ -66,3 +68,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-tackler-git-calendar-journals.py --check
+      - name: Verify Git-pinned January source journal and native re-admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-tackler-git-source-year.py --check
