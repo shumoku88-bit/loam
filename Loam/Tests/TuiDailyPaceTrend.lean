@@ -115,6 +115,77 @@ private def testGeometryAndMovement : IO Unit := do
     expect (contains "380 jpy/day" (text (Loam.Tui.DailyPaceTrend.view bounds world day)))
       "day navigation displayed a quantity belonging to another reconstructed point"
 
+/-- Explain slope without inventing an Event's cause or double-spending a bill. -/
+private def testChangeDecomposition : IO Unit := do
+  let prior : Loam.CycleSpendingPaceReview.Snapshot := {
+    measure := ⟨"jpy"⟩
+    observedAt := "2026-10-29"
+    endExclusive := "2026-11-08"
+    remainingDays := 10
+    eligiblePool := Quantity.ofQuanta 10000
+    automaticDeductions := Quantity.ofQuanta 3000
+    availableThroughEnd := Quantity.ofQuanta 7000
+  }
+  let settled : Loam.CycleSpendingPaceReview.Snapshot := {
+    prior with
+      observedAt := "2026-10-30"
+      remainingDays := 9
+      eligiblePool := Quantity.ofQuanta 9800
+      automaticDeductions := Quantity.ofQuanta 2800
+  }
+  let paid ← match Loam.DailyPaceChangeReview.compare prior settled with
+    | .ok value => pure value
+    | .error message => throw (IO.userError message)
+  expect (paid.previousPace == 700 && paid.currentPace == 777 &&
+      paid.changePerDay == 77 && paid.timePassageEffect == 77 &&
+      paid.freeMoneyEffect == 0 && paid.poolBalanceChange == -200 &&
+      paid.protectionRelease == 200 && paid.freeThroughEndChange == 0)
+    "settling a protected bill caused duplicate discretionary spending"
+
+  let spent : Loam.CycleSpendingPaceReview.Snapshot := {
+    settled with
+      eligiblePool := Quantity.ofQuanta 9100
+      automaticDeductions := Quantity.ofQuanta 3000
+      availableThroughEnd := Quantity.ofQuanta 6100
+  }
+  let purchase ← match Loam.DailyPaceChangeReview.compare prior spent with
+    | .ok value => pure value
+    | .error message => throw (IO.userError message)
+  expect (purchase.currentPace == 677 && purchase.changePerDay == -23 &&
+      purchase.timePassageEffect == 77 && purchase.freeMoneyEffect == -100 &&
+      purchase.poolBalanceChange == -900 && purchase.protectionRelease == 0)
+    "a discretionary purchase was not separated from passing time"
+
+  let funded : Loam.CycleSpendingPaceReview.Snapshot := {
+    spent with
+      eligiblePool := Quantity.ofQuanta 11800
+      availableThroughEnd := Quantity.ofQuanta 8800
+  }
+  let credited ← match Loam.DailyPaceChangeReview.compare prior funded with
+    | .ok value => pure value
+    | .error message => throw (IO.userError message)
+  expect (credited.currentPace == 977 && credited.changePerDay == 277 &&
+      credited.timePassageEffect == 77 && credited.freeMoneyEffect == 200)
+    "incoming funds were confused with the day-count effect"
+
+  let invalidMeasure := {settled with measure := ⟨"usd"⟩}
+  let invalidCycle := {settled with endExclusive := "2026-12-15"}
+  let nonadjacent := {settled with observedAt := "2026-11-02"}
+  let incorrect := {settled with availableThroughEnd := Quantity.ofQuanta 0}
+  expect (!(Loam.DailyPaceChangeReview.compare prior invalidMeasure).isOk &&
+      !(Loam.DailyPaceChangeReview.compare prior invalidCycle).isOk &&
+      !(Loam.DailyPaceChangeReview.compare prior nonadjacent).isOk &&
+      !(Loam.DailyPaceChangeReview.compare prior incorrect).isOk)
+    "Daily Pace delta admitted incompatible measures/cycles/days/quantities"
+
+  let details ← readDetails {width := 120, height := 40}
+    (snapshot (.loaded [prior, settled]))
+  expect (contains "Timepassage:+77jpy/day" details &&
+      contains "Freemoneyeffect:0jpy/day" details &&
+      contains "Poolbalancedelta:-200jpy" details &&
+      contains "Scheduledprotectionrelease:+200jpy" details)
+    "Daily Pace details did not explain slope using shared Review evidence"
+
 private def testReadStates : IO Unit := do
   let cause := "原因: " ++ String.ofList (List.replicate 80 '界') ++ "-failure-tail"
   let bounds : Bounds := {width := 48, height := 14}
@@ -369,6 +440,7 @@ private def testWhatIf : IO Unit := do
     "what-if modal lost projection, safeguard or nonpublication disclosure"
 
  def main : IO Unit := do
+  testChangeDecomposition
   testIndependentCurrent
   testWhatIf
   testPeriods
