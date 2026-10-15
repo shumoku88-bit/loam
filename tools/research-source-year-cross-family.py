@@ -202,14 +202,10 @@ def check() -> dict:
         recovered = work / "restored"
         recovered.mkdir()
         (recovered / "household.loam").write_bytes(replay(current, bridge))
-        bridge.checked_run(bridge.NATIVE, "verify", recovered)
-        # Independent native requalification checks that 'first' was completed,
-        # not merely that 'paid' remained completed.
-        verifier = ROOT / "tools" / "NativeCrossFamilyYearSource.lean"
-        # The native writer tool is not an idempotent validator; do not rerun it
-        # on the reconstructed root. Original whole-image equality with native
-        # published 'after' is the exact qualified Actual/Scheduled witness.
-        assert verifier.exists()
+        # The prior native verifier expected first to remain open. This new
+        # cross-family verifier instead requires its paid completion endpoint.
+        bridge.checked_run(ROOT / "tools" / "NativeCrossFamilyYearSource.lean",
+                           "verify", recovered)
 
         missing = dict(current)
         missing.pop("journal/2027/000002.sections.loam")
