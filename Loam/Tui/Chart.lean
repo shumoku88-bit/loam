@@ -407,6 +407,99 @@ def renderManyInRange
                   span " "
     .row spans
 
+/--
+Render day-aligned, optionally known values without inventing missing days.
+
+`joins[i]` is evidence that day i and day i+1 may be connected. A false
+edge never gets interpolated, even when its two endpoints happen to share a
+terminal column. Observed dots are rendered independently of line segments,
+including isolated known days. This geometry is presentation-only.
+-/
+private def qualifiedSampleAt (values : Array (Option Int)) (joins : Array Bool)
+    (width x : Nat) : Option Int := Id.run do
+  let count := values.size
+  if count == 0 then return none
+  if count == 1 || width <= 1 then return (values[0]?.getD none)
+  if x + 1 >= width then return (values[count - 1]?.getD none)
+  let denominator := width - 1
+  let scaled := x * (count - 1)
+  let index := scaled / denominator
+  let remainder := scaled % denominator
+  if remainder == 0 then return (values[index]?.getD none)
+  if !(joins[index]?.getD false) then return none
+  match (values[index]?.getD none), (values[index + 1]?.getD none) with
+  | some left, some right =>
+      return some (interpolate left right remainder denominator)
+  | _, _ => return none
+
+private def qualifiedBrailleGlyph (sample : Nat → Nat → Option Int)
+    (range : Range) (width height cellX cellY : Nat) : Char :=
+  let subWidth := max 1 (width * 2)
+  let subHeight := max 1 (height * 4)
+  let mask := (List.range 2).foldl (fun current dx =>
+    (List.range 4).foldl (fun inner dy =>
+      let subX := cellX * 2 + dx
+      let subY := cellY * 4 + dy
+      match sample subWidth subX with
+      | some value =>
+          if rowForValue subHeight range value == subY then
+            inner + dotValue dx dy
+          else inner
+      | none => inner) current) 0
+  if mask == 0 then ' ' else Char.ofNat (0x2800 + mask)
+
+private def qualifiedCellGlyph (renderer : Renderer)
+    (sample : Nat → Nat → Option Int) (range : Range)
+    (width height x y : Nat) : Char :=
+  match renderer with
+  | .braille => qualifiedBrailleGlyph sample range width height x y
+  | .block =>
+      match sample width x with
+      | some value => if rowForValue height range value == y then '█' else ' '
+      | none => ' '
+  | .ascii =>
+      match sample width x with
+      | some value => if rowForValue height range value == y then '*' else ' '
+      | none => ' '
+
+/-- A common plot for contiguous qualified lines or discrete qualified markers.
+All coordinates use the full day sequence, not a compressed known-only series. -/
+def renderQualifiedInRange
+    (renderer : Renderer)
+    (width height : Nat)
+    (values : List (Option Int))
+    (joins : List Bool)
+    (selected : Nat)
+    (range : Range)
+    (connect : Bool)
+    (gridRows : List Nat := []) : List Widget :=
+  let actualWidth := max 1 width
+  let actualHeight := max 1 height
+  let indexed := values.toArray
+  let edges := joins.toArray
+  let sample := qualifiedSampleAt indexed edges
+  let markers := values.zipIdx |>.filterMap fun (value, index) =>
+    value.map fun quanta =>
+      (xForIndex actualWidth values.length index,
+       rowForValue actualHeight range quanta, index)
+  let selectedValue := (values[selected]?.getD none)
+  let selectedX := xForIndex actualWidth values.length selected
+  let selectedY := selectedValue.map (rowForValue actualHeight range)
+  (List.range actualHeight).map fun row =>
+    .row ((List.range actualWidth).map fun col =>
+      let glyph := if connect then
+        qualifiedCellGlyph renderer sample range actualWidth actualHeight col row
+        else ' '
+      if selectedValue.isSome && col == selectedX && selectedY == some row then
+        span "◆" .selected
+      else if markers.any (fun (x, y, _) => x == col && y == row) then
+        span "●" .series1
+      else if glyph != ' ' then
+        span (String.ofList [glyph])
+      else if row ∈ gridRows then
+        span "┄" .muted
+      else span " ")
+
 /-- Render with the default nice range and no explicit observed markers. -/
 def render
     (renderer : Renderer)
