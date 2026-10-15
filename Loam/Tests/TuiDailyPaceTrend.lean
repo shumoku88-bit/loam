@@ -24,12 +24,21 @@ private def point (day : String) (quanta : Int) (measure : String := "jpy") : Lo
   availableThroughEnd := Quantity.ofQuanta quanta
 }
 
-private def snapshot (history : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot)) : Loam.Tui.Main.Snapshot := {
-  actual := {today := "2026-10-30", allRecords := []}
-  scheduled := .error "synthetic fixture"
-  pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
-    {preset, range := .error "synthetic display fixture", history})
-}
+private def snapshot (history : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot)) :
+    Loam.Tui.Main.Snapshot :=
+  let current : Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot :=
+    match history with
+    | .loaded points => match points.getLast? with
+      | some point => .loaded point
+      | none => .unavailable
+    | .failed message => .failed message
+    | .unavailable => .unavailable
+    | .notRequested => .notRequested
+  { actual := {today := "2026-10-30", allRecords := []}
+    scheduled := .error "synthetic fixture"
+    paceCurrent := current
+    pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
+      {preset, range := .error "synthetic display fixture", history}) }
 
 private def press (bounds : Bounds) (world : Loam.Tui.Main.Snapshot) (state : Loam.Tui.DailyPaceTrend.State)
     (key : Loam.Tui.Terminal.Key) (repeatCount : Nat := 1) : IO Loam.Tui.DailyPaceTrend.State :=
@@ -225,6 +234,51 @@ private def testPeriods : IO Unit := do
   cursor ← press bounds longWorld cursor .up 75
   expect (cursor.selected == some 25) "rapid reversal left scroll tail or lost events"
 
+/-- Cycle rollover may invalidate every history period while today's money remains known. -/
+private def testIndependentCurrent : IO Unit := do
+  let pointNow : Loam.CycleSpendingPaceReview.Snapshot := {
+    (point "2026-10-15" 24000) with
+      endExclusive := "2026-12-15"
+      remainingDays := 61
+      eligiblePool := Quantity.ofQuanta 30000
+      automaticDeductions := Quantity.ofQuanta 6000 }
+  let refusal := "2026-10-14: Scheduled was replaced without a learned-time coordinate"
+  let world : Loam.Tui.Main.Snapshot := {
+    actual := {today := "2026-10-15", allRecords := []}
+    scheduled := .error "synthetic lifecycle"
+    paceCurrent := .loaded pointNow
+    pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
+      {preset, range := .error "synthetic range", history := .failed refusal}) }
+  let accepted ← match Loam.Tui.DailyPaceWhatIf.current? world with
+    | .ok point => pure point
+    | .error message => throw (IO.userError ("valid today refused: " ++ message))
+  expect (accepted.availableThroughEnd.quanta == 24000 &&
+      accepted.automaticDeductions.quanta == 6000 &&
+      accepted.remainingDays == 61 && accepted.dailyPaceQuanta? == some 393)
+    "rollover current did not preserve the independently admitted JPY/day answer"
+  let projected ← match Loam.Tui.DailyPaceWhatIf.project? accepted "610" with
+    | .ok result => pure result
+    | .error message => throw (IO.userError message)
+  expect (projected.currentPerDay == 393 && projected.projectedPerDay == 383)
+    "rollover what-if still depended on the refused historical window"
+  for bounds in [({width := 32, height := 9} : Bounds),
+      {width := 48, height := 14}, {width := 80, height := 24},
+      {width := 120, height := 40}] do
+    let view := Loam.Tui.DailyPaceTrend.view bounds world
+    expect (contains "393 jpy/day" (text view))
+      "valid today amount disappeared when every historical range was refused"
+    let full ← readDetails bounds world
+    expect (contains "Free through cycle end:" full || contains "Freethroughcycleend:" full)
+      "rollover detail lost independent free-to-spend explanation"
+    expect (contains "replacedwithoutalearned-timecoordinate" full)
+      "rollover details hid the precise historical refusal"
+  let refused := {world with paceCurrent := .failed "current balance is not admitted"}
+  expect (!(Loam.Tui.DailyPaceWhatIf.current? refused).isOk)
+    "what-if fabricated a current point when only the past is available"
+  expect (contains "unavailable" (text (Loam.Tui.DailyPaceTrend.view
+      {width := 80, height := 24} refused)))
+    "current failure was silently presented as a numeric zero"
+
 private def testWhatIf : IO Unit := do
   let pointNow : Loam.CycleSpendingPaceReview.Snapshot := {
     point "2026-10-30" 24000 with remainingDays := 20 }
@@ -308,6 +362,7 @@ private def testWhatIf : IO Unit := do
     "what-if modal lost projection, safeguard or nonpublication disclosure"
 
  def main : IO Unit := do
+  testIndependentCurrent
   testWhatIf
   testPeriods
   testGeometryAndMovement
