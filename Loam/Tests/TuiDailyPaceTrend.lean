@@ -236,12 +236,15 @@ private def testPeriods : IO Unit := do
 
 /-- Cycle rollover may invalidate every history period while today's money remains known. -/
 private def testIndependentCurrent : IO Unit := do
-  let pointNow : Loam.CycleSpendingPaceReview.Snapshot := {
-    (point "2026-10-15" 24000) with
-      endExclusive := "2026-12-15"
-      remainingDays := 61
-      eligiblePool := Quantity.ofQuanta 30000
-      automaticDeductions := Quantity.ofQuanta 6000 }
+  let basePoint := point "2026-10-15" 24000
+  let point1 : Loam.CycleSpendingPaceReview.Snapshot :=
+    {basePoint with endExclusive := "2026-12-15"}
+  let point2 : Loam.CycleSpendingPaceReview.Snapshot :=
+    {point1 with remainingDays := 61}
+  let point3 : Loam.CycleSpendingPaceReview.Snapshot :=
+    {point2 with eligiblePool := Quantity.ofQuanta 30000}
+  let pointNow : Loam.CycleSpendingPaceReview.Snapshot :=
+    {point3 with automaticDeductions := Quantity.ofQuanta 6000}
   let refusal := "2026-10-14: Scheduled was replaced without a learned-time coordinate"
   let world : Loam.Tui.Main.Snapshot := {
     actual := {today := "2026-10-15", allRecords := []}
