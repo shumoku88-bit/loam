@@ -42,9 +42,9 @@ private def closureStep
     let sourceToken := row.event.id.token
     match row.replacement with
     | none => collected
-    | some to =>
-        if collected.contains sourceToken || collected.contains to.token then
-          (sourceToken :: to.token :: collected).eraseDups
+    | some successor =>
+        if collected.contains sourceToken || collected.contains successor.token then
+          (sourceToken :: successor.token :: collected).eraseDups
         else collected) ids
 
 /-- Close both ends of real retained correction edges. -/
