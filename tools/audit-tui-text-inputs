@@ -1,0 +1,88 @@
+#!/usr/bin/env python3
+"""Bounded source audit of the TUI input inventory, not a Lean/type/IME proof.
+
+The owning table in docs/TUI.md classifies live text handlers and their actual
+renderers. New generic input handlers or raw tail/cursor bypasses fail closed.
+Adding a new mode inside a classified owner still requires its view-mode tests
+and inventory review; this intentionally does not infer semantics from strings.
+"""
+from pathlib import Path
+import re
+import sys
+
+ROOT = Path(__file__).resolve().parents[1]
+TUI = ROOT / "Loam/Tui"
+GUIDE = ROOT / "docs/TUI.md"
+HEADING = "#### Production text-input inventory"
+CLASSES = {"text", "conditional", "navigation", "dispatch", "transport", "line-mode"}
+HANDLER = re.compile(
+    r"\.(?:input|paste)\s+(?:[A-Za-z_]\w*)\b"
+    r"|\bInputEdit\.(?:apply\?|operation\?)"
+    r"|\b(?:backspaceText|singleLinePaste)\b|\.getLine\b"
+)
+FIELD = re.compile(r"\b(?:inputSpan|Record\.inputField)\b")
+CURSOR_BYPASS = re.compile(r"\b(?:placeCursor|placeTextCaret|withTextCaret)\b|\\x1b\[\?25[hl]")
+CELL_REBUILD = re.compile(r"\bspan\s+\(String\.singleton\s+(\w+)\.glyph\)\s+\1\.style")
+
+
+def source(path):
+    # This guard routes review, not parsing: strip ordinary Lean comments so
+    # explanatory prose is not mistaken for an input implementation.
+    text = re.sub(r"/\-.*?\-/", "", path.read_text(), flags=re.S)
+    return re.sub(r"--[^\n]*", "", text)
+
+
+def fail(errors):
+    for error in errors:
+        print("audit-tui-text-inputs: " + error, file=sys.stderr)
+    raise SystemExit(1)
+
+
+def main():
+    text = GUIDE.read_text()
+    if HEADING not in text:
+        fail(["missing owning production text-input inventory in docs/TUI.md"])
+    section = text.split(HEADING, 1)[1]
+    section = re.split(r"\n#{1,4} ", section, maxsplit=1)[0]
+    owners = {}
+    errors = []
+    for line in section.splitlines():
+        if not line.startswith("| `"):
+            continue
+        columns = [part.strip() for part in line.strip("|").split("|")]
+        if len(columns) != 5:
+            errors.append("inventory row must have five columns: " + line)
+            continue
+        name, kind, renderers, _entry, _coverage = columns
+        name = name.strip("`")
+        if name in owners:
+            errors.append("duplicate inventory owner: " + name)
+        if kind not in CLASSES:
+            errors.append(f"{name}: unknown inventory class {kind}")
+        owners[name] = (kind, re.findall(r"`([A-Za-z][A-Za-z0-9]*)`", renderers))
+    sources = {path.stem: source(path) for path in TUI.rglob("*.lean")}
+    for name, (kind, renderers) in owners.items():
+        if name not in sources:
+            errors.append("inventory points at missing owner: " + name)
+        if kind in {"text", "conditional"}:
+            if not renderers:
+                errors.append(name + ": text owner has no audited renderer")
+            for renderer in renderers:
+                if renderer not in sources or not FIELD.search(sources[renderer]):
+                    errors.append(f"{name}: renderer {renderer} bypasses the semantic input constructor")
+    for name, code in sources.items():
+        if HANDLER.search(code) and name not in owners:
+            errors.append(name + ": unclassified generic text handler; inspect its live entrances")
+        if name != "Layout" and re.search(r"\binputTail\b", code):
+            errors.append(name + ": raw inputTail bypasses inputSpan's insertion-cell contract")
+        if name != "Terminal" and CURSOR_BYPASS.search(code):
+            errors.append(name + ": per-screen cursor policy bypasses Terminal's shared owner")
+        if CELL_REBUILD.search(code):
+            errors.append(name + ": Cell-to-Span reconstruction drops caret metadata; use Cell.toSpan")
+    if errors:
+        fail(errors)
+    print(f"TUI text-input audit: {len(owners)} classified owners; shared fields and terminal-only cursor policy passed.")
+
+
+if __name__ == "__main__":
+    main()

@@ -81,6 +81,21 @@ class Terminal:
         os.close(self.fd)
 
 
+def text_caret(output, rows, cols):
+    """Committed text/cursor protocol only; a PTY cannot compose OS IME preedit."""
+    positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+    assert positions and all(1 <= int(row) <= rows and 1 <= int(col) < cols
+                             for row, col in positions), ("offscreen caret/paint", output)
+    visibility = re.findall(rb"\x1b\[\?25([hl])", output)
+    assert visibility and visibility[-1] == b"h", ("text caret stayed hidden", output)
+    return tuple(map(int, positions[-1]))
+
+
+def no_text_caret(output):
+    visibility = re.findall(rb"\x1b\[\?25([hl])", output)
+    assert visibility and visibility[-1] == b"l", ("non-text surface kept caret", output)
+
+
 with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     root = Path(tmp) / "household"
     subprocess.run(["lake", "env", "lean", "--run", "Loam/Tests/ScheduledBatchReplacement.lean",
@@ -112,20 +127,34 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Actual navigation changed fixture evidence"
 
-    # Editing follows the active row, keeps IME tails visible, and adapts while idle.
+    # Committed text tails and the physical insertion anchor adapt while idle.
     terminal = Terminal(root)
     try:
-        terminal.send(b"r", b"Record movement")
-        terminal.send(("日本語" * 35 + "末尾").encode(), "末尾".encode())
-        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-        resized = ANSI.sub(b"", terminal.capture(b"Locus candidates"))
-        assert b"Postings" in resized and "末尾".encode() in resized, "editing resize hid input tail"
+        opened = terminal.send(b"r", b"Record movement")
+        first_caret = text_caret(opened, 48, 160)
+        typed = terminal.send("食事".encode(), "食事".encode())
+        assert text_caret(typed, 48, 160) == (first_caret[0], first_caret[1] + 3), (
+            "CJK insertion caret did not replace the empty-field marker", typed)
+        long_input = terminal.send(("日本語" * 35 + "末尾").encode(), "末尾".encode())
+        text_caret(long_input, 48, 160)
+        for rows, cols in ((40, 120), (24, 80), (14, 48), (9, 32), (24, 80)):
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+            resized = terminal.capture("末尾".encode())
+            text_caret(resized, rows, cols)
+            assert "末尾".encode() in resized, "editing resize hid committed input tail"
+            assert not select.select([terminal.fd], [], [], .35)[0], "idle editor emitted output"
+        description_caret = text_caret(terminal.send(b"\x7fX", b"X"), 24, 80)
+        measure_caret = text_caret(terminal.send(b"\t", b"Measure:"), 24, 80)
+        assert measure_caret[0] != description_caret[0], "focus did not move insertion row"
+        restored = terminal.send(b"\x0f", b"Record / Original amount")
+        text_caret(restored, 24, 80)
+        text_caret(terminal.send(b"\x0f", b"Record / Edit"), 24, 80)
         terminal.send(b"\x0e" * 4, b"Posting 6:")  # Ctrl-N follows the newly appended Locus
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
         compact = ANSI.sub(b"", terminal.capture(b"[Esc] cancel"))
         assert b"Posting 6:" in compact and b"Fields" in compact, "compact editor hid focused row"
         terminal.send(b"\x04" * 4, b"4/7 fields")  # Ctrl-D returns safely to the two-row form
-        terminal.send(b"\x1b", b"Record cancelled.")
+        no_text_caret(terminal.send(b"\x1b", b"Record cancelled."))
     finally:
         terminal.close()
     assert digest() == frozen_navigation, "read-only Record editing changed evidence"
@@ -157,8 +186,9 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     terminal = Terminal(root)
     try:
         terminal.send(b"r", b"Record movement")
-        terminal.send(b"long-review " * 30 + b"\t\tbank\t-10\twifi\t10\r",
-                      b"Record / Preview")
+        preview = terminal.send(b"long-review " * 30 + b"\t\tbank\t-10\twifi\t10\r",
+                                b"Record / Preview")
+        no_text_caret(preview)
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
         resized = terminal.capture(b"[Enter] confirm")
         assert b"Record / Preview" in ANSI.sub(b"", resized), "idle Record resize lost heading"
@@ -195,11 +225,15 @@ with tempfile.TemporaryDirectory(prefix="loam-record-reload-") as tmp:
     try:
         terminal.send(b"a", b"paid Wi-Fi")
         terminal.send(b"\r", b"Actual / Transaction detail")
-        terminal.send(b"c", b"Correction / Edit")
+        text_caret(terminal.send(b"c", b"Correction / Edit"), 48, 160)
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
-        editing = ANSI.sub(b"", terminal.capture(b"Date (kept)"))
+        resized_editor = terminal.capture(b"Date (kept)")
+        text_caret(resized_editor, 24, 80)
+        editing = ANSI.sub(b"", resized_editor)
         assert b"Postings" in editing and b"Locus candidates" in editing
-        terminal.send(("長い修正内容" * 30).encode() + b"\t\t\t\t\t\r", b"Correction / Preview")
+        preview = terminal.send(("長い修正内容" * 30).encode() + b"\t\t\t\t\t\r",
+                                b"Correction / Preview")
+        no_text_caret(preview)
         assert digest() == frozen_navigation, "Correction Preview published without confirmation"
         fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", 14, 48, 0, 0))
         review = ANSI.sub(b"", terminal.capture(b"[Enter] confirm"))

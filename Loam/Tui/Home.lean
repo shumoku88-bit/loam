@@ -1139,8 +1139,11 @@ private def homeFooter (bounds : Bounds) (snapshot : Snapshot) (state : State) :
   let operations := match state.jumpPrompt with
     | none => help
     | some buffer =>
-        let prompt := wrappedLines width ("Jump to date / month / year: " ++ buffer ++ "█") ++
-          [Loam.Tui.Layout.shortcutRow [("Enter", "jump"), ("Esc", "cancel")]] ++
+        let caption := if width < 50 then "Jump: " else "Jump to date / month / year: "
+        let prompt :=
+          [.row [span caption .muted,
+            Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption) true buffer],
+           Loam.Tui.Layout.shortcutRow [("Enter", "jump"), ("Esc", "cancel")]] ++
           wrappedLines width "e.g. 2026-10-15, 2026-10, 2026, 15" .muted
         prompt ++ List.replicate (help.length - prompt.length) blankLine
   let rows := feedback ++ operations

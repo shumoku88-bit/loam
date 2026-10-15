@@ -495,8 +495,7 @@ private def listPanel
 /-- Frames already own their borders; leave just one blank column between them. -/
 private def joinPanels (left right : Widget) : List Widget :=
   left.lines.zipWith (fun l r =>
-    .row ((l.map fun c => span (String.singleton c.glyph) c.style) ++ [span " "] ++
-      (r.map fun c => span (String.singleton c.glyph) c.style))) right.lines
+    .row (l.map Cell.toSpan ++ [span " "] ++ r.map Cell.toSpan)) right.lines
 
 /--
 Stable details presentation. By fixing the allocated rows across records,
@@ -687,8 +686,11 @@ def view (bounds : Bounds) (snapshot : Snapshot) (rawState : State) : Widget :=
   let scopeLine := " " ++ scopeText state ++ "  |  " ++ currentLocusName snapshot state
   let contextLine :=
     if searching then
-      let cursor := if state.searchEditing then "_" else ""
-      .row [span (" Search: /" ++ state.searchQuery ++ cursor), span ("  |" ++ scopeLine) .muted]
+      let caption := " Search: /"
+      .row [span caption .muted,
+        Loam.Tui.Layout.inputSpan
+          (writable - Loam.Tui.Layout.displayWidth caption)
+          state.searchEditing state.searchQuery]
     else mutedLine scopeLine
   let header :=
     [ .row [span " Household Actuals Workspace",

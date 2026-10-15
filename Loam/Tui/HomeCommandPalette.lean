@@ -179,8 +179,7 @@ def view (bounds : Bounds) (state : State) : Widget :=
     Loam.Tui.Layout.framedPanel panelWidth height "Commands" body (canFloat bounds)
   else
     .column <| body.lines.map fun cells =>
-      .row ((Loam.Tui.Layout.clipCells panelWidth cells).map fun cell =>
-        span (String.singleton cell.glyph) cell.style)
+      .row ((Loam.Tui.Layout.clipCells panelWidth cells).map Cell.toSpan)
 
 private def floating? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle :=
   Loam.Tui.ModalSurface.centered? bounds 64 18 54 (panelHeight bounds)

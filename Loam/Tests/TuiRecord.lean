@@ -43,6 +43,50 @@ private def readyForm : Form := {
     { locus := "paypay", amount := "-2470" },
     { locus := "books", amount := "2470" }] }
 
+private def checkTextCaret : IO Unit := do
+  for bounds in
+      [{ width := 32, height := 9 : Bounds }, { width := 48, height := 14 },
+       { width := 80, height := 24 }, { width := 120, height := 40 }] do
+    let rectangle := Loam.Tui.RecordSession.floatingGeometry? bounds
+    let long := String.join (List.replicate 40 "日本語abc") ++ "末尾"
+    let base := initial "2026-09-06"
+    let form : Form := { base.form with
+      description := long
+      measure := long
+      rows := #[{ locus := long, amount := long }, { locus := long, amount := long }] }
+    for focus in List.range (3 + form.rows.size * 2 + 4) do
+      have count : 0 < 3 + form.rows.size * 2 + 4 := by omega
+      let state := { base with form := { form with
+        focus := ⟨focus % _, Nat.mod_lt _ count⟩ } }
+      let widget := match rectangle with
+        | none => viewForBounds bounds [] state
+        | some region => Loam.Tui.RecordSession.floatingRecordView region [] state
+      let frame := Loam.Tui.Runtime.compileWidget widget
+      let (top, left, width) := match rectangle with
+        | none => (0, 0, Loam.Tui.Layout.contentWidth bounds)
+        | some region => (region.top, region.left, region.width)
+      let caret := Loam.Tui.Terminal.textCaretPosition? bounds top left width frame
+      if focus < 3 + form.rows.size * 2 then
+        let some (row, col) := caret
+          | throw (IO.userError s!"text caret missing at {bounds.width}x{bounds.height}/{focus}")
+        let cells := frame.lines[row - top]!
+        let text := String.ofList (cells.toList.map Cell.glyph)
+        let leadingText := Loam.Tui.Layout.clip (col - left) text
+        let trailingText := String.ofList (text.toList.drop leadingText.length)
+        -- Full-row output clears the unframed suffix; framed rows pad it explicitly.
+        expect (row < bounds.height && col < Loam.Tui.Layout.contentWidth bounds &&
+          (trailingText.isEmpty || trailingText.startsWith " "))
+          s!"text caret overlapped a frame at {bounds.width}x{bounds.height}/{focus}: {row},{col}"
+        expect ((Loam.Tui.Terminal.textCaretPosition?
+          { width := col, height := row + 1 } top left width frame).isNone)
+          "stale text caret survived a shrink past its field"
+      else
+        expect caret.isNone "selected action incorrectly enabled a text caret"
+    let disabled := { base with mode := .enableUnresolved }
+    expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 bounds.width
+      (Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] disabled))).isNone)
+      "vocabulary confirmation enabled text input"
+
 private def checkBoundedEditing : IO Unit := do
   let bounds : Bounds := { width := 80, height := 24 }
   -- Shared positioning must preserve both large floating and compact fallback.
@@ -65,11 +109,11 @@ private def checkBoundedEditing : IO Unit := do
     "small terminal must select compact modal"
   let opened := initial "2026-09-06"
   let frame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] opened)
-  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 frame == some (3, 15))
+  expect (Loam.Tui.Terminal.textCaretPosition? bounds 0 0 bounds.width frame == some (3, 15))
     "bounded Record did not anchor the initial Description caret"
   let japanese := { opened with form := { opened.form with description := "食事" } }
   let japaneseFrame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] japanese)
-  expect (Loam.Tui.RecordSession.focusedCursorPosition? 5 10 japaneseFrame == some (8, 28))
+  expect (Loam.Tui.Terminal.textCaretPosition? bounds 5 10 bounds.width japaneseFrame == some (8, 28))
     "bounded Record lost CJK caret width or floating origin"
   let catalog : Loam.LocusCatalog.Catalog := (List.range 12).map fun index =>
     { locus := ⟨s!"locus-{index}"⟩, label := "日本語の長い候補ラベル",
@@ -86,11 +130,10 @@ private def checkBoundedEditing : IO Unit := do
         expect (widget.lines.length == height - 1 && widget.lines.all (fun cells =>
           Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <= width - 1))
           s!"editing escaped {width}x{height} at focus {index}"
-        let some (row, col) := Loam.Tui.RecordSession.focusedCursorPosition? 0 0
-            (Loam.Tui.Runtime.compileWidget widget)
-          | throw (IO.userError s!"focus {index} was hidden at {width}x{height}")
-        expect (row < height - 1 && col < width - 1)
-          "editing caret escaped usable terminal bounds"
+        let caret := Loam.Tui.Terminal.textCaretPosition? active 0 0 active.width
+          (Loam.Tui.Runtime.compileWidget widget)
+        expect (caret.isSome == (index < 3 + sixRows.rows.size * 2))
+          s!"six-row editor lost input/action distinction at {width}x{height}/{index}"
   let focusLocus := { readyForm with rows := #[{}, {}], focus := ⟨3, by decide⟩ }
   let first : State := { form := focusLocus, candidateCatalog := catalog }
   let last := { first with candidateIndex := 11 }
@@ -117,14 +160,14 @@ private def checkOriginalAmountSurface (w : Loam.MovementAdmission.World) : IO U
   let base : State := { form := readyForm, mode := .originalAmount editor }
   let bounds : Bounds := { width := 80, height := 24 }
   let frame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] base)
-  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 frame == some (2, 17))
+  expect (Loam.Tui.Terminal.textCaretPosition? bounds 0 0 bounds.width frame == some (2, 17))
     "Original amount Measure caret lost aligned field geometry"
   let focused : State := { base with mode := .originalAmount { editor with focus := ⟨1, by decide⟩ } }
   let amountFrame := Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] focused)
-  expect (Loam.Tui.RecordSession.focusedCursorPosition? 5 10 amountFrame == some (8, 29))
+  expect (Loam.Tui.Terminal.textCaretPosition? bounds 5 10 bounds.width amountFrame == some (8, 29))
     "Original amount caret lost Amount focus or floating origin"
   let japanese : State := { base with mode := .originalAmount { editor with measure := "原通貨" } }
-  expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+  expect (Loam.Tui.Terminal.textCaretPosition? bounds 0 0 bounds.width
     (Loam.Tui.Runtime.compileWidget (viewForBounds bounds [] japanese)) == some (2, 20))
     "Original amount caret lost CJK terminal width"
   for width in [48, 80, 120] do
@@ -142,7 +185,7 @@ private def checkOriginalAmountSurface (w : Loam.MovementAdmission.World) : IO U
           contains "No FX inference" text && contains "Publish later in Preview" text &&
           contains "[Enter] next/attach" text && contains "[Esc] cancel" text)
           "Original amount lost its meaning hierarchy or complete operation bar"
-        let some (row, col) := Loam.Tui.RecordSession.focusedCursorPosition? 0 0
+        let some (row, col) := Loam.Tui.Terminal.textCaretPosition? active 0 0 active.width
             (Loam.Tui.Runtime.compileWidget widget)
           | throw (IO.userError "Original amount hid its active field")
         expect (row < height - 1 && col < width - 1)
@@ -191,10 +234,9 @@ private def checkUnresolvedEnableSurface (w : Loam.MovementAdmission.World) : IO
         contains "Preview before Publish" text && contains "[Enter] enable" text &&
         contains "[e/E] return" text && contains "[Backspace] return" text && contains "[Esc] cancel Record" text)
         "unresolved confirmation lost its household-change boundary or operation bar"
-      expect (Loam.Tui.RecordSession.focusedCursorPosition? 0 0
-        (Loam.Tui.Runtime.compileWidget widget) ==
-        some (height - 4, Loam.Tui.Layout.displayWidth "[Enable unresolved recording]"))
-        "unresolved confirmation lost its fixed action caret"
+      expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 bounds.width
+        (Loam.Tui.Runtime.compileWidget widget)).isNone)
+        "vocabulary action acquired a text insertion caret"
       for notice in ["Confirmation required.",
           "Read failed: この世帯の語彙を読み込めません。No authority was guessed."] do
         let noticed := { state with notice }
@@ -273,6 +315,7 @@ def main (args : List String) : IO Unit := do
   let root := System.FilePath.mk rootPath
   let w ← world
   checkBoundedEditing
+  checkTextCaret
   checkOriginalAmountSurface w
   checkUnresolvedEnableSurface w
   checkBoundedConfirmation w
@@ -298,10 +341,10 @@ def main (args : List String) : IO Unit := do
     current.lines.map (fun cells => cells.map Cell.glyph) &&
     current.lines.length == geometry.height)
     "floating Record changed editor text or frame geometry"
-  let oldCursor := Loam.Tui.RecordSession.focusedCursorPosition? geometry.top geometry.left
-    (Loam.Tui.Runtime.compileWidget previous)
-  let newCursor := Loam.Tui.RecordSession.focusedCursorPosition? geometry.top geometry.left
-    (Loam.Tui.Runtime.compileWidget current)
+  let oldCursor := Loam.Tui.Terminal.textCaretPosition? largeBounds
+    geometry.top geometry.left geometry.width (Loam.Tui.Runtime.compileWidget previous)
+  let newCursor := Loam.Tui.Terminal.textCaretPosition? largeBounds
+    geometry.top geometry.left geometry.width (Loam.Tui.Runtime.compileWidget current)
   expect (oldCursor == newCursor && newCursor.isSome)
     "floating Record accent displaced its active input caret"
   let top := current.lines.head!
@@ -336,13 +379,13 @@ def main (args : List String) : IO Unit := do
   let imeFrame :=
     Loam.Tui.Runtime.compileWidget (view [] (initial "2026-09-06"))
   expect
-    (Loam.Tui.RecordSession.focusedCursorPosition? 0 0 imeFrame == some (2, 14))
+    (Loam.Tui.Terminal.textCaretPosition? largeBounds 0 0 largeBounds.width imeFrame == some (2, 14))
     "Record cursor did not return to the active Description field"
   let japaneseState :=
     { initial "2026-09-06" with form := { (initial "2026-09-06").form with description := "食事" } }
   let japaneseFrame := Loam.Tui.Runtime.compileWidget (view [] japaneseState)
   expect
-    (Loam.Tui.RecordSession.focusedCursorPosition? 5 10 japaneseFrame == some (7, 27))
+    (Loam.Tui.Terminal.textCaretPosition? largeBounds 5 10 largeBounds.width japaneseFrame == some (7, 27))
     "Record cursor lost CJK display width or floating origin"
 
   let opened := initial "2026-09-06"

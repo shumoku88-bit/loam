@@ -90,7 +90,7 @@ partial def run (bounds : Bounds) (dataDir root : System.FilePath)
           | .error _ => none
         let editor := Loam.Tui.CapacityTransfer.initialGrant
           capacitySnapshot state.snapshot.observedAt row residual
-        let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view editor)
+        let editorFrame := compileWidget (Loam.Tui.CapacityTransfer.view bounds editor)
         Loam.Tui.Terminal.redrawFromBlank bounds editorFrame
         Loam.Tui.CapacityTransferSession.run
           bounds root editor editorFrame

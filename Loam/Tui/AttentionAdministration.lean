@@ -139,7 +139,7 @@ private def fitText (width : Nat) (text : String) : String :=
 private def field (width : Nat) (label value : String) : Widget :=
   let labelWidth := min 10 (width / 2)
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (Loam.Tui.Layout.inputTail (width - labelWidth) (if value.isEmpty then "_" else value)) .selected]
+    Loam.Tui.Layout.inputSpan (width - labelWidth) true value]
 
 private def itemLines (width : Nat) (item : Attention String) : List Widget :=
   wrapped width ("Context: " ++ item.context) ++
@@ -198,7 +198,14 @@ private def footer (bounds : Bounds) (state : State) : List Widget :=
         [Loam.Tui.Layout.shortcutRow [("Enter", "confirm"), ("Esc", "cancel")] " ",
          Loam.Tui.Layout.shortcutRow [("j/k", "review"), ("C-u/d", "page"), ("Home/End", "ends")] " "]
   let rows := feedback ++ operations
-  Loam.Tui.Layout.boundFeedbackFooter bounds rows
+  let bounded := Loam.Tui.Layout.boundFeedbackFooter bounds rows
+  match state.mode with
+  | .newContext _ | .newDate _ _ =>
+      let capacity := bounds.height - 4
+      if bounded.length ≤ capacity then bounded
+      else bounded.take (capacity - 1) ++
+        (if capacity == 0 then [] else [muted " … more feedback/help; enlarge terminal"])
+  | _ => bounded
 
 private structure Geometry where
   width : Nat

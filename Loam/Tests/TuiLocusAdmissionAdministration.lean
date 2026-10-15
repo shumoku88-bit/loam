@@ -46,5 +46,24 @@ def main : IO Unit := do
   expect (scrolled.state.scroll == 1) "down arrow did not inspect the next existing Locus"
   let cancelled := Loam.Tui.LocusAdmissionAdministration.update initial .escape
   expect cancelled.cancel "escape did not cancel administration"
+  let long := String.ofList (List.replicate 160 'a')
+  let longDraft := { initial with entered := long }
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let bounds : Loam.Tui.Kernel.Bounds := { width, height }
+    for editor in [initial, withNew, duplicate.state, longDraft] do
+      let position := Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+        (Loam.Tui.Runtime.compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds editor))
+      let length := if editor.entered.isEmpty then 1 else editor.entered.length
+      expect (position == some (height - 5, 18 + min (width - 20) length))
+        "Locus admission lost the token insertion cell during refusal/reflow"
+    expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+      (Loam.Tui.Runtime.compileWidget
+        (Loam.Tui.LocusAdmissionAdministration.view bounds preview.state))).isNone)
+      "Locus admission confirmation exposed a text caret"
+  expect ((Loam.Tui.LocusAdmissionAdministration.update longDraft .backspace).state.entered ==
+    String.ofList (List.replicate 159 'a'))
+    "Locus admission Backspace did not edit the retained long token"
+  expect ((Loam.Tui.LocusAdmissionAdministration.update withNew (.paste "ignored")).state.entered ==
+    withNew.entered) "Locus admission changed unsupported paste semantics"
 
   IO.println "TUI Locus admission administration: visibility, typing, preview and refusal passed."

@@ -68,7 +68,7 @@ private def centered (width : Nat) (row : Widget) : Widget :=
   let cells := row.lines.flatten
   let columns := cells.foldl (fun n cell => n + Loam.Tui.Layout.charWidth cell.glyph) 0
   .row ([span (spaces ((width - columns) / 2))] ++
-    cells.map (fun cell => span (String.singleton cell.glyph) cell.style))
+    cells.map Cell.toSpan)
 
 /-- Fixed footer and a bounded, optically raised central composition. Decoration
     disappears before entrances; no figures imply household completeness. -/

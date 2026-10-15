@@ -48,6 +48,71 @@ def open_report(terminal, index):
     return opened
 
 
+def caret_frame(terminal, keys, expected, rows, cols, active=True):
+    """Qualify the app-owned anchor; committed PTY input is not OS IME proof."""
+    if keys:
+        os.write(terminal.fd, keys)
+    _, output = terminal.capture(expected)
+    positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+    assert positions and all(1 <= int(r) <= rows and 1 <= int(c) < cols
+                             for r, c in positions), output
+    visibility = re.findall(rb"\x1b\[\?25([hl])", output)
+    assert visibility and visibility[-1] == (b"h" if active else b"l"), output
+    assert terminal.idle(.15) == 0, "report caret churned while idle"
+    return tuple(map(int, positions[-1]))
+
+
+def report_text_fields(terminal, root, frozen):
+    sizes = ((9, 32), (14, 48), (24, 80), (40, 120))
+    for index in (2, 3, 4, 8, 9):
+        open_report(terminal, index)
+        caret_frame(terminal, b"\t", b"Start:", 40, 120)
+        caret_frame(terminal, b"8" * 90 + b"\x7f", b"8888", 40, 120)
+        for rows, cols in sizes:
+            fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+            caret_frame(terminal, b"", b"Start:", rows, cols)
+        caret_frame(terminal, b"\t", b"End (exclusive):", 40, 120)
+        caret_frame(terminal, b"\t", b"[Run]", 40, 120, active=False)
+        send(terminal, b"q", b"LOAM Home")
+        assert probe.digest(root) == frozen, "report editing wrote household evidence"
+    for index in (2, 4):
+        open_report(terminal, index)
+        send(terminal, b"c", b"Compare")
+        caret_frame(terminal, b"e", b"Left start:", 40, 120)
+        labels = (b"Left start", b"Left end", b"Right start", b"Right end")
+        for focus, label in enumerate(labels):
+            if focus:
+                caret_frame(terminal, b"\t", label, 40, 120)
+            for rows, cols in sizes:
+                fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+                caret_frame(terminal, b"", label, rows, cols)
+        caret_frame(terminal, b"\t", b"Run comparison", 40, 120, active=False)
+        send(terminal, b"\x1b", MARKERS[index])
+        send(terminal, b"q", b"LOAM Home")
+    open_report(terminal, 7)
+    caret_frame(terminal, b"\t", b"Assume Scheduled", 40, 120)
+    for rows, cols in sizes:
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        caret_frame(terminal, b"", b"Assume Scheduled", rows, cols)
+    caret_frame(terminal, b"\t", b"Run conditional", 40, 120, active=False)
+    send(terminal, b"q", b"LOAM Home")
+    open_report(terminal, 5)
+    send(terminal, b"]]", b"daily amount")
+    send(terminal, b"a", b"Series picker")
+    send(terminal, b"\x1b", b"q/Esc Home")
+    caret_frame(terminal, b"o", b"Name", 40, 120)
+    name = ("日本語" * 8 + "末尾").encode()
+    caret_frame(terminal, name, "末尾".encode(), 40, 120)
+    caret_frame(terminal, b"\x7f", "末".encode(), 40, 120)
+    for rows, cols in sizes:
+        fcntl.ioctl(terminal.fd, termios.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
+        caret_frame(terminal, b"", "末".encode(), rows, cols)
+    caret_frame(terminal, b"\t3 4 6 8 9", b"Days", 40, 120)
+    caret_frame(terminal, b"\x1b", b"q/Esc Home", 40, 120, active=False)
+    send(terminal, b"q", b"LOAM Home")
+    assert probe.digest(root) == frozen, "read-only report parameter/overlay edits wrote evidence"
+
+
 def main():
     with tempfile.TemporaryDirectory(prefix="loam-reports-navigation-pty-") as tmp:
         root = Path(tmp) / "household"
@@ -113,6 +178,7 @@ def main():
                     continue
                 returned = send(terminal, b"q" if index % 2 else b"\x1b", b"LOAM Home")
                 assert b"Focus: " + focus in returned and b"Reports menu" not in returned
+            report_text_fields(terminal, root, frozen)
             # Income & Expense display modes and comparison return to its own root.
             open_report(terminal, 2)
             send(terminal, b"\r", b"Income:")

@@ -115,6 +115,30 @@ def main (args : List String) : IO Unit := do
   let stateFood := stepUp2.state
   let stepEditFood := Loam.Tui.CapacityRebalance.update stateFood (.input 'e')
   expect (match stepEditFood.state.mode with | .editingDelta _ => true | _ => false) "e did not enter editingDelta"
+  let long := String.ofList (List.replicate 160 '8')
+  let longEdit := { stepEditFood.state with mode := .editingDelta long }
+  let refusedEdit := (Loam.Tui.CapacityRebalance.update
+    { stepEditFood.state with mode := .editingDelta "--" } .enter).state
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let live : Bounds := { width, height }
+    let position := Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live longEdit))
+    expect (position == some (3, width - 2))
+      "Rebalance delta input was clipped into the table instead of its bounded field"
+    expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live state0))).isNone)
+      "Rebalance purpose selection exposed a text caret"
+    expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live refusedEdit))).isSome)
+      "Rebalance invalid delta refusal lost its input caret"
+  let deleted := (Loam.Tui.CapacityRebalance.update longEdit .backspace).state
+  expect (match deleted.mode with
+    | .editingDelta value => value == String.ofList (List.replicate 159 '8')
+    | _ => false)
+    "Rebalance Backspace did not edit the retained delta buffer"
+  let cancelledEdit := (Loam.Tui.CapacityRebalance.update longEdit .escape).state
+  expect (!cancelledEdit.proposal.hasChanges)
+    "Rebalance cancelling a long edit changed the proposal"
 
   -- Type "-3000" and enter
   let sFDone := applyKeys stepEditFood.state [.input '-', .input '3', .input '0', .input '0', .input '0', .enter]
@@ -191,6 +215,11 @@ def main (args : List String) : IO Unit := do
   expect (sP_Ready.proposal.isBalanced) "ready proposal must be balanced"
   let stepPreview := Loam.Tui.CapacityRebalance.update sP_Ready .enter
   expect (match stepPreview.state.mode with | .preview _ _ => true | _ => false) "enter did not enter preview mode"
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let live : Bounds := { width, height }
+    expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live stepPreview.state))).isNone)
+      "Rebalance atomic proposal preview exposed a text caret"
 
   let previewText := widgetText (Loam.Tui.CapacityRebalance.view bounds stepPreview.state)
   expect (contains "Capacity / Rebalance / Preview" previewText) "preview heading missing"

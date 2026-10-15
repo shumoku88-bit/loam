@@ -1145,7 +1145,7 @@ private def listView (bounds : Bounds) (snapshot : Snapshot) (rawState : State) 
   let context := context.map fun widget => Widget.column (widget.lines.map fun cells =>
     let text := String.ofList (cells.map Cell.glyph)
     if Loam.Tui.Layout.displayWidth text <= writable then Widget.row
-        (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+        (cells.map Cell.toSpan)
     else mutedLine (Loam.Tui.Layout.clip (writable - 1) text ++ "…"))
   let panels := if bounds.width >= 80 then
       let leftWidth := min 30 (max 20 (writable / 4))
@@ -1257,7 +1257,7 @@ private def planDetailView
           let context := context.map fun widget => .column (widget.lines.map fun cells =>
             let text := String.ofList (cells.map Cell.glyph)
             if Loam.Tui.Layout.displayWidth text <= writable then Widget.row
-                (cells.map fun cell => span (String.singleton cell.glyph) cell.style)
+                (cells.map Cell.toSpan)
             else mutedLine (Loam.Tui.Layout.clip (writable - 1) text ++ "…"))
           let more := (if start > 0 then " ▲" else "") ++
             (if start + capacity < total then " ▼" else "")

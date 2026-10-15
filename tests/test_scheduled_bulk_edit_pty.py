@@ -14,6 +14,8 @@ import tempfile
 import termios
 import time
 
+from scheduled_pty_support import text_caret, no_text_caret
+
 repo = Path(__file__).resolve().parent.parent
 exe = Path(sys.argv[1] if len(sys.argv) > 1 else repo / ".lake/build/bin/loamTui").resolve()
 ansi = re.compile(rb"\x1b\[[0-?]*[ -/]*[@-~]")
@@ -71,9 +73,14 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         return capture(expected)
 
     def configure_sheet():
-        send(b"b", b"Batch amount edit")
+        opened = send(b"b", b"Batch amount edit")
+        text_caret(opened, rows, columns, "_")
         # Exact date range is explicit, not dependent on the host's current date.
-        send(b"5200\t" + b"\x7f" * 10 + b"2026-11-01\r", b"0 checked / 3 candidates")
+        date_field = send(b"5200\t")
+        text_caret(date_field, rows, columns)
+        date_input = send(b"\x7f" * 10 + b"2026-11-01", b"2026-11-01")
+        text_caret(date_input, rows, columns, "2026-11-01")
+        no_text_caret(send(b"\r", b"0 checked / 3 candidates"))
 
     def check_and_preview():
         send(b"a", b"3 checked")
@@ -161,6 +168,7 @@ with tempfile.TemporaryDirectory(prefix="loam-bulk-pty-") as temporary:
         send(b"v", b"Scheduled / Months")
         configure_sheet()
         preview = check_and_preview()
+        no_text_caret(preview)
         clean = ansi.sub(b"", preview)
         assert b"4,800 -> 5,200" in clean and b"Unchecked: 1" in clean
         assert b"Paid Actual is untouched" in clean

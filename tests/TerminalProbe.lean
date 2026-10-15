@@ -10,6 +10,49 @@ private def frameFor (bounds : Bounds) : CompiledWidget :=
     List.replicate (bounds.height - 2) (line "日本語 body") ++
     [line "footer [q] back"]
 
+private def regionFrame : CompiledWidget :=
+  compileWidget <| .column [line "a日本", line "日本語", line "unseen"]
+
+private def blankFrame : CompiledWidget :=
+  compileWidget (.row [])
+
+private def expect (condition : Bool) (message : String) : IO Unit :=
+  unless condition do throw (IO.userError message)
+
+/-- Pure boundary specimens complement live ioctl/ANSI checks in the PTY driver. -/
+private def checkRegionBounds : IO Unit := do
+  let bounds : Bounds := { width := 32, height := 9 }
+  for (top, left, width) in
+      [(0, 40, 20), (0, 31, 20), (0, 32, 20), (0, 0, 0),
+       (9, 0, 20), (40, 0, 20)] do
+    expect (dirtyRegionAnsi bounds top left width blankFrame regionFrame == "")
+      s!"offscreen or zero-width region emitted ANSI: {top}/{left}/{width}"
+  for bounds in
+      [{ width := 0, height := 9 : Bounds }, { width := 32, height := 0 }] do
+    expect (dirtyRegionAnsi bounds 0 0 20 blankFrame regionFrame == "")
+      "zero-sized terminal region emitted ANSI"
+    expect (directFrameAnsi bounds (.row [span "text"]) == "")
+      "zero-sized direct frame emitted ANSI"
+  expect
+    (dirtyRegionAnsi bounds 7 27 20 blankFrame regionFrame ==
+      "\x1b[8;28H\x1b[0ma日\x1b[0m " ++
+      "\x1b[9;28H\x1b[0m日本\x1b[0m")
+    "partially clipped region changed origin, CJK clipping, padding, or height"
+  expect
+    (dirtyRegionAnsi bounds 8 27 2 blankFrame regionFrame ==
+      "\x1b[9;28H\x1b[0ma\x1b[0m ")
+    "region's own width did not bound CJK clipping and padding"
+  expect
+    (dirtyRegionAnsi bounds 8 27 20 regionFrame blankFrame ==
+      "\x1b[9;28H\x1b[0m    ")
+    "shortened region did not erase exactly its visible width"
+  expect (dirtyRegionAnsi bounds 7 27 20 regionFrame regionFrame == "")
+    "unchanged region emitted ANSI"
+  expect
+    (dirtyRegionAnsi { width := 1, height := 1 } 0 0 1 blankFrame
+      (compileWidget (line "ab")) == "\x1b[1;1H\x1b[0ma\x1b[0m")
+    "one-column terminal lost its existing clipping convention"
+
 /-- Compiled native-mechanics driver: no household data or publication path. -/
 def main (args : List String) : IO Unit := do
   let bounds ← currentBounds
@@ -32,4 +75,54 @@ def main (args : List String) : IO Unit := do
       -- Also exercise clipping a stale large frame after a resize race.
       emitDirtyDiff bounds 0 0 (compileWidget (.row [])) (frameFor bounds)
       redrawFromBlank active frame
+  | "regions" =>
+      let _ ← readKey
+      checkRegionBounds
+      IO.print "regions-ok"
+  | "output-bounds" =>
+      let _ ← readKey
+      let active ← currentBounds
+      -- Origins are stale/offscreen even though the supplied bounds are larger.
+      emitDirtyRegion bounds 0 (active.width + 8) 20 blankFrame regionFrame
+      emitDirtyRegion bounds active.height 0 20 blankFrame regionFrame
+      emitDirtyRegion bounds 0 0 0 blankFrame regionFrame
+      emitDirtyRegion { width := 0, height := bounds.height }
+        0 0 20 blankFrame regionFrame
+      emitDirtyDiff bounds 0 (active.width + 8) blankFrame regionFrame
+      emitDirtyDiff bounds active.height 0 blankFrame regionFrame
+      emitDirtyDiff { width := 0, height := bounds.height }
+        0 0 blankFrame regionFrame
+      IO.print "offscreen-done"
+      emitDirtyRegion bounds (active.height - 2) (active.width - 5)
+        20 blankFrame regionFrame
+      IO.print "region-done"
+      emitDirtyDiff bounds (active.height - 2) (active.width - 5)
+        blankFrame regionFrame
+  | "cursor" =>
+      let _ ← readKey
+      let painted ← currentBounds
+      let field := compileWidget (.column (
+        List.replicate (painted.height - 1) (.row []) ++
+        [.row [span (Loam.Tui.Layout.padRight (Loam.Tui.Layout.contentWidth painted - 1) ""),
+               Loam.Tui.Layout.inputSpan 1 true ""]]))
+      emitDirtyDiff painted 0 0 blankFrame field
+      IO.print "painted"
+      (← IO.getStdout).flush
+      -- Shrink after completed paint; unchanged stale frames must hide, not clamp.
+      let _ ← readKey
+      emitDirtyDiff painted 0 0 field field
+  | "text-caret" =>
+      let _ ← readKey
+      let fieldWidget := Widget.row [Loam.Tui.Layout.inputSpan 20 true "日本"]
+      let field := compileWidget fieldWidget
+      let menu := compileWidget (.row [span "[Preview]" .selected])
+      emitDirtyRegion bounds 2 3 20 blankFrame field
+      IO.print "stable"
+      emitDirtyRegion bounds 2 3 20 field field
+      IO.print "review"
+      emitDirtyRegion bounds 2 3 20 field menu
+      IO.print "direct"
+      redrawWidgetDirect bounds fieldWidget
+      IO.print "stale"
+      emitDirtyRegion bounds 0 (bounds.width + 4) 20 field field
   | _ => throw (IO.userError "unknown terminal probe mode")

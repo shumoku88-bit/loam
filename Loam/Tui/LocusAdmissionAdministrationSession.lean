@@ -36,6 +36,8 @@ private partial def runInitialRoleEditor
     (state : Loam.Tui.AccountingRoleAdministration.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.AccountingRoleAdministration.view active state)
   let step := Loam.Tui.AccountingRoleAdministration.update state key
   if step.cancel then
     return "AccountingRole assignment cancelled."
@@ -69,6 +71,8 @@ private partial def runHistorySupportEditor
     (state : Loam.Tui.BoundedHistorySupportAdministration.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view active state)
   let step := Loam.Tui.BoundedHistorySupportAdministration.update state key
   if step.cancel then
     return "History support administration cancelled."
@@ -114,10 +118,13 @@ partial def run
     (state : Loam.Tui.LocusAdmissionAdministration.State)
     (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
+  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
+    compileWidget (Loam.Tui.LocusAdmissionAdministration.view active state)
   if key = .tab then
     match state.phase with
     | .editing =>
         let notice ← runInitialRoleAdministration bounds dataDir root
+        let bounds ← Loam.Tui.Terminal.currentBounds
         let resumed := { state with notice := notice }
         let resumedFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds resumed)
         Loam.Tui.Terminal.redrawFromBlank bounds resumedFrame
@@ -131,6 +138,7 @@ partial def run
     match state.phase with
     | .editing =>
         let notice ← runHistorySupportAdministration bounds root
+        let bounds ← Loam.Tui.Terminal.currentBounds
         let resumed := { state with notice := notice }
         let resumedFrame := compileWidget (Loam.Tui.LocusAdmissionAdministration.view bounds resumed)
         Loam.Tui.Terminal.redrawFromBlank bounds resumedFrame

@@ -116,8 +116,8 @@ private def innerView (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot)
     (state : State) : Widget :=
   let width := Loam.Tui.Layout.contentWidth bounds
   let body := [line " Daily Pace / What if",
-    line (" Purchase (JPY): " ++
-      Loam.Tui.Layout.inputTail (width - 17) (if state.amount.isEmpty then "_" else state.amount))]
+    .row [span " Purchase (JPY): " .muted,
+      Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth " Purchase (JPY): ") true state.amount]]
     ++ (match current? snapshot with
       | .error message =>
           info width "Current projection unavailable (not zero)." ++ info width message

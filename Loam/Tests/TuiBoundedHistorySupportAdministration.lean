@@ -88,6 +88,19 @@ def main : IO Unit := do
 
   let cancel := Loam.Tui.BoundedHistorySupportAdministration.update initial .escape
   expect cancel.cancel "Esc did not cancel history support administration"
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let bounds : Bounds := { width, height }
+    for editor in [initial, dated, bank, cleared, staleChanged, refused.state] do
+      let position := Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+        (Loam.Tui.Runtime.compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds editor))
+      let shownLength := if editor.startDay.isEmpty then 1 else editor.startDay.length
+      expect (position == some (height - 5, 11 + shownLength))
+        "History support caret left the start-day field after selection/reflow/refusal"
+    expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds preview.state))).isNone)
+      "History support certification preview exposed a text caret"
+  expect ((Loam.Tui.BoundedHistorySupportAdministration.update dated (.paste "123")).state.startDay ==
+    dated.startDay) "History support changed unsupported paste semantics"
 
   IO.println
     "Bounded history support TUI: explicit certification, preview, move/remove, stale cleanup and refusal paths passed."

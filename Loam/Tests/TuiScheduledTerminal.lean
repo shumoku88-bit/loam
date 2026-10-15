@@ -168,6 +168,36 @@ def main (args : List String) : IO Unit := do
     editor with
     editor := { editor.editor with
       mode := .preview movementDraft ⟨0, by omega⟩ } }
+  -- Exercise the actual modal view, including the floating origin and the
+  -- compact focus-following window, rather than a standalone input span.
+  for bounds in
+      ([{width := 32, height := 9}, {width := 48, height := 14},
+        {width := 80, height := 24}, {width := 120, height := 40}]
+       : List Loam.Tui.Kernel.Bounds) do
+    let text := String.ofList (List.replicate 45 '語') ++ "末尾"
+    let textEditor := {editor with editor := {editor.editor with form :=
+      {editor.editor.form with description := text}}}
+    for focus in List.finRange (3 + textEditor.editor.form.rows.size * 2 + 4) do
+      let focused := {textEditor with editor := {textEditor.editor with form :=
+        {textEditor.editor.form with focus := focus}}}
+      let widget := Loam.Tui.ScheduledCompletionSession.viewForBounds bounds [] focused
+      let markers := widget.lines.flatten.filter (·.caret)
+      expect (markers.length == if focus.val < 3 + focused.editor.form.rows.size * 2 then 1 else 0)
+        "completion lost its focused field or marked a menu action"
+      expect (markers.all (fun cell => cell.glyph == ' '))
+        "completion insertion anchor is not a blank input cell"
+      if focus.val == 1 then
+        let markedRows := widget.lines.filter (fun row => row.any (·.caret))
+        expect (markedRows.any fun row =>
+          ((String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)).splitOn "末尾 ").length > 1)
+          "completion caret did not follow the retained CJK description tail"
+    for hidden in [previewState, unresolvedPrompt.state] do
+      expect (!(Loam.Tui.ScheduledCompletionSession.viewForBounds bounds [] hidden).lines.flatten.any (·.caret))
+        "completion review/admission selection exposed a text caret"
+    let editChoice := (Loam.Tui.ScheduledCompletion.update initialWorld [] previewState .tab).state
+    let returned := (Loam.Tui.ScheduledCompletion.update initialWorld [] editChoice .enter).state
+    expect ((Loam.Tui.ScheduledCompletionSession.viewForBounds bounds [] returned).lines.flatten.any (·.caret))
+      "completion preview return did not restore the input anchor"
   -- Scheduled completion floats only its bounded Actual draft. This must not
   -- absorb the independently durable post-completion continuation process.
   let completionRoomy : Loam.Tui.Kernel.Bounds := {width := 120, height := 40}
@@ -613,6 +643,32 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "build Scheduled replacement draft")
   let replacementPreview : Loam.Tui.ScheduledReplacement.State := {
     movedEditor with mode := .preview replacementDraft ⟨0, by omega⟩ }
+  for bounds in
+      ([{width := 32, height := 9}, {width := 48, height := 14},
+        {width := 80, height := 24}, {width := 120, height := 40}]
+       : List Loam.Tui.Kernel.Bounds) do
+    for focus in List.range (Loam.Tui.ScheduledPostingForm.firstAction replacementEditor.form + 4) do
+      let focused := {replacementEditor with form := {replacementEditor.form with focus := focus}}
+      let widget := Loam.Tui.ScheduledReplacementSession.viewForBounds bounds [] focused
+      expect ((widget.lines.flatten.filter (·.caret)).length ==
+        if focus < Loam.Tui.ScheduledPostingForm.firstAction focused.form then 1 else 0)
+        "replacement lost focused input or marked an action"
+    let repRows := replacementEditor.form.rows.set! 0
+      {locus := String.ofList (List.replicate 35 '語') ++ "末尾", amount := "-300"}
+    let repForm1 : Loam.Tui.ScheduledPostingForm.Form := { replacementEditor.form with focus := 1 }
+    let repForm2 : Loam.Tui.ScheduledPostingForm.Form := { repForm1 with rows := repRows }
+    let unicode : Loam.Tui.ScheduledReplacement.State := { replacementEditor with form := repForm2 }
+    let markedRows := (Loam.Tui.ScheduledReplacementSession.viewForBounds bounds [] unicode).lines.filter
+      (fun row => row.any (·.caret))
+    expect (markedRows.length == 1 && markedRows.any (fun row =>
+      ((String.ofList (row.map Loam.Tui.Kernel.Cell.glyph)).splitOn "末尾 ").length > 1))
+      "replacement caret did not follow the retained CJK Locus tail"
+    expect (!(Loam.Tui.ScheduledReplacementSession.viewForBounds bounds [] replacementPreview).lines.flatten.any (·.caret))
+      "replacement preview exposed an input anchor"
+    let editChoice := (Loam.Tui.ScheduledReplacement.update [] replacementPreview .tab).state
+    let returned := (Loam.Tui.ScheduledReplacement.update [] editChoice .enter).state
+    expect ((Loam.Tui.ScheduledReplacementSession.viewForBounds bounds [] returned).lines.flatten.any (·.caret))
+      "replacement preview return failed to restore the editable field"
   -- Floating placement reuses ModalSurface. The underlying Scheduled state,
   -- focus and publication intent are identical in floating and compact modes.
   let large : Loam.Tui.Kernel.Bounds := {width := 120, height := 40}

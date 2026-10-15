@@ -32,7 +32,7 @@ def run
     (frame : CompiledWidget) : IO String :=
   Loam.Tui.EditorSession.runUntilAttemptResizing bounds
     Loam.Tui.CapacityTransfer.update
-    (fun _ editor => Loam.Tui.CapacityTransfer.view editor)
+    (fun current editor => Loam.Tui.CapacityTransfer.view current editor)
     (fun editor =>
       if editor.grantContext.isSome then "Cycle grant cancelled."
       else "Capacity transfer cancelled.")

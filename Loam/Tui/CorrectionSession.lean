@@ -1,6 +1,5 @@
 import Loam.HouseholdCommand
 import Loam.Tui.Correction
-import Loam.Tui.RecordSession
 import Loam.Tui.UnresolvedActivation
 import Loam.Tui.Kernel
 import Loam.Tui.Runtime
@@ -26,27 +25,20 @@ the selected world before the session, reloading canonical evidence after the
 session, and choosing the destination surface.
 -/
 
-private def placeFocusCursor (bounds : Bounds) (frame : CompiledWidget) : IO Unit := do
-  match Loam.Tui.RecordSession.focusedCursorPosition? 0 0 frame with
-  | none => pure ()
-  | some (row, col) =>
-      Loam.Tui.Terminal.placeCursor
-        (min row (bounds.height - 1)) (min col (Loam.Tui.Layout.contentWidth bounds - 1))
-
-private def redraw (bounds : Bounds) (old next : CompiledWidget) : IO Unit := do
+private def redraw (bounds : Bounds) (old next : CompiledWidget) : IO Unit :=
   Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 old next
-  placeFocusCursor bounds next
 
 private partial def runLoop
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
     (state : Loam.Tui.Correction.State) (frame : CompiledWidget) : IO String := do
   let key ← Loam.Tui.Terminal.readKey
-  let previousBounds := bounds
-  let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
-    compileWidget (Loam.Tui.Correction.view active known state)
+  let active ← Loam.Tui.Terminal.currentBounds
+  let (bounds, frame) ← if active == bounds then pure (bounds, frame) else do
+    let next := compileWidget (Loam.Tui.Correction.view active known state)
+    Loam.Tui.Terminal.redrawFromBlank active next
+    pure (active, next)
   let state := Loam.Tui.Correction.normalizedForBounds bounds state
-  if bounds != previousBounds then placeFocusCursor bounds frame
   if key == .other then return (← runLoop bounds root world known state frame)
   let step := match Loam.Tui.Correction.scrollPreview bounds state key with
     | some next => { state := next : Loam.Tui.Correction.Step }
@@ -84,8 +76,7 @@ private partial def runLoop
 def run
     (bounds : Bounds) (root : System.FilePath)
     (world : Loam.MovementAdmission.World) (known : List String)
-    (state : Loam.Tui.Correction.State) (frame : CompiledWidget) : IO String := do
-  placeFocusCursor bounds frame
+    (state : Loam.Tui.Correction.State) (frame : CompiledWidget) : IO String :=
   runLoop bounds root world known state frame
 
 end Loam.Tui.CorrectionSession

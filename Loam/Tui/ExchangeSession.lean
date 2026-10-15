@@ -29,7 +29,7 @@ def floatingGeometry? (bounds : Bounds) : Option Loam.Tui.ModalSurface.Rectangle
 def viewForBounds (bounds : Bounds) (state : Loam.Tui.Exchange.State) : Widget :=
   Loam.Tui.ModalSurface.framedView bounds (floatingGeometry? bounds)
     "Exchange / Record"
-    (fun _ => Loam.Tui.Exchange.view state)
+    (fun inner => Loam.Tui.Exchange.viewForContentBounds inner state)
 
 /--
 The parent is caller-owned and repainted at fresh geometry on resize.

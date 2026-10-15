@@ -17,6 +17,7 @@ import struct
 import subprocess
 import termios
 import time
+import unicodedata
 
 REPO = Path(__file__).resolve().parents[1]
 EXE = REPO / ".lake/build/bin/loamTui"
@@ -27,6 +28,42 @@ def digest(root: Path) -> dict[str, str]:
     """Byte-identical household authority and sidecar check on synthetic data."""
     return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
             for p in root.rglob("*") if p.is_file()}
+
+
+def text_caret(output: bytes, rows: int, columns: int,
+               tail: str | None = None) -> tuple[int, int]:
+    """Check the physical caret, optionally against the painted field tail.
+
+    Captures contain full dirty rows; this checks the final insertion CUP against
+    that row's committed input, including its floating origin and CJK columns.
+    It does not emulate or claim to generate OS IME preedit.
+    """
+    addresses = list(re.finditer(rb"\x1b\[(\d+);(\d+)H", output))
+    visibility = re.findall(rb"\x1b\[\?25([hl])", output)
+    assert addresses and visibility and visibility[-1] == b"h", output
+    position = tuple(map(int, addresses[-1].groups()))
+    assert 1 <= position[0] <= rows and 1 <= position[1] < columns, position
+    if tail is not None:
+        anchors = []
+        for index, address in enumerate(addresses[:-1]):
+            stop = addresses[index + 1].start()
+            painted = ANSI.sub(b"", output[address.end():stop]).decode("utf-8")
+            if tail in painted:
+                prefix = painted[:painted.rfind(tail) + len(tail)]
+                width = sum(0 if unicodedata.combining(char) else
+                            2 if unicodedata.east_asian_width(char) in ("W", "F") else 1
+                            for char in prefix)
+                anchors.append((int(address.group(1)), int(address.group(2)) + width))
+        assert position in anchors, ("caret is not at the painted input tail", position, anchors, output)
+    return position
+
+
+def no_text_caret(output: bytes) -> None:
+    visibility = re.findall(rb"\x1b\[\?25([hl])", output)
+    if visibility:
+        assert visibility[-1] == b"l", ("navigation retained text caret", output)
+    else:
+        assert b"\x1b[?25h" not in output, ("navigation retained text caret", output)
 
 
 class Terminal:

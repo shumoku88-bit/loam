@@ -176,12 +176,14 @@ private def testCommandsBrowseOnly : IO Unit := do
   expect (Loam.Tui.HomeCommandPalette.update first .enter == .open .record)
     "Commands leaf dispatch changed"
   for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
-      {width := 80, height := 24}] do
+      {width := 80, height := 24}, {width := 120, height := 40}] do
     let frame := Loam.Tui.HomeCommandPalette.view bounds planning
     expect (frame.height <= bounds.height && frame.lines.all fun cells =>
       Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
         Loam.Tui.Layout.contentWidth bounds)
       "Commands browsing overflowed the terminal"
+    expect (!frame.lines.flatten.any Cell.caret)
+      "navigation-only Commands palette advertised a text caret"
 
 def main : IO Unit := do
   let snapshot ← fixture
@@ -837,6 +839,26 @@ def main : IO Unit := do
   let prompt ← press wide snapshot base (.input '/')
   let ignored ← press wide snapshot prompt (.input 'q')
   expect (ignored.jumpPrompt == some "") "prompt leaked quit"
+  let pasted ← press wide snapshot prompt (.paste "2024-02-29")
+  let erased ← press wide snapshot pasted .backspace
+  expect (pasted.jumpPrompt == some "2024-02-29" && erased.jumpPrompt == some "2024-02-2")
+    "date jump paste/Backspace changed the retained date buffer"
+  for bounds in ([{width := 32, height := 9}, {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] : List Bounds) do
+    for editing in [prompt, pasted, erased] do
+      let frame := Loam.Tui.Home.view bounds snapshot editing
+      expect ((frame.lines.flatten.filter Cell.caret).length == 1)
+        "Home date jump lost its unique semantic insertion cell"
+      let some (row, col) := Loam.Tui.Terminal.textCaretPosition? bounds 0 0
+          (Loam.Tui.Layout.contentWidth bounds) (Loam.Tui.Runtime.compileWidget frame)
+        | throw (IO.userError "Home date jump insertion point was clipped")
+      expect (row < bounds.height && col < Loam.Tui.Layout.contentWidth bounds &&
+          contains "Jump" (String.ofList ((frame.lines[row]?.getD []).map Cell.glyph)))
+        "Home date jump caret escaped the prompt row"
+    let cancelled ← press bounds snapshot pasted .escape
+    expect (cancelled.jumpPrompt.isNone &&
+        !(Loam.Tui.Home.view bounds snapshot cancelled).lines.flatten.any Cell.caret)
+      "Home date jump cancellation retained a stale text caret"
   let typed ← "2024-02-29".toList.foldlM (fun state char => press wide snapshot state (.input char)) prompt
   let jumped ← press wide snapshot typed .enter
   expect (jumped.selectedDate == "2024-02-29" && jumped.zoomLevel == .day && jumped.jumpPrompt.isNone)

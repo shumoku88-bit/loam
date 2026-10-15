@@ -20,6 +20,8 @@ inductive Style where
 structure Cell where
   glyph : Char
   style : Style
+  /-- Semantic insertion cell, independent of selection/color; never retained input. -/
+  caret : Bool := false
   deriving Repr, DecidableEq, BEq
 
 structure Bounds where
@@ -116,6 +118,8 @@ theorem screenDiff_none_iff {bounds : Bounds} (old new : Screen bounds) (pos : P
 structure Span where
   style : Style
   text : String
+  /-- Marks the final blank cell of an explicitly active text field. -/
+  caret : Bool := false
   deriving Repr, DecidableEq
 
 inductive Widget where
@@ -126,13 +130,21 @@ inductive Widget where
 def span (text : String) (style : Style := .normal) : Span :=
   { style, text }
 
+/-- Rebuild a semantic row without dropping its input insertion marker. -/
+def Cell.toSpan (cell : Cell) : Span :=
+  { text := String.singleton cell.glyph, style := cell.style, caret := cell.caret }
+
 /-- Common one-line widgets used by terminal renderers. -/
 def plainLine (text : String) : Widget := .row [span text]
 def mutedLine (text : String) : Widget := .row [span text .muted]
 def blankLine : Widget := .row []
 
 def Span.cells (value : Span) : List Cell :=
-  value.text.toList.map fun glyph => { glyph, style := value.style }
+  let rec lower : List Char → List Cell
+    | [] => []
+    | glyph :: rest =>
+        { glyph, style := value.style, caret := value.caret && rest.isEmpty } :: lower rest
+  lower value.text.toList
 
 def Widget.lines : Widget → List (List Cell)
   | .row spans => [spans.flatMap Span.cells]

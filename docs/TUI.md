@@ -1353,6 +1353,92 @@ CJK text, without changing the stored value. Actions, two operation rows, and a
 reserved feedback row remain below the panes. `C-` denotes Ctrl in the compact
 footer; row limits, exact candidate acceptance, and publication rules are unchanged.
 
+#### Text caret and Japanese IME boundary (#1992)
+
+Terminal output, not individual sessions, owns the caret lifecycle across all
+production editors. `Layout.inputSpan` constructs semantic input fields with
+dedicated insertion cells, preserving caret metadata through clipping, framing,
+and side-by-side assembly. When a field is focused and active, `Terminal.lean`
+emits `\x1b[?25h` at the painted insertion point; during repaints, menu browsing,
+confirmation dialogues, and idle intervals, the caret is hidden with `\x1b[?25l`.
+Zero-width, offscreen, and clipped regions suppress stale caret markers without
+emitting unnecessary escape churn.
+
+The static audit (`tools/audit-tui-text-inputs`) classifies 29 owners across the
+codebase (including navigation, dispatch, transport, and line-mode owners alongside
+active and conditional text inputs), rather than 29 editable text owners. Note that
+this lexical audit cannot prove every view mode is correctly wired, and PTY test
+harnesses cannot exercise uncommitted macOS IME preedit.
+
+#### Production text-input inventory
+
+| Owner | Class | Audited Renderers | Entrance / Purpose | Regression Test |
+| :--- | :--- | :--- | :--- | :--- |
+| `Record` | text | `Record` | Home `r`, Actual `r` | `tests/test_actual_detail_pty.py` |
+| `ScheduledCompletion` | text | `ScheduledCompletion` | Scheduled `c`, Selected Day → Scheduled → `c` | `tests/test_scheduled_completion_modal_pty.py` |
+| `ScheduledCreation` | text | `ScheduledCreation` | Scheduled `n` | `Loam/Tests/TuiScheduledCreate.lean` |
+| `ScheduledReplacement` | text | `ScheduledReplacement` | Scheduled `e` | `tests/test_scheduled_replacement_pty.py` |
+| `ScheduledBulkEdit` | text | `ScheduledBulkEdit` | Scheduled `b` | `tests/test_scheduled_bulk_edit_pty.py` |
+| `ScheduledGeneration` | conditional | `ScheduledGeneration` | Scheduled `g` | `Loam/Tests/TuiScheduledGeneration.lean` |
+| `AttentionAdministration` | text | `AttentionAdministration` | Home `i`, Commands `i` | `tests/test_attention_pty.py` |
+| `Exchange` | text | `Exchange` | Commands `e` | `Loam/Tests/TuiExchange.lean` |
+| `LocusAdmissionAdministration` | text | `LocusAdmissionAdministration` | Commands `l` | `Loam/Tests/TuiLocusAdmissionAdministration.lean` |
+| `BoundedHistorySupportAdministration` | text | `BoundedHistorySupportAdministration` | Commands `b` | `Loam/Tests/TuiBoundedHistorySupportAdministration.lean` |
+| `ActualRoutingAdministration` | conditional | `ActualRoutingAdministration` | Commands `r` | `Loam/Tests/TuiActualRoutingAdministration.lean` |
+| `ActualDateCorrection` | conditional | `ActualDateCorrection` | Actual `d` | `Loam/Tests/TuiActualDateCorrection.lean` |
+| `ActualReversal` | conditional | `ActualReversal` | Actual `u` | `Loam/Tests/TuiActualReversal.lean` |
+| `EventMerchant` | conditional | `EventMerchant` | Actual `m` | `Loam/Tests/TuiEventMerchant.lean` |
+| `CurrentQuantityAnchor` | text | `CurrentQuantityAnchor` | Commands `a` | `Loam/Tests/TuiHelpFooter.lean` |
+| `CapacityTransfer` | text | `CapacityTransfer` | Capacity `t` | `Loam/Tests/TuiCapacityTransfer.lean` |
+| `CapacityRebalance` | conditional | `CapacityRebalance` | Capacity `r` | `Loam/Tests/TuiCapacityRebalance.lean` |
+| `DailyPaceWhatIf` | text | `DailyPaceWhatIf` | Daily pace `w` | `tests/test_daily_pace_pty.py` |
+| `SettlementAction` | text | `SettlementAction` | Settlement `s` | `Loam/Tests/TuiSettlement.lean` |
+| `ReportsModel` | text | `ReportsView` | Reports window, comparison, liquidity | `tests/test_reports_navigation_pty.py` |
+| `LocusTrendComparePane` | text | `LocusTrendComparePane` | Reports trend compare | `Loam/Tests/TuiReports.lean` |
+| `Home` | conditional | `Home` | Date jump buffer | `Loam/Tests/TuiHomeNavigation.lean` |
+| `ActualWorkspace` | conditional | `ActualWorkspace` | Search query `/` | `Loam/Tests/TuiActual.lean` |
+| `AccountingRoleAdministration` | navigation | - | Role selection | `Loam/Tests/TuiHomeNavigation.lean` |
+| `Main` | dispatch | - | Top-level loop | `Loam/Tests/TuiHomeNavigation.lean` |
+| `InputEdit` | dispatch | - | Shared single-line editor | `Loam/Tests/TuiTextFieldGeometry.lean` |
+| `Cli` | transport | - | Terminal harness | `tests/test_terminal_mechanics_pty.py` |
+| `Terminal` | transport | - | Low-level IO | `tests/test_terminal_mechanics_pty.py` |
+| `PlainTextPrint` | line-mode | - | Direct prompt | `tests/test_terminal_mechanics_pty.py` |
+
+**Real macOS Japanese IME acceptance remains unverified.** LOAM supplies a visible
+insertion anchor, not an IME preedit renderer or candidate-window clipping policy.
+A PTY injecting Japanese bytes cannot prove OS/terminal composition behavior, and
+lexical auditing cannot verify that every view mode or dynamic transition wires caret
+state properly.
+Manual check, using only an isolated synthetic household:
+
+```sh
+lake build loamTui
+fixture="$(mktemp -d)/household"
+lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
+./.lake/build/bin/loamTui "$fixture"
+```
+
+1. **Primary specimen (Scheduled Completion)**:
+   - Navigate to Scheduled (`s`), select a due plan, and press `c` (Scheduled List → `c`), or navigate via Selected Day (`g` → select date → Enter → `s` → `c`).
+   - Press `Tab` to focus the **Actual description** field.
+   - Compose Japanese in Actual description **before pressing Enter**; inspect the preedit and candidate window anchor relative to the modal field.
+   - Confirm composition, test `Backspace` and `Tab`/`Shift-Tab`, resize through 120×40, 80×24, 48×14, and 32×9, and check cursor stability.
+   - Cancel with `Esc` without writing.
+2. **Additional representative specimens**:
+   - `Record`: from Home, press `r` at 120×40, compose Japanese in Description before Enter, test `Ctrl-O` Original amount return, resize, and cancel.
+   - `Correction`: navigate to Actual (`a`), press Enter on a record, press `c` (Correction), compose Japanese, resize, and cancel.
+3. Repeat directly and under tmux when applicable; report terminal/version (Terminal.app, iTerm2, Ghostty, Alacritty, etc.), tmux/version, field, size, and preedit-versus-confirmed behavior.
+
+Separate Unicode limitation, not an IME fix: width and Backspace remain
+scalar-based. The #1992 specimens measured decomposed `か` + U+3099 as four
+columns, `e` + U+0301 as one, ZWJ `👩‍💻` and skin-tone `👍🏽` as four, and flag
+`🇯🇵` as two. Clip/wrap can split these sequences; Backspace removes one scalar,
+not one grapheme. CJK/ASCII replacement remains column-bounded under this
+approximation. No normalization, segmentation dependency, Cell rewrite or
+synchronized-output mode was introduced; atomic/synchronized painting is deferred
+without a demonstrated connection to this failure.
+
+
 Record's Ctrl-O Original amount editor uses the same aligned muted labels,
 active-field tail display and caret geometry, with a quiet input frame and a
 separate meaning panel. Feedback has a reserved row and wraps completely;

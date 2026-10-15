@@ -157,11 +157,11 @@ def main : IO Unit := do
         { baseState with notice := "End of Details." })
       expect (contains "End of Details." noticed)
         "Stable geometry hid the boundary notice on a compact terminal"
-  let compactSearch := widgetText (Loam.Tui.ActualWorkspace.view
+  let compactSearch := Loam.Tui.ActualWorkspace.view
     { width := 48, height := 10 } snapshot
-    { actualStart with searchQuery := "gamma", searchEditing := true })
-  expect (contains "Search: /gamma_" compactSearch)
-    "Stable context hid the search prompt on a low terminal"
+    { actualStart with searchQuery := "gamma", searchEditing := true }
+  expect (compactSearch.lines.flatten.any Cell.caret)
+    "Stable context hid the search insertion point on a low terminal"
 
   let stationaryDetails := widgetText (Loam.Tui.ActualWorkspace.view
     { width := 100, height := 30 } snapshot
@@ -228,11 +228,28 @@ def main : IO Unit := do
   let labelSearch := { searching with searchQuery := "書籍", searchEditing := false }
   expect ((Loam.Tui.ActualWorkspace.visibleRecords snapshot labelSearch).map (·.description) == ["gamma"])
     "Actual workspace human-facing Locus label search did not find the matching Actual"
-  let searchText := widgetText
-    (Loam.Tui.ActualWorkspace.view { width := 100, height := 30 } snapshot gammaSearch)
-  expect (contains "Search: /gamma_" searchText &&
-      contains "Backspace delete" searchText)
-    "Actual workspace active search query or search help disappeared"
+  let longQuery := String.intercalate "" (List.replicate 30 "日本語検索")
+  let pasted := (update snapshot searching (.searchPaste longQuery)).state
+  let erased := (update snapshot pasted .searchBackspace).state
+  expect (pasted.searchQuery == longQuery &&
+      erased.searchQuery == Loam.Tui.Terminal.backspaceText longQuery)
+    "search paste or Backspace changed retained committed CJK bytes"
+  for bounds in ([{ width := 32, height := 9 }, { width := 48, height := 14 },
+      { width := 80, height := 24 }, { width := 120, height := 40 }] : List Bounds) do
+    for editing in [searching, gammaSearch, pasted, erased] do
+      let frame := Loam.Tui.ActualWorkspace.view bounds snapshot editing
+      expect ((frame.lines.flatten.filter Cell.caret).length == 1)
+        "Actual search did not have exactly one semantic input caret"
+      let some (row, col) := Loam.Tui.Terminal.textCaretPosition? bounds 0 0
+          (Loam.Tui.Layout.contentWidth bounds) (Loam.Tui.Runtime.compileWidget frame)
+        | throw (IO.userError "Actual search insertion point was outside the live frame")
+      expect (row < bounds.height && col < Loam.Tui.Layout.contentWidth bounds &&
+          contains "Search: /" (String.ofList ((frame.lines[row]?.getD []).map Cell.glyph)))
+        "Actual search caret escaped its query row"
+    for browsing in [actualStart, keptSearch,
+        Loam.Tui.ActualWorkspace.returnedFromDetail snapshot snapshot keptSearch] do
+      expect (!(Loam.Tui.ActualWorkspace.view bounds snapshot browsing).lines.flatten.any Cell.caret)
+        "Actual result/detail return advertised search input while navigating"
   let cancelledSearch := (update snapshot gammaSearch .cancelSearch).state
   expect (cancelledSearch.searchQuery.isEmpty && !cancelledSearch.searchEditing &&
       (Loam.Tui.ActualWorkspace.visibleRecords snapshot cancelledSearch).length == 3)

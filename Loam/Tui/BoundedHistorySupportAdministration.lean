@@ -182,18 +182,17 @@ private def previewMeaning
 def view (bounds : Bounds) (state : State) : Widget :=
   match state.phase with
   | .editing =>
-      .column <|
-        [ line "History Support / Complete Since"
-        , muted "Explicit household certification; never inferred from endpoint equality"
-        , blank
-        , muted ("   " ++ padRight 32 "Coordinate" ++ padRight 18 "Complete since" ++ "Current support")
-        ] ++ candidateRows bounds state ++
-        [ blank
-        , line ("Start day: " ++ (if state.startDay.isEmpty then "_" else state.startDay))
-        , muted "YYYY-MM-DD means complete from the start of that calendar day."
-        , muted "For an existing claim, erase the date and press Enter to remove it."
+      let width := contentWidth bounds
+      let label := ellipsize (width - 1) "Start day: "
+      .column <| fitWithFooter bounds
+        ([ line "History Support / Complete Since" ] ++ candidateRows bounds state ++
+         [ muted "Certify only complete dated history, never endpoint equality."
+         , muted "Erase an existing date to propose removal."
+         ])
+        [ .row [span label, inputSpan (width - displayWidth label) true state.startDay]
         , if state.notice.isEmpty then blank else line state.notice
-        , muted "↑/↓ choose coordinate   type date   Backspace edit   Enter preview   Esc back"
+        , muted "↑/↓ coordinate  Enter preview  Esc back"
+        , muted "YYYY-MM-DD  Backspace edit"
         ]
   | .preview =>
       match validation? state with

@@ -115,7 +115,8 @@ def view (bounds : Bounds) (state : State) : Widget :=
   let detail : List Widget :=
     [ .row [span " Current date:  " .muted, span state.originalDate]
     , .row [span (if preview then " Proposed date: " else " New date:      ") .muted,
-        span state.input (if preview then .normal else .selected)]
+        Loam.Tui.Layout.inputSpan (width - 2 - Loam.Tui.Layout.displayWidth " New date:      ")
+          (!preview) state.input]
     , line ""
     ] ++ wrapped (width - 2) (" Target Actual: " ++ state.target.token) .muted ++
     (if preview then wrapped (width - 2) " Only the occurrence date changes." .muted else [])

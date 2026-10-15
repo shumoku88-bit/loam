@@ -135,17 +135,17 @@ private def planHeader (bounds : Bounds) (state : State)
   else
     [ line title ]
 
-private def editingRows (state : State) : List Widget :=
+private def editingRows (width : Nat) (state : State) : List Widget :=
   let form := state.editor.form
-  let fields := [ Loam.Tui.Record.field form 0 "Actual date" form.date
-                , Loam.Tui.Record.field form 1 "Actual description" form.description
-                , Loam.Tui.Record.field form 2 "Actual Measure" form.measure ]
+  let field := fun index label text =>
+    Loam.Tui.Record.inputField width (form.focus.val == index) label text
+  let fields := [ field 0 "Actual date" form.date
+                , field 1 "Actual description" form.description
+                , field 2 "Actual Measure" form.measure ]
   let postings := (List.range form.rows.size).flatMap fun index =>
     let row := form.rows[index]!
-    [ Loam.Tui.Record.field form (3 + index * 2)
-        ("Posting " ++ toString (index + 1)) row.locus
-    , Loam.Tui.Record.field form (4 + index * 2)
-        ("  " ++ form.measure) row.amount ]
+    [ field (3 + index * 2) ("Posting " ++ toString (index + 1)) row.locus
+    , field (4 + index * 2) ("  " ++ form.measure) row.amount ]
   -- Record.update dispatches these actions in this exact focus order.
   let actions := (["Preview", "Add posting", "Drop last row", "Cancel"].zipIdx).map
     fun (label, index) =>
@@ -165,21 +165,25 @@ private def editingView (bounds : Bounds) (state : State) : Widget :=
   let controls :=
     [ muted ("Candidate: " ++ Loam.Tui.Layout.clip (width - 11) candidate)
     , muted help ]
-  let footer := foot bounds state controls
+  let footer := foot {bounds with height := bounds.height - 1} state controls
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
-  let header := planHeader bounds state available "Scheduled / Complete / Actual"
+  let header := if available > 1 then
+    planHeader bounds state available "Scheduled / Complete / Actual" else []
   let height := available - header.length
-  let capacity := height - 2
-  let rows := editingRows state
+  let framed := height >= 3
+  let capacity := if framed then height - 2 else height
+  let rows := editingRows (if framed then width - 2 else width) state
   let focus := min state.editor.form.focus.val (rows.length - 1)
   let offset := min (rows.length - capacity)
     (Loam.Tui.Layout.trailingWindowStart focus capacity)
   let visible := (rows.drop offset).take capacity
   let more := (if offset > 0 then " ▲" else "") ++
     (if offset + capacity < rows.length then " ▼" else "")
-  let panel := Loam.Tui.Layout.framedPanel width height "Actual draft (editable)"
-    (.column visible) true
-    (some (s!"{focus + 1}/{rows.length}" ++ more))
+  let panel := if framed then
+    Loam.Tui.Layout.framedPanel width height "Actual draft (editable)"
+      (.column visible) true
+      (some (s!"{focus + 1}/{rows.length}" ++ more))
+    else .column visible
   let body : Widget := .column (header ++ [panel])
   .column ((Loam.Tui.Layout.fitWithFooter bounds
     (Loam.Tui.Layout.widgetRows body) footer).map fun row =>

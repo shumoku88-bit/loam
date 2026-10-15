@@ -172,6 +172,34 @@ def main : IO Unit := do
     "Bounded floating Settlement list truncated final row or refusal notice"
 
   let action := Loam.Tui.SettlementAction.initial "2026-09-28" rowOpen
+  let quantity := Quantity.ofQuanta 100
+  let longAmount := String.ofList (List.replicate 100 '1') ++ "2345"
+  for bounds in [({width := 32, height := 9} : Bounds), {width := 48, height := 14},
+      {width := 80, height := 24}, {width := 120, height := 40}] do
+    for mode in [Loam.Tui.SettlementAction.Mode.editAmount longAmount,
+        .reduceAmount longAmount, .repairAmount 0 longAmount,
+        .reduceDate quantity "2026-09-28", .repairDate 0 quantity "2026-09-28"] do
+      let editing := {action with mode}
+      let widget := Loam.Tui.SettlementActionSession.viewForBounds bounds 1 editing
+      let markers := widget.lines.flatten.filter (·.caret)
+      expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))
+        "Settlement amount/date field lost its safe insertion blank"
+      expect (widget.lines.any fun cells => cells.any (·.caret) &&
+          contains ":" (String.ofList (cells.map Cell.glyph)))
+        "Settlement caret escaped its labeled field"
+      let cancel := Loam.Tui.SettlementAction.update editing .escape
+      expect cancel.publish.isNone "Settlement field cancel emitted a publication"
+    for mode in [Loam.Tui.SettlementAction.Mode.menu 0, .reductionHub 0, .reductionList 0,
+        .reductionItem 0 0, .reduceWhen quantity 0, .repairWhen 0 quantity 0,
+        .editAmountPreview quantity, .reducePreview quantity none,
+        .repairPreview 0 quantity none, .retractConfirm, .repairRetractConfirm 0] do
+      let widget := Loam.Tui.SettlementActionSession.viewForBounds bounds 1 {action with mode}
+      expect (!(widget.lines.flatten.any (·.caret)))
+        "Settlement navigation/review displayed a text caret"
+  let refused := Loam.Tui.SettlementAction.withPublishError
+    {action with mode := .editAmountPreview quantity} "Publication refused"
+  expect (((Loam.Tui.SettlementAction.view refused).lines.flatten.filter (·.caret)).length == 1)
+    "Settlement refusal did not restore an editable amount"
   let actionText := widgetText (Loam.Tui.SettlementAction.view action)
   expect (contains "Card purchase" actionText &&
           contains "Change the original amount" actionText &&

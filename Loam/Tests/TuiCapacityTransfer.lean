@@ -47,12 +47,13 @@ def main (args : List String) : IO Unit := do
 
   let empty ← loadSnapshot capacityFile
   expect empty.rows.isEmpty "isolated Capacity fixture was not empty"
+  let bounds : Bounds := { width := 120, height := 40 }
   let initial := Loam.Tui.CapacityTransfer.initial empty "2026-09-12"
   expect (initial.form.source == "unallocated" && initial.form.destination.isEmpty)
     "empty Capacity transfer did not seed the minimal unallocated entrance"
   expect (initial.form.effectiveOn == "2026-09-12")
     "Capacity transfer did not seed the caller's explicit focus date"
-  let initialText := widgetText (Loam.Tui.CapacityTransfer.view initial)
+  let initialText := widgetText (Loam.Tui.CapacityTransfer.view bounds initial)
   expect (contains "not money available to allocate" initialText)
     "Capacity transfer editor lost the unallocated boundary warning"
 
@@ -88,6 +89,30 @@ def main (args : List String) : IO Unit := do
     "TUI Capacity grant draft changed endpoint or amount semantics"
   let grantPreview : Loam.Tui.CapacityTransfer.State := {
     grantState with mode := .preview grantDraft ⟨0, by omega⟩ }
+  for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
+    let small : Bounds := { width, height }
+    let long := String.ofList (List.replicate 160 '7')
+    for focus in List.range 6 do
+      let editor := { grantState with form := {
+        source := long, destination := long, effectiveOn := long, amount := long, focus } }
+      let frame := Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityTransfer.view small editor)
+      let position := Loam.Tui.Terminal.textCaretPosition? small 0 0 width frame
+      expect (position == if focus < 4 then some (focus + 1, width - 2) else none)
+        "Capacity caret did not follow the bounded field, or appeared on an action"
+      let edited := (Loam.Tui.CapacityTransfer.update editor .backspace).state
+      let value :=
+        if focus == 0 then edited.form.source
+        else if focus == 1 then edited.form.destination
+        else if focus == 2 then edited.form.effectiveOn
+        else edited.form.amount
+      expect (value.length == if focus < 4 then 159 else 160)
+        "Capacity Backspace edited only the display tail or changed an action's input"
+    expect ((Loam.Tui.Terminal.textCaretPosition? small 0 0 width
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityTransfer.view small grantPreview))).isNone)
+      "Capacity preview exposed a text caret"
+  let ignoredPaste := (Loam.Tui.CapacityTransfer.update grantState (.paste "999")).state
+  expect (ignoredPaste.form == grantState.form)
+    "Capacity caret migration changed historically unsupported paste"
   let grantStep := Loam.Tui.CapacityTransfer.update grantPreview .enter
   let grantIntent ← requireSome grantStep.publish
     "Capacity Preview/Publish did not emit a shared publisher draft"
@@ -148,7 +173,7 @@ def main (args : List String) : IO Unit := do
   expect (cancelled.cancel && cancelled.publish.isNone)
     "Capacity transfer Esc emitted publication"
 
-  let previewText := widgetText (Loam.Tui.CapacityTransfer.view transferPreview)
+  let previewText := widgetText (Loam.Tui.CapacityTransfer.view bounds transferPreview)
   expect (contains "food: 5000 -> 3000 jpy" previewText)
     "Capacity transfer preview omitted source current-to-after Entitlement"
   expect (contains "rent: 0 -> 2000 jpy" previewText)
@@ -170,7 +195,7 @@ def main (args : List String) : IO Unit := do
   let usdPreview : Loam.Tui.CapacityTransfer.State := {
     usdState with mode := .preview usdDraft ⟨0, by omega⟩
   }
-  let usdPreviewText := widgetText (Loam.Tui.CapacityTransfer.view usdPreview)
+  let usdPreviewText := widgetText (Loam.Tui.CapacityTransfer.view bounds usdPreview)
   expect
     (contains "Amount: 1200 usd" usdPreviewText &&
       contains "food: 5000 -> 3800 usd" usdPreviewText &&

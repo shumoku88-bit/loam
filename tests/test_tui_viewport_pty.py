@@ -68,6 +68,17 @@ def bounded(output, rows, cols):
     assert b"\n" not in output and b"\r" not in output, "screen-moving newline in frame"
 
 
+def text_caret(output, rows, cols):
+    bounded(output, rows, cols)
+    visibility = re.findall(rb"\x1b\[\?25([hl])", output)
+    assert visibility and visibility[-1] == b"h", "date prompt did not show its text caret"
+    positions = re.findall(rb"\x1b\[(\d+);(\d+)H", output)
+    row, col = map(int, positions[-1])
+    assert 1 <= row <= rows and 1 <= col < cols, (row, col, rows, cols)
+    assert not select.select([master], [], [], .15)[0], "idle date prompt emitted caret output"
+    return row, col
+
+
 try:
     startup = capture(b"Calendar")
     bounded(startup, 40, 120)
@@ -231,11 +242,23 @@ try:
     assert b"Day " in ansi.sub(b"", compact) and b"/ Detail" in ansi.sub(b"", compact)
     assert b"Actual: " not in ansi.sub(b"", compact), "compact Day merged an Actual preview into Calendar"
     os.write(master, b"/")
-    bounded(capture(b"Jump to date"), 14, 48)
-    os.write(master, b"2026-10-31\r")
+    text_caret(capture(b"Jump"), 14, 48)
+    os.write(master, b"\x1b[200~2026-10-319\x1b[201~")
+    pasted_caret = text_caret(capture(b"2026-10-319"), 14, 48)
+    os.write(master, b"\x7f")
+    erased_caret = text_caret(capture(b"2026-10-31"), 14, 48)
+    assert erased_caret == (pasted_caret[0], pasted_caret[1] - 1), "date Backspace lost its anchor"
+    for rows, cols in ((9, 32), (24, 80), (40, 120), (14, 48)):
+        resize(rows, cols)
+        text_caret(capture(b"2026-10-31"), rows, cols)
+    os.write(master, b"r ")
+    assert not select.select([master], [], [], .15)[0], "date prompt leaked household navigation"
+    assert digest() == before, "date prompt paste/Backspace/resize wrote evidence"
+    os.write(master, b"\r")
     jumped = capture(b"Focus: 2026-10-31")
     bounded(jumped, 14, 48)
     assert b"Jumped to 2026-10-31" in ansi.sub(b"", jumped), "compact Home hid jump feedback"
+    assert re.findall(rb"\x1b\[\?25([hl])", jumped)[-1] == b"l", "date acceptance retained a text caret"
     os.write(master, b"\t")
     bounded(capture(b"[j/k] select"), 14, 48)
     os.write(master, b"\x1b")

@@ -89,6 +89,36 @@ def main (args : List String) : IO Unit := do
     "empty Merchant party id reached preview"
 
   let typed := typeText emptyAttempt.state "sanwa"
+  let longParty := String.ofList (List.replicate 75 'a') ++ "-tail"
+  for bounds in [({width := 32, height := 9} : Loam.Tui.Kernel.Bounds),
+      {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 40}] do
+    let typedParty : Loam.Tui.EventMerchant.State := { typed with partyInput := longParty }
+    let longEditor : Loam.Tui.EventMerchant.State :=
+      { typedParty with description := String.ofList (List.replicate 100 '界') }
+    let widget := Loam.Tui.EventMerchant.viewForBounds bounds longEditor
+    let markers := widget.lines.flatten.filter (·.caret)
+    expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))
+      "Merchant input disappeared behind long context during resize"
+    expect (widget.lines.any fun cells => cells.any (·.caret) &&
+      contains "Party id:" (String.ofList (cells.map (·.glyph))) &&
+      contains "-tail" (String.ofList (cells.map (·.glyph))))
+      "Merchant caret escaped its field or lost the input tail"
+    let nonmerchant := Loam.Tui.EventMerchant.update longEditor .tab
+    let preview := Loam.Tui.EventMerchant.update typed .enter
+    for inactive in [nonmerchant.state, preview.state] do
+      expect (!(Loam.Tui.EventMerchant.viewForBounds bounds inactive).lines.flatten.any (·.caret))
+        "Merchant non-text mode displayed a caret"
+    let returned := Loam.Tui.EventMerchant.update preview.state .escape
+    let refused := Loam.Tui.EventMerchant.withPublishError preview.state "Refused"
+    for editing in [returned.state, refused] do
+      expect (editing.partyInput == "sanwa" &&
+        ((Loam.Tui.EventMerchant.viewForBounds bounds editing).lines.flatten.filter (·.caret)).length == 1)
+        "Merchant review return/refusal lost its input"
+    let pasted := Loam.Tui.EventMerchant.update longEditor (.paste "ignored")
+    let cancel := Loam.Tui.EventMerchant.update longEditor .escape
+    expect (pasted.state.partyInput == longParty && pasted.publish.isNone &&
+        cancel.cancel && cancel.publish.isNone)
+      "Merchant changed unsupported paste or cancelled with a write"
   let preview := Loam.Tui.EventMerchant.update typed .enter
   expect (preview.state.mode == .preview && preview.publish.isNone)
     "Merchant input did not require preview"

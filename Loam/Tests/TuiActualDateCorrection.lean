@@ -65,6 +65,29 @@ def main (args : List String) : IO Unit := do
     | throw (IO.userError "date editor did not accept dated current Actual")
   expect (editor.target == recorded && editor.input == "2026-09-07")
     "date editor lost target or visible current date"
+  for bounds in [({width := 32, height := 9} : Loam.Tui.Kernel.Bounds),
+      {width := 48, height := 14}, {width := 80, height := 24}, {width := 120, height := 40}] do
+    let widget := Loam.Tui.ActualDateCorrection.viewForBounds bounds editor
+    let markers := widget.lines.flatten.filter (·.caret)
+    expect (markers.length == 1 && markers.all (fun cell => cell.glyph == ' '))
+      "Actual date editing lost its insertion blank during resize"
+    expect (widget.lines.any fun cells => cells.any (·.caret) &&
+      contains "New date:" (String.ofList (cells.map (·.glyph))))
+      "Actual date caret escaped its field"
+    let preview := Loam.Tui.ActualDateCorrection.update editor .enter
+    expect (preview.publish.isNone &&
+      !(Loam.Tui.ActualDateCorrection.viewForBounds bounds preview.state).lines.flatten.any (·.caret))
+      "Actual date preview published early or retained a text caret"
+    let returned := Loam.Tui.ActualDateCorrection.update preview.state .escape
+    let refused := Loam.Tui.ActualDateCorrection.withPublishError preview.state "Refused"
+    for editing in [returned.state, refused] do
+      expect (editing.input == editor.input &&
+        ((Loam.Tui.ActualDateCorrection.viewForBounds bounds editing).lines.flatten.filter (·.caret)).length == 1)
+        "Actual date review return/refusal lost draft or focused input"
+    expect ((Loam.Tui.ActualDateCorrection.update editor (.paste "ignored")).state.input == editor.input)
+      "Actual date changed historically unsupported paste"
+    let cancel := Loam.Tui.ActualDateCorrection.update editor .escape
+    expect (cancel.cancel && cancel.publish.isNone) "Actual date cancellation emitted a write"
   -- Confirm the target, both dates, focused value and bounded physical frame.
   for bounds in [({ width := 48, height := 14 } : Loam.Tui.Kernel.Bounds),
       { width := 80, height := 24 }, { width := 120, height := 40 }] do

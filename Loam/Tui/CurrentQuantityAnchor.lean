@@ -3,11 +3,12 @@ import Loam.Application.CurrentQuantityAnchor
 import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
+import Loam.Tui.Layout
 import Loam.Tui.Terminal
 
 namespace Loam.Tui.CurrentQuantityAnchor
 
-open Loam.Core Loam.Tui.Kernel
+open Loam.Core Loam.Tui.Kernel Loam.Tui.Layout
 
 set_option autoImplicit false
 
@@ -155,9 +156,9 @@ private def line (text : String) : Widget := .row [span text]
 
 private def muted (text : String) : Widget := .row [span text .muted]
 
-private def field (form : Form) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if form.focus = index then .selected else .normal)]
+private def field (width : Nat) (form : Form) (index : Nat) (label text : String) : Widget :=
+  let pfx := ellipsize (width - 1) (label ++ ": ")
+  .row [span pfx, inputSpan (width - displayWidth pfx) (form.focus = index) text]
 
 private def assertionLine (index : Nat) (assertion : Loam.CurrentQuantityAnchor.Assertion) : Widget :=
   line
@@ -175,23 +176,20 @@ private def actionRow (form : Form) : Widget :=
   ]
 
 /-- Render a thin observation collector; all reconciliation semantics remain downstream. -/
-def view (state : State) : Widget :=
+def view (bounds : Bounds) (state : State) : Widget :=
   match state.mode with
   | .editing =>
-      .column <|
-        [ line "Current Quantity / Observe"
-        , muted "Add the quantities you observed together now."
-        , line ""
-        ] ++
-        (if state.assertions.isEmpty then [muted "  (no observations added yet)"]
-         else assertionLines state.assertions) ++
-        [ line ""
-        , field state.form 0 "Locus" state.form.locus
-        , field state.form 1 "Measure" state.form.measure
-        , field state.form 2 "Observed quantity" state.form.quantity
-        , actionRow state.form
-        , muted "Enter moves fields; Enter on Quantity/Add appends one row."
-        , muted "Tab / Shift-Tab focus   Backspace edit   Esc cancel"
+      .column <| fitWithFooter bounds
+        ([ line "Current Quantity / Observe"
+         , field (contentWidth bounds) state.form 0 "Locus" state.form.locus
+         , field (contentWidth bounds) state.form 1 "Measure" state.form.measure
+         , field (contentWidth bounds) state.form 2 "Observed quantity" state.form.quantity
+         , muted "Add the quantities you observed together now."
+         ] ++
+         (if state.assertions.isEmpty then [muted "  (no observations added yet)"]
+          else assertionLines state.assertions))
+        [ actionRow state.form
+        , muted "Tab focus  Enter next/add  Esc cancel"
         , line state.notice
         ]
   | .preview choice =>

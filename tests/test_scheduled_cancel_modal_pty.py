@@ -8,7 +8,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from scheduled_pty_support import ANSI, REPO, Terminal, digest
+from scheduled_pty_support import ANSI, REPO, Terminal, digest, text_caret, no_text_caret
 
 
 def sections(root):
@@ -87,6 +87,19 @@ def main():
             creation_modal = t.send(b"n", b"Scheduled / New / Edit")
             assert b"Scheduled / New" in ANSI.sub(b"", creation_modal)
             assert b"\x1b[2J" not in creation_modal, "Selected Day creation cleared parent"
+            text_caret(creation_modal, t.rows, t.columns, "2026-12-08")
+            locus = t.send(b"\t")
+            text_caret(locus, t.rows, t.columns, "_")
+            pasted = t.send(b"\x1b[200~" + ("語" * 35 + "末尾").encode() + b"\x1b[201~",
+                            "末尾".encode())
+            text_caret(pasted, t.rows, t.columns, "末尾")
+            edited = t.send(b"\x7f" + "端".encode(), "末端".encode())
+            text_caret(edited, t.rows, t.columns, "末端")
+            for rows, columns in ((9, 32), (14, 48), (24, 80), (40, 120)):
+                resized = t.resize(rows, columns, "末端".encode())
+                text_caret(resized, rows, columns, "末端")
+            action = t.send(b"\t" * 4, b"[Add")
+            no_text_caret(action)
             t.send(b"\x1b", b"Household Day Workspace")
             assert digest(root) == day_before, "Selected Day Scheduled creation Esc wrote data"
 

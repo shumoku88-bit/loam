@@ -5,6 +5,7 @@ import Loam.Persistence.TokenSyntax
 import Loam.Tui.CyclicIndex
 import Loam.Tui.Kernel
 import Loam.Tui.Terminal
+import Loam.Tui.Layout
 
 namespace Loam.Tui.Exchange
 
@@ -188,9 +189,11 @@ def withPublishError (state : State) (message : String) : State :=
 private def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 
-private def field (form : Form) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if form.focus = index then .selected else .normal)]
+private def field (width : Nat) (form : Form) (index : Nat) (label text : String) : Widget :=
+  let caption := Loam.Tui.Layout.ellipsize (width / 2 - 2) label ++ ": "
+  .row [span caption .muted,
+    Loam.Tui.Layout.inputSpan (width - Loam.Tui.Layout.displayWidth caption)
+      (form.focus = index) text]
 
 private def actionRow (form : Form) : Widget :=
   .row [
@@ -208,45 +211,44 @@ private def effectLine
     " " ++ effect.measure.token)
 
 /-- Render one direct source/destination exchange editor. -/
-def view (state : State) : Widget :=
+def viewForContentBounds (bounds : Bounds) (state : State) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
   match state.mode with
   | .editing =>
-      .column
-        [ line "Exchange / Record"
-        , muted "Record one direct exchange between two Measures."
-        , line ""
-        , field state.form 0 "Date" state.form.date
-        , field state.form 1 "Description" state.form.description
-        , line ""
-        , field state.form 2 "Source Locus" state.form.sourceLocus
-        , field state.form 3 "Source Measure" state.form.sourceMeasure
-        , field state.form 4 "Source amount" state.form.sourceAmount
-        , line ""
-        , field state.form 5 "Destination Locus" state.form.destinationLocus
-        , field state.form 6 "Destination Measure" state.form.destinationMeasure
-        , field state.form 7 "Destination amount" state.form.destinationAmount
-        , actionRow state.form
-        , muted "Enter moves fields; amounts are entered as positive magnitudes."
-        , muted "The retained source Effect is negative; destination is positive."
-        , muted "No FX rate or valuation is inferred."
-        , muted "Tab / Shift-Tab focus   Backspace edit   Esc cancel"
-        , line state.notice
-        ]
+      let fields := [
+        field width state.form 0 "Date" state.form.date,
+        field width state.form 1 "Description" state.form.description,
+        field width state.form 2 "Source Locus" state.form.sourceLocus,
+        field width state.form 3 "Source Measure" state.form.sourceMeasure,
+        field width state.form 4 "Source amount" state.form.sourceAmount,
+        field width state.form 5 "Destination Locus" state.form.destinationLocus,
+        field width state.form 6 "Destination Measure" state.form.destinationMeasure,
+        field width state.form 7 "Destination amount" state.form.destinationAmount,
+        actionRow state.form]
+      let footer := Loam.Tui.Layout.boundFeedbackFooter bounds
+        [line state.notice, muted "Tab / Shift-Tab focus   Enter next/preview   Esc cancel"]
+      let capacity := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+      let heading := if capacity > fields.length then [line "Exchange / Record"] else []
+      let visible := (Loam.Tui.Layout.centeredListWindow fields state.form.focus
+        (capacity - heading.length)).map Prod.snd
+      .column ((Loam.Tui.Layout.fitWithFooter bounds (heading ++ visible) footer).map
+        (Loam.Tui.Layout.clipWidgetRow width))
   | .preview draft choice =>
-      .column <|
-        [ line "Exchange / Preview"
-        , line draft.validOn
-        , line (draft.description.getD "(no description)")
-        , line ""
-        ] ++
+      let body :=
+        [line "Exchange / Preview", line draft.validOn,
+         line (draft.description.getD "(no description)")] ++
         draft.effects.map (effectLine state.measurePresentation) ++
-        [ line ""
-        , muted "This records exact observed quantities only; it does not store an FX rate."
-        , .row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
+        [muted "Exact observed quantities only; no FX rate is inferred."]
+      let footer := Loam.Tui.Layout.boundFeedbackFooter bounds
+        [.row ((["Publish", "Edit", "Cancel"].zipIdx).map fun (label, index) =>
             span ("[" ++ label ++ "] ")
-              (if choice = index then .selected else .normal))
-        , muted "Tab / Shift-Tab select   Enter confirm   e edit   Esc cancel"
-        , line state.notice
-        ]
+              (if choice = index then .selected else .normal)),
+         muted "Tab select   Enter confirm   e edit   Esc cancel",
+         line state.notice]
+      .column ((Loam.Tui.Layout.fitWithFooter bounds body footer).map
+        (Loam.Tui.Layout.clipWidgetRow width))
+
+def view (state : State) : Widget :=
+  viewForContentBounds {width := 80, height := 24} state
 
 end Loam.Tui.Exchange

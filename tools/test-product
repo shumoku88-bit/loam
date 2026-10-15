@@ -160,6 +160,7 @@ tui_representative_tests=(
   CycleSpendingPaceReview
   TuiChart
   TuiAttentionAdministration
+  TuiLocusAdmissionAdministration
   TuiScheduledWorkspace
   TuiScheduledBulkEdit
   TuiCapacity
@@ -266,6 +267,14 @@ case "$group" in
       echo "expected a named group or a Loam/Tests/<TestName>.lean module" >&2
       exit 2
     fi
+    ;;
+esac
+
+# The existing TUI lane checks new text handlers against the owning inventory;
+# this adds no separate workflow or proof/release qualification.
+case "$group" in
+  all|tui-representative)
+    run python3 tools/audit-tui-text-inputs
     ;;
 esac
 

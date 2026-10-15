@@ -90,6 +90,20 @@ def inputTail (columns : Nat) (text : String) : String :=
     "…" ++ String.ofList chars
 
 /--
+An active single-line input owns a real blank insertion cell within its width.
+The terminal reads this semantic marker, never selected styling. Clipping away
+the cell hides the caret rather than moving it onto a border or parent surface.
+Only the display tail is shortened; the editor retains the complete input.
+-/
+def inputSpan (columns : Nat) (active : Bool) (text : String)
+    (inactive : Style := .normal) : Span :=
+  let value := if text.isEmpty then "_" else text
+  { text := if active && columns != 0 then inputTail (columns - 1) value ++ " "
+            else ellipsize columns value
+    style := if active then .selected else inactive
+    caret := active && columns != 0 }
+
+/--
 Wrap text at physical terminal columns without discarding fitting characters.
 Combining marks remain with their preceding character. At a one-column width,
 a two-column glyph is explicitly replaced by an ellipsis; zero columns yield no
@@ -198,7 +212,7 @@ private def cellsWidth (cells : List Cell) : Nat :=
   cells.foldl (fun width cell => width + charWidth cell.glyph) 0
 
 private def cellsToSpans (cells : List Cell) : List Span :=
-  cells.map fun cell => span (String.ofList [cell.glyph]) cell.style
+  cells.map Cell.toSpan
 
 /-- Lower a possibly nested Widget into physical rows without losing Cell styles.
     Callers still own viewport, focus, and footer policy. -/

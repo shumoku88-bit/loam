@@ -472,13 +472,15 @@ def line (text : String) : Widget := .row [span text]
 private def muted (text : String) : Widget := .row [span text .muted]
 private def blank : Widget := .row []
 def field (form : Form) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if form.focus.val = index then .selected else .normal)]
+  let columns := Loam.Tui.Layout.displayWidth (if text.isEmpty then "_" else text) + 1
+  .row [span (label ++ ": "),
+    Loam.Tui.Layout.inputSpan columns (form.focus.val == index) text]
 
 private def originalField
     (editor : OriginalAmountEditor) (index : Nat) (label text : String) : Widget :=
-  .row [span (label ++ ": "), span (if text.isEmpty then "_" else text)
-    (if editor.focus.val = index then .selected else .normal)]
+  let columns := Loam.Tui.Layout.displayWidth (if text.isEmpty then "_" else text) + 1
+  .row [span (label ++ ": "),
+    Loam.Tui.Layout.inputSpan columns (editor.focus.val == index) text]
 
 private def originalSummary (state : State) : String :=
   match state.originalAmount with
@@ -695,17 +697,15 @@ def scrollPreview (bounds : Bounds) (state : State) (key : Loam.Tui.Terminal.Key
       some { state with previewScroll := offset }
   | _ => none
 
-private def boundedField (width : Nat) (active : Bool) (label text : String) : Widget :=
-  let labelWidth := min 13 (width / 2)
-  let value := if text.isEmpty then "_" else text
+/-- Aligned bounded text fields shared by Record-shaped editors. -/
+def inputField (width : Nat) (active : Bool) (label text : String) : Widget :=
+  let labelWidth := min (max 13 (Loam.Tui.Layout.displayWidth label + 2)) (width / 2)
   .row [span (Loam.Tui.Layout.padRight labelWidth (label ++ ": ")) .muted,
-    span (if active then Loam.Tui.Layout.inputTail (width - labelWidth) value
-          else Loam.Tui.Layout.ellipsize (width - labelWidth) value)
-      (if active then .selected else .normal)]
+    Loam.Tui.Layout.inputSpan (width - labelWidth) active text]
 
 private def editingField (width : Nat) (form : Form) (index : Nat)
     (label text : String) : Widget :=
-  boundedField width (form.focus.val == index) label text
+  inputField width (form.focus.val == index) label text
 
 /-- Fit rendered rows above a stable footer and reserve the terminal's final row/column. -/
 def boundedWithFooter (bounds : Bounds) (body : Widget) (footer : List Widget) : Widget :=
@@ -723,8 +723,8 @@ private def originalAmountView (bounds : Bounds) (state : State)
      Loam.Tui.Layout.shortcutRow [("C-d", "clear"), ("C-o", "return"), ("Esc", "cancel")] " "]
   let available := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
   let fields := Loam.Tui.Layout.framedPanel width 4 "Original amount"
-    (.column [boundedField (width - 2) (editor.focus.val == 0) "Measure" editor.measure,
-              boundedField (width - 2) (editor.focus.val == 1) "Amount" editor.amount]) true
+    (.column [inputField (width - 2) (editor.focus.val == 0) "Measure" editor.measure,
+              inputField (width - 2) (editor.focus.val == 1) "Amount" editor.amount]) true
   let explanation := ["Merchant/card amount; not another posting.",
     "No FX inference or Movement Measure change.",
     "Attach to draft; Publish later in Preview."]
@@ -753,7 +753,7 @@ def unresolvedEnableView (bounds : Bounds) (state : State)
   boundedWithFooter bounds (.column [line "Unresolved recording / Enable", change, meaning]) footer
 
 private def editingFields (width : Nat) (form : Form) (dateKept : Bool := false) : List Widget :=
-  [boundedField width (!dateKept && form.focus.val == 0) (if dateKept then "Date (kept)" else "Date") form.date,
+  [inputField width (!dateKept && form.focus.val == 0) (if dateKept then "Date (kept)" else "Date") form.date,
    editingField width form 1 "Description" form.description,
    editingField width form 2 "Measure" form.measure] ++
   (List.range form.rows.size).flatMap fun index =>
@@ -840,18 +840,20 @@ def editingView (bounds : Bounds) (state : State)
     .column [line heading, metadata, panes]
   else
     let height := available - 1
-    let capacity := height - 3
+    let capacity := max 1 (height - 3)
     let fields := editingFields (width - 2) state.form dateKept
     let focus := min state.form.focus.val (fields.length - 1)
     let start := min (fields.length - capacity)
       (Loam.Tui.Layout.trailingWindowStart focus capacity)
     let more := (if start > 0 then " ▲" else "") ++
       (if start + capacity < fields.length then " ▼" else "")
+    let content := Widget.column
+      ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state])
     .column [line heading,
-      Loam.Tui.Layout.framedPanel width height "Fields"
-        (.column ((fields.drop start).take capacity ++ [candidateSummary (width - 2) state]))
-        (state.form.focus.val < fields.length)
-        (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))]
+      if height < 3 then content else
+        Loam.Tui.Layout.framedPanel width height "Fields" content
+          (state.form.focus.val < fields.length)
+          (some (s!"{min (start + capacity) fields.length}/{fields.length} fields" ++ more))]
   boundedWithFooter bounds body footer
 
 /-- Bounds-aware standalone Record surfaces; embedded editors retain their contract. -/

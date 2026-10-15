@@ -10,10 +10,14 @@ import os
 from pathlib import Path
 import re
 import statistics
+import sys
 import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tests"))
+
 spec = importlib.util.spec_from_file_location("pace_pty", ROOT / "tests/test_daily_pace_pty.py")
 pace = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(pace)
