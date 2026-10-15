@@ -321,8 +321,8 @@ private def trendPanel (bounds : Bounds) (g : Geometry) (snapshot : Loam.Tui.Mai
   let height := if inner ≥ 6 then inner - 3 else 0
   let capacity := historyCapacityForBounds bounds snapshot state
   let body := if history.isEmpty then
-      let raw := [line (" Today: " ++ currentText snapshot)] ++
-        statusLines width snapshot state ++ disclosure width
+      let raw := statusLines width snapshot state ++
+        [line (" Today: " ++ currentText snapshot)] ++ disclosure width
       if raw.length ≤ inner then raw else raw.take (inner - 1) ++ [muted " more in details (i)"]
     else summaryRows width snapshot state ++ chartRows width height history state ++
       (if height > 0 then [dateAxis width history] else [])
