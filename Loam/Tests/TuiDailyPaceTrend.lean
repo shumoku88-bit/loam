@@ -329,8 +329,8 @@ private def testDayWiseUnknownGaps : IO Unit := do
     let drawn := text (Loam.Tui.DailyPaceTrend.view bounds world)
     expect (contains "123 jpy/day" drawn && contains "2/3 supported days" drawn)
       "a missing past day erased a qualified present-day Daily Pace point"
-    expect (!contains "0 jpy/day" drawn && contains "points only" drawn)
-      "sparse history interpolated or invented zero for missing calendar day"
+    expect (contains "points only" drawn)
+      "sparse history connected unknown days instead of using isolated points"
     let initial : Loam.Tui.DailyPaceTrend.State := {}
     let prior ← press bounds world initial .left
     expect (prior.selected == some 1 && prior.selectedDay == some "2026-10-14")
