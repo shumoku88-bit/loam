@@ -114,3 +114,31 @@ and performance independently pass.
 
 No changes are made to LOAM's canonical authority code or
 `loam-data`, UI, user data, or ordinary writer behavior.
+
+
+## Actual GitHub Actions observation (successful CI run)
+
+At native research workflow run
+[38722862231](https://github.com/shumoku88-bit/loam/actions/runs/38722862231):
+
+| Four accepted synthetic generations | Bytes |
+|---|---:|
+| Four separate whole HouseholdImages | 5,733 |
+| Distinct immutable section bodies | 2,153 |
+| Four versioned immutable manifests | 2,168 |
+| Total section bodies + manifests | 4,321 |
+
+The experiment also creates a small `HEAD` reference and filesystem
+metadata, **not included** in the final sum. This four-generation fixture
+is tiny and **not** a 1/5/10/20-year throughput or storage benchmark.
+The three real semantic writers changed only `Actual`; unchanged
+`Scheduled`, `ScheduledRouting`, `LocusAdmission` and future
+`CustomEvidence` were each referenced without duplicate body copies.
+
+All four byte-for-byte reconstructed images passed the **native Lean**
+qualified Actual and Scheduled Review entrances. Missing Scheduled
+body, corrupt Actual body refused. A valid prior HEAD rollback remains
+undetectable in this prototype.
+
+This is meaningful proof of **section-level immutable sharing
+compatibility**, but **not of actual annual data segmentation**.
