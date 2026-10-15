@@ -5,11 +5,14 @@ on:
     paths:
       - 'tools/NativeAnnualReadProbe.lean'
       - 'tools/NativeHouseholdSectionBridge.lean'
+      - 'tools/NativeTacklerProjection.lean'
       - 'tools/research-native-annual-section-bridge.py'
       - 'tools/research-native-actual-publication-delta.py'
+      - 'tools/research-tackler-git-calendar-journals.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
       - 'docs/research/NATIVE_HOUSEHOLD_SECTION_BRIDGE_2026-10-15.md'
       - 'docs/research/NATIVE_ACTUAL_PUBLICATION_DELTA_2026-10-15.md'
+      - 'docs/research/TACKLER_GIT_CALENDAR_JOURNALS_2026-10-15.md'
       - '.github/workflows/research-native-annual-closure.yml'
 
 permissions:
@@ -29,7 +32,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ScheduledReview Loam.Tests.Support
+          build-args: Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
@@ -58,3 +61,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-native-actual-publication-delta.py --check
+      - name: Verify native Tackler-shaped calendar-year journal Git revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-tackler-git-calendar-journals.py --check
