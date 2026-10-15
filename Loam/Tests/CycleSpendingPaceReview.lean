@@ -237,6 +237,114 @@ def main : IO Unit := do
     ]
   }
 
+  -- Daily Pace-specific bridge to Observations 037 and 100.
+  -- The final Scheduled truth can be identical while the as-known-on-day
+  -- input frontier differs. This exercises production pool arithmetic only;
+  -- it does not pretend a learned-time ledger exists in production yet.
+  let temporalOld ← requireSome
+    (scheduled? "temporal-old" "2026-09-12"
+      [change cash (-300), change expense 300])
+    "temporal old plan"
+  let temporalNew ← requireSome
+    (scheduled? "temporal-new" "2026-09-12"
+      [change cash (-400), change expense 400])
+    "temporal replacement plan"
+  let temporalSameNet ← requireSome
+    (scheduled? "temporal-same-net" "2026-09-12"
+      [change cash (-300), change expense 300])
+    "temporal equal-effect replacement"
+  let emptyTerminals ← requireSome
+    (ScheduledTerminalMemory.ofTerminals? [])
+    "temporal knowledge time initial terminals"
+  let emptyActual ← requireSome
+    (EventMemory.ofEvents? [])
+    "temporal knowledge time initial Actual"
+  let beforeMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [temporalOld])
+    "temporal before-knowledge memory"
+  let beforeKnown : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := beforeMemory
+    terminals := emptyTerminals
+    events := emptyActual
+  }
+  let afterMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [temporalOld, temporalNew])
+    "temporal after-knowledge memory"
+  let afterTerminal ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{source := temporalOld.id, target := some (.scheduled temporalNew.id)}])
+    "temporal learned replacement terminal"
+  let afterKnown : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := afterMemory
+    terminals := afterTerminal
+    events := emptyActual
+  }
+  let beforePace ← match Loam.CycleSpendingPaceReview.projectForMeasure
+      yen "2026-09-10" "2026-09-18" selection historyBalances beforeKnown with
+    | .ok point => pure point
+    | .error message => throw (IO.userError message)
+  let afterPace ← match Loam.CycleSpendingPaceReview.projectForMeasure
+      yen "2026-09-10" "2026-09-18" selection historyBalances afterKnown with
+    | .ok point => pure point
+    | .error message => throw (IO.userError message)
+  expect (beforePace.dailyPaceQuanta? == some 112 &&
+      afterPace.dailyPaceQuanta? == some 100)
+    "distinct learned-time frontiers unexpectedly had equal Daily Pace"
+  -- World A learned this replacement before 9/10; world B learned it
+  -- afterward. Both eventually contain exactly afterKnown, but the
+  -- historical day-9/10 answer is not determined by that final image.
+  expect (beforePace != afterPace)
+    "identical final truth was incorrectly assumed to fix historical knowledge"
+
+  let equalMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [temporalOld, temporalSameNet])
+    "temporal equal-effect Scheduled memory"
+  let equalTerminal ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{source := temporalOld.id, target := some (.scheduled temporalSameNet.id)}])
+    "temporal equal-effect replacement terminal"
+  let equalKnown : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := equalMemory
+    terminals := equalTerminal
+    events := emptyActual
+  }
+  let equalPace ← match Loam.CycleSpendingPaceReview.projectForMeasure
+      yen "2026-09-10" "2026-09-18" selection historyBalances equalKnown with
+    | .ok point => pure point
+    | .error message => throw (IO.userError message)
+  expect (equalPace.dailyPaceQuanta? == beforePace.dailyPaceQuanta? &&
+      equalPace.availableThroughEnd == beforePace.availableThroughEnd)
+    "equal selected-pool effects changed Daily Pace merely due to identity"
+
+  -- A bill payment from a protected pool should not consume the
+  -- discretionary numerator twice: B falls by x while reserved C falls
+  -- by exactly x at the known completion boundary.
+  let paidMemory ← requireSome
+    (ScheduledMemory.ofOccurrences? [temporalOld])
+    "temporal paid Scheduled memory"
+  let paidTerminal ← requireSome
+    (ScheduledTerminalMemory.ofTerminals?
+      [{source := temporalOld.id, target := some (.actual completion.id)}])
+    "temporal paid terminal"
+  let paidKnown : Loam.ScheduledReview.EvidenceSnapshot := {
+    scheduled := paidMemory
+    terminals := paidTerminal
+    events := historyEvents
+  }
+  let paidBalances : Loam.BalanceReview.Snapshot := {
+    rows := [
+      {coordinate := coordinate wallet, quantity := Quantity.ofQuanta 1500},
+      {coordinate := coordinate cash, quantity := Quantity.ofQuanta (-600)}
+    ]
+  }
+  let paidPace ← match Loam.CycleSpendingPaceReview.projectForMeasure
+      yen "2026-09-10" "2026-09-18" selection paidBalances paidKnown with
+    | .ok point => pure point
+    | .error message => throw (IO.userError message)
+  expect (paidPace.availableThroughEnd == beforePace.availableThroughEnd &&
+      paidPace.dailyPaceQuanta? == beforePace.dailyPaceQuanta?)
+    "settling an already-protected bill double-deducted discretionary funds"
+
   let roots ← requireSome
     (Loam.Application.correctionRootIds?
       actualEvidence.events actualEvidence.corrections)
