@@ -388,7 +388,7 @@ def check() -> dict:
                 fail(lambda: Reader(root, head), "tampered claims under old head")
             results.append({"years_per_segment": width, "year_and_cutoff_queries": n,
                             "segments": len(reader.entries),
-                            "native_actual_scheduled_semantics_guard": True,
+                            "scheduled_completion_endpoint_guard": True,
                             "cross_year_source_closure": True,
                             "mandatory_financial_prefix": True,
                             "invalid_required_history_refused": True})
