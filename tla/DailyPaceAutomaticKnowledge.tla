@@ -9,7 +9,7 @@ EXTENDS Naturals, Sequences
 Days == 0..3
 Ops == {"move", "complete", "policy"}
 Sources == {"event-m", "terminal-c", "actual-c", "policy-v1"}
-NoStage == "no-stage"
+NoStage == [op |-> "none", base |-> 0]
 
 SourceOf(op) ==
   CASE op = "move" -> {"event-m"}
@@ -162,7 +162,7 @@ TypeOK ==
   /\ image \subseteq Sources
   /\ knowledge \in Seq([op : Ops, learned : Days])
   /\ generation \in 0..3
-  /\ (stage = NoStage \/ stage \in [op : Ops, base : 0..3])
+  /\ (stage = NoStage \/ stage \in [op : Ops \cup {"none"}, base : 0..3])
   /\ crashed \in BOOLEAN
   /\ hadCrash \in BOOLEAN
   /\ retryCount \in 0..1
