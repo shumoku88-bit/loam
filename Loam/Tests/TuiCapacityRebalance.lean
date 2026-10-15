@@ -122,14 +122,14 @@ def main (args : List String) : IO Unit := do
   for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
     let live : Bounds := { width, height }
     let position := Loam.Tui.Terminal.textCaretPosition? live 0 0 width
-      (compileWidget (Loam.Tui.CapacityRebalance.view live longEdit))
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live longEdit))
     expect (position == some (3, width - 2))
       "Rebalance delta input was clipped into the table instead of its bounded field"
     expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
-      (compileWidget (Loam.Tui.CapacityRebalance.view live state0))).isNone)
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live state0))).isNone)
       "Rebalance purpose selection exposed a text caret"
     expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
-      (compileWidget (Loam.Tui.CapacityRebalance.view live refusedEdit))).isSome)
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live refusedEdit))).isSome)
       "Rebalance invalid delta refusal lost its input caret"
   let deleted := (Loam.Tui.CapacityRebalance.update longEdit .backspace).state
   expect (match deleted.mode with
@@ -218,7 +218,7 @@ def main (args : List String) : IO Unit := do
   for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
     let live : Bounds := { width, height }
     expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
-      (compileWidget (Loam.Tui.CapacityRebalance.view live stepPreview.state))).isNone)
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityRebalance.view live stepPreview.state))).isNone)
       "Rebalance atomic proposal preview exposed a text caret"
 
   let previewText := widgetText (Loam.Tui.CapacityRebalance.view bounds stepPreview.state)

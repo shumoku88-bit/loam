@@ -232,10 +232,10 @@ def main (args : List String) : IO Unit := do
   for (width, height) in [(32, 9), (48, 14), (80, 24), (120, 40)] do
     let live : Bounds := { width, height }
     expect ((Loam.Tui.Terminal.textCaretPosition? live 0 0 width
-      (compileWidget (Loam.Tui.CapacityTransfer.view live grantEditor))).isNone)
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityTransfer.view live grantEditor))).isNone)
       "Cycle grant preview exposed an input caret"
     let position := Loam.Tui.Terminal.textCaretPosition? live 0 0 width
-      (compileWidget (Loam.Tui.CapacityTransfer.view live stepEdit.state))
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityTransfer.view live stepEdit.state))
     expect (position == some (4, 16))
       "Cycle grant edit did not anchor to the Amount insertion cell at live bounds"
 

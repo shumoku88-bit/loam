@@ -92,12 +92,12 @@ def main : IO Unit := do
     let bounds : Bounds := { width, height }
     for editor in [initial, dated, bank, cleared, staleChanged, refused.state] do
       let position := Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
-        (compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds editor))
+        (Loam.Tui.Runtime.compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds editor))
       let shownLength := if editor.startDay.isEmpty then 1 else editor.startDay.length
       expect (position == some (height - 5, 11 + shownLength))
         "History support caret left the start-day field after selection/reflow/refusal"
     expect ((Loam.Tui.Terminal.textCaretPosition? bounds 0 0 width
-      (compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds preview.state))).isNone)
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.BoundedHistorySupportAdministration.view bounds preview.state))).isNone)
       "History support certification preview exposed a text caret"
   expect ((Loam.Tui.BoundedHistorySupportAdministration.update dated (.paste "123")).state.startDay ==
     dated.startDay) "History support changed unsupported paste semantics"

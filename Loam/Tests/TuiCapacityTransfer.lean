@@ -95,7 +95,7 @@ def main (args : List String) : IO Unit := do
     for focus in List.range 6 do
       let editor := { grantState with form := {
         source := long, destination := long, effectiveOn := long, amount := long, focus } }
-      let frame := compileWidget (Loam.Tui.CapacityTransfer.view small editor)
+      let frame := Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityTransfer.view small editor)
       let position := Loam.Tui.Terminal.textCaretPosition? small 0 0 width frame
       expect (position == if focus < 4 then some (focus + 1, width - 2) else none)
         "Capacity caret did not follow the bounded field, or appeared on an action"
@@ -108,7 +108,7 @@ def main (args : List String) : IO Unit := do
       expect (value.length == if focus < 4 then 159 else 160)
         "Capacity Backspace edited only the display tail or changed an action's input"
     expect ((Loam.Tui.Terminal.textCaretPosition? small 0 0 width
-      (compileWidget (Loam.Tui.CapacityTransfer.view small grantPreview))).isNone)
+      (Loam.Tui.Runtime.compileWidget (Loam.Tui.CapacityTransfer.view small grantPreview))).isNone)
       "Capacity preview exposed a text caret"
   let ignoredPaste := (Loam.Tui.CapacityTransfer.update grantState (.paste "999")).state
   expect (ignoredPaste.form == grantState.form)
