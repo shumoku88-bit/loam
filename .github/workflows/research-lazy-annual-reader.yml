@@ -1,0 +1,21 @@
+name: Research Lazy Annual History Reader
+
+on:
+  pull_request:
+    paths:
+      - 'tools/research-lazy-year-reader.py'
+      - 'docs/research/LAZY_ANNUAL_PARTITION_QUERY_CLOSURE_2026-10-15.md'
+      - '.github/workflows/research-lazy-annual-reader.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  annual-query-closure:
+    name: Synthetic annual query closure and fail-closed boundaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Compare 1/5/10-year partitions against full history
+        run: python3 tools/research-lazy-year-reader.py --check
