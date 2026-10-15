@@ -504,7 +504,7 @@ def main : IO Unit := do
   }
   let rolloverBoundaries : List Loam.BoundaryPresetConfig.Preset :=
     [{name := "pension", boundaries := ["2026-08-15", "2026-10-15", "2026-12-15"]}]
-  let rollover := Loam.DailyPacePeriods.projectPrepared yen image allDays selection
+  let rollover := Loam.DailyPacePeriods.projectPrepared yen image (.ok allDays) selection
     historyBalances rolloverScheduled rolloverBoundaries "2026-10-15"
   let .ok current := rollover.current
     | throw (IO.userError "rollover current refused alongside historical replacement")
@@ -513,6 +513,18 @@ def main : IO Unit := do
       current.automaticDeductions.quanta == 900 &&
       current.remainingDays == 61)
     "rollover current ignored the replacement frontier or explicit pension boundary"
+  let noHistory := Loam.DailyPacePeriods.projectPrepared yen image
+    (.error "historical balance support unavailable") selection historyBalances
+    rolloverScheduled rolloverBoundaries "2026-10-15"
+  expect (noHistory.current == rollover.current)
+    "historical support admission failure blocked today's valid spendable amount"
+  let noHistoryTen ← requireSome
+    (noHistory.periods.find? fun p => p.preset == .tenDays)
+    "missing range when history evidence unavailable"
+  expect (match noHistoryTen.history with
+    | .failed message => (message.splitOn "historical balance support unavailable").length > 1
+    | _ => false)
+    "missing historical evidence was silently replaced with fabricated history"
   let ten ← requireSome (rollover.periods.find? fun p => p.preset == .tenDays)
     "rollover ten-day range"
   expect (match ten.history with
