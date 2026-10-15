@@ -44,7 +44,7 @@ class Change:
 
 
 # A deliberately awkward specimen: late entry, repeated cross-year changes,
-# Scheduled completion paired with its resulting Actual, and idle years.
+# Scheduled terminal and Actual effects (their publication atomicity is out of scope), and idle years.
 SPECIMEN = (
     Change(2023, 1, "open", "opening", 2023, 500, "actual"),
     Change(2025, 2, "open", "old", 2025, -40, "actual"),
