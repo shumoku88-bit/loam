@@ -76,6 +76,7 @@ import Loam.Observations.Observation363
 import Loam.Observations.Observation368
 import Loam.Observations.Observation369
 import Loam.Observations.Observation380
+import Loam.Observations.Observation381
 
 /-!
 Research compaction notes:
