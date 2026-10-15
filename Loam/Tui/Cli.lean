@@ -153,15 +153,27 @@ def loadSnapshotFromActualImage
     | some generation =>
         pure (Loam.ScheduledReview.fromGenerationForEvents generation image.evidence.events)
     | none => Loam.ScheduledReview.loadHouseholdEvidenceForEvents dataDir image.evidence.events
-  let pacePeriods ← if preparePacePeriods then
+  let paceViews :
+      Loam.Presentation.ReadState (List Loam.DailyPacePeriods.Period) ×
+      Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot ←
+    if preparePacePeriods then
       match scheduled, generation? with
       | .ok scheduledEvidence, some generation =>
           match ← Loam.DailyPacePeriods.load dataDir today image generation scheduledEvidence with
-          | .ok periods => pure (Loam.Presentation.ReadState.loaded periods)
-          | .error message => pure (.failed message)
-      | .error message, _ => pure (.failed message)
-      | _, none => pure (.failed "Daily Pace: paired Household generation unavailable")
-    else pure Loam.Presentation.ReadState.notRequested
+          | .ok prepared =>
+              let current : Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot :=
+                match prepared.current with
+                | .ok point => .loaded point
+                | .error message => .failed message
+              pure (.loaded prepared.periods, current)
+          | .error message => pure (.failed message, .failed message)
+      | .error message, _ => pure (.failed message, .failed message)
+      | _, none =>
+          let message := "Daily Pace: paired Household generation unavailable"
+          pure (.failed message, .failed message)
+    else pure (.notRequested, .notRequested)
+  let pacePeriods := paceViews.1
+  let paceCurrent := paceViews.2
   let paceHistory :
       Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) ←
     if preparePacePeriods then pure .notRequested else match scheduled with
@@ -203,6 +215,7 @@ def loadSnapshotFromActualImage
     attention := attention
     paceHistory := paceHistory
     pacePeriods := pacePeriods
+    paceCurrent := paceCurrent
     moneyCalendar := moneyCalendar
   }
 
