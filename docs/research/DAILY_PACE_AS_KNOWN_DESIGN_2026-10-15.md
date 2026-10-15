@@ -319,6 +319,15 @@ Do not:
 - make Home a fixed money dashboard;
 - close #1995 because the current-value regression #1996 was repaired.
 
-**Next code PR after this note:** qualified Daily Pace-specific
-valid/knowledge-time witness + settlement/savings scenario matrix. Then
-graduate only the justified durable evidence and replay interface.
+**Executable bridge included with this design PR:** the existing
+`Loam/Tests/CycleSpendingPaceReview.lean` now exercises the production
+Daily Pace kernel against (a) differing as-known Scheduled frontiers with
+the same eventual final image, (b) identity-distinct replacements that
+produce the same selected-pool value, and (c) completed, previously
+protected bills that must not be deducted twice.
+
+These synthetic tests qualify **the Daily Pace arithmetic consequence**
+of the existing temporal research. They do not yet provide a persistent
+knowledge-time authority, provenance coverage, or historical TUI behavior.
+Next implementation PRs should qualify savings reserve semantics,
+durable known-time publications, and replay/query projections.
