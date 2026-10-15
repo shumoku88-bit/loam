@@ -797,6 +797,85 @@
           ]
         }
       ]
+    },
+    {
+      "id": "annual-segment-commit-recovery",
+      "observation": "Storage issue 1969 annual segment commit",
+      "jobName": "TLA+ immutable annual segment commit and restore",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/AnnualSegmentCommitRecovery.tla",
+      "useMetadir": true,
+      "paths": [
+        "tla/AnnualSegmentCommitRecovery.tla",
+        "tla/AnnualSegmentCommitRecovery*.cfg",
+        "docs/research/ANNUAL_SEGMENT_COMMIT_RECOVERY_2026-10-15.md"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/AnnualSegmentCommitRecovery.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "head-first",
+          "config": "tla/AnnualSegmentCommitRecoveryHeadFirst.cfg",
+          "expect": "failure",
+          "required": [
+            "HeadReferencesDurable",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "overwrite",
+          "config": "tla/AnnualSegmentCommitRecoveryOverwrite.cfg",
+          "expect": "failure",
+          "required": [
+            "SealedPastNeverMutated",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "partial-restore",
+          "config": "tla/AnnualSegmentCommitRecoveryPartialRestore.cfg",
+          "expect": "failure",
+          "required": [
+            "HeadReferencesDurable",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "rollback",
+          "config": "tla/AnnualSegmentCommitRecoveryRollback.cfg",
+          "expect": "failure",
+          "required": [
+            "HeadMatchesCommittedChronology",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "idle",
+          "config": "tla/AnnualSegmentCommitRecoveryIdleWitness.cfg",
+          "expect": "failure",
+          "required": [
+            "YearNeverAdvances",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "retry",
+          "config": "tla/AnnualSegmentCommitRecoveryRetryWitness.cfg",
+          "expect": "failure",
+          "required": [
+            "NoCommitAfterCrash",
+            "Invariant"
+          ]
+        }
+      ]
     }
   ]
 }
