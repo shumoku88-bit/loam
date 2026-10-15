@@ -79,7 +79,7 @@ A refused window is not truncated to the known part and no missing day becomes z
 def projectPrepared
     (measure : Loam.Core.MeasureId)
     (image : Loam.ActualAuthority.Image)
-    (evidence : Loam.HistoricalBalanceReview.Evidence)
+    (evidence : Except String Loam.HistoricalBalanceReview.Evidence)
     (selection : List Loam.Core.EffectCoordinate)
     (balances : Loam.BalanceReview.Snapshot)
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
@@ -98,8 +98,12 @@ def projectPrepared
       | throw ("Daily Pace: no explicit cycle boundary for " ++ day)
     return (day, endExclusive)
   let known := cycleEnds.filterMap Except.toOption
-  let reconstructed := Loam.CycleSpendingPaceReview.projectHistoricalDaysForMeasure
-    measure image evidence selection scheduled known
+  let reconstructed : List (Except String Loam.CycleSpendingPaceReview.Snapshot) :=
+    match evidence with
+    | .ok historical =>
+        Loam.CycleSpendingPaceReview.projectHistoricalDaysForMeasure
+          measure image historical selection scheduled known
+    | .error message => known.map fun _ => .error message
   let mut cache : Std.HashMap String (Except String Loam.CycleSpendingPaceReview.Snapshot) := {}
   for (day, result) in dates.zip cycleEnds do
     if let .error message := result then cache := cache.insert day (.error (day ++ ": " ++ message))
@@ -130,7 +134,7 @@ def project
     (scheduled : Loam.ScheduledReview.EvidenceSnapshot)
     (configured : List Loam.BoundaryPresetConfig.Preset)
     (today : String) : List Period :=
-  (projectPrepared measure image evidence selection balances scheduled configured today).periods
+  (projectPrepared measure image (.ok evidence) selection balances scheduled configured today).periods
 
 /-- Load support/config once; callers supply the same admitted Actual/Scheduled generation. -/
 def load (dataDir : System.FilePath) (today : String)
@@ -146,7 +150,7 @@ def load (dataDir : System.FilePath) (today : String)
     return do
       let current ← Loam.CurrentBalanceReview.projectFromGeneration generation image
       let balances ← Loam.CurrentBalanceReview.selectExact current selection
-      let evidence ← Loam.HistoricalBalanceReview.evidenceFromGeneration generation
+      let evidence := Loam.HistoricalBalanceReview.evidenceFromGeneration generation
       return projectPrepared ⟨"jpy"⟩ image evidence selection balances scheduled configured today
   catch error => return .error ("Daily Pace configuration unreadable: " ++ error.toString)
 
