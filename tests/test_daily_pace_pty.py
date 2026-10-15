@@ -10,12 +10,17 @@ from pathlib import Path
 import re
 import struct
 import subprocess
+import sys
 import tempfile
 import termios
 import time
-from scheduled_pty_support import text_caret, no_text_caret
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT / "tests") not in sys.path:
+    sys.path.insert(0, str(ROOT / "tests"))
+
+from scheduled_pty_support import text_caret, no_text_caret
+
 spec = importlib.util.spec_from_file_location("loam_resource_probe", ROOT / "tools/benchmark-tui-resources.py")
 probe = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(probe)
