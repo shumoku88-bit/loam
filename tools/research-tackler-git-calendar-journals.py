@@ -127,7 +127,80 @@ def recorded_file(repo: Path, rev: str, path: str) -> str:
     return git(repo, "show", f"{rev}:{path}") + "\n"
 
 
-def check() -> dict:
+def tackler_config(repo: Path) -> Path:
+    """Minimal exact Tackler config, no external chart or price authority."""
+    config = repo / "tackler-research.toml"
+    # Both backends share the same configuration and source files.
+    config.write_text(
+        '[kernel]\n'
+        'strict = false\n'
+        'audit = { mode = false, hash = "SHA-256" }\n'
+        'timestamp = { default-time = 00:00:00, timezone = { name = "UTC" } }\n'
+        '\n'
+        '[kernel.input]\n'
+        'storage = "fs"\n'
+        '\n'
+        '[kernel.input.fs]\n'
+        f'path = "{repo.as_posix()}"\n'
+        'dir = "txns"\n'
+        'ext = "txn"\n'
+        '\n'
+        '[kernel.input.git]\n'
+        f'repo = "{(repo / ".git").as_posix()}"\n'
+        'dir = "txns"\n'
+        'ext = "txn"\n'
+        '\n'
+        '[transaction]\n'
+        'accounts = { path = "none" }\n'
+        'commodities = { path = "none" }\n'
+        'tags = { path = "none" }\n'
+        '\n'
+        '[report]\n'
+        'report-timezone = "UTC"\n'
+        'scale = { min = 2, max = 2 }\n'
+        'accounts = []\n'
+        'targets = ["balance"]\n'
+        'balance = { title = "Balance Report", type = "flat" }\n'
+        '\n'
+        '[export]\n'
+        'targets = []\n',
+        encoding="utf-8",
+    )
+    return config
+
+
+def tackler_account_rows(output: str) -> list[str]:
+    """Compare only actual accounting rows, not backend metadata."""
+    result = []
+    for line in output.splitlines():
+        tokens = line.split()
+        if any(token in ("Assets:Bank", "Expenses:Wifi") for token in tokens):
+            result.append(" ".join(tokens))
+    if not any("Assets:Bank" in row for row in result):
+        raise AssertionError("Tackler did not report Assets:Bank")
+    if not any("Expenses:Wifi" in row for row in result):
+        raise AssertionError("Tackler did not report Expenses:Wifi")
+    return sorted(result)
+
+
+def verify_tackler_fs_git(repo: Path, config: Path, commit: str, expected: list[dict]) -> None:
+    """Execute *real* Tackler v26.10.1 on FS and a fixed Git tree."""
+    base = ("tackler", "--config", str(config), "--reports", "balance")
+    fs_output = run(*base, "--input.storage", "fs")
+    git_output = run(*base, "--input.storage", "git",
+                     "--input.git.commit", commit)
+    fs_rows = tackler_account_rows(fs_output)
+    git_rows = tackler_account_rows(git_output)
+    if fs_rows != git_rows:
+        raise AssertionError(
+            "Tackler current FS vs fixed Git committed tree balance differs: "
+            + repr((fs_rows, git_rows))
+        )
+    if len(expected) == 0:
+        raise AssertionError("empty synthetic native input")
+
+
+def check(verify_tackler: bool = False) -> dict:
     with tempfile.TemporaryDirectory(prefix="loam-tackler-git-calendar-") as temp:
         work = Path(temp)
         source = work / "qualified-native-source"
@@ -142,6 +215,7 @@ def check() -> dict:
         git(journal, "config", "user.name", "LOAM research synthetic fixture")
         git(journal, "config", "user.email", "research@example.invalid")
 
+        tackler_cfg = tackler_config(journal) if verify_tackler else None
         commits = []
         states = []
         entry_ids = []
@@ -167,6 +241,9 @@ def check() -> dict:
             for path in paths:
                 if recorded_file(journal, sha, path) != current[path]:
                     raise AssertionError("pinned Git view bytes differ from filesystem")
+            if verify_tackler:
+                assert tackler_cfg is not None
+                verify_tackler_fs_git(journal, tackler_cfg, sha, entries)
             commits.append(sha)
             states.append(current)
 
@@ -222,20 +299,23 @@ def check() -> dict:
                 p.split("/")[1] for p in states[-1]
             }),
             "read_model_files_per_generation": [len(x) for x in states],
+            "real_tackler_fs_git_parity": verify_tackler,
             "cross_year_effective_date_reprojection": True,
             "old_git_commit_exactly_replayable": True,
             "superseded_corrected_actual_kept_only_in_loam_canonical": True,
             "no_idle_year_file": True,
             "limits": (
-                "Tackler-compatible text fixture, NOT Tackler binary executed; "
-                "Git tracks only disposable current-Actual view; real learned-time "
-                "year partition, multi-family source authority and automatic Git "
-                "commit at the canonical publication boundary are NOT implemented."
+                "Real Tackler is executed only when --tackler is passed. "
+                "Git tracks disposable current-Actual view, NOT canonical year journals. "
+                "Real learned-time partition, multi-family source authority and automatic "
+                "Git commit at canonical publication boundary remain unimplemented."
             ),
         }
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] != ["--check"]:
-        raise SystemExit("usage: research-tackler-git-calendar-journals.py --check")
-    print(json.dumps(check(), ensure_ascii=False, indent=2))
+    if sys.argv[1:] not in (["--check"], ["--check", "--tackler"]):
+        raise SystemExit(
+            "usage: research-tackler-git-calendar-journals.py --check [--tackler]")
+    print(json.dumps(check(verify_tackler="--tackler" in sys.argv[1:]),
+                     ensure_ascii=False, indent=2))
