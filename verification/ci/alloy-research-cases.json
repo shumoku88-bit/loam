@@ -9,6 +9,27 @@
   ],
   "cases": [
     {
+      "id": "daily-pace-knowledge-minimality",
+      "observation": "Observation 381",
+      "jobName": "Qualify minimal Daily Pace day-end knowledge retention",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "experiments/381_daily_pace_knowledge_minimality.als",
+      "paths": [
+        "experiments/381_daily_pace_knowledge_minimality.als",
+        "docs/research/DAILY_PACE_KNOWLEDGE_COMPRESSION_2026-10-15.md"
+      ],
+      "expected": {
+        "sameFinalFactsDifferentKnownDay": true,
+        "sameDayBucketsDifferentWinner": true,
+        "sameScalarDifferentSourceIdentity": true,
+        "DayBucketsAloneDetermineLastWriteWins": true,
+        "NumericContributionDeterminesSourceIdentity": true,
+        "ExistingReplacementRelationDeterminesDayEnd": false
+      }
+    },
+    {
       "id": "summary-correlation-loss",
       "observation": "Observation 083",
       "jobName": "Separate marginals and joint correlation",
