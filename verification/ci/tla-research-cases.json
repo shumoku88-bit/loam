@@ -736,6 +736,67 @@
           ]
         }
       ]
+    },
+    {
+      "id": "daily-pace-automatic-knowledge",
+      "observation": "Daily Pace publication qualification",
+      "jobName": "TLA+ automatic daily-pace knowledge admission and retry",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/DailyPaceAutomaticKnowledge.tla",
+      "useMetadir": true,
+      "paths": [
+        "tla/DailyPaceAutomaticKnowledge.tla",
+        "tla/DailyPaceAutomaticKnowledge*.cfg",
+        "docs/research/DAILY_PACE_AUTOMATIC_KNOWLEDGE_PROTOCOL_2026-10-15.md"
+      ],
+      "variants": [
+        {
+          "id": "atomic",
+          "config": "tla/DailyPaceAutomaticKnowledge.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "split",
+          "config": "tla/DailyPaceAutomaticKnowledgeSplitBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "BodyMatchesKnowledge",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "restore",
+          "config": "tla/DailyPaceAutomaticKnowledgeRestoreBoundary.cfg",
+          "expect": "failure",
+          "required": [
+            "BodyMatchesKnowledge",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "idle",
+          "config": "tla/DailyPaceAutomaticKnowledgeIdleWitness.cfg",
+          "expect": "failure",
+          "required": [
+            "IdleNeverChangesPace",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "recovery",
+          "config": "tla/DailyPaceAutomaticKnowledgeRecoveryWitness.cfg",
+          "expect": "failure",
+          "required": [
+            "NoCommitAfterAnyCrash",
+            "Invariant"
+          ]
+        }
+      ]
     }
   ]
 }
