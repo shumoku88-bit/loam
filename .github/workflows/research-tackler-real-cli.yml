@@ -1,0 +1,45 @@
+name: Research - Tackler 26.10 FS vs Git
+
+on:
+  pull_request:
+    paths:
+      - 'tools/research-tackler-git-calendar-journals.py'
+      - 'docs/research/TACKLER_REAL_FS_GIT_PARITY_2026-10-15.md'
+      - '.github/workflows/research-tackler-real-cli.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tackler-cli:
+    name: Qualified LOAM journal through real Tackler FS and Git
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Install pinned Tackler CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install --locked --version 26.10.1 tackler
+          tackler --version
+      - name: Build required real LOAM Lean modules
+        uses: leanprover/lean-action@v1
+        with:
+          auto-config: false
+          build: true
+          build-args: Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
+          test: false
+          lint: false
+          use-mathlib-cache: false
+          leanchecker: false
+          axiom-audit: false
+          use-github-cache: false
+      - name: Compare actual Tackler filesystem and fixed Git-commit reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-tackler-git-calendar-journals.py --check --tackler
