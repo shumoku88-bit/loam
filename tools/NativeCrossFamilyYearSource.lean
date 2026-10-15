@@ -18,7 +18,7 @@ changed source families. Fixture comes from ScheduledBatchReplacement setup
 in a disposable test root; never run against loam-data.
 -/
 
-private def current (root : System.FilePath) : IO Loam.HouseholdAuthority.Generation :=
+private def current (root : System.FilePath) : IO Loam.HouseholdAuthority.Generation := do
   requireOk (← Loam.HouseholdAuthority.loadCurrent? root)
     "qualified HouseholdImage generation"
 
