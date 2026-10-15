@@ -6,6 +6,9 @@ on:
       - 'Loam/Review/DailyPacePeriods.lean'
       - 'Loam/Tests/DailyPacePeriods.lean'
       - 'tools/benchmark-daily-pace.py'
+      - 'tools/benchmark-daily-pace-knowledge.py'
+      - 'tools/benchmark-household-knowledge.py'
+      - 'tools/BenchHouseholdKnowledge.lean'
       - 'tests/test_reports_navigation_pty.py'
       - 'Loam/Tests/TuiReportLaunch.lean'
       - 'Loam/Tui/ReportDestination.lean'
@@ -217,6 +220,9 @@ on:
       - 'Loam/Review/DailyPacePeriods.lean'
       - 'Loam/Tests/DailyPacePeriods.lean'
       - 'tools/benchmark-daily-pace.py'
+      - 'tools/benchmark-daily-pace-knowledge.py'
+      - 'tools/benchmark-household-knowledge.py'
+      - 'tools/BenchHouseholdKnowledge.lean'
       - 'tests/test_reports_navigation_pty.py'
       - 'Loam/Tests/TuiReportLaunch.lean'
       - 'Loam/Tui/ReportDestination.lean'
@@ -446,6 +452,9 @@ jobs:
           leanchecker: false
           axiom-audit: false
           use-github-cache: false
+
+      - name: Check disposable HouseholdImage knowledge encodings via native Lean authority
+        run: python3 tools/benchmark-household-knowledge.py --check --years 1 --per-year 50 --read-rounds 1
 
       - name: Verify native terminal latency, batching and resize safety
         run: |
