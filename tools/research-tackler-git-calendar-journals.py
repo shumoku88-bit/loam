@@ -163,7 +163,8 @@ def tackler_config(repo: Path) -> Path:
         'balance = { title = "Balance Report", type = "flat" }\n'
         '\n'
         '[export]\n'
-        'targets = []\n',
+        'targets = []\n'
+        'equity = { accounts = ["Assets:.*"], equity-account = "Equity:Balance" }\n',
         encoding="utf-8",
     )
     return config
