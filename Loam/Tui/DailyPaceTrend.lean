@@ -276,7 +276,7 @@ private def footer (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (state 
     | .failed _ =>
         if (partialSamples snapshot state).isEmpty then
           muted " History unavailable; i for full cause."
-        else muted " History daySamples; unknown dates kept as gaps."
+        else muted " History partial; unknown dates kept as gaps."
     | _ => blank
   let navigation := if state.detailFocused then
       [("j/k", "scroll"), ("i/q", "trend"), ("h/l", "day")]
