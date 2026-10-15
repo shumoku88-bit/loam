@@ -162,6 +162,8 @@ def tackler_config(repo: Path) -> Path:
         'accounts = []\n'
         'targets = ["balance"]\n'
         'balance = { title = "Balance Report", type = "flat" }\n'
+        'balance-group = { title = "Balance Group Report", type = "flat", group-by = "month" }\n'
+        'register = { title = "Register Report", timestamp-style = "date" }\n'
         '\n'
         '[export]\n'
         'targets = []\n'
