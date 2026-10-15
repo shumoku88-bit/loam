@@ -9,11 +9,14 @@ on:
       - 'tools/research-native-annual-section-bridge.py'
       - 'tools/research-native-actual-publication-delta.py'
       - 'tools/research-tackler-git-source-year.py'
+      - 'tools/research-source-year-cross-family.py'
+      - 'tools/NativeCrossFamilyYearSource.lean'
       - 'tools/research-tackler-git-calendar-journals.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
       - 'docs/research/NATIVE_HOUSEHOLD_SECTION_BRIDGE_2026-10-15.md'
       - 'docs/research/NATIVE_ACTUAL_PUBLICATION_DELTA_2026-10-15.md'
       - 'docs/research/TACKLER_SOURCE_YEAR_GIT_REPLAY_2026-10-15.md'
+      - 'docs/research/CROSS_FAMILY_SOURCE_YEAR_PUBLICATION_2026-10-15.md'
       - 'docs/research/TACKLER_GIT_CALENDAR_JOURNALS_2026-10-15.md'
       - '.github/workflows/research-native-annual-closure.yml'
 
@@ -73,3 +76,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-tackler-git-source-year.py --check
+      - name: Verify atomic Actual and Scheduled source in Jan-1 Git journals
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-source-year-cross-family.py --check
