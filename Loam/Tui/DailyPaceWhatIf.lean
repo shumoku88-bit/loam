@@ -37,22 +37,13 @@ structure Projection where
 /-- Require an admitted today-point, never substitute a stale historical value. -/
 def current? (snapshot : Loam.Tui.Main.Snapshot) :
     Except String Loam.CycleSpendingPaceReview.Snapshot := do
-  let periods ← match snapshot.pacePeriods with
-    | .loaded periods => pure periods
+  let point ← match snapshot.paceCurrent with
+    | .loaded point => pure point
     | .failed message => throw ("Current Daily Pace unavailable: " ++ message)
     | .unavailable => throw "Current Daily Pace unavailable."
     | .notRequested => throw "Current Daily Pace not requested."
-  let some period := periods.find? (fun period => period.preset == .tenDays)
-    | throw "Current Daily Pace period missing."
-  let history ← match period.history with
-    | .loaded history => pure history
-    | .failed message => throw ("Current Daily Pace unavailable: " ++ message)
-    | .unavailable => throw "Current Daily Pace unavailable."
-    | .notRequested => throw "Current Daily Pace not requested."
-  let some point := history.getLast?
-    | throw "Current Daily Pace has no observations."
   if point.observedAt != snapshot.actual.today then
-    throw "Current Daily Pace today-point missing; past estimates cannot price a purchase now."
+    throw "Current Daily Pace today-point missing; stale estimates cannot price a purchase now."
   if point.measure.token != "jpy" then
     throw "This first calculator accepts JPY only; conversion is not assumed."
   if point.dailyPaceQuanta?.isNone then

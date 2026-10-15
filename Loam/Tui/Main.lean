@@ -41,6 +41,8 @@ structure Snapshot where
   -/
   paceHistory : Loam.Presentation.ReadState (List Loam.CycleSpendingPaceReview.Snapshot) :=
     .notRequested
+  /-- Today's admitted spendable-per-day answer; no historical window is required. -/
+  paceCurrent : Loam.Presentation.ReadState Loam.CycleSpendingPaceReview.Snapshot := .notRequested
   /-- Prepared once on Daily Pace entry, discarded with the read snapshot. -/
   pacePeriods : Loam.Presentation.ReadState (List Loam.DailyPacePeriods.Period) := .notRequested
   /--

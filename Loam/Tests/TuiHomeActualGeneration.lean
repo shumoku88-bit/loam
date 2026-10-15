@@ -200,6 +200,10 @@ def main : IO Unit := do
   | .loaded _ => pure ()
   | _ => throw (IO.userError "paired Home reopened AccountingRole storage")
 
+  let .loaded today := prepared.paceCurrent
+    | throw (IO.userError "independent today point reopened support storage")
+  expect (today.observedAt == "2026-09-24" && today.eligiblePool.quanta == 1000)
+    "prepared current point lost the admitted Actual generation"
   let .loaded periods := prepared.pacePeriods | throw (IO.userError "prepared periods reopened support storage")
   let ten ← requireSome (periods.find? fun period => period.preset == .tenDays) "10d not prepared"
   let .loaded points := ten.history | throw (IO.userError "prepared current range refused")
@@ -208,6 +212,10 @@ def main : IO Unit := do
   let observedB ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? root) "fresh B"
   let refreshed ← requireOk (← Loam.Tui.Cli.loadSnapshotFromActualImage
     root "2026-09-24" observedB.image (some observedB.generation) true) "refresh prepared Daily Pace"
+  let .loaded newToday := refreshed.paceCurrent
+    | throw (IO.userError "fresh independent today point unavailable")
+  expect (newToday.eligiblePool.quanta == 2000)
+    "fresh current point retained a stale Actual generation"
   let .loaded newPeriods := refreshed.pacePeriods | throw (IO.userError "fresh periods unavailable")
   let newTen ← requireSome (newPeriods.find? fun period => period.preset == .tenDays) "fresh 10d missing"
   let .loaded newPoints := newTen.history | throw (IO.userError "fresh 10d refused")
