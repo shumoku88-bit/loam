@@ -419,15 +419,15 @@ private def qualifiedSampleAt (values : Array (Option Int)) (joins : Array Bool)
     (width x : Nat) : Option Int := Id.run do
   let count := values.size
   if count == 0 then return none
-  if count == 1 || width <= 1 then return (values[0]?).flatten
-  if x + 1 >= width then return (values[count - 1]?).flatten
+  if count == 1 || width <= 1 then return (values[0]?.getD none)
+  if x + 1 >= width then return (values[count - 1]?.getD none)
   let denominator := width - 1
   let scaled := x * (count - 1)
   let index := scaled / denominator
   let remainder := scaled % denominator
-  if remainder == 0 then return (values[index]?).flatten
+  if remainder == 0 then return (values[index]?.getD none)
   if !(joins[index]?.getD false) then return none
-  match (values[index]?).flatten, (values[index + 1]?).flatten with
+  match (values[index]?.getD none), (values[index + 1]?.getD none) with
   | some left, some right =>
       return some (interpolate left right remainder denominator)
   | _, _ => return none
@@ -482,7 +482,7 @@ def renderQualifiedInRange
     value.map fun quanta =>
       (xForIndex actualWidth values.length index,
        rowForValue actualHeight range quanta, index)
-  let selectedValue := (values[selected]?).flatten
+  let selectedValue := (values[selected]?.getD none)
   let selectedX := xForIndex actualWidth values.length selected
   let selectedY := selectedValue.map (rowForValue actualHeight range)
   (List.range actualHeight).map fun row =>
