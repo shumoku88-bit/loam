@@ -117,3 +117,39 @@ comparative benchmark should any physical scheme be chosen.
 
 **No production `Loam/*` changes, canonical data, `loam-data`,
 user calendar confirmations or UI changes.**
+
+
+## Native test observation (first successful full research run)
+
+[CI run 38725329259](https://github.com/shumoku88-bit/loam/actions/runs/38725329259)
+reported `PASS: native Actual TX delta replay equals every qualified
+HouseholdImage generation`:
+
+| Tiny four-generation synthetic household | Bytes |
+|---|---:|
+| Four independently stored complete HouseholdImage wires | 5,733 |
+| #2012 section-COW payloads plus manifests | 4,321 |
+| New immutable base+TX-delta blobs | 2,593 |
+| New full versioned manifests | 2,951 |
+| New total blobs plus manifests (excluding HEAD) | 5,544 |
+
+The experiment's publication changes each replaced/appended **one TX
+block**, for three successive writes; base has one Scheduled completion
+TX and final retained Actual has three transaction IDs:
+`scheduled-completion:paid`, `record-1`, `replacement-1`.
+Every one of the four reconstruction points was byte-identical and
+accepted by native Lean Actual + Scheduled.
+
+**Interpretation:** per-TX COW works semantically for these operations,
+but in this tiny fixture the **versioned-manifest overhead dominates**:
+5,544 bytes is *larger than* the simpler #2012 section COW control.
+The result is **not** evidence of disk or memory efficiency at real
+household scale, nor a reduction in per-write computational work
+because the implementation still regenerates/re-admits the whole
+Actual image. Compare manifest designs and large-history workloads
+before selecting any physical topology. A single append-only index,
+compact merkle index, or batch of yearly commit records may be worth
+measuring, **not** adopting without recovery analysis.
+
+No performance improvement, qualified as-known cutoff or production
+year-boundary behavior is claimed.
