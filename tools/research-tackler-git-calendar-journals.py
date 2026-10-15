@@ -147,6 +147,7 @@ def tackler_config(repo: Path) -> Path:
         '\n'
         '[kernel.input.git]\n'
         f'repo = "{(repo / ".git").as_posix()}"\n'
+        'ref = "HEAD"\n'
         'dir = "txns"\n'
         'ext = "txn"\n'
         '\n'
