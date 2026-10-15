@@ -65,6 +65,8 @@ on:
       - 'experiments/379_settlement_prior_promise_boundary.md'
       - 'experiments/380_scheduled_plan_projection_boundary.als'
       - 'experiments/380_scheduled_plan_projection_boundary.md'
+      - 'experiments/381_daily_pace_knowledge_minimality.als'
+      - 'docs/research/DAILY_PACE_KNOWLEDGE_COMPRESSION_2026-10-15.md'
       - 'tools/run-alloy-research-case'
       - 'tools/select-alloy-research-cases'
       - 'verification/ci/alloy-research-cases.json'
@@ -161,6 +163,8 @@ on:
       - 'experiments/379_settlement_prior_promise_boundary.md'
       - 'experiments/380_scheduled_plan_projection_boundary.als'
       - 'experiments/380_scheduled_plan_projection_boundary.md'
+      - 'experiments/381_daily_pace_knowledge_minimality.als'
+      - 'docs/research/DAILY_PACE_KNOWLEDGE_COMPRESSION_2026-10-15.md'
       - 'tools/run-alloy-research-case'
       - 'tools/select-alloy-research-cases'
       - 'verification/ci/alloy-research-cases.json'
@@ -193,7 +197,7 @@ jobs:
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/377_settlement_extinguishment_identity.als)" =             '["settlement-extinguishment-identity"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/378_settlement_extinguishment_time.als)" =             '["settlement-extinguishment-time"]'
           test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/379_settlement_prior_promise_boundary.als)" =             '["settlement-prior-promise-boundary"]'
-          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/380_scheduled_plan_projection_boundary.als)" =             '["scheduled-plan-projection-boundary"]'
+          test "$(python3 tools/select-alloy-research-cases             --event pull_request             --paths experiments/380_scheduled_plan_projection_boundary.als)" =             '["scheduled-plan-projection-boundary","daily-pace-knowledge-minimality"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths experiments/249_cash_flow_classification.als)" =             '[]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/327-interpretation-subject-correction             --paths experiments/327_interpretation_subject_correction.als)" =             '["interpretation-subject-correction"]'
           test "$(python3 tools/select-alloy-research-cases             --event push             --branch experiment/242-accounting-projection-factorization             --paths verification/ci/alloy-research-cases.json)" =             '["accounting-projection-factorization"]'
@@ -582,3 +586,14 @@ jobs:
       - uses: ./.github/actions/alloy-research-case
         with:
           case: scheduled-plan-projection-boundary
+
+  daily-pace-knowledge-minimality:
+    name: Qualify minimal Daily Pace day-end knowledge retention
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'daily-pace-knowledge-minimality') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/alloy-research-case
+        with:
+          case: daily-pace-knowledge-minimality
