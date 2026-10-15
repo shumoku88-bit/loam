@@ -8,8 +8,8 @@ open Loam.Tests.Support
 
 set_option autoImplicit false
 
-private def elapsedUs (before after : UInt64) : Nat :=
-  (after - before).toNat / 1000
+private def elapsedUs (before after : Nat) : Nat :=
+  (after - before) / 1000
 
 def mainRun (args : List String) : IO Unit := do
   let [rootText, seedText, nextText, roundsText] := args
