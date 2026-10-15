@@ -28,7 +28,7 @@ ExpectedImage(H) ==
   UNION {SourceOf(op) : op \in Committed(H)}
 
 KnownBy(H, cut) ==
-  {H[i].op : i \in DOMAIN H /\ H[i].learned <= cut}
+  {H[i].op : i \in {j \in DOMAIN H : H[j].learned <= cut}}
 
 \* A toy exact free-money projection for testing calendar-only progression.
 \* Completion releases a protected obligation while spending the matched
