@@ -65,6 +65,53 @@ Negative trials refuse:
 No files for empty years, no year-end account closing Event, and no
 daily confirmation are created.
 
+## Bounded dual-write crash witness (follow-up to #2018)
+
+The same `tools/research-source-year-cross-family.py --check` now reuses the
+**real native Scheduled completion before/after HouseholdImage wires**, the
+existing two Git commits, the existing test-only 2027-01-01 publication label,
+and an isolated temporary working tree per interruption. No new persistence
+engine, journal syntax, CI lane, or production hook was added.
+
+A short subprocess promotes **one** of two independent observable references
+at a time: (1) `household.loam` by a staged file replace of the *previously
+Lean-admitted* H1 bytes, or (2) the temporary Git repository HEAD from
+previously committed G0 to previously committed G1. It uses a **real
+`SIGKILL`** after the first or second promotion and inspects both sources
+on restart. This subprocess **does not execute the native Lean publisher
+during the kill**. Native production publisher admission was exercised
+earlier while obtaining H0/H1; the experiment addresses only an outer
+hypothetical dual-write orchestration gap.
+
+| Ordering | SIGKILL point | Household | Git | Qualified joint selection |
+| --- | --- | --- | --- | --- |
+| Household first | after first | H1 | G0 | **mismatch: refuse** |
+| Git first | after first | H0 | G1 | **mismatch: refuse** |
+| Household first | after both | H1 | G1 | matching pair, **not a durability proof** |
+| Git first | after both | H1 | G1 | matching pair, **not a durability proof** |
+
+Each candidate is checked against the **exact two existing native generated
+whole-image wires**, and Git G1 is replayed from the committed source-year
+journal with both Actual and Scheduled together. This deliberately detects
+mismatches instead of choosing a "winner" or inferring the accepted date.
+Git G0 and Household H0 are internally valid too: if both roll back, without
+an independent freshness anchor a matching old pair can evade detection.
+
+**Result's meaning:** neither order of two independent promotions gives a
+single atomic Household+Git publication. There is no proposed production
+repair policy. The observed return states are process-kill/filesystem
+observations, **not verified power-loss durability**, no `fsync` guarantee
+for production `HouseholdAuthority.publishObserved?`, and not an injected
+crash *inside* the Lean publisher's staging or renames. A distinct future
+acceptance-time clock, idempotent ambiguous retries and versioned restore
+remain blocked by the prior Phase 0 audit.
+
+**Stop here unless needed:** No need to multiply mock commit protocols or
+add another TLA+ model. Existing `AnnualSegmentCommitRecovery.tla` and
+`DAILY_PACE_AUTOMATIC_KNOWLEDGE_PROTOCOL_2026-10-15.md` already spell out
+the single-head and learned-time requirements. Choose a unique authority
+before experimenting with recovery changes.
+
 ## Non-claims / production stop conditions
 
 - This is **two generations in a narrow synthetic fixture**, not a

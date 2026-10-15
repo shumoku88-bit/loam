@@ -11,7 +11,10 @@ from hashlib import sha256
 from pathlib import Path
 import importlib.util
 import json
+import os
 import re
+import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -164,6 +167,92 @@ def must_refuse(action, why: str) -> None:
     raise AssertionError("unsafe accept: " + why)
 
 
+
+def dual_cut_child(household: Path, repo: Path, next_wire: Path,
+                   next_head: str, order: str, stop: str) -> None:
+    """Kill a *research orchestrator* between two independent visible cuts.
+
+    The before/after wires came from a real native Lean publisher. This does
+    NOT inject a kill inside that publisher or simulate power-loss durability.
+    """
+    require(order in ("household-first", "git-first"), "unsupported ordering")
+    require(stop in ("after-first", "after-second"), "unsupported kill point")
+
+    def promote_household() -> None:
+        stage = household.with_name(household.name + ".research-stage")
+        stage.write_bytes(next_wire.read_bytes())
+        os.replace(stage, household)
+
+    def promote_git() -> None:
+        # G1 was made by the genuine local Git commit earlier in this test.
+        # This advances the selected ref; it is NOT a new Git transaction.
+        git(repo, "reset", "--hard", next_head)
+
+    actions = ([promote_household, promote_git] if order == "household-first"
+               else [promote_git, promote_household])
+    for index, action in enumerate(actions, 1):
+        action()
+        if stop == f"after-{('first' if index == 1 else 'second')}":
+            os.kill(os.getpid(), signal.SIGKILL)
+
+
+def check_dual_cutpoints(work: Path, gitroot: Path, saved: list[str],
+                         before: bytes, after: bytes, bridge) -> list[dict]:
+    """Report actual intermediate *mismatches*, not a speculative repair.
+
+    A compatible pair is independently known from the native input fixtures;
+    this checker is a research oracle, not a production admission API.
+    """
+    results = []
+    for order in ("household-first", "git-first"):
+        for stop in ("after-first", "after-second"):
+            case = work / f"dual-{order}-{stop}"
+            repo = case / "git"
+            case.mkdir()
+            shutil.copytree(gitroot, repo)
+            git(repo, "reset", "--hard", saved[0])
+            household = case / "household.loam"
+            household.write_bytes(before)
+            proc = subprocess.run(
+                [sys.executable, str(Path(__file__).resolve()),
+                 "--dual-cut-child", str(household), str(repo),
+                 str(work / "snapshots" / "after.household.loam"),
+                 saved[1], order, stop],
+                capture_output=True, text=True, cwd=ROOT,
+            )
+            require(proc.returncode == -signal.SIGKILL,
+                    f"{order}/{stop}: child did not stop at selected boundary: "
+                    f"{proc.returncode}; {proc.stderr[-1500:]}")
+
+            household_wire = household.read_bytes()
+            current_head = git(repo, "rev-parse", "HEAD").decode().strip()
+            require(current_head in saved, "unrecognized Git HEAD")
+            git_wire = (before if current_head == saved[0]
+                        else replay(tree(repo, current_head), bridge))
+            # Both selected versions must be complete originally-qualified
+            # native Household images, rather than partial source families.
+            require(household_wire in (before, after) and
+                    git_wire in (before, after),
+                    "interrupted source does not match a native generation")
+            bridge.parse_wire(household_wire)
+            bridge.parse_wire(git_wire)
+            matched = household_wire == git_wire
+            require(matched == (stop == "after-second"),
+                    "independent Git and Household cuts appeared atomic")
+            require((household_wire == after, git_wire == after) ==
+                    ((True, stop == "after-second") if order == "household-first"
+                     else (stop == "after-second", True)),
+                    "unexpected partial publication order")
+            results.append({
+                "order": order,
+                "SIGKILL": stop,
+                "selected": ["H1" if household_wire == after else "H0",
+                             "G1" if git_wire == after else "G0"],
+                "independently_coherent": matched,
+            })
+    return results
+
+
 def check() -> dict:
     bridge = bridge_module()
     with tempfile.TemporaryDirectory(prefix="loam-atomic-source-journal-") as td:
@@ -233,6 +322,8 @@ def check() -> dict:
             original.replace(b"scheduled-completion:first", b"scheduled-completion:other"))
         must_refuse(lambda: replay(altered, bridge),
                     "invalid changed Scheduled endpoint")
+        crash_matrix = check_dual_cutpoints(work, gitroot, saved, before, after, bridge)
+
         # The same older Git ref is internally consistent. Without a separate
         # freshness anchor it is not detectable as a rollback.
         require(tree(gitroot, saved[0]) == old, "pinned old source changed")
@@ -241,6 +332,7 @@ def check() -> dict:
             "status": "PASS: Git source-year preserves atomic native Actual+Scheduled completion",
             "qualified_native_generations": 2,
             "git_commits": len(saved),
+            "SIGKILL_dual_write_ordering_witnesses": crash_matrix,
             "test_only_year_boundary": "2026-12-31 -> 2027-01-01",
             "effective_Scheduled_date": "2026-11-08",
             "changed_together": ["Actual", "Scheduled"],
@@ -257,6 +349,10 @@ def check() -> dict:
 
 
 if __name__ == "__main__":
-    if sys.argv[1:] != ["--check"]:
+    if len(sys.argv) == 8 and sys.argv[1] == "--dual-cut-child":
+        dual_cut_child(Path(sys.argv[2]), Path(sys.argv[3]), Path(sys.argv[4]),
+                       sys.argv[5], sys.argv[6], sys.argv[7])
+    elif sys.argv[1:] == ["--check"]:
+        print(json.dumps(check(), indent=2))
+    else:
         raise SystemExit("usage: research-source-year-cross-family.py --check")
-    print(json.dumps(check(), indent=2))
