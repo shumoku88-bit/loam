@@ -347,8 +347,9 @@ private def testDayWiseUnknownGaps : IO Unit := do
     expect (back.selectedDay == some "2026-10-15")
       "partial History End did not reach today's admitted point"
     let status ← readDetails bounds world back
-    expect (contains "currentadmittedtruth" status)
-      "current day was mislabeled as an as-known historical observation"
+    expect ((entries.getLast?.map (·.source)) == some .current &&
+      contains "Origin:" status && contains "truth" status)
+      "current day lacked its separately qualified current-truth provenance"
     expect (match Loam.Tui.DailyPaceTrend.update bounds world back (.input 'q') with
       | .back => true | _ => false)
       "partial History lost q-return navigation"
