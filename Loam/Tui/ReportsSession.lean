@@ -15,6 +15,7 @@ import Loam.Review.TransactionsFlowReview
 import Loam.Tui.FavaLaunch
 import Loam.Tui.Kernel
 import Loam.Tui.Reports
+import Loam.Tui.ReportPicker
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 import Loam.Tui.PlainTextPrint
@@ -151,6 +152,35 @@ private partial def loop (bounds : Bounds)
         let nextFrame := Loam.Tui.Runtime.compileWidget view
         Loam.Tui.Terminal.redrawFromBlank active nextFrame
         return (← loop active dataDir root state prepared nextFrame)
+  if key == .input ' ' && Loam.Tui.Reports.canSwitchReport state then
+    let currentDest := Loam.Tui.Reports.modeToDestination? state.mode
+    let choice ← Loam.Tui.ReportPicker.run bounds currentDest frame
+    let active ← Loam.Tui.Terminal.currentBounds
+    match choice with
+    | none =>
+        Loam.Tui.Terminal.redrawFromBlank active frame
+        return (← loop active dataDir root state prepared frame)
+    | some nextDest =>
+        if some nextDest == currentDest then
+          Loam.Tui.Terminal.redrawFromBlank active frame
+          return (← loop active dataDir root state prepared frame)
+        else
+          let nextState ← executeStep dataDir root (Loam.Tui.Reports.openReport nextDest state)
+          let nextState ←
+            if nextDest == .locusTrendCompare then
+              let catalog ← currentTrendCatalog dataDir root
+              pure { nextState with trendCompare :=
+                Loam.Tui.LocusTrendComparePane.withCatalog nextState.trendCompare catalog }
+            else pure nextState
+          Loam.Tui.Terminal.setButtonMotion (nextDest == .locusTrendCompare)
+          let nextPrepared := Loam.Tui.Reports.prepareScrollView? active nextState
+          let nextView :=
+            match nextPrepared with
+            | some cached => Loam.Tui.Reports.viewPreparedScroll active nextState cached
+            | none => Loam.Tui.Reports.viewForBounds active nextState
+          let nextFrame := Loam.Tui.Runtime.compileWidget nextView
+          Loam.Tui.Terminal.redrawFromBlank active nextFrame
+          return (← loop active dataDir root nextState nextPrepared nextFrame)
   match prepared, scrollDirection? key with
   | some cached, some forward =>
       let next := Loam.Tui.Reports.scrollPrepared state cached forward repeatCount

@@ -189,6 +189,15 @@ def main():
             send(terminal, b"\r", b"Left")
             send(terminal, b"q", b"Reports / Income & Expense")
             send(terminal, b"q", b"LOAM Home")
+            # In-session report switching: Space opens picker modal, Esc/Space closes, digits jump.
+            open_report(terminal, 2)
+            send(terminal, b" ", b"Switch Report")
+            send(terminal, b" ", b"Reports / Income & Expense")
+            send(terminal, b" ", b"Switch Report")
+            send(terminal, b"5", b"Reports / Balances")
+            send(terminal, b" ", b"Switch Report")
+            send(terminal, b"1", b"Reports / Income & Expense")
+            send(terminal, b"q", b"LOAM Home")
             # Stock–Flow comparison and explicit window preset/shift still work.
             open_report(terminal, 4)
             send(terminal, b"]", b"Synthetic")

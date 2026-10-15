@@ -230,7 +230,7 @@ private def stockFlowView (state : State) (bounds : Option Bounds) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "c compare periods   q / Esc Home"
+    , muted "c compare periods   Space switch   q / Esc Home"
     , line state.notice
     ]
 
@@ -317,7 +317,7 @@ private def transactionsFlowView (state : State) (bounds : Option Bounds) : Widg
       [ blank
       , muted "[ / ] source   ← / → Month   m sel-day month"
       , muted "↑/↓ select coord   Enter detail   Tab window focus"
-      , muted "q / Esc Home"
+      , muted "Space switch   q / Esc Home"
       , line state.notice
       ]
 
@@ -1002,7 +1002,7 @@ private def incomeExpenseHeaderLines
 private def incomeExpenseFooterLines (state : State) : List Widget :=
   [ muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
   , muted "g Summary/Monthly/Daily   Tab / Shift-Tab focus   Enter next/run"
-  , muted "c compare periods   q / Esc Home"
+  , muted "c compare periods   Space switch   q / Esc Home"
   , line state.notice
   ]
 
@@ -1198,7 +1198,7 @@ private def multimeasureSpendView (state : State) (bounds : Option Bounds) : Wid
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc Home"
+    , muted "Space switch   q / Esc Home"
     , line state.notice
     ]
 
@@ -1276,7 +1276,7 @@ private def balancesView (state : State) (bounds : Option Bounds) : Widget :=
     else
       [ blank
       , muted "Enter refresh  j/k scroll  PgUp/Dn page"
-      , muted "Home/End jump  [p] print view  q/Esc Home"
+      , muted "Home/End jump  [p] print view  Space switch  q/Esc Home"
       , line state.notice
       ]
   .column <| header ++ answers ++ footer
@@ -1385,7 +1385,7 @@ private def liquidityView (state : State) (bounds : Option Bounds) : Widget :=
     header ++ results ++
     [ blank
     , muted "m selected-day month end   Tab / Shift-Tab focus"
-    , muted "Enter next/run   Backspace delete   q / Esc Home"
+    , muted "Enter next/run   Backspace delete   Space switch   q / Esc Home"
     , line state.notice
     ]
 
@@ -1440,7 +1440,7 @@ private def budgetView (state : State) (bounds : Option Bounds) : Widget :=
     [ blank
     , muted "[ / ] window source   ← / → Calendar Month   m selected-day month"
     , muted "Tab / Shift-Tab focus   Enter next/run   Backspace delete"
-    , muted "q / Esc Home"
+    , muted "Space switch   q / Esc Home"
     , line state.notice
     ]
 

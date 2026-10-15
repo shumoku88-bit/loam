@@ -845,4 +845,26 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
   | .liquidity => updateLiquidity state key
   | .locusTrendCompare => updateLocusTrendCompare state key
 
+def modeToDestination? : Mode → Option Destination
+  | .stockFlow | .stockFlowCompare => some .stockFlow
+  | .transactionsFlow => some .transactionsFlow
+  | .incomeExpense | .incomeExpenseCompare => some .incomeExpense
+  | .multimeasureSpend => some .multimeasureSpend
+  | .balances => some .balances
+  | .liquidity => some .liquidity
+  | .budgetWindow => some .budgetWindow
+  | .locusTrendCompare => some .locusTrendCompare
+
+def canSwitchReport (state : State) : Bool :=
+  match state.mode with
+  | .locusTrendCompare =>
+      !Loam.Tui.LocusTrendComparePane.isPickerOpen state.trendCompare &&
+      !Loam.Tui.LocusTrendComparePane.isOverlayEditing state.trendCompare
+  | .stockFlowCompare | .incomeExpenseCompare =>
+      false
+  | .transactionsFlow =>
+      !state.transactions.detail
+  | _ =>
+      true
+
 end Loam.Tui.Reports

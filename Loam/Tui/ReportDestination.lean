@@ -32,5 +32,10 @@ def all : List Destination :=
   [.incomeExpense, .transactionsFlow, .stockFlow, .locusTrendCompare,
    .balances, .liquidity, .budgetWindow, .multimeasureSpend, .favaProjection]
 
+/-- The internal interactive report surfaces, excluding external projections like Fava. -/
+def internalReports : List Destination :=
+  [.incomeExpense, .transactionsFlow, .stockFlow, .locusTrendCompare,
+   .balances, .liquidity, .budgetWindow, .multimeasureSpend]
+
 end Destination
 end Loam.Tui.Reports
