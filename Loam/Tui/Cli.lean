@@ -29,6 +29,7 @@ import Loam.Tui.CurrentQuantityAnchor
 import Loam.Tui.DailyPacePoolSetupSession
 import Loam.Tui.CycleBoundarySetupSession
 import Loam.Tui.BalanceViewSetupSession
+import Loam.Tui.LocusLabelSetupSession
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
@@ -577,6 +578,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     | some .dailyPacePool => pure (Loam.Tui.Terminal.Key.input 'v', 1)
     | some .cycleBoundaries => pure (Loam.Tui.Terminal.Key.input 'g', 1)
     | some .balanceDisplay => pure (Loam.Tui.Terminal.Key.input 'h', 1)
+    | some .friendlyLocusNames => pure (Loam.Tui.Terminal.Key.input 'y', 1)
   let fromPalette := paletteChoice.isSome
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compiledFrameFor active snapshot state detailCache
@@ -636,6 +638,13 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
+  else if fromPalette && key == .input 'y' then
+    let notice ← Loam.Tui.LocusLabelSetupSession.run bounds root
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
+    let home := { state with notice := notice }
+    let nextFrame := compiledFrameFor activeBounds snapshot home
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    loop activeBounds dataDir root snapshot home nextFrame
   else if fromPalette && key == .input 'h' then
     match ← configuredMeasure with
     | .error message =>
