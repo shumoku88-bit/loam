@@ -10,6 +10,9 @@ on:
       - 'tools/NativeAnnualCopyRestoreProbe.lean'
       - 'tools/NativeAnnualInstalledMigrationProbe.lean'
       - 'Loam/Review/AnnualSelectedHomePreview.lean'
+      - 'Loam/Authority/AnnualSingleOwnerSandbox.lean'
+      - 'tools/NativeAnnualSingleOwnerProbe.lean'
+      - 'docs/research/ANNUAL_SINGLE_OWNER_READ_WRITE_2026-10-16.md'
       - 'tools/NativeAnnualSelectedHomePreviewProbe.lean'
       - 'docs/research/ANNUAL_SELECTED_HOME_PREVIEW_2026-10-16.md'
       - 'Loam/Tests/JanuaryFirstHousehold.lean'
@@ -66,7 +69,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Review.AnnualSelectedHomePreview Loam.Tests.JanuaryFirstHousehold Loam.Authority.AnnualSandboxDurabilityBarriers Loam.Authority.AnnualSourceHeadSandbox Loam.Authority.AnnualSourcePublication Loam.Review.AnnualSourceQueryPolicy Loam.Review.CycleSpendingPaceReview Loam.Review.CurrentBalanceReview Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
+          build-args: Loam.Authority.AnnualSingleOwnerSandbox Loam.Review.AnnualSelectedHomePreview Loam.Tests.JanuaryFirstHousehold Loam.Authority.AnnualSandboxDurabilityBarriers Loam.Authority.AnnualSourceHeadSandbox Loam.Authority.AnnualSourcePublication Loam.Review.AnnualSourceQueryPolicy Loam.Review.CycleSpendingPaceReview Loam.Review.CurrentBalanceReview Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
@@ -125,4 +128,6 @@ jobs:
           lake env lean --run tools/NativeAnnualInstalledMigrationProbe.lean \
             "$source" "$annual"
           lake env lean --run tools/NativeAnnualSelectedHomePreviewProbe.lean \
+            "$source" "$annual"
+          lake env lean --run tools/NativeAnnualSingleOwnerProbe.lean \
             "$source" "$annual"
