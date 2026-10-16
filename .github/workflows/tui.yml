@@ -44,6 +44,7 @@ on:
       - 'tests/test_launcher_build_check.py'
       - 'tests/test_record_reload_pty.py'
       - 'tests/test_first_run_pty.py'
+      - 'tests/test_continuity_full_first_run_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
       - 'tests/test_scheduled_completion_modal_pty.py'
       - 'tests/scheduled_pty_support.py'
@@ -269,6 +270,7 @@ on:
       - 'tests/test_launcher_build_check.py'
       - 'tests/test_record_reload_pty.py'
       - 'tests/test_first_run_pty.py'
+      - 'tests/test_continuity_full_first_run_pty.py'
       - 'tests/test_scheduled_bulk_edit_pty.py'
       - 'tests/test_scheduled_completion_modal_pty.py'
       - 'tests/scheduled_pty_support.py'
@@ -475,6 +477,9 @@ jobs:
 
       - name: Verify explicit first-run selection and safe startup in real PTY
         run: python3 tests/test_first_run_pty.py .lake/build/bin/loamTui
+
+      - name: Verify daily-life first run and reopening via real TUI keys
+        run: python3 tests/test_continuity_full_first_run_pty.py .lake/build/bin/loamTui
 
       - name: Verify bounded Year-scroll input tail on synthetic evidence
         run: python3 tools/benchmark-home-scroll.py --check --events 10000 --days 500 --rounds 1
