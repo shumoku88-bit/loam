@@ -107,10 +107,10 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
     if state.candidates.isEmpty then
       rows := rows ++ [oneLine width "No exact balances. Observe amounts first." .muted]
     for (coordinate, index) in visible do
-      let prefix := if state.cursor == index then "> " else "  "
+      let cursorMark := if state.cursor == index then "> " else "  "
       let mark := if selected state coordinate then "[x] " else "[ ] "
       rows := rows ++ [
-        oneLine width (prefix ++ mark ++ coordinateText coordinate)
+        oneLine width (cursorMark ++ mark ++ coordinateText coordinate)
           (if state.cursor == index then .selected else .normal)
       ]
     rows := rows ++ [
