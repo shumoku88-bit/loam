@@ -76,6 +76,20 @@ Daily Pace pool and pension-cycle presets still need a user-friendly ordinary
 setup route, and friendly account labels are still separate presentation work.
 #2020 remains open until those steps and real TUI editing are accepted.
 
+## Optional friendly account and category names
+
+After adding an admitted stable Locus through Manage Loci, choose
+**Space > Household setup > Account / category display names**. Select an
+existing account/category, type an optional name such as `ゆうちょ`, review,
+and confirm. Existing display help and older/historical-only labels remain
+unchanged. Missing labels retain stable-token fallback.
+
+These are just replaceable presentation labels, not renamed accounts. Neither
+the canonical household nor the balance support, Scheduled identities,
+AccountingRoles or Daily Pace inputs are modified. A malformed/stale
+`config/locus-catalog.tsv` is never silently reset. Names can be added
+incrementally, even after recording has already begun.
+
 ## Select which balances appear
 
 After admitting bank/cash Loci, use **Space > Household setup >

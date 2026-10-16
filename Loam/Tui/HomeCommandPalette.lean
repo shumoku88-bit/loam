@@ -36,6 +36,7 @@ inductive Choice where
   | dailyPacePool
   | cycleBoundaries
   | balanceDisplay
+  | friendlyLocusNames
   deriving Repr, DecidableEq
 
 inductive Page where
@@ -86,6 +87,7 @@ private def entries : Page → List (Entry × String)
       ]
   | .maintenance =>
       [ (.action .manageLoci, "Manage Loci")
+      , (.action .friendlyLocusNames, "Account / category display names")
       , (.action .observeQuantities, "Observe quantities")
       , (.action .dailyPacePool, "Daily Pace / spendable accounts")
       , (.action .cycleBoundaries, "Daily Pace / cycle dates")
