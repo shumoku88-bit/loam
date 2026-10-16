@@ -302,4 +302,76 @@ def append?
   appendWithInstalledTestHook? root observedHeadWire admittedDay operation
     changedNames candidate (pure ())
 
+/-!
+# Post-HEAD result uncertainty (disposable annual writer only)
+
+This result API deliberately does not turn a readback into a durability receipt.
+The existing publication function is reused unchanged. Its final syncParents
+callback on HEAD is reached only AFTER HEAD rename. A failure before that cut is
+a refusal; one at/after that cut is potentially committed and MUST NOT be
+blindly retried. The observer below is read-only and never publishes.
+-/
+
+/-- Outcome of an opt-in, barrier-backed isolated annual append. -/
+inductive AppendOutcome where
+  | committed (selected : Selected)
+  | refusedBeforeHead (reason : String)
+  | outcomeUnknown (operation : String) (reason : String)
+
+/-- Track the precise point at which the old HEAD has already been replaced.
+The injected barrier may throw; never convert that to a definite rollback.
+This API cannot qualify physical power-loss survival or valid-old-HEAD replay. -/
+def appendWithOutcome?
+    (root : System.FilePath)
+    (observedHeadWire admittedDay operation : String)
+    (changedNames : List String)
+    (candidate : Loam.Persistence.HouseholdImage.Image)
+    (barriers : PublicationBarriers) : IO AppendOutcome := do
+  let afterHeadRename ← IO.mkRef false
+  let tracked : PublicationBarriers := {
+    syncFile := barriers.syncFile
+    syncParents := fun path => do
+      -- The existing writer calls this exact path only AFTER renaming HEAD.
+      if path.toString == (headPath root).toString then
+        afterHeadRename.set true
+      barriers.syncParents path
+  }
+  try
+    match ← appendWithBarriers? root observedHeadWire admittedDay operation
+        changedNames candidate tracked with
+    | .ok selected => return .committed selected
+    | .error reason => return .refusedBeforeHead reason
+  catch error =>
+    if ← afterHeadRename.get then
+      return .outcomeUnknown operation s!"{error}"
+    return .refusedBeforeHead s!"{error}"
+
+/-- Process-visible reobservation after an uncertain return. Neither the old
+nor proposed HEAD being visible proves what will survive sudden power loss.
+Other heads, missing/corrupt sources, or mismatched identity refuse classification. -/
+inductive UnknownHeadObservation where
+  | priorHeadSelected
+  | requestedHeadSelected
+  | cannotClassify (reason : String)
+
+/-- Read and requalify one selected HEAD, checking the requested operation ID
+and admission day. Never return a durable success receipt or perform a retry. -/
+def reobserveUnknown?
+    (root : System.FilePath)
+    (observedHeadWire admittedDay operation : String) :
+    IO UnknownHeadObservation := do
+  let .ok prior := Head.decode? observedHeadWire
+    | return .cannotClassify "invalid originally observed HEAD"
+  let .ok current ← readSelected? root
+    | return .cannotClassify "selected HEAD missing, unreadable or not replayable"
+  let year := String.ofList (admittedDay.toList.take 4)
+  let proposed : Head := { prior with years := prior.years ++ [year] }
+  if current.headWire == proposed.encode &&
+      current.lastDay == admittedDay &&
+      current.operations.getLast? == some operation then
+    return .requestedHeadSelected
+  if current.headWire == observedHeadWire then
+    return .priorHeadSelected
+  return .cannotClassify "selected HEAD does not match the prior or requested operation"
+
 end Loam.AnnualSourceHeadSandbox
