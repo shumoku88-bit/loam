@@ -1,0 +1,37 @@
+name: Research - Darwin Annual Sync API Probe
+
+on:
+  pull_request:
+    paths:
+      - 'tools/annual-darwin-sync-probe.c'
+      - 'tools/test-annual-darwin-sync.py'
+      - 'docs/research/ANNUAL_DARWIN_APFS_SYNC_PREFLIGHT_2026-10-16.md'
+      - '.github/workflows/research-annual-darwin-sync.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  darwin-sync-recon:
+    name: macOS APFS file / directory sync syscall observation
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v6
+      - name: Record runner volume and macOS version
+        shell: bash
+        run: |
+          set -euo pipefail
+          sw_vers
+          diskutil info /
+          python3 --version
+      - name: Native Darwin syscall and synthetic ordered install probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/test-annual-darwin-sync.py
