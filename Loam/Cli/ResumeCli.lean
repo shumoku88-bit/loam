@@ -27,8 +27,7 @@ structure Snapshot where
   overdue : List Loam.ScheduledReview.Record
   exactAnchors : List EffectCoordinate
   boundedClaims : List Loam.BoundedHistorySupport.Support
-  deriving Repr
-
+ 
 /-- Inspect the user's *existing* root at an explicit day without interpreting gaps. -/
 def inspectAt (root : System.FilePath) (at : String) :
     IO (Except String Snapshot) := do
