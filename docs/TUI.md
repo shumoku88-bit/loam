@@ -57,6 +57,19 @@ and normalized Actual evidence is retained in the required `Actual` section of
 `household.loam`. Production root reads and writes do not fall back to the legacy
 standalone `actual.loam` diagnostic/migration file.
 
+## First-run and unreadable household entrance
+
+If the selected root cannot be loaded, an interactive TUI shows a compact
+new-household editor. An absent root is offered as a candidate; an existing
+unreadable root requires a separately typed destination. First Enter reviews the
+unused path without writing; second Enter invokes the qualified independent
+household initializer and opens the normal Home. Esc from review edits; Esc
+from editing cancels. A destination that already exists is always refused.
+
+This is **not** automatic recovery, historical reconstruction or a reset of the
+old ledger. Noninteractive launch failures continue to exit with an explanation.
+See [continuity](CONTINUITY.md) for the complete safety and setup instructions.
+
 ## Home grammar
 
 ### Bonsai Home
