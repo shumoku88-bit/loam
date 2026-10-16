@@ -13,7 +13,7 @@ Years == 2026..2028
 Required(h) == {i \in Ordinals : i <= h}
 Phases == {"idle", "partial", "checked", "installed", "head-staged"}
 RefusalKinds == {"stale", "noop", "duplicate"}
-ReadOutcomes == Ordinals \cup {"none", "unavailable"}
+ReadOutcomes == {0, 1, 2, "none", "unavailable"}
 
 VARIABLES head, objects, phase, observedHead, committed, crashed,
           calendarYear, readPin, readAnswer, refused
