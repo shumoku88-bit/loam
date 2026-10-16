@@ -108,8 +108,8 @@ def carryState? (generation : Loam.HouseholdAuthority.Generation)
     generation actual.evidence.events
   let openScheduled ← Loam.ScheduledReview.orderedCurrentOpenRecords scheduled
   return {
-    balances := balances
-    openScheduled := openScheduled.map fun item => (item.id.token, item.scheduledOn)
+    balances := balances,
+    openScheduled := openScheduled.map fun item => (item.id.token, item.scheduledOn),
     scheduledBody := Loam.Persistence.HouseholdImage.body? generation.image "Scheduled"
   }
 
