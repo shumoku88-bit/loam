@@ -76,6 +76,29 @@ Daily Pace pool and pension-cycle presets still need a user-friendly ordinary
 setup route, and friendly account labels are still separate presentation work.
 #2020 remains open until those steps and real TUI editing are accepted.
 
+## Choose Daily Pace spendable accounts from TUI
+
+After observing exact current balances, open **Space > Household setup >
+Daily Pace / spendable accounts**. Only currently exact balances of the
+configured Measure are shown. Use j/k or the arrows to focus, Space to
+include/exclude a balance, Enter to review the selected pool, and Enter
+again to save. Esc in review goes back to selection; Esc in selection
+cancels without saving.
+
+The selection is replaceable `config/daily-pace.tsv` query configuration,
+**not** a financial fact, role assignment, balance rewrite, or complete
+historical assertion. Missing/unknown balances cannot be automatically
+assumed eligible, and the screen refuses empty pools, malformed existing
+configurations, and a configuration changed while editing. It does not
+touch `household.loam`.
+
+**Pension-cycle boundary dates are a separate requirement:** the current
+screen does not invent or configure them. Existing
+`config/boundary-presets.tsv` is unchanged. Until explicit boundaries
+cover the current day, Daily Pace still shows a failure instead of
+manufacturing a daily value. A small TUI cycle boundary editor is the
+next remaining setup step under #2020.
+
 ## Returning after months or years off
 
 Use the read-only review against the existing directory:
