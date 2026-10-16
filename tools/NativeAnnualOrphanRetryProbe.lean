@@ -22,9 +22,10 @@ private def get {α : Type} (value : Option α) (label : String) : IO α := do
   return answer
 
 private def qualified (filename : String) :
-    IO Loam.HouseholdAuthority.Generation :=
-  requireOk (Loam.AnnualSourceMaterialization.qualifyWire?
-    (← IO.FS.readFile (System.FilePath.mk filename))) ("fixture " ++ filename)
+    IO Loam.HouseholdAuthority.Generation := do
+  let wire ← IO.FS.readFile (System.FilePath.mk filename)
+  requireOk (Loam.AnnualSourceMaterialization.qualifyWire? wire)
+    ("fixture " ++ filename)
 
 private def orphanPath (root : System.FilePath) : System.FilePath :=
   root / "journal" / "2027" / "1.full.loam"
