@@ -567,10 +567,10 @@ def adjacentYear? (year : String) (forward : Bool) : Option String := do
   else
     none
 
-private def yearHistoryLines (bounds : Bounds)
+private def yearHistoryLines (bounds : Bounds) (year : String)
     (result : Except String Loam.YearCli.Report) : List String :=
   let source := match result with
-    | .ok report => Loam.YearCli.render "" report
+    | .ok report => Loam.YearCli.render year report
     | .error message => "Year not available: " ++ message
   let width := Loam.Tui.Layout.contentWidth bounds
   (source.splitOn "\n").flatMap fun line =>
@@ -589,7 +589,7 @@ def yearHistoryView (bounds : Bounds) (year : String)
     mutedLine " ←/→ year  ↑/↓ scroll  PgUp/PgDn page  q/Esc back"
   ]
   let cap := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
-  let rows := yearHistoryLines bounds result
+  let rows := yearHistoryLines bounds year result
   let space := cap - 1
   let start := min scroll (rows.length - space)
   let header := if cap == 0 then [] else
@@ -627,7 +627,7 @@ private partial def yearHistoryLoop (bounds : Bounds)
     | .pageUp => pure (year, result, scroll - (active.height - 4))
     | .pageDown => pure (year, result, scroll + (active.height - 4))
     | .home => pure (year, result, 0)
-    | .«end» => pure (year, result, (yearHistoryLines active result).length)
+    | .«end» => pure (year, result, (yearHistoryLines active year result).length)
     | _ => pure (year, result, scroll)
   let nextFrame := compileWidget (yearHistoryView active nextYear nextResult nextScroll)
   if active == bounds then
