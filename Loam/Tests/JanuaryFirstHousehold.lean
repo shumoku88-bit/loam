@@ -89,9 +89,9 @@ private def home (root : System.FilePath) (today : String)
   | .ok _ => pure ()
   | .error detail => throw (IO.userError ("Home Scheduled became unavailable: " ++ detail))
 
-def main : IO Unit := do
-  let parent ← IO.FS.createTempDir
-  let root := parent / "same-household"
+/-- Reuse the qualified Jan-1 production-engine synthetic fixture on a
+caller-owned disposable test root. This does not select annual authority. -/
+def runAt (root : System.FilePath) : IO Unit := do
   let _ ← requireOk (← Loam.NewHouseholdCli.create root)
     "create isolated qualified ordinary household"
 
@@ -240,6 +240,17 @@ def main : IO Unit := do
 
   IO.println "Jan-1 existing-engine preflight PASS: same root, read-only midnight, exact/unknown balances, pension Daily Pace, Scheduled, Dec/Jan Actual, Jan correction and one Actual+Scheduled completion. Native Git source-year publication remains UNIMPLEMENTED and is NOT qualified by this test."
 
+/-- Retain the original no-argument regression behavior. -/
+def main : IO Unit := do
+  let parent ← IO.FS.createTempDir
+  runAt (parent / "same-household")
+
 end Loam.Tests.JanuaryFirstHousehold
 
-def main : IO Unit := Loam.Tests.JanuaryFirstHousehold.main
+/-- Optional test-only fixture root for independent annual migration checks. -/
+def main (args : List String) : IO Unit := do
+  match args with
+  | [] => Loam.Tests.JanuaryFirstHousehold.main
+  | [root] => Loam.Tests.JanuaryFirstHousehold.runAt (System.FilePath.mk root)
+  | _ => throw (IO.userError
+      "usage: JanuaryFirstHousehold [ISOLATED_SYNTHETIC_ROOT]")
