@@ -37,11 +37,11 @@ structure State where
 
 abbrev Step := Loam.Tui.EditorSession.Step State String
 
-def initial (root : System.FilePath) (exists : Bool) (failure : String) : State :=
+def initial (root : System.FilePath) (rootExists : Bool) (failure : String) : State :=
   { selectedRoot := root.toString
     readFailure := failure
-    selectedRootExists := exists
-    destination := if exists then "" else root.toString }
+    selectedRootExists := rootExists
+    destination := if rootExists then "" else root.toString }
 
 private def validDestination? (state : State) : Except String String := do
   let path := state.destination
