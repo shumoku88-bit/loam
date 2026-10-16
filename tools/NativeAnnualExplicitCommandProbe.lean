@@ -132,21 +132,21 @@ private def run
   match ← recordIdempotent? (.ordinary annual)
       "2030-01-06" ⟨"legacy-against-head"⟩ (expense 10) with
   | .refusedSelection _ => pure ()
-  | _ => throw (IO.userError "ordinary branch accepted native HEAD"))
+  | _ => throw (IO.userError "ordinary branch accepted native HEAD")
   match ← recordIdempotent? (.annual legacy committed.headWire)
       "2030-01-06" ⟨"annual-against-household"⟩ (expense 10) with
   | .refusedSelection _ => pure ()
-  | _ => throw (IO.userError "annual branch accepted ordinary household"))
+  | _ => throw (IO.userError "annual branch accepted ordinary household")
   match ← recordIdempotent? (.ordinary source)
       "2030-01-06" ⟨"unmarked-ordinary"⟩ (expense 10) with
   | .refusedSelection _ => pure ()
-  | _ => throw (IO.userError "unmarked original source allowed as writable test"))
+  | _ => throw (IO.userError "unmarked original source allowed as writable test")
   IO.FS.writeFile (Loam.AnnualSourceHeadSandbox.headPath legacy)
     committed.headWire
   match ← recordIdempotent? (.ordinary legacy)
       "2030-01-06" ⟨"mixed-owner-request"⟩ (expense 10) with
   | .refusedSelection _ => pure ()
-  | _ => throw (IO.userError "mixed ordinary+annual physical owner admitted"))
+  | _ => throw (IO.userError "mixed ordinary+annual physical owner admitted")
   IO.FS.removeFile (Loam.AnnualSourceHeadSandbox.headPath legacy)
 
   -- Source roots are not aliases for a command: an explicitly selected
