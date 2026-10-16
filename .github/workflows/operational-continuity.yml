@@ -10,6 +10,8 @@ on:
       - 'Loam/Cli.lean'
       - 'Loam/Cli/DoctorCli.lean'
       - 'Loam/Cli/NewHouseholdCli.lean'
+      - 'Loam/Cli/ResumeCli.lean'
+      - 'Loam/Tests/HiatusResume.lean'
       - 'Loam/Tests/NewHousehold.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
       - 'tools/loam'
@@ -40,6 +42,7 @@ jobs:
         run: |
           lake test -- OperationalContinuity
           lake test -- NewHousehold
+          lake test -- HiatusResume
 
       - name: Verify practical doctor entrance stays read-only and explanatory
         shell: bash
@@ -71,3 +74,15 @@ jobs:
             exit 1
           fi
           cmp "$base/before.loam" "$new_root/household.loam"
+
+      - name: Verify resume report never edits original household
+        shell: bash
+        run: |
+          base="$(mktemp -d)"
+          ./tools/loam init "$base/existing"
+          cp "$base/existing/household.loam" "$base/original.loam"
+          report="$(./tools/loam resume "$base/existing")"
+          grep -Fq 'Resume existing household (read-only)' <<<"$report"
+          grep -Fq 'Overdue current-open Scheduled occurrences:' <<<"$report"
+          grep -Fq 'does NOT declare missing days complete' <<<"$report"
+          cmp "$base/original.loam" "$base/existing/household.loam"
