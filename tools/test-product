@@ -184,6 +184,7 @@ singleton_tests=(
   BoundaryPresetConfig
   MerchantExpenseReview
   OperationalContinuity
+  NewHousehold
   MeasureScaleAdministration
 )
 
