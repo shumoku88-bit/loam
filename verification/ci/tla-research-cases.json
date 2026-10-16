@@ -876,6 +876,77 @@
           ]
         }
       ]
+    },
+    {
+      "id": "annual-native-head-two-year",
+      "observation": "Native selected HEAD in 2027 and 2028; orphan retry and rollback boundaries",
+      "jobName": "TLA+ native two-year selected HEAD and crash/recovery",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/AnnualNativeHeadTwoYear.tla",
+      "useMetadir": true,
+      "paths": [
+        "tla/AnnualNativeHeadTwoYear.tla",
+        "tla/AnnualNativeHeadTwoYear*.cfg",
+        "docs/research/ANNUAL_NATIVE_HEAD_TWO_YEAR_FORMAL_2026-10-16.md",
+        "Loam/Authority/AnnualSourceHeadSandbox.lean"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/AnnualNativeHeadTwoYear.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "orphan",
+          "config": "tla/AnnualNativeHeadTwoYearOrphan.cfg",
+          "expect": "failure",
+          "required": [
+            "OrphanAfterCrashImpossible",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "second-year",
+          "config": "tla/AnnualNativeHeadTwoYear2028.cfg",
+          "expect": "failure",
+          "required": [
+            "NeverReachSecondYear",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "head-first",
+          "config": "tla/AnnualNativeHeadTwoYearHeadFirst.cfg",
+          "expect": "failure",
+          "required": [
+            "HeadReferencesCompleteSource",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "rollback",
+          "config": "tla/AnnualNativeHeadTwoYearRollback.cfg",
+          "expect": "failure",
+          "required": [
+            "HeadMatchesGhostChronology",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "partial-restore",
+          "config": "tla/AnnualNativeHeadTwoYearPartialRestore.cfg",
+          "expect": "failure",
+          "required": [
+            "HeadReferencesCompleteSource",
+            "Invariant"
+          ]
+        }
+      ]
     }
   ]
 }
