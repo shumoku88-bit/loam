@@ -113,6 +113,22 @@ def main() -> None:
         if denial["status"] == "ok":
             raise AssertionError("O_NOFOLLOW was ignored")
 
+        # Independent syscall checks must run even if an earlier directory
+        # barrier blocks the ordered publication sequence.
+        direct_file = parent / "direct-file"
+        direct_file.write_bytes(b"synthetic-only")
+        direct_dir = parent / "direct-directory"
+        direct_dir.mkdir()
+        direct = {
+            api: {
+                "file": execute(binary, api, "file", direct_file),
+                "directory": execute(binary, api, "directory", direct_dir),
+            }
+            for api in ("fsync", "fullfsync")
+        }
+        if direct["fsync"]["file"]["status"] != "ok":
+            raise AssertionError("regular-file fsync syscall did not succeed")
+
         results = [run_case(binary, parent, api) for api in ("fsync", "fullfsync")]
         before = run_case(binary, parent, "fsync", "source_stage_file")
         if before["outcome"] != "refused_before_head" or before["head_visible"]:
@@ -123,15 +139,17 @@ def main() -> None:
         if after["outcome"] not in ("outcome_unknown", "refused_before_head"):
             raise AssertionError("injected post-HEAD directory sync unexpectedly succeeded")
 
-        if not any(o["status"] == "ok" for r in results for o in r["observations"]
-                   if o["kind"] == "file"):
-            raise AssertionError("no successful file synchronization syscall")
-
         print(json.dumps({
             "marker": "ANNUAL_DARWIN_SYNC_PROBE_COMPLETED_NOT_QUALIFIED",
             "system": platform.platform(), "machine": platform.machine(),
             "symlink_target_refused": True,
+            "direct_syscalls": direct,
+            "apfs_observed": "fstype=apfs" in direct["fsync"]["file"]["detail"].lower(),
             "results": results, "failure_injection": [before, after],
+            "injection_reached": {
+                "before": any(o.get("status") == "injected" for o in before["observations"]),
+                "after": any(o.get("status") == "injected" for o in after["observations"]),
+            },
             "warning": "Process-visible results only. Unsupported directory flushes "
                        "block admission; no fallback; no simulated power loss.",
         }, indent=2))
