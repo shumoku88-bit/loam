@@ -129,6 +129,12 @@ def checkpointYear (root : System.FilePath) (year : String) :
           return .error "loam: checkpoint differs from observed source generation"
         return .ok (Loam.HouseholdAuthority.path archiveRoot)
 
+private def required {α : Type} (value : Option α) (message : String) :
+    Except String α :=
+  match value with
+  | some found => .ok found
+  | none => .error message
+
 /--
 Select an internally closed calendar-year excerpt using the *existing* admitted
 Actual evidence and NormalizedActual codec. It is only a read-only current
@@ -139,7 +145,7 @@ refused until its complete cross-year closure is supported.
 def extractActualEvidence (image : Loam.ActualAuthority.Image) (year : String) :
     Except String Loam.ActualEvidence := do
   let src := image.evidence
-  if src.settlements != Loam.Core.SettlementEvidence.empty then
+  if decide (src.settlements ≠ Loam.Core.SettlementEvidence.empty) then
     throw "loam: annual extraction cannot yet preserve settlement dependencies"
   let wantedDate := year ++ "-"
   let included := src.events.events.filter fun event =>
@@ -161,45 +167,46 @@ def extractActualEvidence (image : Loam.ActualAuthority.Image) (year : String) :
        has item.event != relationIds.any (· == item.target)) then
     throw "loam: year crosses a relation discharge; archive needs cross-year carry"
   let events ←
-    (Loam.Core.EventMemory.ofEvents? included).toExcept
+    required (Loam.Core.EventMemory.ofEvents? included)
       "loam: annual event subset has invalid identities"
   let facts := src.validity.facts.filter fun item => has item.event
   let refs := facts.map Loam.Core.ActualValidityFact.ref
   let validities := src.validity.corrections.filter fun item =>
     refs.any (· == item.target)
-  if validities.any (fun item => !refs.any (· == .revision item.replacement)) then
+  if validities.any (fun item =>
+      !refs.any (fun ref => ref == Loam.Core.ActualValidityRef.revision item.replacement)) then
     throw "loam: year excerpt has dangling date revisions"
   let validity ←
-    (Loam.Core.ActualValidityHistory.ofParts? facts validities).toExcept
+    required (Loam.Core.ActualValidityHistory.ofParts? facts validities)
       "loam: annual validity subset is invalid"
   let descriptions ←
     (Loam.Core.EventDescriptionMemory.ofEntries?
-      (src.descriptions.entries.filter fun item => has item.event)).toExcept
-        "loam: annual descriptions are invalid"
+      required (src.descriptions.entries.filter fun item => has item.event))
+      "loam: annual descriptions are invalid"
   let merchants ←
     (Loam.Core.EventMerchantEvidenceMemory.ofEntries?
-      (src.merchants.entries.filter fun item => has item.event)).toExcept
-        "loam: annual merchant evidence is invalid"
+      required (src.merchants.entries.filter fun item => has item.event))
+      "loam: annual merchant evidence is invalid"
   let exchanges ←
     (Loam.Core.ExchangeEvidenceMemory.ofEntries?
-      (src.exchanges.entries.filter fun item => has item.event)).toExcept
-        "loam: annual exchange evidence is invalid"
+      required (src.exchanges.entries.filter fun item => has item.event))
+      "loam: annual exchange evidence is invalid"
   let originalAmounts ←
     (Loam.Core.OriginalAmountEvidenceMemory.ofEntries?
-      (src.originalAmounts.entries.filter fun item => has item.event)).toExcept
-        "loam: annual original amounts are invalid"
+      required (src.originalAmounts.entries.filter fun item => has item.event))
+      "loam: annual original amounts are invalid"
   let movementOperations ←
     (Loam.Core.MovementOperationEvidenceMemory.ofEntries?
-      (src.movementOperations.entries.filter fun item => has item.event)).toExcept
-        "loam: annual operation identities are invalid"
+      required (src.movementOperations.entries.filter fun item => has item.event))
+      "loam: annual operation identities are invalid"
   let corrections ←
     (Loam.Core.EventCorrectionMemory.ofCorrections?
-      (src.corrections.corrections.filter fun item => has item.target)).toExcept
-        "loam: annual correction identities are invalid"
+      required (src.corrections.corrections.filter fun item => has item.target))
+      "loam: annual correction identities are invalid"
   let reversals ←
     (Loam.Core.ActualReversalMemory.ofReversals?
-      (src.reversals.reversals.filter fun item => has item.target)).toExcept
-        "loam: annual reversal identities are invalid"
+      required (src.reversals.reversals.filter fun item => has item.target))
+      "loam: annual reversal identities are invalid"
   let excerpt : Loam.ActualEvidence := {
     events, validity, descriptions, merchants, exchanges, originalAmounts,
     movementOperations, corrections, reversals, relations,
@@ -211,8 +218,8 @@ def extractActualEvidence (image : Loam.ActualAuthority.Image) (year : String) :
   let original ← Loam.ActualJournalProjection.fromImage? image
   let extracted ← Loam.ActualJournalProjection.fromImage? admitted
   let selected := original.filter (·.validOn.startsWith wantedDate)
-  if extracted.map (fun e => (e.event, e.validOn, e.description)) !=
-      selected.map (fun e => (e.event, e.validOn, e.description)) then
+  if extracted.map (fun e => (e.event.id, e.validOn, e.description)) !=
+      selected.map (fun e => (e.event.id, e.validOn, e.description)) then
     throw "loam: year excerpt disagrees with current Actual projection"
   return excerpt
 
