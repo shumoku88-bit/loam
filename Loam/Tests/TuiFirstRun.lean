@@ -53,7 +53,7 @@ def main : IO Unit := do
   let emptyReview := Loam.Tui.FirstRun.update blocked .enter
   expect (emptyReview.state.phase == .editing && emptyReview.publish.isNone)
     "empty new-root destination was accepted"
-  let typed := Loam.Tui.FirstRun.update blocked (.paste (parent / "alternative").toString)
+  let typed := Loam.Tui.FirstRun.update blocked (.paste ((parent / "alternative").toString))
   let confirmed := Loam.Tui.FirstRun.update typed.state .enter
   expect (confirmed.state.phase == .confirm) "new independent path did not reach review"
   let requested := Loam.Tui.FirstRun.update confirmed.state .enter
@@ -76,15 +76,15 @@ def main : IO Unit := do
       { width := 120, height := 40 }] : List Bounds) do
     for state in [initial, editing.state, blocked, typed.state] do
       let widget := Loam.Tui.FirstRun.view bounds state
-      expect (widget.lines.length ≤ bounds.height)
+      expect (decide (widget.lines.length ≤ bounds.height))
         "startup editor exceeds terminal row count"
       for line in widget.lines do
         expect
-          (Loam.Tui.Layout.displayWidth
+          (decide (Loam.Tui.Layout.displayWidth
             (String.ofList (line.map (·.glyph))) ≤
-             Loam.Tui.Layout.contentWidth bounds)
+             Loam.Tui.Layout.contentWidth bounds))
           "startup editor exceeds physical terminal width"
-    expect ((frameText (Loam.Tui.FirstRun.view bounds initial)).splitOn "Enter").length > 1
+    expect (decide (((frameText (Loam.Tui.FirstRun.view bounds initial)).splitOn "Enter").length > 1))
       "first-run screen lost review action"
   IO.println "TUI first-run: review/cancel, independent path, refuse old root, no-write, bounded terminal and qualified reopen passed."
 
