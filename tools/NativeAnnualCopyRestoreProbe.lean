@@ -36,7 +36,7 @@ private def withLoci (generation : Loam.HouseholdAuthority.Generation)
     "existing native locus section"
 
 private def selected (root : System.FilePath) :
-    IO Loam.AnnualSourceHeadSandbox.Selected :=
+    IO Loam.AnnualSourceHeadSandbox.Selected := do
   requireOk (← Loam.AnnualSourceHeadSandbox.readSelected? root)
     "selected annual source cannot replay"
 
