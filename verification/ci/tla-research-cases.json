@@ -947,6 +947,70 @@
           ]
         }
       ]
+    },
+    {
+      "id": "annual-native-orphan-recovery",
+      "observation": "Native #2044 exact orphan adoption after SIGKILL",
+      "jobName": "TLA+ native annual orphan retry under single selected HEAD",
+      "pushBranches": [
+        "main"
+      ],
+      "model": "tla/AnnualNativeOrphanRecovery.tla",
+      "useMetadir": true,
+      "paths": [
+        "tla/AnnualNativeOrphanRecovery.tla",
+        "tla/AnnualNativeOrphanRecovery*.cfg",
+        "docs/research/ANNUAL_NATIVE_ORPHAN_RECOVERY_FORMAL_2026-10-16.md",
+        "Loam/Authority/AnnualSourceHeadSandbox.lean",
+        "tools/NativeAnnualSigkillWriter.lean",
+        "tools/test-native-annual-sigkill-retry.py"
+      ],
+      "variants": [
+        {
+          "id": "positive",
+          "config": "tla/AnnualNativeOrphanRecovery.cfg",
+          "expect": "success",
+          "required": [
+            "Model checking completed. No error has been found."
+          ]
+        },
+        {
+          "id": "resume",
+          "config": "tla/AnnualNativeOrphanRecoveryResume.cfg",
+          "expect": "failure",
+          "required": [
+            "NeverResumeAfterProcessKill",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "mismatch",
+          "config": "tla/AnnualNativeOrphanRecoveryMismatch.cfg",
+          "expect": "failure",
+          "required": [
+            "NeverRefuseDifferentOrphan",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "second-year",
+          "config": "tla/AnnualNativeOrphanRecovery2028.cfg",
+          "expect": "failure",
+          "required": [
+            "NeverCommitSecondYear",
+            "Invariant"
+          ]
+        },
+        {
+          "id": "unsafe-adopt",
+          "config": "tla/AnnualNativeOrphanRecoveryUnsafeAdopt.cfg",
+          "expect": "failure",
+          "required": [
+            "NoMismatchedOrphanAdoption",
+            "Invariant"
+          ]
+        }
+      ]
     }
   ]
 }
