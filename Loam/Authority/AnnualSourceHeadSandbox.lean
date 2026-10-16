@@ -14,6 +14,18 @@ valid-old-HEAD rollback detection, migration, or production writer integration.
 In particular a complete valid old HEAD rollback is UNDETECTABLE here.
 -/
 
+/-- Injected barriers for the isolated POSIX-durability experiment. Existing
+production or ordinary sandbox writers get NO durability claim from the noop
+implementation. Callbacks must throw on ANY failed file or parent fsync. -/
+structure PublicationBarriers where
+  syncFile : System.FilePath → IO Unit
+  syncParents : System.FilePath → IO Unit
+
+def noDurabilityBarrier : PublicationBarriers := {
+  syncFile := fun _ => pure ()
+  syncParents := fun _ => pure ()
+}
+
 def headHeader : String := "LOAM-ANNUAL-NATIVE-HEAD\t1"
 def headPath (root : System.FilePath) : System.FilePath := root / "HEAD"
 private def headStage (root : System.FilePath) : System.FilePath := root / "HEAD.loam-stage"
@@ -115,51 +127,65 @@ def readSelected? (root : System.FilePath) : IO (Except String Selected) := do
     | return .error "loam: selected annual HEAD missing or unreadable"
   selectedFromWire? root headWire
 
-private def stageAndCheck? (stage : System.FilePath) (wire : String) :
+private def stageAndCheck? (barriers : PublicationBarriers)
+    (stage : System.FilePath) (wire : String) :
     IO (Except String Unit) := do
   IO.FS.writeFile stage wire
+  barriers.syncFile stage
   if (← IO.FS.readFile stage) != wire then
     return .error "loam: staged annual source bytes differ"
   return .ok ()
 
 /-- Explicit bootstrap on an isolated synthetic root ONLY.
 A crash before HEAD can leave an orphan and retry must refuse. -/
-def bootstrap? (root : System.FilePath) (baselineYear wire : String) :
+def bootstrapWithBarriers? (root : System.FilePath) (baselineYear wire : String)
+    (barriers : PublicationBarriers) :
     IO (Except String Selected) := do
   if !validYear baselineYear then
     return .error "loam: annual bootstrap year invalid"
   let .ok generation := Loam.AnnualSourceMaterialization.qualifyWire? wire
     | return .error "loam: annual bootstrap source invalid"
   IO.FS.createDirAll root
+  barriers.syncParents root
   Loam.WriterOwnership.withOwnership (headPath root) do
+    barriers.syncParents root
     let base := baselinePath root baselineYear
     if (← (headPath root).pathExists) || (← base.pathExists) then
       return .error "loam: annual bootstrap existing HEAD or baseline"
     IO.FS.createDirAll (root / "journal" / baselineYear)
+    barriers.syncParents (root / "journal" / baselineYear)
     let stage := root / "journal" / baselineYear / "baseline.loam-stage"
-    let .ok () ← stageAndCheck? stage wire
+    let .ok () ← stageAndCheck? barriers stage wire
       | return .error "loam: baseline stage failed"
     IO.FS.rename stage base
+    barriers.syncParents base
     let .ok reopened ← read? base
       | return .error "loam: baseline readback failed"
     if reopened != generation.wire then
       return .error "loam: installed baseline mismatch"
     let head : Head := { baselineYear }
     let headWire := head.encode
-    let .ok () ← stageAndCheck? (headStage root) headWire
+    let .ok () ← stageAndCheck? barriers (headStage root) headWire
       | return .error "loam: HEAD stage failed"
     IO.FS.rename (headStage root) (headPath root)
+    barriers.syncParents (headPath root)
     selectedFromWire? root headWire
+
+/-- Existing research bootstrap remains intentionally without fsync. -/
+def bootstrap? (root : System.FilePath) (baselineYear wire : String) :
+    IO (Except String Selected) :=
+  bootstrapWithBarriers? root baselineYear wire noDurabilityBarrier
 
 /-- Prototype hook for **disposable failure injection** immediately after an
 immutable source object is installed and rechecked, before HEAD staging. This
 is NOT a production writer entrypoint. The caller must not point it at a real
 household or treat injection as a power-loss guarantee. -/
-def appendWithInstalledTestHook?
+def appendWithBarriersAndTestHook?
     (root : System.FilePath)
     (observedHeadWire admittedDay operation : String)
     (changedNames : List String)
     (candidate : Loam.Persistence.HouseholdImage.Image)
+    (barriers : PublicationBarriers)
     (afterInstalled : IO Unit) :
     IO (Except String Selected) := do
   Loam.WriterOwnership.withOwnership (headPath root) do
@@ -201,8 +227,9 @@ def appendWithInstalledTestHook?
         return .error "loam: annual orphan identity mismatch; recovery required"
     else
       IO.FS.createDirAll (root / "journal" / pub.year)
+      barriers.syncParents (root / "journal" / pub.year)
       let stage := System.FilePath.mk (path.toString ++ ".loam-stage")
-      let .ok () ← stageAndCheck? stage sourceWire
+      let .ok () ← stageAndCheck? barriers stage sourceWire
         | return .error "loam: source object stage failed"
       let .ok checked := Loam.AnnualSourcePublication.decodeAgainst?
           selected.generation (← IO.FS.readFile stage)
@@ -210,6 +237,11 @@ def appendWithInstalledTestHook?
       if checked.generation.wire != pub.generation.wire then
         return .error "loam: staged source object mismatched candidate"
       IO.FS.rename stage path
+    -- The just-renamed source, OR an exact orphan left by an earlier crash,
+    -- must have its bytes and the containing directory entries synchronized
+    -- before a new HEAD may depend on it.
+    barriers.syncFile path
+    barriers.syncParents path
     let .ok installed ← read? path
       | return .error "loam: source object missing before HEAD"
     if installed != sourceWire then
@@ -222,14 +254,40 @@ def appendWithInstalledTestHook?
     afterInstalled
     let newHead : Head := { selected.head with years := selected.head.years ++ [pub.year] }
     let newWire := newHead.encode
-    let .ok () ← stageAndCheck? (headStage root) newWire
+    let .ok () ← stageAndCheck? barriers (headStage root) newWire
       | return .error "loam: new HEAD stage failed"
     let .ok tested ← selectedFromWire? root newWire
       | return .error "loam: candidate HEAD failed complete replay"
     if tested.generation.wire != pub.generation.wire then
       return .error "loam: candidate HEAD materialization mismatch"
     IO.FS.rename (headStage root) (headPath root)
+    -- A successful response requires synchronizing the selected HEAD's
+    -- parent directory AFTER replacement. Failure propagates; the caller
+    -- must reobserve the HEAD rather than assume a successful publication.
+    barriers.syncParents (headPath root)
     return .ok tested
+
+/-- Keep the original fault hook API for the pre-durability witnesses. -/
+def appendWithInstalledTestHook?
+    (root : System.FilePath)
+    (observedHeadWire admittedDay operation : String)
+    (changedNames : List String)
+    (candidate : Loam.Persistence.HouseholdImage.Image)
+    (afterInstalled : IO Unit) :
+    IO (Except String Selected) :=
+  appendWithBarriersAndTestHook? root observedHeadWire admittedDay operation
+    changedNames candidate noDurabilityBarrier afterInstalled
+
+/-- Isolated native Lean operation using injected fail-closed sync barriers. -/
+def appendWithBarriers?
+    (root : System.FilePath)
+    (observedHeadWire admittedDay operation : String)
+    (changedNames : List String)
+    (candidate : Loam.Persistence.HouseholdImage.Image)
+    (barriers : PublicationBarriers) :
+    IO (Except String Selected) :=
+  appendWithBarriersAndTestHook? root observedHeadWire admittedDay operation
+    changedNames candidate barriers (pure ())
 
 /-- One process-visible HEAD switch after a fully requalified native source.
 A byte-exact orphan for the same still-uncommitted operation may be safely
