@@ -13,7 +13,8 @@ Years == 2026..2028
 Required(h) == {i \in Ordinals : i <= h}
 Phases == {"idle", "partial", "checked", "installed", "head-staged"}
 RefusalKinds == {"stale", "noop", "duplicate"}
-ReadOutcomes == {0, 1, 2, "none", "unavailable"}
+ReadOutcomes == {"g0", "g1", "g2", "none", "unavailable"}
+Answer(h) == IF h = 0 THEN "g0" ELSE IF h = 1 THEN "g1" ELSE "g2"
 
 VARIABLES head, objects, phase, observedHead, committed, crashed,
           calendarYear, readPin, readAnswer, refused
@@ -141,11 +142,11 @@ RefuseDuplicate ==
 ReadSelected ==
   /\ ~crashed
   /\ LET result == IF Required(head) \subseteq objects
-                    THEN head ELSE "unavailable"
+                    THEN Answer(head) ELSE "unavailable"
      IN (readPin # head \/ readAnswer # result)
   /\ readPin' = head
   /\ readAnswer' = IF Required(head) \subseteq objects
-                    THEN head ELSE "unavailable"
+                    THEN Answer(head) ELSE "unavailable"
   /\ UNCHANGED <<head, objects, phase, observedHead, committed,
                  crashed, calendarYear, refused>>
 
@@ -182,7 +183,7 @@ HeadReferencesCompleteSource == Required(head) \subseteq objects
 HeadMatchesGhostChronology == head = committed
 BaselineNeverDisappears == 0 \in objects
 ReaderNeverInventsPartial ==
-  readAnswer = "none" \/ readAnswer = "unavailable" \/ readAnswer = readPin
+  readAnswer = "none" \/ readAnswer = "unavailable" \/ readAnswer = Answer(readPin)
 
 IdleCalendarChangePreservesSource ==
   [][(calendarYear' # calendarYear) =>
