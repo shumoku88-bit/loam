@@ -59,6 +59,8 @@ import Loam.Tui.SelectedDaySession
 import Loam.Tui.Runtime
 import Loam.Tui.Terminal
 import Loam.Tui.PlainTextPrint
+import Loam.Tui.FirstRun
+import Loam.Cli.NewHouseholdCli
 
 namespace Loam.Tui.Cli
 
@@ -902,15 +904,61 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     loop bounds dataDir root snapshot step.state nextFrame none detail
 
 
+
+/--
+If ordinary startup refuses, offer ONLY an explicit independent new root.
+An existing unreadable root starts with a blank destination, and its bytes
+are never modified by this screen. The canonical installer remains the sole
+create authority and refuses any destination that already exists.
+-/
+private def chooseNewHousehold
+    (selected : System.FilePath) (failure : String) :
+    IO (Option System.FilePath) := do
+  let rootExists ← selected.pathExists
+  let state := Loam.Tui.FirstRun.initial selected rootExists failure
+  let bounds ← Loam.Tui.Terminal.currentBounds
+  Loam.Tui.Terminal.enter
+  try
+    let frame := compileWidget (Loam.Tui.FirstRun.view bounds state)
+    Loam.Tui.Terminal.redrawFromBlank bounds frame
+    Loam.Tui.EditorSession.runUntilPublishedResizing bounds
+      (fun _ state key => Loam.Tui.FirstRun.update state key)
+      Loam.Tui.FirstRun.view
+      Loam.Tui.FirstRun.withError
+      (none : Option System.FilePath)
+      (fun path => do
+        let root := System.FilePath.mk path
+        match ← Loam.NewHouseholdCli.create root with
+        | .ok () => return .ok (some root)
+        | .error message => return .error message)
+      state frame
+  finally
+    Loam.Tui.Terminal.leave
+
+
 def run (args : List String) : IO UInt32 := do
   let dataDir ←
     match ← resolveDataDir args with
     | .error message => IO.eprintln message; return 2
     | .ok path => pure path
-  let snapshot ←
+  let (dataDir, snapshot) ←
     match ← loadSnapshot dataDir with
-    | .error message => IO.eprintln message; return 2
-    | .ok snapshot => pure snapshot
+    | .ok snapshot => pure (dataDir, snapshot)
+    | .error message =>
+        let stdin ← IO.getStdin
+        let stdout ← IO.getStdout
+        if !(← stdin.isTty) || !(← stdout.isTty) then
+          IO.eprintln message
+          IO.eprintln "Interactive startup requires a terminal. For an independent new household: loam init NEW_DATA_DIR"
+          return 2
+        let some fresh ← chooseNewHousehold dataDir message
+          | return 0
+        match ← loadSnapshot fresh with
+        | .error reloadError =>
+            IO.eprintln ("New household created at " ++ fresh.toString ++
+              ", but TUI startup refused: " ++ reloadError)
+            return 2
+        | .ok snapshot => pure (fresh, snapshot)
   let root ←
     match ← resolveActualRoot dataDir with
     | .error message => IO.eprintln message; return 2

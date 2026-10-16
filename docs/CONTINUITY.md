@@ -17,9 +17,41 @@ Only when you deliberately choose a **new directory that does not exist yet**:
 - A destination that already exists, even if empty or malformed, is refused. No `--force`, deletion, copying over old data, automatic restore, or silent fallback to a parent household.
 - No old transactions, bank balances, outstanding plans, historical completeness, zero-origin claims, or Daily Pace values are invented. Unknown is not zero.
 - The normal TUI can then admit accounts/categories (Loci), assign roles, observe **today's** real balances, create future Scheduled items, and record new purchases. Configuration of visible balances, the Daily Pace pool, and cycle boundaries is still a separate step, with some existing manual setup gaps.
-- The first-run wizard, friendly labels, full TUI-led recovery, and an end-to-end new-household/actual-balance/plan/reopen acceptance specimen remain to be delivered under #2020.
+- The guarded startup TUI selector is now available. Friendly labels, full TUI-led account/plan/reopen acceptance and current-forward Daily Pace evidence remain to be delivered under #2020.
 
 Do **not** point `init` at a damaged or dormant existing household. Keep its bytes for diagnosis or a separate qualified recovery attempt.
+
+## TUI entry when the selected household will not open
+
+`./tools/loam tui [LOAM_DATA_DIR]` keeps the existing Home entrance whenever
+the selected household is readable.
+
+If startup cannot verify the selected household **and both input/output are
+interactive terminals**, it instead shows a bounded first-run screen:
+
+1. Confirm an unused destination directory. When the selected directory is
+   absent it is suggested as the destination; when the selected directory
+   already exists (including malformed households), the destination starts
+   **blank** and you must type a different one.
+2. **Enter** reviews that independent destination. This does not write.
+3. **Enter again** explicitly creates the new household using the *same*
+   guarded `loam init` installer, then opens ordinary Home at that root.
+   **Esc** from review goes back to editing; **Esc** while editing cancels
+   without a write.
+
+An existing destination, including an empty folder, is refused by the canonical
+installer; the editor stays open with the refusal visible. A damaged selected
+household is never silently restored, reset or replaced. A successful fresh root
+contains unknown current balances, not asserted zero balances. Use the ordinary
+Home `m` (Loci and initial roles), `o` (current observations), `s` (future
+Scheduled), and `r` (ordinary Record), in whichever order makes sense.
+
+If stdin/stdout are noninteractive, there is no prompt or implicit initialization:
+use `loam init NEW_DATA_DIR` explicitly. A malformed source remains intact.
+
+This closes only the TUI **entry** part of #2020. Friendly presentation labels,
+ordinary balance/Daily Pace configuration and full acceptance of incremental
+setup and hiatus recovery remain independent checks, not hidden assumptions.
 
 ## Returning after months or years off
 
