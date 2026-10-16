@@ -116,7 +116,7 @@ def decodeAgainst?
     (before : Loam.HouseholdAuthority.Generation)
     (wire : String) : Except String Publication := do
   let chunks := wire.splitOn "\nIMAGE\n"
-  let (prefix, payload) ←
+  let (metaText, payload) ←
     match chunks with
     | first :: rest =>
         if rest.isEmpty then
@@ -124,7 +124,7 @@ def decodeAgainst?
         pure (first, String.intercalate "\nIMAGE\n" rest)
     | [] => throw "loam: annual source object is empty"
   let [first, ordinalRow, dayRow, operationRow, predecessorRow, changedRow] :=
-      prefix.splitOn "\n"
+      metaText.splitOn "\n"
     | throw "loam: annual source object metadata shape is malformed"
   if first != header then
     throw "loam: unsupported native annual source object version"
