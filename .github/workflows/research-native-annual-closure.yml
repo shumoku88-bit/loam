@@ -11,6 +11,7 @@ on:
       - 'tools/research-tackler-git-source-year.py'
       - 'tools/research-source-year-cross-family.py'
       - 'tools/research-annual-single-head-native.py'
+      - 'tools/research-annual-admission-day.py'
       - 'tools/NativeCrossFamilyYearSource.lean'
       - 'tools/research-tackler-git-calendar-journals.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
@@ -88,3 +89,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-annual-single-head-native.py --check
+      - name: Verify controlled Jan-1 admission-day receipt and fail-closed cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-annual-admission-day.py --check
