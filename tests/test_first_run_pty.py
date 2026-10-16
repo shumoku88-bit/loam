@@ -75,7 +75,7 @@ with tempfile.TemporaryDirectory(prefix="loam-tui-first-run-") as temp:
         authority = fresh / "household.loam"
         assert authority.is_file(), "the confirmed TUI did not create an admitted household"
         body = authority.read_bytes()
-        s.send(b"q", b"") if False else os.write(s.master, b"q")
+        os.write(s.master, b"q")
         assert s.proc.wait(timeout=10) == 0, "newly created household did not exit normally"
     finally:
         s.close()
