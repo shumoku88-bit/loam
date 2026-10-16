@@ -22,6 +22,7 @@ on:
       - 'Loam/Authority/AnnualSourcePublication.lean'
       - 'Loam/Authority/AnnualSourceHeadSandbox.lean'
       - 'tools/NativeAnnualSingleHeadSandboxProbe.lean'
+      - 'tools/NativeAnnualOrphanRetryProbe.lean'
       - 'tools/NativeAnnualFullPublicationProbe.lean'
       - 'tools/NativeAnnualSourceReadViewProbe.lean'
       - 'Loam/Review/AnnualSourceReadView.lean'
@@ -144,3 +145,16 @@ jobs:
           lake env lean --run tools/NativeCrossFamilyYearSource.lean "$root" "$out"
           lake env lean --run tools/NativeAnnualSingleHeadSandboxProbe.lean \
             "$out/before.household.loam" "$out/after.household.loam"
+      - name: Verify interrupted native object resumes only on byte-exact retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/native-annual-orphan"
+          out="$(mktemp -d)/native-annual-images"
+          annual="$(mktemp -d)/isolated-single-head"
+          lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
+          lake env lean --run tools/NativeCrossFamilyYearSource.lean "$fixture" "$out"
+          lake env lean --run tools/NativeAnnualOrphanRetryProbe.lean seed \
+            "$annual" "$out/before.household.loam" "$out/after.household.loam"
+          lake env lean --run tools/NativeAnnualOrphanRetryProbe.lean retry \
+            "$annual" "$out/before.household.loam" "$out/after.household.loam"
