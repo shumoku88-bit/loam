@@ -35,6 +35,7 @@ inductive Choice where
   | observeQuantities
   | dailyPacePool
   | cycleBoundaries
+  | balanceDisplay
   deriving Repr, DecidableEq
 
 inductive Page where
@@ -88,6 +89,7 @@ private def entries : Page → List (Entry × String)
       , (.action .observeQuantities, "Observe quantities")
       , (.action .dailyPacePool, "Daily Pace / spendable accounts")
       , (.action .cycleBoundaries, "Daily Pace / cycle dates")
+      , (.action .balanceDisplay, "Balances / visible accounts")
       ]
 
 inductive Transition where
