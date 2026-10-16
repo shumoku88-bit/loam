@@ -1396,6 +1396,7 @@ harnesses cannot exercise uncommitted macOS IME preedit.
 | Owner | Class | Audited Renderers | Entrance / Purpose | Regression Test |
 | :--- | :--- | :--- | :--- | :--- |
 | `FirstRun` | text | `FirstRun` | Unreadable TUI startup, independent new root | `tests/test_first_run_pty.py` |
+| `CycleBoundarySetup` | text | `CycleBoundarySetup` | Space > Household setup > Daily Pace / cycle dates | `Loam/Tests/TuiCycleBoundarySetup.lean` |
 | `Record` | text | `Record` | Home `r`, Actual `r` | `tests/test_actual_detail_pty.py` |
 | `ScheduledCompletion` | text | `ScheduledCompletion` | Scheduled `c`, Selected Day → Scheduled → `c` | `tests/test_scheduled_completion_modal_pty.py` |
 | `ScheduledCreation` | text | `ScheduledCreation` | Scheduled `n` | `Loam/Tests/TuiScheduledCreate.lean` |
