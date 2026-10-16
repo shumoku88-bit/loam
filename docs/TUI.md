@@ -57,6 +57,18 @@ and normalized Actual evidence is retained in the required `Actual` section of
 `household.loam`. Production root reads and writes do not fall back to the legacy
 standalone `actual.loam` diagnostic/migration file.
 
+## Balances display selection
+
+Space > Household setup > **Balances / visible accounts** opens the same
+coordinate picker used by Daily Pace, but with importantly **different meaning**:
+this picks which admitted accounts appear in Balances, regardless of whether
+their amounts are currently known. Unsupported and amount-unknown entries stay
+`?`, never an inferred zero. Two Enter presses review and save
+`config/balance-view.tsv`; Esc cancels. An empty display is allowed. Other
+Measure selections are retained, and the screen refuses malformed or stale
+configuration changes. It does not change the Daily Pace eligible pool,
+AccountingRoles, financial facts or historical coverage.
+
 ## Daily Pace pool configuration
 
 Space > Household setup > **Daily Pace / spendable accounts** opens a
@@ -1396,6 +1408,7 @@ harnesses cannot exercise uncommitted macOS IME preedit.
 | Owner | Class | Audited Renderers | Entrance / Purpose | Regression Test |
 | :--- | :--- | :--- | :--- | :--- |
 | `FirstRun` | text | `FirstRun` | Unreadable TUI startup, independent new root | `tests/test_first_run_pty.py` |
+| `DailyPacePoolSetup` | navigation | - | Household setup > Daily Pace pool and Balances view choices | `Loam/Tests/TuiBalanceViewSetup.lean` |
 | `CycleBoundarySetup` | text | `CycleBoundarySetup` | Space > Household setup > Daily Pace / cycle dates | `Loam/Tests/TuiCycleBoundarySetup.lean` |
 | `Record` | text | `Record` | Home `r`, Actual `r` | `tests/test_actual_detail_pty.py` |
 | `ScheduledCompletion` | text | `ScheduledCompletion` | Scheduled `c`, Selected Day → Scheduled → `c` | `tests/test_scheduled_completion_modal_pty.py` |

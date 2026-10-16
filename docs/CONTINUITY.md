@@ -76,6 +76,20 @@ Daily Pace pool and pension-cycle presets still need a user-friendly ordinary
 setup route, and friendly account labels are still separate presentation work.
 #2020 remains open until those steps and real TUI editing are accepted.
 
+## Select which balances appear
+
+After admitting bank/cash Loci, use **Space > Household setup >
+Balances / visible accounts**. Select the exact `Locus × Measure` rows to
+show in Balances, even before entering their amount. Those rows correctly say
+`?` until observation or other qualified current support is available.
+Unlike the separate Daily Pace spending pool, the **display selection is not
+eligibility evidence**. It may be empty, supports incremental later setup and
+preserves visible selections of other currencies.
+
+This changes only replaceable `config/balance-view.tsv`. No canonical
+`household.loam` write, fabricated zero, or pension-cycle change occurs.
+Malformed config, stale edits, or residual publishing stages refuse edits.
+
 ## Choose Daily Pace spendable accounts from TUI
 
 After observing exact current balances, open **Space > Household setup >

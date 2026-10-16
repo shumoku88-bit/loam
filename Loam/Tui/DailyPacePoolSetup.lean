@@ -22,12 +22,19 @@ inductive Phase where
   | review
   deriving Repr, DecidableEq
 
+/-- The same coordinate picker serves independent query selections. -/
+inductive Purpose where
+  | spendablePool
+  | balanceDisplay
+  deriving Repr, DecidableEq
+
 structure State where
   measure : MeasureId
   candidates : List EffectCoordinate
   chosen : List EffectCoordinate
   cursor : Nat := 0
   phase : Phase := .choose
+  purpose : Purpose := .spendablePool
   notice : String := ""
   deriving Repr
 
@@ -35,6 +42,12 @@ abbrev Step := Loam.Tui.EditorSession.Step State (List EffectCoordinate)
 
 def initial (measure : MeasureId) (candidates chosen : List EffectCoordinate) : State :=
   { measure, candidates, chosen }
+
+/-- Balance display is a view selection, unlike Daily Pace spending eligibility.
+    Unsupported and present-but-unknown coordinates may appear as '?' rows. -/
+def initialBalanceDisplay (measure : MeasureId)
+    (candidates chosen : List EffectCoordinate) : State :=
+  { measure, candidates, chosen, purpose := .balanceDisplay }
 
 private def selected (state : State) (item : EffectCoordinate) : Bool :=
   state.chosen.contains item
@@ -61,7 +74,7 @@ def update (state : State) (key : Loam.Tui.Terminal.Key) : Step :=
       | .input ' ' =>
           { state := toggle state }
       | .enter =>
-          if state.chosen.isEmpty then
+          if state.purpose == .spendablePool && state.chosen.isEmpty then
             { state := { state with notice := "Select at least one known-current balance." } }
           else
             { state := { state with phase := .review, notice := "" } }
@@ -85,14 +98,23 @@ private def coordinateText (coordinate : EffectCoordinate) : String :=
 def view (bounds : Bounds) (state : State) : Widget := Id.run do
   let width := Loam.Tui.Layout.contentWidth bounds
   let mut rows : List Widget := [
-    oneLine width ("Daily Pace / Spendable pool (" ++ state.measure.token ++ ")"),
-    oneLine width "Only observed exact balances can be selected." .muted
+    oneLine width
+      ((if state.purpose == .spendablePool then
+          "Daily Pace / Spendable pool ("
+        else "Balances / Visible accounts (") ++ state.measure.token ++ ")"),
+    oneLine width
+      (if state.purpose == .spendablePool then
+        "Only observed exact balances can be selected."
+       else "Unobserved accounts display '?' rather than zero.") .muted
   ]
   if state.phase == .review then
     rows := rows ++ [
-      oneLine width "Review: these balances fund ordinary spending.",
+      oneLine width
+        (if state.purpose == .spendablePool then
+          "Review: these balances fund ordinary spending."
+         else "Review: these balances appear in the Balance view."),
       oneLine width ("Selected: " ++ toString state.chosen.length),
-      oneLine width "The configuration does NOT change balances or history." .muted
+      oneLine width "Display settings never change balances or history." .muted
     ]
     for coordinate in state.chosen.take (bounds.height - 8) do
       rows := rows ++ [oneLine width ("  " ++ coordinateText coordinate)]
@@ -105,7 +127,10 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
     let offset := if state.cursor < available then 0 else state.cursor + 1 - available
     let visible := (state.candidates.zipIdx.drop offset).take available
     if state.candidates.isEmpty then
-      rows := rows ++ [oneLine width "No exact balances. Observe amounts first." .muted]
+      rows := rows ++ [oneLine width
+        (if state.purpose == .spendablePool then
+          "No exact balances. Observe amounts first."
+         else "No accounts admitted. Add an account first.") .muted]
     for (coordinate, index) in visible do
       let cursorMark := if state.cursor == index then "> " else "  "
       let mark := if selected state coordinate then "[x] " else "[ ] "
