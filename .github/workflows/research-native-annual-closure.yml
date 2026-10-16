@@ -14,6 +14,9 @@ on:
       - 'tools/research-annual-admission-day.py'
       - 'tools/research-annual-multiyear-receipts.py'
       - 'tools/research-annual-native-parity.py'
+      - 'tools/research-annual-source-view-integration.py'
+      - 'tools/NativeAnnualSourceReadViewProbe.lean'
+      - 'Loam/Review/AnnualSourceReadView.lean'
       - 'tools/NativeAnnualMaterializationPreflight.lean'
       - 'Loam/Authority/AnnualSourceMaterialization.lean'
       - 'tools/NativeCrossFamilyYearSource.lean'
@@ -44,7 +47,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
+          build-args: Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
@@ -108,3 +111,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-annual-native-parity.py --check
+      - name: Verify real year-source HEAD replay via native Actual and Scheduled view
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-annual-source-view-integration.py --check
