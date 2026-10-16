@@ -185,6 +185,11 @@ private def testCommandsBrowseOnly : IO Unit := do
   expect (Loam.Tui.Cli.adjacentYear? "2027" false == some "2026" &&
           Loam.Tui.Cli.adjacentYear? "2027" true == some "2028")
     "year browser calendar navigation changed"
+  let some selectedYear := Loam.Tui.DateJump.parseJumpTarget "2026-10-01" "2023"
+    | throw (IO.userError "calendar YYYY jump failed")
+  expect (Loam.Tui.Cli.yearHistoryInitialYear selectedYear.date == "2023" &&
+          Loam.Tui.Cli.yearHistoryInitialYear "2026-10-17" == "2026")
+    "year browser ignored Calendar's chosen year"
   let unavailable : Except String Loam.YearCli.Report := .error "missing"
   for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
                  {width := 80, height := 24}] do

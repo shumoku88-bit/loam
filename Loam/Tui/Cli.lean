@@ -636,10 +636,16 @@ private partial def yearHistoryLoop (bounds : Bounds)
     Loam.Tui.Terminal.redrawFromBlank active nextFrame
   yearHistoryLoop active root nextYear nextResult nextScroll nextFrame
 
+/-- Use the Calendar's already-selected date as the year browser entrance.
+The ordinary Home opens today by default, while / YYYY can reach older years
+without inventing another text input control. -/
+def yearHistoryInitialYear (selectedDate : String) : String :=
+  (selectedDate.splitOn "-").head!
+
 /-- Open selected year without modifying the current HouseholdImage. -/
 private def browseYearHistory (bounds : Bounds) (root : System.FilePath)
-    (today : String) : IO Unit := do
-  let year := (today.splitOn "-").head!
+    (selectedDate : String) : IO Unit := do
+  let year := yearHistoryInitialYear selectedDate
   let report ← Loam.YearCli.readYear root year
   let frame := compileWidget (yearHistoryView bounds year report 0)
   Loam.Tui.Terminal.redrawFromBlank bounds frame
@@ -694,7 +700,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot state nextFrame selected detail
   else if paletteChoice == some .yearHistory then
-    browseYearHistory bounds root snapshot.actual.today
+    browseYearHistory bounds root state.selectedDate
     let activeBounds ← Loam.Tui.Terminal.currentBounds
     let home := { state with notice := "" }
     let nextFrame := compiledFrameFor activeBounds snapshot home
