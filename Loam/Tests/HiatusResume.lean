@@ -88,9 +88,9 @@ def main : IO Unit := do
   expect (snapshot.exactAnchors.length == 1)
     "current anchored bank coordinate was lost"
   let guide := Loam.ResumeCli.render root snapshot
-  expect (guide.includes "does NOT declare missing days complete")
+  expect ((guide.splitOn "does NOT declare missing days complete").length > 1)
     "hiatus guide claimed complete recording"
-  expect (guide.includes "Shift-Tab")
+  expect ((guide.splitOn "Shift-Tab").length > 1)
     "hiatus guide omitted the route to clear stale history certification"
   expect ((← IO.FS.readFile (root / "household.loam")) == before)
     "read-only resume assessment modified canonical data"
@@ -116,9 +116,9 @@ def main : IO Unit := do
 
   let admitted ← requireOk (← Loam.ActualAuthority.loadHouseholdActual? root)
     "reopen retained and resumed Actual"
-  expect (admitted.events.findById? oldEvent |>.isSome)
+  expect ((admitted.events.findById? oldEvent).isSome)
     "resumption lost original Actual"
-  expect (admitted.events.findById? newEvent |>.isSome)
+  expect ((admitted.events.findById? newEvent).isSome)
     "resumption lost new Actual"
   expect (admitted.events.events.length == 2)
     "unrecorded 2027 was filled with synthetic Actual"
