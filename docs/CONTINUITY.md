@@ -23,9 +23,20 @@ Do **not** point `init` at a damaged or dormant existing household. Keep its byt
 
 ## Returning after months or years off
 
+Use the read-only review against the existing directory:
+
+```sh
+./tools/loam resume /path/to/existing-household
+./tools/loam tui /path/to/existing-household
+```
+
+`resume` uses a single qualified HouseholdImage generation to report the explicit current-open and overdue Scheduled list, current exact-anchor coordinates and retained bounded historical-completeness claims. It does **not** infer a missed interval from the last transaction date, assert that Scheduled items were paid, retire any old plan, assume balances, update a completeness claim, or write a single byte of canonical data.
+
+**If a previously certified complete-since date crosses an unrecorded period, first remove or correct that coordinate's bounded-history claim via Home > Manage Loci > Shift-Tab.** Only then re-observe its real current balance; the existing publisher correctly refuses to replace a differing anchored amount while an incompatible complete-history claim remains. Do not remove valid coverage for accounts whose history really is complete.
+
 If the old household still exists, **do not create a new root**. Keep the older records, use `doctor` if the start read is refused, re-observe balances you actually know, inspect old unpaid Scheduled items, and resume recording today.
 
-LOAM must never require retroactive transaction reconstruction. Current balance observations do not prove that missing months were completely recorded. A dedicated, simple TUI resume workflow with fail-closed gap handling is still planned in #2020.
+LOAM must never require retroactive transaction reconstruction. Current balance observations do not prove that missing months were completely recorded. The remaining TUI-integrated resume guidance, complete restart journey and explicit hiatus test across household launch are still tracked in #2020. The separate CLI review is a small operational step, not a new recovery engine.
 
 ## January 1 is not household reset
 

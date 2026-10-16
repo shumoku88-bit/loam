@@ -101,6 +101,9 @@ Open the production TUI (also the default with no arguments):
 Start an independent household in a NEW directory (never resets existing data):
   ./tools/loam init NEW_DATA_DIR
 
+Review the SAME household before resuming after a recording hiatus (read-only):
+  ./tools/loam resume [LOAM_DATA_DIR]
+
 Diagnose whether the New-only production startup read boundary is coherent:
   ./tools/loam doctor [LOAM_DATA_DIR]
   This command is read-only and never repairs or rewrites household facts.

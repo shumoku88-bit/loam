@@ -7,6 +7,7 @@ import Loam.Cli.CorrectionIntegrityCli
 import Loam.Cli.ScheduledCli
 import Loam.Cli.DoctorCli
 import Loam.Cli.NewHouseholdCli
+import Loam.Cli.ResumeCli
 import Loam.Cli.ExplainCli
 import Loam.Cli.ActualObservationCli
 import Loam.Cli.HouseholdObservation
@@ -43,6 +44,8 @@ private def practicalUsage : String :=
   "  loam movement [LOAM_DATA_DIR]\n\n" ++
   "Start an independent household (never overwrites existing data):\n" ++
   "  loam init NEW_DATA_DIR\n\n" ++
+  "Return to the SAME household after a recording hiatus (read-only):\n" ++
+  "  loam resume [LOAM_DATA_DIR]\n\n" ++
   "Operational diagnosis:\n" ++
   "  loam doctor [LOAM_DATA_DIR]\n\n" ++
   "Explain current household answers from shared read projections:\n" ++
@@ -225,6 +228,7 @@ def run (args : List String) : IO UInt32 := do
   | "tui" :: tuiArgs => Loam.Tui.Cli.run tuiArgs
   | "doctor" :: doctorArgs => Loam.DoctorCli.run doctorArgs
   | "init" :: initArgs => Loam.NewHouseholdCli.run initArgs
+  | "resume" :: resumeArgs => Loam.ResumeCli.run resumeArgs
   | "explain" :: "balances" :: explainArgs => Loam.ExplainCli.run explainArgs
   | "explain" :: "household" :: explainArgs =>
       Loam.HouseholdObservationCli.runCurrentMachine explainArgs
