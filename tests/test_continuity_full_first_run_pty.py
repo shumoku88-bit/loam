@@ -171,6 +171,7 @@ with tempfile.TemporaryDirectory(prefix="loam-real-first-run-pty-") as temp:
         terminal.send(b"\r", b"Expected pace")
         assert sha(ledger) != scheduled_preview, "future Scheduled not published"
         terminal.send(b"\x1b", b"[j/k] plan")
+        terminal.send(b"q", b"[q] home")
         terminal.send(b"q", b"[q] quit")
         finished = sha(ledger)
         terminal.quit()
@@ -184,10 +185,11 @@ with tempfile.TemporaryDirectory(prefix="loam-real-first-run-pty-") as temp:
         reopened.capture(b"[q] quit")
         reopened.send(b"g", b"LOAM Home")
         reopened.send(b"b", b"Balances")
-        reopened.send(b"q", b"[q] quit")
+        reopened.send(b"q", b"[q] home")
         reopened.send(b"d", b"Daily Pace")
-        reopened.send(b"q", b"[q] quit")
+        reopened.send(b"q", b"[q] home")
         reopened.send(b"s", b"Scheduled")
+        reopened.send(b"q", b"[q] home")
         reopened.send(b"q", b"[q] quit")
         reopened.quit()
     finally:
