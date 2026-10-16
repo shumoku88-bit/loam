@@ -43,6 +43,7 @@ private def practicalUsage : String :=
   "  loam tui [LOAM_DATA_DIR]\n\n" ++
   "Read current or saved annual records (read-only):\n" ++
   "  loam year YYYY [LOAM_DATA_DIR]\n" ++
+  "  loam year extract YYYY [LOAM_DATA_DIR]  # bounded read-only Actual excerpt\n" ++
   "  loam year checkpoint YYYY [LOAM_DATA_DIR]  # immutable as-of copy, not partition\n\n" ++
   "Record one Movement through the same binary:\n" ++
   "  loam movement [LOAM_DATA_DIR]\n\n" ++
