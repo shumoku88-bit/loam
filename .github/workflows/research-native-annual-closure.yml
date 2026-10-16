@@ -23,6 +23,8 @@ on:
       - 'Loam/Authority/AnnualSourceHeadSandbox.lean'
       - 'tools/NativeAnnualSingleHeadSandboxProbe.lean'
       - 'tools/NativeAnnualOrphanRetryProbe.lean'
+      - 'tools/NativeAnnualSigkillWriter.lean'
+      - 'tools/test-native-annual-sigkill-retry.py'
       - 'tools/NativeAnnualFullPublicationProbe.lean'
       - 'tools/NativeAnnualSourceReadViewProbe.lean'
       - 'Loam/Review/AnnualSourceReadView.lean'
@@ -158,3 +160,13 @@ jobs:
             "$annual" "$out/before.household.loam" "$out/after.household.loam"
           lake env lean --run tools/NativeAnnualOrphanRetryProbe.lean retry \
             "$annual" "$out/before.household.loam" "$out/after.household.loam"
+      - name: Prove Linux SIGKILL after native source installation before HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/native-annual-real-sigkill"
+          out="$(mktemp -d)/native-real-sigkill-images"
+          lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
+          lake env lean --run tools/NativeCrossFamilyYearSource.lean "$fixture" "$out"
+          python3 tools/test-native-annual-sigkill-retry.py \
+            --before "$out/before.household.loam" --after "$out/after.household.loam"
