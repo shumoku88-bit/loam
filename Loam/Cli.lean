@@ -20,6 +20,7 @@ import Loam.Cli.DailyQuantityCli
 import Loam.Cli.ActualRoutingCli
 import Loam.Cli.ScheduledRoutingCli
 import Loam.Cli.BudgetWindowCli
+import Loam.Cli.YearCli
 import Loam.Cli.JournalExportCli
 import Loam.Cli.PlainTextAccountingExportCli
 import Loam.Cli.BeancountExportCli
@@ -40,6 +41,8 @@ private def practicalUsage : String :=
   "Open TUI interface (primary entrance):\n" ++
   "  loam\n" ++
   "  loam tui [LOAM_DATA_DIR]\n\n" ++
+  "Read current or saved annual records (read-only):\n" ++
+  "  loam year YYYY [LOAM_DATA_DIR]\n\n" ++
   "Record one Movement through the same binary:\n" ++
   "  loam movement [LOAM_DATA_DIR]\n\n" ++
   "Start an independent household (never overwrites existing data):\n" ++
@@ -229,6 +232,7 @@ def run (args : List String) : IO UInt32 := do
   | "doctor" :: doctorArgs => Loam.DoctorCli.run doctorArgs
   | "init" :: initArgs => Loam.NewHouseholdCli.run initArgs
   | "resume" :: resumeArgs => Loam.ResumeCli.run resumeArgs
+  | "year" :: yearArgs => Loam.YearCli.run yearArgs
   | "explain" :: "balances" :: explainArgs => Loam.ExplainCli.run explainArgs
   | "explain" :: "household" :: explainArgs =>
       Loam.HouseholdObservationCli.runCurrentMachine explainArgs
