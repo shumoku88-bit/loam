@@ -12,6 +12,7 @@ on:
       - 'Loam/Cli/NewHouseholdCli.lean'
       - 'Loam/Cli/ResumeCli.lean'
       - 'Loam/Tests/HiatusResume.lean'
+      - 'Loam/Tests/FreshHouseholdDailyLife.lean'
       - 'Loam/Tests/NewHousehold.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
       - 'tools/loam'
@@ -43,6 +44,7 @@ jobs:
           lake test -- OperationalContinuity
           lake test -- NewHousehold
           lake test -- HiatusResume
+          lake test -- FreshHouseholdDailyLife
 
       - name: Verify practical doctor entrance stays read-only and explanatory
         shell: bash
