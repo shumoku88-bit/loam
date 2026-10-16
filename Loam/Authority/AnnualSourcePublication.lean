@@ -48,12 +48,12 @@ private def actualChanges (base candidate : Image) : List String :=
 private def changeSetValid
     (base candidate : Image)
     (changedNames : List String) : Bool :=
+  let actual := actualChanges base candidate
   !changedNames.isEmpty &&
     decide changedNames.Nodup &&
     changedNames.all (fun name => Loam.HouseholdAuthority.knownSectionNames.contains name) &&
-    let actual := actualChanges base candidate
     changedNames.length == actual.length &&
-      changedNames.all (fun name => actual.contains name)
+    changedNames.all (fun name => actual.contains name)
 
 /-- Validate a complete proposed semantic group against the exact observed
 source generation, preserving every unmarked and unknown section byte-for-byte
