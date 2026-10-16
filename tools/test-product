@@ -185,6 +185,7 @@ singleton_tests=(
   MerchantExpenseReview
   OperationalContinuity
   NewHousehold
+  HiatusResume
   MeasureScaleAdministration
 )
 
