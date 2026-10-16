@@ -13,6 +13,10 @@ selection. Callers still decide which evidence is required and which
 Review/Publisher boundary owns the operation.
 -/
 
+/-- Passive location for one separately saved calendar-year household book. -/
+def yearRoot (root : System.FilePath) (year : String) : System.FilePath :=
+  root / "journal" / year
+
 def configDir (root : System.FilePath) : System.FilePath :=
   root / "config"
 

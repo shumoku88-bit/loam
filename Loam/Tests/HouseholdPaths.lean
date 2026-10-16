@@ -11,6 +11,10 @@ private def expectPath
 def main : IO Unit := do
   let root := System.FilePath.mk "/tmp/loam-household-paths"
 
+  expectPath (Loam.HouseholdPaths.yearRoot root "2026")
+    (System.FilePath.mk "/tmp/loam-household-paths/journal/2026") "2026 year book"
+  expectPath (Loam.HouseholdPaths.yearRoot root "2027")
+    (System.FilePath.mk "/tmp/loam-household-paths/journal/2027") "2027 year book"
   expectPath (Loam.HouseholdPaths.actual root)
     (System.FilePath.mk "/tmp/loam-household-paths/actual.loam") "Actual"
   expect (Loam.HouseholdPaths.actualFileName == "actual.loam")

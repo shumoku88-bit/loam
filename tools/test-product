@@ -182,6 +182,7 @@ application_tests=(
   HouseholdAuthority
   HouseholdImagePersistence
   HouseholdPaths
+  YearCli
   SparseMovementPublication
   MultimeasureRecordingPublishers
   ActualObservationCli
