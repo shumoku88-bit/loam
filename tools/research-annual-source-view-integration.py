@@ -16,6 +16,8 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 NATIVE_VIEW = ROOT / "tools" / "NativeAnnualSourceReadViewProbe.lean"
+PACE_SUPPORT = ROOT / "tools" / "NativeAnnualPaceSupportFixture.lean"
+PACE_VIEW = ROOT / "tools" / "NativeAnnualPaceReadViewProbe.lean"
 
 
 def imported(name: str, file: str):
@@ -35,6 +37,9 @@ def check():
         installed = work / "installed"
         snapshots = work / "snapshots"
         bridge.checked_run(bridge.FIXTURE, "setup", installed)
+        # The independent zero-origin assertion is installed BEFORE H0.
+        # Its exact bytes then survive every year-source delta, not only H3.
+        bridge.checked_run(PACE_SUPPORT, installed)
         bridge.checked_run(bridge.NATIVE, "produce", installed, snapshots)
         native_images = [
             (snapshots / f"snapshot-{i}.wire").read_bytes()
@@ -76,6 +81,8 @@ def check():
         # A real head-reconstructed image now flows through the Lean read view.
         # It must match BOTH existing Actual and Scheduled native reader answers.
         native("match", candidate_path)
+        bridge.checked_run(PACE_VIEW, "match", installed, candidate_path)
+        assert (installed / "household.loam").read_bytes() == current_native
 
         # A perfectly well-formed older selected head is NOT current.
         # Current installed-source parity refuses it without trusting its year.
@@ -83,6 +90,7 @@ def check():
         old_candidate = work / "older-valid-source.household.loam"
         old_candidate.write_bytes(multi.read(journal, env)[2])
         native("refuse", old_candidate)
+        bridge.checked_run(PACE_VIEW, "refuse", installed, old_candidate)
         fs.head_write(journal, head)
 
         # A missing middle-year source cannot be elided to fabricate 2028.
@@ -112,6 +120,9 @@ def check():
             "source_years": [2027, 2027, 2028],
             "native_current_parity": True,
             "actual_and_scheduled_same_generation": True,
+            "current_quantity_support_same_generation": True,
+            "explicit_current_truth_pace_parity": True,
+            "unknown_origin_not_zero": True,
             "valid_older_selected_head_refused": True,
             "missing_2027_predecessor_refused": True,
             "missing_Actual_or_Scheduled_refused": True,

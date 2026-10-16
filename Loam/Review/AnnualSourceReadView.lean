@@ -2,6 +2,8 @@ import Loam.Authority.AnnualSourceMaterialization
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualReview
 import Loam.Review.ScheduledReview
+import Loam.Review.CurrentBalanceReview
+import Loam.Review.CycleSpendingPaceReview
 
 namespace Loam.AnnualSourceReadView
 
@@ -25,6 +27,7 @@ structure Snapshot where
   actualRecords : List Loam.ActualReview.Record
   scheduled : Loam.ScheduledReview.EvidenceSnapshot
   openScheduled : List Loam.ScheduledReview.Record
+  currentBalances : Loam.CurrentBalanceReview.Snapshot
 
 /-- Compose all required evidence from one already-qualified generation.
 A missing Actual, missing Scheduled, unclosed Scheduled completion, or invalid
@@ -38,7 +41,9 @@ def fromGeneration?
       generation actual.evidence.events
   let openScheduled ← Loam.ScheduledReview.orderedCurrentOpenRecords scheduled
   let actualRecords := Loam.ActualReview.recordsFromActualImage actual
-  return { generation, actual, actualRecords, scheduled, openScheduled }
+  let currentBalances ←
+    Loam.CurrentBalanceReview.projectFromGeneration generation actual
+  return { generation, actual, actualRecords, scheduled, openScheduled, currentBalances }
 
 /-- Explicit read-only preflight. Only an exact byte-equivalent current-source
 candidate can reach this read view; a previous but valid generation is refused.
@@ -50,5 +55,25 @@ def compareInstalled?
   match ← Loam.AnnualSourceMaterialization.compareInstalled? root candidateWire with
   | .error message => return .error message
   | .ok generation => return fromGeneration? generation
+
+/-- Compute one current Daily Pace answer from the exact support, Actual and
+Scheduled evidence already captured by this view. The caller MUST explicitly
+supply its query policy (Measure, selected pool, observation day and cycle end).
+A source year is not a pension-cycle boundary. Configuration files are not
+captured by the annual journal here, so this deliberately never reads them or
+claims to reproduce an independently edited policy's historical "as-known" view.
+Unknown exact quantities fail through CurrentBalanceReview.selectExact. -/
+def Snapshot.paceForMeasure?
+    (view : Snapshot)
+    (measure : Loam.Core.MeasureId)
+    (observedAt endExclusive : String)
+    (selection : List Loam.Core.EffectCoordinate) :
+    Except String Loam.CycleSpendingPaceReview.Snapshot := do
+  if selection.isEmpty then
+    throw "loam: annual Daily Pace requires an explicitly selected nonempty pool"
+  let selected ←
+    Loam.CurrentBalanceReview.selectExact view.currentBalances selection
+  Loam.CycleSpendingPaceReview.projectForMeasure
+    measure observedAt endExclusive selection selected view.scheduled
 
 end Loam.AnnualSourceReadView
