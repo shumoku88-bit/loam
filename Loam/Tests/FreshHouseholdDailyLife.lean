@@ -55,10 +55,10 @@ def main : IO Unit := do
   let emptyBalance ← requireOk
     (← Loam.CurrentBalanceReview.loadSnapshot root root)
     "read first-run neutral current support"
-  expect ((Loam.CurrentBalanceReview.selectExact emptyBalance [bank]).isError)
+  expect (!(Loam.CurrentBalanceReview.selectExact emptyBalance [bank]).isOk)
     "first-run bank balance was silently inferred to be zero"
   let emptyPace ← Loam.CycleSpendingPaceReview.loadSnapshotAt root root "2026-10-16"
-  expect emptyPace.isError
+  expect (!emptyPace.isOk)
     "first-run Daily Pace invented a numerical answer without a configured pool"
 
   -- The same high-level commands used by normal TUI editors.
