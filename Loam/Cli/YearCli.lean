@@ -75,15 +75,6 @@ def readYear (root : System.FilePath) (year : String) :
   }
 
 /--
-Create one immutable **as-of** checkpoint for an already-ended calendar year
-under journal/YYYY/household.loam. This copies the entire qualified source
-generation, deliberately preserving unknown sections and every other family's
-evidence. It is NOT a bounded annual partition or year-close certification.
-
-No automatic rollover, no new publisher, and no replacement of the installed
-canonical root. Once a year directory exists, this command refuses to edit it.
--/
-/--
 A carry candidate from one admitted household generation. The coordinate
 classification is deliberately unchanged: exact rows, known-present/unknown
 amount, and unsupported are three distinct states. The Scheduled entries are
@@ -121,6 +112,15 @@ def carryAgrees (source candidate : CarryState) : Bool :=
   source.openScheduled == candidate.openScheduled &&
   source.scheduledBody == candidate.scheduledBody
 
+/--
+Create one immutable **as-of** checkpoint for an already-ended calendar year
+under journal/YYYY/household.loam. This copies the entire qualified source
+generation, deliberately preserving unknown sections and every other family's
+evidence. It is NOT a bounded annual partition or year-close certification.
+
+No automatic rollover, no new publisher, and no replacement of the installed
+canonical root. Once a year directory exists, this command refuses to edit it.
+-/
 def checkpointYear (root : System.FilePath) (year : String) :
     IO (Except String System.FilePath) := do
   if !validYear year then
