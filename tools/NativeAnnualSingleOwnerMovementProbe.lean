@@ -77,7 +77,7 @@ private def run (ordinary annual : System.FilePath) : IO Unit := do
   | .committed event selected => pure (event, selected)
   | .refusedBeforeHead reason =>
       throw (IO.userError s!"valid practical Movement refused: {reason}")
-  | .outcomeUnknown _ reason =>
+  | .outcomeUnknown _ _ reason =>
       throw (IO.userError s!"native annual Movement was not durably acknowledged: {reason}")
   expect (latest.head.years == ["2028", "2029", "2030"] &&
           latest.operations.getLast? == some "movement-annual-2030-expense" &&
