@@ -5,8 +5,9 @@ Research-only: uses existing disposable native Scheduled+Actual H0/H1 fixture,
 a single selected source HEAD and injected aware instants. No wall-clock
 authority, production publisher, source migration or as-known financial view.
 
-The accepted UTC instant is the final pre-HEAD *logical admission cut*.
-This cannot prove the wall-clock date of a later physical rename or power loss.
+The receipt retains a candidate's sampled UTC instant, with its local day
+checked again immediately before HEAD. This cannot prove the wall-clock instant
+of a later physical rename or power loss.
 """
 from __future__ import annotations
 
@@ -158,13 +159,7 @@ def prepared(root: Path, original: str, before: bytes, after: bytes,
 
 
 def candidate_wire(root: Path, candidate: str, single, cross, bridge, fs) -> bytes:
-    """Research candidate reader: temporarily select in an isolated cloned root.
-
-    To avoid a competing canonical selector, qualification can instead use the
-    same strict read on a *disposable clone*, never the original HEAD.
-    """
-    import os
-    from pathlib import Path
+    """Qualify on a disposable clone, never switching the original HEAD."""
     # This clone is intentionally read-only against the caller's original;
     # data is small synthetic-only and benchmark claims are NOT made.
     with tempfile.TemporaryDirectory(prefix="loam-admission-candidate-") as tmp:
@@ -189,23 +184,30 @@ def publish(root: Path, expected: str, before: bytes, after: bytes,
         need(current == expected and existing == before and man["ordinal"] == 0,
              "stale source or unqualified baseline", cross)
         need(zone == TZ, "unauthorized household time-zone change", cross)
-        first = aware_utc(clock(), cross)
-        # Staging may span midnight. This first receipt is not yet accepted.
-        prepared(root, current, before, after, first, zone,
-                 single, cross, bridge, fs)
-        final = aware_utc(clock(), cross)
-        need(final >= first, "UTC admission clock moved backwards", cross)
-        # Rebuild with the FINAL observed cut, even for same-day instants;
-        # the first source/manifest objects are harmless invisible orphans.
-        qualified_head = prepared(root, current, before, after, final, zone,
-                                  single, cross, bridge, fs)
-        # This physical switch is the single visible head. The sampled
-        # instant is a *logical cut immediately before the swap*, not proof
-        # of wall-clock completion time after the swap.
+        candidate_cut = aware_utc(clock(), cross)
+        qualified_head = None
+        # Never stage a 2026 candidate and commit it after observing Jan 1.
+        # Recheck the LOCAL day after staging; bound retries if unstable.
+        for _ in range(4):
+            candidate = prepared(root, current, before, after, candidate_cut,
+                                 zone, single, cross, bridge, fs)
+            checked_cut = aware_utc(clock(), cross)
+            need(checked_cut >= candidate_cut,
+                 "UTC admission clock moved backwards", cross)
+            if local_day(checked_cut, zone, cross) == local_day(
+                    candidate_cut, zone, cross):
+                qualified_head = candidate
+                break
+            # The earlier candidate is an invisible, unselected orphan.
+            candidate_cut = checked_cut
+        need(qualified_head is not None, "unstable admission calendar boundary", cross)
+        # One visible switch after the last pre-head local-day check.
+        # Sampling the clock and switching the filesystem HEAD are not
+        # a single physical atomic operation.
         fs.head_write(root, qualified_head)
         selected, receipt, rebuilt = read(root, single, cross, bridge, fs)
         need(selected == qualified_head and rebuilt == after and
-             receipt["accepted_at_utc"] == stamp(final, cross),
+             receipt["accepted_at_utc"] == stamp(candidate_cut, cross),
              "accepted head does not contain sampled admission cut", cross)
         return selected
 
@@ -265,12 +267,13 @@ def check():
         rollover_clock = Clock(
             iso("2026-12-31T14:59:59+00:00"),
             iso("2026-12-31T15:00:00+00:00"),
+            iso("2026-12-31T15:00:01+00:00"),
         )
         rolled, man = case("rollover", rollover_clock, "2027-01-01")
         assert (rolled / "journal" / "2026").exists()
         assert man["source"]["year"] == 2027
         assert (rolled / "journal" / "2027" / man["source"]["hash"]).exists()
-        assert rollover_clock.reads == 2
+        assert rollover_clock.reads == 3
         scenarios.append("JST midnight during preparation -> new year, not effective year")
 
         # Midnight in UTC is NOT necessarily midnight in the household zone.
