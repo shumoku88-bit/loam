@@ -11,6 +11,10 @@ The root stays intentionally small:
 
 Research documents are grouped by the semantic question they serve.
 
+## Annual-source research retirement (2026-10-16)
+
+The experimental annual HEAD publisher, disposable roots, per-PR probes, and their dedicated workflows were retired from the working tree. Production LOAM was not switched to annual storage. See [the retirement checkpoint](ANNUAL_STORAGE_RETIREMENT_2026-10-16.md) for the immutable source commit and surviving safety/performance checks. Git history retains every retired experiment.
+
 
 ## Research/history distillation Phase 1 closure
 
