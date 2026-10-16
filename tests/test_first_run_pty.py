@@ -71,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix="loam-tui-first-run-") as temp:
         assert not fresh.exists(), "opening startup prompt created a household"
         s.send(b"\r", b"Create an INDEPENDENT household?")
         assert not fresh.exists(), "the REVIEW step unexpectedly wrote household data"
-        s.send(b"\r", b"LOAM Home")
+        s.send(b"\r", b"[q] quit")
         authority = fresh / "household.loam"
         assert authority.is_file(), "the confirmed TUI did not create an admitted household"
         body = authority.read_bytes()
@@ -82,7 +82,7 @@ with tempfile.TemporaryDirectory(prefix="loam-tui-first-run-") as temp:
 
     reopened = Session(fresh)
     try:
-        reopened.until(b"LOAM Home")
+        reopened.until(b"[q] quit")
         os.write(reopened.master, b"q")
         assert reopened.proc.wait(timeout=10) == 0
     finally:
@@ -101,7 +101,7 @@ with tempfile.TemporaryDirectory(prefix="loam-tui-first-run-") as temp:
         s.send(str(alternative).encode() + b"\r",
                b"Create an INDEPENDENT household?")
         assert old.read_bytes() == b"invalid-old-household-do-not-touch\n"
-        s.send(b"\r", b"LOAM Home")
+        s.send(b"\r", b"[q] quit")
         assert (alternative / "household.loam").is_file(), "separate root was not created"
         assert old.read_bytes() == b"invalid-old-household-do-not-touch\n"
         os.write(s.master, b"q")
