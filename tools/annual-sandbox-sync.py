@@ -47,9 +47,11 @@ def validate_root(root: Path, target: Path, action: str) -> tuple[Path, Path]:
         raise RuntimeError("durable sandbox marker missing or not a regular file")
     if marker.read_bytes() != b"LOAM ANNUAL SANDBOX ONLY\n":
         raise RuntimeError("invalid disposable durability marker")
+    # The parents action accepts either an installed FILE or a new directory.
+    # Only the containing directory chain may be traversed as directories.
+    directory = target if action == "parents" and target.is_dir() else target.parent
     current = root
-    relatives = target.relative_to(root).parts
-    for segment in relatives[:-1] if action == "file" else relatives:
+    for segment in directory.relative_to(root).parts:
         current = current / segment
         checked = os.lstat(current)
         if not stat.S_ISDIR(checked.st_mode):
