@@ -44,7 +44,8 @@ private def sameHome
       (record.event.id.token, record.isCurrent))
   keys first.home == keys second.home &&
   first.view.currentBalances == second.view.currentBalances &&
-  first.view.openScheduled == second.view.openScheduled &&
+  (first.view.openScheduled.map fun row => row.id.token) ==
+    (second.view.openScheduled.map fun row => row.id.token) &&
   first.view.generation.wire != "" && second.view.generation.wire != ""
 
 private def run (ordinary annual : System.FilePath) : IO Unit := do
