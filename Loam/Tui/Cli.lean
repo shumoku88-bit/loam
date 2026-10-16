@@ -914,8 +914,8 @@ create authority and refuses any destination that already exists.
 private def chooseNewHousehold
     (selected : System.FilePath) (failure : String) :
     IO (Option System.FilePath) := do
-  let exists ← selected.pathExists
-  let state := Loam.Tui.FirstRun.initial selected exists failure
+  let rootExists ← selected.pathExists
+  let state := Loam.Tui.FirstRun.initial selected rootExists failure
   let bounds ← Loam.Tui.Terminal.currentBounds
   Loam.Tui.Terminal.enter
   try
