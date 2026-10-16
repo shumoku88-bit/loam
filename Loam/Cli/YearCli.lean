@@ -180,32 +180,32 @@ def extractActualEvidence (image : Loam.ActualAuthority.Image) (year : String) :
     required (Loam.Core.ActualValidityHistory.ofParts? facts validities)
       "loam: annual validity subset is invalid"
   let descriptions ←
-    (Loam.Core.EventDescriptionMemory.ofEntries?
-      required (src.descriptions.entries.filter fun item => has item.event))
+    required (Loam.Core.EventDescriptionMemory.ofEntries?
+      (src.descriptions.entries.filter fun item => has item.event))
       "loam: annual descriptions are invalid"
   let merchants ←
-    (Loam.Core.EventMerchantEvidenceMemory.ofEntries?
-      required (src.merchants.entries.filter fun item => has item.event))
-      "loam: annual merchant evidence is invalid"
+    required (Loam.Core.EventMerchantEvidenceMemory.ofEntries?
+      (src.merchants.entries.filter fun item => has item.event))
+      "loam: annual merchant evidence are invalid"
   let exchanges ←
-    (Loam.Core.ExchangeEvidenceMemory.ofEntries?
-      required (src.exchanges.entries.filter fun item => has item.event))
-      "loam: annual exchange evidence is invalid"
+    required (Loam.Core.ExchangeEvidenceMemory.ofEntries?
+      (src.exchanges.entries.filter fun item => has item.event))
+      "loam: annual exchange evidence are invalid"
   let originalAmounts ←
-    (Loam.Core.OriginalAmountEvidenceMemory.ofEntries?
-      required (src.originalAmounts.entries.filter fun item => has item.event))
+    required (Loam.Core.OriginalAmountEvidenceMemory.ofEntries?
+      (src.originalAmounts.entries.filter fun item => has item.event))
       "loam: annual original amounts are invalid"
   let movementOperations ←
-    (Loam.Core.MovementOperationEvidenceMemory.ofEntries?
-      required (src.movementOperations.entries.filter fun item => has item.event))
+    required (Loam.Core.MovementOperationEvidenceMemory.ofEntries?
+      (src.movementOperations.entries.filter fun item => has item.event))
       "loam: annual operation identities are invalid"
   let corrections ←
-    (Loam.Core.EventCorrectionMemory.ofCorrections?
-      required (src.corrections.corrections.filter fun item => has item.target))
+    required (Loam.Core.EventCorrectionMemory.ofCorrections?
+      (src.corrections.corrections.filter fun item => has item.target))
       "loam: annual correction identities are invalid"
   let reversals ←
-    (Loam.Core.ActualReversalMemory.ofReversals?
-      required (src.reversals.reversals.filter fun item => has item.target))
+    required (Loam.Core.ActualReversalMemory.ofReversals?
+      (src.reversals.reversals.filter fun item => has item.target))
       "loam: annual reversal identities are invalid"
   let excerpt : Loam.ActualEvidence := {
     events, validity, descriptions, merchants, exchanges, originalAmounts,
