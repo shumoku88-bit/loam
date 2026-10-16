@@ -50,7 +50,7 @@ private def run (original annual : System.FilePath) : IO Unit := do
           preview.selected.head.years == ["2028"] &&
           preview.home.actual.today == "2027-01-03" &&
           identities preview.home == identities native &&
-          identities preview.home |>.length == 4)
+          (identities preview.home).length == 4)
     "Home failed exact cross-year event identity/parity"
   let bank : EffectCoordinate := ⟨⟨"bank"⟩, ⟨"jpy"⟩⟩
   let cash : EffectCoordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
