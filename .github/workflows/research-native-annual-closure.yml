@@ -24,6 +24,8 @@ on:
       - 'Loam/Authority/AnnualSandboxDurabilityBarriers.lean'
       - 'tools/annual-sandbox-sync.py'
       - 'tools/NativeAnnualDurabilityProbe.lean'
+      - 'tools/NativeAnnualUnknownOutcomeProbe.lean'
+      - 'docs/research/NATIVE_ANNUAL_POST_HEAD_UNKNOWN_2026-10-16.md'
       - 'tools/test-native-annual-durability-barriers.py'
       - 'tools/NativeAnnualSingleHeadSandboxProbe.lean'
       - 'tools/NativeAnnualOrphanRetryProbe.lean'
@@ -174,6 +176,18 @@ jobs:
           lake env lean --run tools/NativeCrossFamilyYearSource.lean "$fixture" "$out"
           python3 tools/test-native-annual-sigkill-retry.py \
             --before "$out/before.household.loam" --after "$out/after.household.loam"
+
+      - name: Verify post-HEAD fsync uncertainty without duplicate native operation
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/native-annual-unknown-fixture"
+          out="$(mktemp -d)/native-annual-unknown-images"
+          annual="$(mktemp -d)/native-annual-unknown-root"
+          lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
+          lake env lean --run tools/NativeCrossFamilyYearSource.lean "$fixture" "$out"
+          lake env lean --run tools/NativeAnnualUnknownOutcomeProbe.lean \
+            "$annual" "$out/before.household.loam" "$out/after.household.loam"
       - name: Verify native 2026-2028 selected HEAD Linux fsync barriers
         shell: bash
         run: |
