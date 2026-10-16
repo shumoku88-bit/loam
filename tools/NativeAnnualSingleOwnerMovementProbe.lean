@@ -101,8 +101,8 @@ private def run (ordinary annual : System.FilePath) : IO Unit := do
     (← selected.readHome? ordinary "2030-01-01")
     "read Home after admitted native Movement"
   expect (after.home.actual.allRecords.length == count + 1 &&
-          (after.home.actual.allRecords.map fun row => row.event.id.token)
-            .contains eventId.token &&
+          ((after.home.actual.allRecords.map fun row => row.event.id.token).contains
+            eventId.token) &&
           after.view.openScheduled.isEmpty &&
           after.view.generation.wire == latest.generation.wire)
     "new annual Event not visible to ordinary Home read composer"
