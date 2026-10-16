@@ -1,0 +1,169 @@
+{
+  "schema": 1,
+  "tracking_issue": 2030,
+  "observed_authority": "household.loam",
+  "note": "Scope is a manually reviewed readiness inventory, NOT automatic semantic proof.",
+  "production_cutover_enabled": false,
+  "gates": [
+    {
+      "id": "current-engine-jan1",
+      "scope": "current",
+      "status": "qualified_existing_engine",
+      "evidence": [
+        "Loam/Tests/JanuaryFirstHousehold.lean",
+        "Loam/Authority/HouseholdAuthority.lean"
+      ],
+      "next": "Continue household.loam production while annual cutover is unqualified."
+    },
+    {
+      "id": "single-head-sigkill",
+      "scope": "research",
+      "status": "qualified_synthetic_only",
+      "evidence": [
+        "tools/research-annual-single-head-native.py",
+        "tools/research-source-year-cross-family.py"
+      ],
+      "next": "Research process-kill evidence is not sudden-power-loss durability."
+    },
+    {
+      "id": "repeat-2028",
+      "scope": "research",
+      "status": "qualified_synthetic_only",
+      "evidence": [
+        "tools/research-annual-multiyear-receipts.py"
+      ],
+      "next": "Generalize native multi-family publication beyond the bounded research grammar."
+    },
+    {
+      "id": "native-view-parity",
+      "scope": "research",
+      "status": "qualified_synthetic_only",
+      "evidence": [
+        "Loam/Review/AnnualSourceReadView.lean",
+        "tools/research-annual-source-view-integration.py"
+      ],
+      "next": "Retain byte-exact current-source comparison until source authority can safely cut over."
+    },
+    {
+      "id": "explicit-query-policy",
+      "scope": "research",
+      "status": "qualified_synthetic_only",
+      "evidence": [
+        "Loam/Review/AnnualSourceQueryPolicy.lean",
+        "tools/NativeAnnualQueryPolicyProbe.lean"
+      ],
+      "next": "Do not claim historical as-known policy from current replaceable TSVs."
+    },
+    {
+      "id": "one-production-head",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "Loam/Authority/HouseholdAuthority.lean",
+        "docs/research/ANNUAL_SOURCE_COMMIT_CONTRACT_2026-10-16.md"
+      ],
+      "next": "Implement a single canonical annual HEAD owner, prohibit dual House/Git promotion, pin all writer observations."
+    },
+    {
+      "id": "production-admission-clock",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "tools/research-annual-admission-day.py",
+        "docs/research/ANNUAL_SOURCE_COMMIT_CONTRACT_2026-10-16.md"
+      ],
+      "next": "Qualify IANA household timezone, commit-cut acceptance day, missed Jan 1 and clock regression without using effective dates or Git time."
+    },
+    {
+      "id": "all-family-source-publication",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "tools/research-source-year-cross-family.py",
+        "tools/research-annual-multiyear-receipts.py"
+      ],
+      "next": "Prove arbitrary changed known sections in one atomic source operation, including Actual+Scheduled, routes, anchors, support and opaque unknown sections."
+    },
+    {
+      "id": "filesystem-power-loss",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "tools/research-annual-single-head-native.py",
+        "docs/research/ANNUAL_SOURCE_COMMIT_CONTRACT_2026-10-16.md"
+      ],
+      "next": "Qualify file and parent directory sync plus atomic head promotion on target filesystems after real power loss, distinct from SIGKILL."
+    },
+    {
+      "id": "recovery-freshness",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "tools/research-annual-multiyear-receipts.py",
+        "Loam/Authority/HouseholdAuthority.lean"
+      ],
+      "next": "Specify trusted monotonic freshness or a clearly limited explicit restore policy; hashes alone accept valid old heads."
+    },
+    {
+      "id": "native-reader-restore",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "Loam/Review/AnnualSourceReadView.lean",
+        "Loam/Authority/AnnualSourceMaterialization.lean"
+      ],
+      "next": "Wire selected source HEAD replay into all production reads/restore, with consistent fail-closed stale-cache and missing-year behavior."
+    },
+    {
+      "id": "configuration-coherence",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "Loam/Review/AnnualSourceQueryPolicy.lean",
+        "Loam/Config/BoundaryPresetConfig.lean",
+        "Loam/Config/DailyPaceConfig.lean"
+      ],
+      "next": "Qualify an atomic query policy selection with source identity and explicit treatment of external editable config; do not invent old policy history."
+    },
+    {
+      "id": "migration-and-backup",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "Loam/Authority/HouseholdAuthority.lean",
+        "docs/research/ANNUAL_SOURCE_COMMIT_CONTRACT_2026-10-16.md"
+      ],
+      "next": "Rehearse copying current canonical data into a new verified HEAD, failure/restart and restore on isolated copies before opt-in cutover."
+    },
+    {
+      "id": "production-pty-acceptance",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "tests/test_continuity_full_first_run_pty.py",
+        "Loam/Tests/JanuaryFirstHousehold.lean"
+      ],
+      "next": "Run real TUI Dec 31 / Jan 1 / Jan 3 with the new physical source, backdated correction, Scheduled completion and no manual rollover."
+    },
+    {
+      "id": "bounded-performance",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "docs/research/ANNUAL_SOURCE_COMMIT_CONTRACT_2026-10-16.md",
+        "docs/research/TACKLER_SOURCE_YEAR_GIT_REPLAY_2026-10-15.md"
+      ],
+      "next": "Compare 1/5/10/20-year source workloads, read latency, RAM, write amplification, checkout and restore to the single-image baseline."
+    },
+    {
+      "id": "derived-git-tackler",
+      "scope": "cutover",
+      "status": "blocked",
+      "evidence": [
+        "tools/research-tackler-git-source-year.py",
+        "docs/research/ANNUAL_SOURCE_COMMIT_CONTRACT_2026-10-16.md"
+      ],
+      "next": "Prove Git backup and Tackler projection follow only one committed source HEAD and cannot select independent canonical years."
+    }
+  ]
+}
