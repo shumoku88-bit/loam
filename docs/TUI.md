@@ -57,6 +57,22 @@ and normalized Actual evidence is retained in the required `Actual` section of
 `household.loam`. Production root reads and writes do not fall back to the legacy
 standalone `actual.loam` diagnostic/migration file.
 
+## Optional account and category display names
+
+Space > Household setup > **Account / category display names** selects one
+already admitted Locus (bank, cash, food, etc.). Use j/k or arrows to select
+the stable identifier, Enter to edit its human-facing name, Enter to review
+and Enter again to save. Esc from review goes back to editing; Esc from
+editing goes back to the account list. Missing names show their stable token.
+
+The editor writes only the replaceable `config/locus-catalog.tsv`. It never
+renames the canonical identifier, rewrites a transaction, creates a new
+account or assigns an accounting role. An existing help description and
+historical-only display metadata remain intact; for a newly named entry the
+name is also used as the required nonempty help fallback. Invalid, stale,
+or externally modified display configuration is refused instead of reset.
+To revert a display name, enter the stable token as the new name.
+
 ## Balances display selection
 
 Space > Household setup > **Balances / visible accounts** opens the same
@@ -1408,6 +1424,7 @@ harnesses cannot exercise uncommitted macOS IME preedit.
 | Owner | Class | Audited Renderers | Entrance / Purpose | Regression Test |
 | :--- | :--- | :--- | :--- | :--- |
 | `FirstRun` | text | `FirstRun` | Unreadable TUI startup, independent new root | `tests/test_first_run_pty.py` |
+| `LocusLabelSetup` | text | `LocusLabelSetup` | Household setup > Account / category display names | `Loam/Tests/TuiLocusLabelSetup.lean` |
 | `DailyPacePoolSetup` | navigation | - | Household setup > Daily Pace pool and Balances view choices | `Loam/Tests/TuiBalanceViewSetup.lean` |
 | `CycleBoundarySetup` | text | `CycleBoundarySetup` | Space > Household setup > Daily Pace / cycle dates | `Loam/Tests/TuiCycleBoundarySetup.lean` |
 | `Record` | text | `Record` | Home `r`, Actual `r` | `tests/test_actual_detail_pty.py` |
