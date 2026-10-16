@@ -9,6 +9,8 @@ on:
       - 'Loam/MovementWorldLoader.lean'
       - 'Loam/Cli.lean'
       - 'Loam/Cli/DoctorCli.lean'
+      - 'Loam/Cli/NewHouseholdCli.lean'
+      - 'Loam/Tests/NewHousehold.lean'
       - 'Loam/Tests/OperationalContinuity.lean'
       - 'tools/loam'
       - 'tests/TestDriver.lean'
@@ -35,7 +37,9 @@ jobs:
           build-args: loam Loam.MovementWorldLoader
 
       - name: Verify fail-closed diagnosis and human explanation
-        run: lake test -- OperationalContinuity
+        run: |
+          lake test -- OperationalContinuity
+          lake test -- NewHousehold
 
       - name: Verify practical doctor entrance stays read-only and explanatory
         shell: bash
@@ -52,3 +56,18 @@ jobs:
           grep -Fq 'What did not happen:' <<<"$output"
           grep -Fq 'This diagnosis is read-only.' <<<"$output"
           grep -Fq 'Technical detail:' <<<"$output"
+
+      - name: Verify explicit fresh-root CLI and refusal to overwrite
+        shell: bash
+        run: |
+          base="$(mktemp -d)"
+          new_root="$base/new-household"
+          ./tools/loam init "$new_root"
+          ./tools/loam doctor "$new_root"
+          test -s "$new_root/household.loam"
+          cp "$new_root/household.loam" "$base/before.loam"
+          if ./tools/loam init "$new_root"; then
+            echo 'init unexpectedly accepted an existing root' >&2
+            exit 1
+          fi
+          cmp "$base/before.loam" "$new_root/household.loam"
