@@ -62,7 +62,7 @@ def open?
 
 /-- Reuse the EXACT ordinary TUI Home composition. If the selected HEAD has
 changed since this pin, this returns a refusal rather than a silent refresh. -/
-def readHome?
+def Pinned.readHome?
     (pin : Pinned) (configRoot : System.FilePath) (today : String) :
     IO (Except String Loam.AnnualSelectedHomePreview.Snapshot) := do
   let .ok () ← eligible? pin.root
@@ -77,7 +77,7 @@ Darwin APFS F_FULLFSYNC. No competing household image is written.
 
 An error after the HEAD rename is `.outcomeUnknown`, not success/failure.
 The caller must NOT retry an uncertain operation blindly. -/
-def append?
+def Pinned.append?
     (pin : Pinned)
     (admittedDay operation : String)
     (changedNames : List String)
