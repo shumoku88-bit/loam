@@ -51,7 +51,7 @@ def inspectAt (root : System.FilePath) (observedOn : String) :
     | .ok rows => pure rows
     | .error message => return .error message
   return .ok {
-    at := at
+    observedOn := observedOn
     currentOpen := currentOpen
     overdue := currentOpen.filter (fun row => decide (row.scheduledOn < observedOn))
     exactAnchors := currentSupport.anchor.assertions.map (·.coordinate)
