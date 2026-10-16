@@ -100,7 +100,51 @@ def main : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "corrupt archived year silently fell back to current")
 
-  IO.println "YearCli: calendar selection, independent archive, no write and corrupt source refusal passed."
+  -- Checkpoint creation uses the existing household, not fresh-household
+  -- initialization. It keeps one exact qualified generation and never writes
+  -- to the original or overwrites an earlier year directory.
+  let checkpointRoot := parent / "year-checkpoint"
+  let _ ← requireOk (← Loam.NewHouseholdCli.create checkpointRoot)
+    "create checkpoint source household"
+  for token in ["cash", "food"] do
+    let _ ← requireOk
+      (← Loam.HouseholdCommand.admitLocus checkpointRoot { token })
+      ("admit checkpoint " ++ token)
+    pure ()
+  let sourceOld ← bookEvent checkpointRoot "2020-12-31"
+  let _ ← bookEvent checkpointRoot "2021-01-01"
+  let checkpointBefore ← IO.FS.readFile (Loam.HouseholdAuthority.path checkpointRoot)
+  let checkpoint ← requireOk (← Loam.YearCli.checkpointYear checkpointRoot "2020")
+    "create qualified historical checkpoint"
+  let checkpointDir := Loam.HouseholdPaths.yearRoot checkpointRoot "2020"
+  expect (checkpoint == Loam.HouseholdAuthority.path checkpointDir &&
+          (← IO.FS.readFile checkpoint) == checkpointBefore &&
+          (← IO.FS.readFile (Loam.HouseholdAuthority.path checkpointRoot)) == checkpointBefore)
+    "checkpoint did not preserve exact source bytes or changed source"
+  let opened ← requireOk (← Loam.YearCli.readYear checkpointRoot "2020")
+    "open installed checkpoint with ordinary year browser"
+  expect (opened.sourceRoot == checkpointDir &&
+          opened.entries.map (·.event.id) == [sourceOld])
+    "year browser did not open the checkpoint as the selected source"
+  let _ ← bookEvent checkpointRoot "2022-03-01"
+  expect ((← IO.FS.readFile checkpoint) == checkpointBefore)
+    "checkpoint was modified by subsequent normal household publication"
+  match ← Loam.YearCli.checkpointYear checkpointRoot "2020" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "checkpoint overwrote a previous year")
+  match ← Loam.YearCli.checkpointYear checkpointRoot "2019" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "checkpoint fabricated an empty past year")
+  match ← Loam.YearCli.checkpointYear checkpointRoot "9999" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "checkpoint accepted a future or open year")
+  let brokenYear := Loam.HouseholdPaths.yearRoot checkpointRoot "2018"
+  IO.FS.createDirAll brokenYear
+  match ← Loam.YearCli.checkpointYear checkpointRoot "2018" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "checkpoint overwrote a partial existing directory")
+
+  IO.println "YearCli: calendar selection, independent archive, no write, corruption refusal and immutable as-of checkpoint passed."
 
 end Loam.Tests.YearCli
 
