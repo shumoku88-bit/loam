@@ -10,6 +10,7 @@ on:
       - 'tools/research-native-actual-publication-delta.py'
       - 'tools/research-tackler-git-source-year.py'
       - 'tools/research-source-year-cross-family.py'
+      - 'tools/research-annual-single-head-native.py'
       - 'tools/NativeCrossFamilyYearSource.lean'
       - 'tools/research-tackler-git-calendar-journals.py'
       - 'docs/research/NATIVE_ANNUAL_ACTUAL_SCHEDULED_CLOSURE_2026-10-15.md'
@@ -82,3 +83,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-source-year-cross-family.py --check
+      - name: Verify single-head native cross-family replay at process-kill boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/research-annual-single-head-native.py --check
