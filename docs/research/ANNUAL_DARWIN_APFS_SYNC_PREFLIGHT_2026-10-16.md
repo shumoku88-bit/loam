@@ -29,6 +29,19 @@ Run: `python3 tools/test-annual-darwin-sync.py` on a macOS system with `cc`.
 
 CI: `.github/workflows/research-annual-darwin-sync.yml` (macos-15). The logged JSON includes `direct_syscalls`, `apfs_observed`, ordered `results`, `failure_injection`, and `injection_reached`.
 
+## Observed GitHub Actions result (2026-10-16)
+
+The `macos-15` and `macos-15-intel` jobs both completed successfully on **macOS 15.7.9 / APFS**. The syscall witness reported:
+
+| Runner | fsync(file) | fsync(directory) | F_FULLFSYNC(file) | F_FULLFSYNC(directory) |
+| --- | --- | --- | --- | --- |
+| Apple Silicon arm64 | OK | OK | OK | OK |
+| Intel x86_64 | OK | OK | OK | OK |
+
+Both reported ordered noncanonical source/HEAD install completing their requested barriers for each API, correctly refused an injected source-stage barrier failure, and classified an injected **post-HEAD rename** directory barrier failure as `outcome_unknown` (the new HEAD remained process-visible). Both injections were actually reached, and symlink open was refused.
+
+**Interpretation:** The feared universal lack of `F_FULLFSYNC` on directory descriptors is **not observed on these two macOS 15.7.9 hosted APFS runners**. This narrows the adapter design risk but does not prove behavior on older Intel Macs/macOS releases, external/network volumes, device hardware, true power cuts, or the native Lean product writer. CI observations remain a syscall capability matrix, not a durability certificate.
+
 ## Interpretation and stop criteria
 
 A green CI means **the probe ran and reported actual syscall results correctly**. It does not mean APFS durability is qualified:
