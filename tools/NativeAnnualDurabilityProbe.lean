@@ -26,7 +26,7 @@ private def qualified (path : String) : IO Loam.HouseholdAuthority.Generation :=
     (← IO.FS.readFile (System.FilePath.mk path))) ("qualified " ++ path)
 
 private def selectedRoot (root : System.FilePath) :
-    IO Loam.AnnualSourceHeadSandbox.Selected :=
+    IO Loam.AnnualSourceHeadSandbox.Selected := do
   required (← Loam.AnnualSourceHeadSandbox.readSelected? root)
     "selected native annual HEAD"
 
