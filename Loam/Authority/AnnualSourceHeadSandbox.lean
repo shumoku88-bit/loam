@@ -151,14 +151,16 @@ def bootstrap? (root : System.FilePath) (baselineYear wire : String) :
     IO.FS.rename (headStage root) (headPath root)
     selectedFromWire? root headWire
 
-/-- One process-visible HEAD switch after a full native object stage and
-replay, under cross-process ownership and exact observed-HEAD comparison.
-No power-loss durability is implied by rename, and admission day is INJECTED. -/
-def append?
+/-- Prototype hook for **disposable failure injection** immediately after an
+immutable source object is installed and rechecked, before HEAD staging. This
+is NOT a production writer entrypoint. The caller must not point it at a real
+household or treat injection as a power-loss guarantee. -/
+def appendWithInstalledTestHook?
     (root : System.FilePath)
     (observedHeadWire admittedDay operation : String)
     (changedNames : List String)
-    (candidate : Loam.Persistence.HouseholdImage.Image) :
+    (candidate : Loam.Persistence.HouseholdImage.Image)
+    (afterInstalled : IO Unit) :
     IO (Except String Selected) := do
   Loam.WriterOwnership.withOwnership (headPath root) do
     let .ok headWire ← read? (headPath root)
@@ -176,23 +178,48 @@ def append?
         changedNames candidate
       | return .error "loam: native annual transition rejected"
     let path := sourcePath root pub.year ordinal
-    if ← path.pathExists then
-      return .error "loam: annual source ordinal already occupies a file"
-    IO.FS.createDirAll (root / "journal" / pub.year)
-    let stage := System.FilePath.mk (path.toString ++ ".loam-stage")
     let sourceWire := Loam.AnnualSourcePublication.encodePublication pub
-    let .ok () ← stageAndCheck? stage sourceWire
-      | return .error "loam: source object stage failed"
-    let .ok checked := Loam.AnnualSourcePublication.decodeAgainst?
-        selected.generation (← IO.FS.readFile stage)
-      | return .error "loam: staged source object failed native replay"
-    if checked.generation.wire != pub.generation.wire then
-      return .error "loam: staged source object mismatched candidate"
-    IO.FS.rename stage path
+    if ← path.pathExists then
+      -- A process can die AFTER this exact immutable object was installed
+      -- and BEFORE HEAD changed. Adopt only a byte-identical, fully requalified
+      -- object for the SAME ordinal, predecessor, day, operation, families and
+      -- resulting entire native image. Never truncate or delete a different
+      -- orphan, even if its internal structure is otherwise well formed.
+      let .ok existing ← read? path
+        | return .error "loam: existing annual orphan is unreadable"
+      if existing != sourceWire then
+        return .error "loam: occupied annual source differs from exact retry; recovery required"
+      let .ok existingPublication :=
+          Loam.AnnualSourcePublication.decodeAgainst? selected.generation existing
+        | return .error "loam: existing annual orphan is not a qualified source operation"
+      if existingPublication.ordinal != pub.ordinal ||
+          existingPublication.admittedDay != pub.admittedDay ||
+          existingPublication.operation != pub.operation ||
+          existingPublication.predecessor != pub.predecessor ||
+          existingPublication.changedNames != pub.changedNames ||
+          existingPublication.generation.wire != pub.generation.wire then
+        return .error "loam: annual orphan identity mismatch; recovery required"
+    else
+      IO.FS.createDirAll (root / "journal" / pub.year)
+      let stage := System.FilePath.mk (path.toString ++ ".loam-stage")
+      let .ok () ← stageAndCheck? stage sourceWire
+        | return .error "loam: source object stage failed"
+      let .ok checked := Loam.AnnualSourcePublication.decodeAgainst?
+          selected.generation (← IO.FS.readFile stage)
+        | return .error "loam: staged source object failed native replay"
+      if checked.generation.wire != pub.generation.wire then
+        return .error "loam: staged source object mismatched candidate"
+      IO.FS.rename stage path
     let .ok installed ← read? path
       | return .error "loam: source object missing before HEAD"
     if installed != sourceWire then
       return .error "loam: installed source object changed"
+    let .ok checkedInstalled :=
+        Loam.AnnualSourcePublication.decodeAgainst? selected.generation installed
+      | return .error "loam: installed annual source failed native qualification"
+    if checkedInstalled.generation.wire != pub.generation.wire then
+      return .error "loam: installed annual source does not match requested generation"
+    afterInstalled
     let newHead : Head := { selected.head with years := selected.head.years ++ [pub.year] }
     let newWire := newHead.encode
     let .ok () ← stageAndCheck? (headStage root) newWire
@@ -203,5 +230,18 @@ def append?
       return .error "loam: candidate HEAD materialization mismatch"
     IO.FS.rename (headStage root) (headPath root)
     return .ok tested
+
+/-- One process-visible HEAD switch after a fully requalified native source.
+A byte-exact orphan for the same still-uncommitted operation may be safely
+reused. Already committed operations and different orphans are refused.
+Neither rename nor equality establishes fsync durability or freshness. -/
+def append?
+    (root : System.FilePath)
+    (observedHeadWire admittedDay operation : String)
+    (changedNames : List String)
+    (candidate : Loam.Persistence.HouseholdImage.Image) :
+    IO (Except String Selected) :=
+  appendWithInstalledTestHook? root observedHeadWire admittedDay operation
+    changedNames candidate (pure ())
 
 end Loam.AnnualSourceHeadSandbox
