@@ -64,7 +64,7 @@ def main : IO Unit := do
   expect (reopened.current.map (·.name) == some "pension")
     "reopen did not focus the current preset"
   let _ ← requireOk
-    (← Loam.Tui.CycleBoundarySetupSession.save root today repeat chosen)
+    (← Loam.Tui.CycleBoundarySetupSession.save root today reopened chosen)
     "repeat identical save must be a no-op"
 
   -- Other typed named presets must be retained if current preset changes.
