@@ -59,11 +59,10 @@ leftover staging file. Never touch household.loam or infer recurrence.
 -/
 def save (root : System.FilePath) (today : String) (ready : Ready)
     (draft : Loam.BoundaryPresetConfig.Preset) : IO (Except String Unit) := do
-  let replacement :=
-    match Loam.BoundaryPresetConfig.decode?
-        (draft.name ++ "\t" ++ String.intercalate "\t" draft.boundaries ++ "\n") with
-    | some [preset] => preset
-    | _ => return .error "Invalid explicit cycle dates. No change made."
+  let some [replacement] :=
+      Loam.BoundaryPresetConfig.decode?
+        (draft.name ++ "\t" ++ String.intercalate "\t" draft.boundaries ++ "\n")
+    | return .error "Invalid explicit cycle dates. No change made."
   let next :=
     if ready.presets.any (fun preset => preset.name == replacement.name) then
       ready.presets.map (fun preset =>
