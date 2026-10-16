@@ -176,6 +176,26 @@ If the old household still exists, **do not create a new root**. Keep the older 
 
 LOAM must never require retroactive transaction reconstruction. Current balance observations do not prove that missing months were completely recorded. The remaining TUI-integrated resume guidance, complete restart journey and explicit hiatus test across household launch are still tracked in #2020. The separate CLI review is a small operational step, not a new recovery engine.
 
+## Jan 1 ordinary household preflight (Issue #2030)
+
+`Loam/Tests/JanuaryFirstHousehold.lean` exercises one **disposable**
+household before and after **2026-12-31 / 2027-01-01** without changing
+the host system clock: unchanged Home generation and no new year's invented
+opening entries, known bank amounts vs unknown cash, retained Jan-3 Scheduled,
+an explicit December-to-February pension Daily Pace cycle, a January Actual,
+a correction to a December-effective Event, and one same-generation
+Scheduled+Actual completion. This uses real current qualified HouseholdImage
+read/write publishers and the normal Home read model. A calendar-year switch
+does **not** reset the current household or the pension cycle.
+
+**Important limit:** these checks qualify the *existing single installed
+`household.loam` authority* and synthetic date-parameterized views, **not**
+automatic physical `journal/2027/` creation, source-year-at-admission,
+Git-head coordination, selective year replays, or a simulated system-clock
+midnight TUI session. Research under #1969 has shown Git+Household dual-head
+crash mismatches and test-injected source admission times. #2030 remains open;
+there is no authorized production annual source-journal cutover yet.
+
 ## January 1 is not household reset
 
 The planned January-1 Tackler/Git source-journal rollover is separate storage work tracked in [#1969](https://github.com/shumoku88-bit/loam/issues/1969). A calendar year boundary must not create a new household identity, reset balances, or fabricate opening entries. Pension-cycle boundaries remain independent.
