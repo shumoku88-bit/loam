@@ -1,6 +1,7 @@
 import Loam.HouseholdPaths
 import Loam.ActualDate
 import Loam.Authority.HouseholdAuthority
+import Loam.Persistence.WriterOwnership
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualJournalProjection
 import Loam.Persistence.TextEscape
@@ -23,7 +24,12 @@ def validYear (year : String) : Bool :=
 
 structure Report where
   sourceRoot : System.FilePath
+  sourceFile : System.FilePath
   entries : List Loam.ActualJournalProjection.Entry
+
+/-- Existing NormalizedActual codec, not a new annual wire format. -/
+def extractedActualPath (root : System.FilePath) (year : String) : System.FilePath :=
+  Loam.HouseholdPaths.yearRoot root year / "actual-year.loam"
 
 def readYear (root : System.FilePath) (year : String) :
     IO (Except String Report) := do
@@ -31,13 +37,21 @@ def readYear (root : System.FilePath) (year : String) :
     return .error "loam: year must be a four-digit calendar year (YYYY)"
   let archiveRoot := Loam.HouseholdPaths.yearRoot root year
   let archivePresent ← archiveRoot.pathExists
-  -- A selected but incomplete older book must never silently resolve to
-  -- the current book, which might report a misleading empty history.
-  if archivePresent && !(← (Loam.HouseholdAuthority.path archiveRoot).pathExists) then
-    return .error s!"loam: saved year {year} exists but its household.loam is missing"
+  let checkpoint := Loam.HouseholdAuthority.path archiveRoot
+  let extracted := extractedActualPath root year
+  let checkpointPresent ← checkpoint.pathExists
+  let extractedPresent ← extracted.pathExists
+  if archivePresent && !checkpointPresent && !extractedPresent then
+    return .error s!"loam: saved year {year} exists but its authority is missing"
+  if checkpointPresent && extractedPresent then
+    return .error s!"loam: year {year} has ambiguous archive sources"
   let sourceRoot := if archivePresent then archiveRoot else root
+  let sourceFile :=
+    if checkpointPresent then checkpoint
+    else if extractedPresent then extracted
+    else Loam.HouseholdAuthority.path root
   let actual ←
-    match ← Loam.ActualAuthority.loadHouseholdImage? sourceRoot with
+    match ← Loam.ActualAuthority.loadImageFile? sourceFile with
     | .ok image => pure image
     | .error message => return .error message
   let entries ←
@@ -54,6 +68,7 @@ def readYear (root : System.FilePath) (year : String) :
       return .error s!"loam: year {year} has no saved source or recorded Actual"
   return .ok {
     sourceRoot := sourceRoot
+    sourceFile := sourceFile
     entries := dated
   }
 
@@ -114,6 +129,147 @@ def checkpointYear (root : System.FilePath) (year : String) :
           return .error "loam: checkpoint differs from observed source generation"
         return .ok (Loam.HouseholdAuthority.path archiveRoot)
 
+private def required {α : Type} (value : Option α) (message : String) :
+    Except String α :=
+  match value with
+  | some found => .ok found
+  | none => .error message
+
+/--
+Select an internally closed calendar-year excerpt using the *existing* admitted
+Actual evidence and NormalizedActual codec. It is only a read-only current
+projection. Cross-year corrections/reversals/relations are refused, rather than
+dropping references or inventing a carry. Settlement evidence is currently
+refused until its complete cross-year closure is supported.
+-/
+def extractActualEvidence (image : Loam.ActualAuthority.Image) (year : String) :
+    Except String Loam.ActualEvidence := do
+  let src := image.evidence
+  if decide (src.settlements ≠ Loam.Core.SettlementEvidence.empty) then
+    throw "loam: annual extraction cannot yet preserve settlement dependencies"
+  let wantedDate := year ++ "-"
+  let included := src.events.events.filter fun event =>
+    (Loam.Core.ActualValidityMemory.findByEventId?
+      image.currentValidities event.id).any (·.startsWith wantedDate)
+  if included.isEmpty then
+    throw s!"loam: no admitted Actual events for year {year}"
+  let ids := included.map (·.id)
+  let has := fun id => ids.any (· == id)
+  if src.corrections.corrections.any (fun edge =>
+       has edge.target != has edge.replacement) then
+    throw "loam: year crosses a correction; archive needs cross-year carry"
+  if src.reversals.reversals.any (fun edge =>
+       has edge.target != has edge.reversal) then
+    throw "loam: year crosses a reversal; archive needs cross-year carry"
+  let relations := src.relations.filter fun item => has item.sourceEvent
+  let relationIds := relations.map (·.id)
+  if src.discharges.any (fun item =>
+       has item.event != relationIds.any (· == item.target)) then
+    throw "loam: year crosses a relation discharge; archive needs cross-year carry"
+  let events ←
+    required (Loam.Core.EventMemory.ofEvents? included)
+      "loam: annual event subset has invalid identities"
+  let facts := src.validity.facts.filter fun item => has item.event
+  let refs := facts.map Loam.Core.ActualValidityFact.ref
+  let validities := src.validity.corrections.filter fun item =>
+    refs.any (· == item.target)
+  if validities.any (fun item =>
+      !refs.any (fun ref => ref == Loam.Core.ActualValidityRef.revision item.replacement)) then
+    throw "loam: year excerpt has dangling date revisions"
+  let validity ←
+    required (Loam.Core.ActualValidityHistory.ofParts? facts validities)
+      "loam: annual validity subset is invalid"
+  let descriptions ←
+    required (Loam.Core.EventDescriptionMemory.ofEntries?
+      (src.descriptions.entries.filter fun item => has item.event))
+      "loam: annual descriptions are invalid"
+  let merchants ←
+    required (Loam.Core.EventMerchantEvidenceMemory.ofEntries?
+      (src.merchants.entries.filter fun item => has item.event))
+      "loam: annual merchant evidence are invalid"
+  let exchanges ←
+    required (Loam.Core.ExchangeEvidenceMemory.ofEntries?
+      (src.exchanges.entries.filter fun item => has item.event))
+      "loam: annual exchange evidence are invalid"
+  let originalAmounts ←
+    required (Loam.Core.OriginalAmountEvidenceMemory.ofEntries?
+      (src.originalAmounts.entries.filter fun item => has item.event))
+      "loam: annual original amounts are invalid"
+  let movementOperations ←
+    required (Loam.Core.MovementOperationEvidenceMemory.ofEntries?
+      (src.movementOperations.entries.filter fun item => has item.event))
+      "loam: annual operation identities are invalid"
+  let corrections ←
+    required (Loam.Core.EventCorrectionMemory.ofCorrections?
+      (src.corrections.corrections.filter fun item => has item.target))
+      "loam: annual correction identities are invalid"
+  let reversals ←
+    required (Loam.Core.ActualReversalMemory.ofReversals?
+      (src.reversals.reversals.filter fun item => has item.target))
+      "loam: annual reversal identities are invalid"
+  let excerpt : Loam.ActualEvidence := {
+    events, validity, descriptions, merchants, exchanges, originalAmounts,
+    movementOperations, corrections, reversals, relations,
+    discharges := src.discharges.filter fun item => has item.event,
+    settlements := Loam.Core.SettlementEvidence.empty
+  }
+  let some admitted := Loam.Persistence.admitActualImage? excerpt
+    | throw "loam: year excerpt failed standard Actual semantic admission"
+  let original ← Loam.ActualJournalProjection.fromImage? image
+  let extracted ← Loam.ActualJournalProjection.fromImage? admitted
+  let selected := original.filter (·.validOn.startsWith wantedDate)
+  if extracted.map (fun e => (e.event.id, e.validOn, e.description)) !=
+      selected.map (fun e => (e.event.id, e.validOn, e.description)) then
+    throw "loam: year excerpt disagrees with current Actual projection"
+  return excerpt
+
+/-- Write a bounded, read-only year Actual file without modifying or replacing
+the installed HouseholdImage. No year directory, checkpoint or existing excerpt
+is overwritten, even when only a partial directory exists. -/
+def extractYear (root : System.FilePath) (year : String) :
+    IO (Except String System.FilePath) := do
+  if !validYear year then
+    return .error "loam: extraction year must be four digits (YYYY)"
+  let now? ← Loam.ActualDate.todayIso?
+  let some now := now? | return .error "loam: current calendar date is unavailable"
+  if year >= (now.splitOn "-").head! then
+    return .error "loam: extraction requires an already-ended calendar year"
+  let archiveRoot := Loam.HouseholdPaths.yearRoot root year
+  let target := extractedActualPath root year
+  Loam.HouseholdAuthority.withOwnership root do
+    if ← archiveRoot.pathExists then
+      return .error s!"loam: year {year} destination already exists; no overwrite"
+    let image ←
+      match ← Loam.ActualAuthority.loadHouseholdImage? root with
+      | .ok image => pure image
+      | .error message => return .error message
+    let excerpt ←
+      match extractActualEvidence image year with
+      | .ok excerpt => pure excerpt
+      | .error message => return .error message
+    try
+      IO.FS.createDirAll archiveRoot
+      Loam.WriterOwnership.withOwnership target do
+        if ← target.pathExists then
+          return .error "loam: year excerpt already exists"
+        match ← Loam.ActualAuthority.publishActualFile? target excerpt with
+        | .error message => return .error message
+        | .ok () =>
+            -- Verify the actual file through the existing production reader.
+            match ← Loam.ActualAuthority.loadImageFile? target with
+            | .error message => return .error message
+            | .ok qualified =>
+                let selected ←
+                  match Loam.ActualJournalProjection.fromImage? qualified with
+                  | .ok rows => pure rows
+                  | .error message => return .error message
+                if selected.isEmpty || selected.any
+                    (fun row => !row.validOn.startsWith (year ++ "-")) then
+                  return .error "loam: saved year file has invalid Actual dates"
+                return .ok target
+    catch error =>
+      return .error ("loam: annual extraction failed: " ++ error.toString)
+
 private def effectLine (effect : Effect) : String :=
   "  " ++ effect.coordinate.locus.token ++
   "\t" ++ toString effect.quantity.quanta ++
@@ -129,7 +285,7 @@ private def entryLines (entry : Loam.ActualJournalProjection.Entry) : List Strin
 def render (year : String) (report : Report) : String :=
   String.intercalate "\n" <|
     [ "LOAM / " ++ year ++ " Actual (read-only)"
-    , "Source: " ++ (Loam.HouseholdAuthority.path report.sourceRoot).toString
+    , "Source: " ++ report.sourceFile.toString
     , "Current-effective dated records in selected source: " ++
         toString report.entries.length
     , "Older saved sources may not contain corrections admitted later."
@@ -150,21 +306,33 @@ private def resolveRoot (path? : Option String) :
       | none => return .ok (System.FilePath.mk "../loam-data")
 
 def run (args : List String) : IO UInt32 := do
-  let (checkpoint, year, root?) ←
+  let (mode, year, root?) ←
     match args with
-    | ["checkpoint", year] => pure (true, year, none)
-    | ["checkpoint", year, root] => pure (true, year, some root)
-    | [year] => pure (false, year, none)
-    | [year, root] => pure (false, year, some root)
+    | ["extract", year] => pure (2, year, none)
+    | ["extract", year, root] => pure (2, year, some root)
+    | ["checkpoint", year] => pure (1, year, none)
+    | ["checkpoint", year, root] => pure (1, year, some root)
+    | [year] => pure (0, year, none)
+    | [year, root] => pure (0, year, some root)
     | _ =>
         IO.eprintln "Usage: loam year YYYY [LOAM_DATA_DIR]"
+        IO.eprintln "       loam year extract YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year checkpoint YYYY [LOAM_DATA_DIR]"
         return 2
   let root ←
     match ← resolveRoot root? with
     | .ok root => pure root
     | .error message => IO.eprintln message; return 2
-  if checkpoint then
+  if mode == 2 then
+    match ← extractYear root year with
+    | .ok path =>
+        IO.println ("Read-only year Actual excerpt created at: " ++ path.toString)
+        IO.println "Bounded as-of Actual, not canonical household or complete year-close."
+        return 0
+    | .error message =>
+        IO.eprintln message
+        return 2
+  else if mode == 1 then
     match ← checkpointYear root year with
     | .ok path =>
         IO.println ("Read-only year checkpoint created at: " ++ path.toString)

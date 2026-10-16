@@ -144,7 +144,49 @@ def main : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "checkpoint overwrote a partial existing directory")
 
-  IO.println "YearCli: calendar selection, independent archive, no write, corruption refusal and immutable as-of checkpoint passed."
+  -- Product year extraction uses only the selected year's dated Actual,
+  -- not a full copy of every year and family.
+  let extractionRoot := parent / "year-extraction"
+  let _ ← requireOk (← Loam.NewHouseholdCli.create extractionRoot)
+    "create source for bounded Actual extraction"
+  for token in ["cash", "food"] do
+    let _ ← requireOk (← Loam.HouseholdCommand.admitLocus extractionRoot { token })
+      ("admit extract " ++ token)
+    pure ()
+  let _ ← bookEvent extractionRoot "2020-12-31"
+  let archivedId ← bookEvent extractionRoot "2021-02-03"
+  let _ ← bookEvent extractionRoot "2022-01-01"
+  let sourceWire ← IO.FS.readFile (Loam.HouseholdAuthority.path extractionRoot)
+  let extractedFile ← requireOk (← Loam.YearCli.extractYear extractionRoot "2021")
+    "extract one calendar year into native bounded Actual format"
+  let excerptWire ← IO.FS.readFile extractedFile
+  expect (excerptWire.length < sourceWire.length &&
+          excerptWire.startsWith "LOAM-NORMALIZED-ACTUAL" &&
+          (← IO.FS.readFile (Loam.HouseholdAuthority.path extractionRoot)) == sourceWire)
+    "bounded year extraction copied whole household or changed its authority"
+  let excerpt ← requireOk (← Loam.YearCli.readYear extractionRoot "2021")
+    "browse native year-only excerpt"
+  expect (excerpt.entries.map (·.event.id) == [archivedId] &&
+          excerpt.sourceFile == extractedFile)
+    "year excerpt lost selected record or included another year"
+  let _ ← bookEvent extractionRoot "2023-01-01"
+  expect ((← IO.FS.readFile extractedFile) == excerptWire)
+    "immutable extracted source changed after new canonical publication"
+  match ← Loam.YearCli.extractYear extractionRoot "2021" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "extraction overwrote a prior archive")
+  match ← Loam.YearCli.extractYear extractionRoot "2019" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "extraction invented a missing prior year")
+  match ← Loam.YearCli.extractYear extractionRoot "9999" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "extraction accepted future year")
+  IO.FS.writeFile extractedFile "corrupt"
+  match ← Loam.YearCli.readYear extractionRoot "2021" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "corrupt annual Actual was silently replaced")
+
+  IO.println "YearCli: calendar selection, archives, immutable checkpoints and bounded Actual extraction passed."
 
 end Loam.Tests.YearCli
 
