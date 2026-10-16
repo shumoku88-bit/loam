@@ -15,7 +15,11 @@ permissions:
 jobs:
   darwin-sync-recon:
     name: macOS APFS file / directory sync syscall observation
-    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 8
     steps:
       - uses: actions/checkout@v6
