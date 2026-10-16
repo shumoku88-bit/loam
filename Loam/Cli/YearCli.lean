@@ -100,6 +100,13 @@ def checkpointYear (root : System.FilePath) (year : String) :
     if Loam.Persistence.HouseholdImage.encode? generation.image !=
         some generation.wire then
       return .error "loam: source HouseholdImage has noncanonical framing"
+    -- WriterOwnership's sibling lock is opened before installInitial?
+    -- creates its parent. Create this new, previously-absent year directory
+    -- explicitly so that existing installation and locking work unchanged.
+    try
+      IO.FS.createDirAll archiveRoot
+    catch error =>
+      return .error ("loam: checkpoint directory creation failed: " ++ error.toString)
     match ← Loam.HouseholdAuthority.installInitial? archiveRoot generation.image with
     | .error message => return .error message
     | .ok installed =>
