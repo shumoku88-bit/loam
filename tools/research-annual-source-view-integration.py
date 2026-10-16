@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 NATIVE_VIEW = ROOT / "tools" / "NativeAnnualSourceReadViewProbe.lean"
 PACE_SUPPORT = ROOT / "tools" / "NativeAnnualPaceSupportFixture.lean"
 PACE_VIEW = ROOT / "tools" / "NativeAnnualPaceReadViewProbe.lean"
+QUERY_POLICY_VIEW = ROOT / "tools" / "NativeAnnualQueryPolicyProbe.lean"
 
 
 def imported(name: str, file: str):
@@ -82,6 +83,7 @@ def check():
         # It must match BOTH existing Actual and Scheduled native reader answers.
         native("match", candidate_path)
         bridge.checked_run(PACE_VIEW, "match", installed, candidate_path)
+        bridge.checked_run(QUERY_POLICY_VIEW, "match", installed, candidate_path)
         assert (installed / "household.loam").read_bytes() == current_native
 
         # A perfectly well-formed older selected head is NOT current.
@@ -91,6 +93,7 @@ def check():
         old_candidate.write_bytes(multi.read(journal, env)[2])
         native("refuse", old_candidate)
         bridge.checked_run(PACE_VIEW, "refuse", installed, old_candidate)
+        bridge.checked_run(QUERY_POLICY_VIEW, "refuse", installed, old_candidate)
         fs.head_write(journal, head)
 
         # A missing middle-year source cannot be elided to fabricate 2028.
@@ -122,6 +125,9 @@ def check():
             "actual_and_scheduled_same_generation": True,
             "current_quantity_support_same_generation": True,
             "explicit_current_truth_pace_parity": True,
+            "exact_query_policy_bytes_pinned": True,
+            "external_policy_change_visible_not_history": True,
+            "pension_cycle_crosses_Jan_1": True,
             "unknown_origin_not_zero": True,
             "valid_older_selected_head_refused": True,
             "missing_2027_predecessor_refused": True,
