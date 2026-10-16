@@ -58,10 +58,10 @@ def main : IO Unit := do
           window.start == "2026-10-15" &&
           window.endExclusive == "2026-12-15")
     "current Daily Pace cycle boundaries were not retained"
-  let repeat ← requireOk
+  let reopened ← requireOk
     (← Loam.Tui.CycleBoundarySetupSession.prepare root today)
     "reopen current named preset"
-  expect (repeat.current.map (·.name) == some "pension")
+  expect (reopened.current.map (·.name) == some "pension")
     "reopen did not focus the current preset"
   let _ ← requireOk
     (← Loam.Tui.CycleBoundarySetupSession.save root today repeat chosen)
