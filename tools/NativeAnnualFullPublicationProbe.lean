@@ -60,9 +60,9 @@ def run (args : List String) : IO Unit := do
 
   -- Ordinary malformed candidates cannot bypass the existing known section
   -- codec, unknown-section preservation or exact changed-set admission.
-  expect (!(Loam.AnnualSourcePublication.prepare? before 2
+  expect ((Loam.AnnualSourcePublication.prepare? before 2
       "2027-01-03" "idempotent-retry" "native-genesis"
-      groups after.image).isError)
+      groups after.image).isOk)
     "valid generic second preparation failed unexpectedly"
   for invalid in [
       Loam.AnnualSourcePublication.prepare? before 0
