@@ -65,6 +65,8 @@ import Loam.Tui.Terminal
 import Loam.Tui.PlainTextPrint
 import Loam.Tui.FirstRun
 import Loam.Cli.NewHouseholdCli
+import Loam.Cli.YearCli
+import Loam.Tui.Layout
 
 namespace Loam.Tui.Cli
 
@@ -554,6 +556,95 @@ partial def dailyPaceTrendLoop
       Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
       dailyPaceTrendLoop bounds snapshot next nextFrame
 
+/-- Calendar-year navigation over the native, read-only YearCli reader.
+No historical snapshot is used as a publisher or a current-balance authority. -/
+def adjacentYear? (year : String) (forward : Bool) : Option String := do
+  let n ← year.toNat?
+  if forward && n < 9999 then
+    return toString (n + 1)
+  else if !forward && n > 1000 then
+    return toString (n - 1)
+  else
+    none
+
+private def yearHistoryLines (bounds : Bounds) (year : String)
+    (result : Except String Loam.YearCli.Report) : List String :=
+  let source := match result with
+    | .ok report => Loam.YearCli.render year report
+    | .error message => "Year not available: " ++ message
+  let width := Loam.Tui.Layout.contentWidth bounds
+  (source.splitOn "\n").flatMap fun line =>
+    let line := String.intercalate "  " (line.splitOn "\t")
+    let line := Loam.Tui.Terminal.plainTerminalText line
+    match Loam.Tui.Layout.wrapColumns width line with
+    | [] => [""]
+    | wrapped => wrapped
+
+/-- Read-only year viewer, using the same bounded terminal layout as the other
+workspaces. Errors stay visible; no missing year is interpreted as zero. -/
+def yearHistoryView (bounds : Bounds) (year : String)
+    (result : Except String Loam.YearCli.Report) (scroll : Nat) : Widget :=
+  let width := Loam.Tui.Layout.contentWidth bounds
+  let footer := Loam.Tui.Layout.boundFeedbackFooter bounds [
+    mutedLine " ←/→ year  ↑/↓ scroll  PgUp/PgDn page  q/Esc back"
+  ]
+  let cap := Loam.Tui.Layout.footerBodyCapacity bounds footer.length
+  let rows := yearHistoryLines bounds year result
+  let space := cap - 1
+  let start := min scroll (rows.length - space)
+  let header := if cap == 0 then [] else
+    [plainLine ("Year " ++ year ++ " / Actual history (read-only)")]
+  let body := header ++ (rows.drop start |>.take space).map plainLine
+  .column ((Loam.Tui.Layout.fitWithFooter bounds body footer).map
+    (Loam.Tui.Layout.clipWidgetRow width))
+
+private partial def yearHistoryLoop (bounds : Bounds)
+    (root : System.FilePath) (year : String)
+    (result : Except String Loam.YearCli.Report) (scroll : Nat)
+    (frame : CompiledWidget) : IO Unit := do
+  let key ← Loam.Tui.Terminal.readKey
+  if key == .escape || key == .input 'q' || key == .input 'Q' then
+    return
+  let active ← Loam.Tui.Terminal.currentBounds
+  let (nextYear, nextResult, nextScroll) ←
+    match key with
+    | .left | .input 'h' | .input 'H' =>
+        match adjacentYear? year false with
+        | some prev => do
+            let opened ← Loam.YearCli.readYear root prev
+            pure (prev, opened, 0)
+        | none => pure (year, result, scroll)
+    | .right | .input 'l' | .input 'L' =>
+        match adjacentYear? year true with
+        | some next => do
+            let opened ← Loam.YearCli.readYear root next
+            pure (next, opened, 0)
+        | none => pure (year, result, scroll)
+    | .up | .input 'k' | .input 'K' =>
+        pure (year, result, scroll - 1)
+    | .down | .input 'j' | .input 'J' =>
+        pure (year, result, scroll + 1)
+    | .pageUp => pure (year, result, scroll - (active.height - 4))
+    | .pageDown => pure (year, result, scroll + (active.height - 4))
+    | .home => pure (year, result, 0)
+    | .«end» => pure (year, result, (yearHistoryLines active year result).length)
+    | _ => pure (year, result, scroll)
+  let nextFrame := compileWidget (yearHistoryView active nextYear nextResult nextScroll)
+  if active == bounds then
+    Loam.Tui.Terminal.emitDirtyDiff active 0 0 frame nextFrame
+  else
+    Loam.Tui.Terminal.redrawFromBlank active nextFrame
+  yearHistoryLoop active root nextYear nextResult nextScroll nextFrame
+
+/-- Open selected year without modifying the current HouseholdImage. -/
+private def browseYearHistory (bounds : Bounds) (root : System.FilePath)
+    (today : String) : IO Unit := do
+  let year := (today.splitOn "-").head!
+  let report ← Loam.YearCli.readYear root year
+  let frame := compileWidget (yearHistoryView bounds year report 0)
+  Loam.Tui.Terminal.redrawFromBlank bounds frame
+  yearHistoryLoop bounds root year report 0 frame
+
 partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     (snapshot : Snapshot) (state : State) (frame : CompiledWidget)
     (paletteChoice : Option Loam.Tui.HomeCommandPalette.Choice := none)
@@ -563,6 +654,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     | none => Loam.Tui.Terminal.readKeyWithRepeat
     | some .record => pure (Loam.Tui.Terminal.Key.input 'r', 1)
     | some .actual => pure (Loam.Tui.Terminal.Key.input 'a', 1)
+    | some .yearHistory => pure (Loam.Tui.Terminal.Key.other, 1)
     | some .exchange => pure (Loam.Tui.Terminal.Key.input 'x', 1)
     | some .scheduled => pure (Loam.Tui.Terminal.Key.input 's', 1)
     | some .attention => pure (Loam.Tui.Terminal.Key.input 'i', 1)
@@ -601,6 +693,13 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot state detail
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot state nextFrame selected detail
+  else if paletteChoice == some .yearHistory then
+    browseYearHistory bounds root snapshot.actual.today
+    let activeBounds ← Loam.Tui.Terminal.currentBounds
+    let home := { state with notice := "" }
+    let nextFrame := compiledFrameFor activeBounds snapshot home
+    Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+    loop activeBounds dataDir root snapshot home nextFrame
   else if key = .enter then
     let day? :=
       if state.activePane == .detail then do

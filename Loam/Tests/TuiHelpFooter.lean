@@ -502,7 +502,8 @@ def main : IO Unit := do
   let analysisGroup : Loam.Tui.HomeCommandPalette.State := { page := .analysis }
   let maintenanceGroup : Loam.Tui.HomeCommandPalette.State := { page := .maintenance }
   for (group, choices) in [
-      (transactionGroup, [Loam.Tui.HomeCommandPalette.Choice.record, .actual, .exchange]),
+      (transactionGroup, [Loam.Tui.HomeCommandPalette.Choice.record, .actual,
+        .yearHistory, .exchange]),
       (planningGroup, [.scheduled, .attention, .settlements]),
       (analysisGroup, [.dailyPace, .balances, .report .incomeExpense,
         .report .transactionsFlow, .report .stockFlow, .report .locusTrendCompare,

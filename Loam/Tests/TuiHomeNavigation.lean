@@ -1,5 +1,6 @@
 import Loam.Tui.Home
 import Loam.Tui.HomeCommandPalette
+import Loam.Tui.Cli
 import Loam.Tui.SelectedDay
 
 open Loam.Core Loam.Tui.Kernel Loam.Tui.Main
@@ -175,6 +176,26 @@ private def testCommandsBrowseOnly : IO Unit := do
     | throw (IO.userError "Commands first category did not open")
   expect (Loam.Tui.HomeCommandPalette.update first .enter == .open .record)
     "Commands leaf dispatch changed"
+  let .stay second := Loam.Tui.HomeCommandPalette.update first .down
+    | throw (IO.userError "Transactions second item missing")
+  let .stay third := Loam.Tui.HomeCommandPalette.update second .down
+    | throw (IO.userError "Transactions year item missing")
+  expect (Loam.Tui.HomeCommandPalette.update third .enter == .open .yearHistory)
+    "year browser not reachable through Transactions"
+  expect (Loam.Tui.Cli.adjacentYear? "2027" false == some "2026" &&
+          Loam.Tui.Cli.adjacentYear? "2027" true == some "2028")
+    "year browser calendar navigation changed"
+  let unavailable : Except String Loam.YearCli.Report := .error "missing"
+  for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
+                 {width := 80, height := 24}] do
+    let shown := Loam.Tui.Cli.yearHistoryView bounds "2026" unavailable 100
+    expect (shown.height <= bounds.height - 1 && shown.lines.all fun cells =>
+      Loam.Tui.Layout.displayWidth (String.ofList (cells.map Cell.glyph)) <=
+        Loam.Tui.Layout.contentWidth bounds)
+      "year browse error/scroll view escaped terminal bounds"
+    expect (contains "Year 2026" (text shown) &&
+            contains "not available" (text shown))
+      "year browse lost selected year or failure notice"
   for bounds in [{width := 32, height := 9}, {width := 48, height := 14},
       {width := 80, height := 24}, {width := 120, height := 40}] do
     let frame := Loam.Tui.HomeCommandPalette.view bounds planning
