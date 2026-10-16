@@ -27,6 +27,9 @@ on:
       - 'tla/DailyPaceAutomaticKnowledge*.cfg'
       - 'tla/AnnualSegmentCommitRecovery.tla'
       - 'tla/AnnualSegmentCommitRecovery*.cfg'
+      - 'tla/AnnualNativeHeadTwoYear.tla'
+      - 'tla/AnnualNativeHeadTwoYear*.cfg'
+      - 'docs/research/ANNUAL_NATIVE_HEAD_TWO_YEAR_FORMAL_2026-10-16.md'
       - 'docs/research/ANNUAL_SEGMENT_COMMIT_RECOVERY_2026-10-15.md'
       - 'docs/research/DAILY_PACE_AUTOMATIC_KNOWLEDGE_PROTOCOL_2026-10-15.md'
       - 'tla/BitemporalCorrectionFrontier.tla'
@@ -119,6 +122,9 @@ on:
       - 'tla/DailyPaceAutomaticKnowledge*.cfg'
       - 'tla/AnnualSegmentCommitRecovery.tla'
       - 'tla/AnnualSegmentCommitRecovery*.cfg'
+      - 'tla/AnnualNativeHeadTwoYear.tla'
+      - 'tla/AnnualNativeHeadTwoYear*.cfg'
+      - 'docs/research/ANNUAL_NATIVE_HEAD_TWO_YEAR_FORMAL_2026-10-16.md'
       - 'docs/research/ANNUAL_SEGMENT_COMMIT_RECOVERY_2026-10-15.md'
       - 'docs/research/DAILY_PACE_AUTOMATIC_KNOWLEDGE_PROTOCOL_2026-10-15.md'
       - 'tla/BitemporalCorrectionFrontier.tla'
@@ -196,7 +202,7 @@ jobs:
           test "$(python3 tools/select-tla-research-cases --event push --branch experiment/069-policy-change-history-pressure --paths tla/PolicyAttributionHistoryBoundary.cfg)" = '["policy-attribution-history"]'
           test "$(python3 tools/select-tla-research-cases --event push --branch experiment/069-policy-change-history-pressure --paths tla/TemporalEvidenceCorrection.tla)" = '[]'
           test "$(python3 tools/select-tla-research-cases --event push --branch experiment/329-measure-scale-publication-order --paths verification/ci/tla-research-cases.json)" = '["measure-scale-publication-order"]'
-          test "$(python3 tools/select-tla-research-cases --event workflow_dispatch --paths)" = '["time-indexed-relation","valid-time-vs-learned-time","bitemporal-correction-frontier","correctable-explanation-edge","asynchronous-settlement","policy-attribution-history","policy-definition-history","first-event-origin","zero-origin-admission-evidence","origin-scope-valid-vs-learned","temporal-evidence-correction","temporal-correction-conflict","temporal-conflict-resolution-history","temporal-scoped-quantity-correction","query-relative-temporal-ambiguity","measure-scale-publication-order","daily-pace-automatic-knowledge","annual-segment-commit-recovery"]'
+          test "$(python3 tools/select-tla-research-cases --event workflow_dispatch --paths)" = '["time-indexed-relation","valid-time-vs-learned-time","bitemporal-correction-frontier","correctable-explanation-edge","asynchronous-settlement","policy-attribution-history","policy-definition-history","first-event-origin","zero-origin-admission-evidence","origin-scope-valid-vs-learned","temporal-evidence-correction","temporal-correction-conflict","temporal-conflict-resolution-history","temporal-scoped-quantity-correction","query-relative-temporal-ambiguity","measure-scale-publication-order","daily-pace-automatic-knowledge","annual-segment-commit-recovery","annual-native-head-two-year"]'
 
       - name: Select obligations for this event
         id: select
@@ -405,3 +411,14 @@ jobs:
       - uses: ./.github/actions/tla-research-case
         with:
           case: annual-segment-commit-recovery
+
+  annual-native-head-two-year:
+    name: TLA+ native two-year HEAD and recovery
+    needs: select
+    if: ${{ contains(fromJSON(needs.select.outputs.cases), 'annual-native-head-two-year') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/tla-research-case
+        with:
+          case: annual-native-head-two-year
