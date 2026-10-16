@@ -79,6 +79,7 @@ on:
       - 'Loam/Tests/TuiChart.lean'
       - 'Loam/Tests/TuiHomeActualGeneration.lean'
       - 'Loam/Tests/FreshHouseholdDailyLife.lean'
+      - 'Loam/Tests/TuiDailyPacePoolSetup.lean'
       - 'Loam/Presentation/LocusCatalog.lean'
       - 'Loam/Review/LocusCoherenceReview.lean'
       - 'Loam/Tests/LocusCoherenceReview.lean'

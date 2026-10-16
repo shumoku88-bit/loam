@@ -57,6 +57,15 @@ and normalized Actual evidence is retained in the required `Actual` section of
 `household.loam`. Production root reads and writes do not fall back to the legacy
 standalone `actual.loam` diagnostic/migration file.
 
+## Daily Pace pool configuration
+
+Space > Household setup > **Daily Pace / spendable accounts** opens a
+read-only-candidate picker over exact current balances. Space toggles
+pool membership, and two Enter presses review and save the replaceable
+`config/daily-pace.tsv` selection. The canonical ledger is unchanged.
+Unknown balances and malformed/stale query settings fail closed. The
+separate explicit cycle-boundary configuration remains necessary.
+
 ## First-run and unreadable household entrance
 
 If the selected root cannot be loaded, an interactive TUI shows a compact

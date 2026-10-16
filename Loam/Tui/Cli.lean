@@ -26,6 +26,7 @@ import Loam.Tui.CycleBudget
 import Loam.Tui.CycleBudgetSession
 import Loam.Review.CycleSpendingPaceReview
 import Loam.Tui.CurrentQuantityAnchor
+import Loam.Tui.DailyPacePoolSetupSession
 import Loam.Tui.ActualRoutingAdministration
 import Loam.Tui.ActualRoutingAdministrationSession
 import Loam.Tui.Reports
@@ -571,6 +572,7 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     | some .purposeRouting => pure (Loam.Tui.Terminal.Key.input 'p', 1)
     | some .manageLoci => pure (Loam.Tui.Terminal.Key.input 'm', 1)
     | some .observeQuantities => pure (Loam.Tui.Terminal.Key.input 'o', 1)
+    | some .dailyPacePool => pure (Loam.Tui.Terminal.Key.input 'v', 1)
   let fromPalette := paletteChoice.isSome
   let (bounds, frame) ← Loam.Tui.Terminal.refreshFrame bounds frame fun active =>
     compiledFrameFor active snapshot state detailCache
@@ -630,6 +632,20 @@ partial def loop (bounds : Bounds) (dataDir root : System.FilePath)
     let nextFrame := compiledFrameFor bounds snapshot home
     Loam.Tui.Terminal.redrawFromBlank bounds nextFrame
     loop bounds dataDir root snapshot home nextFrame
+  else if fromPalette && key == .input 'v' then
+    match ← configuredMeasure with
+    | .error message =>
+        let home := { state with notice := message }
+        let nextFrame := compiledFrameFor bounds snapshot home
+        Loam.Tui.Terminal.emitDirtyDiff bounds 0 0 frame nextFrame
+        loop bounds dataDir root snapshot home nextFrame
+    | .ok measure =>
+        let notice ← Loam.Tui.DailyPacePoolSetupSession.run bounds root measure
+        let activeBounds ← Loam.Tui.Terminal.currentBounds
+        let home := { state with notice := notice }
+        let nextFrame := compiledFrameFor activeBounds snapshot home
+        Loam.Tui.Terminal.redrawFromBlank activeBounds nextFrame
+        loop activeBounds dataDir root snapshot home nextFrame
   else if (key = .input 'd' || key = .input 'D') then
     -- Fresh entry owns one generation; cursor/range/resize never perform IO.
     let paceSnapshot ← match ← Loam.ActualAuthority.loadHouseholdObserved? dataDir with

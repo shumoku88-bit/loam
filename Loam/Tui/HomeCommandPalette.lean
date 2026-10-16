@@ -33,6 +33,7 @@ inductive Choice where
   | purposeRouting
   | manageLoci
   | observeQuantities
+  | dailyPacePool
   deriving Repr, DecidableEq
 
 inductive Page where
@@ -84,6 +85,7 @@ private def entries : Page → List (Entry × String)
   | .maintenance =>
       [ (.action .manageLoci, "Manage Loci")
       , (.action .observeQuantities, "Observe quantities")
+      , (.action .dailyPacePool, "Daily Pace / spendable accounts")
       ]
 
 inductive Transition where
