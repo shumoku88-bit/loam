@@ -150,6 +150,7 @@ practical_slice_a2_tests=(
 )
 
 tui_representative_tests=(
+  TuiDailyPacePoolSetup
   FreshHouseholdDailyLife
   TuiFirstRun
   TuiRecord
