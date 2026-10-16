@@ -17,6 +17,8 @@ on:
       - 'tools/research-annual-source-view-integration.py'
       - 'tools/NativeAnnualPaceSupportFixture.lean'
       - 'tools/NativeAnnualPaceReadViewProbe.lean'
+      - 'tools/NativeAnnualQueryPolicyProbe.lean'
+      - 'Loam/Review/AnnualSourceQueryPolicy.lean'
       - 'tools/NativeAnnualSourceReadViewProbe.lean'
       - 'Loam/Review/AnnualSourceReadView.lean'
       - 'tools/NativeAnnualMaterializationPreflight.lean'
@@ -49,7 +51,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Review.CycleSpendingPaceReview Loam.Review.CurrentBalanceReview Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
+          build-args: Loam.Review.AnnualSourceQueryPolicy Loam.Review.CycleSpendingPaceReview Loam.Review.CurrentBalanceReview Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
