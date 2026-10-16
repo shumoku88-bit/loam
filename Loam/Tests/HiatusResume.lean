@@ -15,10 +15,10 @@ set_option autoImplicit false
 
 private def bank : EffectCoordinate := ⟨⟨"bank"⟩, ⟨"jpy"⟩⟩
 
-private def record (root : System.FilePath) (at : String) (amount : Int) :
+private def record (root : System.FilePath) (validOn : String) (amount : Int) :
     IO EventId := do
   let draft : Loam.MovementAdmission.Draft := {
-    validOn := at
+    validOn := validOn
     description := some "synthetic ordinary purchase"
     effects := [
       Effect.ofAnonymousQuantity ⟨"bank"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-amount)),
