@@ -63,8 +63,7 @@ Space > Household setup > **Daily Pace / spendable accounts** opens a
 read-only-candidate picker over exact current balances. Space toggles
 pool membership, and two Enter presses review and save the replaceable
 `config/daily-pace.tsv` selection. The canonical ledger is unchanged.
-Unknown balances and malformed/stale query settings fail closed. The
-separate explicit cycle-boundary configuration remains necessary.
+Unknown balances and malformed/stale query settings fail closed. For the separate cycle boundaries, use Space > Household setup > **Daily Pace / cycle dates**. Enter the named preset and comma-separated explicit YYYY-MM-DD boundaries; review and confirm. The editor preserves other named presets and refuses ambiguous or stale configurations. Neither setting changes canonical financial records.
 
 ## First-run and unreadable household entrance
 
