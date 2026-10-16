@@ -68,7 +68,10 @@ def main : IO Unit := do
   let _ ← requireOk
     (← Loam.Tui.DailyPacePoolSetupSession.save root yen ready selection)
     "publish explicit spendable pool"
-  expect ((← Loam.DailyPaceConfig.loadForMeasure yen config) == .ok selection)
+  let decoded ← requireOk
+    (← Loam.DailyPaceConfig.loadForMeasure yen config)
+    "read back persisted Daily Pace pool"
+  expect (decoded == selection)
     "Daily Pace pool did not round-trip existing typed decoder"
   expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path root)) == canonicalBefore)
     "query-only pool setting modified canonical household evidence"
