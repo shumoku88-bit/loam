@@ -508,7 +508,8 @@ def main : IO Unit := do
         .report .transactionsFlow, .report .stockFlow, .report .locusTrendCompare,
         .report .balances, .report .liquidity, .report .budgetWindow,
         .report .multimeasureSpend, .report .favaProjection]),
-      (maintenanceGroup, [.manageLoci, .observeQuantities])] do
+      (maintenanceGroup, [.manageLoci, .friendlyLocusNames, .observeQuantities,
+        .dailyPacePool, .cycleBoundaries, .balanceDisplay])] do
     for (choice, index) in choices.zipIdx do
       let leaf := { group with selected := index }
       expect (Loam.Tui.HomeCommandPalette.update leaf .enter == .open choice &&
