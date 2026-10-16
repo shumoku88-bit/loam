@@ -133,7 +133,7 @@ private def run (ordinary annual : System.FilePath) : IO Unit := do
   match ← selected.recordMovement? "2030-01-03" movement (draft "bank" 75) with
   | .refusedBeforeHead _ => pure ()
   | _ => throw (IO.userError "native Movement operation identity duplicated")
-  let badToken : MovementOperationId := ⟨"invalid\\ntoken"⟩
+  let badToken : MovementOperationId := ⟨"invalid\ntoken"⟩
   match ← selected.recordMovement? "2030-01-03" badToken (draft "bank" 75) with
   | .refusedBeforeHead _ => pure ()
   | _ => throw (IO.userError "invalid Movement operation token admitted")
