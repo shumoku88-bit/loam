@@ -13,6 +13,8 @@ on:
       - 'Loam/Authority/AnnualSingleOwnerSandbox.lean'
       - 'Loam/Authority/AnnualSingleOwnerMovementSandbox.lean'
       - 'tools/NativeAnnualSingleOwnerMovementProbe.lean'
+      - 'tools/NativeAnnualMovementUnknownProbe.lean'
+      - 'docs/research/ANNUAL_MOVEMENT_UNKNOWN_REOBSERVE_2026-10-16.md'
       - 'docs/research/ANNUAL_SINGLE_OWNER_MOVEMENT_2026-10-16.md'
       - 'tools/NativeAnnualSingleOwnerProbe.lean'
       - 'docs/research/ANNUAL_SINGLE_OWNER_READ_WRITE_2026-10-16.md'
@@ -135,4 +137,6 @@ jobs:
           lake env lean --run tools/NativeAnnualSingleOwnerProbe.lean \
             "$source" "$annual"
           lake env lean --run tools/NativeAnnualSingleOwnerMovementProbe.lean \
+            "$source" "$annual"
+          lake env lean --run tools/NativeAnnualMovementUnknownProbe.lean \
             "$source" "$annual"

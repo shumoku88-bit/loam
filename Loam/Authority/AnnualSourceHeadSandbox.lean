@@ -354,16 +354,17 @@ inductive UnknownHeadObservation where
   | requestedHeadSelected
   | cannotClassify (reason : String)
 
-/-- Read and requalify one selected HEAD, checking the requested operation ID
-and admission day. Never return a durable success receipt or perform a retry. -/
-def reobserveUnknown?
-    (root : System.FilePath)
+/-- Classify one ALREADY fully qualified selected source relative to a
+previously observed HEAD and requested publication. Pure, process-visible
+only. The semantic Movement observer can now reuse the same classifier with
+its single captured native generation, without a second filesystem selection.
+No result is a power-loss durability receipt or permission to auto-retry. -/
+def classifyUnknownSelected
+    (current : Selected)
     (observedHeadWire admittedDay operation : String) :
-    IO UnknownHeadObservation := do
+    UnknownHeadObservation := Id.run do
   let .ok prior := Head.decode? observedHeadWire
     | return .cannotClassify "invalid originally observed HEAD"
-  let .ok current ← readSelected? root
-    | return .cannotClassify "selected HEAD missing, unreadable or not replayable"
   let year := String.ofList (admittedDay.toList.take 4)
   let proposed : Head := { prior with years := prior.years ++ [year] }
   if current.headWire == proposed.encode &&
@@ -373,5 +374,15 @@ def reobserveUnknown?
   if current.headWire == observedHeadWire then
     return .priorHeadSelected
   return .cannotClassify "selected HEAD does not match the prior or requested operation"
+
+/-- Read and requalify one selected HEAD, checking the requested operation ID
+and admission day. Never return a durable success receipt or perform a retry. -/
+def reobserveUnknown?
+    (root : System.FilePath)
+    (observedHeadWire admittedDay operation : String) :
+    IO UnknownHeadObservation := do
+  let .ok current ← readSelected? root
+    | return .cannotClassify "selected HEAD missing, unreadable or not replayable"
+  return classifyUnknownSelected current observedHeadWire admittedDay operation
 
 end Loam.AnnualSourceHeadSandbox
