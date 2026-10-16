@@ -50,10 +50,10 @@ def run (args : List String) : IO Unit := do
     -- though Wi-Fi has posted events, unknown origin is NOT exact zero.
     expect (view.currentBalances.unsupported.contains wifi)
       "unsupported Wi-Fi origin silently became a known exact balance"
-    expect (view.currentBalances.exactRowFor? bank |>.isSome)
+    expect ((view.currentBalances.exactRowFor? bank).isSome)
       "affirmed bank zero-origin was lost on annual replay"
-    expect ((Loam.CurrentBalanceReview.selectExact
-        view.currentBalances [wifi]).isError)
+    expect (!(Loam.CurrentBalanceReview.selectExact
+        view.currentBalances [wifi]).isOk)
       "unasserted Wi-Fi balance was manufactured"
 
     let selected ← requireOk
@@ -79,16 +79,16 @@ def run (args : List String) : IO Unit := do
     -- A missing exact support, empty policy, reversed cycle or mixed Measures
     -- must never produce a plausible zero Daily Pace.
     expect ((view.paceForMeasure?
-      measure day endExclusive [wifi]).isError)
+      measure day endExclusive [wifi]).isOk == false)
       "missing Wi-Fi balance support became zero spending power"
     expect ((view.paceForMeasure?
-      measure day endExclusive []).isError)
+      measure day endExclusive []).isOk == false)
       "empty pool policy became a zero-valued answer"
     expect ((view.paceForMeasure?
-      measure day "2027-01-03" [bank]).isError)
+      measure day "2027-01-03" [bank]).isOk == false)
       "invalid nonpositive cycle horizon was accepted"
     expect ((view.paceForMeasure?
-      ⟨"usd"⟩ day endExclusive [bank]).isError)
+      ⟨"usd"⟩ day endExclusive [bank]).isOk == false)
       "JPY balance was silently converted to USD"
 
   expect ((← IO.FS.readFile currentPath) == before)
