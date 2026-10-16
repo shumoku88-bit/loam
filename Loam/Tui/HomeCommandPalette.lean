@@ -21,6 +21,7 @@ validated publishers. The palette never reads or publishes household data.
 inductive Choice where
   | record
   | actual
+  | yearHistory
   | exchange
   | scheduled
   | attention
@@ -68,6 +69,7 @@ private def entries : Page → List (Entry × String)
   | .transactions =>
       [ (.action .record, "Record / new entry")
       , (.action .actual, "Actual / transactions")
+      , (.action .yearHistory, "Browse records by year (read-only)")
       , (.action .exchange, "Exchange / currencies")
       ]
   | .planning =>
