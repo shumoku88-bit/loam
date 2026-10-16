@@ -107,7 +107,7 @@ private def run (ordinary annual : System.FilePath) : IO Unit := do
   -- resend the uncertain same logical ID as a new Event.
   match ← pin.recordMovement? "2030-01-05" op (expense 30) with
   | .refusedBeforeHead _ => pure ()
-  | _ => throw (IO.userError "old pin resent unknown Movement"))
+  | _ => throw (IO.userError "old pin resent unknown Movement")
   match ← current.recordMovement? "2030-01-05" op (expense 30) with
   | .refusedBeforeHead _ => pure ()
   | _ => throw (IO.userError "new pin duplicated unknown Movement")
