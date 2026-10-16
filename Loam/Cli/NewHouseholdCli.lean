@@ -1,5 +1,4 @@
 import Loam.Authority.HouseholdAuthority
-import Loam.MovementWorldLoader
 import Loam.OperationalContinuity
 
 namespace Loam.NewHouseholdCli
@@ -38,13 +37,13 @@ private def initialImage? : Except String Loam.Persistence.HouseholdImage.Image 
     | throw "loam: empty Locus admission could not be encoded"
   let some roles := encodeAccountingRoleMap? AccountingRoleMap.empty
     | throw "loam: empty AccountingRole map could not be encoded"
-  let some actualRouteHistory : Option ActualRoutingHistory :=
-      RoutingHistory.ofEntries? []
+  let some actualRouteHistory :=
+      (RoutingHistory.ofEntries? [] : Option ActualRoutingHistory)
     | throw "loam: empty Actual routing history was not admitted"
   let some actualRouting := encodeActualRoutingHistory? actualRouteHistory
     | throw "loam: empty Actual routing history could not be encoded"
-  let some scheduledRouteHistory : Option (ScheduledRoutingHistory String) :=
-      RoutingHistory.ofEntries? []
+  let some scheduledRouteHistory :=
+      (RoutingHistory.ofEntries? [] : Option (ScheduledRoutingHistory String))
     | throw "loam: empty Scheduled routing history was not admitted"
   let some scheduledRouting := encodeScheduledRoutingHistory? scheduledRouteHistory
     | throw "loam: empty Scheduled routing history could not be encoded"
