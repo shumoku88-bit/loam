@@ -24,6 +24,9 @@ on:
       - 'Loam/Authority/AnnualSandboxDurabilityBarriers.lean'
       - 'tools/annual-sandbox-sync.py'
       - 'tools/NativeAnnualDurabilityProbe.lean'
+      - 'tools/NativeAnnualCopyRestoreProbe.lean'
+      - 'tools/test-native-annual-copy-restore.py'
+      - 'docs/research/ANNUAL_COPY_FIRST_RESTORE_2026-10-16.md'
       - 'tools/NativeAnnualUnknownOutcomeProbe.lean'
       - 'docs/research/NATIVE_ANNUAL_POST_HEAD_UNKNOWN_2026-10-16.md'
       - 'tools/test-native-annual-durability-barriers.py'
@@ -197,5 +200,16 @@ jobs:
           lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
           lake env lean --run tools/NativeCrossFamilyYearSource.lean "$fixture" "$out"
           python3 tools/test-native-annual-durability-barriers.py \
+            --before "$out/before.household.loam" \
+            --after "$out/after.household.loam"
+      - name: Qualify copy-first pinned native annual restore and corruption refusal
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$(mktemp -d)/native-annual-backup-fixture"
+          out="$(mktemp -d)/native-annual-backup-images"
+          lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$fixture"
+          lake env lean --run tools/NativeCrossFamilyYearSource.lean "$fixture" "$out"
+          python3 tools/test-native-annual-copy-restore.py \
             --before "$out/before.household.loam" \
             --after "$out/after.household.loam"
