@@ -92,12 +92,21 @@ assumed eligible, and the screen refuses empty pools, malformed existing
 configurations, and a configuration changed while editing. It does not
 touch `household.loam`.
 
-**Pension-cycle boundary dates are a separate requirement:** the current
-screen does not invent or configure them. Existing
-`config/boundary-presets.tsv` is unchanged. Until explicit boundaries
-cover the current day, Daily Pace still shows a failure instead of
-manufacturing a daily value. A small TUI cycle boundary editor is the
-next remaining setup step under #2020.
+**Pension-cycle dates can now be entered from TUI** under Space >
+Household setup > Daily Pace / cycle dates. Enter a preset name and explicit
+comma-separated real YYYY-MM-DD boundaries (at least two, oldest first,
+including today). For example `pension` and
+`2026-10-15, 2026-12-15, 2027-02-15`. These are explicitly known
+report boundaries, **not** an automatically repeated pension schedule.
+Tab moves between fields; Enter reviews the proposed replacement and
+another Enter saves it. Esc cancels or returns to editing.
+
+The editor reuses the canonical `BoundaryPresetConfig.decode?` validation,
+retains other named presets, refuses ambiguous overlapping current cycles,
+refuses stale/malformed configuration and does not touch the household ledger.
+Change only the current named preset, not previous accounting transactions.
+When new boundary dates become known, reopen the same editor to extend them.
+No annual reset, retrospective backfill or recurrence inference is required.
 
 ## Returning after months or years off
 

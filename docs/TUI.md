@@ -63,8 +63,7 @@ Space > Household setup > **Daily Pace / spendable accounts** opens a
 read-only-candidate picker over exact current balances. Space toggles
 pool membership, and two Enter presses review and save the replaceable
 `config/daily-pace.tsv` selection. The canonical ledger is unchanged.
-Unknown balances and malformed/stale query settings fail closed. The
-separate explicit cycle-boundary configuration remains necessary.
+Unknown balances and malformed/stale query settings fail closed. For the separate cycle boundaries, use Space > Household setup > **Daily Pace / cycle dates**. Enter the named preset and comma-separated explicit YYYY-MM-DD boundaries; review and confirm. The editor preserves other named presets and refuses ambiguous or stale configurations. Neither setting changes canonical financial records.
 
 ## First-run and unreadable household entrance
 
@@ -1397,6 +1396,7 @@ harnesses cannot exercise uncommitted macOS IME preedit.
 | Owner | Class | Audited Renderers | Entrance / Purpose | Regression Test |
 | :--- | :--- | :--- | :--- | :--- |
 | `FirstRun` | text | `FirstRun` | Unreadable TUI startup, independent new root | `tests/test_first_run_pty.py` |
+| `CycleBoundarySetup` | text | `CycleBoundarySetup` | Space > Household setup > Daily Pace / cycle dates | `Loam/Tests/TuiCycleBoundarySetup.lean` |
 | `Record` | text | `Record` | Home `r`, Actual `r` | `tests/test_actual_detail_pty.py` |
 | `ScheduledCompletion` | text | `ScheduledCompletion` | Scheduled `c`, Selected Day → Scheduled → `c` | `tests/test_scheduled_completion_modal_pty.py` |
 | `ScheduledCreation` | text | `ScheduledCreation` | Scheduled `n` | `Loam/Tests/TuiScheduledCreate.lean` |
