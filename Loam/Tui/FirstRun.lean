@@ -135,6 +135,11 @@ def view (bounds : Bounds) (state : State) : Widget := Id.run do
         , notice
         , clipped "Enter: create    Esc/e: edit"
         ]
+  let rows :=
+    if bounds.height >= 10 then
+      rows ++ [muted ("Read failure: " ++
+        String.ofList (state.readFailure.toList.filter isPrintable))]
+    else rows
   return .column (rows.take bounds.height)
 
 end Loam.Tui.FirstRun
