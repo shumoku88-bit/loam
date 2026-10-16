@@ -88,10 +88,20 @@ def main() -> None:
     p.add_argument("target", type=Path)
     args = p.parse_args()
     root, target = validate_root(args.root, args.target, args.action)
+    # Fault injection deliberately runs BEFORE a syscall. Used only by
+    # disposable CI tests to ensure failed synchronization aborts admission.
+    inject = os.environ.get("LOAM_ANNUAL_SANDBOX_SYNC_FAIL")
+    if inject == f"{args.action}:{target.name}":
+        raise RuntimeError("test-injected fsync refusal at " + inject)
     if args.action == "file":
         sync_file(root, target)
     else:
         sync_parents(root, target)
+    # The trace is a diagnostic outside the authoritative root, NOT a commit
+    # receipt or durable accounting fact.
+    if trace := os.environ.get("LOAM_ANNUAL_SANDBOX_SYNC_TRACE"):
+        with open(trace, "a", encoding="ascii") as handle:
+            handle.write(f"{args.action}:{target.relative_to(root)}\\n")
 
 
 if __name__ == "__main__":
