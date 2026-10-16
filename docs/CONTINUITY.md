@@ -53,6 +53,29 @@ This closes only the TUI **entry** part of #2020. Friendly presentation labels,
 ordinary balance/Daily Pace configuration and full acceptance of incremental
 setup and hiatus recovery remain independent checks, not hidden assumptions.
 
+## Qualified daily-life restart (synthetic acceptance)
+
+`Loam/Tests/FreshHouseholdDailyLife.lean` uses a disposable independently
+initialized household and the same `HouseholdCommand` publishers as the
+normal TUI: admit an asset and an expense, assign their roles, observe the
+asset's present amount, add a future unpaid Scheduled item, record a purchase,
+reopen Current Balances/Scheduled and next-day Home, then add another asset
+after initial setup. No history, zero origin or bounded historical coverage is
+fabricated. Before the observation, selecting an unknown current balance must
+fail, **not** return a manufactured zero.
+
+A current-forward Daily Pace result requires *explicit* chosen pool and cycle
+configuration. The test first checks that fresh startup cannot invent this,
+then provides disposable `config/daily-pace.tsv` and
+`config/boundary-presets.tsv` and checks that the current answer protects
+future Scheduled outflow and retains the post-purchase observed balance.
+
+This synthetic command-to-review test is **not** a claim that all these settings
+are easy to reach through the TUI. In particular, balance display selection,
+Daily Pace pool and pension-cycle presets still need a user-friendly ordinary
+setup route, and friendly account labels are still separate presentation work.
+#2020 remains open until those steps and real TUI editing are accepted.
+
 ## Returning after months or years off
 
 Use the read-only review against the existing directory:
