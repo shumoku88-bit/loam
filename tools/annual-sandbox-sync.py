@@ -101,7 +101,7 @@ def main() -> None:
     # receipt or durable accounting fact.
     if trace := os.environ.get("LOAM_ANNUAL_SANDBOX_SYNC_TRACE"):
         with open(trace, "a", encoding="ascii") as handle:
-            handle.write(f"{args.action}:{target.relative_to(root)}\\n")
+            handle.write(f"{args.action}:{target.relative_to(root)}\n")
 
 
 if __name__ == "__main__":
