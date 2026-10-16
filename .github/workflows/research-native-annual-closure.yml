@@ -25,6 +25,9 @@ on:
       - 'tools/annual-sandbox-sync.py'
       - 'tools/NativeAnnualDurabilityProbe.lean'
       - 'tools/NativeAnnualCopyRestoreProbe.lean'
+      - 'tools/NativeAnnualInstalledMigrationProbe.lean'
+      - 'Loam/Tests/JanuaryFirstHousehold.lean'
+      - 'docs/research/ANNUAL_INSTALLED_COPY_MIGRATION_2026-10-16.md'
       - 'tools/test-native-annual-copy-restore.py'
       - 'docs/research/ANNUAL_COPY_FIRST_RESTORE_2026-10-16.md'
       - 'tools/NativeAnnualUnknownOutcomeProbe.lean'
@@ -213,3 +216,13 @@ jobs:
           python3 tools/test-native-annual-copy-restore.py \
             --before "$out/before.household.loam" \
             --after "$out/after.household.loam"
+
+      - name: Rehearse copied installed Jan-1 household under native annual source
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="$(mktemp -d)/ordinary-household"
+          annual="$(mktemp -d)/annual-copy"
+          lake env lean --run Loam/Tests/JanuaryFirstHousehold.lean "$source"
+          lake env lean --run tools/NativeAnnualInstalledMigrationProbe.lean \
+            "$source" "$annual"
