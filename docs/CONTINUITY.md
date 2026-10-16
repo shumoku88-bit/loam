@@ -53,6 +53,29 @@ This closes only the TUI **entry** part of #2020. Friendly presentation labels,
 ordinary balance/Daily Pace configuration and full acceptance of incremental
 setup and hiatus recovery remain independent checks, not hidden assumptions.
 
+## Real-terminal first-run acceptance
+
+`tests/test_continuity_full_first_run_pty.py` is a separate isolated
+**real PTY** acceptance, rather than a publisher-level synthetic fixture.
+It starts `loamTui` against a nonexistent temporary root, explicitly
+confirms independent creation, and uses terminal keystrokes to admit bank and
+food Loci, optionally name the bank, observe a present bank balance, choose
+display and Daily Pace pool, enter two known cycle boundaries, record a
+purchase and add one future unpaid Scheduled occurrence. It exits and opens
+the resulting household again in a **new process** to inspect the ordinary
+Balances, Daily Pace and Scheduled views.
+
+The test checks absence of writes during start/review, conservation of
+canonical bytes for presentation-only config changes, Actual and Scheduled
+publication only after confirmation, and no canonical mutations on read-only
+reopen. The real-time dates are computed only for disposable test data; the
+production UI still never infers pension payment dates or historical balances.
+
+This test complements the existing pure-form, publisher, calendar, read-model
+and corruption/hiatus checks. It does **not** claim to prove usability with a
+real person's household, exact future-date recurrence, full IME composition,
+or recovery of missing history. Those remain separate observations under #2020.
+
 ## Qualified daily-life restart (synthetic acceptance)
 
 `Loam/Tests/FreshHouseholdDailyLife.lean` uses a disposable independently
