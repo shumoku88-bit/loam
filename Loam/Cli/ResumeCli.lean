@@ -22,16 +22,16 @@ re-anchored by this read-only report.
 -/
 
 structure Snapshot where
-  at : String
+  observedOn : String
   currentOpen : List Loam.ScheduledReview.Record
   overdue : List Loam.ScheduledReview.Record
   exactAnchors : List EffectCoordinate
   boundedClaims : List Loam.BoundedHistorySupport.Support
  
 /-- Inspect the user's *existing* root at an explicit day without interpreting gaps. -/
-def inspectAt (root : System.FilePath) (at : String) :
+def inspectAt (root : System.FilePath) (observedOn : String) :
     IO (Except String Snapshot) := do
-  if !Loam.ActualDate.validIsoDate at then
+  if !Loam.ActualDate.validIsoDate observedOn then
     return .error "loam: resume requires a real YYYY-MM-DD observation date"
   let observed ←
     match ← Loam.ActualAuthority.loadHouseholdObserved? root with
@@ -53,7 +53,7 @@ def inspectAt (root : System.FilePath) (at : String) :
   return .ok {
     at := at
     currentOpen := currentOpen
-    overdue := currentOpen.filter (fun row => decide (row.scheduledOn < at))
+    overdue := currentOpen.filter (fun row => decide (row.scheduledOn < observedOn))
     exactAnchors := currentSupport.anchor.assertions.map (·.coordinate)
     boundedClaims := currentSupport.bounded.supports
   }
@@ -66,7 +66,7 @@ def render (root : System.FilePath) (snapshot : Snapshot) : String := Id.run do
   let mut lines := [
     "LOAM / Resume existing household (read-only)",
     "Household: " ++ root.toString,
-    "Review day: " ++ snapshot.at,
+    "Review day: " ++ snapshot.observedOn,
     "No past entry, Scheduled status, or current balance was modified.",
     "",
     "Exact current quantity anchor coordinates: " ++ toString snapshot.exactAnchors.length,
