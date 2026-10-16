@@ -19,6 +19,8 @@ on:
       - 'tools/NativeAnnualPaceReadViewProbe.lean'
       - 'tools/NativeAnnualQueryPolicyProbe.lean'
       - 'Loam/Review/AnnualSourceQueryPolicy.lean'
+      - 'Loam/Authority/AnnualSourcePublication.lean'
+      - 'tools/NativeAnnualFullPublicationProbe.lean'
       - 'tools/NativeAnnualSourceReadViewProbe.lean'
       - 'Loam/Review/AnnualSourceReadView.lean'
       - 'tools/NativeAnnualMaterializationPreflight.lean'
@@ -51,7 +53,7 @@ jobs:
         with:
           auto-config: false
           build: true
-          build-args: Loam.Review.AnnualSourceQueryPolicy Loam.Review.CycleSpendingPaceReview Loam.Review.CurrentBalanceReview Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
+          build-args: Loam.Authority.AnnualSourcePublication Loam.Review.AnnualSourceQueryPolicy Loam.Review.CycleSpendingPaceReview Loam.Review.CurrentBalanceReview Loam.Review.AnnualSourceReadView Loam.Authority.AnnualSourceMaterialization Loam.Tests.ScheduledBatchReplacement Loam.Publisher.MovementPublisher Loam.Publisher.CorrectionPublisher Loam.Publisher.ActualValidityPublisher Loam.Review.ActualReview Loam.Review.ActualJournalProjection Loam.Review.ScheduledReview Loam.Tests.Support
           test: false
           lint: false
           use-mathlib-cache: false
@@ -120,3 +122,13 @@ jobs:
         run: |
           set -euo pipefail
           python3 tools/research-annual-source-view-integration.py --check
+      - name: Verify native all-family full source publication objects in disposable years
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$(mktemp -d)/annual-native-source"
+          out="$(mktemp -d)/annual-native-images"
+          lake env lean --run Loam/Tests/ScheduledBatchReplacement.lean setup "$root"
+          lake env lean --run tools/NativeCrossFamilyYearSource.lean "$root" "$out"
+          lake env lean --run tools/NativeAnnualFullPublicationProbe.lean \
+            "$out/before.household.loam" "$out/after.household.loam"
