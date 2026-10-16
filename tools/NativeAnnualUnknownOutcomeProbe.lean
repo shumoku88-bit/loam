@@ -26,7 +26,7 @@ private def initial (root : System.FilePath)
       root "2026" before.wire
       (Loam.AnnualSandboxDurabilityBarriers.barriers root)) "bootstrap"
 
-private def run (root : System.FilePath) (beforeFile afterFile : String) : IO Unit := do
+def run (root : System.FilePath) (beforeFile afterFile : String) : IO Unit := do
   let before ← qualified beforeFile
   let after ← qualified afterFile
   let day := "2027-01-03"
