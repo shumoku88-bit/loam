@@ -115,7 +115,7 @@ def main : IO Unit := do
   let _ ← bookEvent checkpointRoot "2021-01-01"
   let _ ← requireOk
     (← Loam.HouseholdCommand.observeCurrentQuantities checkpointRoot [
-      { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩
+      { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩,
         quantity := Quantity.ofQuanta 5000 }
     ]) "observe an exact carried cash amount"
   let plan ← requireSome
