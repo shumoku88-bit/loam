@@ -54,7 +54,7 @@ def run_case(binary: Path, parent: Path, api: str, fail_at: str | None = None) -
         head = root / "HEAD"
         if head.exists() != head_visible:
             raise AssertionError("HEAD name unexpectedly changed")
-        if head_visible and head.read_bytes() != b"PUB\\t2027\\t1\\n":
+        if head_visible and head.read_bytes() != b"PUB\t2027\t1\n":
             raise AssertionError("HEAD process-visible bytes changed")
         return {
             "api": api, "injection": fail_at, "outcome": outcome,
@@ -74,7 +74,7 @@ def run_case(binary: Path, parent: Path, api: str, fail_at: str | None = None) -
 
     source_stage = year / "1.full.loam.stage"
     source = year / "1.full.loam"
-    source_stage.write_bytes(b"SYNTHETIC-NOT-CANONICAL-ANNUAL-SOURCE\\n")
+    source_stage.write_bytes(b"SYNTHETIC-NOT-CANONICAL-ANNUAL-SOURCE\n")
     if not barrier("source_stage_file", "file", source_stage):
         return finish("refused_before_head", False)
     os.replace(source_stage, source)
@@ -84,7 +84,7 @@ def run_case(binary: Path, parent: Path, api: str, fail_at: str | None = None) -
         return finish("refused_before_head", False)
 
     head_stage = root / "HEAD.stage"
-    head_stage.write_bytes(b"PUB\\t2027\\t1\\n")
+    head_stage.write_bytes(b"PUB\t2027\t1\n")
     if not barrier("head_stage_file", "file", head_stage):
         return finish("refused_before_head", False)
 
