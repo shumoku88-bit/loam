@@ -393,10 +393,11 @@ A refused window is not silently shortened to its available portion.
 
 These are reconstructed from current admitted truth and current query configuration,
 not saved daily observations or a replay of what LOAM knew/configured then. Later-added
-Scheduled occurrences may affect earlier days. Undated pool-affecting retirement or
-replacement still refuses reconstruction. Existing HistoricalBalanceReview and
-CycleSpendingPaceReview own all support routing, correction/date interpretation,
-completion timing, deductions and pace arithmetic.
+Scheduled occurrences may affect earlier days, and replaced or retired Scheduled
+occurrences are treated as superseded or closed under restated current truth. Existing
+HistoricalBalanceReview and CycleSpendingPaceReview own all support routing,
+correction/date interpretation, completion timing, deductions, per-day discretionary
+outflow versus Scheduled settlement separation, and pace arithmetic.
 
 The provisional layout gives the upper Braille trend **full usable width**. With
 sufficient room (79 usable columns and 15 body-panel rows), History is lower-left

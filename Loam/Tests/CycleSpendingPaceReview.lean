@@ -567,25 +567,46 @@ def main : IO Unit := do
 
   let retirementTerminals ← requireSome
     (ScheduledTerminalMemory.ofTerminals?
-      [{ source := laterBill.id, target := none }])
+      [ { source := bill.id, target := some (.actual completion.id) }
+      , { source := laterBill.id, target := none }
+      ])
     "Daily Pace history retirement fixture"
   let retiredScheduled : Loam.ScheduledReview.EvidenceSnapshot := {
     scheduled := historyScheduledMemory
     terminals := retirementTerminals
     events := historyEvents
   }
-  expectError
-    (Loam.CycleSpendingPaceReview.projectHistory
-      image historicalEvidence
-      "2026-09-08" "2026-09-10" "2026-09-18"
-      selection historyBalances retiredScheduled 7)
-    "Daily Pace history invented a retirement date"
+  let retiredHistory ←
+    match Loam.CycleSpendingPaceReview.projectHistory
+        image historicalEvidence
+        "2026-09-08" "2026-09-10" "2026-09-18"
+        selection historyBalances retiredScheduled 7 with
+    | .error message =>
+        throw (IO.userError ("restated Daily Pace history rejected retired Scheduled: " ++ message))
+    | .ok points => pure points
+  expect
+    (retiredHistory.map (fun point => point.dailyPaceQuanta?) ==
+      [some 170, some 133, some 150])
+    "restated Daily Pace history did not exclude retired Scheduled commitment"
 
   let retiredPeriods := Loam.DailyPacePeriods.project yen image allDays selection historyBalances
     retiredScheduled configured "2026-09-10"
   let retiredCycle ← requireSome (retiredPeriods.find? fun period => period.preset == .cycle) "retired cycle missing"
-  expect (match retiredCycle.history with | .failed _ => true | _ => false)
-    "extended history invented Scheduled retirement time"
+  expect (match retiredCycle.history with | .loaded points => points == retiredHistory | _ => false)
+    "extended restated history diverged from cycle history under Scheduled retirement"
+
+  let activities :=
+    Loam.CycleSpendingPaceReview.projectDayActivitiesForMeasure
+      yen correctedImage selection historyScheduled
+  let sep08 := activities.getD "2026-09-08" {}
+  let sep09 := activities.getD "2026-09-09" {}
+  let sep10 := activities.getD "2026-09-10" {}
+  expect
+    (sep08.discretionaryInflow.quanta == 2000 && sep08.discretionaryOutflow.quanta == 0 &&
+      sep09.discretionaryOutflow.quanta == 500 && sep09.scheduledSettledOutflow.quanta == 0 &&
+      sep10.discretionaryOutflow.quanta == 0 && sep10.scheduledSettledOutflow.quanta == 300 &&
+      sep10.scheduledReservedOutflow.quanta == 300 && sep10.scheduledVarianceQuanta == 0)
+    "per-day activity failed to separate discretionary spend from corrected Scheduled completion"
 
   -- The October cycle rollover brings a future replaced bill into the new
   -- horizon. Historical transition time is unknown, but today's open frontier
@@ -638,12 +659,23 @@ def main : IO Unit := do
   let ten ← requireSome (rollover.periods.find? fun p => p.preset == .tenDays)
     "rollover ten-day range"
   expect (match ten.history with
-    | .failed message => (message.splitOn "replaced without a learned-time coordinate").length > 1
+    | .loaded points => points.length == 10 && points.getLast? == some current
     | _ => false)
-    "rollover failed to preserve the historical ambiguity independently from today"
+    "rollover restated history failed to resolve replaced Scheduled item"
   expect (ten.samples.length == 10 &&
     (ten.samples.getLast?.map (·.source)) == some .current)
     "rollover erased the ten calendar slots or mislabeled today"
+  let nextDayRollover := Loam.DailyPacePeriods.projectPrepared yen image (.ok allDays) selection
+    historyBalances rolloverScheduled rolloverBoundaries "2026-10-16"
+  let nextDayTen ← requireSome (nextDayRollover.periods.find? fun p => p.preset == .tenDays)
+    "next-day rollover ten-day range"
+  let oct15Sample ← requireSome (nextDayTen.samples.find? fun s => s.day == "2026-10-15")
+    "next-day rollover 2026-10-15 sample missing"
+  expect (oct15Sample.source == .reconstructed &&
+    match oct15Sample.answer with
+    | .ok point => point == current
+    | .error _ => false)
+    "2026-10-15 turned unknown or changed value when advancing to 2026-10-16"
   let lastSample ← requireSome ten.samples.getLast? "rollover today sample missing"
   expect (match lastSample.answer with
     | .ok point => point == current

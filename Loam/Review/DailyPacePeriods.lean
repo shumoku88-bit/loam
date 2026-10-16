@@ -75,6 +75,7 @@ structure DaySample where
   day : String
   answer : Except String Loam.CycleSpendingPaceReview.Snapshot
   source : DaySource := .reconstructed
+  activity? : Option Loam.CycleSpendingPaceReview.DayActivity := none
   deriving Repr
 
 structure Period where
@@ -119,6 +120,9 @@ def projectPrepared
         Loam.CycleSpendingPaceReview.projectHistoricalDaysForMeasure
           measure image historical selection scheduled known
     | .error message => known.map fun _ => .error message
+  let activities :=
+    Loam.CycleSpendingPaceReview.projectDayActivitiesForMeasure
+      measure image selection scheduled
   let mut cache : Std.HashMap String (Except String Loam.CycleSpendingPaceReview.Snapshot) := {}
   for (day, result) in dates.zip cycleEnds do
     if let .error message := result then cache := cache.insert day (.error (day ++ ": " ++ message))
@@ -135,10 +139,11 @@ def projectPrepared
     let history := days.mapM fun day =>
       (cache[day]?).getD (.error "Daily Pace: reconstructed day missing")
     let samples := days.map fun day =>
+      let activity? := some (activities.getD day {})
       if day == today then
-        {day, answer := current, source := .current}
+        {day, answer := current, source := .current, activity?}
       else
-        {day, answer := (cache[day]?).getD (.error "Daily Pace: reconstructed day missing")}
+        {day, answer := (cache[day]?).getD (.error "Daily Pace: reconstructed day missing"), activity?}
     {preset, range, samples, history := match range with
       | .error message => .failed message
       | .ok _ => match history with

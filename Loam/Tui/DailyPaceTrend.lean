@@ -138,6 +138,17 @@ def moveSelection (state : State) (snapshot : Loam.Tui.Main.Snapshot) (back : Bo
 private def grouped (quanta : Int) : String :=
   Loam.MeasurePresentation.groupDisplayedNumber (toString quanta)
 
+
+private def signedGrouped (quanta : Int) : String :=
+  (if quanta > 0 then "+" else "") ++ grouped quanta
+
+private def sampleForDay? (snapshot : Loam.Tui.Main.Snapshot) (state : State) (day : String) :
+    Option Loam.DailyPacePeriods.DaySample :=
+  ((graphSamples snapshot state).find? fun sample => sample.day == day).orElse fun _ =>
+    match snapshot.pacePeriods with
+    | .loaded periods =>
+        periods.findSome? fun period => period.samples.find? fun sample => sample.day == day
+    | _ => none
 private def paceText (point : Loam.CycleSpendingPaceReview.Snapshot) : String :=
   match point.dailyPaceQuanta? with
   | some quanta => grouped quanta ++ " " ++ point.measure.token ++ "/day"
@@ -153,17 +164,20 @@ private def currentText (snapshot : Loam.Tui.Main.Snapshot) : String :=
   | .unavailable => "unavailable"
   | .notRequested => "not requested"
 
+private def changeBetween (previous point : Loam.CycleSpendingPaceReview.Snapshot) : String :=
+  if point.measure != previous.measure then "change unavailable (different Measures)"
+  else if point.endExclusive != previous.endExclusive then "change unavailable (cycle reset)"
+  else
+    match point.dailyPaceQuanta?, previous.dailyPaceQuanta? with
+    | some current, some prior =>
+        "change " ++ signedGrouped (current - prior) ++ " " ++ point.measure.token ++ "/day"
+    | _, _ => "change unavailable"
+
 private def changeText (history : List Loam.CycleSpendingPaceReview.Snapshot) (state : State) : String :=
   let index := selectedIndex history state
   if index == 0 then "first point" else
     match history[index]?, history[index - 1]? with
-    | some point, some previous =>
-        if point.measure != previous.measure then "change unavailable (different Measures)" else
-          match point.dailyPaceQuanta?, previous.dailyPaceQuanta? with
-          | some current, some prior =>
-              let delta := current - prior
-              "change " ++ (if delta > 0 then "+" else "") ++ grouped delta ++ " " ++ point.measure.token ++ "/day"
-          | _, _ => "change unavailable"
+    | some point, some previous => changeBetween previous point
     | _, _ => "previous day unavailable"
 
 private def fitValue (width : Nat) (text : String) : String :=
@@ -178,6 +192,54 @@ private def wrapped (width : Nat) (text : String) (style : Style := .normal) : L
   (Loam.Tui.Layout.wrapColumns (width - 1) text).map fun part => .row [span " ", span part style]
 
 /-- Explanation uses the Review algebra, not a TUI-specific financial formula. -/
+private def explanationLines (width : Nat)
+    (previous current : Loam.CycleSpendingPaceReview.Snapshot) : List Widget :=
+  match Loam.DailyPaceChangeReview.compare previous current with
+  | .error _ =>
+      wrapped width "Day-to-day breakdown unavailable (not adjacent within one cycle)." .muted
+  | .ok explanation =>
+      wrapped width ("Time passage: " ++ signedGrouped explanation.timePassageEffect ++
+        " " ++ current.measure.token ++ "/day") .muted ++
+      wrapped width ("Free money effect: " ++ signedGrouped explanation.freeMoneyEffect ++
+        " " ++ current.measure.token ++ "/day") .muted ++
+      wrapped width ("Pool balance delta: " ++ signedGrouped explanation.poolBalanceChange ++
+        " " ++ current.measure.token) .muted ++
+      wrapped width ("Scheduled protection release: " ++ signedGrouped explanation.protectionRelease ++
+        " " ++ current.measure.token) .muted ++
+      wrapped width ("Free-through-end delta: " ++ signedGrouped explanation.freeThroughEndChange ++
+        " " ++ current.measure.token) .muted
+
+private def activityDetail (width : Nat)
+    (point : Loam.CycleSpendingPaceReview.Snapshot)
+    (activity? : Option Loam.CycleSpendingPaceReview.DayActivity) : List Widget :=
+  match activity? with
+  | none => []
+  | some activity =>
+      let spentLine :=
+        match point.paceDiffQuanta? activity with
+        | some margin =>
+            wrapped width ("Spent: " ++ grouped activity.discretionaryOutflow.quanta ++
+              " " ++ point.measure.token ++ " (diff: " ++ signedGrouped margin ++
+              " " ++ point.measure.token ++ ")")
+        | none =>
+            wrapped width ("Spent: " ++ grouped activity.discretionaryOutflow.quanta ++
+              " " ++ point.measure.token)
+      let inflowLine :=
+        if activity.discretionaryInflow.quanta > 0 then
+          wrapped width ("Unscheduled inflow: +" ++ grouped activity.discretionaryInflow.quanta ++
+            " " ++ point.measure.token) .muted
+        else []
+      let settledLine :=
+        if activity.scheduledSettledOutflow.quanta > 0 || activity.scheduledReservedOutflow.quanta > 0 then
+          let variance := activity.scheduledVarianceQuanta
+          let varianceText :=
+            if variance == 0 then " (as planned)"
+            else " (" ++ signedGrouped variance ++ " vs plan)"
+          wrapped width ("Settled: " ++ grouped activity.scheduledSettledOutflow.quanta ++
+            " " ++ point.measure.token ++ varianceText) .muted
+        else []
+      spentLine ++ inflowLine ++ settledLine
+
 private def movementDetail (width : Nat)
     (history : List Loam.CycleSpendingPaceReview.Snapshot) (state : State) :
     List Widget :=
@@ -185,21 +247,24 @@ private def movementDetail (width : Nat)
   if index == 0 then [] else
     match history[index - 1]?, history[index]? with
     | some previous, some current =>
-        match Loam.DailyPaceChangeReview.compare previous current with
-        | .error _ =>
-            wrapped width "Day-to-day breakdown unavailable (not adjacent within one cycle)." .muted
-        | .ok explanation =>
-            let signed (n : Int) := (if n > 0 then "+" else "") ++ grouped n
-            wrapped width ("Time passage: " ++ signed explanation.timePassageEffect ++
-              " " ++ current.measure.token ++ "/day") .muted ++
-            wrapped width ("Free money effect: " ++ signed explanation.freeMoneyEffect ++
-              " " ++ current.measure.token ++ "/day") .muted ++
-            wrapped width ("Pool balance delta: " ++ signed explanation.poolBalanceChange ++
-              " " ++ current.measure.token) .muted ++
-            wrapped width ("Scheduled protection release: " ++ signed explanation.protectionRelease ++
-              " " ++ current.measure.token) .muted ++
-            wrapped width ("Free-through-end delta: " ++ signed explanation.freeThroughEndChange ++
-              " " ++ current.measure.token) .muted
+        explanationLines width previous current
+    | _, _ => []
+
+private def sampleChangeText (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : String :=
+  let index := sampleIndex samples state
+  if index == 0 then "first point" else
+    match samples[index]?, samples[index - 1]? with
+    | some {answer := .ok point, ..}, some {answer := .ok previous, ..} =>
+        changeBetween previous point
+    | _, _ => "previous day unavailable"
+
+private def sampleMovementDetail (width : Nat)
+    (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : List Widget :=
+  let index := sampleIndex samples state
+  if index == 0 then [] else
+    match samples[index - 1]?, samples[index]? with
+    | some {answer := .ok previous, ..}, some {answer := .ok current, ..} =>
+        explanationLines width previous current
     | _, _ => []
 
 private def disclosure (width : Nat) : List Widget :=
@@ -258,13 +323,15 @@ private def partialDetailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot)
             wrapped width message .muted
         | .ok point =>
             wrapped width ("Selected " ++ sample.day ++ ": " ++ paceText point) ++
+            wrapped width (sampleChangeText samples state) .muted ++
+            activityDetail width point sample.activity? ++
             wrapped width ("Origin: " ++ origin) .muted ++
             wrapped width ("Cycle end (exclusive): " ++ point.endExclusive) .muted ++
             wrapped width ("Remaining days: " ++ toString point.remainingDays) .muted ++
             wrapped width ("Pool: " ++ grouped point.eligiblePool.quanta ++ " " ++ point.measure.token) .muted ++
             wrapped width ("Scheduled deductions: " ++ grouped point.automaticDeductions.quanta) .muted ++
             wrapped width ("Available: " ++ grouped point.availableThroughEnd.quanta) .muted
-      header ++ body ++ disclosure width
+      header ++ body ++ disclosure width ++ sampleMovementDetail width samples state
 
 private def fullDetailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   let history := historyFor snapshot state
@@ -283,6 +350,7 @@ private def fullDetailLines (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (s
       wrapped width ("Pace: " ++ paceText point ++
         (if point.observedAt == snapshot.actual.today then "  current" else "")) ++
       wrapped width (changeText history state) .muted ++
+      activityDetail width point ((sampleForDay? snapshot state point.observedAt).bind (·.activity?)) ++
       wrapped width ("Cycle end (exclusive): " ++ point.endExclusive) .muted ++
       wrapped width ("Remaining days: " ++ toString point.remainingDays) .muted ++
       wrapped width ("Pool: " ++ grouped point.eligiblePool.quanta ++ " " ++ point.measure.token) .muted ++
@@ -471,46 +539,98 @@ private def summaryRows (width : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state
   | some point =>
       let label := " Selected " ++ point.observedAt ++ "   "
       let marker := if point.observedAt == snapshot.actual.today && width ≥ 38 then "  current" else ""
+      let baseChange := changeText history state
+      let spendSuffix := match (sampleForDay? snapshot state point.observedAt).bind (·.activity?) with
+        | some activity =>
+            match point.paceDiffQuanta? activity with
+            | some margin =>
+                " • spent " ++ grouped activity.discretionaryOutflow.quanta ++ " " ++
+                  point.measure.token ++ " (" ++ signedGrouped margin ++ " vs pace)"
+            | none => ""
+        | none => ""
+      let secondRow :=
+        if !spendSuffix.isEmpty && Loam.Tui.Layout.displayWidth (" " ++ baseChange ++ spendSuffix) ≤ width then
+          " " ++ baseChange ++ spendSuffix
+        else
+          " " ++ fitValue (width - 1) baseChange
       [line (label ++ fitValue (width - Loam.Tui.Layout.displayWidth (label ++ marker)) (paceText point) ++ marker),
-       muted (" " ++ fitValue (width - 1) (changeText history state))]
+       muted secondRow]
+
+private def activityTableRows (width capacity : Nat)
+    (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : List Widget :=
+  let index := sampleIndex samples state
+  let start := Loam.Tui.Layout.trailingWindowStart index capacity
+  let dateWidth := 11
+  let rest := width - 3 - dateWidth
+  let paceWidth := max 14 (rest * 42 / 100)
+  let spentWidth := max 9 (rest * 28 / 100)
+  let diffWidth := rest - paceWidth - spentWidth
+  [blank, muted ("   " ++ fitText dateWidth "Day" ++
+    Loam.Tui.Layout.padLeft paceWidth "Quanta/day" ++
+    Loam.Tui.Layout.padLeft spentWidth "Spent" ++
+    Loam.Tui.Layout.padLeft diffWidth "Pace diff")] ++
+  (samples.drop start |>.take capacity |>.zipIdx).map fun (sample, offset) =>
+    let selected := start + offset == index
+    let marker := if selected then (if state.detailFocused then " * " else " > ") else "   "
+    let activity := sample.activity?.getD {}
+    let spentText := if sample.activity?.isSome then grouped activity.discretionaryOutflow.quanta else "—"
+    let (value, diffText) := match sample.answer with
+      | .ok point =>
+          (paceText point,
+           match sample.activity?.bind (point.paceDiffQuanta? ·) with
+           | some margin => signedGrouped margin
+           | none => "—")
+      | .error _ => ("unknown", "—")
+    .row [span (marker ++ fitText dateWidth sample.day ++
+      Loam.Tui.Layout.padLeft paceWidth (fitValue paceWidth value) ++
+      Loam.Tui.Layout.padLeft spentWidth (fitValue spentWidth spentText) ++
+      Loam.Tui.Layout.padLeft diffWidth (fitValue diffWidth diffText))
+      (if selected && !state.detailFocused then .selected else .normal)]
 
 private def partialHistoryRows (width capacity : Nat)
     (samples : List Loam.DailyPacePeriods.DaySample) (state : State) : List Widget :=
   if capacity == 0 then [] else
-    let index := sampleIndex samples state
-    let start := Loam.Tui.Layout.trailingWindowStart index capacity
-    let dateWidth := min 12 (width - 3)
-    let valueWidth := width - 3 - dateWidth
-    [blank, muted ("   " ++ fitText dateWidth "Day" ++
-      Loam.Tui.Layout.padLeft valueWidth "Value / status")] ++
-    (samples.drop start |>.take capacity |>.zipIdx).map fun (sample, offset) =>
-      let selected := start + offset == index
-      let marker := if selected then " > " else "   "
-      let value := match sample.answer with
-        | .ok point => paceText point
-        | .error _ => "unknown"
-      .row [span (marker ++ fitText dateWidth sample.day ++
-        Loam.Tui.Layout.padLeft valueWidth (fitValue valueWidth value))
-        (if selected then .selected else .normal)]
+    if width ≥ 46 && samples.any (·.activity?.isSome) then
+      activityTableRows width capacity samples state
+    else
+      let index := sampleIndex samples state
+      let start := Loam.Tui.Layout.trailingWindowStart index capacity
+      let dateWidth := min 12 (width - 3)
+      let valueWidth := width - 3 - dateWidth
+      [blank, muted ("   " ++ fitText dateWidth "Day" ++
+        Loam.Tui.Layout.padLeft valueWidth "Value / status")] ++
+      (samples.drop start |>.take capacity |>.zipIdx).map fun (sample, offset) =>
+        let selected := start + offset == index
+        let marker := if selected then " > " else "   "
+        let value := match sample.answer with
+          | .ok point => paceText point
+          | .error _ => "unknown"
+        .row [span (marker ++ fitText dateWidth sample.day ++
+          Loam.Tui.Layout.padLeft valueWidth (fitValue valueWidth value))
+          (if selected then .selected else .normal)]
 
 private def historyRows (width capacity : Nat) (snapshot : Loam.Tui.Main.Snapshot) (state : State) : List Widget :=
   let daySamples := partialSamples snapshot state
   if !daySamples.isEmpty then partialHistoryRows width capacity daySamples state
   else if capacity == 0 then [] else
     let history := historyFor snapshot state
-    let index := selectedIndex history state
-    let start := Loam.Tui.Layout.trailingWindowStart index capacity
-    let currentWidth := if width ≥ 39 then 9 else 0
-    let dateWidth := min 12 (width - 3)
-    let valueWidth := width - 3 - dateWidth - currentWidth
-    [blank, muted ("   " ++ fitText dateWidth "Day" ++ Loam.Tui.Layout.padLeft valueWidth "Quanta/day")] ++
-    (history.drop start |>.take capacity |>.zipIdx).map fun (point, offset) =>
-      let selected := start + offset == index
-      let marker := if selected then (if state.detailFocused then " * " else " > ") else "   "
-      .row [span (marker ++ fitText dateWidth point.observedAt ++
-        Loam.Tui.Layout.padLeft valueWidth (fitValue valueWidth (paceText point)) ++
-        (if currentWidth > 0 && point.observedAt == snapshot.actual.today then "  current" else ""))
-        (if selected && !state.detailFocused then .selected else .normal)]
+    let samples := graphSamples snapshot state
+    if width ≥ 46 && samples.any (·.activity?.isSome) then
+      activityTableRows width capacity samples state
+    else
+      let index := selectedIndex history state
+      let start := Loam.Tui.Layout.trailingWindowStart index capacity
+      let currentWidth := if width ≥ 39 then 9 else 0
+      let dateWidth := min 12 (width - 3)
+      let valueWidth := width - 3 - dateWidth - currentWidth
+      [blank, muted ("   " ++ fitText dateWidth "Day" ++ Loam.Tui.Layout.padLeft valueWidth "Quanta/day")] ++
+      (history.drop start |>.take capacity |>.zipIdx).map fun (point, offset) =>
+        let selected := start + offset == index
+        let marker := if selected then (if state.detailFocused then " * " else " > ") else "   "
+        .row [span (marker ++ fitText dateWidth point.observedAt ++
+          Loam.Tui.Layout.padLeft valueWidth (fitValue valueWidth (paceText point)) ++
+          (if currentWidth > 0 && point.observedAt == snapshot.actual.today then "  current" else ""))
+          (if selected && !state.detailFocused then .selected else .normal)]
 
 private def withoutSelection (widget : Widget) : Widget :=
   .column (widget.lines.map fun cells => .row (cells.map fun cell =>
@@ -642,9 +762,26 @@ def view (bounds : Bounds) (snapshot : Loam.Tui.Main.Snapshot) (rawState : State
   let context := if g.contextRows == 1 then
       [line (" Daily: " ++ currentText snapshot)]
     else
+      let baseToday := " Today: " ++ currentText snapshot
+      let periodSuffix := if g.width ≥ 85 then "   " ++ String.intercalate " " choices else "   [1-5] period"
+      let spendMiddle := match snapshot.paceCurrent, (sampleForDay? snapshot state snapshot.actual.today).bind (·.activity?) with
+        | .loaded point, some activity =>
+            if point.observedAt == snapshot.actual.today then
+              match point.paceDiffQuanta? activity with
+              | some margin =>
+                  " • Spent: " ++ grouped activity.discretionaryOutflow.quanta ++ " " ++
+                    point.measure.token ++ " (" ++ signedGrouped margin ++ " vs pace)"
+              | none => ""
+            else ""
+        | _, _ => ""
+      let secondLine :=
+        if !spendMiddle.isEmpty &&
+            Loam.Tui.Layout.displayWidth (baseToday ++ spendMiddle ++ periodSuffix) ≤ g.width then
+          baseToday ++ spendMiddle ++ periodSuffix
+        else
+          baseToday ++ periodSuffix
       [line (" Daily Pace / Trend • " ++ state.period.label ++ "   [w] what-if"),
-       muted (" Today: " ++ currentText snapshot ++
-         (if g.width ≥ 85 then "   " ++ String.intercalate " " choices else "   [1-5] period"))]
+       muted secondLine]
   let lower := if g.wide then Loam.Tui.Layout.sideBySide g.historyHeight g.historyWidth g.detailWidth
       (historyPanel g snapshot state) (detailPanel g snapshot state) " "
     else widgetRows (historyPanel g snapshot state) ++

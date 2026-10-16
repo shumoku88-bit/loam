@@ -62,6 +62,34 @@ def Snapshot.dailyPaceQuanta? (snapshot : Snapshot) : Option Int :=
     some (snapshot.availableThroughEnd.quanta / Int.ofNat snapshot.remainingDays)
 
 
+/--
+Same-day pool movement summary for one calendar date under current admitted truth.
+
+Separates ordinary discretionary outflows/inflows on the selected Daily Pace pool
+from Scheduled completions so settling a protected bill is never mistaken for
+discretionary daily spending. Intra-pool transfers have net zero pool effect.
+-/
+structure DayActivity where
+  discretionaryOutflow : Quantity := Quantity.ofQuanta 0
+  discretionaryInflow : Quantity := Quantity.ofQuanta 0
+  scheduledSettledOutflow : Quantity := Quantity.ofQuanta 0
+  scheduledSettledInflow : Quantity := Quantity.ofQuanta 0
+  scheduledReservedOutflow : Quantity := Quantity.ofQuanta 0
+  deriving Repr, DecidableEq
+
+/-- Signed difference between the day's Daily Pace and same-day discretionary outflow. -/
+def Snapshot.paceDiffQuanta? (snapshot : Snapshot) (activity : DayActivity) : Option Int :=
+  snapshot.dailyPaceQuanta?.map fun pace => pace - activity.discretionaryOutflow.quanta
+
+/-- Signed difference between reserved Scheduled deduction and actual settled outflow on the day. -/
+def DayActivity.scheduledVarianceQuanta (activity : DayActivity) : Int :=
+  activity.scheduledReservedOutflow.quanta - activity.scheduledSettledOutflow.quanta
+
+/-- Exact signed net pool movement on the day across Scheduled and discretionary events. -/
+def DayActivity.netPoolChangeQuanta (activity : DayActivity) : Int :=
+  (activity.discretionaryInflow.quanta - activity.discretionaryOutflow.quanta) +
+    (activity.scheduledSettledInflow.quanta - activity.scheduledSettledOutflow.quanta)
+
 private def selectedChange
     (selection : List EffectCoordinate)
     (measure : MeasureId)
@@ -172,9 +200,9 @@ This is intentionally not a claim about what LOAM knew or displayed on that past
 day. Scheduled creation has no learned-time coordinate, so a later-added
 occurrence may appear in an earlier reconstructed point.
 
-Retirement and Scheduled replacement currently have no learned-time coordinate
-or dated Actual endpoint. If either would affect the selected Daily Pace pool,
-historical reconstruction refuses rather than fabricating a transition date.
+Scheduled replacements and retirements are likewise interpreted under restated
+current truth: a replaced occurrence is superseded by its successor in the
+current Scheduled memory, and a retired occurrence is closed.
 -/
 
 /--
@@ -253,17 +281,122 @@ private def historicalDeductionsForDate
                 return later
               else
                 return deduction + later
-          | some (.scheduled _) =>
-              throw
-                ("loam: Daily Pace history unavailable: Scheduled " ++
-                  occurrence.id.token ++
-                  " was replaced without a learned-time coordinate")
-          | none =>
-              throw
-                ("loam: Daily Pace history unavailable: Scheduled " ++
-                  occurrence.id.token ++
-                  " was retired without a learned-time coordinate")
+          | some (.scheduled _) | none =>
+              return later
 
+
+private def resolveCurrentEventToken
+    (replacements : Std.HashMap String String) : Nat → String → String
+  | 0, token => token
+  | steps + 1, token =>
+      match replacements[token]? with
+      | some next => resolveCurrentEventToken replacements steps next
+      | none => token
+
+private def eventPoolEffectQuanta
+    (selection : List EffectCoordinate)
+    (measure : MeasureId)
+    (event : Event) : Int :=
+  selection.foldl
+    (fun total coordinate =>
+      if coordinate.measure == measure then
+        total + (Event.quantityAt event coordinate.locus measure).quanta
+      else
+        total)
+    0
+
+/--
+Project per-day pool movements from one admitted Actual image and Scheduled
+evidence snapshot under restated current truth.
+-/
+def projectDayActivitiesForMeasure
+    (measure : MeasureId)
+    (image : Loam.ActualAuthority.Image)
+    (selection : List EffectCoordinate)
+    (scheduled : Loam.ScheduledReview.EvidenceSnapshot) :
+    Std.HashMap String DayActivity := Id.run do
+  let corrections := image.evidence.corrections.corrections
+  let replacements : Std.HashMap String String :=
+    corrections.foldl
+      (fun acc c =>
+        if acc.contains c.target.token then acc
+        else acc.insert c.target.token c.replacement.token)
+      {}
+  let maxSteps := corrections.length
+  let validities : Std.HashMap String String :=
+    image.currentValidities.entries.foldl
+      (fun acc entry => acc.insert entry.event.token entry.validOn)
+      {}
+  let currentSet : Std.HashSet String :=
+    image.currentEvents.events.foldl
+      (fun acc event => acc.insert event.id.token)
+      {}
+  let sameDayReversedSet : Std.HashSet String :=
+    image.evidence.reversals.reversals.foldl
+      (fun acc rel =>
+        let target := resolveCurrentEventToken replacements maxSteps rel.target.token
+        let rev := resolveCurrentEventToken replacements maxSteps rel.reversal.token
+        if currentSet.contains target && currentSet.contains rev &&
+            validities[target]? == validities[rev]? then
+          (acc.insert target).insert rev
+        else
+          acc)
+      {}
+  let mut completionTokens : Std.HashSet String := {}
+  let mut activities : Std.HashMap String DayActivity := {}
+  for occurrence in scheduled.scheduled.occurrences do
+    if let some terminal := terminalFor? scheduled occurrence.id then
+      if let some (.actual eventId) := terminal.target then
+        let resolved := resolveCurrentEventToken replacements maxSteps eventId.token
+        completionTokens := completionTokens.insert resolved
+        let date? := validities[resolved]?.or validities[eventId.token]?
+        if let some day := date? then
+          let reserved := deductionQuanta selection occurrence
+          if reserved > 0 then
+            let prev := activities.getD day {}
+            activities := activities.insert day {
+              prev with
+                scheduledReservedOutflow :=
+                  Quantity.ofQuanta (prev.scheduledReservedOutflow.quanta + reserved)
+            }
+  for rel in image.evidence.reversals.reversals do
+    let target := resolveCurrentEventToken replacements maxSteps rel.target.token
+    let rev := resolveCurrentEventToken replacements maxSteps rel.reversal.token
+    if completionTokens.contains target then
+      completionTokens := completionTokens.insert rev
+  for event in image.currentEvents.events do
+    let token := event.id.token
+    if !sameDayReversedSet.contains token then
+      if let some day := validities[token]? then
+        let delta := eventPoolEffectQuanta selection measure event
+        if delta != 0 then
+          let prev := activities.getD day {}
+          if completionTokens.contains token then
+            if delta < 0 then
+              activities := activities.insert day {
+                prev with
+                  scheduledSettledOutflow :=
+                    Quantity.ofQuanta (prev.scheduledSettledOutflow.quanta - delta)
+              }
+            else
+              activities := activities.insert day {
+                prev with
+                  scheduledSettledInflow :=
+                    Quantity.ofQuanta (prev.scheduledSettledInflow.quanta + delta)
+              }
+          else if delta < 0 then
+            activities := activities.insert day {
+              prev with
+                discretionaryOutflow :=
+                  Quantity.ofQuanta (prev.discretionaryOutflow.quanta - delta)
+            }
+          else
+            activities := activities.insert day {
+              prev with
+                discretionaryInflow :=
+                  Quantity.ofQuanta (prev.discretionaryInflow.quanta + delta)
+            }
+  return activities
 private def reconstructedSnapshot
     (measure : MeasureId)
     (endExclusive : String)

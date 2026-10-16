@@ -186,6 +186,37 @@ private def testChangeDecomposition : IO Unit := do
       contains "Scheduledprotectionrelease:+200jpy" details)
     "Daily Pace details did not explain slope using shared Review evidence"
 
+  let partialWithAdjacent : List Loam.DailyPacePeriods.DaySample := [
+    { day := "2026-10-28", answer := .error "2026-10-28: before bounded support start" },
+    { day := "2026-10-29", answer := .ok prior,
+      activity? := some { discretionaryOutflow := Quantity.ofQuanta 400 } },
+    { day := "2026-10-30", answer := .ok settled, source := .current,
+      activity? := some {
+        discretionaryOutflow := Quantity.ofQuanta 150
+        scheduledSettledOutflow := Quantity.ofQuanta 200
+        scheduledReservedOutflow := Quantity.ofQuanta 200
+      } }
+  ]
+  let partialWorld : Loam.Tui.Main.Snapshot := {
+    actual := {today := "2026-10-30", allRecords := []}
+    scheduled := .error "synthetic"
+    paceCurrent := .loaded settled
+    pacePeriods := .loaded (Loam.DailyPacePeriods.presets.map fun preset =>
+      { preset
+        range := .ok { start := "2026-10-28", through := "2026-10-30" }
+        history := .failed "2026-10-28: before bounded support start"
+        samples := partialWithAdjacent })
+  }
+  let partialView := text (Loam.Tui.DailyPaceTrend.view {width := 140, height := 40} partialWorld)
+  expect (contains "Spent: 150 jpy (+627 vs pace)" partialView)
+    "wide header did not display today's discretionary spend and pace margin"
+  let partialDetails ← readDetails {width := 120, height := 40} partialWorld
+  expect (contains "change+77jpy/day" partialDetails &&
+      contains "Spent:150jpy(diff:+627jpy)" partialDetails &&
+      contains "Settled:200jpy(asplanned)" partialDetails &&
+      contains "Timepassage:+77jpy/day" partialDetails)
+    "partial window dropped adjacent-day breakdown or same-day spend margin"
+
 private def testReadStates : IO Unit := do
   let cause := "原因: " ++ String.ofList (List.replicate 80 '界') ++ "-failure-tail"
   let bounds : Bounds := {width := 48, height := 14}
