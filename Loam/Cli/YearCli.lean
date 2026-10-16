@@ -1,4 +1,5 @@
 import Loam.HouseholdPaths
+import Loam.ActualDate
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualJournalProjection
 import Loam.Persistence.TextEscape
@@ -28,11 +29,12 @@ def readYear (root : System.FilePath) (year : String) :
   if !validYear year then
     return .error "loam: year must be a four-digit calendar year (YYYY)"
   let archiveRoot := Loam.HouseholdPaths.yearRoot root year
-  let sourceRoot ←
-    if ← (Loam.HouseholdAuthority.path archiveRoot).pathExists then
-      pure archiveRoot
-    else
-      pure root
+  let archivePresent ← archiveRoot.pathExists
+  -- A selected but incomplete older book must never silently resolve to
+  -- the current book, which might report a misleading empty history.
+  if archivePresent && !(← (Loam.HouseholdAuthority.path archiveRoot).pathExists) then
+    return .error s!"loam: saved year {year} exists but its household.loam is missing"
+  let sourceRoot := if archivePresent then archiveRoot else root
   let actual ←
     match ← Loam.ActualAuthority.loadHouseholdImage? sourceRoot with
     | .ok image => pure image
@@ -41,9 +43,17 @@ def readYear (root : System.FilePath) (year : String) :
     match Loam.ActualJournalProjection.fromImage? actual with
     | .ok rows => pure rows
     | .error message => return .error message
+  let dated := entries.filter fun entry => entry.validOn.startsWith (year ++ "-")
+  if !archivePresent && dated.isEmpty then
+    -- Legacy single-file households have no declared start year. The
+    -- currently observed year may legitimately be empty, but an arbitrary
+    -- older/future year with no dated evidence is unavailable, NOT zero.
+    let observedDay? ← Loam.ActualDate.todayIso?
+    if !(observedDay?.any fun day => day.startsWith (year ++ "-")) then
+      return .error s!"loam: year {year} has no saved source or recorded Actual"
   return .ok {
     sourceRoot := sourceRoot
-    entries := entries.filter fun entry => entry.validOn.startsWith (year ++ "-")
+    entries := dated
   }
 
 private def effectLine (effect : Effect) : String :=

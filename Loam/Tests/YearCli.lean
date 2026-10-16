@@ -65,14 +65,35 @@ def main : IO Unit := do
   expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path archived)) == currentBefore)
     "read-only year selection changed archived source"
 
-  let absent ← requireOk (← Loam.YearCli.readYear root "2025")
-    "read empty effective-year view"
-  expect absent.entries.isEmpty "empty effective year manufactured events"
+  -- A missing historical year is not a verified empty journal.
+  match ← Loam.YearCli.readYear root "2025" with
+  | .error message =>
+      expect (message.startsWith "loam: year 2025 has no saved source")
+        "missing year was not reported as unavailable"
+  | .ok _ => throw (IO.userError "missing year was reported as an empty book")
+
+  -- An incomplete selected year directory is not a fallback to today's root.
+  let missingSource := Loam.HouseholdPaths.yearRoot root "2025"
+  IO.FS.createDirAll missingSource
+  match ← Loam.YearCli.readYear root "2025" with
+  | .error message =>
+      expect (message.startsWith "loam: saved year 2025 exists")
+        "incomplete year directory was not reported as missing authority"
+  | .ok _ => throw (IO.userError "incomplete year silently fell back to current")
   expect (!Loam.YearCli.validYear "202A" &&
           !Loam.YearCli.validYear "0000" &&
           !Loam.YearCli.validYear "../2" &&
           Loam.YearCli.validYear "2028")
     "invalid year accepted or four-digit year refused"
+
+  -- A present and fully admitted empty year is different from a missing year.
+  let emptyYear := Loam.HouseholdPaths.yearRoot root "2024"
+  let _ ← requireOk (← Loam.NewHouseholdCli.create emptyYear)
+    "create an independent, valid empty year source"
+  let emptyReport ← requireOk (← Loam.YearCli.readYear root "2024")
+    "read empty but present year source"
+  expect (emptyReport.sourceRoot == emptyYear && emptyReport.entries.isEmpty)
+    "verified empty archive was treated as absent"
 
   IO.FS.writeFile (Loam.HouseholdAuthority.path archived) "broken"
   match ← Loam.YearCli.readYear root "2026" with
