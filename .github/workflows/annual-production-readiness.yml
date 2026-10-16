@@ -30,8 +30,10 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
+          set +e
           python3 tools/check-annual-production-readiness.py --require-ready
           result=$?
+          set -e
           if [ "$result" -ne 2 ]; then
             echo "expected explicit not-ready refusal code 2; got $result" >&2
             exit 1
