@@ -149,3 +149,6 @@ def main (args : List String) : IO Unit := do
   | _ => throw (IO.userError "usage: NativeAnnualOrphanRetryProbe seed|retry ROOT BEFORE AFTER")
 
 end Loam.Tools.NativeAnnualOrphanRetryProbe
+
+def main (args : List String) : IO Unit :=
+  Loam.Tools.NativeAnnualOrphanRetryProbe.main args
