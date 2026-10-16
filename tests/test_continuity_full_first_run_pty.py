@@ -170,7 +170,7 @@ with tempfile.TemporaryDirectory(prefix="loam-real-first-run-pty-") as temp:
         scheduled_preview = sha(ledger)
         terminal.send(b"\r", b"Expected pace")
         assert sha(ledger) != scheduled_preview, "future Scheduled not published"
-        terminal.send(b"\x1b", b"Scheduled")
+        terminal.send(b"\x1b", b"[j/k] plan")
         terminal.send(b"q", b"[q] quit")
         finished = sha(ledger)
         terminal.quit()
