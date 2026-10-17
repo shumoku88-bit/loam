@@ -52,7 +52,7 @@ private def publishUnderOwnership
 
   let idPrefix ←
     match ← Loam.HouseholdAuthority.idPrefix? root "record" with
-    | .ok prefix => pure prefix
+    | .ok namePrefix => pure namePrefix
     | .error message => return .error message
   let world := { Loam.MovementWorldAdapter.ofActual evidence locusAdmission with eventIdPrefix := idPrefix }
   let admitted ←

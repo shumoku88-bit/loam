@@ -147,7 +147,7 @@ private def publishHouseholdFromGeneration
     | .error message => return .error message
   let idPrefix ←
     match ← Loam.HouseholdAuthority.idPrefix? root "scheduled" with
-    | .ok prefix => pure prefix
+    | .ok namePrefix => pure namePrefix
     | .error message => return .error message
   let (updatedLifecycle, _) ←
     match proposeBatch observed [draft] idPrefix with
@@ -175,7 +175,7 @@ def publishHouseholdBatch
     return .error "loam: household changed after review; reopen batch edit and review again"
   let idPrefix ←
     match ← Loam.HouseholdAuthority.idPrefix? root "scheduled" with
-    | .ok prefix => pure prefix
+    | .ok namePrefix => pure namePrefix
     | .error message => return .error message
   let proposal : Except String Loam.Persistence.HouseholdImage.Image := do
     let (lifecycle, replacements) ← proposeBatch observed draft.drafts idPrefix

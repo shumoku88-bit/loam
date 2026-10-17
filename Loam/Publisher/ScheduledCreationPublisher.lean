@@ -89,7 +89,7 @@ private def publishHouseholdFromGeneration
   | .ok () => pure ()
   let idPrefix ←
     match ← Loam.HouseholdAuthority.idPrefix? root "scheduled" with
-    | .ok prefix => pure prefix
+    | .ok namePrefix => pure namePrefix
     | .error message => return .error message
   let scheduledId :=
     Loam.ScheduledOccurrenceConstruction.freshIdWithPrefix

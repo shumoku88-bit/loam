@@ -9,16 +9,16 @@ open Loam.Core
 set_option autoImplicit false
 
 /-- Year-specific namespace for a new occurrence; legacy defaults remain. -/
-def freshIdWithPrefix (memory : ScheduledMemory String) (prefix : String) : ScheduledId :=
+def freshIdWithPrefix (memory : ScheduledMemory String) (namePrefix : String) : ScheduledId :=
   let used := memory.occurrences.map (fun occurrence => occurrence.id.token)
-  ⟨Loam.firstUnusedNumberedToken prefix used 1⟩
+  ⟨Loam.firstUnusedNumberedToken namePrefix used 1⟩
 
-theorem freshIdWithPrefix_fresh (memory : ScheduledMemory String) (prefix : String) :
-    freshIdWithPrefix memory prefix ∉ memory.occurrences.map ScheduledOccurrence.id := by
+theorem freshIdWithPrefix_fresh (memory : ScheduledMemory String) (namePrefix : String) :
+    freshIdWithPrefix memory namePrefix ∉ memory.occurrences.map ScheduledOccurrence.id := by
   intro hId
   have hToken :=
     Loam.firstUnusedNumberedToken_fresh
-      prefix (memory.occurrences.map (fun occurrence => occurrence.id.token)) 1
+      namePrefix (memory.occurrences.map (fun occurrence => occurrence.id.token)) 1
   apply hToken
   simp only [List.mem_map] at hId ⊢
   rcases hId with ⟨existing, hExisting, hEq⟩

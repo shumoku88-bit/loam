@@ -32,7 +32,7 @@ private def publishUnderOwnership
 
   let idPrefix ←
     match ← Loam.HouseholdAuthority.idPrefix? root "exchange" with
-    | .ok prefix => pure prefix
+    | .ok namePrefix => pure namePrefix
     | .error message => return .error message
   let world : Loam.ExchangeAdmission.World := {
     eventIdPrefix := idPrefix
