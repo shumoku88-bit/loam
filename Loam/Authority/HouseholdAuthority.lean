@@ -234,6 +234,15 @@ def loadCurrentWithActual? (root : System.FilePath) :
 def loadCurrent? (root : System.FilePath) : IO (Except String Generation) := do
   return (← loadCurrentWithActual? root).map Prod.fst
 
+/-- Read the original installed predecessor, bypassing any active annual pointer.
+This is read-only; ordinary root publications always use the selected current. -/
+def loadPhysical? (root : System.FilePath) : IO (Except String Generation) := do
+  let source := path root
+  if !(← source.pathExists) then
+    return .error ("loam: physical predecessor HouseholdImage is missing: " ++ source.toString)
+  let wire ← IO.FS.readFile source
+  return decodeGeneration wire
+
 inductive RecoverySource where
   | current
   | previous
