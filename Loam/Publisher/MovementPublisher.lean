@@ -91,10 +91,13 @@ private def publishIdempotentUnderOwnership
         | Except.error message => return Except.error message
         | Except.ok la => pure la
       let idPrefix ←
-    match ← Loam.HouseholdAuthority.idPrefix? root "record" with
-    | .ok namePrefix => pure namePrefix
-    | .error message => return .error message
-  let world := { Loam.MovementWorldAdapter.ofActual evidence locusAdmission with eventIdPrefix := idPrefix }
+        match ← Loam.HouseholdAuthority.idPrefix? root "record" with
+        | .ok namePrefix => pure namePrefix
+        | .error message => return .error message
+      let world := {
+        Loam.MovementWorldAdapter.ofActual evidence locusAdmission with
+        eventIdPrefix := idPrefix
+      }
       match Loam.MovementAdmission.admit? world draft with
       | Except.error message => return Except.error message
       | Except.ok admitted =>
