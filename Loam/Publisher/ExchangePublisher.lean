@@ -30,7 +30,12 @@ private def publishUnderOwnership
     | .ok value => pure value
     | .error message => return .error message
 
+  let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "exchange" with
+    | .ok namePrefix => pure namePrefix
+    | .error message => return .error message
   let world : Loam.ExchangeAdmission.World := {
+    eventIdPrefix := idPrefix
     events := evidence.events
     validity := evidence.validity
     descriptions := evidence.descriptions

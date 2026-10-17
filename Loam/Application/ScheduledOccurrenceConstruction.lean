@@ -8,23 +8,31 @@ open Loam.Core
 
 set_option autoImplicit false
 
-/-- Pure total fresh-occurrence mechanics shared by Scheduled publication operations. -/
-def freshId (memory : ScheduledMemory String) : ScheduledId :=
+/-- Year-specific namespace for a new occurrence; legacy defaults remain. -/
+def freshIdWithPrefix (memory : ScheduledMemory String) (namePrefix : String) : ScheduledId :=
   let used := memory.occurrences.map (fun occurrence => occurrence.id.token)
-  ⟨Loam.firstUnusedNumberedToken "scheduled-" used 1⟩
+  ⟨Loam.firstUnusedNumberedToken namePrefix used 1⟩
 
-/-- The generated Scheduled identity is outside the retained Scheduled namespace. -/
-theorem freshId_fresh (memory : ScheduledMemory String) :
-    freshId memory ∉ memory.occurrences.map ScheduledOccurrence.id := by
+theorem freshIdWithPrefix_fresh (memory : ScheduledMemory String) (namePrefix : String) :
+    freshIdWithPrefix memory namePrefix ∉ memory.occurrences.map ScheduledOccurrence.id := by
   intro hId
   have hToken :=
     Loam.firstUnusedNumberedToken_fresh
-      "scheduled-" (memory.occurrences.map (fun occurrence => occurrence.id.token)) 1
+      namePrefix (memory.occurrences.map (fun occurrence => occurrence.id.token)) 1
   apply hToken
   simp only [List.mem_map] at hId ⊢
   rcases hId with ⟨existing, hExisting, hEq⟩
   refine ⟨existing, hExisting, ?_⟩
-  simpa [freshId] using congrArg ScheduledId.token hEq
+  simpa [freshIdWithPrefix] using congrArg ScheduledId.token hEq
+
+/-- Legacy callers retain the original Scheduled identifier spelling. -/
+def freshId (memory : ScheduledMemory String) : ScheduledId :=
+  freshIdWithPrefix memory "scheduled-"
+
+/-- The generated Scheduled identity is outside the retained Scheduled namespace. -/
+theorem freshId_fresh (memory : ScheduledMemory String) :
+    freshId memory ∉ memory.occurrences.map ScheduledOccurrence.id := by
+  exact freshIdWithPrefix_fresh memory "scheduled-"
 
 private def positiveQuanta (quanta : Int) : Int :=
   if 0 < quanta then quanta else 0

@@ -358,7 +358,124 @@ def main : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "invalid opening year was accepted")
 
-  IO.println "YearCli: calendar selection, archives, immutable checkpoints, bounded Actual extraction and exact Jan-1 opening checks passed."
+  -- REAL annual activation: keep the installed predecessor, but give the
+  -- ordinary root command a bounded current-year HouseholdImage with NO old
+  -- Actual Events. The same normal command works again in the next year.
+  let annualRoot := parent / "year-live-activation"
+  let _ ← requireOk (← Loam.NewHouseholdCli.create annualRoot)
+    "create disposable annual writer household"
+  for token in ["cash", "food"] do
+    let _ ← requireOk
+      (← Loam.HouseholdCommand.admitLocus annualRoot { token })
+      ("admit annual writer " ++ token)
+    pure ()
+  let previousActual ← bookEvent annualRoot "2026-12-31"
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.observeCurrentQuantities annualRoot [{
+      coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩,
+      quantity := Quantity.ofQuanta 900
+    }]) "observe exact predecessor cash"
+  let upcoming ← requireSome
+    (BalancedMovement.ofChanges? ⟨"jpy"⟩ [
+      { coordinate := ⟨"cash"⟩, quantity := Quantity.ofQuanta (-80) },
+      { coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 80 }
+    ]) "create outstanding cross-year obligation"
+  let openId ← requireOk
+    (← Loam.HouseholdCommand.createScheduled annualRoot {
+      scheduledOn := "2027-01-03", movement := upcoming
+    }) "record predecessor's unpaid Scheduled"
+  let legacyWire ← IO.FS.readFile (Loam.HouseholdAuthority.path annualRoot)
+  let firstYear ← requireOk
+    (← Loam.YearCli.beginYearAt annualRoot "2027" "2027-01-01")
+    "activate qualified bounded 2027 writer"
+  expect (firstYear == Loam.HouseholdAuthority.path
+            (Loam.HouseholdPaths.yearRoot annualRoot "2027") &&
+          (← IO.FS.readFile (Loam.HouseholdAuthority.path annualRoot)) == legacyWire)
+    "initial annual activation altered previous canonical authority"
+  let firstActive ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? annualRoot)
+    "read active 2027 through ordinary installed root"
+  let initialCarry ← requireOk
+    (Loam.YearCli.carryState? firstActive.generation firstActive.image)
+    "verify first active year carry"
+  expect (firstActive.image.evidence.events.events.isEmpty &&
+          initialCarry.balances.rows.any (fun row =>
+            row.coordinate.locus.token == "cash" && row.quantity.quanta == 900) &&
+          initialCarry.openScheduled.contains (openId.token, "2027-01-03"))
+    "active 2027 duplicated old events or lost exact/Scheduled carry"
+  let legacyReport ← requireOk (← Loam.YearCli.readYear annualRoot "2026")
+    "read legacy predecessor after activation"
+  expect (legacyReport.entries.map (·.event.id) == [previousActual])
+    "annual activation hid previous year's retained Actual"
+  let janActual ← bookEvent annualRoot "2027-01-01"
+  let afterJanuary ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? annualRoot)
+    "reopen ordinary root after new-year write"
+  let afterJanuaryCarry ← requireOk
+    (Loam.YearCli.carryState? afterJanuary.generation afterJanuary.image)
+    "check January exact balance"
+  expect (afterJanuary.image.evidence.events.events.length == 1 &&
+          janActual.token.startsWith "record-2027-" &&
+          janActual != previousActual &&
+          (afterJanuary.image.evidence.events.findById? janActual).isSome &&
+          (afterJanuary.image.evidence.events.findById? previousActual).isNone &&
+          afterJanuaryCarry.balances.rows.any (fun row =>
+            row.coordinate.locus.token == "cash" && row.quantity.quanta == 800))
+    "ordinary first-year record was not bounded or did not adjust carry"
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path annualRoot)) == legacyWire)
+    "new-year publication overwrote legacy predecessor instead of active year"
+  match ← Loam.HouseholdCommand.correctActual annualRoot {
+    target := previousActual
+    effects := [
+      Effect.ofAnonymousQuantity ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-75)),
+      Effect.ofAnonymousQuantity ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 75)
+    ]
+    description := some "cross-year correction not yet qualified"
+  } with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "year writer silently corrected missing predecessor event")
+  let priorActiveWire ← IO.FS.readFile firstYear
+  let secondYear ← requireOk
+    (← Loam.YearCli.beginYearAt annualRoot "2028" "2028-01-01")
+    "activate the second bounded year"
+  expect ((← IO.FS.readFile firstYear) == priorActiveWire &&
+          secondYear == Loam.HouseholdAuthority.path
+            (Loam.HouseholdPaths.yearRoot annualRoot "2028"))
+    "second annual activation altered 2027"
+  let secondActive ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? annualRoot)
+    "read 2028 from unchanged ordinary root"
+  let secondCarry ← requireOk
+    (Loam.YearCli.carryState? secondActive.generation secondActive.image)
+    "verify 2028 carried balance"
+  expect (secondActive.image.evidence.events.events.isEmpty &&
+          secondCarry.balances.rows.any (fun row =>
+            row.coordinate.locus.token == "cash" && row.quantity.quanta == 800) &&
+          secondCarry.openScheduled.contains (openId.token, "2027-01-03"))
+    "2028 did not inherit prior year's current quantities and open obligations"
+  let _ ← bookEvent annualRoot "2028-01-01"
+  expect ((← IO.FS.readFile firstYear) == priorActiveWire)
+    "current 2028 write mutated an older annual journal"
+  let old2027 ← requireOk (← Loam.YearCli.readYear annualRoot "2027")
+    "browse frozen 2027 after advancing to 2028"
+  expect (old2027.entries.map (·.event.id) == [janActual])
+    "previous-year on-demand browsing lost 2027 records"
+  match ← Loam.YearCli.beginYearAt annualRoot "2029" "2028-12-31" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "annual activation accepted the wrong calendar year")
+  match ← Loam.HouseholdCommand.record
+      (Loam.HouseholdPaths.yearRoot annualRoot "2027") {
+        validOn := "2027-06-01"
+        description := some "forbidden direct archived write"
+        effects := [
+          Effect.ofAnonymousQuantity ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100)),
+          Effect.ofAnonymousQuantity ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
+        ]
+        relations := []
+        discharges := []
+        total := 100
+      } with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "direct write bypassed active-year single-writer boundary")
+
+  IO.println "YearCli: read-only archives, qualified Jan-1 quantities, and real bounded annual writer cutovers 2027/2028 passed."
 
 end Loam.Tests.YearCli
 

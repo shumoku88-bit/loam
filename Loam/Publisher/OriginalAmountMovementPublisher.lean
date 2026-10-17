@@ -50,7 +50,11 @@ private def publishUnderOwnership
     | .ok value => pure value
     | .error message => return .error message
 
-  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
+  let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "record" with
+    | .ok namePrefix => pure namePrefix
+    | .error message => return .error message
+  let world := { Loam.MovementWorldAdapter.ofActual evidence locusAdmission with eventIdPrefix := idPrefix }
   let admitted ←
     match Loam.MovementAdmission.admit? world draft.movement with
     | .ok value => pure value
