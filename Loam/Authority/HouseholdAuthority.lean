@@ -73,6 +73,40 @@ private def requireCurrentWriter (root : System.FilePath) : Except String Unit :
   else
     .ok ()
 
+/-- One pointer selects the only active annual HouseholdImage. The old installed
+root remains a qualified, immutable predecessor after a cutover. -/
+def activeYearPath (root : System.FilePath) : System.FilePath :=
+  root / "journal" / "active-year"
+
+private def validYear (year : String) : Bool :=
+  year.length == 4 && year.toNat?.isSome && year != "0000"
+
+/-- Inspect the installed active-year pointer without interpreting missing as
+a year. A malformed present pointer fails closed; it never falls back. -/
+def selectedYear? (root : System.FilePath) : IO (Except String (Option String)) := do
+  if isSavedYearRoot root then return .ok none
+  let pointer := activeYearPath root
+  if !(← pointer.pathExists) then return .ok none
+  let wire ← IO.FS.readFile pointer
+  match wire.splitOn "\n" with
+  | ["LOAM-ACTIVE-YEAR\t1", year, ""] =>
+      if validYear year then return .ok (some year)
+      return .error "loam: malformed active-year pointer: invalid year"
+  | _ => return .error "loam: malformed or unsupported active-year pointer"
+
+/-- Resolve one canonical current HouseholdImage; the marker's existence makes
+a missing or corrupt selected year an error, never a legacy-root fallback. -/
+def selectedPath? (root : System.FilePath) : IO (Except String System.FilePath) := do
+  match ← selectedYear? root with
+  | .error message => return .error message
+  | .ok none => return .ok (path root)
+  | .ok (some year) =>
+      let target := root / "journal" / year / fileName
+      if !(← target.pathExists) then
+        return .error ("loam: active year " ++ year ++ " has no HouseholdImage")
+      return .ok target
+
+
 /--
 Run one cross-family operation under the same writer ownership used by
 HouseholdImage publication.
@@ -188,7 +222,10 @@ The pair is a local read result, not a cache added to mutable Generation fields.
 -/
 def loadCurrentWithActual? (root : System.FilePath) :
     IO (Except String (Generation × Option Loam.Persistence.AdmittedActualImage)) := do
-  let current := path root
+  let current ←
+    match ← selectedPath? root with
+    | .ok selected => pure selected
+    | .error message => return .error message
   if !(← current.pathExists) then
     return .error s!"loam: HouseholdImage authority is missing: {current}"
   let wire ← IO.FS.readFile current
@@ -214,7 +251,10 @@ previous generation explicitly.
 Previous evidence is never silently relabeled as current.
 -/
 def loadRecoverable? (root : System.FilePath) : IO (Except String RecoveredGeneration) := do
-  let current := path root
+  let current ←
+    match ← selectedPath? root with
+    | .ok selected => pure selected
+    | .error message => return .error message
   if ← current.pathExists then
     let wire ← IO.FS.readFile current
     match decodeGeneration wire with
@@ -222,7 +262,7 @@ def loadRecoverable? (root : System.FilePath) : IO (Except String RecoveredGener
         return .ok { source := .current, generation := generation }
     | .error _ => pure ()
 
-  let previous := previousPath root
+  let previous := System.FilePath.mk (current.toString ++ ".prev")
   if ← previous.pathExists then
     let wire ← IO.FS.readFile previous
     match decodeGeneration wire with
@@ -321,8 +361,12 @@ def publishObserved?
   match requireCurrentWriter root with
   | .ok () => pure ()
   | .error message => return .error message
-  let current := path root
-  Loam.WriterOwnership.withOwnership current do
+  let ownershipAnchor := path root
+  Loam.WriterOwnership.withOwnership ownershipAnchor do
+    let current ←
+      match ← selectedPath? root with
+      | .ok selected => pure selected
+      | .error message => return .error message
     if !(← current.pathExists) then
       return .error "loam: HouseholdImage authority is missing"
     let currentWire ← IO.FS.readFile current
@@ -360,7 +404,7 @@ def publishObserved?
     | .error message => return .error message
     | .ok _ => pure ()
 
-    IO.FS.rename previousStage (previousPath root)
+    IO.FS.rename previousStage (System.FilePath.mk (current.toString ++ ".prev"))
     IO.FS.rename (stagePath current) current
     return .ok stagedGeneration
 
@@ -375,9 +419,12 @@ def restorePrevious?
   match requireCurrentWriter root with
   | .ok () => pure ()
   | .error message => return .error message
-  let current := path root
-  Loam.WriterOwnership.withOwnership current do
-    let previous := previousPath root
+  Loam.WriterOwnership.withOwnership (path root) do
+    let current ←
+      match ← selectedPath? root with
+      | .ok selected => pure selected
+      | .error message => return .error message
+    let previous := System.FilePath.mk (current.toString ++ ".prev")
     if !(← previous.pathExists) then
       return .error "loam: previous HouseholdImage generation is missing"
     let wire ← IO.FS.readFile previous
