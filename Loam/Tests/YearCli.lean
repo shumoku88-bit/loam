@@ -83,11 +83,14 @@ def main : IO Unit := do
           latestYear.entries.length == 1 &&
           latestYear.entries.head?.bind (·.description) ==
             some "corrected after year boundary" &&
+          latestYear.entries.head?.map
+            (fun entry => entry.event.effects.map (·.quantity.quanta)) ==
+              some [-75, 75] &&
           latestYear.notice.isSome)
     "saved year masked a subsequently admitted December correction"
   expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path archived)) == currentBefore)
     "corrected December silently changed the immutable saved year"
-  expect ((Loam.YearCli.render "2026" latestYear).splitOn "Notice: " |>.length > 1)
+  expect (((Loam.YearCli.render "2026" latestYear).splitOn "Notice: ").length > 1)
     "archive correction source switch was not visible in year report"
 
   -- A missing historical year is not a verified empty journal.
