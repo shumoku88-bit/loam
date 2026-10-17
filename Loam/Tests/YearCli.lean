@@ -113,6 +113,20 @@ def main : IO Unit := do
     pure ()
   let sourceOld ← bookEvent checkpointRoot "2020-12-31"
   let _ ← bookEvent checkpointRoot "2021-01-01"
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.observeCurrentQuantities checkpointRoot [
+      { coordinate := ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩,
+        quantity := Quantity.ofQuanta 5000 }
+    ]) "observe an exact carried cash amount"
+  let plan ← requireSome
+    (BalancedMovement.ofChanges? ⟨"jpy"⟩ [
+      { coordinate := ⟨"cash"⟩, quantity := Quantity.ofQuanta (-250) },
+      { coordinate := ⟨"food"⟩, quantity := Quantity.ofQuanta 250 }
+    ]) "create a still-open obligation for carry"
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.createScheduled checkpointRoot {
+      scheduledOn := "2022-04-01", movement := plan
+    }) "carry one still-open Scheduled obligation"
   let checkpointBefore ← IO.FS.readFile (Loam.HouseholdAuthority.path checkpointRoot)
   let checkpoint ← requireOk (← Loam.YearCli.checkpointYear checkpointRoot "2020")
     "create qualified historical checkpoint"
@@ -121,6 +135,28 @@ def main : IO Unit := do
           (← IO.FS.readFile checkpoint) == checkpointBefore &&
           (← IO.FS.readFile (Loam.HouseholdAuthority.path checkpointRoot)) == checkpointBefore)
     "checkpoint did not preserve exact source bytes or changed source"
+  -- Checkpoint carries the same admitted current support classifications.
+  -- It neither silently turns unknown cash into zero nor drops open Scheduled.
+  let basis ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? checkpointRoot)
+    "load checkpoint source as one observed generation"
+  let sourceCarry ← requireOk
+    (Loam.YearCli.carryState? basis.generation basis.image)
+    "qualify source carry from normal production read boundaries"
+  let copied ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? checkpointDir)
+    "load checkpoint copy as one observed generation"
+  let copiedCarry ← requireOk
+    (Loam.YearCli.carryState? copied.generation copied.image)
+    "qualify checkpoint carry"
+  expect (Loam.YearCli.carryAgrees sourceCarry copiedCarry)
+    "new year checkpoint changed supported and unsupported coordinates"
+  expect (sourceCarry.openScheduled.length == 1 &&
+          sourceCarry.balances.rows.any
+            (fun row => row.coordinate.locus.token == "cash" &&
+              row.quantity.quanta == 5000) &&
+          sourceCarry.balances.unsupported.any
+            (fun coordinate => coordinate.locus.token == "food"))
+    "carry lost an open obligation, exact cash or unsupported food"
+
   let opened ← requireOk (← Loam.YearCli.readYear checkpointRoot "2020")
     "open installed checkpoint with ordinary year browser"
   expect (opened.sourceRoot == checkpointDir &&
@@ -129,6 +165,13 @@ def main : IO Unit := do
   let _ ← bookEvent checkpointRoot "2022-03-01"
   expect ((← IO.FS.readFile checkpoint) == checkpointBefore)
     "checkpoint was modified by subsequent normal household publication"
+  let changed ← requireOk (← Loam.ActualAuthority.loadHouseholdObserved? checkpointRoot)
+    "load updated source for carry mismatch test"
+  let changedCarry ← requireOk
+    (Loam.YearCli.carryState? changed.generation changed.image)
+    "admit changed source carry"
+  expect (!Loam.YearCli.carryAgrees sourceCarry changedCarry)
+    "carry verification ignored a newly admitted household movement"
   match ← Loam.YearCli.checkpointYear checkpointRoot "2020" with
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "checkpoint overwrote a previous year")

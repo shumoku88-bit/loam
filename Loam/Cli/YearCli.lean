@@ -4,6 +4,8 @@ import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.WriterOwnership
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualJournalProjection
+import Loam.Review.CurrentBalanceReview
+import Loam.Review.ScheduledReview
 import Loam.Persistence.TextEscape
 
 namespace Loam.YearCli
@@ -73,6 +75,44 @@ def readYear (root : System.FilePath) (year : String) :
   }
 
 /--
+A carry candidate from one admitted household generation. The coordinate
+classification is deliberately unchanged: exact rows, known-present/unknown
+amount, and unsupported are three distinct states. The Scheduled entries are
+the real admitted current-open obligations, never merely due-date estimates.
+
+This value is not a Jan-1 opening balance: the source generation has no
+publication timestamp. A future rollover publisher must separately justify
+its year boundary before installing a compact generation.
+-/
+structure CarryState where
+  balances : Loam.CurrentBalanceReview.Snapshot
+  openScheduled : List (String × String)
+  scheduledBody : Option String
+deriving Repr
+
+/-- Qualify a possible carry from one exact observed generation. No IO, no new
+support authority, and no fabricated starting balances or Scheduled items. -/
+def carryState? (generation : Loam.HouseholdAuthority.Generation)
+    (actual : Loam.ActualAuthority.Image) : Except String CarryState := do
+  let balances ← Loam.CurrentBalanceReview.projectFromGeneration generation actual
+  let scheduled ← Loam.ScheduledReview.fromGenerationForEvents
+    generation actual.evidence.events
+  let openScheduled ← Loam.ScheduledReview.orderedCurrentOpenRecords scheduled
+  return {
+    balances := balances,
+    openScheduled := openScheduled.map fun item => (item.id.token, item.scheduledOn),
+    scheduledBody := Loam.Persistence.HouseholdImage.body? generation.image "Scheduled"
+  }
+
+/-- Exact support-state agreement, not a claim of calendar-boundary readiness.
+Scheduled source bytes are compared as well as open identities and dates so
+amounts and terminal provenance cannot disappear behind a matching list. -/
+def carryAgrees (source candidate : CarryState) : Bool :=
+  decide (source.balances = candidate.balances) &&
+  source.openScheduled == candidate.openScheduled &&
+  source.scheduledBody == candidate.scheduledBody
+
+/--
 Create one immutable **as-of** checkpoint for an already-ended calendar year
 under journal/YYYY/household.loam. This copies the entire qualified source
 generation, deliberately preserving unknown sections and every other family's
@@ -104,6 +144,10 @@ def checkpointYear (root : System.FilePath) (year : String) :
       match ← Loam.ActualAuthority.loadHouseholdImage? root with
       | .ok source => pure source
       | .error message => return .error message
+    let carried ←
+      match carryState? generation actual with
+      | .ok state => pure state
+      | .error message => return .error ("loam: checkpoint carry unavailable: " ++ message)
     let entries ←
       match Loam.ActualJournalProjection.fromImage? actual with
       | .ok entries => pure entries
@@ -127,6 +171,17 @@ def checkpointYear (root : System.FilePath) (year : String) :
     | .ok installed =>
         if installed.wire != generation.wire then
           return .error "loam: checkpoint differs from observed source generation"
+        let copiedActual ←
+          match ← Loam.ActualAuthority.loadHouseholdImage? archiveRoot with
+          | .ok image => pure image
+          | .error message => return .error message
+        let copiedState ←
+          match carryState? installed copiedActual with
+          | .ok state => pure state
+          | .error message =>
+              return .error ("loam: copied checkpoint carry unavailable: " ++ message)
+        if !carryAgrees carried copiedState then
+          return .error "loam: checkpoint does not preserve exact/unknown balances and open Scheduled"
         return .ok (Loam.HouseholdAuthority.path archiveRoot)
 
 private def required {α : Type} (value : Option α) (message : String) :
