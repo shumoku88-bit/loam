@@ -51,7 +51,6 @@ structure World where
   corrections : EventCorrectionMemory
   locusAdmission : LocusAdmissionVocabulary :=
     LocusAdmissionVocabulary.empty
-  eventIdPrefix : String := "exchange-"
 
 /-- One admitted exchange plus the updated semantic world. -/
 structure Admitted where
@@ -60,7 +59,7 @@ structure Admitted where
 
 private def freshExchangeEventId (world : World) : EventId :=
   let used := world.events.events.map (fun event => event.id.token)
-  ⟨Loam.firstUnusedNumberedToken world.eventIdPrefix used 1⟩
+  ⟨Loam.firstUnusedNumberedToken "exchange-" used 1⟩
 
 private def retainedEffectKeyPersistable (effect : Effect) : Bool :=
   match effect.key with

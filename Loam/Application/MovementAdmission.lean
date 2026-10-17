@@ -78,7 +78,6 @@ structure World where
   discharges : List Loam.Core.RelationDischarge
   locusAdmission : Loam.Core.LocusAdmissionVocabulary :=
     Loam.Core.LocusAdmissionVocabulary.empty
-  eventIdPrefix : String := "record-"
 
 /--
 One successfully admitted Movement plus the updated typed world.
@@ -100,7 +99,7 @@ private def usedRecordEventIds (world : World) : List Loam.Core.EventId :=
 
 private def freshRecordEventId (world : World) : Loam.Core.EventId :=
   let used := (usedRecordEventIds world).map Loam.Core.EventId.token
-  ⟨Loam.firstUnusedNumberedToken world.eventIdPrefix used 1⟩
+  ⟨Loam.firstUnusedNumberedToken "record-" used 1⟩
 
 private theorem freshRecordEventId_fresh (world : World) :
     freshRecordEventId world ∉ usedRecordEventIds world := by
@@ -111,7 +110,7 @@ private theorem freshRecordEventId_fresh (world : World) :
     List.mem_map.mpr ⟨freshRecordEventId world, hUsed, rfl⟩
   have hTokenFresh :=
     Loam.firstUnusedNumberedToken_fresh
-      world.eventIdPrefix ((usedRecordEventIds world).map Loam.Core.EventId.token) 1
+      "record-" ((usedRecordEventIds world).map Loam.Core.EventId.token) 1
   exact hTokenFresh (by simpa [freshRecordEventId] using hTokenUsed)
 
 private def materializeRelationUnitsFrom
