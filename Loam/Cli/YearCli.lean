@@ -1,5 +1,6 @@
 import Loam.HouseholdPaths
 import Loam.ActualDate
+import Loam.Cli.NewHouseholdCli
 import Loam.Authority.HouseholdAuthority
 import Loam.Persistence.WriterOwnership
 import Loam.Authority.ActualAuthority
@@ -501,6 +502,31 @@ def render (year : String) (report : Report) : String :=
     , ""
     ] ++ report.entries.flatMap entryLines
 
+/--
+A deliberately independent, empty calendar-year book. This is the existing
+`loam init` installer under a convenient year-named path, NOT a rollover or
+a partition. We do not copy balances, Scheduled or any journal/config facts.
+`books/YYYY` avoids the reserved read-only `journal/YYYY` archive topology.
+-/
+def independentBookPath (root : System.FilePath) (year : String) : System.FilePath :=
+  root / "books" / year
+
+def newIndependentBook (root : System.FilePath) (year : String) :
+    IO (Except String System.FilePath) := do
+  if !validYear year then
+    return .error "loam: independent book year must be four digits (YYYY)"
+  -- A misspelled, missing, or malformed source is not a reason to manufacture
+  -- a separate book elsewhere. Qualify the explicitly selected parent first.
+  match ← Loam.HouseholdAuthority.loadCurrent? root with
+  | .error message => return .error message
+  | .ok _ => pure ()
+  let destination := independentBookPath root year
+  if ← destination.pathExists then
+    return .error ("loam: independent year book already exists: " ++ destination.toString)
+  match ← Loam.NewHouseholdCli.create destination with
+  | .error message => return .error message
+  | .ok () => return .ok destination
+
 private def resolveRoot (path? : Option String) :
     IO (Except String System.FilePath) := do
   match path? with
@@ -517,6 +543,8 @@ private def resolveRoot (path? : Option String) :
 def run (args : List String) : IO UInt32 := do
   let (mode, year, root?) ←
     match args with
+    | ["new", year] => pure (4, year, none)
+    | ["new", year, root] => pure (4, year, some root)
     | ["opening", year] => pure (3, year, none)
     | ["opening", year, root] => pure (3, year, some root)
     | ["extract", year] => pure (2, year, none)
@@ -527,6 +555,7 @@ def run (args : List String) : IO UInt32 := do
     | [year, root] => pure (0, year, some root)
     | _ =>
         IO.eprintln "Usage: loam year YYYY [LOAM_DATA_DIR]"
+        IO.eprintln "       loam year new YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year opening YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year extract YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year checkpoint YYYY [LOAM_DATA_DIR]"
@@ -535,7 +564,18 @@ def run (args : List String) : IO UInt32 := do
     match ← resolveRoot root? with
     | .ok root => pure root
     | .error message => IO.eprintln message; return 2
-  if mode == 3 then
+  if mode == 4 then
+    match ← newIndependentBook root year with
+    | .ok destination =>
+        IO.println ("Independent " ++ year ++ " book created: " ++ destination.toString)
+        IO.println ("Open it with: loam tui " ++ destination.toString)
+        IO.println "No balances, Scheduled or history were copied. Set up Loci, roles, known balances and future payments as needed."
+        IO.println "The previous household is unchanged; no new default was selected."
+        return 0
+    | .error message =>
+        IO.eprintln message
+        return 2
+  else if mode == 3 then
     match ← inspectOpening root year with
     | .ok opening =>
         IO.println (renderOpening opening)
