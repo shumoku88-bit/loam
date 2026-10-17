@@ -7,9 +7,6 @@ import Loam.Review.ActualJournalProjection
 import Loam.Review.CurrentBalanceReview
 import Loam.Review.HistoricalBalanceReview
 import Loam.Review.ScheduledReview
-import Loam.Authority.ScheduledLifecycleAuthority
-import Loam.Authority.CurrentSupportAuthority
-import Loam.Persistence.SiblingStage
 import Loam.Persistence.TextEscape
 
 namespace Loam.YearCli
@@ -55,10 +52,7 @@ retains its events, a later cross-year correction must be visible without
 rewriting the immutable archive. -/
 private def reconcileSavedYear (root : System.FilePath) (year : String)
     (archived : Report) : IO Report := do
-  let current ←
-    match ← Loam.HouseholdAuthority.selectedPath? root with
-    | .ok selected => pure selected
-    | .error message => return { archived with notice := some message }
+  let current := Loam.HouseholdAuthority.path root
   if !(← current.pathExists) then
     return { archived with
       notice := some "Installed current household is missing; saved-year freshness cannot be checked." }
@@ -108,30 +102,13 @@ def readYear (root : System.FilePath) (year : String) :
     return .error s!"loam: saved year {year} exists but its authority is missing"
   if checkpointPresent && extractedPresent then
     return .error s!"loam: year {year} has ambiguous archive sources"
-  let activeYear? ←
-    match ← Loam.HouseholdAuthority.selectedYear? root with
-    | .ok value => pure value
-    | .error message => return .error message
-  let legacyPredecessor :=
-    !archivePresent && activeYear?.any (fun active => decide (year < active))
-  let sourceRoot :=
-    if archivePresent then archiveRoot
-    else if activeYear? == some year then
-      Loam.HouseholdPaths.yearRoot root year
-    else root
+  let sourceRoot := if archivePresent then archiveRoot else root
   let sourceFile :=
     if checkpointPresent then checkpoint
     else if extractedPresent then extracted
-    else Loam.HouseholdAuthority.path sourceRoot
-  let actualResult ←
-    if legacyPredecessor then
-      match ← Loam.HouseholdAuthority.loadPhysical? root with
-      | .ok generation => pure (Loam.ActualAuthority.decodeHouseholdGeneration? generation)
-      | .error message => pure (.error message)
-    else
-      Loam.ActualAuthority.loadImageFile? sourceFile
+    else Loam.HouseholdAuthority.path root
   let actual ←
-    match actualResult with
+    match ← Loam.ActualAuthority.loadImageFile? sourceFile with
     | .ok image => pure image
     | .error message => return .error message
   let entries ←
@@ -150,9 +127,6 @@ def readYear (root : System.FilePath) (year : String) :
     sourceRoot := sourceRoot
     sourceFile := sourceFile
     entries := dated
-    notice := if legacyPredecessor then
-      some "Original installed HouseholdImage predecessor (read-only after annual activation)."
-    else none
   }
   if archivePresent then
     return .ok (← reconcileSavedYear root year report)
@@ -501,187 +475,6 @@ def renderOpening (review : OpeningReview) : String :=
       "CURRENT-SCHEDULED\t" ++ id ++ "\t" ++ date) ++
     ["This is not a verified year close, writable carry or future forecast."]
 
-/--
-Construct a *bounded-Actual* successor from an exact, qualified previous
-generation. No prior Event is repeated: opening exact amounts come from the
-existing current-balance reviewer and are backed by the still-retained, immutable
-predecessor. Open Scheduled identities survive unchanged, while completed old
-terminal relations remain in the predecessor. This is not a migration of older
-cross-year corrections, historical opening provenance or every auxiliary family.
--/
-def successorImage?
-    (source : Loam.HouseholdAuthority.Generation)
-    (actual : Loam.ActualAuthority.Image) :
-    Except String Loam.Persistence.HouseholdImage.Image := do
-  let state ← carryState? source actual
-  if decide (actual.evidence.settlements ≠ Loam.Core.SettlementEvidence.empty) ||
-      !actual.evidence.relations.isEmpty || !actual.evidence.discharges.isEmpty ||
-      !actual.evidence.movementOperations.entries.isEmpty then
-    throw "loam: annual source has unresolved settlement, relation or idempotency dependencies"
-  let lifecycle ← Loam.ScheduledLifecycleAuthority.decodeGeneration? source
-  let snapshot : Loam.ScheduledReview.EvidenceSnapshot := {
-    scheduled := lifecycle.scheduled,
-    terminals := lifecycle.terminals,
-    events := actual.evidence.events
-  }
-  let openItems ← Loam.ScheduledReview.orderedCurrentOpenRecords snapshot
-  let some scheduled := Loam.Core.ScheduledMemory.ofOccurrences? openItems
-    | throw "loam: annual successor rejected carried Scheduled identities"
-  let some emptyTerminals := Loam.Core.ScheduledTerminalMemory.ofTerminals? []
-    | throw "loam: annual successor could not construct empty terminal evidence"
-  let some scheduledWire :=
-      Loam.Persistence.encodeScheduledLifecycleImage? {
-        scheduled := scheduled, terminals := emptyTerminals
-      }
-    | throw "loam: annual successor could not encode open Scheduled"
-  let some actualWire := Loam.Persistence.encodeNormalizedActual? Loam.ActualEvidence.empty
-    | throw "loam: annual successor could not encode empty new-year Actual"
-  let assertions := state.balances.rows.map fun row =>
-    { coordinate := row.coordinate, quantity := row.quantity }
-  let some anchor :=
-      Loam.CurrentQuantityAnchor.Evidence.ofLists? [] assertions
-    | throw "loam: annual successor exact support is not unique"
-  let some anchorWire := Loam.Persistence.encodeCurrentQuantityAnchor? anchor
-    | throw "loam: annual successor could not encode exact carry"
-  let some presence :=
-      Loam.CurrentQuantityPresence.Evidence.ofLists? [] state.balances.knownPresent
-    | throw "loam: annual successor known-present carry is not unique"
-  let some presenceWire := Loam.Persistence.encodeCurrentQuantityPresence? presence
-    | throw "loam: annual successor could not encode unknown-amount carry"
-  let some zeroWire :=
-      Loam.Persistence.encodeZeroOriginCoverage? Loam.Core.ZeroOriginCoverage.empty
-    | throw "loam: annual successor could not encode new-year zero-origin absence"
-  let some openingWire :=
-      Loam.Persistence.encodeOpeningSupportMap? Loam.Core.OpeningSupportMap.empty
-    | throw "loam: annual successor could not encode empty opening supports"
-  let some boundedWire :=
-      Loam.Persistence.encodeBoundedHistorySupport? Loam.BoundedHistorySupport.Evidence.empty
-    | throw "loam: annual successor could not encode absent bounded historical claims"
-  let sections : List (String × String) := [
-    ("Actual", actualWire),
-    ("Scheduled", scheduledWire),
-    ("ZeroOrigin", zeroWire),
-    ("OpeningSupport", openingWire),
-    ("CurrentQuantityAnchor", anchorWire),
-    ("CurrentQuantityPresence", presenceWire),
-    ("BoundedHistorySupport", boundedWire)
-  ]
-  let candidate ← sections.foldlM (fun image pair =>
-    match Loam.Persistence.HouseholdImage.replaceBody? image pair.1 pair.2 with
-    | some updated => .ok updated
-    | none => .error ("loam: annual successor missing required section " ++ pair.1))
-    source.image
-  Loam.HouseholdAuthority.qualifyKnownSections candidate
-  let some encoded := Loam.Persistence.HouseholdImage.encode? candidate
-    | throw "loam: annual successor image did not encode"
-  let some reopened := Loam.Persistence.HouseholdImage.decode? encoded
-    | throw "loam: annual successor image failed native decoding"
-  let generation : Loam.HouseholdAuthority.Generation := {
-    wire := encoded, image := reopened
-  }
-  let carryImage ← Loam.ActualAuthority.decodeHouseholdGeneration? generation
-  let copied ← carryState? generation carryImage
-  if copied.balances.rows != state.balances.rows ||
-      copied.balances.knownPresent != state.balances.knownPresent ||
-      copied.openScheduled != state.openScheduled then
-    throw "loam: bounded successor changed exact/known-present balances or open Scheduled"
-  -- Unsupported is not zero: those coordinates must still refuse exact selection
-  -- even without the predecessor's retired Event history copied into new Actual.
-  for coordinate in state.balances.unsupported do
-    if (Loam.CurrentBalanceReview.selectExact copied.balances [coordinate]).isOk then
-      throw "loam: bounded successor invented an exact unsupported balance"
-  return candidate
-
-/--
-Explicit single-owner annual cutover at the beginning of an observed calendar
-year. The source is left untouched, and the new year is installed and qualified
-before the selector is published. After selector publication all ordinary root
-reads/writes follow the new file through HouseholdAuthority. No previous
-Actual events are copied. A crash before selector publication leaves the source
-active and an unpromoted destination, requiring explicit repair rather than
-silent overwrite. This operation is opt-in, never a midnight side effect.
--/
-def beginYearAt (root : System.FilePath) (year observedDay : String) :
-    IO (Except String System.FilePath) := do
-  if !validYear year || !Loam.ActualDate.validIsoDate observedDay ||
-      !(observedDay.startsWith (year ++ "-")) then
-    return .error "loam: annual start requires the observed day in the requested calendar year"
-  let destination := Loam.HouseholdPaths.yearRoot root year
-  -- Actual publishers acquire the Actual serializer before Household ownership.
-  -- Use that same order so a pre-cutover writer cannot publish old-world Event
-  -- evidence to the newly selected year after the activation pointer flips.
-  Loam.ActualAuthority.withActualOwnership root do
-    Loam.HouseholdAuthority.withOwnership root do
-      let priorYear? ←
-        match ← Loam.HouseholdAuthority.selectedYear? root with
-        | .ok selected => pure selected
-        | .error message => return .error message
-      if let some priorYear := priorYear? then
-        if priorYear.toNat?.getD 0 + 1 != year.toNat?.getD 0 then
-          return .error "loam: annual start requires the year immediately after the active year"
-      if ← destination.pathExists then
-        return .error "loam: annual destination already exists; no replacement or overwrite"
-      let observed ←
-        match ← Loam.ActualAuthority.loadHouseholdObserved? root with
-        | .ok loaded => pure loaded
-        | .error message => return .error message
-      let dates := observed.image.currentValidities.entries
-      if dates.isEmpty then
-        return .error "loam: annual start requires an admitted prior-year Actual source"
-      if dates.any (fun item => decide (item.validOn >= year ++ "-01-01")) then
-        return .error "loam: source contains current/future-year Actual; cutover would lose new-year events"
-      if priorYear?.isNone &&
-          !(dates.any fun item =>
-              item.validOn.startsWith (toString (year.toNat?.getD 0 - 1) ++ "-")) then
-        return .error "loam: installed predecessor has no admitted Actual in the immediately prior year"
-      let newImage ←
-        match successorImage? observed.generation observed.image with
-        | .ok value => pure value
-        | .error message => return .error message
-      try
-        IO.FS.createDirAll destination
-        let installed ←
-          match ← Loam.HouseholdAuthority.installInitial? destination newImage with
-          | .ok qualified => pure qualified
-          | .error message => return .error message
-        let reread ←
-          match ← Loam.ActualAuthority.loadHouseholdObserved? destination with
-          | .ok qualified => pure qualified
-          | .error message => return .error message
-        if reread.generation.wire != installed.wire then
-          return .error "loam: new-year installed source changed during readback"
-        let sourceCarry ←
-          match carryState? observed.generation observed.image with
-          | .ok state => pure state
-          | .error message => return .error message
-        let targetCarry ←
-          match carryState? reread.generation reread.image with
-          | .ok state => pure state
-          | .error message => return .error message
-        if sourceCarry.balances.rows != targetCarry.balances.rows ||
-            sourceCarry.balances.knownPresent != targetCarry.balances.knownPresent ||
-            sourceCarry.openScheduled != targetCarry.openScheduled then
-          return .error "loam: installed new-year source does not preserve supported carry"
-        let pointer := Loam.HouseholdAuthority.activeYearPath root
-        let marker := "LOAM-ACTIVE-YEAR\t1\n" ++ year ++ "\n"
-        Loam.Persistence.replaceTextViaSiblingStage pointer marker
-        match ← Loam.HouseholdAuthority.selectedYear? root with
-        | .ok (some active) =>
-            if active != year then
-              return .error "loam: activated annual pointer does not select the installed year"
-            return .ok (Loam.HouseholdAuthority.path destination)
-        | _ => return .error "loam: newly activated annual pointer cannot be read"
-      catch e =>
-        return .error ("loam: annual start failed before verified completion: " ++ e.toString)
-
-/-- Normal CLI entry requires today's actual local year; deterministic tests may
-exercise beginYearAt with an explicit simulated observed day. -/
-def beginYear (root : System.FilePath) (year : String) :
-    IO (Except String System.FilePath) := do
-  let some today ← Loam.ActualDate.todayIso?
-    | return .error "loam: current local calendar day unavailable"
-  beginYearAt root year today
-
 private def effectLine (effect : Effect) : String :=
   "  " ++ effect.coordinate.locus.token ++
   "\t" ++ toString effect.quantity.quanta ++
@@ -724,8 +517,6 @@ private def resolveRoot (path? : Option String) :
 def run (args : List String) : IO UInt32 := do
   let (mode, year, root?) ←
     match args with
-    | ["begin", year] => pure (4, year, none)
-    | ["begin", year, root] => pure (4, year, some root)
     | ["opening", year] => pure (3, year, none)
     | ["opening", year, root] => pure (3, year, some root)
     | ["extract", year] => pure (2, year, none)
@@ -736,7 +527,6 @@ def run (args : List String) : IO UInt32 := do
     | [year, root] => pure (0, year, some root)
     | _ =>
         IO.eprintln "Usage: loam year YYYY [LOAM_DATA_DIR]"
-        IO.eprintln "       loam year begin YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year opening YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year extract YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year checkpoint YYYY [LOAM_DATA_DIR]"
@@ -745,16 +535,7 @@ def run (args : List String) : IO UInt32 := do
     match ← resolveRoot root? with
     | .ok root => pure root
     | .error message => IO.eprintln message; return 2
-  if mode == 4 then
-    match ← beginYear root year with
-    | .ok file =>
-        IO.println ("Year source activated at: " ++ file.toString)
-        IO.println "Prior Event history remains in its predecessor; cross-year corrections need qualification."
-        return 0
-    | .error message =>
-        IO.eprintln message
-        return 2
-  else if mode == 3 then
+  if mode == 3 then
     match ← inspectOpening root year with
     | .ok opening =>
         IO.println (renderOpening opening)
