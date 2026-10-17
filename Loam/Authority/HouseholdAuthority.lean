@@ -436,9 +436,11 @@ def publishObserved?
       | .ok selected => pure selected
       | .error message => return .error message
     if let some year := active? then
-      match qualifyAnnualActual? year (match qualifyActual? candidate with
-        | .ok actual? => actual?
-        | .error _ => none) with
+      let candidateActual ←
+        match qualifyActual? candidate with
+        | .ok actual? => pure actual?
+        | .error message => return .error message
+      match qualifyAnnualActual? year candidateActual with
       | .ok () => pure ()
       | .error message => return .error message
 
