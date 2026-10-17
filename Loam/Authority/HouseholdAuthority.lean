@@ -222,6 +222,27 @@ private def decodeGenerationWithActual (wire : String) :
   qualifyOtherKnownSections image
   return ({ wire := wire, image := image }, actual)
 
+/--
+Active annual Actual has no authority to introduce prior/future effective years.
+New generated Event IDs need a stable year namespace so that two independently
+bounded years cannot both allocate record-1 or exchange-1. Scheduled completion
+keeps its already-global Scheduled identity. Other Event creators are refused
+until explicitly qualified for multi-year provenance.
+-/
+private def qualifyAnnualActual?
+    (year : String)
+    (actual? : Option Loam.Persistence.AdmittedActualImage) : Except String Unit := do
+  let some actual := actual?
+    | throw "loam: active-year source is missing required Actual"
+  if actual.currentValidities.entries.any
+      (fun item => !(item.validOn.startsWith (year ++ "-"))) then
+    throw "loam: active-year writer refuses Actual occurrences outside selected calendar year"
+  if actual.evidence.events.events.any (fun event =>
+      !(event.id.token.startsWith ("record-" ++ year ++ "-") ||
+        event.id.token.startsWith ("exchange-" ++ year ++ "-") ||
+        event.id.token.startsWith "scheduled-completion:")) then
+    throw "loam: active-year Event identity is not globally year-qualified"
+
 private def decodeGeneration (wire : String) : Except String Generation :=
   (decodeGenerationWithActual wire).map Prod.fst
 
@@ -238,7 +259,18 @@ def loadCurrentWithActual? (root : System.FilePath) :
   if !(← current.pathExists) then
     return .error s!"loam: HouseholdImage authority is missing: {current}"
   let wire ← IO.FS.readFile current
-  return decodeGenerationWithActual wire
+  let loaded ←
+    match decodeGenerationWithActual wire with
+    | .ok result => pure result
+    | .error message => return .error message
+  match ← selectedYear? root with
+  | .error message => return .error message
+  | .ok none => pure ()
+  | .ok (some year) =>
+      match qualifyAnnualActual? year loaded.2 with
+      | .ok () => pure ()
+      | .error message => return .error message
+  return .ok loaded
 
 def loadCurrent? (root : System.FilePath) : IO (Except String Generation) := do
   return (← loadCurrentWithActual? root).map Prod.fst
@@ -399,6 +431,16 @@ def publishObserved?
     match qualifyTransition base.image candidate changedNames with
     | .error message => return .error message
     | .ok () => pure ()
+    let active? ←
+      match ← selectedYear? root with
+      | .ok selected => pure selected
+      | .error message => return .error message
+    if let some year := active? then
+      match qualifyAnnualActual? year (match qualifyActual? candidate with
+        | .ok actual? => actual?
+        | .error _ => none) with
+      | .ok () => pure ()
+      | .error message => return .error message
 
     let some candidateWire := Loam.Persistence.HouseholdImage.encode? candidate
       | return .error "loam: HouseholdImage candidate could not be encoded"
@@ -412,6 +454,14 @@ def publishObserved?
     match qualifyTransition base.image stagedGeneration.image changedNames with
     | .error message => return .error message
     | .ok () => pure ()
+    if let some year := active? then
+      let actual? ←
+        match qualifyActual? stagedGeneration.image with
+        | .ok actual? => pure actual?
+        | .error message => return .error message
+      match qualifyAnnualActual? year actual? with
+      | .ok () => pure ()
+      | .error message => return .error message
 
     let previousStage := previousStagePath current
     IO.FS.writeFile previousStage currentWire
