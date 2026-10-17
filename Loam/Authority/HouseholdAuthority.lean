@@ -94,6 +94,15 @@ def selectedYear? (root : System.FilePath) : IO (Except String (Option String)) 
       return .error "loam: malformed active-year pointer: invalid year"
   | _ => return .error "loam: malformed or unsupported active-year pointer"
 
+/-- Allocate year-scoped identities without changing historical legacy IDs.
+The same namespace is shared by every production event/occurrence publisher. -/
+def idPrefix? (root : System.FilePath) (stem : String) :
+    IO (Except String String) := do
+  match ← selectedYear? root with
+  | .error message => return .error message
+  | .ok none => return .ok (stem ++ "-")
+  | .ok (some year) => return .ok (stem ++ "-" ++ year ++ "-")
+
 /-- Resolve one canonical current HouseholdImage; the marker's existence makes
 a missing or corrupt selected year an error, never a legacy-root fallback. -/
 def selectedPath? (root : System.FilePath) : IO (Except String System.FilePath) := do

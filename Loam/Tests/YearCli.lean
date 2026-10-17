@@ -413,6 +413,8 @@ def main : IO Unit := do
     (Loam.YearCli.carryState? afterJanuary.generation afterJanuary.image)
     "check January exact balance"
   expect (afterJanuary.image.evidence.events.events.length == 1 &&
+          janActual.token.startsWith "record-2027-" &&
+          janActual != previousActual &&
           (afterJanuary.image.evidence.events.findById? janActual).isSome &&
           (afterJanuary.image.evidence.events.findById? previousActual).isNone &&
           afterJanuaryCarry.balances.rows.any (fun row =>

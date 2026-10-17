@@ -77,7 +77,7 @@ private structure Replacement where
 /-- Pure shared proposal: no source is changed until every draft has passed admission. -/
 private def proposeBatch
     (observed : Loam.ScheduledLifecycleAuthority.Observed)
-    (drafts : List Draft) :
+    (drafts : List Draft) (idPrefix : String) :
     Except String (Loam.Persistence.ScheduledLifecycleImage × List Replacement) := do
   if drafts.isEmpty then
     throw "loam: select at least one Scheduled occurrence"
@@ -101,7 +101,7 @@ private def proposeBatch
     if !containsScheduled openOccurrences draft.source then
       throw "loam: only a currently open Scheduled identity can be replaced"
     let successor : ScheduledOccurrence String := {
-      id := Loam.ScheduledOccurrenceConstruction.freshId lifecycle.scheduled
+      id := Loam.ScheduledOccurrenceConstruction.freshIdWithPrefix lifecycle.scheduled idPrefix
       scheduledOn := draft.scheduledOn
       movement := draft.movement
     }
@@ -145,8 +145,12 @@ private def publishHouseholdFromGeneration
     match ← Loam.ScheduledLifecycleAuthority.loadHouseholdObserved? root with
     | .ok observed => pure observed
     | .error message => return .error message
+  let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "scheduled" with
+    | .ok prefix => pure prefix
+    | .error message => return .error message
   let (updatedLifecycle, _) ←
-    match proposeBatch observed [draft] with
+    match proposeBatch observed [draft] idPrefix with
     | .ok proposal => pure proposal
     | .error message => return .error message
   match ← Loam.ScheduledLifecycleAuthority.publishObserved? root observed updatedLifecycle with
@@ -169,8 +173,12 @@ def publishHouseholdBatch
     | .error message => return .error message
   if observed.generation.wire != draft.observedWire then
     return .error "loam: household changed after review; reopen batch edit and review again"
+  let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "scheduled" with
+    | .ok prefix => pure prefix
+    | .error message => return .error message
   let proposal : Except String Loam.Persistence.HouseholdImage.Image := do
-    let (lifecycle, replacements) ← proposeBatch observed draft.drafts
+    let (lifecycle, replacements) ← proposeBatch observed draft.drafts idPrefix
     let some routingBody := Loam.Persistence.HouseholdImage.body?
         observed.generation.image "ScheduledRouting"
       | throw "loam: required HouseholdImage Scheduled routing section is missing"

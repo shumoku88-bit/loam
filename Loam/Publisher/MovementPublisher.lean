@@ -53,7 +53,11 @@ private def publishUnderOwnership
     match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
     | Except.error message => return Except.error message
     | Except.ok la => pure la
-  let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
+  let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "record" with
+    | .ok prefix => pure prefix
+    | .error message => return .error message
+  let world := { Loam.MovementWorldAdapter.ofActual evidence locusAdmission with eventIdPrefix := idPrefix }
   match Loam.MovementAdmission.admit? world draft with
   | Except.error message => return Except.error message
   | Except.ok admitted =>
@@ -86,7 +90,11 @@ private def publishIdempotentUnderOwnership
         match ← Loam.LocusAdmissionAuthority.loadCurrent? root with
         | Except.error message => return Except.error message
         | Except.ok la => pure la
-      let world := Loam.MovementWorldAdapter.ofActual evidence locusAdmission
+      let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "record" with
+    | .ok prefix => pure prefix
+    | .error message => return .error message
+  let world := { Loam.MovementWorldAdapter.ofActual evidence locusAdmission with eventIdPrefix := idPrefix }
       match Loam.MovementAdmission.admit? world draft with
       | Except.error message => return Except.error message
       | Except.ok admitted =>

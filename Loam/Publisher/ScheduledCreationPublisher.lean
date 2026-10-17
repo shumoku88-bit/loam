@@ -87,8 +87,13 @@ private def publishHouseholdFromGeneration
   match lifecycleReadable? observed.lifecycle evidence.events with
   | .error message => return .error message
   | .ok () => pure ()
+  let idPrefix ←
+    match ← Loam.HouseholdAuthority.idPrefix? root "scheduled" with
+    | .ok prefix => pure prefix
+    | .error message => return .error message
   let scheduledId :=
-    Loam.ScheduledOccurrenceConstruction.freshId observed.lifecycle.scheduled
+    Loam.ScheduledOccurrenceConstruction.freshIdWithPrefix
+      observed.lifecycle.scheduled idPrefix
   let occurrence : ScheduledOccurrence String := {
     id := scheduledId
     scheduledOn := draft.scheduledOn
@@ -97,7 +102,8 @@ private def publishHouseholdFromGeneration
   let updatedScheduled :=
     ScheduledMemory.addFresh observed.lifecycle.scheduled occurrence (by
       change scheduledId ∉ observed.lifecycle.scheduled.occurrences.map ScheduledOccurrence.id
-      exact Loam.ScheduledOccurrenceConstruction.freshId_fresh observed.lifecycle.scheduled)
+      exact Loam.ScheduledOccurrenceConstruction.freshIdWithPrefix_fresh
+        observed.lifecycle.scheduled idPrefix)
   let updatedLifecycle := { observed.lifecycle with scheduled := updatedScheduled }
   match ← Loam.ScheduledLifecycleAuthority.publishObserved?
       root observed updatedLifecycle with

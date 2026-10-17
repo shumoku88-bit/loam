@@ -514,6 +514,10 @@ def successorImage?
     (actual : Loam.ActualAuthority.Image) :
     Except String Loam.Persistence.HouseholdImage.Image := do
   let state ← carryState? source actual
+  if decide (actual.evidence.settlements ≠ Loam.Core.SettlementEvidence.empty) ||
+      !actual.evidence.relations.isEmpty || !actual.evidence.discharges.isEmpty ||
+      !actual.evidence.movementOperations.entries.isEmpty then
+    throw "loam: annual source has unresolved settlement, relation or idempotency dependencies"
   let lifecycle ← Loam.ScheduledLifecycleAuthority.decodeGeneration? source
   let snapshot : Loam.ScheduledReview.EvidenceSnapshot := {
     scheduled := lifecycle.scheduled,
