@@ -70,11 +70,11 @@ private def reconcileSavedYear (root : System.FilePath) (year : String)
   let currentYear := latest.filter fun entry => entry.validOn.startsWith (year ++ "-")
   -- In a future bounded-current-root layout, the active source may have no
   -- old identities at all. That is not evidence of zero historical records.
-  let olderIdsRetained := archived.entries.any fun entry =>
+  let archivedIdsRetained := archived.entries.all fun entry =>
     (image.evidence.events.findById? entry.event.id).isSome
-  if currentYear.isEmpty && !olderIdsRetained then
+  if !archivedIdsRetained then
     return { archived with
-      notice := some "Saved-year as-of view; installed current book has no evidence to verify its freshness." }
+      notice := some "Saved-year as-of view; installed current book does not retain all old identities needed to verify freshness." }
   if journalIdentity currentYear == journalIdentity archived.entries then
     return archived
   -- The installed source still carries this old-year history; it owns
