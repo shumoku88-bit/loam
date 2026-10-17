@@ -28,10 +28,64 @@ structure Report where
   sourceRoot : System.FilePath
   sourceFile : System.FilePath
   entries : List Loam.ActualJournalProjection.Entry
+  notice : Option String := none
 
 /-- Existing NormalizedActual codec, not a new annual wire format. -/
 def extractedActualPath (root : System.FilePath) (year : String) : System.FilePath :=
   Loam.HouseholdPaths.yearRoot root year / "actual-year.loam"
+
+/-- The displayed effective journal content, with exact Effect identity
+and quantities. No proof fields or rendering-dependent whitespace. -/
+private def journalIdentity
+    (entries : List Loam.ActualJournalProjection.Entry) :
+    List (String × String × Option String ×
+      List (Option String × String × String × Int)) :=
+  entries.map fun entry =>
+    (entry.event.id.token, entry.validOn, entry.description,
+      entry.event.effects.map fun effect =>
+        (effect.key.map (·.token), effect.locus.token,
+          effect.measure.token, effect.quantity.quanta))
+
+/-- A saved year is an as-of archive. When the installed HouseholdImage still
+retains its events, a later cross-year correction must be visible without
+rewriting the immutable archive. -/
+private def reconcileSavedYear (root : System.FilePath) (year : String)
+    (archived : Report) : IO Report := do
+  let current := Loam.HouseholdAuthority.path root
+  if !(← current.pathExists) then
+    return { archived with
+      notice := some "Installed current household is missing; saved-year freshness cannot be checked." }
+  let image ←
+    match ← Loam.ActualAuthority.loadHouseholdImage? root with
+    | .ok image => pure image
+    | .error message =>
+        return { archived with
+          notice := some ("Installed current household unavailable; archive is as-of only: " ++ message) }
+  let latest ←
+    match Loam.ActualJournalProjection.fromImage? image with
+    | .ok entries => pure entries
+    | .error message =>
+        return { archived with
+          notice := some ("Installed current journal unavailable; archive is as-of only: " ++ message) }
+  let currentYear := latest.filter fun entry => entry.validOn.startsWith (year ++ "-")
+  -- In a future bounded-current-root layout, the active source may have no
+  -- old identities at all. That is not evidence of zero historical records.
+  let archivedIdsRetained := archived.entries.all fun entry =>
+    (image.evidence.events.findById? entry.event.id).isSome
+  if !archivedIdsRetained then
+    return { archived with
+      notice := some "Saved-year as-of view; installed current book does not retain all old identities needed to verify freshness." }
+  if journalIdentity currentYear == journalIdentity archived.entries then
+    return archived
+  -- The installed source still carries this old-year history; it owns
+  -- today's correction frontier, not the immutable archive.
+  return {
+    sourceRoot := root
+    sourceFile := current
+    entries := currentYear
+    notice := some ("Saved year " ++ year ++
+      " differs from current admitted corrections; showing current HouseholdImage instead.")
+  }
 
 def readYear (root : System.FilePath) (year : String) :
     IO (Except String Report) := do
@@ -68,11 +122,14 @@ def readYear (root : System.FilePath) (year : String) :
     let observedDay? ← Loam.ActualDate.todayIso?
     if !(observedDay?.any fun day => day.startsWith (year ++ "-")) then
       return .error s!"loam: year {year} has no saved source or recorded Actual"
-  return .ok {
+  let report : Report := {
     sourceRoot := sourceRoot
     sourceFile := sourceFile
     entries := dated
   }
+  if archivePresent then
+    return .ok (← reconcileSavedYear root year report)
+  return .ok report
 
 /--
 A carry candidate from one admitted household generation. The coordinate
@@ -343,7 +400,11 @@ def render (year : String) (report : Report) : String :=
     , "Source: " ++ report.sourceFile.toString
     , "Current-effective dated records in selected source: " ++
         toString report.entries.length
-    , "Older saved sources may not contain corrections admitted later."
+    ] ++
+    (match report.notice with
+      | some notice => ["Notice: " ++ notice]
+      | none => []) ++
+    [ "Older saved sources may not contain corrections admitted later."
     , ""
     ] ++ report.entries.flatMap entryLines
 
