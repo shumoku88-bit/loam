@@ -358,7 +358,67 @@ def main : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "invalid opening year was accepted")
 
-  IO.println "YearCli: calendar selection, archives, immutable checkpoints, bounded Actual extraction and exact Jan-1 opening checks passed."
+
+  -- A new calendar year is a truly independent, empty household.
+  -- Creation never edits or selects the existing book.
+  let independentRoot := parent / "simple-year-books"
+  let _ ← requireOk (← Loam.NewHouseholdCli.create independentRoot)
+    "create installed household for independent years"
+  for token in ["cash", "food"] do
+    let _ ← requireOk
+      (← Loam.HouseholdCommand.admitLocus independentRoot { token })
+      "admit previous-year locus"
+    pure ()
+  let oldEvent ← bookEvent independentRoot "2026-12-31"
+  let previousBytes ← IO.FS.readFile (Loam.HouseholdAuthority.path independentRoot)
+  let freshRoot ← requireOk
+    (← Loam.YearCli.newIndependentBook independentRoot "2027")
+    "create independent 2027 book"
+  expect (freshRoot == independentRoot / "books" / "2027" &&
+          (← IO.FS.readFile (Loam.HouseholdAuthority.path independentRoot)) == previousBytes)
+    "new-year setup changed original book or chose an unexpected path"
+  let fresh ← requireOk
+    (← Loam.ActualAuthority.loadHouseholdObserved? freshRoot)
+    "open independent 2027 with normal loader"
+  expect (fresh.image.evidence.events.events.isEmpty)
+    "new-year setup imported previous Actual instead of creating an empty book"
+  for token in ["cash", "food"] do
+    let _ ← requireOk
+      (← Loam.HouseholdCommand.admitLocus freshRoot { token })
+      "admit fresh-year locus"
+    pure ()
+  let newEvent ← bookEvent freshRoot "2027-01-01"
+  expect (newEvent == oldEvent &&
+          (← IO.FS.readFile (Loam.HouseholdAuthority.path independentRoot)) == previousBytes)
+    "independent year record failed or changed previous household"
+  let fresh2028 ← requireOk
+    (← Loam.YearCli.newIndependentBook independentRoot "2028")
+    "create next independent 2028 book"
+  let blank2028 ← requireOk
+    (← Loam.ActualAuthority.loadHouseholdObserved? fresh2028)
+    "reopen 2028"
+  expect (blank2028.image.evidence.events.events.isEmpty)
+    "2028 book inherited previous years without a user observation"
+  match ← Loam.YearCli.newIndependentBook independentRoot "2027" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "new-year command overwrote 2027")
+  match ← Loam.YearCli.newIndependentBook independentRoot "20x8" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "invalid new-year name admitted")
+  expect (!(← (independentRoot / "journal" / "active-year").pathExists))
+    "fresh-year command installed experimental annual pointer"
+  -- If a prior version already activated annual files, a new simple release
+  -- must not quietly reopen an older root as authoritative.
+  IO.FS.createDirAll (independentRoot / "journal")
+  IO.FS.writeFile (independentRoot / "journal" / "active-year")
+    "LOAM-ACTIVE-YEAR\t1\n2027\n"
+  match ← Loam.HouseholdAuthority.loadCurrent? independentRoot with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "retired active-year pointer fell back to stale root")
+  match ← Loam.YearCli.newIndependentBook independentRoot "2029" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "new book created under incompatible annual pointer")
+  IO.println "YearCli: independent year books, archive views and Jan-1 opening checks passed."
 
 end Loam.Tests.YearCli
 
