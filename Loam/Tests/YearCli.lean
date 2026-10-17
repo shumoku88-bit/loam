@@ -293,7 +293,72 @@ def main : IO Unit := do
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "corrupt annual Actual was silently replaced")
 
-  IO.println "YearCli: calendar selection, archives, immutable checkpoints and bounded Actual extraction passed."
+  -- Historical support is essential: an exact current anchor is NOT an
+  -- exact January-1 opening, and today's Scheduled status is not Jan-1 status.
+  let unsupportedOpening ← requireOk
+    (← Loam.YearCli.inspectOpening checkpointRoot "2021")
+    "review Jan-1 without historical completeness"
+  expect (unsupportedOpening.exact.isEmpty &&
+          unsupportedOpening.unavailable.any
+            (fun item => item.1.locus.token == "cash") &&
+          unsupportedOpening.currentOpenScheduled.length == 1 &&
+          ((Loam.YearCli.renderOpening unsupportedOpening).splitOn "UNAVAILABLE").length > 1)
+    "year opening invented historical cash or silently dropped open Scheduled"
+
+  let openingRoot := parent / "year-opening"
+  let _ ← requireOk (← Loam.NewHouseholdCli.create openingRoot)
+    "create bounded year-opening product fixture"
+  for token in ["cash", "food"] do
+    let _ ← requireOk
+      (← Loam.HouseholdCommand.admitLocus openingRoot { token })
+      ("admit year-opening " ++ token)
+    pure ()
+  let _ ← bookEvent openingRoot "2026-12-31"
+  let _ ← bookEvent openingRoot "2027-01-01"
+  let observedOpening ← requireOk
+    (← Loam.HouseholdAuthority.loadCurrent? openingRoot)
+    "load opening candidate source"
+  let zero ← requireSome
+    (ZeroOriginCoverage.ofCoordinates? [
+      ⟨⟨"cash"⟩, ⟨"jpy"⟩⟩, ⟨⟨"food"⟩, ⟨"jpy"⟩⟩
+    ]) "admit explicit known-zero synthetic origins"
+  let zeroWire ← requireSome
+    (Loam.Persistence.encodeZeroOriginCoverage? zero)
+    "encode synthetic zero origin"
+  let zeroImage ← requireSome
+    (Loam.Persistence.HouseholdImage.replaceBody?
+      observedOpening.image "ZeroOrigin" zeroWire)
+    "install synthetic explicit origin section"
+  let _ ← requireOk
+    (← Loam.HouseholdAuthority.publishObserved? openingRoot
+      observedOpening.wire ["ZeroOrigin"] zeroImage)
+    "publish admitted zero-origin fixture"
+  let januarySource ← requireOk
+    (← Loam.ActualAuthority.loadHouseholdObserved? openingRoot)
+    "load synthetic future-boundary fixture"
+  let jan1 ← requireOk
+    (Loam.YearCli.openingReview? januarySource.generation januarySource.image "2027")
+    "project simulated Jan-1 2027 exact quantities"
+  expect (jan1.exact.length == 2 && jan1.unavailable.isEmpty &&
+          jan1.exact.any (fun row =>
+            row.coordinate.locus.token == "cash" &&
+            row.quantity.quanta == -100) &&
+          jan1.exact.any (fun row =>
+            row.coordinate.locus.token == "food" &&
+            row.quantity.quanta == 100))
+    "Jan-1 historical reconstruction counted Jan-1 Actual or lost Dec-31"
+  expect (((Loam.YearCli.renderOpening jan1).splitOn "2027-01-01").length > 1)
+    "Jan-1 CLI did not expose its historical boundary"
+  match ← Loam.YearCli.inspectOpening openingRoot "9998" with
+  | .error message =>
+      expect (message.startsWith "loam: future Jan-1 opening")
+        "future boundary refused without the correct explanation"
+  | .ok _ => throw (IO.userError "future opening was fabricated as historical")
+  match ← Loam.YearCli.inspectOpening openingRoot "20x7" with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "invalid opening year was accepted")
+
+  IO.println "YearCli: calendar selection, archives, immutable checkpoints, bounded Actual extraction and exact Jan-1 opening checks passed."
 
 end Loam.Tests.YearCli
 

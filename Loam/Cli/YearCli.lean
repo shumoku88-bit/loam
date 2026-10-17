@@ -5,6 +5,7 @@ import Loam.Persistence.WriterOwnership
 import Loam.Authority.ActualAuthority
 import Loam.Review.ActualJournalProjection
 import Loam.Review.CurrentBalanceReview
+import Loam.Review.HistoricalBalanceReview
 import Loam.Review.ScheduledReview
 import Loam.Persistence.TextEscape
 
@@ -382,6 +383,98 @@ def extractYear (root : System.FilePath) (year : String) :
     catch error =>
       return .error ("loam: annual extraction failed: " ++ error.toString)
 
+/--
+Read an exact Jan-1 opening boundary using the *existing* historical balance
+reconstructor. A current quantity, even when exact, is not enough to claim an
+exact quantity at an earlier calendar boundary.
+
+Unproven coordinates remain explicitly unavailable with the existing
+historical-support refusal reason. Scheduled evidence is inspected through its
+normal current-open reader but is deliberately NOT called Jan-1 Scheduled: its
+lifecycle terminal evidence has no independently admitted publication time.
+-/
+structure OpeningReview where
+  startOfDay : String
+  exact : List Loam.HistoricalBalanceReview.Row
+  unavailable : List (EffectCoordinate × String)
+  currentOpenScheduled : List (String × String)
+deriving Repr
+
+private def isUnavailableHistoricalSupport (message : String) : Bool :=
+  message.startsWith "loam: historical balance unavailable: historical support missing" ||
+  message.startsWith "loam: historical balance unavailable: opening support does not justify" ||
+  message.startsWith "loam: historical balance unavailable: bounded history support missing" ||
+  message.startsWith "loam: historical balance unavailable: requested boundary precedes bounded history start"
+
+def openingReview?
+    (generation : Loam.HouseholdAuthority.Generation)
+    (actual : Loam.ActualAuthority.Image)
+    (year : String) : Except String OpeningReview := do
+  if !validYear year then
+    throw "loam: opening review requires a valid four-digit calendar year"
+  let startOfDay := year ++ "-01-01"
+  let current ← Loam.CurrentBalanceReview.projectFromGeneration generation actual
+  let historical ← Loam.HistoricalBalanceReview.evidenceFromGeneration generation
+  let scheduled ← Loam.ScheduledReview.fromGenerationForEvents
+    generation actual.evidence.events
+  let openScheduled ← Loam.ScheduledReview.orderedCurrentOpenRecords scheduled
+  let coordinates := (current.rows.map (·.coordinate) ++
+    current.knownPresent ++ current.unsupported).eraseDups
+  let mut exact : List Loam.HistoricalBalanceReview.Row := []
+  let mut unavailable : List (EffectCoordinate × String) := []
+  for coordinate in coordinates do
+    match Loam.HistoricalBalanceReview.projectStartOfDay
+        actual historical startOfDay [coordinate] with
+    | .ok snapshot =>
+        exact := exact ++ snapshot.rows
+    | .error message =>
+        if !isUnavailableHistoricalSupport message then
+          throw message
+        unavailable := unavailable ++ [(coordinate, message)]
+  return {
+    startOfDay := startOfDay,
+    exact := exact,
+    unavailable := unavailable,
+    currentOpenScheduled := openScheduled.map fun item =>
+      (item.id.token, item.scheduledOn)
+  }
+
+/-- One qualified current generation with an independently justified boundary
+projection. The root is never mutated. -/
+def inspectOpening (root : System.FilePath) (year : String) :
+    IO (Except String OpeningReview) := do
+  if !validYear year then
+    return .error "loam: opening review requires a valid four-digit calendar year"
+  let some today ← Loam.ActualDate.todayIso?
+    | return .error "loam: local calendar day unavailable for opening review"
+  if decide (today < year ++ "-01-01") then
+    return .error "loam: future Jan-1 opening is not yet historical; no future quantity can be certified"
+  let observed ←
+    match ← Loam.ActualAuthority.loadHouseholdObserved? root with
+    | .ok observed => pure observed
+    | .error message => return .error message
+  return openingReview? observed.generation observed.image year
+
+/-- Retain the exact Measure with every quantity; unknown is never formatted
+as an arithmetic zero. Current Scheduled is informational, not date-qualified. -/
+def renderOpening (review : OpeningReview) : String :=
+  String.intercalate "\n" <|
+    ["LOAM / " ++ review.startOfDay ++ " opening boundary (read-only)",
+     "Uses today's corrected Actual truth, not necessarily what was known on Jan 1.",
+     "Exact historical quantities: " ++ toString review.exact.length,
+     "Unavailable historical quantities: " ++ toString review.unavailable.length] ++
+    (review.exact.map fun row =>
+      "EXACT\t" ++ row.coordinate.locus.token ++ "\t" ++
+      row.coordinate.measure.token ++ "\t" ++ toString row.quantity.quanta) ++
+    (review.unavailable.map fun (coordinate, reason) =>
+      "UNAVAILABLE\t" ++ coordinate.locus.token ++ "\t" ++
+      coordinate.measure.token ++ "\t" ++ reason) ++
+    ["Current-open Scheduled: " ++ toString review.currentOpenScheduled.length,
+     "Scheduled shown below is current-open NOW, not certified open on Jan 1."] ++
+    (review.currentOpenScheduled.map fun (id, date) =>
+      "CURRENT-SCHEDULED\t" ++ id ++ "\t" ++ date) ++
+    ["This is not a verified year close, writable carry or future forecast."]
+
 private def effectLine (effect : Effect) : String :=
   "  " ++ effect.coordinate.locus.token ++
   "\t" ++ toString effect.quantity.quanta ++
@@ -424,6 +517,8 @@ private def resolveRoot (path? : Option String) :
 def run (args : List String) : IO UInt32 := do
   let (mode, year, root?) ←
     match args with
+    | ["opening", year] => pure (3, year, none)
+    | ["opening", year, root] => pure (3, year, some root)
     | ["extract", year] => pure (2, year, none)
     | ["extract", year, root] => pure (2, year, some root)
     | ["checkpoint", year] => pure (1, year, none)
@@ -432,6 +527,7 @@ def run (args : List String) : IO UInt32 := do
     | [year, root] => pure (0, year, some root)
     | _ =>
         IO.eprintln "Usage: loam year YYYY [LOAM_DATA_DIR]"
+        IO.eprintln "       loam year opening YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year extract YYYY [LOAM_DATA_DIR]"
         IO.eprintln "       loam year checkpoint YYYY [LOAM_DATA_DIR]"
         return 2
@@ -439,7 +535,15 @@ def run (args : List String) : IO UInt32 := do
     match ← resolveRoot root? with
     | .ok root => pure root
     | .error message => IO.eprintln message; return 2
-  if mode == 2 then
+  if mode == 3 then
+    match ← inspectOpening root year with
+    | .ok opening =>
+        IO.println (renderOpening opening)
+        return 0
+    | .error message =>
+        IO.eprintln message
+        return 2
+  else if mode == 2 then
     match ← extractYear root year with
     | .ok path =>
         IO.println ("Read-only year Actual excerpt created at: " ++ path.toString)
