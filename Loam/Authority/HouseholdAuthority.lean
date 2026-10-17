@@ -188,6 +188,10 @@ The pair is a local read result, not a cache added to mutable Generation fields.
 -/
 def loadCurrentWithActual? (root : System.FilePath) :
     IO (Except String (Generation × Option Loam.Persistence.AdmittedActualImage)) := do
+  -- Historical experimental annual pointers cannot silently become stale-root
+  -- reads after this simplified independent-book cutover.
+  if ← (root / "journal" / "active-year").pathExists then
+    return .error "loam: legacy active-year marker found; preserve its directory and open with a compatible version, not the old root"
   let current := path root
   if !(← current.pathExists) then
     return .error s!"loam: HouseholdImage authority is missing: {current}"
@@ -214,6 +218,8 @@ previous generation explicitly.
 Previous evidence is never silently relabeled as current.
 -/
 def loadRecoverable? (root : System.FilePath) : IO (Except String RecoveredGeneration) := do
+  if ← (root / "journal" / "active-year").pathExists then
+    return .error "loam: legacy active-year marker found; root fallback recovery is unsafe"
   let current := path root
   if ← current.pathExists then
     let wire ← IO.FS.readFile current
@@ -289,6 +295,8 @@ def installInitial?
     (candidate : Image) : IO (Except String Generation) := do
   let current := path root
   Loam.WriterOwnership.withOwnership current do
+    if ← (root / "journal" / "active-year").pathExists then
+      return .error "loam: legacy active-year marker found; refuse initial installation"
     if ← current.pathExists then
       return .error "loam: HouseholdImage authority already exists"
     match qualifyKnownSections candidate with
@@ -323,6 +331,8 @@ def publishObserved?
   | .error message => return .error message
   let current := path root
   Loam.WriterOwnership.withOwnership current do
+    if ← (root / "journal" / "active-year").pathExists then
+      return .error "loam: legacy active-year marker found; refuse publication to the stale root"
     if !(← current.pathExists) then
       return .error "loam: HouseholdImage authority is missing"
     let currentWire ← IO.FS.readFile current
@@ -377,6 +387,8 @@ def restorePrevious?
   | .error message => return .error message
   let current := path root
   Loam.WriterOwnership.withOwnership current do
+    if ← (root / "journal" / "active-year").pathExists then
+      return .error "loam: legacy active-year marker found; refuse restoring the stale root"
     let previous := previousPath root
     if !(← previous.pathExists) then
       return .error "loam: previous HouseholdImage generation is missing"
