@@ -55,7 +55,10 @@ retains its events, a later cross-year correction must be visible without
 rewriting the immutable archive. -/
 private def reconcileSavedYear (root : System.FilePath) (year : String)
     (archived : Report) : IO Report := do
-  let current := Loam.HouseholdAuthority.path root
+  let current ←
+    match ← Loam.HouseholdAuthority.selectedPath? root with
+    | .ok selected => pure selected
+    | .error message => return { archived with notice := some message }
   if !(← current.pathExists) then
     return { archived with
       notice := some "Installed current household is missing; saved-year freshness cannot be checked." }
@@ -105,13 +108,30 @@ def readYear (root : System.FilePath) (year : String) :
     return .error s!"loam: saved year {year} exists but its authority is missing"
   if checkpointPresent && extractedPresent then
     return .error s!"loam: year {year} has ambiguous archive sources"
-  let sourceRoot := if archivePresent then archiveRoot else root
+  let activeYear? ←
+    match ← Loam.HouseholdAuthority.selectedYear? root with
+    | .ok value => pure value
+    | .error message => return .error message
+  let legacyPredecessor :=
+    !archivePresent && activeYear?.any (fun active => decide (year < active))
+  let sourceRoot :=
+    if archivePresent then archiveRoot
+    else if activeYear? == some year then
+      Loam.HouseholdPaths.yearRoot root year
+    else root
   let sourceFile :=
     if checkpointPresent then checkpoint
     else if extractedPresent then extracted
-    else Loam.HouseholdAuthority.path root
+    else Loam.HouseholdAuthority.path sourceRoot
+  let actualResult ←
+    if legacyPredecessor then
+      match ← Loam.HouseholdAuthority.loadPhysical? root with
+      | .ok generation => pure (Loam.ActualAuthority.decodeHouseholdGeneration? generation)
+      | .error message => pure (.error message)
+    else
+      Loam.ActualAuthority.loadImageFile? sourceFile
   let actual ←
-    match ← Loam.ActualAuthority.loadImageFile? sourceFile with
+    match actualResult with
     | .ok image => pure image
     | .error message => return .error message
   let entries ←
@@ -130,6 +150,9 @@ def readYear (root : System.FilePath) (year : String) :
     sourceRoot := sourceRoot
     sourceFile := sourceFile
     entries := dated
+    notice := if legacyPredecessor then
+      some "Original installed HouseholdImage predecessor (read-only after annual activation)."
+    else none
   }
   if archivePresent then
     return .ok (← reconcileSavedYear root year report)
