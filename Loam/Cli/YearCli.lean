@@ -607,68 +607,72 @@ def beginYearAt (root : System.FilePath) (year observedDay : String) :
       !(observedDay.startsWith (year ++ "-")) then
     return .error "loam: annual start requires the observed day in the requested calendar year"
   let destination := Loam.HouseholdPaths.yearRoot root year
-  Loam.HouseholdAuthority.withOwnership root do
-    let priorYear? ←
-      match ← Loam.HouseholdAuthority.selectedYear? root with
-      | .ok selected => pure selected
-      | .error message => return .error message
-    if let some priorYear := priorYear? then
-      if priorYear.toNat?.getD 0 + 1 != year.toNat?.getD 0 then
-        return .error "loam: annual start requires the year immediately after the active year"
-    if ← destination.pathExists then
-      return .error "loam: annual destination already exists; no replacement or overwrite"
-    let observed ←
-      match ← Loam.ActualAuthority.loadHouseholdObserved? root with
-      | .ok loaded => pure loaded
-      | .error message => return .error message
-    let dates := observed.image.currentValidities.entries
-    if dates.isEmpty then
-      return .error "loam: annual start requires an admitted prior-year Actual source"
-    if dates.any (fun item => decide (item.validOn >= year ++ "-01-01")) then
-      return .error "loam: source contains current/future-year Actual; cutover would lose new-year events"
-    if priorYear?.isNone &&
-        !(dates.any fun item =>
-            item.validOn.startsWith (toString (year.toNat?.getD 0 - 1) ++ "-")) then
-      return .error "loam: installed predecessor has no admitted Actual in the immediately prior year"
-    let newImage ←
-      match successorImage? observed.generation observed.image with
-      | .ok value => pure value
-      | .error message => return .error message
-    try
-      IO.FS.createDirAll destination
-      let installed ←
-        match ← Loam.HouseholdAuthority.installInitial? destination newImage with
-        | .ok qualified => pure qualified
+  -- Actual publishers acquire the Actual serializer before Household ownership.
+  -- Use that same order so a pre-cutover writer cannot publish old-world Event
+  -- evidence to the newly selected year after the activation pointer flips.
+  Loam.ActualAuthority.withActualOwnership root do
+    Loam.HouseholdAuthority.withOwnership root do
+      let priorYear? ←
+        match ← Loam.HouseholdAuthority.selectedYear? root with
+        | .ok selected => pure selected
         | .error message => return .error message
-      let reread ←
-        match ← Loam.ActualAuthority.loadHouseholdObserved? destination with
-        | .ok qualified => pure qualified
+      if let some priorYear := priorYear? then
+        if priorYear.toNat?.getD 0 + 1 != year.toNat?.getD 0 then
+          return .error "loam: annual start requires the year immediately after the active year"
+      if ← destination.pathExists then
+        return .error "loam: annual destination already exists; no replacement or overwrite"
+      let observed ←
+        match ← Loam.ActualAuthority.loadHouseholdObserved? root with
+        | .ok loaded => pure loaded
         | .error message => return .error message
-      if reread.generation.wire != installed.wire then
-        return .error "loam: new-year installed source changed during readback"
-      let sourceCarry ←
-        match carryState? observed.generation observed.image with
-        | .ok state => pure state
+      let dates := observed.image.currentValidities.entries
+      if dates.isEmpty then
+        return .error "loam: annual start requires an admitted prior-year Actual source"
+      if dates.any (fun item => decide (item.validOn >= year ++ "-01-01")) then
+        return .error "loam: source contains current/future-year Actual; cutover would lose new-year events"
+      if priorYear?.isNone &&
+          !(dates.any fun item =>
+              item.validOn.startsWith (toString (year.toNat?.getD 0 - 1) ++ "-")) then
+        return .error "loam: installed predecessor has no admitted Actual in the immediately prior year"
+      let newImage ←
+        match successorImage? observed.generation observed.image with
+        | .ok value => pure value
         | .error message => return .error message
-      let targetCarry ←
-        match carryState? reread.generation reread.image with
-        | .ok state => pure state
-        | .error message => return .error message
-      if sourceCarry.balances.rows != targetCarry.balances.rows ||
-          sourceCarry.balances.knownPresent != targetCarry.balances.knownPresent ||
-          sourceCarry.openScheduled != targetCarry.openScheduled then
-        return .error "loam: installed new-year source does not preserve supported carry"
-      let pointer := Loam.HouseholdAuthority.activeYearPath root
-      let marker := "LOAM-ACTIVE-YEAR\t1\n" ++ year ++ "\n"
-      Loam.Persistence.replaceTextViaSiblingStage pointer marker
-      match ← Loam.HouseholdAuthority.selectedYear? root with
-      | .ok (some active) =>
-          if active != year then
-            return .error "loam: activated annual pointer does not select the installed year"
-          return .ok (Loam.HouseholdAuthority.path destination)
-      | _ => return .error "loam: newly activated annual pointer cannot be read"
-    catch e =>
-      return .error ("loam: annual start failed before verified completion: " ++ e.toString)
+      try
+        IO.FS.createDirAll destination
+        let installed ←
+          match ← Loam.HouseholdAuthority.installInitial? destination newImage with
+          | .ok qualified => pure qualified
+          | .error message => return .error message
+        let reread ←
+          match ← Loam.ActualAuthority.loadHouseholdObserved? destination with
+          | .ok qualified => pure qualified
+          | .error message => return .error message
+        if reread.generation.wire != installed.wire then
+          return .error "loam: new-year installed source changed during readback"
+        let sourceCarry ←
+          match carryState? observed.generation observed.image with
+          | .ok state => pure state
+          | .error message => return .error message
+        let targetCarry ←
+          match carryState? reread.generation reread.image with
+          | .ok state => pure state
+          | .error message => return .error message
+        if sourceCarry.balances.rows != targetCarry.balances.rows ||
+            sourceCarry.balances.knownPresent != targetCarry.balances.knownPresent ||
+            sourceCarry.openScheduled != targetCarry.openScheduled then
+          return .error "loam: installed new-year source does not preserve supported carry"
+        let pointer := Loam.HouseholdAuthority.activeYearPath root
+        let marker := "LOAM-ACTIVE-YEAR\t1\n" ++ year ++ "\n"
+        Loam.Persistence.replaceTextViaSiblingStage pointer marker
+        match ← Loam.HouseholdAuthority.selectedYear? root with
+        | .ok (some active) =>
+            if active != year then
+              return .error "loam: activated annual pointer does not select the installed year"
+            return .ok (Loam.HouseholdAuthority.path destination)
+        | _ => return .error "loam: newly activated annual pointer cannot be read"
+      catch e =>
+        return .error ("loam: annual start failed before verified completion: " ++ e.toString)
 
 /-- Normal CLI entry requires today's actual local year; deterministic tests may
 exercise beginYearAt with an explicit simulated observed day. -/
