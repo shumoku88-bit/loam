@@ -333,9 +333,12 @@ def main : IO Unit := do
     (← Loam.HouseholdAuthority.publishObserved? openingRoot
       observedOpening.wire ["ZeroOrigin"] zeroImage)
     "publish admitted zero-origin fixture"
+  let januarySource ← requireOk
+    (← Loam.ActualAuthority.loadHouseholdObserved? openingRoot)
+    "load synthetic future-boundary fixture"
   let jan1 ← requireOk
-    (← Loam.YearCli.inspectOpening openingRoot "2027")
-    "project real Jan-1 2027 exact quantities"
+    (Loam.YearCli.openingReview? januarySource.generation januarySource.image "2027")
+    "project simulated Jan-1 2027 exact quantities"
   expect (jan1.exact.length == 2 && jan1.unavailable.isEmpty &&
           jan1.exact.any (fun row =>
             row.coordinate.locus.token == "cash" &&
@@ -346,6 +349,11 @@ def main : IO Unit := do
     "Jan-1 historical reconstruction counted Jan-1 Actual or lost Dec-31"
   expect (((Loam.YearCli.renderOpening jan1).splitOn "2027-01-01").length > 1)
     "Jan-1 CLI did not expose its historical boundary"
+  match ← Loam.YearCli.inspectOpening openingRoot "9998" with
+  | .error message =>
+      expect (message.startsWith "loam: future Jan-1 opening")
+        "future boundary refused without the correct explanation"
+  | .ok _ => throw (IO.userError "future opening was fabricated as historical")
   match ← Loam.YearCli.inspectOpening openingRoot "20x7" with
   | .error _ => pure ()
   | .ok _ => throw (IO.userError "invalid opening year was accepted")

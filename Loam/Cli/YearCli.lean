@@ -443,6 +443,12 @@ def openingReview?
 projection. The root is never mutated. -/
 def inspectOpening (root : System.FilePath) (year : String) :
     IO (Except String OpeningReview) := do
+  if !validYear year then
+    return .error "loam: opening review requires a valid four-digit calendar year"
+  let some today ← Loam.ActualDate.todayIso?
+    | return .error "loam: local calendar day unavailable for opening review"
+  if decide (today < year ++ "-01-01") then
+    return .error "loam: future Jan-1 opening is not yet historical; no future quantity can be certified"
   let observed ←
     match ← Loam.ActualAuthority.loadHouseholdObserved? root with
     | .ok observed => pure observed
@@ -454,6 +460,7 @@ as an arithmetic zero. Current Scheduled is informational, not date-qualified. -
 def renderOpening (review : OpeningReview) : String :=
   String.intercalate "\n" <|
     ["LOAM / " ++ review.startOfDay ++ " opening boundary (read-only)",
+     "Uses today's corrected Actual truth, not necessarily what was known on Jan 1.",
      "Exact historical quantities: " ++ toString review.exact.length,
      "Unavailable historical quantities: " ++ toString review.unavailable.length] ++
     (review.exact.map fun row =>
