@@ -65,6 +65,31 @@ def main : IO Unit := do
   expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path archived)) == currentBefore)
     "read-only year selection changed archived source"
 
+  -- Corrections to an archived December Event may be admitted in January.
+  -- The immutable archived source must stay unchanged, but the ordinary
+  -- year browser must report the latest admitted corrected amount.
+  let _ ← requireOk
+    (← Loam.HouseholdCommand.correctActual root {
+      target := december
+      effects := [
+        Effect.ofAnonymousQuantity ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-75)),
+        Effect.ofAnonymousQuantity ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 75)
+      ]
+      description := some "corrected after year boundary"
+    }) "correct saved December after first January booking"
+  let latestYear ← requireOk (← Loam.YearCli.readYear root "2026")
+    "reconcile immutable 2026 archive against current admitted correction"
+  expect (latestYear.sourceFile == Loam.HouseholdAuthority.path root &&
+          latestYear.entries.length == 1 &&
+          latestYear.entries.head?.bind (·.description) ==
+            some "corrected after year boundary" &&
+          latestYear.notice.isSome)
+    "saved year masked a subsequently admitted December correction"
+  expect ((← IO.FS.readFile (Loam.HouseholdAuthority.path archived)) == currentBefore)
+    "corrected December silently changed the immutable saved year"
+  expect ((Loam.YearCli.render "2026" latestYear).splitOn "Notice: " |>.length > 1)
+    "archive correction source switch was not visible in year report"
+
   -- A missing historical year is not a verified empty journal.
   match ← Loam.YearCli.readYear root "2025" with
   | .error message =>
