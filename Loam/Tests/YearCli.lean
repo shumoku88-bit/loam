@@ -190,6 +190,42 @@ def main : IO Unit := do
   expect (opened.sourceRoot == checkpointDir &&
           opened.entries.map (·.event.id) == [sourceOld])
     "year browser did not open the checkpoint as the selected source"
+  -- An archived HouseholdImage is readable, but it is not a second writable
+  -- household. This must be enforced at the shared publisher, not merely by
+  -- the checkpoint CLI's refusal to overwrite an existing path.
+  expect (Loam.HouseholdAuthority.isSavedYearRoot checkpointDir &&
+          !Loam.HouseholdAuthority.isSavedYearRoot checkpointRoot &&
+          !Loam.HouseholdAuthority.isSavedYearRoot
+            (checkpointRoot / "journal" / "draft"))
+    "saved year writer identification rejected the installed root"
+  match ← Loam.HouseholdCommand.record checkpointDir {
+    validOn := "2022-05-01"
+    description := some "must not write to the saved year"
+    effects := [
+      Effect.ofAnonymousQuantity ⟨"cash"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta (-100)),
+      Effect.ofAnonymousQuantity ⟨"food"⟩ ⟨"jpy"⟩ (Quantity.ofQuanta 100)
+    ]
+    relations := []
+    discharges := []
+    total := 100
+  } with
+  | .error message =>
+      expect (message.startsWith "loam: saved journal/YYYY household is read-only")
+        "saved year writer did not report read-only ownership"
+  | .ok _ => throw (IO.userError "ordinary record wrote into an immutable saved year")
+  let savedGeneration ← requireOk (← Loam.HouseholdAuthority.loadCurrent? checkpointDir)
+    "load saved generation for direct publisher guard"
+  match ← Loam.HouseholdAuthority.publishObserved?
+      checkpointDir savedGeneration.wire [] savedGeneration.image with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "direct Household publisher wrote into saved year")
+  IO.FS.writeFile (Loam.HouseholdAuthority.previousPath checkpointDir) checkpointBefore
+  match ← Loam.HouseholdAuthority.restorePrevious? checkpointDir with
+  | .error _ => pure ()
+  | .ok _ => throw (IO.userError "previous-generation restore modified saved year")
+  expect ((← IO.FS.readFile checkpoint) == checkpointBefore)
+    "attempted archive modification changed saved year bytes"
+
   let _ ← bookEvent checkpointRoot "2022-03-01"
   expect ((← IO.FS.readFile checkpoint) == checkpointBefore)
     "checkpoint was modified by subsequent normal household publication"

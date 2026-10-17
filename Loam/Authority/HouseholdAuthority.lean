@@ -53,6 +53,27 @@ def previousPath (root : System.FilePath) : System.FilePath :=
   root / (fileName ++ ".prev")
 
 /--
+A year-named book under journal/YYYY is currently an immutable saved source,
+never the active publication owner. All ordinary publishers still write the
+installed root/household.loam. Future annual cutover must explicitly promote a
+single writable year under the shared ownership protocol *before* changing this
+guard. No caller may infer write permission merely because an archived file
+can be opened successfully.
+-/
+def isSavedYearRoot (root : System.FilePath) : Bool :=
+  match root.fileName, root.parent with
+  | some year, some parent =>
+      parent.fileName == some "journal" &&
+        year.length == 4 && year.toNat?.isSome && year != "0000"
+  | _, _ => false
+
+private def requireCurrentWriter (root : System.FilePath) : Except String Unit :=
+  if isSavedYearRoot root then
+    .error "loam: saved journal/YYYY household is read-only; use the installed household root for recording"
+  else
+    .ok ()
+
+/--
 Run one cross-family operation under the same writer ownership used by
 HouseholdImage publication.
 
@@ -297,6 +318,9 @@ def publishObserved?
     (observedWire : String)
     (changedNames : List String)
     (candidate : Image) : IO (Except String Generation) := do
+  match requireCurrentWriter root with
+  | .ok () => pure ()
+  | .error message => return .error message
   let current := path root
   Loam.WriterOwnership.withOwnership current do
     if !(← current.pathExists) then
@@ -348,6 +372,9 @@ long-term history mechanism.
 -/
 def restorePrevious?
     (root : System.FilePath) : IO (Except String Generation) := do
+  match requireCurrentWriter root with
+  | .ok () => pure ()
+  | .error message => return .error message
   let current := path root
   Loam.WriterOwnership.withOwnership current do
     let previous := previousPath root
